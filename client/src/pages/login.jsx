@@ -1,27 +1,43 @@
 import { useState } from "react";
-import "./login.css";
+import axios from "axios";
+import "./Login.css";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    console.log({
-      email,
-      password,
-    });
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          email,
+          password,
+        }
+      );
+
+      alert(response.data.message);
+
+    } catch (error) {
+      console.log(error);
+
+      if (error.response) {
+        alert(error.response.data.message);
+      } else {
+        alert("Server Not Running");
+      }
+    }
   };
 
   return (
     <div className="login-page">
-
       <div className="login-card">
 
         <img
           src="/miarcus.png"
-          alt="Miarcus Logo"
+          alt="Miarcus"
           className="logo"
         />
 
@@ -36,6 +52,7 @@ function Login() {
             placeholder="Enter Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
 
           <label>Password</label>
@@ -45,6 +62,7 @@ function Login() {
             placeholder="Enter Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
 
           <button type="submit">
@@ -52,17 +70,12 @@ function Login() {
           </button>
 
         </form>
-
-        <p className="forgot">
-          Forgot Password?
+        <p className="forgot-password">
+          <a href="/forgot-password">Forgot Password?</a>
         </p>
-
-        <p className="footer">
-          Miarcus Portal
-        </p>
+        <p className="footer">&copy; 2026 miarcus.all rights reserved.</p>
 
       </div>
-
     </div>
   );
 }
