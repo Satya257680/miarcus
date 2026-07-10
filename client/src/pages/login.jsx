@@ -21,11 +21,15 @@ function Login() {
         }
       );
 
-     alert(response.data.message);
+     console.log("1");
 
-    setTimeout(() => {
-    navigate("/dashboard");
-      }, 100);
+alert(response.data.message);
+
+console.log("2");
+
+navigate("/dashboard");
+
+console.log("3");
     } catch (error) {
       console.log(error);
 
