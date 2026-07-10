@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import "./Login.css";
+import "./login.css";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -18,8 +21,11 @@ function Login() {
         }
       );
 
-      alert(response.data.message);
+     alert(response.data.message);
 
+    setTimeout(() => {
+    navigate("/dashboard");
+      }, 100);
     } catch (error) {
       console.log(error);
 
@@ -37,7 +43,7 @@ function Login() {
 
         <img
           src="/miarcus.png"
-          alt="Miarcus"
+          alt="Miarcus Logo"
           className="logo"
         />
 
@@ -70,10 +76,16 @@ function Login() {
           </button>
 
         </form>
+
         <p className="forgot-password">
-          <a href="/forgot-password">Forgot Password?</a>
+          <Link to="/forgot-password">
+            Forgot Password?
+          </Link>
         </p>
-        <p className="footer">&copy; 2026 miarcus.all rights reserved.</p>
+
+        <p className="footer">
+          © 2026 Miarcus. All rights reserved.
+        </p>
 
       </div>
     </div>
