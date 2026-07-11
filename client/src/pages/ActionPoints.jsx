@@ -1,4 +1,8 @@
-import "./ActionPoints.css";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+import "../styles/ActionPoints.css";
+
 import {
   FaPlusSquare,
   FaDownload,
@@ -7,8 +11,34 @@ import {
 } from "react-icons/fa";
 
 function ActionPoints() {
+
+  const [stores, setStores] = useState([]);
+
+  useEffect(() => {
+    fetchStores();
+  }, []);
+
+  const fetchStores = async () => {
+    try {
+
+      const res = await axios.get(
+        "http://localhost:5000/api/stores"
+      );
+
+      setStores(res.data);
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+  };
+
   return (
+
     <div className="action-page">
+
+      {/* ================= Filter Card ================= */}
 
       <div className="action-card">
 
@@ -20,33 +50,76 @@ function ActionPoints() {
 
         <div className="filter-row">
 
-          <select>
-            <option>All Stores/Locations</option>
-          </select>
+          {/* Stores */}
 
           <select>
-            <option>All Departments</option>
+
+            <option value="">
+              All Stores/Locations
+            </option>
+
+            {stores.map((store) => (
+
+              <option
+                key={store.id}
+                value={store.id}
+              >
+                {store.store_name} ({store.store_code})
+              </option>
+
+            ))}
+
           </select>
 
-          <select>
-            <option>All Statuses</option>
-          </select>
+          {/* Departments */}
 
           <select>
-            <option>All Checklist Types</option>
+
+            <option>
+              All Departments
+            </option>
+
           </select>
+
+          {/* Status */}
+
+          <select>
+
+            <option>
+              All Statuses
+            </option>
+
+          </select>
+
+          {/* Checklist */}
+
+          <select>
+
+            <option>
+              All Checklist Types
+            </option>
+
+          </select>
+
+          {/* Start Date */}
 
           <div className="date-group">
 
-            <label>Start Date:</label>
+            <label>
+              Start Date
+            </label>
 
             <input type="date" />
 
           </div>
 
+          {/* End Date */}
+
           <div className="date-group">
 
-            <label>End Date:</label>
+            <label>
+              End Date
+            </label>
 
             <input type="date" />
 
@@ -54,7 +127,7 @@ function ActionPoints() {
 
         </div>
 
-        {/* ================= Bottom ================= */}
+        {/* ================= Search & Buttons ================= */}
 
         <div className="bottom-row">
 
@@ -101,7 +174,42 @@ function ActionPoints() {
 
       </div>
 
+      {/* ================= Table ================= */}
+
+      <div className="table-container">
+
+        <table className="action-table">
+
+          <thead>
+
+            <tr>
+
+              
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            <tr>
+
+              <td
+                colSpan="13"
+                className="no-data"
+              >
+                No Action Points Found
+              </td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
     </div>
+
   );
 }
 

@@ -1,0 +1,153 @@
+/* ================= Action Page ================= */
+
+.action-page{
+    width:100%;
+    padding:20px;
+    background:#edf3f5;
+}
+
+/* ================= Main Card ================= */
+
+.action-card{
+    background:#fff;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 5px 15px rgba(0,0,0,.08);
+    margin-bottom:20px;
+}
+
+/* ================= Title ================= */
+
+.title{
+    font-size:22px;
+    color:#8c7bd6;
+    margin-bottom:25px;
+    font-weight:700;
+}
+
+/* ================= Filters ================= */
+
+.filter-row{
+    display:grid;
+    grid-template-columns:
+        repeat(4,1fr)
+        180px
+        180px;
+    gap:15px;
+    align-items:end;
+    margin-bottom:18px;
+}
+
+.filter-row select,
+.filter-row input{
+    width:100%;
+    height:44px;
+    border:1px solid #d6d6d6;
+    border-radius:8px;
+    padding:0 12px;
+    font-size:15px;
+    background:#fff;
+    outline:none;
+}
+
+.filter-row select:focus,
+.filter-row input:focus{
+    border-color:#8c7bd6;
+}
+
+/* ================= Date ================= */
+
+.date-group{
+    display:flex;
+    flex-direction:column;
+}
+
+.date-group label{
+    font-size:14px;
+    font-weight:600;
+    color:#333;
+    margin-bottom:6px;
+}
+
+/* ================= Bottom Row ================= */
+
+.bottom-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+/* ================= Search ================= */
+
+.search-box{
+    flex:1;
+    height:46px;
+    border:1px solid #d6d6d6;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    padding:0 15px;
+    background:#fff;
+}
+
+.search-box svg{
+    color:#888;
+    margin-right:10px;
+}
+
+.search-box input{
+    flex:1;
+    border:none;
+    outline:none;
+    font-size:15px;
+    background:transparent;
+}
+
+/* ================= Buttons ================= */
+
+.button-group{
+    display:flex;
+    gap:12px;
+}
+
+.button-group button{
+    height:42px;
+    padding:0 20px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s;
+}
+
+.create-btn{
+    background:#8c7bd6;
+    color:#fff;
+}
+
+.export-btn{
+    background:#fff;
+    color:#8c7bd6;
+    border:2px solid #8c7bd6 !important;
+}
+
+.clear-btn{
+    background:#fff;
+    color:#8c7bd6;
+    border:2px solid #8c7bd6 !important;
+}
+
+.create-btn:hover{
+    background:#7562c8;
+}
+
+.export-btn:hover,
+.clear-btn:hover{
+    background:#f6f4ff;
+}
