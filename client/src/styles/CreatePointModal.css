@@ -1,0 +1,141 @@
+.modal-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(0,0,0,.4);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:9999;
+
+}
+
+.create-modal{
+
+    width:650px;
+
+    max-height:90vh;
+
+    overflow-y:auto;
+
+    background:white;
+
+    border-radius:15px;
+
+    padding:30px;
+
+}
+
+.create-modal h2{
+
+    color:#9283d7;
+
+    margin-bottom:25px;
+
+}
+
+.create-modal form{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:18px;
+
+}
+
+.create-modal input,
+.create-modal select,
+.create-modal textarea{
+
+    width:100%;
+
+    padding:14px;
+
+    border:1px solid #ddd;
+
+    border-radius:10px;
+
+    font-size:16px;
+
+}
+
+.sla-row{
+
+    display:flex;
+
+    gap:15px;
+
+}
+
+.sla-row input{
+
+    flex:1;
+
+}
+
+.sla-row select{
+
+    width:180px;
+
+}
+
+.upload-label{
+
+    font-weight:600;
+
+}
+
+.modal-buttons{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:15px;
+
+    margin-top:10px;
+
+}
+
+.cancel-btn{
+
+    background:#ddd;
+
+    border:none;
+
+    padding:12px 28px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+}
+
+.save-btn{
+
+    background:#9b8adb;
+
+    color:white;
+
+    border:none;
+
+    padding:12px 28px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+}
+
+.save-btn:hover{
+
+    background:#8b79d3;
+
+}
