@@ -5,9 +5,17 @@
     font-family:Arial, Helvetica, sans-serif;
 }
 
+html,
 body{
-    background:#edf3f5;
+    width:100%;
+    height:100%;
     overflow:hidden;
+    background:#edf3f5;
+}
+
+#root{
+    width:100%;
+    height:100%;
 }
 
 /* ================= Dashboard ================= */
@@ -16,8 +24,8 @@ body{
     display:flex;
     width:100%;
     height:100vh;
-    overflow:hidden;
     background:#edf3f5;
+    overflow:hidden;
 }
 
 /* ================= Sidebar ================= */
@@ -34,13 +42,11 @@ body{
     flex-direction:column;
     justify-content:space-between;
 
-    transition:.35s;
-
     overflow:hidden;
 
-}
+    transition:.35s;
 
-/* Collapse */
+}
 
 .dashboard.collapsed .sidebar{
 
@@ -49,8 +55,6 @@ body{
 
 }
 
-/* Sidebar Top */
-
 .sidebar-top{
 
     flex:1;
@@ -58,15 +62,11 @@ body{
 
 }
 
-/* Sidebar Bottom */
-
 .sidebar-bottom{
 
     padding:10px 0;
 
 }
-
-/* Scroll */
 
 .sidebar-top::-webkit-scrollbar{
 
@@ -80,154 +80,113 @@ body{
     border-radius:20px;
 
 }
-
 /* ================= Menu ================= */
 
 .menu{
-
     list-style:none;
     padding:10px 0;
-
 }
 
 .menu li{
-
     display:flex;
     align-items:center;
     gap:15px;
-
     padding:15px 22px;
-
     cursor:pointer;
-
     color:#2f3e46;
-
-    transition:.3s;
-
     font-size:15px;
-
+    transition:.3s;
 }
 
 .menu li:hover{
-
-    background:white;
-
+    background:#fff;
 }
 
 .menu li svg{
-
     min-width:22px;
     font-size:18px;
-
 }
 
 .active{
-
-    background:white;
-
+    background:#fff;
     border-left:5px solid #3f6b78;
-
     font-weight:bold;
-
 }
 
 /* Sidebar Collapse */
 
 .dashboard.collapsed .menu span{
-
     display:none;
-
 }
 
 .dashboard.collapsed .menu li{
-
     justify-content:center;
     padding:15px 0;
-
 }
 
 .dashboard.collapsed .menu li svg{
-
     margin:0;
     font-size:22px;
-
 }
 
 /* Logout */
 
 .logout{
-
     margin:10px;
-
     background:#e53935;
-
-    color:white;
-
+    color:#fff;
     border-radius:10px;
-
     justify-content:center;
-
 }
 
 .logout:hover{
-
     background:#c62828;
-
 }
 
-/* Sidebar Animation */
-
-.sidebar,
-.menu li{
-
-    transition:.3s;
-
+.menu-link{
+    display:block;
+    text-decoration:none;
+    color:inherit;
 }
+
 /* ================= Main ================= */
 
 .main{
     flex:1;
     display:flex;
     flex-direction:column;
+    height:100vh;
     overflow:hidden;
     background:#edf3f5;
 }
-
-/* ================= Top Navbar ================= */
+/* ================= Navbar ================= */
 
 .navbar{
 
-    position:relative;
-
     height:72px;
+    flex-shrink:0;
 
     background:#b7d7df;
 
     display:flex;
+    justify-content:space-between;
     align-items:center;
-    justify-content:center;
 
-    padding:0 25px;
+    padding:0 20px;
 
-    flex-shrink:0;
-
+    position:sticky;
+    top:0;
+    z-index:100;
 }
 
-/* ================= Left ================= */
+/* Left */
 
 .navbar-left{
-
-    position:absolute;
-
-    left:20px;
-
-    top:50%;
-
-    transform:translateY(-50%);
-
+    display:flex;
+    align-items:center;
 }
 
-/* ================= Menu ================= */
+/* Menu Button */
 
 .menu-btn{
 
@@ -235,10 +194,9 @@ body{
     height:48px;
 
     border:none;
-
     border-radius:12px;
 
-    background:white;
+    background:#fff;
 
     display:flex;
     justify-content:center;
@@ -247,49 +205,36 @@ body{
     cursor:pointer;
 
     font-size:22px;
-
     color:#2f3e46;
-
-    transition:.3s;
 
 }
 
 .menu-btn:hover{
-
     background:#edf3f5;
-
 }
 
-/* ================= Center ================= */
+/* Center */
 
 .navbar-center{
 
+    flex:1;
+
     display:flex;
     justify-content:center;
-    align-items:center;
-
 }
 
 .navbar-logo{
 
-    width:80px;
-    height:80px;
+    width:70px;
+    height:70px;
 
     object-fit:contain;
 
 }
 
-/* ================= Right ================= */
+/* Right */
 
 .navbar-right{
-
-    position:absolute;
-
-    right:20px;
-
-    top:50%;
-
-    transform:translateY(-50%);
 
     display:flex;
     align-items:center;
@@ -298,7 +243,7 @@ body{
 
 }
 
-/* ================= Notification ================= */
+/* Notification */
 
 .notification-btn{
 
@@ -308,10 +253,9 @@ body{
     height:46px;
 
     border:none;
-
     border-radius:50%;
 
-    background:white;
+    background:#fff;
 
     display:flex;
     justify-content:center;
@@ -321,48 +265,41 @@ body{
 
     font-size:20px;
 
-    color:#2f3e46;
-
 }
 
 .notify-count{
 
     position:absolute;
 
-    top:-6px;
-    right:-6px;
+    top:-5px;
+    right:-5px;
 
     background:red;
-
-    color:white;
+    color:#fff;
 
     border-radius:20px;
 
     padding:2px 6px;
 
     font-size:10px;
-
     font-weight:bold;
 
 }
 
-/* ================= Logout ================= */
+/* Logout */
 
 .logout-btn{
 
     border:none;
 
     background:#e53935;
-
-    color:white;
+    color:#fff;
 
     padding:10px 18px;
 
     border-radius:10px;
 
     cursor:pointer;
-
-    font-size:14px;
 
     font-weight:bold;
 
@@ -374,32 +311,29 @@ body{
 
 }
 
-/* Remove old header */
-
 .topbar{
-
     display:none;
-
 }
 /* ================= Content ================= */
 
 .content{
-
     flex:1;
-
-    overflow:auto;
-
-    background:#edf3f5;
-
-    padding:30px;
-
+    overflow-y:auto;
+    padding:20px;
+    margin:0;
 }
 
-/* Scroll */
+/* Right Side Scrollbar */
 
 .content::-webkit-scrollbar{
 
     width:8px;
+
+}
+
+.content::-webkit-scrollbar-track{
+
+    background:#edf3f5;
 
 }
 
@@ -411,6 +345,12 @@ body{
 
 }
 
+.content::-webkit-scrollbar-thumb:hover{
+
+    background:#7f9ea6;
+
+}
+
 /* ================= Welcome Card ================= */
 
 .welcome-card{
@@ -419,11 +359,11 @@ body{
 
     min-height:220px;
 
-    background:white;
+    background:#fff;
 
     border-radius:20px;
 
-    padding:45px;
+    padding:40px;
 
     box-shadow:0 8px 18px rgba(0,0,0,.08);
 
@@ -449,35 +389,7 @@ body{
 
 }
 
-/* ================= Buttons ================= */
-
-button{
-
-    transition:.3s;
-
-}
-
-button:hover{
-
-    opacity:.95;
-
-}
-
-/* ================= Smooth Animation ================= */
-
-.sidebar,
-.main,
-.navbar,
-.menu-btn,
-.notification-btn,
-.logout-btn,
-.menu li{
-
-    transition:.3s;
-
-}
-
-/* ================= Cards (Future Dashboard) ================= */
+/* ================= Dashboard Cards ================= */
 
 .dashboard-grid{
 
@@ -485,7 +397,7 @@ button:hover{
 
     display:grid;
 
-    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
 
     gap:20px;
 
@@ -493,7 +405,7 @@ button:hover{
 
 .card{
 
-    background:white;
+    background:#fff;
 
     border-radius:15px;
 
@@ -518,6 +430,35 @@ button:hover{
     font-size:15px;
 
 }
+
+/* ================= Buttons ================= */
+
+button{
+
+    transition:.3s;
+
+}
+
+button:hover{
+
+    opacity:.95;
+
+}
+
+/* ================= Animation ================= */
+
+.sidebar,
+.main,
+.navbar,
+.menu-btn,
+.notification-btn,
+.logout-btn,
+.menu li,
+.card{
+
+    transition:.3s;
+
+}
 /* ================= Tablet ================= */
 
 @media (max-width:1024px){
@@ -532,13 +473,21 @@ button:hover{
         min-width:75px;
     }
 
+    .navbar{
+        padding:0 15px;
+    }
+
     .navbar-logo{
-        width:65px;
-        height:65px;
+        width:60px;
+        height:60px;
+    }
+
+    .logout-btn{
+        padding:10px 16px;
     }
 
     .welcome-card{
-        padding:35px;
+        padding:30px;
     }
 
 }
@@ -547,6 +496,7 @@ button:hover{
 
 @media (max-width:768px){
 
+    html,
     body{
         overflow:auto;
     }
@@ -568,77 +518,45 @@ button:hover{
 
     .main{
         width:100%;
+        height:auto;
     }
 
     .navbar{
-
         height:65px;
-
         padding:0 15px;
-
-    }
-
-    .navbar-left{
-
-        left:15px;
-
-    }
-
-    .navbar-right{
-
-        right:15px;
-
-        gap:10px;
-
     }
 
     .navbar-logo{
-
-        width:55px;
-        height:55px;
-
+        width:50px;
+        height:50px;
     }
 
     .menu-btn,
     .notification-btn{
-
         width:40px;
         height:40px;
-
         font-size:18px;
-
     }
 
     .logout-btn{
-
         padding:8px 14px;
-
         font-size:13px;
-
     }
 
     .content{
-
         padding:15px;
-
     }
 
     .welcome-card{
-
         padding:25px;
-
     }
 
     .welcome-card h1{
-
-        font-size:32px;
-
+        font-size:30px;
     }
 
     .welcome-card p{
-
         font-size:16px;
-
     }
 
 }
@@ -648,17 +566,12 @@ button:hover{
 @media (min-width:1400px){
 
     .content{
-
-        padding:40px;
-
+        padding:35px;
     }
 
     .welcome-card{
-
         max-width:1400px;
-
         margin:auto;
-
     }
 
 }
@@ -666,17 +579,12 @@ button:hover{
 /* ================= Focus ================= */
 
 button:focus{
-
     outline:none;
-
 }
 
 /* ================= Selection ================= */
 
 ::selection{
-
     background:#7daab5;
-
-    color:white;
-
+    color:#fff;
 }

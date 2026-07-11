@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+
 import "./Dashboard.css";
 
 import {
@@ -44,10 +46,12 @@ function Dashboard() {
               {!collapsed && <span>Dashboard</span>}
             </li>
 
-            <li>
-              <FaTasks />
-              {!collapsed && <span>Action Points</span>}
-            </li>
+           <Link to="/action-points" className="menu-link">
+  <li>
+    <FaTasks />
+    {!collapsed && <span>ActionPoints</span>}
+  </li>
+</Link>
 
             <li>
               <FaBullhorn />
