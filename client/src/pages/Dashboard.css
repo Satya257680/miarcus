@@ -7,35 +7,33 @@
 
 body{
     background:#edf3f5;
-    overflow:hidden;
 }
 
-/* =============== Layout =============== */
+/* Layout */
 
 .dashboard{
     display:flex;
     height:100vh;
+    background:#edf3f5;
 }
 
-/* =============== Sidebar =============== */
+/* Sidebar */
 
 .sidebar{
     width:270px;
     background:#b7d7df;
-    border-right:1px solid #9db9bf;
     display:flex;
     flex-direction:column;
     justify-content:space-between;
+    border-right:2px solid #9db9bf;
 }
 
 .sidebar-top{
-    flex:1;
     overflow-y:auto;
 }
 
 .sidebar-bottom{
-    border-top:1px solid #9db9bf;
-    padding:8px 0;
+    border-top:2px solid #9db9bf;
 }
 
 .menu{
@@ -47,24 +45,17 @@ body{
     display:flex;
     align-items:center;
     gap:15px;
-    padding:14px 22px;
-    color:#2f3e46;
+    padding:15px 20px;
     cursor:pointer;
-    font-size:15px;
     transition:.3s;
 }
 
-.menu li svg{
-    font-size:18px;
-    min-width:20px;
-}
-
 .menu li:hover{
-    background:#ffffff;
+    background:white;
 }
 
 .active{
-    background:#ffffff;
+    background:white;
     border-left:5px solid #3f6b78;
     font-weight:bold;
 }
@@ -72,55 +63,40 @@ body{
 .logout{
     margin:10px;
     background:#d9534f;
-    color:#fff !important;
+    color:white;
     border-radius:8px;
     justify-content:center;
-    font-weight:bold;
 }
 
 .logout:hover{
     background:#c9302c;
 }
 
-/* Scroll */
-
-.sidebar-top::-webkit-scrollbar{
-    width:6px;
-}
-
-.sidebar-top::-webkit-scrollbar-thumb{
-    background:#8ca9b0;
-    border-radius:10px;
-}
-
-/* =============== Main =============== */
+/* Main */
 
 .main{
     flex:1;
     display:flex;
     flex-direction:column;
-    background:#f4f6f8;
 }
 
-/* =============== Header =============== */
+/* Header */
 
 .topbar{
-    height:190px;
+    height:130px;
     background:#b7d7df;
-    border-bottom:1px solid #9db9bf;
-
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
-    text-align:center;
+    border-bottom:2px solid #9db9bf;
 }
 
 .logo-img{
-    width:90px;
-    height:90px;
+    width:80px;
+    height:80px;
     object-fit:contain;
-    margin-bottom:10px;
+    display:block;
 }
 
 .welcome-text{
@@ -128,51 +104,49 @@ body{
 }
 
 .welcome-text h2{
-    font-size:28px;
+    margin-top:5px;
     color:#2f3e46;
-    margin-bottom:5px;
+    font-size:26px;
 }
 
 .welcome-text p{
     color:#5a6b73;
-    font-size:15px;
+    font-size:14px;
 }
 
-/* =============== Welcome Card =============== */
+/* Content */
+
+.content{
+    flex:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:30px;
+}
 
 .welcome-card{
-    width:82%;
-    margin:35px auto;
-
-    background:#fff;
-    border:1px solid #d8dde2;
+    width:80%;
+    background:white;
     border-radius:15px;
-
-    padding:45px;
-
-    box-shadow:0 3px 10px rgba(0,0,0,.08);
-
+    padding:50px;
     text-align:center;
+    box-shadow:0 5px 20px rgba(0,0,0,.1);
 }
 
 .welcome-card h1{
     font-size:42px;
+    margin-bottom:15px;
     color:#2f3e46;
-    margin-bottom:12px;
 }
 
 .welcome-card p{
-    font-size:17px;
     color:#666;
+    font-size:18px;
 }
 
-/* =============== Responsive =============== */
+/* Responsive */
 
 @media(max-width:768px){
-
-body{
-    overflow:auto;
-}
 
 .dashboard{
     flex-direction:column;
@@ -180,30 +154,20 @@ body{
 
 .sidebar{
     width:100%;
-    height:auto;
 }
 
 .topbar{
-    height:150px;
+    height:120px;
 }
 
 .logo-img{
-    width:70px;
-    height:70px;
-}
-
-.welcome-text h2{
-    font-size:22px;
+    width:60px;
+    height:60px;
 }
 
 .welcome-card{
     width:95%;
-    margin:20px auto;
-    padding:25px;
-}
-
-.welcome-card h1{
-    font-size:30px;
+    padding:30px;
 }
 
 }
