@@ -7,167 +7,676 @@
 
 body{
     background:#edf3f5;
+    overflow:hidden;
 }
 
-/* Layout */
+/* ================= Dashboard ================= */
 
 .dashboard{
     display:flex;
+    width:100%;
     height:100vh;
+    overflow:hidden;
     background:#edf3f5;
 }
 
-/* Sidebar */
+/* ================= Sidebar ================= */
 
 .sidebar{
+
     width:270px;
+    min-width:270px;
+    height:100vh;
+
     background:#b7d7df;
+
     display:flex;
     flex-direction:column;
     justify-content:space-between;
-    border-right:2px solid #9db9bf;
+
+    transition:.35s;
+
+    overflow:hidden;
+
 }
+
+/* Collapse */
+
+.dashboard.collapsed .sidebar{
+
+    width:80px;
+    min-width:80px;
+
+}
+
+/* Sidebar Top */
 
 .sidebar-top{
+
+    flex:1;
     overflow-y:auto;
+
 }
+
+/* Sidebar Bottom */
 
 .sidebar-bottom{
-    border-top:2px solid #9db9bf;
+
+    padding:10px 0;
+
 }
 
+/* Scroll */
+
+.sidebar-top::-webkit-scrollbar{
+
+    width:6px;
+
+}
+
+.sidebar-top::-webkit-scrollbar-thumb{
+
+    background:#8ca9b0;
+    border-radius:20px;
+
+}
+
+/* ================= Menu ================= */
+
 .menu{
+
     list-style:none;
     padding:10px 0;
+
 }
 
 .menu li{
+
     display:flex;
     align-items:center;
     gap:15px;
-    padding:15px 20px;
+
+    padding:15px 22px;
+
     cursor:pointer;
+
+    color:#2f3e46;
+
     transition:.3s;
+
+    font-size:15px;
+
 }
 
 .menu li:hover{
+
     background:white;
+
+}
+
+.menu li svg{
+
+    min-width:22px;
+    font-size:18px;
+
 }
 
 .active{
+
     background:white;
+
     border-left:5px solid #3f6b78;
+
     font-weight:bold;
+
 }
 
-.logout{
-    margin:10px;
-    background:#d9534f;
-    color:white;
-    border-radius:8px;
+/* Sidebar Collapse */
+
+.dashboard.collapsed .menu span{
+
+    display:none;
+
+}
+
+.dashboard.collapsed .menu li{
+
     justify-content:center;
+    padding:15px 0;
+
+}
+
+.dashboard.collapsed .menu li svg{
+
+    margin:0;
+    font-size:22px;
+
+}
+
+/* Logout */
+
+.logout{
+
+    margin:10px;
+
+    background:#e53935;
+
+    color:white;
+
+    border-radius:10px;
+
+    justify-content:center;
+
 }
 
 .logout:hover{
-    background:#c9302c;
+
+    background:#c62828;
+
 }
 
-/* Main */
+/* Sidebar Animation */
+
+.sidebar,
+.menu li{
+
+    transition:.3s;
+
+}
+/* ================= Main ================= */
 
 .main{
     flex:1;
     display:flex;
     flex-direction:column;
+    overflow:hidden;
+    background:#edf3f5;
 }
 
-/* Header */
+/* ================= Top Navbar ================= */
 
-.topbar{
-    height:130px;
+.navbar{
+
+    position:relative;
+
+    height:72px;
+
     background:#b7d7df;
+
     display:flex;
-    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+
+    padding:0 25px;
+
+    flex-shrink:0;
+
+}
+
+/* ================= Left ================= */
+
+.navbar-left{
+
+    position:absolute;
+
+    left:20px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+}
+
+/* ================= Menu ================= */
+
+.menu-btn{
+
+    width:48px;
+    height:48px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:white;
+
+    display:flex;
     justify-content:center;
     align-items:center;
-    border-bottom:2px solid #9db9bf;
+
+    cursor:pointer;
+
+    font-size:22px;
+
+    color:#2f3e46;
+
+    transition:.3s;
+
 }
 
-.logo-img{
+.menu-btn:hover{
+
+    background:#edf3f5;
+
+}
+
+/* ================= Center ================= */
+
+.navbar-center{
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+}
+
+.navbar-logo{
+
     width:80px;
     height:80px;
+
     object-fit:contain;
-    display:block;
+
 }
 
-.welcome-text{
-    text-align:center;
+/* ================= Right ================= */
+
+.navbar-right{
+
+    position:absolute;
+
+    right:20px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    display:flex;
+    align-items:center;
+
+    gap:15px;
+
 }
 
-.welcome-text h2{
-    margin-top:5px;
-    color:#2f3e46;
-    font-size:26px;
-}
+/* ================= Notification ================= */
 
-.welcome-text p{
-    color:#5a6b73;
-    font-size:14px;
-}
+.notification-btn{
 
-/* Content */
+    position:relative;
 
-.content{
-    flex:1;
+    width:46px;
+    height:46px;
+
+    border:none;
+
+    border-radius:50%;
+
+    background:white;
+
     display:flex;
     justify-content:center;
     align-items:center;
-    padding:30px;
+
+    cursor:pointer;
+
+    font-size:20px;
+
+    color:#2f3e46;
+
 }
 
+.notify-count{
+
+    position:absolute;
+
+    top:-6px;
+    right:-6px;
+
+    background:red;
+
+    color:white;
+
+    border-radius:20px;
+
+    padding:2px 6px;
+
+    font-size:10px;
+
+    font-weight:bold;
+
+}
+
+/* ================= Logout ================= */
+
+.logout-btn{
+
+    border:none;
+
+    background:#e53935;
+
+    color:white;
+
+    padding:10px 18px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:14px;
+
+    font-weight:bold;
+
+}
+
+.logout-btn:hover{
+
+    background:#c62828;
+
+}
+
+/* Remove old header */
+
+.topbar{
+
+    display:none;
+
+}
+/* ================= Content ================= */
+
+.content{
+
+    flex:1;
+
+    overflow:auto;
+
+    background:#edf3f5;
+
+    padding:30px;
+
+}
+
+/* Scroll */
+
+.content::-webkit-scrollbar{
+
+    width:8px;
+
+}
+
+.content::-webkit-scrollbar-thumb{
+
+    background:#9db9bf;
+
+    border-radius:20px;
+
+}
+
+/* ================= Welcome Card ================= */
+
 .welcome-card{
-    width:80%;
+
+    width:100%;
+
+    min-height:220px;
+
     background:white;
-    border-radius:15px;
-    padding:50px;
-    text-align:center;
-    box-shadow:0 5px 20px rgba(0,0,0,.1);
+
+    border-radius:20px;
+
+    padding:45px;
+
+    box-shadow:0 8px 18px rgba(0,0,0,.08);
+
 }
 
 .welcome-card h1{
+
     font-size:42px;
-    margin-bottom:15px;
+
     color:#2f3e46;
+
+    margin-bottom:15px;
+
 }
 
 .welcome-card p{
+
     color:#666;
+
     font-size:18px;
+
+    line-height:28px;
+
 }
 
-/* Responsive */
+/* ================= Buttons ================= */
 
-@media(max-width:768px){
+button{
 
-.dashboard{
-    flex-direction:column;
+    transition:.3s;
+
 }
 
-.sidebar{
-    width:100%;
+button:hover{
+
+    opacity:.95;
+
 }
 
-.topbar{
-    height:120px;
+/* ================= Smooth Animation ================= */
+
+.sidebar,
+.main,
+.navbar,
+.menu-btn,
+.notification-btn,
+.logout-btn,
+.menu li{
+
+    transition:.3s;
+
 }
 
-.logo-img{
-    width:60px;
-    height:60px;
+/* ================= Cards (Future Dashboard) ================= */
+
+.dashboard-grid{
+
+    margin-top:25px;
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+
+    gap:20px;
+
 }
 
-.welcome-card{
-    width:95%;
-    padding:30px;
+.card{
+
+    background:white;
+
+    border-radius:15px;
+
+    padding:25px;
+
+    box-shadow:0 5px 12px rgba(0,0,0,.08);
+
 }
+
+.card h3{
+
+    color:#2f3e46;
+
+    margin-bottom:12px;
+
+}
+
+.card p{
+
+    color:#666;
+
+    font-size:15px;
+
+}
+/* ================= Tablet ================= */
+
+@media (max-width:1024px){
+
+    .sidebar{
+        width:220px;
+        min-width:220px;
+    }
+
+    .dashboard.collapsed .sidebar{
+        width:75px;
+        min-width:75px;
+    }
+
+    .navbar-logo{
+        width:65px;
+        height:65px;
+    }
+
+    .welcome-card{
+        padding:35px;
+    }
+
+}
+
+/* ================= Mobile ================= */
+
+@media (max-width:768px){
+
+    body{
+        overflow:auto;
+    }
+
+    .dashboard{
+        flex-direction:column;
+        height:auto;
+    }
+
+    .sidebar{
+        width:100%;
+        min-width:100%;
+        height:auto;
+    }
+
+    .dashboard.collapsed .sidebar{
+        width:100%;
+    }
+
+    .main{
+        width:100%;
+    }
+
+    .navbar{
+
+        height:65px;
+
+        padding:0 15px;
+
+    }
+
+    .navbar-left{
+
+        left:15px;
+
+    }
+
+    .navbar-right{
+
+        right:15px;
+
+        gap:10px;
+
+    }
+
+    .navbar-logo{
+
+        width:55px;
+        height:55px;
+
+    }
+
+    .menu-btn,
+    .notification-btn{
+
+        width:40px;
+        height:40px;
+
+        font-size:18px;
+
+    }
+
+    .logout-btn{
+
+        padding:8px 14px;
+
+        font-size:13px;
+
+    }
+
+    .content{
+
+        padding:15px;
+
+    }
+
+    .welcome-card{
+
+        padding:25px;
+
+    }
+
+    .welcome-card h1{
+
+        font-size:32px;
+
+    }
+
+    .welcome-card p{
+
+        font-size:16px;
+
+    }
+
+}
+
+/* ================= Large Desktop ================= */
+
+@media (min-width:1400px){
+
+    .content{
+
+        padding:40px;
+
+    }
+
+    .welcome-card{
+
+        max-width:1400px;
+
+        margin:auto;
+
+    }
+
+}
+
+/* ================= Focus ================= */
+
+button:focus{
+
+    outline:none;
+
+}
+
+/* ================= Selection ================= */
+
+::selection{
+
+    background:#7daab5;
+
+    color:white;
 
 }
