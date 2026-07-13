@@ -15,7 +15,17 @@ const getAllActionPoints = (callback) => {
         ORDER BY ap.created_at DESC
     `;
 
-    db.query(sql, callback);
+    db.query(sql, (err, result) => {
+
+        if (err) {
+            console.log("GET ACTION POINTS ERROR:");
+            console.log(err);
+            return callback(err);
+        }
+
+        callback(null, result);
+
+    });
 
 };
 
@@ -39,21 +49,44 @@ const createActionPoint = (data, callback) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(
-        sql,
-        [
-            data.store_id,
-            data.department,
-            data.question,
-            data.sla_value,
-            data.sla_type,
-            data.answer,
-            data.comment,
-            data.attachment,
-            "No Action Taken"
-        ],
-        callback
-    );
+    const values = [
+        data.store_id,
+        data.department,
+        data.question,
+        data.sla_value,
+        data.sla_type,
+        data.answer || "",
+        data.comment || "",
+        data.attachment || "",
+        "No Action Taken"
+    ];
+
+    console.log("==================================");
+    console.log("INSERT SQL");
+    console.log(sql);
+    console.log("VALUES");
+    console.log(values);
+    console.log("==================================");
+
+    db.query(sql, values, (err, result) => {
+
+        if (err) {
+
+            console.log("========== MYSQL ERROR ==========");
+            console.log(err);
+            console.log("=================================");
+
+            return callback(err);
+
+        }
+
+        console.log("========== INSERT SUCCESS ==========");
+        console.log(result);
+        console.log("====================================");
+
+        callback(null, result);
+
+    });
 
 };
 

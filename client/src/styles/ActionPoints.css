@@ -151,3 +151,316 @@
 .clear-btn:hover{
     background:#f6f4ff;
 }
+/* ==========================================
+   PAGE HEADER
+========================================== */
+
+.page-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:25px;
+
+}
+
+.page-header-left h1{
+
+    font-size:34px;
+
+    color:#2f3e46;
+
+    margin-bottom:8px;
+
+}
+
+.page-header-left p{
+
+    color:#666;
+
+    font-size:16px;
+
+}
+
+.header-create-btn{
+
+    background:#4d7cff;
+
+    color:#fff;
+
+    border:none;
+
+    padding:12px 22px;
+
+    border-radius:12px;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    transition:.3s;
+
+}
+
+.header-create-btn:hover{
+
+    background:#3767f0;
+
+}
+
+/* ==========================================
+   FILTER CARD
+========================================== */
+
+.filter-card{
+
+    background:#fff;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    margin-top:25px;
+
+    margin-bottom:25px;
+
+    box-shadow:0 8px 18px rgba(0,0,0,.08);
+
+}
+
+/* ==========================================
+   TOOLBAR
+========================================== */
+
+.action-toolbar{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-top:25px;
+
+    gap:20px;
+
+}
+
+.toolbar-search{
+
+    flex:1;
+
+    display:flex;
+
+    align-items:center;
+
+    background:#f5f7fb;
+
+    border-radius:14px;
+
+    padding:0 18px;
+
+    height:52px;
+
+}
+
+.toolbar-search input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    margin-left:12px;
+
+    font-size:15px;
+
+}
+
+.toolbar-search-icon{
+
+    color:#888;
+
+}
+
+.toolbar-buttons{
+
+    display:flex;
+
+    gap:15px;
+
+}
+
+/* ==========================================
+   TABLE CARD
+========================================== */
+
+.table-card{
+
+    background:#fff;
+
+    border-radius:20px;
+
+    box-shadow:0 8px 18px rgba(0,0,0,.08);
+
+    overflow:hidden;
+
+    margin-top:25px;
+
+}
+
+.table-header{
+
+    padding:20px 25px;
+
+    border-bottom:1px solid #eee;
+
+}
+
+.table-header h2{
+
+    color:#2f3e46;
+
+    margin-bottom:5px;
+
+}
+
+.table-header p{
+
+    color:#777;
+
+}
+
+.table-container{
+
+    overflow:auto;
+
+}
+
+.action-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.action-table thead{
+
+    background:#edf6f8;
+
+}
+
+.action-table th{
+
+    padding:18px;
+
+    text-align:left;
+
+    color:#2f3e46;
+
+}
+
+.action-table td{
+
+    padding:18px;
+
+    border-top:1px solid #eee;
+
+}
+
+.action-table tbody tr:hover{
+
+    background:#f9fbfc;
+
+}
+
+/* ==========================================
+   STATUS
+========================================== */
+
+.status{
+
+    padding:8px 14px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+    font-weight:bold;
+
+}
+
+.pending{
+
+    background:#fff4d6;
+
+    color:#c78600;
+
+}
+
+.completed{
+
+    background:#dff8e6;
+
+    color:#1c8c43;
+
+}
+
+.no-action-taken{
+
+    background:#ffe3e3;
+
+    color:#d62828;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:900px){
+
+    .page-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:20px;
+
+    }
+
+    .action-toolbar{
+
+        flex-direction:column;
+
+        align-items:stretch;
+
+    }
+
+    .toolbar-buttons{
+
+        width:100%;
+
+        justify-content:space-between;
+
+        flex-wrap:wrap;
+
+    }
+
+}

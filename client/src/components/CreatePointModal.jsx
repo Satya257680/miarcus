@@ -1,222 +1,198 @@
 import { useState } from "react";
+import axios from "axios";
 import "../styles/CreatePointModal.css";
 
 function CreatePointModal({ isOpen, onClose, stores = [] }) {
 
-    const [formData, setFormData] = useState({
-        store: "",
+  const [formData, setFormData] = useState({
+    store_id: "",
+    department: "",
+    question: "",
+    sla_value: "",
+    sla_type: "Hours",
+    answer: "",
+    comment: "",
+    attachment: "",
+  });
+
+  if (!isOpen) return null;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+
+    setFormData((prev) => ({
+      ...prev,
+      attachment: file ? file.name : "",
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/action-points",
+        formData
+      );
+
+      alert(res.data.message);
+
+      setFormData({
+        store_id: "",
         department: "",
         question: "",
-        slaValue: "",
-        slaType: "Hours",
+        sla_value: "",
+        sla_type: "Hours",
         answer: "",
         comment: "",
-        attachment: null,
-    });
+        attachment: "",
+      });
 
-    if (!isOpen) return null;
+      onClose();
 
-    const handleChange = (e) => {
+    } catch (err) {
 
-        const { name, value } = e.target;
+      console.log(err);
 
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+      if (err.response) {
+        alert(err.response.data.message);
+      } else {
+        alert("Server Error");
+      }
 
-    };
+    }
+  };
 
-    const handleFile = (e) => {
+  return (
+    <div className="modal-overlay">
 
-        setFormData((prev) => ({
-            ...prev,
-            attachment: e.target.files[0],
-        }));
+      <div className="create-modal">
 
-    };
+        <h2>Create Point</h2>
 
-    const handleSubmit = (e) => {
+        <form onSubmit={handleSubmit}>
 
-        e.preventDefault();
+          <select
+            name="store_id"
+            value={formData.store_id}
+            onChange={handleChange}
+            required
+          >
+            <option value="">Select Store/Location</option>
 
-        console.log(formData);
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.store_name} ({store.store_code})
+              </option>
+            ))}
 
-        // Backend API call will be added next
+          </select>
 
-        onClose();
+          <input
+            type="text"
+            name="question"
+            placeholder="Action Point Question/Description"
+            value={formData.question}
+            onChange={handleChange}
+            required
+          />
 
-    };
+          <select
+            name="department"
+            value={formData.department}
+            onChange={handleChange}
+            required
+          >
+            <option value="">Select Department</option>
 
-    return (
+            <option value="Management">Management</option>
+            <option value="HR">HR</option>
+            <option value="Accounts">Accounts</option>
+            <option value="Sales">Sales</option>
 
-        <div className="modal-overlay">
+          </select>
 
-            <div className="create-modal">
+          <div className="sla-row">
 
-                <h2>Create Point</h2>
+            <input
+              type="number"
+              name="sla_value"
+              placeholder="SLA Value"
+              value={formData.sla_value}
+              onChange={handleChange}
+              required
+            />
 
-                <form onSubmit={handleSubmit}>
+            <select
+              name="sla_type"
+              value={formData.sla_type}
+              onChange={handleChange}
+            >
+              <option value="Hours">Hours</option>
+              <option value="Days">Days</option>
+            </select>
 
-                    {/* Store */}
+          </div>
 
-                    <select
-                        name="store"
-                        value={formData.store}
-                        onChange={handleChange}
-                        required
-                    >
+          <input
+            type="text"
+            name="answer"
+            placeholder="Answer (optional)"
+            value={formData.answer}
+            onChange={handleChange}
+          />
 
-                        <option value="">
-                            Select Store/Location
-                        </option>
+          <textarea
+            rows="4"
+            name="comment"
+            placeholder="Comment (optional)"
+            value={formData.comment}
+            onChange={handleChange}
+          />
 
-                        {stores.map((store) => (
+          <label className="upload-label">
+            Attachment (optional)
+          </label>
 
-                            <option
-                                key={store.id}
-                                value={store.id}
-                            >
-                                {store.store_name} ({store.store_code})
-                            </option>
+          <input
+            type="file"
+            onChange={handleFile}
+          />
 
-                        ))}
+          <div className="modal-buttons">
 
-                    </select>
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
 
-                    {/* Question */}
+            <button
+              type="submit"
+              className="save-btn"
+            >
+              Create Point
+            </button>
 
-                    <input
-                        type="text"
-                        name="question"
-                        placeholder="Action Point Question/Description"
-                        value={formData.question}
-                        onChange={handleChange}
-                        required
-                    />
+          </div>
 
-                    {/* Department */}
+        </form>
 
-                    <select
-                        name="department"
-                        value={formData.department}
-                        onChange={handleChange}
-                        required
-                    >
+      </div>
 
-                        <option value="">
-                            Select Departments
-                        </option>
-
-                        <option value="Management">
-                            Management
-                        </option>
-
-                        <option value="HR">
-                            HR
-                        </option>
-
-                        <option value="Accounts">
-                            Accounts
-                        </option>
-
-                        <option value="Sales">
-                            Sales
-                        </option>
-
-                    </select>
-
-                    {/* SLA */}
-
-                    <div className="sla-row">
-
-                        <input
-                            type="number"
-                            name="slaValue"
-                            placeholder="SLA Value"
-                            value={formData.slaValue}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        <select
-                            name="slaType"
-                            value={formData.slaType}
-                            onChange={handleChange}
-                        >
-
-                            <option value="Hours">
-                                Hours
-                            </option>
-
-                            <option value="Days">
-                                Days
-                            </option>
-
-                        </select>
-
-                    </div>
-
-                    {/* Answer */}
-
-                    <input
-                        type="text"
-                        name="answer"
-                        placeholder="Answer (optional)"
-                        value={formData.answer}
-                        onChange={handleChange}
-                    />
-
-                    {/* Comment */}
-
-                    <textarea
-                        rows="4"
-                        name="comment"
-                        placeholder="Comment (optional)"
-                        value={formData.comment}
-                        onChange={handleChange}
-                    />
-
-                    {/* Attachment */}
-
-                    <label className="upload-label">
-                        Attachment (optional)
-                    </label>
-
-                    <input
-                        type="file"
-                        onChange={handleFile}
-                    />
-
-                    {/* Buttons */}
-
-                    <div className="modal-buttons">
-
-                        <button
-                            type="button"
-                            className="cancel-btn"
-                            onClick={onClose}
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            className="save-btn"
-                        >
-                            Create Point
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-        </div>
-
-    );
-
+    </div>
+  );
 }
 
 export default CreatePointModal;
