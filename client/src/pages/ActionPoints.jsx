@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import Layout from "../components/Layout";
 import CreatePointModal from "../components/CreatePointModal";
 import "../styles/ActionPoints.css";
 
@@ -176,11 +175,7 @@ function ActionPoints() {
 
   });
   return (
-
-<Layout>
-
-<div className="action-page">
-
+  <div className="action-page">
     {/* ================= Filter Card ================= */}
 
     <div className="action-card">
@@ -399,7 +394,7 @@ function ActionPoints() {
     />
 
   </div>
-  </Layout>
+  
 );
 
 }

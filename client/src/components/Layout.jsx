@@ -1,21 +1,23 @@
-import Sidebar from "./Sidebar";
+import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
+import Sidebar from "./Sidebar";
+import "../styles/Layout.css";
 
-function Layout({ children }) {
+function Layout() {
   return (
-    <div className="dashboard">
+    <div className="layout">
 
-      <Sidebar />
+      <Topbar />
 
-      <main className="main">
+      <div className="layout-body">
 
-        <Topbar />
+        <Sidebar />
 
-        <div className="content">
-          {children}
-        </div>
+        <main className="page-content">
+          <Outlet />
+        </main>
 
-      </main>
+      </div>
 
     </div>
   );

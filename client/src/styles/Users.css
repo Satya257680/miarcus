@@ -1,0 +1,319 @@
+/* =========================
+   Users Page
+========================= */
+
+.users-page {
+  padding: 30px;
+  background: #f5f7fb;
+  min-height: 100vh;
+}
+
+/* =========================
+   Header
+========================= */
+
+.users-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8f7bd4;
+  font-size: 32px;
+  margin-bottom: 25px;
+}
+
+.info-icon {
+  color: #8f7bd4;
+  font-size: 18px;
+}
+
+/* =========================
+   Toolbar
+========================= */
+
+.users-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* =========================
+   Search
+========================= */
+
+.search-box {
+  width: 380px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0 15px;
+}
+
+.search-icon {
+  color: #999;
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding-left: 10px;
+  font-size: 15px;
+  background: transparent;
+}
+
+/* =========================
+   Buttons
+========================= */
+
+.btn {
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.primary {
+  background: #8f7bd4;
+  color: #fff;
+}
+
+.primary:hover {
+  background: #7862c7;
+}
+
+.outline {
+  background: white;
+  color: #8f7bd4;
+  border: 2px solid #8f7bd4;
+}
+
+.outline:hover {
+  background: #f2efff;
+}
+
+.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.danger:hover {
+  background: #dc2626;
+}
+
+/* =========================
+   Filters
+========================= */
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.filters select {
+  height: 45px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 15px;
+  background: white;
+}
+
+/* =========================
+   Empty Table
+========================= */
+
+.empty-table {
+  background: white;
+  border-radius: 10px;
+  padding: 60px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .05);
+}
+
+.empty-table h3 {
+  margin-bottom: 10px;
+  color: #444;
+}
+
+.empty-table p {
+  color: #777;
+}
+
+/* =========================
+   Modal
+========================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.add-user-modal {
+  width: 900px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================
+   Header
+========================= */
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 30px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.modal-header p {
+  margin-top: 6px;
+  color: #777;
+}
+
+.close-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: #f4f4f4;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+/* =========================
+   Body
+========================= */
+
+.modal-body {
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.modal-body h3 {
+  margin-bottom: 20px;
+  color: #444;
+}
+
+/* =========================
+   Form
+========================= */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 14px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+  height: 45px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0 12px;
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #8f7bd4;
+}
+
+/* =========================
+   Footer
+========================= */
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 30px;
+  border-top: 1px solid #eee;
+}
+
+.cancel-btn {
+  padding: 12px 24px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.create-btn {
+  padding: 12px 24px;
+  border: none;
+  background: #8f7bd4;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.create-btn:hover {
+  background: #735bc8;
+}
+.section-title{
+    margin-top:35px;
+    margin-bottom:18px;
+    color:#444;
+    font-size:18px;
+    font-weight:600;
+}
+
+.checkbox-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:15px;
+}
+
+.checkbox-grid label{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#fafafa;
+    border:1px solid #ddd;
+    border-radius:8px;
+    padding:12px 15px;
+    cursor:pointer;
+}
+
+.checkbox-grid input{
+    width:18px;
+    height:18px;
+}

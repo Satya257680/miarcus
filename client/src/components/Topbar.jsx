@@ -1,44 +1,68 @@
-import "./Topbar.css";
-import {
-  FaBars,
-  FaBell,
-  FaUserCircle,
-} from "react-icons/fa";
+import { FaBars, FaBell, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
+import { useLocation } from "react-router-dom";
 
-function Topbar({ collapsed, setCollapsed }) {
+import miarcusLogo from "../assets/Miarcus.png";
+import "./Topbar.css";
+
+function Topbar() {
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case "/dashboard":
+        return "Dashboard";
+
+      case "/action-points":
+        return "Action Points";
+
+      case "/checklist":
+        return "Checklist";
+
+      case "/users":
+        return "Users";
+
+      case "/profile":
+        return "Profile";
+
+      default:
+        return "MIARCUS ERP";
+    }
+  };
+
   return (
     <header className="topbar">
 
+      {/* Left */}
       <div className="topbar-left">
-
-        <button
-          className="menu-btn"
-          onClick={() => setCollapsed(!collapsed)}
-        >
+        <button className="menu-btn">
           <FaBars />
         </button>
 
-        <h2>Dashboard</h2>
-
+        
       </div>
 
+      {/* Center */}
+      <img
+          src={miarcusLogo}
+          alt="MIARCUS"
+          className="topbar-logo"
+        />
+      {/* Right */}
       <div className="topbar-right">
 
         <button className="icon-btn">
           <FaBell />
-          <span className="badge">3</span>
         </button>
 
-        <div className="profile">
+        <button className="profile-btn">
+          <FaUserCircle />
+          <span>Profile</span>
+        </button>
 
-          <FaUserCircle className="profile-icon"/>
-
-          <div className="profile-info">
-            <h4>Admin</h4>
-            <p>Administrator</p>
-          </div>
-
-        </div>
+        <button className="logout-btn">
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
 
       </div>
 

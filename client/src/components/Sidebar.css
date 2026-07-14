@@ -1,204 +1,63 @@
-/* ================= Sidebar ================= */
-
-.sidebar{
-    width:270px;
-    height:100vh;
-    background:#b7d7df;
-    border-right:2px solid #9db9bf;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    transition:0.3s ease;
-    overflow:hidden;
+.sidebar {
+    width: 260px;
+    background: #b7d7df;
+    border-right: 1px solid #9fbec6;
+    padding: 20px 0;
+    overflow-y: auto;
 }
 
-/* Collapsed */
-
-.sidebar.collapsed{
-    width:80px;
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
 }
 
-/* ================= Header ================= */
+.menu-item,
+.submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 
-.sidebar-header{
-    height:70px;
-    display:flex;
-    align-items:center;
-    gap:15px;
-    padding:0 20px;
-    border-bottom:2px solid #9db9bf;
+    padding: 14px 20px;
+
+    text-decoration: none;
+    color: #2f4f5a;
+    font-size: 15px;
+
+    transition: 0.25s;
 }
 
-.menu-toggle{
-    width:45px;
-    height:45px;
-    border:none;
-    background:#ffffff;
-    border-radius:10px;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:22px;
-    color:#2f3e46;
-    transition:.3s;
+.menu-item:hover,
+.submenu-item:hover {
+    background: rgba(255,255,255,.45);
 }
 
-.menu-toggle:hover{
-    background:#edf3f5;
+.menu-item.active,
+.submenu-item.active {
+    background: white;
+    color: #0f4c5c;
+    font-weight: 600;
+    border-left: 4px solid #3f6b78;
 }
 
-.sidebar-title{
-    font-size:22px;
-    color:#2f3e46;
-    font-weight:bold;
+.settings-btn {
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    justify-content: space-between;
 }
 
-/* ================= Menu ================= */
-
-.sidebar-menu{
-    flex:1;
-    overflow-y:auto;
+.settings-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-.sidebar-menu ul{
-    list-style:none;
-    padding:10px 0;
+.submenu {
+    margin-left: 18px;
 }
 
-.sidebar-menu li{
-    display:flex;
-    align-items:center;
-    gap:15px;
-    padding:14px 22px;
-    cursor:pointer;
-    color:#2f3e46;
-    transition:.3s;
-    font-size:15px;
-}
-
-.sidebar-menu li:hover{
-    background:#ffffff;
-}
-
-.sidebar-menu li svg{
-    font-size:20px;
-    min-width:24px;
-}
-
-/* Active */
-
-.sidebar-menu li.active{
-    background:#ffffff;
-    border-left:5px solid #3f6b78;
-    font-weight:bold;
-}
-
-/* ================= Footer ================= */
-
-.sidebar-footer{
-    border-top:2px solid #9db9bf;
-    padding:15px;
-}
-
-.profile{
-    display:flex;
-    align-items:center;
-    gap:15px;
-    padding:12px;
-    cursor:pointer;
-    color:#2f3e46;
-    border-radius:10px;
-    transition:.3s;
-}
-
-.profile:hover{
-    background:white;
-}
-
-.profile svg{
-    font-size:22px;
-}
-
-.logout-btn{
-    width:100%;
-    margin-top:12px;
-    border:none;
-    background:#d9534f;
-    color:white;
-    padding:14px;
-    border-radius:10px;
-    cursor:pointer;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:12px;
-    font-size:15px;
-    transition:.3s;
-}
-
-.logout-btn:hover{
-    background:#c9302c;
-}
-
-/* ================= Collapsed ================= */
-
-.sidebar.collapsed .sidebar-title{
-    display:none;
-}
-
-.sidebar.collapsed .sidebar-menu span{
-    display:none;
-}
-
-.sidebar.collapsed .profile span{
-    display:none;
-}
-
-.sidebar.collapsed .logout-btn span{
-    display:none;
-}
-
-.sidebar.collapsed .sidebar-menu li{
-    justify-content:center;
-    padding:15px 0;
-}
-
-.sidebar.collapsed .profile{
-    justify-content:center;
-}
-
-.sidebar.collapsed .logout-btn{
-    justify-content:center;
-}
-
-.sidebar.collapsed .sidebar-menu li svg,
-.sidebar.collapsed .profile svg,
-.sidebar.collapsed .logout-btn svg{
-    margin:0;
-    font-size:22px;
-}
-
-/* ================= Scrollbar ================= */
-
-.sidebar-menu::-webkit-scrollbar{
-    width:6px;
-}
-
-.sidebar-menu::-webkit-scrollbar-thumb{
-    background:#8ca9b0;
-    border-radius:10px;
-}
-
-/* ================= Responsive ================= */
-
-@media(max-width:768px){
-
-.sidebar{
-    position:fixed;
-    left:0;
-    top:0;
-    z-index:1000;
-}
-
+.submenu-item {
+    font-size: 14px;
+    padding: 12px 20px;
 }
