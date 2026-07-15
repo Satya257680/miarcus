@@ -34,47 +34,61 @@ function Topbar({ toggleSidebar }) {
 
   useEffect(() => {
 
-    const loadProfile = () => {
+    const loadProfile = async () => {
+
+      // Load instantly from localStorage
+      const savedName = localStorage.getItem("userName");
+      const savedPhoto = localStorage.getItem("profilePhoto");
+
+      if (savedName) {
+        setUserName(savedName);
+      }
+
+      if (savedPhoto) {
+        setProfileImage(
+          `http://localhost:5000/uploads/${savedPhoto}`
+        );
+      }
 
       if (!userId) return;
 
-      axios
-        .get(`http://localhost:5000/api/profile/user/${userId}`)
-        .then((res) => {
+      try {
 
-          if (res.data.success) {
+        const res = await axios.get(
+          `http://localhost:5000/api/profile/user/${userId}`
+        );
 
-            const user = res.data.user;
+        if (res.data.success) {
 
-            setUserName(user.name || "Profile");
+          const user = res.data.user;
+
+          setUserName(user.name || "Profile");
+
+          localStorage.setItem(
+            "userName",
+            user.name || "Profile"
+          );
+
+          if (user.profile_photo) {
 
             localStorage.setItem(
-              "userName",
-              user.name || "Profile"
+              "profilePhoto",
+              user.profile_photo
             );
 
-            if (user.profile_photo) {
-
-              const imageUrl =
-                `http://localhost:5000/uploads/${user.profile_photo}`;
-
-              setProfileImage(imageUrl);
-
-              localStorage.setItem(
-                "profilePhoto",
-                user.profile_photo
-              );
-
-            } else {
-
-              setProfileImage("");
-
-            }
+            setProfileImage(
+              `http://localhost:5000/uploads/${user.profile_photo}`
+            );
 
           }
 
-        })
-        .catch((err) => console.log(err));
+        }
+
+      } catch (err) {
+
+        console.log(err);
+
+      }
 
     };
 
@@ -114,6 +128,7 @@ function Topbar({ toggleSidebar }) {
   };
 
   return (
+      
 
     <header className="topbar">
 
@@ -159,7 +174,9 @@ function Topbar({ toggleSidebar }) {
 
             }}
           >
+
             <FaBell />
+
           </button>
 
           {showNotifications && (
@@ -194,12 +211,13 @@ function Topbar({ toggleSidebar }) {
                 src={profileImage}
                 alt="Profile"
                 className="topbar-profile-img"
-                onError={() => setProfileImage("")}
               />
 
             ) : (
 
-              <FaUserCircle className="profile-icon" />
+              <FaUserCircle
+                className="profile-icon"
+              />
 
             )}
 
@@ -215,6 +233,7 @@ function Topbar({ toggleSidebar }) {
                 onClick={() => {
 
                   setShowProfile(false);
+
                   navigate("/profile");
 
                 }}
@@ -226,6 +245,7 @@ function Topbar({ toggleSidebar }) {
                 onClick={() => {
 
                   setShowProfile(false);
+
                   setShowLogoutModal(true);
 
                 }}
@@ -243,7 +263,9 @@ function Topbar({ toggleSidebar }) {
 
         <button
           className="logout-btn"
-          onClick={() => setShowLogoutModal(true)}
+          onClick={() =>
+            setShowLogoutModal(true)
+          }
         >
 
           <FaSignOutAlt />
@@ -265,7 +287,9 @@ function Topbar({ toggleSidebar }) {
             <h3>Logout</h3>
 
             <p>
+
               Are you sure you want to logout?
+
             </p>
 
             <div className="logout-actions">
@@ -276,14 +300,18 @@ function Topbar({ toggleSidebar }) {
                   setShowLogoutModal(false)
                 }
               >
+
                 Cancel
+
               </button>
 
               <button
                 className="confirm-btn"
                 onClick={confirmLogout}
               >
+
                 Logout
+
               </button>
 
             </div>
