@@ -1,144 +1,707 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { saveAs } from "file-saver";
 
 import {
   FaSearch,
   FaPlus,
   FaUpload,
   FaTrash,
+  FaInfoCircle,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
 
 function Users() {
 
-  const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState("");
+  // ============================
+  // States
+  // ============================
 
-  // =============================
+  // ============================
+// States
+// ============================
+
+const [users, setUsers] = useState([]);
+
+const [search, setSearch] = useState("");
+
+const [departmentFilter, setDepartmentFilter] =
+  useState("");
+
+const [reportsFilter, setReportsFilter] =
+  useState("");
+
+const [showAddModal, setShowAddModal] =
+  useState(false);
+
+const [selectedUsers, setSelectedUsers] =
+  useState([]);
+
+// NEW STATES
+
+const [showBulkModal, setShowBulkModal] =
+  useState(false);
+
+const [showDeleteModal, setShowDeleteModal] =
+  useState(false);
+
+const [selectedFile, setSelectedFile] =
+  useState(null);
+
+  // ============================
   // Load Users
-  // =============================
+  // ============================
 
-  useEffect(() => {
+useEffect(() => {
+  fetchUsers();
+}, []);
+
+const fetchUsers = async () => {
+
+  try {
+
+    const res = await axios.get(
+      "http://localhost:5000/api/users"
+    );
+
+    setUsers(res.data.users);
+
+  } catch (err) {
+
+    console.log(err);
+
+  }
+
+};
+
+// ============================
+// Export CSV
+// ============================
+
+const exportCSV = () => {
+
+  if (users.length === 0) {
+    alert("No Users Found");
+    return;
+  }
+
+  const headers = [
+    "Employee ID",
+    "Name",
+    "Email",
+    "Department",
+    "Designation",
+    "Reports To",
+    "Status",
+  ];
+
+  const rows = users.map((user) => [
+    user.employee_id || "",
+    user.name || "",
+    user.email || "",
+    user.department || "",
+    user.designation || "",
+    user.reports_to || "",
+    user.status || "",
+  ]);
+
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) => row.join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  saveAs(blob, "Users.csv");
+
+};
+
+// ============================
+// Bulk Upload
+// ============================
+
+const uploadUsers = async () => {
+
+  if (!selectedFile) {
+    alert("Please Select File");
+    return;
+  }
+
+  const formData = new FormData();
+
+  formData.append("file", selectedFile);
+
+  try {
+
+    const res = await axios.post(
+      "http://localhost:5000/api/users/bulk-upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    alert(res.data.message);
+
     fetchUsers();
-  }, []);
 
-  const fetchUsers = async () => {
+    setShowBulkModal(false);
 
-    try {
+    setSelectedFile(null);
 
-      const res = await axios.get(
-        "http://localhost:5000/api/users"
-      );
+  } catch (err) {
 
-      setUsers(res.data.users);
+    console.log(err);
+    alert("Upload Failed");
 
-    } catch (err) {
+  }
 
-      console.log(err);
+};
 
-    }
+// ============================
+// Delete All Users
+// ============================
 
-  };
+const deleteAllUsers = async () => {
 
-  return (
+  try {
 
+    await axios.delete(
+      "http://localhost:5000/api/users/delete-all"
+    );
+
+    alert("Users Deleted Successfully");
+
+    fetchUsers();
+
+    setShowDeleteModal(false);
+
+  } catch (err) {
+
+    console.log(err);
+    alert("Delete Failed");
+
+  }
+
+};
+
+// ============================
+// Dropdown Data
+// ============================
+
+const departments = [
+  "IT",
+  "HR",
+  "Finance",
+  "Accounts",
+  "VM",
+  "ASM",
+  "Inventory",
+];
+
+const reportsTo = [
+  "Admin",
+  "Ajay",
+  "Manager",
+  "Regional Head",
+];
+
+// ============================
+// Search + Filter
+// ============================
+
+const filteredUsers = users.filter((user) => {
+  // your existing filter code
+});
+
+return (
+  
     <div className="users-page">
 
-      {/* Header */}
+      {/* ============================
+          Header
+      ============================ */}
 
       <div className="users-header">
 
-        <h2>Users</h2>
+        <div className="users-title">
 
-        <div className="users-actions">
+          <h2>
+
+            Users
+
+            <FaInfoCircle className="info-icon" />
+
+          </h2>
+
+        </div>
+
+        {/* Toolbar */}
+
+        <div className="users-toolbar">
 
           <div className="search-box">
 
-            <FaSearch />
+            <FaSearch className="search-icon" />
 
             <input
               type="text"
-              placeholder="Search User..."
+              placeholder="Search by name, ID, email..."
               value={search}
-              onChange={(e)=>setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
             />
 
           </div>
 
-          <button className="add-btn">
+          <button
+            className="add-btn"
+            onClick={() =>
+              setShowAddModal(true)
+            }
+          >
             <FaPlus />
             Add User
           </button>
 
-          <button className="export-btn">
-            <FaUpload />
-            Export
-          </button>
+         <button
+  className="export-btn"
+  onClick={exportCSV}
+>
+  <FaUpload />
+  Export
+</button>
 
-          <button className="delete-btn">
-            <FaTrash />
-            Delete
-          </button>
+          <button
+  className="bulk-btn"
+  onClick={() => setShowBulkModal(true)}
+>
+  <FaUpload />
+  Bulk Add
+</button>
+
+          <button
+  className="delete-btn"
+  onClick={() => setShowDeleteModal(true)}
+>
+  <FaTrash />
+  Delete All
+</button>
+
+        </div>
+
+        {/* Filters */}
+
+        <div className="users-filters">
+
+          <select
+            value={departmentFilter}
+            onChange={(e) =>
+              setDepartmentFilter(
+                e.target.value
+              )
+            }
+          >
+
+            <option>All Departments</option>
+
+            {departments.map((dept) => (
+
+              <option key={dept}>
+                {dept}
+              </option>
+
+            ))}
+
+          </select>
+
+          <select
+            value={reportsFilter}
+            onChange={(e) =>
+              setReportsFilter(
+                e.target.value
+              )
+            }
+          >
+
+            <option>All Reports</option>
+
+            {reportsTo.map((person) => (
+
+              <option key={person}>
+                {person}
+              </option>
+
+            ))}
+
+          </select>
 
         </div>
 
       </div>
 
-      {/* Table */}
+      {/* ============================
+          TABLE COMES IN PART-2
+      ============================ */}
+      {/* ============================
+      Users Table
+============================ */}
 
-      <table className="users-table">
+<div className="users-table-wrapper">
 
-        <thead>
+  <table className="users-table">
 
-          <tr>
+    <thead>
 
-            <th>ID</th>
-            <th>Employee ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Department</th>
-            <th>Designation</th>
-            <th>Status</th>
+      <tr>
+
+        <th>
+          <input type="checkbox" />
+        </th>
+
+        <th>Name</th>
+
+        <th>Employee ID</th>
+
+        <th>Email</th>
+
+        <th>Reports To</th>
+
+        <th>Designation</th>
+
+        <th>Status</th>
+
+        <th>Admin</th>
+
+        <th>Actions</th>
+
+      </tr>
+
+    </thead>
+
+    <tbody>
+
+      {filteredUsers.length > 0 ? (
+
+        filteredUsers.map((user) => (
+
+          <tr key={user.id}>
+
+            <td>
+
+              <input
+                type="checkbox"
+                checked={selectedUsers.includes(user.id)}
+                onChange={(e) => {
+
+                  if (e.target.checked) {
+
+                    setSelectedUsers([
+                      ...selectedUsers,
+                      user.id,
+                    ]);
+
+                  } else {
+
+                    setSelectedUsers(
+                      selectedUsers.filter(
+                        (id) => id !== user.id
+                      )
+                    );
+
+                  }
+
+                }}
+              />
+
+            </td>
+
+            <td className="user-name">
+              {user.name}
+            </td>
+
+            <td>
+              {user.employee_id}
+            </td>
+
+            <td>
+              {user.email}
+            </td>
+
+            <td>
+              {user.reports_to || "-"}
+            </td>
+
+            <td>
+              {user.designation || "-"}
+            </td>
+
+            <td>
+
+              <span
+                className={
+                  user.status === "Active"
+                    ? "status-active"
+                    : "status-inactive"
+                }
+              >
+
+                {user.status || "Inactive"}
+
+              </span>
+
+            </td>
+
+            <td>
+
+              {user.is_admin
+                ? "Yes"
+                : "No"}
+
+            </td>
+
+            <td>
+
+              <div className="action-buttons">
+
+                <button
+                  className="edit-btn"
+                >
+                  Edit
+                </button>
+
+                <button
+                  className="disable-btn"
+                >
+                  Disable
+                </button>
+
+                <button
+                  className="remove-btn"
+                >
+                  Delete
+                </button>
+
+              </div>
+
+            </td>
 
           </tr>
 
-        </thead>
+        ))
 
-        <tbody>
+      ) : (
 
-          {users
-            .filter((user)=>
-              user.name
-                ?.toLowerCase()
-                .includes(search.toLowerCase())
-            )
-            .map((user)=>(
+        <tr>
 
-              <tr key={user.id}>
+          <td
+            colSpan="9"
+            className="no-data"
+          >
 
-                <td>{user.id}</td>
+            No Users Found
 
-                <td>{user.employee_id}</td>
+          </td>
 
-                <td>{user.name}</td>
+        </tr>
 
-                <td>{user.email}</td>
+      )}
 
-                <td>{user.department}</td>
+    </tbody>
 
-                <td>{user.designation}</td>
+  </table>
 
-                <td>{user.status}</td>
+</div>
 
-              </tr>
+{/* ============================
+      Pagination
+============================ */}
 
-            ))}
+<div className="users-footer">
 
-        </tbody>
+  <div>
 
-      </table>
+    Showing
 
+    <strong>
+
+      {" "}
+      {filteredUsers.length}
+
+    </strong>
+
+    {" "}Users
+
+  </div>
+
+  <div className="pagination">
+
+    <button>
+
+      Previous
+
+    </button>
+
+    <span>
+
+      Page 1
+
+    </span>
+
+    <button>
+
+      Next
+
+    </button>
+
+  </div>
+
+</div>
+
+{/* ============================
+      Add User Modal
+============================ */}
+
+{showAddModal && (
+
+<div className="modal-overlay">
+
+  <div className="user-modal">
+
+    <h2>Add User</h2>
+
+    <p>
+
+      Add User form will be added
+      in the next step.
+
+    </p>
+
+    <div className="modal-buttons">
+
+      <button
+        className="cancel-btn"
+        onClick={() =>
+          setShowAddModal(false)
+        }
+      >
+
+        Cancel
+
+      </button>
+
+      <button
+        className="save-btn"
+      >
+
+        Save
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+</div>
+
+)}
+{/* ============================
+      Bulk Upload Modal
+============================ */}
+
+{showBulkModal && (
+
+<div className="modal-overlay">
+
+  <div className="user-modal">
+
+    <h2>Bulk Add Users</h2>
+
+    <p>
+      Upload a CSV or Excel file to create users.
+    </p>
+
+    <input
+      type="file"
+      accept=".csv,.xlsx,.xls"
+      onChange={(e) =>
+        setSelectedFile(e.target.files[0])
+      }
+    />
+
+    <div className="modal-buttons">
+
+      <button
+        className="cancel-btn"
+        onClick={() =>
+          setShowBulkModal(false)
+        }
+      >
+        Cancel
+      </button>
+
+      <button
+        className="save-btn"
+        onClick={uploadUsers}
+      >
+        Upload Users
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+)}
+{/* ============================
+      Delete All Modal
+============================ */}
+
+{showDeleteModal && (
+
+<div className="modal-overlay">
+
+  <div className="user-modal">
+
+    <h2>Delete All Users</h2>
+
+    <p>
+      Are you sure you want to delete all users?
+    </p>
+
+    <div className="modal-buttons">
+
+      <button
+        className="cancel-btn"
+        onClick={() =>
+          setShowDeleteModal(false)
+        }
+      >
+        Cancel
+      </button>
+
+      <button
+        className="remove-btn"
+        onClick={deleteAllUsers}
+      >
+        Delete
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+)}
     </div>
 
   );

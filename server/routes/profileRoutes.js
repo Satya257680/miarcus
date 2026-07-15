@@ -7,49 +7,63 @@ const db = require("../config/db");
 /* ===========================
    Upload / Update Profile
 =========================== */
-
 router.post(
   "/upload-photo",
   upload.single("profilePhoto"),
   (req, res) => {
 
+    const userId = req.body.userId;
     const name = req.body.name;
     const employeeId = req.body.employeeId;
 
-    let imageName = null;
-
-    if (req.file) {
-      imageName = req.file.filename;
-    }
-
+    // First get existing photo
     db.query(
-      "UPDATE users SET name=?, employee_id=?, profile_photo=? WHERE id=?",
-      [
-        name,
-        employeeId,
-        imageName,
-        1
-      ],
+      "SELECT profile_photo FROM users WHERE id=?",
+      [userId],
       (err, result) => {
 
         if (err) {
-          console.log(err);
-
           return res.status(500).json({
             success: false,
             message: "Database Error",
-            error: err.message,
           });
         }
 
-        res.json({
-          success: true,
-          message: "Profile Updated Successfully",
-          fileName: imageName,
-          imageUrl: imageName
-            ? `/uploads/${imageName}`
-            : null,
-        });
+        let imageName = result[0]?.profile_photo || null;
+
+        // Replace only if a new photo is uploaded
+        if (req.file) {
+          imageName = req.file.filename;
+        }
+
+        db.query(
+          "UPDATE users SET name=?, employee_id=?, profile_photo=? WHERE id=?",
+          [
+            name,
+            employeeId,
+            imageName,
+            userId
+          ],
+          (err) => {
+
+            if (err) {
+
+              return res.status(500).json({
+                success: false,
+                message: "Database Error",
+              });
+
+            }
+
+            res.json({
+              success: true,
+              message: "Profile Updated Successfully",
+              fileName: imageName,
+              imageUrl: `/uploads/${imageName}`,
+            });
+
+          }
+        );
 
       }
     );
