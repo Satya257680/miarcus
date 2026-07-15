@@ -1,75 +1,173 @@
-body{
-    margin:0;
-    font-family:Arial, Helvetica, sans-serif;
-    background:#f4f4f4;
+/* ===========================
+   Global
+=========================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.login-page{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef3f6;
 }
 
-.login-card{
-    width:370px;
-    background:#fff;
-    padding:35px;
-    border-radius:8px;
-    box-shadow:0 0 10px rgba(0,0,0,.15);
-    text-align:center;
+/* ===========================
+   Login Page
+=========================== */
+
+.login-page {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.logo{
-    width:90px;
-    margin-bottom:15px;
+/* ===========================
+   Login Card
+=========================== */
+
+.login-card {
+    width: 370px;
+    background: #ffffff;
+    padding: 35px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
 }
 
-h2{
-    color:#7469b6;
-    margin-bottom:25px;
+/* ===========================
+   Logo
+=========================== */
+
+.logo-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
 }
 
-label{
-    display:block;
-    text-align:left;
-    margin-bottom:8px;
-    font-size:14px;
-    font-weight:bold;
+.logo {
+    width: 90px;
+    height: auto;
+    display: block;
 }
 
-input{
-    width:100%;
-    padding:12px;
-    margin-bottom:18px;
-    border:1px solid #ccc;
-    border-radius:4px;
-    box-sizing:border-box;
+/* ===========================
+   Heading
+=========================== */
+
+.login-title,
+.login-card h2 {
+    text-align: center;
+    color: #7469b6;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 30px;
 }
 
-button{
-    width:100%;
-    padding:12px;
-    background:#7c6dc7;
-    color:white;
-    border:none;
-    border-radius:4px;
-    font-size:16px;
-    cursor:pointer;
+/* ===========================
+   Labels
+=========================== */
+
+.login-card label {
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
 }
 
-button:hover{
-    background:#6657b5;
+/* ===========================
+   Inputs
+=========================== */
+
+.login-card input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    border: 1px solid #d3d3d3;
+    border-radius: 5px;
+    font-size: 15px;
+    outline: none;
+    transition: 0.3s;
 }
 
-.forgot{
-    margin-top:18px;
-    color:#666;
-    cursor:pointer;
+.login-card input:focus {
+    border-color: #7469b6;
+    box-shadow: 0 0 5px rgba(116, 105, 182, 0.3);
 }
 
-.footer{
-    margin-top:20px;
-    color:#888;
-    font-size:13px;
+/* ===========================
+   Button
+=========================== */
+
+.login-card button {
+    width: 100%;
+    padding: 13px;
+    background: #7c6dc7;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.login-card button:hover {
+    background: #6557b0;
+}
+
+/* ===========================
+   Forgot Password
+=========================== */
+
+.forgot-password {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.forgot-password a {
+    text-decoration: none;
+    color: #222;
+    font-size: 15px;
+}
+
+.forgot-password a:hover {
+    color: #7469b6;
+}
+
+/* ===========================
+   Footer
+=========================== */
+
+.footer {
+    margin-top: 25px;
+    text-align: center;
+    font-size: 13px;
+    color: #888;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media (max-width: 480px) {
+
+    .login-card {
+        width: 90%;
+        padding: 25px;
+    }
+
+    .logo {
+        width: 80px;
+    }
+
+    .login-card h2 {
+        font-size: 22px;
+    }
+
 }

@@ -1,73 +1,303 @@
-import { FaBars, FaBell, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
-import { useLocation } from "react-router-dom";
+import {
+  FaBars,
+  FaBell,
+  FaUserCircle,
+  FaSignOutAlt,
+} from "react-icons/fa";
+
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 import miarcusLogo from "../assets/Miarcus.png";
 import "./Topbar.css";
 
-function Topbar() {
-  const location = useLocation();
+function Topbar({ toggleSidebar }) {
 
-  const getPageTitle = () => {
-    switch (location.pathname) {
-      case "/dashboard":
-        return "Dashboard";
+  const navigate = useNavigate();
 
-      case "/action-points":
-        return "Action Points";
+  const userId = localStorage.getItem("userId");
 
-      case "/checklist":
-        return "Checklist";
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-      case "/users":
-        return "Users";
+  const [profileImage, setProfileImage] = useState("");
 
-      case "/profile":
-        return "Profile";
+  const [userName, setUserName] = useState(
+    localStorage.getItem("userName") || "Profile"
+  );
 
-      default:
-        return "MIARCUS ERP";
-    }
+  // ===========================
+  // Load User Profile
+  // ===========================
+
+  useEffect(() => {
+
+    const loadProfile = () => {
+
+      if (!userId) return;
+
+      axios
+        .get(`http://localhost:5000/api/profile/user/${userId}`)
+        .then((res) => {
+
+          if (res.data.success) {
+
+            const user = res.data.user;
+
+            setUserName(user.name || "Profile");
+
+            localStorage.setItem(
+              "userName",
+              user.name || "Profile"
+            );
+
+            if (user.profile_photo) {
+
+              const imageUrl =
+                `http://localhost:5000/uploads/${user.profile_photo}`;
+
+              setProfileImage(imageUrl);
+
+              localStorage.setItem(
+                "profilePhoto",
+                user.profile_photo
+              );
+
+            } else {
+
+              setProfileImage("");
+
+            }
+
+          }
+
+        })
+        .catch((err) => console.log(err));
+
+    };
+
+    loadProfile();
+
+    window.addEventListener(
+      "profileUpdated",
+      loadProfile
+    );
+
+    return () => {
+
+      window.removeEventListener(
+        "profileUpdated",
+        loadProfile
+      );
+
+    };
+
+  }, [userId]);
+
+  // ===========================
+  // Logout
+  // ===========================
+
+  const confirmLogout = () => {
+
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("employeeId");
+    localStorage.removeItem("profilePhoto");
+
+    sessionStorage.clear();
+
+    navigate("/");
+
   };
 
   return (
+
     <header className="topbar">
 
       {/* Left */}
+
       <div className="topbar-left">
-        <button className="menu-btn">
+
+        <button
+          className="menu-btn"
+          onClick={toggleSidebar}
+        >
           <FaBars />
         </button>
 
-        
       </div>
 
       {/* Center */}
-      <img
+
+      <div className="topbar-center">
+
+        <img
           src={miarcusLogo}
           alt="MIARCUS"
           className="topbar-logo"
         />
+
+      </div>
+
       {/* Right */}
+
       <div className="topbar-right">
 
-        <button className="icon-btn">
-          <FaBell />
-        </button>
+        {/* Notification */}
 
-        <button className="profile-btn">
-          <FaUserCircle />
-          <span>Profile</span>
-        </button>
+        <div className="dropdown">
 
-        <button className="logout-btn">
+          <button
+            className="icon-btn"
+            onClick={() => {
+
+              setShowNotifications(!showNotifications);
+              setShowProfile(false);
+
+            }}
+          >
+            <FaBell />
+          </button>
+
+          {showNotifications && (
+
+            <div className="dropdown-menu">
+
+              <p>No new notifications</p>
+
+            </div>
+
+          )}
+
+        </div>
+
+        {/* Profile */}
+
+        <div className="dropdown">
+
+          <button
+            className="profile-btn"
+            onClick={() => {
+
+              setShowProfile(!showProfile);
+              setShowNotifications(false);
+
+            }}
+          >
+
+            {profileImage ? (
+
+              <img
+                src={profileImage}
+                alt="Profile"
+                className="topbar-profile-img"
+                onError={() => setProfileImage("")}
+              />
+
+            ) : (
+
+              <FaUserCircle className="profile-icon" />
+
+            )}
+
+            <span>{userName}</span>
+
+          </button>
+
+          {showProfile && (
+
+            <div className="dropdown-menu">
+
+              <p
+                onClick={() => {
+
+                  setShowProfile(false);
+                  navigate("/profile");
+
+                }}
+              >
+                My Profile
+              </p>
+
+              <p
+                onClick={() => {
+
+                  setShowProfile(false);
+                  setShowLogoutModal(true);
+
+                }}
+              >
+                Logout
+              </p>
+
+            </div>
+
+          )}
+
+        </div>
+
+        {/* Logout */}
+
+        <button
+          className="logout-btn"
+          onClick={() => setShowLogoutModal(true)}
+        >
+
           <FaSignOutAlt />
+
           <span>Logout</span>
+
         </button>
 
       </div>
 
+      {/* Logout Modal */}
+
+      {showLogoutModal && (
+
+        <div className="logout-overlay">
+
+          <div className="logout-modal">
+
+            <h3>Logout</h3>
+
+            <p>
+              Are you sure you want to logout?
+            </p>
+
+            <div className="logout-actions">
+
+              <button
+                className="cancel-btn"
+                onClick={() =>
+                  setShowLogoutModal(false)
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                className="confirm-btn"
+                onClick={confirmLogout}
+              >
+                Logout
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </header>
+
   );
+
 }
 
 export default Topbar;

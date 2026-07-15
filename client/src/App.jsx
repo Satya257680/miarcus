@@ -9,6 +9,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ActionPoints from "./pages/ActionPoints";
 import Users from "./pages/Users";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -21,11 +22,12 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Private */}
-        <Route path="/" element={<Layout />}>
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="action-points" element={<ActionPoints />} />
-          <Route path="users" element={<Users />} />
-        </Route>
+       <Route path="/" element={<Layout />}>
+  <Route path="dashboard" element={<Dashboard />} />
+  <Route path="action-points" element={<ActionPoints />} />
+  <Route path="users" element={<Users />} />
+  <Route path="profile" element={<Profile />} />
+</Route>
 
       </Routes>
     </BrowserRouter>

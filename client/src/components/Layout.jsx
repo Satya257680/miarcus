@@ -1,19 +1,30 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
+
 import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
+
 import "../styles/Layout.css";
 
 function Layout() {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setCollapsed(!collapsed);
+  };
+
   return (
     <div className="layout">
 
-      <Topbar />
+      <Topbar toggleSidebar={toggleSidebar} />
 
       <div className="layout-body">
 
-        <Sidebar />
+        <Sidebar collapsed={collapsed} />
 
-        <main className="page-content">
+        <main
+          className={`page-content ${collapsed ? "expanded" : ""}`}
+        >
           <Outlet />
         </main>
 

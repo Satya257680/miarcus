@@ -9,50 +9,68 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+const handleLogin = async (e) => {
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        {
-          email,
-          password,
-        }
-      );
+  e.preventDefault();
 
-     console.log("1");
+  try {
 
-alert(response.data.message);
-
-console.log("2");
-
-navigate("/dashboard");
-
-console.log("3");
-    } catch (error) {
-      console.log(error);
-
-      if (error.response) {
-        alert(error.response.data.message);
-      } else {
-        alert("Server Not Running");
+    const response = await axios.post(
+      "http://localhost:5000/api/auth/login",
+      {
+        email,
+        password,
       }
-    }
-  };
+    );
 
+    if (response.data.success) {
+
+      const user = response.data.user;
+
+      // Save logged-in user
+      localStorage.setItem("userId", user.id);
+      localStorage.setItem("userName", user.name);
+      localStorage.setItem("employeeId", user.employee_id || "");
+
+      if (user.profile_photo) {
+        localStorage.setItem(
+          "profilePhoto",
+          user.profile_photo
+        );
+      }
+
+      alert(response.data.message);
+
+      navigate("/dashboard");
+
+    }
+
+  } catch (error) {
+
+    console.log(error);
+
+    if (error.response) {
+      alert(error.response.data.message);
+    } else {
+      alert("Server Not Running");
+    }
+
+  }
+
+};
   return (
     <div className="login-page">
       <div className="login-card">
 
-        <img
-          src="/miarcus.png"
-          alt="Miarcus Logo"
-          className="logo"
-        />
+        <div className="logo-container">
+  <img
+    src="/miarcus.png"
+    alt="Miarcus Logo"
+    className="logo"
+  />
+</div>
 
-        <h2>Master Login</h2>
-
+<h2 className="login-title">Master Login</h2>
         <form onSubmit={handleLogin}>
 
           <label>Email Address</label>

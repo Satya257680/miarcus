@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 
 import {
   FaHome,
@@ -19,32 +19,45 @@ import {
 
 import "./Sidebar.css";
 
-function Sidebar() {
+function Sidebar({ collapsed }) {
+  const location = useLocation();
+
   const [settingsOpen, setSettingsOpen] = useState(true);
 
+  useEffect(() => {
+    if (
+      location.pathname === "/users" ||
+      location.pathname === "/checklist-types" ||
+      location.pathname === "/questions" ||
+      location.pathname === "/departments" ||
+      location.pathname === "/designations" ||
+      location.pathname === "/store-management"
+    ) {
+      setSettingsOpen(true);
+    }
+  }, [location.pathname]);
+
   return (
-    <aside className="sidebar">
-
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <nav>
-
         <NavLink to="/dashboard" className="menu-item">
           <FaHome />
-          <span>Dashboard</span>
+          {!collapsed && <span>Dashboard</span>}
         </NavLink>
 
         <NavLink to="/action-points" className="menu-item">
           <FaTasks />
-          <span>Action Points</span>
+          {!collapsed && <span>Action Points</span>}
         </NavLink>
 
         <NavLink to="/checklist-reports" className="menu-item">
           <FaClipboardList />
-          <span>Checklist Reports</span>
+          {!collapsed && <span>Checklist Reports</span>}
         </NavLink>
 
         <NavLink to="/checklist-submit" className="menu-item">
           <FaClipboardCheck />
-          <span>Checklist Submit</span>
+          {!collapsed && <span>Checklist Submit</span>}
         </NavLink>
 
         {/* Settings */}
@@ -55,17 +68,18 @@ function Sidebar() {
         >
           <div className="settings-left">
             <FaCog />
-            <span>Settings</span>
+            {!collapsed && <span>Settings</span>}
           </div>
 
-          {settingsOpen ? <FaChevronDown /> : <FaChevronRight />}
+          {!collapsed &&
+            (settingsOpen ? <FaChevronDown /> : <FaChevronRight />)}
         </button>
 
-        {settingsOpen && (
+        {settingsOpen && !collapsed && (
           <div className="submenu">
 
             <NavLink
-              to="/settings/checklist-types"
+              to="/checklist-types"
               className="submenu-item"
             >
               <FaListAlt />
@@ -73,7 +87,7 @@ function Sidebar() {
             </NavLink>
 
             <NavLink
-              to="/settings/questions"
+              to="/questions"
               className="submenu-item"
             >
               <FaQuestionCircle />
@@ -81,7 +95,7 @@ function Sidebar() {
             </NavLink>
 
             <NavLink
-              to="/settings/departments"
+              to="/departments"
               className="submenu-item"
             >
               <FaBuilding />
@@ -89,7 +103,7 @@ function Sidebar() {
             </NavLink>
 
             <NavLink
-              to="/settings/designations"
+              to="/designations"
               className="submenu-item"
             >
               <FaUserTie />
@@ -97,7 +111,7 @@ function Sidebar() {
             </NavLink>
 
             <NavLink
-              to="/settings/store-management"
+              to="/store-management"
               className="submenu-item"
             >
               <FaBuilding />
@@ -105,7 +119,7 @@ function Sidebar() {
             </NavLink>
 
             <NavLink
-              to="/settings/users"
+              to="/users"
               className="submenu-item"
             >
               <FaUsers />
@@ -117,11 +131,9 @@ function Sidebar() {
 
         <NavLink to="/profile" className="menu-item">
           <FaUserCircle />
-          <span>Profile</span>
+          {!collapsed && <span>Profile</span>}
         </NavLink>
-
       </nav>
-
     </aside>
   );
 }

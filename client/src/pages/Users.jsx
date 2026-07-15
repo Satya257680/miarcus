@@ -1,238 +1,148 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import {
   FaSearch,
-  FaInfoCircle,
   FaPlus,
   FaUpload,
   FaTrash,
-  FaTimes,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
 
 function Users() {
-  const [showModal, setShowModal] = useState(false);
+
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
+
+  // =============================
+  // Load Users
+  // =============================
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+
+    try {
+
+      const res = await axios.get(
+        "http://localhost:5000/api/users"
+      );
+
+      setUsers(res.data.users);
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
 
   return (
+
     <div className="users-page">
 
       {/* Header */}
 
       <div className="users-header">
-        <h2>
-          Users
-          <FaInfoCircle className="info-icon" />
-        </h2>
-      </div>
 
-      {/* Toolbar */}
+        <h2>Users</h2>
 
-      <div className="users-toolbar">
+        <div className="users-actions">
 
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by name, ID, email..."
-          />
-        </div>
+          <div className="search-box">
 
-        <button
-          className="btn primary"
-          onClick={() => setShowModal(true)}
-        >
-          <FaPlus />
-          Add User
-        </button>
+            <FaSearch />
 
-        <button className="btn outline">
-          <FaUpload />
-          Export
-        </button>
-
-        <button className="btn primary">
-          <FaUpload />
-          Bulk Add
-        </button>
-
-        <button className="btn danger">
-          <FaTrash />
-          Delete All
-        </button>
-
-      </div>
-
-      {/* Filters */}
-
-      <div className="filters">
-
-        <select>
-          <option>Departments...</option>
-        </select>
-
-        <select>
-          <option>Reports To...</option>
-        </select>
-
-      </div>
-
-      {/* Table Placeholder */}
-
-      <div className="empty-table">
-
-        <h3>No Users Found</h3>
-
-        <p>Click "Add User" to create your first user.</p>
-
-      </div>
-
-      {/* ================= Add User Modal ================= */}
-
-      {showModal && (
-
-        <div className="modal-overlay">
-
-          <div className="add-user-modal">
-
-            {/* Header */}
-
-            <div className="modal-header">
-
-              <div>
-
-                <h2>Add User</h2>
-
-                <p>Create a new MIARCUS user account.</p>
-
-              </div>
-
-              <button
-                className="close-btn"
-                onClick={() => setShowModal(false)}
-              >
-                <FaTimes />
-              </button>
-
-            </div>
-
-            {/* Body */}
-
-            {/* Reports To */}
-
-<h3 className="section-title">Reports To</h3>
-
-<div className="form-grid">
-
-  <div className="form-group">
-    <label>Reporting Manager</label>
-    <select>
-      <option>Select Manager</option>
-    </select>
-  </div>
-
-  <div className="form-group">
-    <label>User Role</label>
-    <select>
-      <option>Select Role</option>
-    </select>
-  </div>
-
-</div>
-
-{/* Assigned Departments */}
-
-<h3 className="section-title">Assigned Departments</h3>
-
-<div className="checkbox-grid">
-
-  <label><input type="checkbox" /> Sales</label>
-
-  <label><input type="checkbox" /> HR</label>
-
-  <label><input type="checkbox" /> Accounts</label>
-
-  <label><input type="checkbox" /> Marketing</label>
-
-  <label><input type="checkbox" /> Operations</label>
-
-  <label><input type="checkbox" /> IT</label>
-
-</div>
-
-{/* Designations */}
-
-<h3 className="section-title">Designations</h3>
-
-<div className="checkbox-grid">
-
-  <label><input type="checkbox" /> Manager</label>
-
-  <label><input type="checkbox" /> Team Lead</label>
-
-  <label><input type="checkbox" /> Executive</label>
-
-  <label><input type="checkbox" /> Admin</label>
-
-</div>
-
-{/* Assigned Stores */}
-
-<h3 className="section-title">Assigned Stores</h3>
-
-<div className="checkbox-grid">
-
-  <label><input type="checkbox" /> Store 1</label>
-
-  <label><input type="checkbox" /> Store 2</label>
-
-  <label><input type="checkbox" /> Store 3</label>
-
-  <label><input type="checkbox" /> Store 4</label>
-
-</div>
-
-{/* Account Settings */}
-
-<h3 className="section-title">Account Settings</h3>
-
-<div className="checkbox-grid">
-
-  <label>
-    <input type="checkbox" />
-    Active Account
-  </label>
-
-  <label>
-    <input type="checkbox" />
-    Administrator
-  </label>
-
-</div>
-            {/* Footer */}
-
-            <div className="modal-footer">
-
-              <button
-                className="cancel-btn"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-
-              <button className="create-btn">
-                Create User
-              </button>
-
-            </div>
+            <input
+              type="text"
+              placeholder="Search User..."
+              value={search}
+              onChange={(e)=>setSearch(e.target.value)}
+            />
 
           </div>
 
+          <button className="add-btn">
+            <FaPlus />
+            Add User
+          </button>
+
+          <button className="export-btn">
+            <FaUpload />
+            Export
+          </button>
+
+          <button className="delete-btn">
+            <FaTrash />
+            Delete
+          </button>
+
         </div>
 
-      )}
+      </div>
+
+      {/* Table */}
+
+      <table className="users-table">
+
+        <thead>
+
+          <tr>
+
+            <th>ID</th>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Status</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {users
+            .filter((user)=>
+              user.name
+                ?.toLowerCase()
+                .includes(search.toLowerCase())
+            )
+            .map((user)=>(
+
+              <tr key={user.id}>
+
+                <td>{user.id}</td>
+
+                <td>{user.employee_id}</td>
+
+                <td>{user.name}</td>
+
+                <td>{user.email}</td>
+
+                <td>{user.department}</td>
+
+                <td>{user.designation}</td>
+
+                <td>{user.status}</td>
+
+              </tr>
+
+            ))}
+
+        </tbody>
+
+      </table>
 
     </div>
+
   );
+
 }
 
 export default Users;

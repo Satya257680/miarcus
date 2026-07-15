@@ -1,9 +1,12 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const storeRoutes = require("./routes/storeRoutes");
 const actionPointRoutes = require("./routes/actionPointRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+const userRoutes = require("./routes/userRoutes"); // ✅ NEW
 
 const app = express();
 
@@ -15,12 +18,17 @@ app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
 
-// ================= Routes =================
+// ================= Upload Folder =================
 
-// Home Route
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ================= Home =================
+
 app.get("/", (req, res) => {
     res.send("🚀 Miarcus Backend Running...");
 });
+
+// ================= Routes =================
 
 // Authentication
 app.use("/api/auth", authRoutes);
@@ -30,6 +38,12 @@ app.use("/api/stores", storeRoutes);
 
 // Action Points
 app.use("/api/action-points", actionPointRoutes);
+
+// Profile
+app.use("/api/profile", profileRoutes);
+
+// Users ✅ NEW
+app.use("/api/users", userRoutes);
 
 // ================= 404 =================
 
@@ -48,7 +62,7 @@ app.use((err, req, res, next) => {
 
     res.status(500).json({
         success: false,
-        message: "Internal Server Error",
+        message: err.message || "Internal Server Error",
     });
 });
 
@@ -59,6 +73,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log("================================");
     console.log("🚀 Miarcus Backend Started");
-    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(`🌐 Server Running: http://localhost:${PORT}`);
     console.log("================================");
 });

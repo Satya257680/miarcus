@@ -1,0 +1,403 @@
+/* ===========================
+   Profile Page
+=========================== */
+
+.profile-page{
+    padding:30px;
+    background:#edf3f5;
+    min-height:calc(100vh - 70px);
+}
+
+.profile-heading{
+    font-size:36px;
+    color:#8d7ac8;
+    font-weight:700;
+    margin-bottom:25px;
+}
+
+/* ===========================
+   Card
+=========================== */
+
+.profile-card{
+    background:#fff;
+    border-radius:12px;
+    padding:30px;
+    box-shadow:0 4px 18px rgba(0,0,0,.08);
+}
+
+/* ===========================
+   Photo Section
+=========================== */
+
+.photo-section{
+    margin-bottom:35px;
+}
+
+.photo-section h2{
+    font-size:28px;
+    color:#1d3557;
+    margin-bottom:8px;
+}
+
+.photo-section p{
+    color:#666;
+    font-size:14px;
+    margin-bottom:20px;
+}
+
+.photo-area{
+    display:flex;
+    align-items:center;
+    gap:25px;
+}
+
+.photo-circle{
+    width:110px;
+    height:110px;
+    border-radius:50%;
+    background:#f3f3f3;
+    border:3px solid #ddd;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    overflow:hidden;
+}
+
+.profile-preview{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.photo-circle span{
+    color:#888;
+    font-size:14px;
+}
+
+.upload-btn{
+    background:#8d7ac8;
+    color:#fff;
+    padding:12px 24px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.3s;
+    font-weight:600;
+}
+
+.upload-btn:hover{
+    background:#7464b3;
+}
+
+/* ===========================
+   Grid
+=========================== */
+
+.profile-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:45px;
+    margin-top:20px;
+}
+
+/* ===========================
+   Titles
+=========================== */
+
+.profile-grid h2,
+.stores-section h2{
+    color:#1d3557;
+    font-size:26px;
+    margin-bottom:18px;
+    border-bottom:1px solid #ddd;
+    padding-bottom:8px;
+}
+
+.profile-grid h3{
+    margin-top:25px;
+    margin-bottom:15px;
+    color:#1d3557;
+}
+
+/* ===========================
+   Labels
+=========================== */
+
+.profile-grid label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:600;
+    color:#444;
+}
+
+/* ===========================
+   Inputs
+=========================== */
+
+.profile-grid input{
+    width:100%;
+    padding:12px 15px;
+    border:1px solid #d7d7d7;
+    border-radius:8px;
+    margin-bottom:18px;
+    font-size:15px;
+    transition:.3s;
+}
+
+.profile-grid input:focus{
+    outline:none;
+    border-color:#8d7ac8;
+    box-shadow:0 0 6px rgba(141,122,200,.3);
+}
+
+.profile-grid input:disabled{
+    background:#f5f5f5;
+}
+
+/* ===========================
+   Departments
+=========================== */
+
+.departments-box{
+    height:230px;
+    overflow-y:auto;
+    border:1px solid #ddd;
+    border-radius:8px;
+    background:#fafafa;
+    padding:15px;
+}
+
+.departments-box ul{
+    margin-left:18px;
+}
+
+.departments-box li{
+    margin-bottom:8px;
+    line-height:1.6;
+}
+
+/* ===========================
+   Password
+=========================== */
+
+.password-note{
+    color:#666;
+    font-size:14px;
+    margin-bottom:20px;
+}
+
+.reset-btn{
+    margin-top:10px;
+    float:right;
+    padding:11px 22px;
+    border:2px solid #8d7ac8;
+    border-radius:8px;
+    background:#fff;
+    color:#8d7ac8;
+    cursor:pointer;
+    transition:.3s;
+    font-weight:600;
+}
+
+.reset-btn:hover{
+    background:#8d7ac8;
+    color:#fff;
+}
+/* ===========================
+   Assigned Stores
+=========================== */
+
+.stores-section{
+    margin-top:35px;
+}
+
+.stores-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+    gap:20px;
+}
+
+.stores-header h2{
+    margin:0;
+    color:#1d3557;
+    font-size:26px;
+}
+
+.stores-header input{
+    width:280px;
+    padding:11px 15px;
+    border:1px solid #d7d7d7;
+    border-radius:8px;
+    outline:none;
+    font-size:14px;
+    transition:.3s;
+}
+
+.stores-header input:focus{
+    border-color:#8d7ac8;
+    box-shadow:0 0 5px rgba(141,122,200,.3);
+}
+
+.stores-box{
+    height:420px;
+    overflow-y:auto;
+    border:1px solid #ddd;
+    border-radius:8px;
+    background:#fafafa;
+    padding:15px;
+}
+
+.stores-box ul{
+    list-style:none;
+    padding:0;
+    margin:0;
+}
+
+.stores-box li{
+    padding:10px 12px;
+    border-bottom:1px solid #ececec;
+    font-size:15px;
+    color:#333;
+    transition:.25s;
+}
+
+.stores-box li:last-child{
+    border-bottom:none;
+}
+
+.stores-box li:hover{
+    background:#f2f4f8;
+}
+
+/* ===========================
+   Footer
+=========================== */
+
+.profile-footer{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:30px;
+}
+
+.save-btn{
+    background:#8d7ac8;
+    color:#fff;
+    border:none;
+    padding:12px 28px;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.save-btn:hover{
+    background:#7464b3;
+}
+
+/* ===========================
+   Scrollbars
+=========================== */
+
+.departments-box::-webkit-scrollbar,
+.stores-box::-webkit-scrollbar{
+    width:8px;
+}
+
+.departments-box::-webkit-scrollbar-track,
+.stores-box::-webkit-scrollbar-track{
+    background:#f1f1f1;
+}
+
+.departments-box::-webkit-scrollbar-thumb,
+.stores-box::-webkit-scrollbar-thumb{
+    background:#b8b8b8;
+    border-radius:10px;
+}
+
+.departments-box::-webkit-scrollbar-thumb:hover,
+.stores-box::-webkit-scrollbar-thumb:hover{
+    background:#8d7ac8;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media (max-width:992px){
+
+    .profile-grid{
+        grid-template-columns:1fr;
+        gap:30px;
+    }
+
+    .stores-header{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .stores-header input{
+        width:100%;
+    }
+
+    .photo-area{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .reset-btn{
+        width:100%;
+        float:none;
+    }
+
+    .profile-footer{
+        justify-content:center;
+    }
+
+    .save-btn{
+        width:100%;
+    }
+
+    .stores-box{
+        height:300px;
+    }
+
+}
+/* ===========================
+   Profile Image Preview
+=========================== */
+
+.profile-preview{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    border-radius:50%;
+}
+
+/* Smooth transition */
+
+.photo-circle img{
+    transition:.3s;
+}
+
+.photo-circle img:hover{
+    transform:scale(1.05);
+}
+
+/* Better upload button */
+
+.upload-btn{
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+}
+
+/* Hide file input */
+
+.upload-btn input{
+    display:none;
+}
