@@ -326,10 +326,21 @@ function ActionPoints() {
           <tr>
 
             <th>Date</th>
-            <th>Store</th>
+            <th>Store / Location</th>
             <th>Department</th>
             <th>Question</th>
             <th>Status</th>
+            <th>City</th>
+            <th>State</th>
+            <th>Checklist type</th>
+            <th>Answer</th>
+            <th>Comment</th>
+            <th>Attachment</th>
+            <th>SLA Status</th>
+            <th>Next Action</th>
+            <th>Remarks</th>
+            <th>Action</th>
+            <th>History</th>
 
           </tr>
 
@@ -357,6 +368,8 @@ function ActionPoints() {
 
                 <td>{item.status}</td>
 
+                
+
               </tr>
 
             ))
@@ -381,6 +394,21 @@ function ActionPoints() {
       </table>
 
     </div>
+     {/* ============================
+      Pagination
+============================ */}
+
+<div className="actionpoints-footer">
+  <div>
+    Showing <strong>{actionPoints.length}</strong> Action Points
+  </div>
+
+  <div className="pagination">
+    <button>Previous</button>
+    <span>Page 1</span>
+    <button>Next</button>
+  </div>
+</div>
 
     {/* ================= Modal ================= */}
 

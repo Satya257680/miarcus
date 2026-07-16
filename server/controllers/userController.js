@@ -33,20 +33,27 @@ const getUsers = (req, res) => {
 
 const createUser = (req, res) => {
 
+    console.log("========== CREATE USER ==========");
+    console.log(req.body);
+
     User.addUser(req.body, (err, result) => {
 
         if (err) {
 
+            console.log("DATABASE ERROR:");
             console.log(err);
 
             return res.status(500).json({
                 success: false,
                 message: "Unable to add user",
+                error: err,
             });
 
         }
 
-        res.json({
+        console.log("USER INSERTED SUCCESSFULLY");
+
+        res.status(201).json({
             success: true,
             message: "User added successfully",
         });

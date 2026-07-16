@@ -40,14 +40,26 @@ const addUser = (user, callback) => {
     db.query(
         sql,
         [
-            user.employee_id,
-            user.name,
+            user.employeeId,
+            user.fullName,
             user.email,
             user.password,
-            user.department,
-            user.designation,
-            user.reports_to,
-            user.status,
+
+            Array.isArray(user.departments)
+                ? user.departments.join(", ")
+                : "",
+
+            Array.isArray(user.designations)
+                ? user.designations.join(", ")
+                : "",
+
+            user.reportsTo
+                ? user.reportsTo.name
+                : "",
+
+            user.active
+                ? "Active"
+                : "Inactive",
         ],
         callback
     );
@@ -98,10 +110,7 @@ const bulkInsertUsers = (users, callback) => {
 
 const deleteAllUsers = (callback) => {
 
-    db.query(
-        "DELETE FROM users",
-        callback
-    );
+    db.query("DELETE FROM users", callback);
 
 };
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { saveAs } from "file-saver";
+import AddUserModal from "../components/AddUserModal";
 
 import {
   FaSearch,
@@ -216,7 +217,28 @@ const reportsTo = [
 // ============================
 
 const filteredUsers = users.filter((user) => {
-  // your existing filter code
+
+  const matchesSearch =
+    user.name?.toLowerCase().includes(search.toLowerCase()) ||
+    user.email?.toLowerCase().includes(search.toLowerCase()) ||
+    user.employee_id?.toLowerCase().includes(search.toLowerCase());
+
+  const matchesDepartment =
+    departmentFilter === "" ||
+    departmentFilter === "All Departments" ||
+    user.department === departmentFilter;
+
+  const matchesReports =
+    reportsFilter === "" ||
+    reportsFilter === "All Reports" ||
+    user.reports_to === reportsFilter;
+
+  return (
+    matchesSearch &&
+    matchesDepartment &&
+    matchesReports
+  );
+
 });
 
 return (
@@ -567,50 +589,15 @@ return (
 {/* ============================
       Add User Modal
 ============================ */}
+{/* ============================
+      Add User Modal
+============================ */}
 
 {showAddModal && (
-
-<div className="modal-overlay">
-
-  <div className="user-modal">
-
-    <h2>Add User</h2>
-
-    <p>
-
-      Add User form will be added
-      in the next step.
-
-    </p>
-
-    <div className="modal-buttons">
-
-      <button
-        className="cancel-btn"
-        onClick={() =>
-          setShowAddModal(false)
-        }
-      >
-
-        Cancel
-
-      </button>
-
-      <button
-        className="save-btn"
-      >
-
-        Save
-
-      </button>
-
-    </div>
-
-  </div>
-
-
-</div>
-
+  <AddUserModal
+    onClose={() => setShowAddModal(false)}
+    fetchUsers={fetchUsers}
+  />
 )}
 {/* ============================
       Bulk Upload Modal

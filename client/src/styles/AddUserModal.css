@@ -1,0 +1,1047 @@
+/* =========================
+   Overlay
+========================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* =========================
+   Modal
+========================= */
+
+.add-user-modal {
+  width: 900px;
+  max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+
+/* =========================
+   Header
+========================= */
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.modal-header p {
+  margin-top: 5px;
+  color: #777;
+}
+
+.close-btn {
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.close-btn:hover {
+  background: #ddd;
+}
+
+/* =========================
+   Sections
+========================= */
+
+.section {
+  padding: 25px;
+  border-bottom: 1px solid #eee;
+}
+
+.section h3 {
+  margin-bottom: 18px;
+  color: #444;
+}
+
+/* =========================
+   Form Grid
+========================= */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2,1fr);
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.form-group input,
+.section select,
+.section input[type=text],
+.section input[type=email],
+.section input[type=password] {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.section select:focus {
+  outline: none;
+  border-color: #6c63ff;
+}
+
+/* =========================
+   Checkbox List
+========================= */
+
+.checkbox-list {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(2,1fr);
+  gap: 12px;
+}
+
+.checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* =========================
+   Footer
+========================= */
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 25px;
+}
+
+.cancel-btn {
+  padding: 10px 22px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.create-btn {
+  padding: 10px 22px;
+  border: none;
+  background: #6c63ff;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.create-btn:hover {
+  background: #5548e8;
+}
+
+/* =========================
+   Responsive
+========================= */
+
+@media(max-width:768px){
+
+.form-grid{
+    grid-template-columns:1fr;
+}
+
+.checkbox-list{
+    grid-template-columns:1fr;
+}
+
+.add-user-modal{
+    width:95%;
+}
+
+}
+/* ======================================
+   Profile Card
+====================================== */
+
+.profile-card{
+
+    background:#fff;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:18px;
+
+    padding:28px;
+
+    margin-bottom:30px;
+
+}
+
+.profile-header{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+}
+
+.profile-icon{
+
+    width:42px;
+
+    height:42px;
+
+    background:#F3F0FF;
+
+    border-radius:12px;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    color:#7C5DFA;
+
+}
+
+.profile-header h3{
+
+    margin:0;
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:#111827;
+
+}
+
+.profile-header p{
+
+    margin-top:4px;
+
+    color:#6B7280;
+
+    font-size:14px;
+
+}
+
+.profile-divider{
+
+    height:1px;
+
+    background:#ECECEC;
+
+    margin:22px 0;
+
+}
+
+/* ======================================
+   Grid
+====================================== */
+
+.form-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:20px;
+
+}
+
+.full-width{
+
+    grid-column:1 / -1;
+
+}
+
+.form-group{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.form-group label{
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#374151;
+
+    margin-bottom:8px;
+
+}
+
+.form-group span{
+
+    color:red;
+
+}
+
+.form-group input{
+
+    padding:14px 16px;
+
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    font-size:15px;
+
+}
+
+.form-group input:focus{
+
+    outline:none;
+
+    border-color:#7C5DFA;
+
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+
+}
+
+.form-group input::placeholder{
+
+    color:#9CA3AF;
+
+}
+/* =====================================
+   Reports To Section
+===================================== */
+
+.section {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 25px;
+}
+
+/* Header */
+
+.section-header{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.section-icon{
+    width:44px;
+    height:44px;
+    background:#F3EEFF;
+    color:#7C3AED;
+    border-radius:12px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.section-header h3{
+    margin:0;
+    font-size:24px;
+    font-weight:700;
+    color:#111827;
+}
+
+.section-subtitle{
+    margin-top:4px;
+    color:#6B7280;
+    font-size:14px;
+}
+
+.section-divider{
+    border:none;
+    border-top:1px solid #ECECEC;
+    margin:18px 0 22px;
+}
+
+/* =====================================
+   Dropdown
+===================================== */
+
+.report-dropdown{
+    position:relative;
+}
+
+.report-search-input{
+
+    width:100%;
+    height:54px;
+
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    padding:0 50px 0 16px;
+
+    font-size:15px;
+
+    transition:.2s;
+}
+
+.report-search-input:focus{
+
+    outline:none;
+
+    border-color:#3B82F6;
+
+    box-shadow:0 0 0 3px rgba(59,130,246,.12);
+}
+
+.dropdown-icon{
+
+    position:absolute;
+
+    right:18px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#6B7280;
+
+    cursor:pointer;
+
+    font-size:18px;
+}
+
+/* =====================================
+   Manager List
+===================================== */
+
+.report-list{
+
+    position:absolute;
+
+    top:60px;
+
+    left:0;
+
+    width:100%;
+
+    background:#fff;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:12px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.08);
+
+    max-height:260px;
+
+    overflow-y:auto;
+
+    z-index:999;
+}
+
+.report-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+    padding:14px 16px;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.report-item:hover{
+
+    background:#F8FAFC;
+}
+
+/* Avatar */
+
+.report-avatar{
+
+    width:42px;
+
+    height:42px;
+
+    border-radius:50%;
+
+    background:#7C3AED;
+
+    color:#fff;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    flex-shrink:0;
+}
+
+/* Details */
+
+.report-details{
+
+    display:flex;
+
+    flex-direction:column;
+}
+
+.report-details strong{
+
+    color:#111827;
+
+    font-size:15px;
+
+    font-weight:600;
+}
+
+.report-details small{
+
+    color:#6B7280;
+
+    font-size:13px;
+}
+/* ==========================================
+   Assigned Departments
+========================================== */
+
+.department-top{
+    margin-bottom:18px;
+}
+
+.department-search{
+
+    width:100%;
+    height:50px;
+
+    border:1px solid #D1D5DB;
+    border-radius:10px;
+
+    padding:0 16px;
+
+    font-size:15px;
+
+    transition:.2s;
+}
+
+.department-search:focus{
+
+    outline:none;
+
+    border-color:#7C3AED;
+
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+}
+
+.select-all{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#374151;
+
+    margin-bottom:18px;
+
+    cursor:pointer;
+}
+
+.select-all input{
+
+    width:18px;
+    height:18px;
+
+    accent-color:#7C3AED;
+}
+
+.department-list{
+
+    border:1px solid #E5E7EB;
+
+    border-radius:12px;
+
+    padding:18px;
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:16px;
+
+    max-height:260px;
+
+    overflow-y:auto;
+
+    background:#fff;
+}
+
+.department-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    font-size:15px;
+
+    color:#374151;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.department-item:hover{
+
+    color:#7C3AED;
+}
+
+.department-item input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+}
+
+/* Scrollbar */
+
+.department-list::-webkit-scrollbar{
+
+    width:8px;
+}
+
+.department-list::-webkit-scrollbar-thumb{
+
+    background:#C4B5FD;
+
+    border-radius:20px;
+}
+
+.department-list::-webkit-scrollbar-track{
+
+    background:#F3F4F6;
+}
+
+/* Responsive */
+
+@media(max-width:768px){
+
+.department-list{
+
+    grid-template-columns:1fr;
+
+}
+
+}
+/* =====================================
+   Designations
+===================================== */
+
+.designation-top{
+
+    margin-bottom:18px;
+}
+
+.designation-search{
+
+    width:100%;
+    height:50px;
+
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    padding:0 16px;
+
+    font-size:15px;
+}
+
+.designation-search:focus{
+
+    outline:none;
+
+    border-color:#7C3AED;
+
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+}
+
+.designation-list{
+
+    border:1px solid #E5E7EB;
+
+    border-radius:12px;
+
+    padding:18px;
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:15px;
+
+    max-height:260px;
+
+    overflow-y:auto;
+}
+
+.designation-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+}
+
+.designation-item input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+}
+
+.designation-item:hover{
+
+    color:#7C3AED;
+}
+/* =====================================
+   Assigned Stores
+===================================== */
+
+.store-top{
+
+    margin-bottom:18px;
+
+}
+
+.store-search{
+
+    width:100%;
+
+    height:50px;
+
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    padding:0 16px;
+
+    font-size:15px;
+
+    transition:.2s;
+}
+
+.store-search:focus{
+
+    outline:none;
+
+    border-color:#7C3AED;
+
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+}
+
+.store-list{
+
+    border:1px solid #E5E7EB;
+
+    border-radius:12px;
+
+    padding:18px;
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:15px;
+
+    max-height:260px;
+
+    overflow-y:auto;
+
+    background:#fff;
+}
+
+.store-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    font-size:15px;
+
+    cursor:pointer;
+
+    color:#374151;
+}
+
+.store-item:hover{
+
+    color:#7C3AED;
+
+}
+
+.store-item input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+}
+
+.store-list::-webkit-scrollbar{
+
+    width:8px;
+
+}
+
+.store-list::-webkit-scrollbar-thumb{
+
+    background:#C4B5FD;
+
+    border-radius:20px;
+
+}
+
+.store-list::-webkit-scrollbar-track{
+
+    background:#F3F4F6;
+
+}
+/* =====================================
+   Module Access
+===================================== */
+
+.permission-table{
+
+    border:1px solid #E5E7EB;
+
+    border-radius:14px;
+
+    overflow:hidden;
+
+}
+
+.permission-head{
+
+    display:grid;
+
+    grid-template-columns:
+    2fr
+    repeat(5,1fr);
+
+    background:#F9FAFB;
+
+    font-weight:700;
+
+    color:#374151;
+
+}
+
+.permission-head div{
+
+    padding:16px;
+
+    border-right:1px solid #E5E7EB;
+
+    text-align:center;
+
+}
+
+.permission-head div:first-child{
+
+    text-align:left;
+
+}
+
+.permission-row{
+
+    display:grid;
+
+    grid-template-columns:
+    2fr
+    repeat(5,1fr);
+
+    border-top:1px solid #E5E7EB;
+
+}
+
+.module-name{
+
+    padding:16px;
+
+    font-weight:600;
+
+    color:#374151;
+
+}
+
+.permission-cell{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    border-left:1px solid #E5E7EB;
+
+}
+
+.permission-cell input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+
+}
+/* =====================================
+   Account Settings
+===================================== */
+
+.setting-row{
+
+    margin:18px 0;
+
+}
+
+.setting-row label{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    font-size:16px;
+
+    cursor:pointer;
+
+}
+
+.setting-row input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+
+}
+
+/* Footer */
+
+.modal-footer{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:15px;
+
+    padding:20px 30px;
+
+    border-top:1px solid #E5E7EB;
+
+    background:#fff;
+
+}
+
+.cancel-btn{
+
+    padding:12px 24px;
+
+    border:1px solid #D1D5DB;
+
+    background:white;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+}
+
+.create-btn{
+
+    padding:12px 28px;
+
+    background:#7C3AED;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.create-btn:hover{
+
+    background:#6D28D9;
+
+}
+
+.create-btn:disabled{
+
+    opacity:.7;
+
+    cursor:not-allowed;
+
+}
