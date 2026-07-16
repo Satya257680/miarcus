@@ -57,9 +57,7 @@ const addUser = (user, callback) => {
                 ? user.reportsTo.name
                 : "",
 
-            user.active
-                ? "Active"
-                : "Inactive",
+            user.active ? "Active" : "Inactive",
         ],
         callback
     );
@@ -89,18 +87,82 @@ const bulkInsertUsers = (users, callback) => {
 
     const values = users.map((user) => [
 
-        user.employee_id || "",
-        user.name || "",
-        user.email || "",
-        user.password || "123456",
-        user.department || "",
-        user.designation || "",
-        user.reports_to || "",
-        user.status || "Active",
+        user["Employee ID"] || "",
+        user["Name"] || "",
+        user["Email"] || "",
+        user["Password"] || "123456",
+        user["Department"] || "",
+        user["Designation"] || "",
+        user["Reports To"] || "",
+        user["Status"] || "Active",
 
     ]);
 
     db.query(sql, [values], callback);
+
+};
+
+// ==========================
+// Update User
+// ==========================
+
+const updateUser = (id, user, callback) => {
+
+    const sql = `
+        UPDATE users
+        SET
+            employee_id=?,
+            name=?,
+            email=?,
+            department=?,
+            designation=?,
+            reports_to=?,
+            status=?
+        WHERE id=?
+    `;
+
+    db.query(
+        sql,
+        [
+            user.employeeId,
+            user.fullName,
+            user.email,
+            user.department,
+            user.designation,
+            user.reportsTo,
+            user.status,
+            id,
+        ],
+        callback
+    );
+
+};
+
+// ==========================
+// Disable User
+// ==========================
+
+const disableUser = (id, callback) => {
+
+    db.query(
+        "UPDATE users SET status='Inactive' WHERE id=?",
+        [id],
+        callback
+    );
+
+};
+
+// ==========================
+// Delete User
+// ==========================
+
+const deleteUser = (id, callback) => {
+
+    db.query(
+        "DELETE FROM users WHERE id=?",
+        [id],
+        callback
+    );
 
 };
 
@@ -110,7 +172,27 @@ const bulkInsertUsers = (users, callback) => {
 
 const deleteAllUsers = (callback) => {
 
-    db.query("DELETE FROM users", callback);
+    db.query(
+        "DELETE FROM users",
+        callback
+    );
+
+};
+// ==========================
+// Get User Names
+// ==========================
+
+const getUserNames = (callback) => {
+
+    const sql = `
+        SELECT
+            id,
+            name
+        FROM users
+        ORDER BY name ASC
+    `;
+
+    db.query(sql, callback);
 
 };
 
@@ -122,5 +204,9 @@ module.exports = {
     getAllUsers,
     addUser,
     bulkInsertUsers,
+    updateUser,
+    disableUser,
+    deleteUser,
     deleteAllUsers,
+    getUserNames,
 };

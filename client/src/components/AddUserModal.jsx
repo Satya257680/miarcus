@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/AddUserModal.css";
 import { LuShieldCheck } from "react-icons/lu";
 import { HiUserGroup } from "react-icons/hi2";
 import axios from "axios";
 
-function AddUserModal({ onClose, fetchUsers }) {
+function AddUserModal({
+    onClose,
+    fetchUsers,
+    editingUser,
+}) {
 
   // =========================
   // Profile
@@ -20,28 +24,7 @@ function AddUserModal({ onClose, fetchUsers }) {
   // Reports To
   // =========================
 
- const reportsList = [
-  {
-    id: 1,
-    name: "Aakash Kandera",
-    email: "aakash@gmail.com",
-  },
-  {
-    id: 2,
-    name: "Rahul Sharma",
-    email: "rahul@gmail.com",
-  },
-  {
-    id: 3,
-    name: "Sourav Das",
-    email: "sourav@gmail.com",
-  },
-  {
-    id: 4,
-    name: "Priya Singh",
-    email: "priya@gmail.com",
-  },
-];
+ 
 const departments = [
   "Accounts",
   "ASM",
@@ -156,14 +139,26 @@ const handleCreateUser = async () => {
 
     };
 
-    await axios.post(
-      "http://localhost:5000/api/users",
-      payload
+  if (editingUser) {
+
+    await axios.put(
+        `http://localhost:5000/api/users/${editingUser.id}`,
+        payload
     );
 
+} else {
+
+    await axios.post(
+        "http://localhost:5000/api/users",
+        payload
+    );
+
+}
     alert("User Created Successfully");
 
     fetchUsers();
+
+    await loadReports();
 
     onClose();
 
@@ -298,8 +293,11 @@ const toggleAllDepartments = () => {
 };
 const [departmentSearch, setDepartmentSearch] = useState("");
 const [selectedDepartments, setSelectedDepartments] = useState([]);
-  const [reportSearch, setReportSearch] = useState("");
-  const [selectedReport, setSelectedReport] = useState(null);
+
+const [reportsList, setReportsList] = useState([]);
+
+const [reportSearch, setReportSearch] = useState("");
+const [selectedReport, setSelectedReport] = useState(null);
 
 const [showReportList, setShowReportList] =
   useState(false);
@@ -310,6 +308,59 @@ const [showReportList, setShowReportList] =
 const [isActive, setIsActive] = useState(true);
 const [isAdmin, setIsAdmin] = useState(false);
 const [loading, setLoading] = useState(false);
+useEffect(() => {
+
+    if (!editingUser) return;
+
+    setFullName(editingUser.name || "");
+    setEmployeeId(editingUser.employee_id || "");
+    setEmail(editingUser.email || "");
+    setPassword("");
+
+    setSelectedDepartments(
+        editingUser.department
+            ? editingUser.department.split(", ")
+            : []
+    );
+
+    setSelectedDesignations(
+        editingUser.designation
+            ? editingUser.designation.split(", ")
+            : []
+    );
+
+    setSelectedReport(
+        editingUser.reports_to
+            ? {
+                  name: editingUser.reports_to,
+              }
+            : null
+    );
+
+    setIsActive(
+        editingUser.status === "Active"
+    );
+
+}, [editingUser]);
+useEffect(() => {
+  loadReports();
+}, []);
+
+const loadReports = async () => {
+  try {
+    const res = await axios.get("http://localhost:5000/api/users");
+
+    setReportsList(
+      res.data.users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      }))
+    );
+  } catch (err) {
+    console.log(err);
+  }
+};
   return (
 
     <div className="modal-overlay">
@@ -324,11 +375,17 @@ const [loading, setLoading] = useState(false);
 
           <div>
 
-            <h2>Add User</h2>
+           <h2>
+    {editingUser
+        ? "Edit User"
+        : "Add User"}
+</h2>
 
-            <p>
-              Create the account and assign permissions.
-            </p>
+           <p>
+{editingUser
+    ? "Update user details."
+    : "Create the account and assign permissions."}
+</p>
 
           </div>
 
@@ -462,7 +519,7 @@ const [loading, setLoading] = useState(false);
 
 </div>
 
-     {/* =====================================
+    {/* =====================================
       Reports To
 ===================================== */}
 
@@ -477,13 +534,11 @@ const [loading, setLoading] = useState(false);
     </div>
 
     <div>
-
       <h3>Reports To</h3>
 
       <p className="section-subtitle">
         Choose one or more managers from the list.
       </p>
-
     </div>
 
   </div>
@@ -497,7 +552,7 @@ const [loading, setLoading] = useState(false);
     <input
       type="text"
       className="report-search-input"
-      placeholder="Select managers..."
+      placeholder="Select manager..."
       value={
         selectedReport
           ? selectedReport.name
@@ -526,7 +581,7 @@ const [loading, setLoading] = useState(false);
 
         {reportsList
           .filter((manager) =>
-            manager.name
+            (manager.name || "")
               .toLowerCase()
               .includes(reportSearch.toLowerCase())
           )
@@ -543,7 +598,7 @@ const [loading, setLoading] = useState(false);
             >
 
               <div className="report-avatar">
-                {manager.name.charAt(0)}
+                {(manager.name || "?").charAt(0).toUpperCase()}
               </div>
 
               <div className="report-details">
@@ -557,6 +612,12 @@ const [loading, setLoading] = useState(false);
             </div>
 
           ))}
+
+        {reportsList.length === 0 && (
+          <div className="report-item">
+            No Users Found
+          </div>
+        )}
 
       </div>
 
@@ -992,9 +1053,12 @@ const [loading, setLoading] = useState(false);
   >
 
     {loading
-      ? "Creating..."
-      : "Create User"}
-
+? editingUser
+    ? "Updating..."
+    : "Creating..."
+: editingUser
+    ? "Update User"
+    : "Create User"}
   </button>
 
 </div>

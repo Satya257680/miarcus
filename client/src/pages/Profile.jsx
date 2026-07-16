@@ -10,6 +10,7 @@ function Profile() {
   // ===========================
 
   const userId = localStorage.getItem("userId");
+  console.log("User ID from localStorage:", userId);
 
   // ===========================
   // States
@@ -147,6 +148,8 @@ function Profile() {
 // ===========================
 
 const handleSaveProfile = async () => {
+  console.log("Saving profile...");
+console.log("User ID:", userId);
 
   const formData = new FormData();
 

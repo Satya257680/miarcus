@@ -12,6 +12,8 @@ const getUsers = (req, res) => {
     User.getAllUsers((err, result) => {
 
         if (err) {
+            console.log(err);
+
             return res.status(500).json({
                 success: false,
                 message: "Database Error",
@@ -36,11 +38,11 @@ const createUser = (req, res) => {
     console.log("========== CREATE USER ==========");
     console.log(req.body);
 
-    User.addUser(req.body, (err, result) => {
+    User.addUser(req.body, (err) => {
 
         if (err) {
 
-            console.log("DATABASE ERROR:");
+            console.log("========== DATABASE ERROR ==========");
             console.log(err);
 
             return res.status(500).json({
@@ -85,11 +87,37 @@ const bulkUploadUsers = (req, res) => {
 
         const sheet = workbook.Sheets[sheetName];
 
-        const users = XLSX.utils.sheet_to_json(sheet);
+        const users = XLSX.utils.sheet_to_json(sheet, {
+            defval: "",
+            blankrows: false,
+        });
 
-        User.bulkInsertUsers(users, (err) => {
+        const filteredUsers = users.filter((user) => {
+
+            return (
+                String(user["Employee ID"] || "").trim() !== "" ||
+                String(user["Name"] || "").trim() !== "" ||
+                String(user["Email"] || "").trim() !== ""
+            );
+
+        });
+
+        if (filteredUsers.length === 0) {
 
             fs.unlinkSync(req.file.path);
+
+            return res.status(400).json({
+                success: false,
+                message: "No valid users found in file.",
+            });
+
+        }
+
+        User.bulkInsertUsers(filteredUsers, (err, result) => {
+
+            if (fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
 
             if (err) {
 
@@ -98,13 +126,14 @@ const bulkUploadUsers = (req, res) => {
                 return res.status(500).json({
                     success: false,
                     message: "Bulk upload failed",
+                    error: err.sqlMessage,
                 });
 
             }
 
             res.json({
                 success: true,
-                message: "Users uploaded successfully",
+                message: `${result.affectedRows} users uploaded successfully`,
             });
 
         });
@@ -113,12 +142,100 @@ const bulkUploadUsers = (req, res) => {
 
         console.log(err);
 
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
         res.status(500).json({
             success: false,
             message: "Upload Error",
         });
 
     }
+
+};
+
+// ==========================
+// Update User
+// ==========================
+
+const updateUser = (req, res) => {
+
+    User.updateUser(req.params.id, req.body, (err) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Update Failed",
+            });
+
+        }
+
+        res.json({
+            success: true,
+            message: "User Updated Successfully",
+        });
+
+    });
+
+};
+
+// ==========================
+// Disable User
+// ==========================
+
+const disableUser = (req, res) => {
+
+    User.disableUser(req.params.id, (err) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Unable to disable user",
+            });
+
+        }
+
+        res.json({
+            success: true,
+            message: "User Disabled Successfully",
+        });
+
+    });
+
+};
+
+// ==========================
+// Delete Single User
+// ==========================
+
+const deleteUser = (req, res) => {
+
+    User.deleteUser(req.params.id, (err) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Unable to delete user",
+            });
+
+        }
+
+        res.json({
+            success: true,
+            message: "User Deleted Successfully",
+        });
+
+    });
 
 };
 
@@ -149,7 +266,33 @@ const deleteAllUsers = (req, res) => {
     });
 
 };
+// ==========================
+// Get User Names
+// ==========================
 
+const getUserNames = (req, res) => {
+
+    User.getUserNames((err, result) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Database Error",
+            });
+
+        }
+
+        res.json({
+            success: true,
+            users: result,
+        });
+
+    });
+
+};
 // ==========================
 // Export
 // ==========================
@@ -158,5 +301,9 @@ module.exports = {
     getUsers,
     createUser,
     bulkUploadUsers,
+    updateUser,
+    disableUser,
+    deleteUser,
     deleteAllUsers,
+    getUserNames,
 };

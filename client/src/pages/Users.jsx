@@ -33,8 +33,6 @@ const [departmentFilter, setDepartmentFilter] =
 const [reportsFilter, setReportsFilter] =
   useState("");
 
-const [showAddModal, setShowAddModal] =
-  useState(false);
 
 const [selectedUsers, setSelectedUsers] =
   useState([]);
@@ -190,26 +188,103 @@ const deleteAllUsers = async () => {
   }
 
 };
+// ============================
+// Delete User
+// ============================
+
+const deleteUser = async (id) => {
+
+  if (!window.confirm("Delete this user?")) return;
+
+  try {
+
+    const res = await axios.delete(
+      `http://localhost:5000/api/users/${id}`
+    );
+
+    alert(res.data.message);
+
+    fetchUsers();
+
+  } catch (err) {
+
+    console.log(err);
+    alert("Delete Failed");
+
+  }
+
+};
+
+// ============================
+// Disable User
+// ============================
+
+const disableUser = async (id) => {
+
+  try {
+
+    const res = await axios.put(
+      `http://localhost:5000/api/users/disable/${id}`
+    );
+
+    alert(res.data.message);
+
+    fetchUsers();
+
+  } catch (err) {
+
+    console.log(err);
+    alert("Disable Failed");
+
+  }
+
+};
+
+// ============================
+// Edit User
+// ============================
+
+const editUser = (user) => {
+
+  alert("Edit feature will open AddUserModal.");
+
+  // We'll connect this to your AddUserModal next.
+
+};
 
 // ============================
 // Dropdown Data
 // ============================
 
 const departments = [
-  "IT",
-  "HR",
-  "Finance",
   "Accounts",
-  "VM",
   "ASM",
-  "Inventory",
+  "Buying",
+  "City Manager",
+  "Customer Support",
+  "Design",
+  "E-Commerce",
+  "EA",
+  "HR",
+  "Inventory Manager",
+  "IT Department",
+  "Maintenance",
+  "Management",
+  "Marketing ",
+  "New Store Opening",
+  "Quality",
+  "Regional Head",
+  "Store Personnel",
+  "VM",
+  "Warehouse",
 ];
 
 const reportsTo = [
-  "Admin",
-  "Ajay",
-  "Manager",
+  "Satyajit",
+  "Ranjan Behera",
   "Regional Head",
+  "City Manager",
+  "ASM",
 ];
 
 // ============================
@@ -240,6 +315,8 @@ const filteredUsers = users.filter((user) => {
   );
 
 });
+const [showAddModal, setShowAddModal] = useState(false);
+const [editingUser, setEditingUser] = useState(null);
 
 return (
   
@@ -492,26 +569,30 @@ return (
 
               <div className="action-buttons">
 
-                <button
-                  className="edit-btn"
-                >
-                  Edit
-                </button>
+  <button
+    className="edit-btn"
+    onClick={() => {
+        setEditingUser(user);
+        setShowAddModal(true);
+    }}
+>
+    Edit
+</button>
+  <button
+    className="disable-btn"
+    onClick={() => disableUser(user.id)}
+  >
+    Disable
+  </button>
 
-                <button
-                  className="disable-btn"
-                >
-                  Disable
-                </button>
+  <button
+    className="remove-btn"
+    onClick={() => deleteUser(user.id)}
+  >
+    Delete
+  </button>
 
-                <button
-                  className="remove-btn"
-                >
-                  Delete
-                </button>
-
-              </div>
-
+</div>
             </td>
 
           </tr>
@@ -592,12 +673,15 @@ return (
 {/* ============================
       Add User Modal
 ============================ */}
-
 {showAddModal && (
-  <AddUserModal
-    onClose={() => setShowAddModal(false)}
-    fetchUsers={fetchUsers}
-  />
+    <AddUserModal
+        onClose={() => {
+            setShowAddModal(false);
+            setEditingUser(null);
+        }}
+        fetchUsers={fetchUsers}
+        editingUser={editingUser}
+    />
 )}
 {/* ============================
       Bulk Upload Modal
