@@ -348,13 +348,13 @@ useEffect(() => {
 
 const loadReports = async () => {
   try {
-    const res = await axios.get("http://localhost:5000/api/users");
+    const res = await axios.get("http://localhost:5000/api/reports");
 
     setReportsList(
-      res.data.users.map((user) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
+      res.data.reports.map((manager) => ({
+        id: manager.id,
+        name: manager.manager_name,
+        email: manager.department, // optional
       }))
     );
   } catch (err) {

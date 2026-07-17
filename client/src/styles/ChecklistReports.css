@@ -1,0 +1,338 @@
+/* ==========================
+   Page
+========================== */
+
+.checklist-page{
+    padding:25px;
+    background:#edf3f5;
+    min-height:100vh;
+}
+
+/* ==========================
+   Title
+========================== */
+
+.checklist-title{
+    background:#fff;
+    padding:15px 20px;
+    border-radius:8px;
+    margin-bottom:15px;
+    box-shadow:0 2px 5px rgba(0,0,0,.08);
+}
+
+.checklist-title h2{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#7d75be;
+    font-size:34px;
+    font-weight:700;
+}
+
+.info-icon{
+    font-size:18px;
+    color:#7d75be;
+}
+
+/* ==========================
+   Note
+========================== */
+
+.note-box{
+    background:#fff5bf;
+    color:#8a5d00;
+    border:1px solid #ffe58f;
+    padding:14px 18px;
+    border-radius:8px;
+    margin-bottom:20px;
+    font-size:15px;
+}
+
+/* ==========================
+   Filters
+========================== */
+
+.filter-grid{
+    display:grid;
+    grid-template-columns:
+        repeat(4,1fr);
+    gap:15px;
+    margin-bottom:15px;
+}
+
+.filter-grid input,
+.filter-grid select{
+
+    height:46px;
+
+    border:1px solid #d7d7d7;
+
+    border-radius:6px;
+
+    padding:0 15px;
+
+    background:#fff;
+
+    font-size:15px;
+
+}
+
+/* Employee Row */
+
+.filter-grid select:last-child{
+
+    grid-column:1/2;
+
+}
+
+/* ==========================
+   Search
+========================== */
+
+.search-box{
+
+    display:flex;
+
+    align-items:center;
+
+    background:#fff;
+
+    border-radius:8px;
+
+    padding:0 15px;
+
+    height:48px;
+
+    box-shadow:0 2px 5px rgba(0,0,0,.08);
+
+    margin-bottom:18px;
+
+}
+
+.search-box input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    padding-left:12px;
+
+    font-size:15px;
+
+}
+
+/* ==========================
+   Toolbar
+========================== */
+
+.toolbar{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:20px;
+
+}
+
+.left-toolbar{
+
+    display:flex;
+
+    gap:12px;
+
+}
+
+.export-btn,
+.import-btn,
+.clear-btn{
+
+    border:none;
+
+    cursor:pointer;
+
+    height:42px;
+
+    padding:0 20px;
+
+    border-radius:6px;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    font-size:15px;
+
+}
+
+.export-btn{
+
+    background:#fff;
+
+    border:2px solid #7d75be;
+
+    color:#7d75be;
+
+}
+
+.import-btn{
+
+    background:#c7c2ea;
+
+    color:white;
+
+}
+
+.clear-btn{
+
+    background:#cfd5dd;
+
+}
+
+/* ==========================
+   Table
+========================== */
+
+.report-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    background:#fff;
+
+    border-radius:8px;
+
+    overflow:hidden;
+
+}
+
+.report-table th{
+
+    background:#a9cfd7;
+
+    padding:14px;
+
+    text-align:left;
+
+    font-size:15px;
+
+}
+
+.report-table td{
+
+    padding:14px;
+
+    border-bottom:1px solid #ececec;
+
+}
+
+.report-table tr:hover{
+
+    background:#f7f9fb;
+
+}
+
+/* ==========================
+   Footer
+========================== */
+
+.table-footer{
+
+    margin-top:18px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+}
+
+.pagination{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+}
+
+.pagination button{
+
+    height:40px;
+
+    border:none;
+
+    padding:0 18px;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+}
+
+.page-box{
+
+    width:60px;
+
+    height:40px;
+
+    border:1px solid #ddd;
+
+    text-align:center;
+
+    border-radius:6px;
+
+}
+
+/* ==========================
+   Responsive
+========================== */
+
+@media(max-width:1100px){
+
+.filter-grid{
+
+grid-template-columns:repeat(2,1fr);
+
+}
+
+}
+
+@media(max-width:700px){
+
+.filter-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.toolbar{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+gap:15px;
+
+}
+
+.table-footer{
+
+flex-direction:column;
+
+gap:15px;
+
+align-items:flex-start;
+
+}
+
+}

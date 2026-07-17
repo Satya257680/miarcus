@@ -15,6 +15,7 @@ import {
   FaListAlt,
   FaQuestionCircle,
   FaUserCircle,
+  FaSitemap,
 } from "react-icons/fa";
 
 import "./Sidebar.css";
@@ -27,6 +28,7 @@ function Sidebar({ collapsed }) {
   useEffect(() => {
     if (
       location.pathname === "/users" ||
+      location.pathname === "/reports-to" ||
       location.pathname === "/checklist-types" ||
       location.pathname === "/questions" ||
       location.pathname === "/departments" ||
@@ -40,6 +42,7 @@ function Sidebar({ collapsed }) {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <nav>
+
         <NavLink to="/dashboard" className="menu-item">
           <FaHome />
           {!collapsed && <span>Dashboard</span>}
@@ -126,6 +129,15 @@ function Sidebar({ collapsed }) {
               <span>Users</span>
             </NavLink>
 
+            {/* Reports To */}
+            <NavLink
+              to="/reports-to"
+              className="submenu-item"
+            >
+              <FaSitemap />
+              <span>Reports To</span>
+            </NavLink>
+
           </div>
         )}
 
@@ -133,6 +145,7 @@ function Sidebar({ collapsed }) {
           <FaUserCircle />
           {!collapsed && <span>Profile</span>}
         </NavLink>
+
       </nav>
     </aside>
   );

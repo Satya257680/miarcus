@@ -9,6 +9,8 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ActionPoints from "./pages/ActionPoints";
 import Users from "./pages/Users";
+import ReportsTo from "./pages/ReportsTo";
+import ChecklistReports from "./pages/ChecklistReports";
 import Profile from "./pages/Profile";
 
 function App() {
@@ -16,18 +18,31 @@ function App() {
     <BrowserRouter>
       <Routes>
 
-        {/* Public */}
+        {/* ================= Public Routes ================= */}
         <Route path="/" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Private */}
-       <Route path="/" element={<Layout />}>
-  <Route path="dashboard" element={<Dashboard />} />
-  <Route path="action-points" element={<ActionPoints />} />
-  <Route path="users" element={<Users />} />
-  <Route path="profile" element={<Profile />} />
-</Route>
+        {/* ================= Private Routes ================= */}
+        <Route path="/" element={<Layout />}>
+
+          <Route path="dashboard" element={<Dashboard />} />
+
+          <Route path="action-points" element={<ActionPoints />} />
+
+          <Route path="users" element={<Users />} />
+
+          <Route path="reports-to" element={<ReportsTo />} />
+
+          {/* ✅ Checklist Reports */}
+          <Route
+            path="checklist-reports"
+            element={<ChecklistReports />}
+          />
+
+          <Route path="profile" element={<Profile />} />
+
+        </Route>
 
       </Routes>
     </BrowserRouter>

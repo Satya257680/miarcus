@@ -27,6 +27,8 @@ const [users, setUsers] = useState([]);
 
 const [search, setSearch] = useState("");
 
+const [reportsTo, setReportsTo] = useState([]);
+
 const [departmentFilter, setDepartmentFilter] =
   useState("");
 
@@ -52,14 +54,8 @@ const [selectedFile, setSelectedFile] =
   // Load Users
   // ============================
 
-useEffect(() => {
-  fetchUsers();
-}, []);
-
-const fetchUsers = async () => {
-
+  const fetchUsers = async () => {
   try {
-
     const res = await axios.get(
       "http://localhost:5000/api/users"
     );
@@ -67,13 +63,25 @@ const fetchUsers = async () => {
     setUsers(res.data.users);
 
   } catch (err) {
-
     console.log(err);
-
   }
-
 };
 
+useEffect(() => {
+  fetchUsers();
+  fetchManagers();
+}, []);
+const fetchManagers = async () => {
+  try {
+    const res = await axios.get(
+      "http://localhost:5000/api/reports"
+    );
+
+    setReportsTo(res.data.reports);
+  } catch (err) {
+    console.log(err);
+  }
+};
 // ============================
 // Export CSV
 // ============================
@@ -279,13 +287,6 @@ const departments = [
   "Warehouse",
 ];
 
-const reportsTo = [
-  "Satyajit",
-  "Ranjan Behera",
-  "Regional Head",
-  "City Manager",
-  "ASM",
-];
 
 // ============================
 // Search + Filter
@@ -421,25 +422,20 @@ return (
           </select>
 
           <select
-            value={reportsFilter}
-            onChange={(e) =>
-              setReportsFilter(
-                e.target.value
-              )
-            }
-          >
+  value={reportsFilter}
+  onChange={(e) => setReportsFilter(e.target.value)}
+>
+  <option value="">All Reports</option>
 
-            <option>All Reports</option>
-
-            {reportsTo.map((person) => (
-
-              <option key={person}>
-                {person}
-              </option>
-
-            ))}
-
-          </select>
+  {reportsTo.map((manager) => (
+    <option
+      key={manager.id}
+      value={manager.manager_name}
+    >
+      {manager.manager_name}
+    </option>
+  ))}
+</select>
 
         </div>
 
