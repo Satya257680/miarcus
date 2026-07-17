@@ -110,22 +110,23 @@ function Topbar({ toggleSidebar }) {
 
   }, [userId]);
 
-  // ===========================
-  // Logout
-  // ===========================
+ // ===========================
+// Logout
+// ===========================
 
-  const confirmLogout = () => {
+const confirmLogout = () => {
 
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("employeeId");
-    localStorage.removeItem("profilePhoto");
+  // Clear all stored login information
+  localStorage.clear();
+  sessionStorage.clear();
 
-    sessionStorage.clear();
+  // Close the logout modal
+  setShowLogoutModal(false);
 
-    navigate("/");
+  // Redirect to login and replace history
+  navigate("/", { replace: true });
 
-  };
+};
 
   return (
       

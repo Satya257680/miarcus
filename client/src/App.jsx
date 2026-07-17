@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -19,29 +20,58 @@ function App() {
       <Routes>
 
         {/* ================= Public Routes ================= */}
+
         <Route path="/" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ================= Private Routes ================= */}
-        <Route path="/" element={<Layout />}>
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
 
-          <Route path="dashboard" element={<Dashboard />} />
+        <Route
+          path="/reset-password"
+          element={<ResetPassword />}
+        />
 
-          <Route path="action-points" element={<ActionPoints />} />
+        {/* ================= Protected Routes ================= */}
 
-          <Route path="users" element={<Users />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route
+            path="dashboard"
+            element={<Dashboard />}
+          />
 
-          <Route path="reports-to" element={<ReportsTo />} />
+          <Route
+            path="action-points"
+            element={<ActionPoints />}
+          />
 
-          {/* ✅ Checklist Reports */}
+          <Route
+            path="users"
+            element={<Users />}
+          />
+
+          <Route
+            path="reports-to"
+            element={<ReportsTo />}
+          />
+
           <Route
             path="checklist-reports"
             element={<ChecklistReports />}
           />
 
-          <Route path="profile" element={<Profile />} />
-
+          <Route
+            path="profile"
+            element={<Profile />}
+          />
         </Route>
 
       </Routes>
