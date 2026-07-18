@@ -13,9 +13,10 @@ import Users from "./pages/Users";
 import ReportsTo from "./pages/ReportsTo";
 import ChecklistReports from "./pages/ChecklistReports";
 import Profile from "./pages/Profile";
+import Departments from "./pages/Departments";
 
 // ✅ NEW
-import Departments from "./pages/Departments";
+import Designations from "./pages/Designations";
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             </ProtectedRoute>
           }
         >
+
           {/* Dashboard */}
           <Route
             path="dashboard"
@@ -62,6 +64,12 @@ function App() {
           <Route
             path="departments"
             element={<Departments />}
+          />
+
+          {/* ✅ Designations */}
+          <Route
+            path="designations"
+            element={<Designations />}
           />
 
           {/* Users */}
@@ -87,6 +95,7 @@ function App() {
             path="profile"
             element={<Profile />}
           />
+
         </Route>
 
       </Routes>

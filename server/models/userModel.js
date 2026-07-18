@@ -7,9 +7,32 @@ const db = require("../config/db");
 const getAllUsers = (callback) => {
 
     const sql = `
-        SELECT *
-        FROM users
-        ORDER BY id DESC
+        SELECT
+            u.id,
+            u.employee_id,
+            u.name,
+            u.email,
+            u.password,
+            u.profile_photo,
+            u.reports_to,
+            u.status,
+            u.created_at,
+
+            u.department_id,
+            d.department_name AS department,
+
+            u.designation_id,
+            dg.designation_name AS designation
+
+        FROM users u
+
+        LEFT JOIN departments d
+            ON u.department_id = d.id
+
+        LEFT JOIN designations dg
+            ON u.designation_id = dg.id
+
+        ORDER BY u.id DESC
     `;
 
     db.query(sql, callback);
@@ -29,8 +52,8 @@ const addUser = (user, callback) => {
             name,
             email,
             password,
-            department,
-            designation,
+            department_id,
+            designation_id,
             reports_to,
             status
         )
@@ -44,17 +67,11 @@ const addUser = (user, callback) => {
             user.fullName,
             user.email,
             user.password,
-
-            Array.isArray(user.departments)
-                ? user.departments.join(", ")
-                : "",
-
-            Array.isArray(user.designations)
-                ? user.designations.join(", ")
-                : "",
+            user.department_id,
+            user.designation_id,
 
             user.reportsTo
-                ? user.reportsTo.name
+                ? user.reportsTo.name || user.reportsTo
                 : "",
 
             user.active ? "Active" : "Inactive",
@@ -111,14 +128,14 @@ const updateUser = (id, user, callback) => {
     const sql = `
         UPDATE users
         SET
-            employee_id=?,
-            name=?,
-            email=?,
-            department=?,
-            designation=?,
-            reports_to=?,
-            status=?
-        WHERE id=?
+            employee_id = ?,
+            name = ?,
+            email = ?,
+            department_id = ?,
+            designation_id = ?,
+            reports_to = ?,
+            status = ?
+        WHERE id = ?
     `;
 
     db.query(
@@ -127,9 +144,13 @@ const updateUser = (id, user, callback) => {
             user.employeeId,
             user.fullName,
             user.email,
-            user.department,
-            user.designation,
-            user.reportsTo,
+            user.department_id,
+            user.designation_id,
+
+            user.reportsTo
+                ? user.reportsTo.name || user.reportsTo
+                : "",
+
             user.status,
             id,
         ],
@@ -178,6 +199,7 @@ const deleteAllUsers = (callback) => {
     );
 
 };
+
 // ==========================
 // Get User Names
 // ==========================

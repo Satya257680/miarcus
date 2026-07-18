@@ -70,10 +70,19 @@ try {
 try {
   const departmentRoutes = require("./routes/departmentRoutes");
   console.log("✅ departmentRoutes Loaded");
-  console.log(departmentRoutes);
   app.use("/api/departments", departmentRoutes);
 } catch (err) {
   console.error("❌ departmentRoutes Error");
+  console.error(err);
+}
+
+// ✅ NEW DESIGNATION ROUTES
+try {
+  const designationRoutes = require("./routes/designationRoutes");
+  console.log("✅ designationRoutes Loaded");
+  app.use("/api/designations", designationRoutes);
+} catch (err) {
+  console.error("❌ designationRoutes Error");
   console.error(err);
 }
 

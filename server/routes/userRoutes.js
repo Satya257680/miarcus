@@ -6,12 +6,12 @@ const {
     getUsers,
     createUser,
     bulkUploadUsers,
-    deleteAllUsers,
     updateUser,
+    disableUser,
+    deleteUser,
+    deleteAllUsers,
     getUserNames,
 } = require("../controllers/userController");
-
-const User = require("../models/userModel");
 
 // ===========================
 // Multer Configuration
@@ -59,53 +59,13 @@ router.put("/:id", updateUser);
 // Disable User
 // ===========================
 
-router.put("/disable/:id", (req, res) => {
-
-    User.disableUser(req.params.id, (err) => {
-
-        if (err) {
-
-            return res.status(500).json({
-                success: false,
-                message: "Unable to disable user",
-            });
-
-        }
-
-        res.json({
-            success: true,
-            message: "User Disabled Successfully",
-        });
-
-    });
-
-});
+router.put("/disable/:id", disableUser);
 
 // ===========================
 // Delete User
 // ===========================
 
-router.delete("/:id", (req, res) => {
-
-    User.deleteUser(req.params.id, (err) => {
-
-        if (err) {
-
-            return res.status(500).json({
-                success: false,
-                message: "Unable to delete user",
-            });
-
-        }
-
-        res.json({
-            success: true,
-            message: "User Deleted Successfully",
-        });
-
-    });
-
-});
+router.delete("/:id", deleteUser);
 
 // ===========================
 // Delete All Users

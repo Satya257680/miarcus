@@ -35,14 +35,10 @@ const getUsers = (req, res) => {
 
 const createUser = (req, res) => {
 
-    console.log("========== CREATE USER ==========");
-    console.log(req.body);
-
     User.addUser(req.body, (err) => {
 
         if (err) {
 
-            console.log("========== DATABASE ERROR ==========");
             console.log(err);
 
             return res.status(500).json({
@@ -52,8 +48,6 @@ const createUser = (req, res) => {
             });
 
         }
-
-        console.log("USER INSERTED SUCCESSFULLY");
 
         res.status(201).json({
             success: true,
@@ -84,7 +78,6 @@ const bulkUploadUsers = (req, res) => {
         const workbook = XLSX.readFile(req.file.path);
 
         const sheetName = workbook.SheetNames[0];
-
         const sheet = workbook.Sheets[sheetName];
 
         const users = XLSX.utils.sheet_to_json(sheet, {
@@ -212,7 +205,7 @@ const disableUser = (req, res) => {
 };
 
 // ==========================
-// Delete Single User
+// Delete User
 // ==========================
 
 const deleteUser = (req, res) => {
@@ -266,6 +259,7 @@ const deleteAllUsers = (req, res) => {
     });
 
 };
+
 // ==========================
 // Get User Names
 // ==========================
@@ -293,6 +287,7 @@ const getUserNames = (req, res) => {
     });
 
 };
+
 // ==========================
 // Export
 // ==========================
