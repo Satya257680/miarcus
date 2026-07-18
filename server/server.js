@@ -2,16 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-const authRoutes = require("./routes/authRoutes");
-const storeRoutes = require("./routes/storeRoutes");
-const actionPointRoutes = require("./routes/actionPointRoutes");
-const profileRoutes = require("./routes/profileRoutes");
-const userRoutes = require("./routes/userRoutes");
-const reportsToRoutes = require("./routes/reportsToRoutes");
-
-// ✅ NEW
-const checklistReportRoutes = require("./routes/checklistReportRoutes");
-
 const app = express();
 
 // ================= Middleware =================
@@ -30,28 +20,80 @@ app.get("/", (req, res) => {
   res.send("🚀 Miarcus Backend Running...");
 });
 
-// ================= API Routes =================
+// ================= Load Routes One by One =================
 
-// Authentication
-app.use("/api/auth", authRoutes);
+try {
+  const authRoutes = require("./routes/authRoutes");
+  console.log("✅ authRoutes Loaded");
+  app.use("/api/auth", authRoutes);
+} catch (err) {
+  console.error("❌ authRoutes Error");
+  console.error(err);
+}
 
-// Stores
-app.use("/api/stores", storeRoutes);
+try {
+  const storeRoutes = require("./routes/storeRoutes");
+  console.log("✅ storeRoutes Loaded");
+  app.use("/api/stores", storeRoutes);
+} catch (err) {
+  console.error("❌ storeRoutes Error");
+  console.error(err);
+}
 
-// Action Points
-app.use("/api/action-points", actionPointRoutes);
+try {
+  const actionPointRoutes = require("./routes/actionPointRoutes");
+  console.log("✅ actionPointRoutes Loaded");
+  app.use("/api/action-points", actionPointRoutes);
+} catch (err) {
+  console.error("❌ actionPointRoutes Error");
+  console.error(err);
+}
 
-// Profile
-app.use("/api/profile", profileRoutes);
+try {
+  const profileRoutes = require("./routes/profileRoutes");
+  console.log("✅ profileRoutes Loaded");
+  app.use("/api/profile", profileRoutes);
+} catch (err) {
+  console.error("❌ profileRoutes Error");
+  console.error(err);
+}
 
-// Users
-app.use("/api/users", userRoutes);
+try {
+  const userRoutes = require("./routes/userRoutes");
+  console.log("✅ userRoutes Loaded");
+  app.use("/api/users", userRoutes);
+} catch (err) {
+  console.error("❌ userRoutes Error");
+  console.error(err);
+}
 
-// Reports To
-app.use("/api/reports", reportsToRoutes);
+try {
+  const departmentRoutes = require("./routes/departmentRoutes");
+  console.log("✅ departmentRoutes Loaded");
+  console.log(departmentRoutes);
+  app.use("/api/departments", departmentRoutes);
+} catch (err) {
+  console.error("❌ departmentRoutes Error");
+  console.error(err);
+}
 
-// ✅ Checklist Reports
-app.use("/api/checklist-reports", checklistReportRoutes);
+try {
+  const reportsToRoutes = require("./routes/reportsToRoutes");
+  console.log("✅ reportsToRoutes Loaded");
+  app.use("/api/reports", reportsToRoutes);
+} catch (err) {
+  console.error("❌ reportsToRoutes Error");
+  console.error(err);
+}
+
+try {
+  const checklistReportRoutes = require("./routes/checklistReportRoutes");
+  console.log("✅ checklistReportRoutes Loaded");
+  app.use("/api/checklist-reports", checklistReportRoutes);
+} catch (err) {
+  console.error("❌ checklistReportRoutes Error");
+  console.error(err);
+}
 
 // ================= 404 =================
 
@@ -78,7 +120,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log("================================");
-  console.log(`🚀 Server Running: http://localhost:${PORT}`);
-  console.log("================================");
+  console.log("====================================");
+  console.log(`🚀 Server Running on http://localhost:${PORT}`);
+  console.log("====================================");
 });

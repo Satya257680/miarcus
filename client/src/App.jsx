@@ -14,6 +14,9 @@ import ReportsTo from "./pages/ReportsTo";
 import ChecklistReports from "./pages/ChecklistReports";
 import Profile from "./pages/Profile";
 
+// ✅ NEW
+import Departments from "./pages/Departments";
+
 function App() {
   return (
     <BrowserRouter>
@@ -43,31 +46,43 @@ function App() {
             </ProtectedRoute>
           }
         >
+          {/* Dashboard */}
           <Route
             path="dashboard"
             element={<Dashboard />}
           />
 
+          {/* Action Points */}
           <Route
             path="action-points"
             element={<ActionPoints />}
           />
 
+          {/* Departments */}
+          <Route
+            path="departments"
+            element={<Departments />}
+          />
+
+          {/* Users */}
           <Route
             path="users"
             element={<Users />}
           />
 
+          {/* Reports To */}
           <Route
             path="reports-to"
             element={<ReportsTo />}
           />
 
+          {/* Checklist Reports */}
           <Route
             path="checklist-reports"
             element={<ChecklistReports />}
           />
 
+          {/* Profile */}
           <Route
             path="profile"
             element={<Profile />}
