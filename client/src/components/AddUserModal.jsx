@@ -25,38 +25,7 @@ function AddUserModal({
   // =========================
 
  
-const departments = [
-  "Accounts",
-  "ASM",
-  "Buying",
-  "City Manager",
-  "Customer Support",
-  "Design",
-  "HR",
-  "Inventory",
-  "IT",
-  "Marketing",
-  "Operations",
-  "Sales",
-];
-// =========================
-// Designations
-// =========================
 
-const designations = [
-  "Admin",
-  "Area Sales Manager",
-  "Assistant Manager",
-  "Cashier",
-  "City Manager",
-  "Department Manager",
-  "HR Executive",
-  "Inventory Manager",
-  "Marketing Executive",
-  "Sales Executive",
-  "Store Manager",
-  "Visual Merchandiser",
-];
 // =========================
 // Stores
 // =========================
@@ -125,9 +94,8 @@ const handleCreateUser = async () => {
 
       reportsTo: selectedReport,
 
-      departments: selectedDepartments,
-
-      designations: selectedDesignations,
+      department_id: departmentId,
+designation_id: designationId,
 
       stores: selectedStores,
 
@@ -164,11 +132,16 @@ const handleCreateUser = async () => {
 
   } catch (err) {
 
-    console.error(err);
+    console.error("Create User Error:", err);
+    console.log(err.response);
 
-    alert("Unable to create user.");
+    alert(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      "Unable to create user."
+    );
 
-  } finally {
+} finally {
 
     setLoading(false);
 
@@ -231,69 +204,15 @@ const toggleAllStores = () => {
   }
 
 };
-const toggleDesignation = (designation) => {
+// =========================
+// Departments & Designations
+// =========================
 
-  if (selectedDesignations.includes(designation)) {
+const [departments, setDepartments] = useState([]);
+const [designations, setDesignations] = useState([]);
 
-    setSelectedDesignations(
-      selectedDesignations.filter(
-        (item) => item !== designation
-      )
-    );
-
-  } else {
-
-    setSelectedDesignations([
-      ...selectedDesignations,
-      designation,
-    ]);
-
-  }
-
-};
-
-const toggleAllDesignations = () => {
-
-  if (
-    selectedDesignations.length ===
-    designations.length
-  ) {
-
-    setSelectedDesignations([]);
-
-  } else {
-
-    setSelectedDesignations(designations);
-
-  }
-
-};
-const [designationSearch, setDesignationSearch] = useState("");
-
-const [selectedDesignations, setSelectedDesignations] = useState([]);
-const toggleDepartment = (dept) => {
-  if (selectedDepartments.includes(dept)) {
-    setSelectedDepartments(
-      selectedDepartments.filter((d) => d !== dept)
-    );
-  } else {
-    setSelectedDepartments([
-      ...selectedDepartments,
-      dept,
-    ]);
-  }
-};
-
-const toggleAllDepartments = () => {
-  if (selectedDepartments.length === departments.length) {
-    setSelectedDepartments([]);
-  } else {
-    setSelectedDepartments(departments);
-  }
-};
-const [departmentSearch, setDepartmentSearch] = useState("");
-const [selectedDepartments, setSelectedDepartments] = useState([]);
-
+const [departmentId, setDepartmentId] = useState("");
+const [designationId, setDesignationId] = useState("");
 const [reportsList, setReportsList] = useState([]);
 
 const [reportSearch, setReportSearch] = useState("");
@@ -317,17 +236,8 @@ useEffect(() => {
     setEmail(editingUser.email || "");
     setPassword("");
 
-    setSelectedDepartments(
-        editingUser.department
-            ? editingUser.department.split(", ")
-            : []
-    );
-
-    setSelectedDesignations(
-        editingUser.designation
-            ? editingUser.designation.split(", ")
-            : []
-    );
+    setDepartmentId(editingUser.department_id || "");
+setDesignationId(editingUser.designation_id || "");
 
     setSelectedReport(
         editingUser.reports_to
@@ -344,8 +254,9 @@ useEffect(() => {
 }, [editingUser]);
 useEffect(() => {
   loadReports();
+  fetchDepartments();
+  fetchDesignations();
 }, []);
-
 const loadReports = async () => {
   try {
     const res = await axios.get("http://localhost:5000/api/reports");
@@ -361,6 +272,55 @@ const loadReports = async () => {
     console.log(err);
   }
 };
+const fetchDepartments = async () => {
+  try {
+    const res = await axios.get(
+      "http://localhost:5000/api/departments"
+    );
+
+    setDepartments(res.data.data);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const fetchDesignations = async () => {
+  try {
+    const res = await axios.get(
+      "http://localhost:5000/api/designations"
+    );
+
+    console.log("Designations:", res.data.data);
+
+    setDesignations(res.data.data);
+  } catch (err) {
+    console.log(err);
+  }
+};
+useEffect(() => {
+
+    if (!editingUser) return;
+
+    setFullName(editingUser.name || "");
+    setEmployeeId(editingUser.employee_id || "");
+    setEmail(editingUser.email || "");
+    setPassword("");
+
+    setDepartmentId(editingUser.department_id || "");
+    setDesignationId(editingUser.designation_id || "");
+
+    setSelectedReport(
+        editingUser.reports_to
+            ? {
+                  name: editingUser.reports_to,
+              }
+            : null
+    );
+
+    setIsActive(editingUser.status === "Active");
+    setIsAdmin(editingUser.is_admin || false);
+
+}, [editingUser]);
   return (
 
     <div className="modal-overlay">
@@ -633,81 +593,34 @@ const loadReports = async () => {
 <div className="section">
 
   <div className="section-header">
-
-    <div className="section-icon">
-      🏢
-    </div>
+    <div className="section-icon">🏢</div>
 
     <div>
-      <h3>Assigned Departments</h3>
+      <h3>Department</h3>
       <p className="section-subtitle">
-        Assign one or more departments to this user.
+        Select a department.
       </p>
     </div>
-
   </div>
 
   <hr className="section-divider" />
 
-  <div className="department-top">
+  <select
+    className="form-select"
+    value={departmentId}
+    onChange={(e) => {
+      setDepartmentId(e.target.value);
+      setDesignationId("");
+    }}
+  >
+    <option value="">Select Department</option>
 
-    <input
-      type="text"
-      className="department-search"
-      placeholder="Filter departments..."
-      value={departmentSearch}
-      onChange={(e) =>
-        setDepartmentSearch(e.target.value)
-      }
-    />
-
-  </div>
-
-  <label className="select-all">
-
-    <input
-      type="checkbox"
-      checked={
-        selectedDepartments.length ===
-        departments.length
-      }
-      onChange={toggleAllDepartments}
-    />
-
-    Select all visible
-
-  </label>
-
-  <div className="department-list">
-
-    {departments
-      .filter((dept) =>
-        dept
-          .toLowerCase()
-          .includes(departmentSearch.toLowerCase())
-      )
-      .map((dept) => (
-
-        <label
-          key={dept}
-          className="department-item"
-        >
-
-          <input
-            type="checkbox"
-            checked={selectedDepartments.includes(dept)}
-            onChange={() =>
-              toggleDepartment(dept)
-            }
-          />
-
-          {dept}
-
-        </label>
-
-      ))}
-
-  </div>
+    {departments.map((dept) => (
+      <option key={dept.id} value={dept.id}>
+        {dept.department_name}
+      </option>
+    ))}
+  </select>
 
 </div>
 {/* =====================================
@@ -717,84 +630,40 @@ const loadReports = async () => {
 <div className="section">
 
   <div className="section-header">
-
-    <div className="section-icon">
-      💼
-    </div>
+    <div className="section-icon">💼</div>
 
     <div>
-
-      <h3>Designations</h3>
-
+      <h3>Designation</h3>
       <p className="section-subtitle">
-        Assign one or more designations.
+        Select a designation.
       </p>
-
     </div>
-
   </div>
 
   <hr className="section-divider" />
 
-  <div className="designation-top">
+  {/* Debug */}
+  {console.log("Department ID:", departmentId)}
+  {console.log("All Designations:", designations)}
 
-    <input
-      type="text"
-      className="designation-search"
-      placeholder="Filter designations..."
-      value={designationSearch}
-      onChange={(e)=>
-        setDesignationSearch(e.target.value)
-      }
-    />
-
-  </div>
-
-  <label className="select-all">
-
-    <input
-      type="checkbox"
-      checked={
-        selectedDesignations.length ===
-        designations.length
-      }
-      onChange={toggleAllDesignations}
-    />
-
-    Select all visible
-
-  </label>
-
-  <div className="designation-list">
+  <select
+    className="form-select"
+    value={designationId}
+    onChange={(e) => setDesignationId(e.target.value)}
+  >
+    <option value="">Select Designation</option>
 
     {designations
-      .filter((item)=>
-        item
-          .toLowerCase()
-          .includes(designationSearch.toLowerCase())
+      .filter(
+        (des) =>
+          String(des.department_id) === String(departmentId)
       )
-      .map((item)=>(
-
-        <label
-          key={item}
-          className="designation-item"
-        >
-
-          <input
-            type="checkbox"
-            checked={selectedDesignations.includes(item)}
-            onChange={()=>
-              toggleDesignation(item)
-            }
-          />
-
-          {item}
-
-        </label>
-
+      .map((des) => (
+        <option key={des.id} value={des.id}>
+          {des.designation_name}
+        </option>
       ))}
-
-  </div>
+  </select>
 
 </div>
 {/* =====================================

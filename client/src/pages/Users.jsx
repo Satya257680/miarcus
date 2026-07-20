@@ -70,6 +70,7 @@ const [selectedFile, setSelectedFile] =
 useEffect(() => {
   fetchUsers();
   fetchManagers();
+  fetchDepartments();
 }, []);
 const fetchManagers = async () => {
   try {
@@ -264,28 +265,7 @@ const editUser = (user) => {
 // Dropdown Data
 // ============================
 
-const departments = [
-  "Accounts",
-  "ASM",
-  "Buying",
-  "City Manager",
-  "Customer Support",
-  "Design",
-  "E-Commerce",
-  "EA",
-  "HR",
-  "Inventory Manager",
-  "IT Department",
-  "Maintenance",
-  "Management",
-  "Marketing ",
-  "New Store Opening",
-  "Quality",
-  "Regional Head",
-  "Store Personnel",
-  "VM",
-  "Warehouse",
-];
+const [departments, setDepartments] = useState([]);
 
 
 // ============================
@@ -316,6 +296,18 @@ const filteredUsers = users.filter((user) => {
   );
 
 });
+const fetchDepartments = async () => {
+  try {
+    const res = await axios.get(
+      "http://localhost:5000/api/departments"
+    );
+
+    setDepartments(res.data.data);
+
+  } catch (err) {
+    console.log(err);
+  }
+};
 const [showAddModal, setShowAddModal] = useState(false);
 const [editingUser, setEditingUser] = useState(null);
 
@@ -411,14 +403,16 @@ return (
 
             <option>All Departments</option>
 
-            {departments.map((dept) => (
+           {departments.map((dept) => (
 
-              <option key={dept}>
-                {dept}
-              </option>
+  <option
+    key={dept.id}
+    value={dept.department_name}
+  >
+    {dept.department_name}
+  </option>
 
-            ))}
-
+))}
           </select>
 
           <select

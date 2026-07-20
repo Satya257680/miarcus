@@ -1,0 +1,331 @@
+/* ==========================
+   Checklist Types Page
+========================== */
+
+.checklist-page {
+  padding: 25px;
+  background: #edf3f5;
+  min-height: 100vh;
+}
+
+/* ==========================
+   Header
+========================== */
+
+.checklist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.checklist-header h2 {
+  margin: 0;
+  font-size: 26px;
+  color: #2d4d57;
+  font-weight: 600;
+}
+
+/* ==========================
+   Header Buttons
+========================== */
+
+.checklist-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.add-btn,
+.export-btn,
+.import-btn,
+.delete-all-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.3s;
+  color: #fff;
+}
+
+/* Add */
+
+.add-btn {
+  background: #2d7d90;
+}
+
+.add-btn:hover {
+  background: #236675;
+}
+
+/* Export */
+
+.export-btn {
+  background: #2e7d32;
+}
+
+.export-btn:hover {
+  background: #256428;
+}
+
+/* Import */
+
+.import-btn {
+  background: #1565c0;
+}
+
+.import-btn:hover {
+  background: #0d47a1;
+}
+
+/* Delete All */
+
+.delete-all-btn {
+  background: #d32f2f;
+}
+
+.delete-all-btn:hover {
+  background: #b71c1c;
+}
+
+/* ==========================
+   Search
+========================== */
+
+.checklist-search {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.08);
+}
+
+.checklist-search svg {
+  color: #666;
+}
+
+.checklist-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+}
+
+/* ==========================
+   Table
+========================== */
+
+.checklist-table-container {
+  background: #fff;
+  border-radius: 12px;
+  overflow-x: auto;
+  box-shadow: 0 3px 15px rgba(0,0,0,.08);
+}
+
+.checklist-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1000px;
+}
+
+.checklist-table thead {
+  background: #dceef3;
+}
+
+.checklist-table th {
+  padding: 14px;
+  text-align: left;
+  color: #2d4d57;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.checklist-table td {
+  padding: 14px;
+  border-bottom: 1px solid #ececec;
+  font-size: 14px;
+}
+
+.checklist-table tbody tr:hover {
+  background: #f8fcfd;
+}
+
+/* ==========================
+   Status
+========================== */
+
+.status {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status.active {
+  background: #d8f5df;
+  color: #18783b;
+}
+
+.status.inactive {
+  background: #fde5e5;
+  color: #d32f2f;
+}
+
+/* ==========================
+   Action Buttons
+========================== */
+
+.edit-btn,
+.delete-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: .25s;
+}
+
+.edit-btn {
+  background: #d8edf7;
+  color: #1565c0;
+}
+
+.edit-btn:hover {
+  background: #c3e3f2;
+}
+
+.delete-btn {
+  background: #fde4e4;
+  color: #d32f2f;
+}
+
+.delete-btn:hover {
+  background: #ffd5d5;
+}
+
+/* ==========================
+   Empty State
+========================== */
+
+.text-center {
+  text-align: center;
+  padding: 35px;
+  color: #666;
+}
+
+/* ==========================
+   Pagination
+========================== */
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rows-per-page span {
+  font-size: 14px;
+  color: #2d4d57;
+  font-weight: 500;
+}
+
+.rows-per-page select {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-buttons button {
+  border: none;
+  background: #2d7d90;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: .3s;
+}
+
+.page-buttons button:hover:not(:disabled) {
+  background: #236675;
+}
+
+.page-buttons button:disabled {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}
+
+.page-buttons span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d4d57;
+}
+
+/* ==========================
+   Responsive
+========================== */
+
+@media (max-width:768px) {
+
+  .checklist-page {
+    padding: 15px;
+  }
+
+  .checklist-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .checklist-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .add-btn,
+  .export-btn,
+  .import-btn,
+  .delete-all-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 140px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .rows-per-page,
+  .page-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+}

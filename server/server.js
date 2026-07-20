@@ -20,8 +20,9 @@ app.get("/", (req, res) => {
   res.send("🚀 Miarcus Backend Running...");
 });
 
-// ================= Load Routes One by One =================
+// ================= Routes =================
 
+// Authentication
 try {
   const authRoutes = require("./routes/authRoutes");
   console.log("✅ authRoutes Loaded");
@@ -31,6 +32,7 @@ try {
   console.error(err);
 }
 
+// Stores
 try {
   const storeRoutes = require("./routes/storeRoutes");
   console.log("✅ storeRoutes Loaded");
@@ -40,6 +42,7 @@ try {
   console.error(err);
 }
 
+// Action Points
 try {
   const actionPointRoutes = require("./routes/actionPointRoutes");
   console.log("✅ actionPointRoutes Loaded");
@@ -49,6 +52,7 @@ try {
   console.error(err);
 }
 
+// Profile
 try {
   const profileRoutes = require("./routes/profileRoutes");
   console.log("✅ profileRoutes Loaded");
@@ -58,6 +62,7 @@ try {
   console.error(err);
 }
 
+// Users
 try {
   const userRoutes = require("./routes/userRoutes");
   console.log("✅ userRoutes Loaded");
@@ -67,6 +72,7 @@ try {
   console.error(err);
 }
 
+// Departments
 try {
   const departmentRoutes = require("./routes/departmentRoutes");
   console.log("✅ departmentRoutes Loaded");
@@ -76,7 +82,7 @@ try {
   console.error(err);
 }
 
-// ✅ NEW DESIGNATION ROUTES
+// Designations
 try {
   const designationRoutes = require("./routes/designationRoutes");
   console.log("✅ designationRoutes Loaded");
@@ -86,6 +92,27 @@ try {
   console.error(err);
 }
 
+// Checklist Types
+try {
+  const checklistTypeRoutes = require("./routes/checklistTypeRoutes");
+  console.log("✅ checklistTypeRoutes Loaded");
+  app.use("/api/checklist-types", checklistTypeRoutes);
+} catch (err) {
+  console.error("❌ checklistTypeRoutes Error");
+  console.error(err);
+}
+
+// ✅ Checklist Questions
+try {
+  const questionRoutes = require("./routes/questionRoutes");
+  console.log("✅ questionRoutes Loaded");
+  app.use("/api/questions", questionRoutes);
+} catch (err) {
+  console.error("❌ questionRoutes Error");
+  console.error(err);
+}
+
+// Reports To
 try {
   const reportsToRoutes = require("./routes/reportsToRoutes");
   console.log("✅ reportsToRoutes Loaded");
@@ -95,6 +122,7 @@ try {
   console.error(err);
 }
 
+// Checklist Reports
 try {
   const checklistReportRoutes = require("./routes/checklistReportRoutes");
   console.log("✅ checklistReportRoutes Loaded");
@@ -113,7 +141,7 @@ app.use((req, res) => {
   });
 });
 
-// ================= Error Handler =================
+// ================= Global Error Handler =================
 
 app.use((err, req, res, next) => {
   console.error(err);
@@ -124,7 +152,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ================= Server =================
+// ================= Start Server =================
 
 const PORT = process.env.PORT || 5000;
 

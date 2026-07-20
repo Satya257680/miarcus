@@ -14,9 +14,10 @@ import ReportsTo from "./pages/ReportsTo";
 import ChecklistReports from "./pages/ChecklistReports";
 import Profile from "./pages/Profile";
 import Departments from "./pages/Departments";
-
-// ✅ NEW
 import Designations from "./pages/Designations";
+import StoreManagement from "./pages/StoreManagement";
+import ChecklistTypes from "./pages/ChecklistTypes";
+import Questions from "./pages/Questions"; // ✅ NEW
 
 function App() {
   return (
@@ -47,7 +48,6 @@ function App() {
             </ProtectedRoute>
           }
         >
-
           {/* Dashboard */}
           <Route
             path="dashboard"
@@ -66,10 +66,28 @@ function App() {
             element={<Departments />}
           />
 
-          {/* ✅ Designations */}
+          {/* Designations */}
           <Route
             path="designations"
             element={<Designations />}
+          />
+
+          {/* Store Management */}
+          <Route
+            path="stores"
+            element={<StoreManagement />}
+          />
+
+          {/* Checklist Types */}
+          <Route
+            path="checklist-types"
+            element={<ChecklistTypes />}
+          />
+
+          {/* ✅ Checklist Questions */}
+          <Route
+            path="questions"
+            element={<Questions />}
           />
 
           {/* Users */}
@@ -95,7 +113,6 @@ function App() {
             path="profile"
             element={<Profile />}
           />
-
         </Route>
 
       </Routes>
