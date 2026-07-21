@@ -24,9 +24,11 @@ if(!fs.existsSync(uploadFolder)){
 
 
 
+
 // ==========================================
 // Storage
 // ==========================================
+
 
 const storage = multer.diskStorage({
 
@@ -48,17 +50,17 @@ const storage = multer.diskStorage({
 
         const uniqueName =
 
-        Date.now()
-        +
-        "-"
-        +
-        Math.round(
-            Math.random()*1000000000
-        )
-        +
-        path.extname(
-            file.originalname
-        );
+            Date.now()
+            +
+            "-"
+            +
+            Math.round(
+                Math.random()*1000000000
+            )
+            +
+            path.extname(
+                file.originalname
+            );
 
 
 
@@ -81,19 +83,14 @@ const storage = multer.diskStorage({
 
 
 // ==========================================
-// File Filter
-// Support:
-// Images
-// PDF
-// Documents
-// CSV
+// CSV File Filter
 // ==========================================
 
 
 const fileFilter = (req,file,cb)=>{
 
 
-    const extension =
+    const ext =
 
     path
     .extname(
@@ -103,39 +100,14 @@ const fileFilter = (req,file,cb)=>{
 
 
 
+    if(ext === ".csv"){
 
-
-    const allowedExtensions = [
-
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-
-        ".pdf",
-
-        ".doc",
-        ".docx",
-
-        ".xls",
-        ".xlsx",
-
-        ".csv"
-
-    ];
-
-
-
-
-
-    if(
-        allowedExtensions.includes(extension)
-    ){
 
         cb(
             null,
             true
         );
+
 
     }
     else{
@@ -144,7 +116,7 @@ const fileFilter = (req,file,cb)=>{
         cb(
 
             new Error(
-                "Only image, PDF, document and CSV files are allowed."
+                "Only CSV files are allowed."
             )
 
         );
@@ -163,11 +135,11 @@ const fileFilter = (req,file,cb)=>{
 
 
 // ==========================================
-// Multer Setup
+// Multer Config
 // ==========================================
 
 
-const upload = multer({
+const csvUpload = multer({
 
 
     storage,
@@ -192,5 +164,4 @@ const upload = multer({
 
 
 
-
-module.exports = upload;
+module.exports = csvUpload;

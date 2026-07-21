@@ -2,15 +2,202 @@ const express = require("express");
 
 const router = express.Router();
 
+
+// ================= UPLOAD =================
+
+const upload = require("../middleware/upload");
+
+
+
+
+// ================= CONTROLLER =================
+
 const {
-    getActionPoints,
+
+    getAllActionPoints,
+
+    exportActionPointsCSV,
+
     createActionPoint,
+
+    updateActionPoint,
+
+    deleteActionPoint
+
+
 } = require("../controllers/actionPointController");
 
-// Get all Action Points
-router.get("/", getActionPoints);
 
-// Create a new Action Point
-router.post("/", createActionPoint);
+
+
+
+
+
+
+
+// ======================================================
+// ACTION POINT ROUTES
+// Base URL:
+// /api/action-points
+// ======================================================
+
+
+
+
+
+
+
+// ======================================================
+// GET ALL ACTION POINTS
+// GET
+// /api/action-points
+//
+// Query:
+//
+// page
+// limit
+// search
+// store_id
+// department_id
+// status
+// checklist_type_id
+// start_date
+// end_date
+//
+// ======================================================
+
+
+router.get(
+
+    "/",
+
+    getAllActionPoints
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT CSV
+// GET
+// /api/action-points/export
+//
+// ======================================================
+
+
+router.get(
+
+    "/export",
+
+    exportActionPointsCSV
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// CREATE ACTION POINT
+// POST
+// /api/action-points
+//
+// FORM DATA:
+//
+// submission_id
+// question_id
+// answer
+// remarks
+// store_id
+// department_id
+// sla
+// attachment
+//
+// ======================================================
+
+
+router.post(
+
+    "/",
+
+    upload.single("attachment"),
+
+    createActionPoint
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// UPDATE ACTION POINT
+// PUT
+// /api/action-points/:id
+//
+// FORM DATA:
+//
+// answer
+// remarks
+// attachment
+//
+// ======================================================
+
+
+router.put(
+
+    "/:id",
+
+    upload.single("attachment"),
+
+    updateActionPoint
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// DELETE ACTION POINT
+// DELETE
+// /api/action-points/:id
+//
+// ======================================================
+
+
+router.delete(
+
+    "/:id",
+
+    deleteActionPoint
+
+);
+
+
+
+
+
+
+
+
 
 module.exports = router;

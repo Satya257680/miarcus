@@ -1,12 +1,15 @@
 const db = require("../config/db");
 
-// ================= LOGIN =================
 
-// ================= LOGIN =================
+// ======================================================
+// LOGIN USER
+// POST : /api/auth/login
+// ======================================================
 
 const loginUser = (req, res) => {
 
     const { email, password } = req.body;
+
 
     const sql = `
         SELECT
@@ -15,125 +18,303 @@ const loginUser = (req, res) => {
             name,
             email,
             password,
-            profile_photo
+            profile_photo,
+            department_id,
+            designation_id
         FROM users
         WHERE email = ?
         AND password = ?
         LIMIT 1
     `;
 
-    db.query(sql, [email, password], (err, result) => {
 
-        if (err) {
+    db.query(
+        sql,
+        [email, password],
+        (err, result) => {
 
-            return res.status(500).json({
-                success: false,
-                message: "Database Error",
-            });
 
-        }
+            if (err) {
 
-        if (result.length === 0) {
+                console.error(
+                    "LOGIN DATABASE ERROR:",
+                    err
+                );
 
-            return res.status(401).json({
-                success: false,
-                message: "Invalid Email or Password",
-            });
 
-        }
+                return res.status(500).json({
 
-        const user = result[0];
+                    success:false,
 
-        return res.status(200).json({
+                    message:"Database Error"
 
-            success: true,
+                });
 
-            message: "Login Successful",
-
-            user: {
-                id: user.id,
-                employee_id: user.employee_id,
-                name: user.name,
-                email: user.email,
-                profile_photo: user.profile_photo,
             }
 
-        });
 
-    });
 
-};
-// ================= FORGOT PASSWORD =================
+            if (result.length === 0) {
 
-const forgotPassword = (req, res) => {
 
-    const { email } = req.body;
+                return res.status(401).json({
 
-    const sql = "SELECT * FROM users WHERE email = ?";
+                    success:false,
 
-    db.query(sql, [email], (err, result) => {
+                    message:
+                    "Invalid Email or Password"
 
-        if (err) {
+                });
 
-            return res.status(500).json({
-                message: "Database Error",
+
+            }
+
+
+
+            const user = result[0];
+
+
+
+            return res.status(200).json({
+
+
+                success:true,
+
+
+                message:
+                "Login Successful",
+
+
+
+                user:{
+
+
+                    id:user.id,
+
+
+                    employee_id:
+                    user.employee_id || "",
+
+
+
+                    name:
+                    user.name,
+
+
+
+                    email:
+                    user.email,
+
+
+
+                    profile_photo:
+                    user.profile_photo || "",
+
+
+
+                    department_id:
+                    user.department_id || null,
+
+
+
+                    designation_id:
+                    user.designation_id || null
+
+
+                }
+
+
             });
 
-        }
-
-        if (result.length === 0) {
-
-            return res.status(404).json({
-                message: "Email Not Found",
-            });
 
         }
-
-        return res.status(200).json({
-            message: "Email Verified",
-        });
-
-    });
+    );
 
 };
 
-// ================= RESET PASSWORD =================
 
-const resetPassword = (req, res) => {
 
-    const { email, password } = req.body;
+
+// ======================================================
+// FORGOT PASSWORD
+// POST : /api/auth/forgot-password
+// ======================================================
+
+
+const forgotPassword = (req,res)=>{
+
+
+    const {email}=req.body;
+
+
 
     const sql =
-        "UPDATE users SET password = ? WHERE email = ?";
+    `
+    SELECT id
+    FROM users
+    WHERE email=?
+    `;
 
-    db.query(sql, [password, email], (err, result) => {
 
-        if (err) {
 
-            return res.status(500).json({
-                message: "Database Error",
+    db.query(
+        sql,
+        [email],
+        (err,result)=>{
+
+
+            if(err){
+
+                return res.status(500).json({
+
+                    success:false,
+
+                    message:
+                    "Database Error"
+
+                });
+
+            }
+
+
+
+            if(result.length===0){
+
+
+                return res.status(404).json({
+
+                    success:false,
+
+                    message:
+                    "Email Not Found"
+
+                });
+
+
+            }
+
+
+
+            return res.status(200).json({
+
+                success:true,
+
+                message:
+                "Email Verified"
+
             });
 
-        }
 
-        if (result.affectedRows === 0) {
-
-            return res.status(404).json({
-                message: "User Not Found",
-            });
 
         }
+    );
 
-        return res.status(200).json({
-            message: "Password Updated Successfully",
-        });
-
-    });
 
 };
 
+
+
+
+// ======================================================
+// RESET PASSWORD
+// PUT : /api/auth/reset-password
+// ======================================================
+
+
+const resetPassword = (req,res)=>{
+
+
+    const {
+        email,
+        password
+    } = req.body;
+
+
+
+    const sql =
+    `
+    UPDATE users
+    SET password=?
+    WHERE email=?
+    `;
+
+
+
+    db.query(
+        sql,
+        [
+            password,
+            email
+        ],
+        (err,result)=>{
+
+
+            if(err){
+
+
+                return res.status(500).json({
+
+                    success:false,
+
+                    message:
+                    "Database Error"
+
+                });
+
+
+            }
+
+
+
+            if(result.affectedRows===0){
+
+
+                return res.status(404).json({
+
+                    success:false,
+
+                    message:
+                    "User Not Found"
+
+                });
+
+
+            }
+
+
+
+
+            return res.status(200).json({
+
+                success:true,
+
+                message:
+                "Password Updated Successfully"
+
+            });
+
+
+
+        }
+    );
+
+
+};
+
+
+
+
+// ======================================================
+// EXPORTS
+// ======================================================
+
+
 module.exports = {
+
     loginUser,
+
     forgotPassword,
-    resetPassword,
+
+    resetPassword
+
 };

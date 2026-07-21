@@ -1,38 +1,147 @@
 const express = require("express");
-const multer = require("multer");
 
 const router = express.Router();
 
-// Upload configuration
-const upload = multer({
-  dest: "uploads/",
-});
+
+const upload = require("../middleware/upload");
+
 
 const {
-  getReports,
-  addReport,
-  deleteReport,
-  exportCSV,
-  importCSV,
+
+    getAllReports,
+
+    getReportById,
+
+    deleteReport,
+
+    importReportsCSV,
+
+
 } = require("../controllers/checklistReportController");
 
-// Get Reports
-router.get("/", getReports);
 
-// Add Report
-router.post("/", addReport);
 
-// Delete Report
-router.delete("/:id", deleteReport);
 
-// Export CSV
-router.get("/export", exportCSV);
 
-// Import CSV
-router.post(
-  "/import",
-  upload.single("file"),
-  importCSV
+// ======================================================
+// CHECKLIST REPORT ROUTES
+// Base URL:
+// /api/checklist-reports
+// ======================================================
+
+
+
+
+
+// ======================================================
+// GET ALL REPORTS
+// GET /api/checklist-reports
+// ======================================================
+
+
+router.get(
+
+    "/",
+
+    getAllReports
+
 );
+
+
+
+
+
+
+
+
+// ======================================================
+// IMPORT CSV REPORTS
+// POST /api/checklist-reports/import
+// ======================================================
+
+
+router.post(
+
+    "/import",
+
+    upload.single("file"),
+
+
+    (req,res,next)=>{
+
+
+        if(!req.file){
+
+
+            return res.status(400).json({
+
+                success:false,
+
+                message:"Please upload CSV file."
+
+            });
+
+
+        }
+
+
+        next();
+
+
+    },
+
+
+    importReportsCSV
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// GET REPORT DETAILS
+// GET /api/checklist-reports/:id
+// ======================================================
+
+
+router.get(
+
+    "/:id",
+
+    getReportById
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// DELETE REPORT
+// DELETE /api/checklist-reports/:id
+// ======================================================
+
+
+router.delete(
+
+    "/:id",
+
+    deleteReport
+
+);
+
+
+
+
+
 
 module.exports = router;

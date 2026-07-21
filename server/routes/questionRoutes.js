@@ -12,32 +12,35 @@ const {
 } = require("../controllers/questionController");
 
 // ======================================
-// Get All Questions
+// GET QUESTIONS
+// - Without query: returns all questions
+// - With ?checklist_type_id=1 : returns only
+//   that checklist type's questions
 // ======================================
 router.get("/", getQuestions);
 
 // ======================================
-// Create Question
+// CREATE QUESTION
 // ======================================
 router.post("/", createQuestion);
 
 // ======================================
-// Delete All Questions
+// DELETE ALL QUESTIONS
 // ======================================
 router.delete("/delete-all", deleteAllQuestions);
 
 // ======================================
-// Get Single Question
+// GET SINGLE QUESTION
 // ======================================
 router.get("/:id", getQuestionById);
 
 // ======================================
-// Update Question
+// UPDATE QUESTION
 // ======================================
 router.put("/:id", updateQuestion);
 
 // ======================================
-// Delete Question
+// DELETE QUESTION
 // ======================================
 router.delete("/:id", deleteQuestion);
 

@@ -1,10 +1,46 @@
 const Question = require("../models/questionModel");
 
 // ==============================
-// Get All Questions
+// Get Questions
+// If checklist_type_id is passed,
+// return only that checklist's questions.
+// Otherwise return all questions.
 // ==============================
 
 exports.getQuestions = (req, res) => {
+
+  const { checklist_type_id } = req.query;
+
+  // ============================
+  // Checklist Submission
+  // ============================
+
+  if (checklist_type_id) {
+
+    return Question.getQuestionsByChecklistType(
+      checklist_type_id,
+      (err, rows) => {
+
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json({
+          success: true,
+          data: rows,
+        });
+
+      }
+    );
+
+  }
+
+  // ============================
+  // Questions Page
+  // ============================
 
   Question.getAllQuestions((err, rows) => {
 
@@ -137,6 +173,7 @@ exports.createQuestion = (req, res) => {
   );
 
 };
+
 // ==============================
 // Update Question
 // ==============================

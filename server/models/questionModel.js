@@ -44,7 +44,38 @@ const getAllQuestions = (callback) => {
   db.query(sql, callback);
 
 };
+// ==============================
+// Get Questions By Checklist Type
+// (Used in Checklist Submission)
+// ==============================
 
+const getQuestionsByChecklistType = (
+  checklistTypeId,
+  callback
+) => {
+
+  const sql = `
+    SELECT
+      q.id,
+      q.checklist_type_id,
+      q.question,
+      q.sequence_no,
+      q.answer_type,
+      q.sla_value,
+      q.sla_unit,
+      q.answer_required,
+      q.status
+    FROM questions q
+    WHERE q.checklist_type_id = ?
+      AND q.status = 'Active'
+    ORDER BY
+      q.sequence_no ASC,
+      q.id ASC
+  `;
+
+  db.query(sql, [checklistTypeId], callback);
+
+};
 // ==============================
 // Get Question By ID
 // ==============================
@@ -239,6 +270,7 @@ const deleteAllQuestions = (callback) => {
 
 module.exports = {
   getAllQuestions,
+  getQuestionsByChecklistType,
   getQuestionById,
   createQuestion,
   saveDepartments,

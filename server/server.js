@@ -1,163 +1,701 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+
+
 
 const app = express();
 
-// ================= Middleware =================
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// ================= Upload Folder =================
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ================= Home =================
 
-app.get("/", (req, res) => {
-  res.send("🚀 Miarcus Backend Running...");
+// ======================================================
+// DATABASE
+// ======================================================
+
+
+const db = require("./config/db");
+
+
+
+db.connect((err)=>{
+
+
+    if(err){
+
+
+        console.error(
+            "❌ MySQL Connection Failed"
+        );
+
+
+        console.error(err);
+
+
+        process.exit(1);
+
+
+    }
+
+
+
+    console.log(
+        "✅ MySQL Connected Successfully"
+    );
+
+
 });
 
-// ================= Routes =================
 
-// Authentication
-try {
-  const authRoutes = require("./routes/authRoutes");
-  console.log("✅ authRoutes Loaded");
-  app.use("/api/auth", authRoutes);
-} catch (err) {
-  console.error("❌ authRoutes Error");
-  console.error(err);
+
+
+
+
+
+
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+
+
+app.use(
+
+    cors({
+
+        origin:"http://localhost:5173",
+
+        credentials:true
+
+    })
+
+);
+
+
+
+app.use(
+
+    express.json({
+
+        limit:"20mb"
+
+    })
+
+);
+
+
+
+app.use(
+
+    express.urlencoded({
+
+        extended:true,
+
+        limit:"20mb"
+
+    })
+
+);
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// UPLOAD FOLDER
+// ======================================================
+
+
+const uploadFolder = path.join(
+
+    __dirname,
+
+    "uploads"
+
+);
+
+
+
+if(!fs.existsSync(uploadFolder)){
+
+
+    fs.mkdirSync(
+
+        uploadFolder,
+
+        {
+            recursive:true
+        }
+
+    );
+
+
+    console.log(
+        "📂 Upload folder created"
+    );
+
+
 }
 
-// Stores
-try {
-  const storeRoutes = require("./routes/storeRoutes");
-  console.log("✅ storeRoutes Loaded");
-  app.use("/api/stores", storeRoutes);
-} catch (err) {
-  console.error("❌ storeRoutes Error");
-  console.error(err);
-}
 
-// Action Points
-try {
-  const actionPointRoutes = require("./routes/actionPointRoutes");
-  console.log("✅ actionPointRoutes Loaded");
-  app.use("/api/action-points", actionPointRoutes);
-} catch (err) {
-  console.error("❌ actionPointRoutes Error");
-  console.error(err);
-}
 
-// Profile
-try {
-  const profileRoutes = require("./routes/profileRoutes");
-  console.log("✅ profileRoutes Loaded");
-  app.use("/api/profile", profileRoutes);
-} catch (err) {
-  console.error("❌ profileRoutes Error");
-  console.error(err);
-}
 
-// Users
-try {
-  const userRoutes = require("./routes/userRoutes");
-  console.log("✅ userRoutes Loaded");
-  app.use("/api/users", userRoutes);
-} catch (err) {
-  console.error("❌ userRoutes Error");
-  console.error(err);
-}
 
-// Departments
-try {
-  const departmentRoutes = require("./routes/departmentRoutes");
-  console.log("✅ departmentRoutes Loaded");
-  app.use("/api/departments", departmentRoutes);
-} catch (err) {
-  console.error("❌ departmentRoutes Error");
-  console.error(err);
-}
 
-// Designations
-try {
-  const designationRoutes = require("./routes/designationRoutes");
-  console.log("✅ designationRoutes Loaded");
-  app.use("/api/designations", designationRoutes);
-} catch (err) {
-  console.error("❌ designationRoutes Error");
-  console.error(err);
-}
 
-// Checklist Types
-try {
-  const checklistTypeRoutes = require("./routes/checklistTypeRoutes");
-  console.log("✅ checklistTypeRoutes Loaded");
-  app.use("/api/checklist-types", checklistTypeRoutes);
-} catch (err) {
-  console.error("❌ checklistTypeRoutes Error");
-  console.error(err);
-}
+// Serve uploaded files
 
-// ✅ Checklist Questions
-try {
-  const questionRoutes = require("./routes/questionRoutes");
-  console.log("✅ questionRoutes Loaded");
-  app.use("/api/questions", questionRoutes);
-} catch (err) {
-  console.error("❌ questionRoutes Error");
-  console.error(err);
-}
 
-// Reports To
-try {
-  const reportsToRoutes = require("./routes/reportsToRoutes");
-  console.log("✅ reportsToRoutes Loaded");
-  app.use("/api/reports", reportsToRoutes);
-} catch (err) {
-  console.error("❌ reportsToRoutes Error");
-  console.error(err);
-}
+app.use(
 
-// Checklist Reports
-try {
-  const checklistReportRoutes = require("./routes/checklistReportRoutes");
-  console.log("✅ checklistReportRoutes Loaded");
-  app.use("/api/checklist-reports", checklistReportRoutes);
-} catch (err) {
-  console.error("❌ checklistReportRoutes Error");
-  console.error(err);
-}
+    "/uploads",
 
-// ================= 404 =================
+    express.static(uploadFolder)
 
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route Not Found",
-  });
+);
+
+
+
+
+console.log(
+
+    "📂 Upload Path:",
+
+    uploadFolder
+
+);
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// HOME API
+// ======================================================
+
+
+app.get("/",(req,res)=>{
+
+
+    res.json({
+
+        success:true,
+
+        message:
+        "🚀 Miarcus Backend Running"
+
+    });
+
+
 });
 
-// ================= Global Error Handler =================
 
-app.use((err, req, res, next) => {
-  console.error(err);
 
-  res.status(500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
+
+
+
+// Health Check
+
+
+app.get("/api/health",(req,res)=>{
+
+
+    res.json({
+
+        success:true,
+
+        server:"running",
+
+        database:"connected"
+
+    });
+
+
 });
 
-// ================= Start Server =================
 
-const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log("====================================");
-  console.log(`🚀 Server Running on http://localhost:${PORT}`);
-  console.log("====================================");
-});
+
+
+
+
+
+
+
+
+// ======================================================
+// ROUTE LOADER
+// ======================================================
+
+
+const loadRoute = (
+
+    routeFile,
+
+    apiPath,
+
+    routeName
+
+)=>{
+
+
+    try{
+
+
+        const route = require(routeFile);
+
+
+
+        app.use(
+
+            apiPath,
+
+            route
+
+        );
+
+
+
+        console.log(
+
+            `✅ ${routeName} Loaded`
+
+        );
+
+
+
+    }
+
+    catch(error){
+
+
+        console.error(
+
+            `❌ ${routeName} Failed`
+
+        );
+
+
+        console.error(error);
+
+
+    }
+
+
+};
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// API ROUTES
+// ======================================================
+
+
+
+loadRoute(
+
+"./routes/authRoutes",
+
+"/api/auth",
+
+"Auth Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/storeRoutes",
+
+"/api/stores",
+
+"Store Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/actionPointRoutes",
+
+"/api/action-points",
+
+"Action Point Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/profileRoutes",
+
+"/api/profile",
+
+"Profile Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/userRoutes",
+
+"/api/users",
+
+"User Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/departmentRoutes",
+
+"/api/departments",
+
+"Department Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/designationRoutes",
+
+"/api/designations",
+
+"Designation Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/checklistTypeRoutes",
+
+"/api/checklist-types",
+
+"Checklist Type Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/questionRoutes",
+
+"/api/questions",
+
+"Question Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/reportsToRoutes",
+
+"/api/reports",
+
+"Reports To Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/checklistSubmissionRoutes",
+
+"/api/checklist-submissions",
+
+"Checklist Submission Routes"
+
+);
+
+
+
+
+
+loadRoute(
+
+"./routes/checklistReportRoutes",
+
+"/api/checklist-reports",
+
+"Checklist Report Routes"
+
+);
+
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// MULTER ERROR HANDLER
+// ======================================================
+
+
+app.use(
+
+(err,req,res,next)=>{
+
+
+    console.error(
+
+        "UPLOAD ERROR:",
+
+        err
+
+    );
+
+
+
+
+
+    if(err.code==="LIMIT_FILE_SIZE"){
+
+
+        return res.status(400).json({
+
+            success:false,
+
+            message:
+            "Maximum file size allowed is 10MB"
+
+        });
+
+
+    }
+
+
+
+
+
+
+
+    if(err.message){
+
+
+        return res.status(400).json({
+
+            success:false,
+
+            message:
+            err.message
+
+        });
+
+
+    }
+
+
+
+
+    next(err);
+
+
+
+}
+
+);
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// 404 ERROR
+// ======================================================
+
+
+app.use(
+
+(req,res)=>{
+
+
+    res.status(404).json({
+
+        success:false,
+
+        message:
+        "API Route Not Found"
+
+    });
+
+
+}
+
+);
+
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// GLOBAL ERROR
+// ======================================================
+
+
+app.use(
+
+(err,req,res,next)=>{
+
+
+    console.error(
+
+        "SERVER ERROR:",
+
+        err
+
+    );
+
+
+
+
+    res.status(500).json({
+
+        success:false,
+
+        message:
+        err.message ||
+        "Internal Server Error"
+
+    });
+
+
+
+}
+
+);
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// SERVER START
+// ======================================================
+
+
+const PORT =
+process.env.PORT || 5000;
+
+
+
+app.listen(
+
+PORT,
+
+()=>{
+
+
+console.log(
+"================================"
+);
+
+
+
+console.log(
+
+`🚀 Server Running : http://localhost:${PORT}`
+
+);
+
+
+
+console.log(
+
+`📂 Upload URL : http://localhost:${PORT}/uploads`
+
+);
+
+
+
+console.log(
+"================================"
+);
+
+
+
+}
+
+);
