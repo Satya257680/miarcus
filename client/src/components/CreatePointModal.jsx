@@ -15,8 +15,8 @@ function CreatePointModal({
 
   const [file, setFile] = useState(null);
 
-  const [formData, setFormData] = useState({
-    submission_id: 1,
+ const [formData, setFormData] = useState({
+  submission_id: 28,
     store_id: "",
     department_id: "",
     question_id: "",
@@ -64,7 +64,7 @@ function CreatePointModal({
 
   const resetForm = () => {
     setFormData({
-      submission_id: 1,
+      submission_id: 28,
       store_id: "",
       department_id: "",
       question_id: "",

@@ -42,6 +42,14 @@ function ActionPoints() {
 
   const [showModal, setShowModal] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showOpenModal, setShowOpenModal] = useState(false);
+
+const [selectedAction, setSelectedAction] = useState(null);
+const [actionTaken, setActionTaken] = useState("");
+
+const [remarks, setRemarks] = useState("");
+
+const [completionDate, setCompletionDate] = useState("");
 
   // ================= EDIT DATA =================
 
@@ -161,6 +169,52 @@ function ActionPoints() {
       alert("Unable to delete Action Point");
     }
   };
+
+  const handleOpen = (item) => {
+
+    setSelectedAction(item);
+
+    setShowOpenModal(true);
+
+};
+
+const saveActionPoint = async () => {
+
+  try {
+
+    await axios.put(
+
+      `${API}/api/action-points/${selectedAction.id}/take-action`,
+
+      {
+
+        action_taken: actionTaken,
+
+        remarks,
+
+        completion_date: completionDate
+
+      }
+
+    );
+
+    alert("Action saved successfully.");
+
+    setShowOpenModal(false);
+
+    fetchActionPoints();
+
+  }
+
+  catch (error) {
+
+    console.log(error);
+
+    alert("Unable to save action.");
+
+  }
+
+};
 
   // ================= EXPORT CSV =================
 
@@ -419,6 +473,7 @@ actionPoints.map((item) => (
 {item.attachment ? (
 
 <a
+className="view-link"
 href={`${API}/${item.attachment.replace(/\\/g,"/")}`}
 target="_blank"
 rel="noreferrer"
@@ -426,7 +481,7 @@ rel="noreferrer"
 
 <FaEye />
 
-View
+<span>View</span>
 
 </a>
 
@@ -437,7 +492,6 @@ View
 )}
 
 </td>
-
 <td>
 
 <div className="status-box">
@@ -448,72 +502,68 @@ View
 
 </td>
 
+<td className="sla">
+    {item.sla_status || "-"}
+</td>
 <td>
 
-{item.sla_status || "-"}
+{item.next_action ? (
+
+<button
+
+className="open-btn"
+
+onClick={() => handleOpen(item)}
+
+>
+
+{item.next_action}
+
+</button>
+
+) : (
+
+"-"
+
+)}
 
 </td>
-
-<td>
-
-{item.next_action || "-"}
-
-</td>
-
 <td>
 
 {item.remarks || "-"}
 
 </td>
 
-<td>
+<td className="action-buttons-cell">
 
-<button
+  <button
+    className="edit-btn"
+    onClick={() => {
 
-className="edit-btn"
+      setEditData({
+        id: item.id,
+        question: item.question,
+        department_name: item.department_name,
+        answer: item.answer || "",
+        comment: item.comment || "",
+        sla: item.sla || ""
+      });
 
-onClick={() => {
+      setShowEdit(true);
 
-setEditData({
+    }}
+  >
+    Edit <FaEdit />
+  </button>
 
-id:item.id,
-
-question:item.question,
-
-department_name:item.department_name,
-
-answer:item.answer || "",
-
-comment:item.comment || "",
-
-sla:item.sla || ""
-
-});
-
-setShowEdit(true);
-
-}}
-
->
-
-<FaEdit/>
-
-</button>
-
-<button
-
-className="delete-btn"
-
-onClick={()=>deleteActionPoint(item.id)}
-
->
-
-<FaTrash/>
-
-</button>
+  <button
+    className="delete-btn"
+    onClick={() => deleteActionPoint(item.id)}
+  >
+    <FaTrash />
+  </button>
 
 </td>
-
 <td>
 
 {item.history || "-"}
@@ -669,7 +719,97 @@ Update
 )
 
 }
+{
+showOpenModal && (
 
+<div className="modal-overlay">
+
+<div className="modal-box">
+
+<h3>Take Action</h3>
+
+<label>Question</label>
+
+<input
+type="text"
+value={selectedAction?.question || ""}
+readOnly
+/>
+
+<label>Department</label>
+
+<input
+type="text"
+value={selectedAction?.department_name || ""}
+readOnly
+/>
+
+<label>Answer</label>
+
+<input
+type="text"
+value={selectedAction?.answer || ""}
+readOnly
+/>
+
+<label>Current Status</label>
+
+<input
+type="text"
+value={selectedAction?.status || ""}
+readOnly
+/>
+
+<label>Action Taken</label>
+
+<textarea
+rows="4"
+placeholder="Example: Product shifted to front display."
+value={actionTaken}
+onChange={(e)=>setActionTaken(e.target.value)}
+></textarea>
+
+<label>Remarks</label>
+
+<textarea
+rows="4"
+placeholder="Enter remarks..."
+value={remarks}
+onChange={(e)=>setRemarks(e.target.value)}
+></textarea>
+
+<label>Completion Date</label>
+
+<input
+type="date"
+value={completionDate}
+onChange={(e)=>setCompletionDate(e.target.value)}
+/>
+
+<div className="modal-actions">
+
+<button
+className="submit-btn"
+onClick={saveActionPoint}
+>
+Save
+</button>
+
+<button
+className="cancel-btn"
+onClick={() => setShowOpenModal(false)}
+>
+Close
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+)
+}
 </div>
 
 );

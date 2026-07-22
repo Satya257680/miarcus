@@ -265,25 +265,25 @@ function Designations() {
                       {designation.status}
                     </span>
                   </td>
+<td>
+  <div className="action-buttons">
 
-                  <td>
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(designation)}
+    >
+      Edit <FaEdit />
+    </button>
 
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEdit(designation)}
-                    >
-                      <FaEdit />
-                    </button>
+    <button
+      className="delete-btn"
+      onClick={() => handleDelete(designation.id)}
+    >
+      <FaTrash />
+    </button>
 
-                    <button
-                      className="delete-btn"
-                      onClick={() => handleDelete(designation.id)}
-                    >
-                      <FaTrash />
-                    </button>
-
-                  </td>
-
+  </div>
+</td>
                 </tr>
 
               ))

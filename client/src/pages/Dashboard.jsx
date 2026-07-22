@@ -33,72 +33,72 @@ function Dashboard() {
     {
       title: "Announcements",
       icon: <FaBullhorn />,
-      link: "#",
+      link: "/announcements",
     },
     {
       title: "Asset Master",
       icon: <FaBoxes />,
-      link: "#",
+      link: "/asset-master",
     },
     {
       title: "Attendance",
       icon: <FaCalendarAlt />,
-      link: "#",
+      link: "/attendance",
     },
     {
       title: "Checklist",
       icon: <FaClipboardList />,
-      link: "#",
+      link: "/checklist-submit",
     },
     {
       title: "Reports",
       icon: <FaChartBar />,
-      link: "#",
+      link: "/checklist-reports",
     },
     {
       title: "Expenses",
       icon: <FaMoneyBillWave />,
-      link: "#",
+      link: "/expenses",
     },
     {
       title: "Collection Tracking",
       icon: <FaLayerGroup />,
-      link: "#",
+      link: "/collection-tracking",
     },
     {
       title: "Inventory Planning",
       icon: <FaLayerGroup />,
-      link: "#",
+      link: "/inventory-planning",
     },
     {
       title: "Listing Tracker",
       icon: <FaGlobe />,
-      link: "#",
+      link: "/listing-tracker",
     },
     {
       title: "New Store Openings",
       icon: <FaStore />,
-      link: "#",
+      link: "/new-store-openings",
     },
     {
       title: "NSO Rules",
       icon: <FaBook />,
-      link: "#",
+      link: "/nso-rules",
     },
     {
       title: "Quiz",
       icon: <FaQuestionCircle />,
-      link: "#",
+      link: "/quiz",
     },
     {
       title: "Sales Team",
       icon: <FaUsers />,
-      link: "#",
+      link: "/sales-team",
     },
     {
       title: "Settings",
       icon: <FaCog />,
-      link: "#",
+      link: "/settings",
     },
   ];
 

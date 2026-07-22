@@ -133,6 +133,65 @@ const [importFile,setImportFile] = useState(null);
 
     }
   };
+  // ===========================
+// EDIT REPORT
+// ===========================
+
+const [showEditModal, setShowEditModal] = useState(false);
+
+const [editingReport, setEditingReport] = useState({
+  id: "",
+  status: "",
+  answer: "",
+  remarks: ""
+});
+// ===========================
+// UPDATE REPORT
+// ===========================
+
+const updateReport = async () => {
+
+  try {
+
+    await axios.put(
+
+      `${API}/checklist-reports/${editingReport.id}`,
+
+      {
+
+        status: editingReport.status,
+
+        answer: editingReport.answer,
+
+        remarks: editingReport.remarks
+
+      }
+
+    );
+
+    alert("Report Updated Successfully");
+
+    setShowEditModal(false);
+
+    loadData();
+
+  }
+
+  catch (error) {
+
+    console.log(error);
+
+    console.log(error.response);
+
+    console.log(error.response?.data);
+
+    alert(
+        error.response?.data?.message ||
+        error.message
+    );
+
+}
+};
     // ===========================
   // EXPORT CSV
   // ===========================
@@ -353,6 +412,31 @@ loadData();
     toDate,
     rowsPerPage,
   ]);
+  // ===========================
+// EDIT REPORT
+// ===========================
+
+const handleEdit = (item) => {
+
+  setEditingReport({
+
+    id: item.id,
+
+    status: item.status || "",
+
+    submission_date: item.submission_date || "",
+
+    device: item.device || "",
+
+    answer: item.answer || "",
+
+    remarks: item.remarks || ""
+
+});
+
+  setShowEditModal(true);
+
+};
 
   // ===========================
   // LOADING
@@ -645,41 +729,24 @@ Import CSV
 
         <table>
 
-          <thead>
-
-            <tr>
-
-              <th>Submitted At</th>
-
-              <th>Status</th>
-
-              <th>Checklist</th>
-
-              <th>Store</th>
-
-              <th>Employee</th>
-
-              <th>Employee ID</th>
-
-              <th>Question</th>
-
-              <th>Answer</th>
-
-              <th>Comment</th>
-
-              <th>Department</th>
-
-              <th>Attachment</th>
-
-              <th>Device</th>
-
-              <th>Geo Location</th>
-
-              <th>Action</th>
-
-            </tr>
-
-          </thead>
+         <thead>
+  <tr>
+    <th style={{minWidth:"150px"}}>Submitted At</th>
+    <th style={{minWidth:"100px"}}>Status</th>
+    <th style={{minWidth:"180px"}}>Checklist</th>
+    <th style={{minWidth:"150px"}}>Store</th>
+    <th style={{minWidth:"170px"}}>Employee</th>
+    <th style={{minWidth:"100px"}}>Employee ID</th>
+    <th style={{minWidth:"260px"}}>Question</th>
+    <th style={{minWidth:"140px"}}>Answer</th>
+    <th style={{minWidth:"220px"}}>Comment</th>
+    <th style={{minWidth:"140px"}}>Department</th>
+    <th style={{minWidth:"120px"}}>Attachment</th>
+    <th style={{minWidth:"170px"}}>Device</th>
+    <th style={{minWidth:"150px"}}>Geo Location</th>
+    <th className="action-column">Action</th>
+  </tr>
+</thead>
 
           <tbody>            {currentReports.length > 0 ? (
 
@@ -788,48 +855,35 @@ Import CSV
                     )}
 
                   </td>
+<td className="action-column">
 
-                  <td>
+    <div className="action-buttons">
 
-                    <div className="action-buttons">
+        <button
+            className="view-btn"
+            onClick={() => viewReport(item.id)}
+        >
+            <FaEye />
+        </button>
 
-                      <button
-                        className="view-btn"
-                        title="View"
-                        onClick={() =>
-                          viewReport(item.id)
-                        }
-                      >
+        <button
+            className="edit-btn"
+            onClick={() => handleEdit(item)}
+        >
+            <FaEdit />
+            <span>Edit</span>
+        </button>
 
-                        <FaEye />
+        <button
+            className="delete-btn"
+            onClick={() => deleteReport(item.id)}
+        >
+            <FaTrash />
+        </button>
 
-                      </button>
+    </div>
 
-                      <button
-                        className="edit-btn"
-                        title="Edit"
-                      >
-
-                        <FaEdit />
-
-                      </button>
-
-                      <button
-                        className="delete-btn"
-                        title="Delete"
-                        onClick={() =>
-                          deleteReport(item.id)
-                        }
-                      >
-
-                        <FaTrash />
-
-                      </button>
-
-                    </div>
-
-                  </td>
-
+</td>
                 </tr>
 
               ))
@@ -1115,6 +1169,120 @@ Import CSV
         </div>
 
       )}
+
+      {showEditModal && (
+
+<div className="modal-overlay">
+
+    <div className="report-modal">
+
+        <div className="modal-header">
+
+            <h3>Edit Checklist Report</h3>
+
+            <button
+                className="close-btn"
+                onClick={() => setShowEditModal(false)}
+            >
+                <FaTimes />
+            </button>
+
+        </div>
+
+        <div className="modal-body">
+
+            <div className="filter-item">
+
+                <label>Status</label>
+
+                <select
+                    value={editingReport.status}
+                    onChange={(e)=>
+                        setEditingReport({
+                            ...editingReport,
+                            status:e.target.value
+                        })
+                    }
+                >
+
+                    <option value="Completed">
+                        Completed
+                    </option>
+
+                    <option value="Pending">
+                        Pending
+                    </option>
+
+                    <option value="Failed">
+                        Failed
+                    </option>
+
+                </select>
+
+            </div>
+
+            <br/>
+
+            <div className="filter-item">
+
+                <label>Answer</label>
+
+                <input
+                    type="text"
+                    value={editingReport.answer}
+                    onChange={(e)=>
+                        setEditingReport({
+                            ...editingReport,
+                            answer:e.target.value
+                        })
+                    }
+                />
+
+            </div>
+
+            <br/>
+
+            <div className="filter-item">
+
+                <label>Remarks</label>
+
+                <textarea
+                    rows="5"
+                    value={editingReport.remarks}
+                    onChange={(e)=>
+                        setEditingReport({
+                            ...editingReport,
+                            remarks:e.target.value
+                        })
+                    }
+                />
+
+            </div>
+
+            <div className="modal-actions">
+
+                <button
+                    className="cancel-btn"
+                    onClick={() => setShowEditModal(false)}
+                >
+                    Cancel
+                </button>
+
+               <button
+    className="upload-btn"
+    onClick={updateReport}
+>
+    Save Changes
+</button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+)}
       {/* ================= IMPORT CSV MODAL ================= */}
 
 {showImportModal && (

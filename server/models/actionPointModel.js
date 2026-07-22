@@ -74,15 +74,14 @@ END AS sla_status,
 
 CASE
 
-WHEN csa.remarks IS NULL
-OR csa.remarks=''
+WHEN csa.action_remarks IS NULL
+OR csa.action_remarks=''
 
 THEN '-'
 
-ELSE csa.remarks
+ELSE csa.action_remarks
 
 END AS remarks,
-
 
 
 'No Action Taken by System Auto' AS history,
@@ -652,11 +651,48 @@ callback
 
 };
 
+// ======================================================
+// TAKE ACTION
+// ======================================================
 
+ActionPoint.takeAction = (id, data, callback) => {
 
+    const sql = `
 
+        UPDATE checklist_submission_answers
 
+        SET
 
+            action_remarks = ?,
 
+            action_taken = ?,
+
+            completion_date = ?
+
+        WHERE submission_id = ?
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            data.remarks || "",
+
+            data.action_taken || "",
+
+            data.completion_date || null,
+
+            id
+
+        ],
+
+        callback
+
+    );
+
+};
 
 module.exports = ActionPoint;

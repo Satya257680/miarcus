@@ -163,23 +163,35 @@ const [uploading, setUploading] = useState(false);
               <td>{manager.manager_name}</td>
               <td>{manager.department}</td>
               <td>{manager.designation}</td>
-              <td>{manager.status}</td>
+            <td>
+  <span
+    className={
+      manager.status?.toLowerCase() === "active"
+        ? "status active"
+        : "status inactive"
+    }
+  >
+    {manager.status}
+  </span>
+</td>
 
-              <td>
-                <button
-                  className="edit-btn"
-                  onClick={() => handleEdit(manager)}
-                >
-                  <FaEdit />
-                </button>
+<td>
+  <div className="action-buttons">
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(manager)}
+    >
+      Edit <FaEdit />
+    </button>
 
-                <button
-                  className="delete-btn"
-                  onClick={() => handleDelete(manager.id)}
-                >
-                  <FaTrash />
-                </button>
-              </td>
+    <button
+      className="delete-btn"
+      onClick={() => handleDelete(manager.id)}
+    >
+      <FaTrash />
+    </button>
+  </div>
+</td>
             </tr>
           ))
         )}

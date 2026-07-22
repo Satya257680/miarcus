@@ -245,27 +245,25 @@ function Departments() {
                       {department.status}
                     </span>
                   </td>
+<td>
+  <div className="action-buttons">
 
-                  <td>
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(department)}
+    >
+      Edit <FaEdit />
+    </button>
 
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEdit(department)}
-                    >
-                      <FaEdit />
-                    </button>
+    <button
+      className="delete-btn"
+      onClick={() => handleDelete(department.id)}
+    >
+      <FaTrash />
+    </button>
 
-                    <button
-                      className="delete-btn"
-                      onClick={() =>
-                        handleDelete(department.id)
-                      }
-                    >
-                      <FaTrash />
-                    </button>
-
-                  </td>
-
+  </div>
+</td>
                 </tr>
 
               ))

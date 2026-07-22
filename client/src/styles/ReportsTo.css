@@ -2,319 +2,848 @@
    Reports Page
 ========================== */
 
-.reports-page {
-  padding: 20px;
-  background: #edf3f5;
-  min-height: 100vh;
+.reports-page{
+    padding:20px;
+    background:#edf3f5;
+    min-height:100vh;
 }
+
 
 /* ==========================
    Header
 ========================== */
 
-.reports-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+.reports-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
 }
 
-.reports-header h2 {
-  color: #2c3e50;
-  font-size: 26px;
-  font-weight: 600;
+.reports-header h2{
+    color:#2c3e50;
+    font-size:26px;
+    font-weight:600;
 }
+
 
 /* ==========================
    Header Actions
 ========================== */
 
-.report-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.report-actions{
+    display:flex;
+    align-items:center;
+    gap:12px;
 }
+
 
 /* ==========================
    Buttons
 ========================== */
 
 .add-report-btn,
-.bulk-btn {
-  border: none;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  transition: 0.3s;
+.bulk-btn{
+
+    border:none;
+
+    height:40px;
+
+    padding:0 18px;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    transition:.3s;
+
 }
 
-.add-report-btn {
-  background: #3f6b78;
-  color: #fff;
+.add-report-btn{
+
+    background:#3f6b78;
+
+    color:#fff;
+
 }
 
-.add-report-btn:hover {
-  background: #2e5662;
+.add-report-btn:hover{
+
+    background:#2e5662;
+
 }
 
-.bulk-btn {
-  background: #28a745;
-  color: #fff;
+.bulk-btn{
+
+    background:#28a745;
+
+    color:#fff;
+
 }
 
-.bulk-btn:hover {
-  background: #218838;
+.bulk-btn:hover{
+
+    background:#218838;
+
 }
 
-.bulk-btn:disabled {
-  background: #9ed7a8;
-  cursor: not-allowed;
+.bulk-btn:disabled{
+
+    background:#9ed7a8;
+
+    cursor:not-allowed;
+
 }
+
 
 /* ==========================
    Search
 ========================== */
 
-.reports-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 10px 15px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 5px rgba(0,0,0,.08);
+.reports-search{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    background:#fff;
+
+    border-radius:8px;
+
+    padding:10px 15px;
+
+    margin-bottom:18px;
+
+    box-shadow:0 2px 5px rgba(0,0,0,.08);
+
 }
 
-.reports-search input {
-  width: 100%;
-  border: none;
-  outline: none;
-  font-size: 15px;
+.reports-search svg{
+
+    color:#666;
+
+    font-size:15px;
+
 }
+
+.reports-search input{
+
+    width:100%;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    font-size:14px;
+
+}
+
 
 /* ==========================
    Table
 ========================== */
 
-.reports-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
+.reports-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    background:#fff;
+
+    border-radius:8px;
+
+    overflow:hidden;
+
+    table-layout:fixed;
+
 }
 
-.reports-table th {
-  background: #3f6b78;
-  color: #fff;
-  padding: 14px;
-  text-align: left;
+.reports-table thead{
+
+    background:#3f6b78;
+
 }
 
-.reports-table td {
-  padding: 14px;
-  border-bottom: 1px solid #eee;
+.reports-table th{
+
+    color:#fff;
+
+    padding:13px 16px;
+
+    text-align:left;
+
+    font-size:14px;
+
+    font-weight:600;
+
 }
 
-.reports-table tr:hover {
-  background: #f8f9fa;
-}
 
 /* ==========================
-   Action Buttons
+   COLUMN WIDTHS
 ========================== */
+
+.reports-table{
+    width:auto;
+    min-width:1750px;
+    table-layout:auto;
+}
+
+.reports-table th:nth-child(1),
+.reports-table td:nth-child(1){
+    width:28%;   /* Manager Name */
+}
+
+.reports-table th:nth-child(2),
+.reports-table td:nth-child(2){
+    width:22%;   /* Department */
+}
+
+.reports-table th:nth-child(3),
+.reports-table td:nth-child(3){
+    width:18%;   /* Designation */
+}
+
+.reports-table th:nth-child(4),
+.reports-table td:nth-child(4){
+    width:12%;   /* Status */
+}
+
+.reports-table th:nth-child(5),
+.reports-table td:nth-child(5){
+    width:20%;   /* Actions */
+}
+
+/* Body */
+
+.reports-table tbody tr{
+
+    border-bottom:1px solid #ececec;
+
+    transition:.25s;
+
+}
+
+.reports-table tbody tr:hover{
+
+    background:#f8f9fa;
+
+}
+
+.reports-table td{
+
+    padding:10px 16px;
+
+    height:48px;
+
+    vertical-align:middle;
+
+    text-align:left;
+
+    color:#444;
+
+    font-size:14px;
+
+}
+/* ==========================
+   STATUS
+========================== */
+
+.status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:70px;
+  height:30px;
+  padding:0 14px;
+  border-radius:20px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.status.active{
+  background:#d8f5df;
+  color:#18783b;
+}
+
+.status.inactive{
+  background:#ffe3e3;
+  color:#d32f2f;
+}
+/* ==========================
+   ACTION BUTTONS
+========================== */
+
+.action-buttons{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.edit-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 14px;
+  border:none;
+  border-radius:8px;
+  background:#f39c12;
+  color:#fff;
+  cursor:pointer;
+}
+
+.delete-btn{
+  width:38px;
+  height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  border-radius:8px;
+  background:#d32f2f;
+  color:#fff;
+  cursor:pointer;
+}
+/* ==========================
+   MODAL OVERLAY
+========================== */
+
+.modal-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:1000;
+
+}
+
+
+/* ==========================
+   ADD / EDIT MODAL
+========================== */
+
+.modal{
+
+    width:460px;
+
+    background:#fff;
+
+    border-radius:10px;
+
+    padding:25px;
+
+    box-shadow:0 10px 30px rgba(0,0,0,.18);
+
+}
+
+.modal h2{
+
+    margin-bottom:20px;
+
+    color:#20354b;
+
+    font-size:24px;
+
+    font-weight:700;
+
+}
+
+.modal label{
+
+    display:block;
+
+    margin:14px 0 8px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#555;
+
+}
+
+.modal input,
+.modal select{
+
+    width:100%;
+
+    height:42px;
+
+    padding:0 12px;
+
+    border:1px solid #d7d7d7;
+
+    border-radius:6px;
+
+    outline:none;
+
+    font-size:14px;
+
+    transition:.25s;
+
+}
+
+.modal input:focus,
+.modal select:focus{
+
+    border-color:#3f6b78;
+
+    box-shadow:0 0 0 3px rgba(63,107,120,.12);
+
+}
+
+.modal-buttons{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:10px;
+
+    margin-top:24px;
+
+}
+
+.modal-buttons button{
+
+    min-width:100px;
+
+    height:38px;
+
+    border:none;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+    font-size:13px;
+
+    font-weight:600;
+
+}
+
+.modal-buttons button:first-child{
+
+    background:#6c757d;
+
+    color:#fff;
+
+}
+
+.modal-buttons button:first-child:hover{
+
+    background:#5b646d;
+
+}
+
+.modal-buttons button:last-child{
+
+    background:#3f6b78;
+
+    color:#fff;
+
+}
+
+.modal-buttons button:last-child:hover{
+
+    background:#2e5662;
+
+}
+
+
+/* ==========================
+   BULK UPLOAD MODAL
+========================== */
+
+.bulk-modal{
+
+    width:520px;
+
+    background:#fff;
+
+    border-radius:10px;
+
+    padding:28px;
+
+    box-shadow:0 10px 30px rgba(0,0,0,.18);
+
+}
+
+.bulk-modal h2{
+
+    margin:0 0 10px;
+
+    color:#20354b;
+
+    font-size:24px;
+
+}
+
+.bulk-modal p{
+
+    color:#666;
+
+    margin-bottom:20px;
+
+}
+
+.bulk-modal input[type="file"]{
+
+    width:100%;
+
+    margin-bottom:25px;
+
+}
+
+.bulk-buttons{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:10px;
+
+}
+
+.bulk-buttons button{
+
+    min-width:110px;
+
+    height:38px;
+
+    border:none;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+    font-size:13px;
+
+    font-weight:600;
+
+}
+
+.bulk-buttons button:first-child{
+
+    background:#6c757d;
+
+    color:#fff;
+
+}
+
+.bulk-buttons button:last-child{
+
+    background:#3f6b78;
+
+    color:#fff;
+
+}
+
+.bulk-buttons button:last-child:hover{
+
+    background:#2e5662;
+
+}
+/* ==========================
+   TABLE ALIGNMENT
+========================== */
+
+.reports-table tbody tr{
+
+    height:48px;
+
+}
+
+.reports-table td{
+
+    padding:8px 16px;
+
+    height:48px;
+
+    vertical-align:middle;
+
+    line-height:20px;
+
+}
+
+.reports-table td:nth-child(1){
+
+    font-weight:600;
+
+    color:#333;
+
+}
+
+.reports-table td:nth-child(2),
+.reports-table td:nth-child(3),
+.reports-table td:nth-child(4){
+
+    display:table-cell;
+
+    vertical-align:middle;
+
+}
+
+.reports-table td:last-child{
+
+    text-align:center;
+
+    vertical-align:middle;
+
+}
+
+
+/* ==========================
+   BUTTON ALIGNMENT
+========================== */
+
+.action-buttons{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    gap:6px;
+
+}
 
 .edit-btn,
-.delete-btn {
-  border: none;
-  cursor: pointer;
-  padding: 8px 10px;
-  border-radius: 5px;
-  margin-right: 6px;
+.delete-btn{
+
+    flex-shrink:0;
+
 }
 
-.edit-btn {
-  background: #ffc107;
-  color: white;
-}
-
-.edit-btn:hover {
-  background: #e0a800;
-}
-
-.delete-btn {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-btn:hover {
-  background: #c82333;
-}
 
 /* ==========================
-   Modal Overlay
+   SEARCH
 ========================== */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+.reports-search{
+
+    width:100%;
+
 }
+
+.reports-search input{
+
+    font-size:14px;
+
+}
+
 
 /* ==========================
-   Add/Edit Modal
+   SCROLLBAR
 ========================== */
 
-.modal {
-  background: white;
-  width: 450px;
-  border-radius: 10px;
-  padding: 25px;
+.reports-table::-webkit-scrollbar{
+
+    height:8px;
+
 }
 
-.modal h2 {
-  margin-bottom: 20px;
+.reports-table::-webkit-scrollbar-track{
+
+    background:#ececec;
+
 }
 
-.modal label {
-  display: block;
-  margin-top: 15px;
-  margin-bottom: 8px;
-  font-weight: 600;
+.reports-table::-webkit-scrollbar-thumb{
+
+    background:#bdbdbd;
+
+    border-radius:20px;
+
 }
 
-.modal select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+.reports-table::-webkit-scrollbar-thumb:hover{
+
+    background:#999;
+
 }
 
-.modal-buttons {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 25px;
-  gap: 10px;
-}
-
-.modal-buttons button {
-  border: none;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.modal-buttons button:first-child {
-  background: #6c757d;
-  color: #fff;
-}
-
-.modal-buttons button:last-child {
-  background: #3f6b78;
-  color: #fff;
-}
 
 /* ==========================
-   Bulk Upload Modal
+   RESPONSIVE
 ========================== */
 
-.bulk-modal {
-  width: 520px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.20);
-}
+@media (max-width:992px){
 
-.bulk-modal h2 {
-  margin: 0 0 10px;
-  color: #20354b;
-  font-size: 28px;
-}
+    .reports-header{
 
-.bulk-modal p {
-  color: #666;
-  margin-bottom: 25px;
-}
+        flex-direction:column;
 
-.bulk-modal input[type="file"] {
-  width: 100%;
-  margin-bottom: 25px;
-  font-size: 15px;
-}
+        align-items:flex-start;
 
-.bulk-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
+        gap:15px;
 
-.bulk-buttons button {
-  border: none;
-  padding: 10px 22px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 15px;
-}
+    }
 
-.bulk-buttons button:first-child {
-  background: #6c757d;
-  color: white;
-}
+    .report-actions{
 
-.bulk-buttons button:first-child:hover {
-  background: #5a6268;
-}
+        width:100%;
 
-.bulk-buttons button:last-child {
-  background: #3f6b78;
-  color: white;
-}
+        flex-wrap:wrap;
 
-.bulk-buttons button:last-child:hover {
-  background: #2e5662;
-}
+    }
 
-.bulk-buttons button:disabled {
-  opacity: .6;
-  cursor: not-allowed;
-}
+    .bulk-btn,
+    .add-report-btn{
 
-/* ==========================
-   Responsive
-========================== */
+        width:100%;
+
+        justify-content:center;
+
+    }
+
+    .reports-table{
+
+        min-width:900px;
+
+    }
+
+}
 
 @media (max-width:768px){
 
-  .reports-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:15px;
-  }
+    .reports-page{
 
-  .report-actions{
-    width:100%;
-    justify-content:flex-start;
-    flex-wrap:wrap;
-  }
+        padding:15px;
 
-  .bulk-btn,
-  .add-report-btn{
-    width:100%;
-    justify-content:center;
-  }
+    }
 
-  .bulk-modal{
-    width:95%;
-    padding:20px;
-  }
+    .reports-header h2{
+
+        font-size:22px;
+
+    }
+
+    .reports-search{
+
+        padding:8px 12px;
+
+    }
+
+    .reports-table th{
+
+        padding:10px;
+
+        font-size:13px;
+
+    }
+
+    .reports-table td{
+
+        padding:8px 10px;
+
+        font-size:13px;
+
+        height:44px;
+
+    }
+
+    .modal,
+    .bulk-modal{
+
+        width:95%;
+
+    }
+
+}
+
+@media (max-width:576px){
+
+    .report-actions{
+
+        flex-direction:column;
+
+    }
+
+    .bulk-btn,
+    .add-report-btn{
+
+        width:100%;
+
+    }
+
+    .modal-buttons,
+    .bulk-buttons{
+
+        flex-direction:column;
+
+    }
+
+    .modal-buttons button,
+    .bulk-buttons button{
+
+        width:100%;
+
+    }
+
+}
+
+
+/* ==========================
+   FINAL POLISH
+========================== */
+
+button,
+input,
+select{
+
+    font-family:inherit;
+
+}
+
+button{
+
+    transition:.25s;
+
+}
+
+.reports-table tbody tr{
+
+    transition:background .2s;
+
+}
+
+.reports-table tbody tr:hover{
+
+    background:#f8f9fa;
+
+}
+
+.reports-page{
+
+    overflow-x:auto;
+
 }

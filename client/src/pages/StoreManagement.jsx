@@ -535,27 +535,24 @@ const handleFileChange = async (e) => {
                   </td>
 
                   <td>
+  <div className="store-action-buttons">
 
-                    <button
-                      className="edit-btn"
-                      onClick={() =>
-                        handleEdit(store)
-                      }
-                    >
-                      <FaEdit />
-                    </button>
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(store)}
+    >
+      <FaEdit />
+    </button>
 
-                    <button
-                      className="delete-btn"
-                      onClick={() =>
-                        handleDelete(store.id)
-                      }
-                    >
-                      <FaTrash />
-                    </button>
+    <button
+      className="delete-btn"
+      onClick={() => handleDelete(store.id)}
+    >
+      <FaTrash />
+    </button>
 
-                  </td>
-
+  </div>
+</td>
                 </tr>
 
               ))

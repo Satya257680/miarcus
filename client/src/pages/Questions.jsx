@@ -302,7 +302,17 @@ function Questions() {
                     {row.answer_required ? "Yes" : "No"}
                   </td>
 
-                  <td>{row.status}</td>
+                 <td>
+  <span
+    className={
+      row.status?.toLowerCase() === "active"
+        ? "status active"
+        : "status inactive"
+    }
+  >
+    {row.status}
+  </span>
+</td>
 
                   <td>
 

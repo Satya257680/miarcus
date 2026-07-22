@@ -22,8 +22,9 @@ const {
 
     updateActionPoint,
 
-    deleteActionPoint
+    deleteActionPoint,
 
+    takeAction
 
 } = require("../controllers/actionPointController");
 
@@ -66,7 +67,6 @@ const {
 //
 // ======================================================
 
-
 router.get(
 
     "/",
@@ -87,9 +87,7 @@ router.get(
 // EXPORT CSV
 // GET
 // /api/action-points/export
-//
 // ======================================================
-
 
 router.get(
 
@@ -125,7 +123,6 @@ router.get(
 //
 // ======================================================
 
-
 router.post(
 
     "/",
@@ -157,7 +154,6 @@ router.post(
 //
 // ======================================================
 
-
 router.put(
 
     "/:id",
@@ -177,12 +173,39 @@ router.put(
 
 
 // ======================================================
-// DELETE ACTION POINT
-// DELETE
-// /api/action-points/:id
+// TAKE ACTION
+// PUT
+// /api/action-points/:id/take-action
+//
+// BODY:
+//
+// action_taken
+// remarks
+// completion_date
 //
 // ======================================================
 
+router.put(
+
+    "/:id/take-action",
+
+    takeAction
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// DELETE ACTION POINT
+// DELETE
+// /api/action-points/:id
+// ======================================================
 
 router.delete(
 

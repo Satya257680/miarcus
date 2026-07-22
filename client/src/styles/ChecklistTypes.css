@@ -141,13 +141,13 @@
 }
 
 .checklist-table thead {
-  background: #dceef3;
+  background: #456f7d;
 }
 
 .checklist-table th {
   padding: 14px;
   text-align: left;
-  color: #2d4d57;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 600;
 }
@@ -188,35 +188,52 @@
    Action Buttons
 ========================== */
 
-.edit-btn,
-.delete-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-right: 8px;
-  transition: .25s;
+.action-buttons{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-.edit-btn {
-  background: #d8edf7;
-  color: #1565c0;
+.edit-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:90px;
+  height:40px;
+  padding:0 16px;
+  border:none;
+  border-radius:8px;
+  background:#f39c12;
+  color:#fff;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:.25s;
 }
 
-.edit-btn:hover {
-  background: #c3e3f2;
+.edit-btn:hover{
+  background:#e67e22;
 }
 
-.delete-btn {
-  background: #fde4e4;
-  color: #d32f2f;
+.delete-btn{
+  width:40px;
+  height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  border-radius:8px;
+  background:#d32f2f;
+  color:#fff;
+  cursor:pointer;
+  transition:.25s;
 }
 
-.delete-btn:hover {
-  background: #ffd5d5;
+.delete-btn:hover{
+  background:#b71c1c;
 }
-
 /* ==========================
    Empty State
 ========================== */

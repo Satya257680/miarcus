@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
-const ChecklistReport = {};
 
+const ChecklistReport = {};
 
 
 
@@ -9,799 +9,501 @@ const ChecklistReport = {};
 // GET ALL REPORTS
 // ======================================================
 
-
 ChecklistReport.getAll = (filters, callback) => {
 
+    let sql = `
 
-let sql = `
+        SELECT
 
-SELECT
+            cs.id,
+            cs.submission_date,
+            cs.status,
+            cs.latitude,
+            cs.longitude,
+            cs.device,
+            cs.attachment,
+            cs.created_at,
 
-cs.id,
+            ct.checklist_name,
 
-cs.submission_date,
+            s.store_name,
 
-cs.status,
+            u.name AS employee_name,
+            u.employee_id,
 
-cs.latitude,
+            d.department_name,
 
-cs.longitude,
+            q.id AS question_id,
+            q.question,
+            q.sequence_no,
 
-cs.device,
+            csa.answer,
+            csa.remarks,
 
-cs.attachment,
+            (
+                SELECT COUNT(*)
+                FROM checklist_submission_answers csa2
+                WHERE csa2.submission_id = cs.id
+            ) AS total_questions
 
-cs.created_at,
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_types ct
+            ON ct.id = cs.checklist_type_id
 
-ct.checklist_name,
+        LEFT JOIN stores s
+            ON s.id = cs.store_id
 
+        LEFT JOIN users u
+            ON u.id = cs.submitted_by
 
-s.store_name,
+        LEFT JOIN departments d
+            ON d.id = u.department_id
 
+        LEFT JOIN checklist_submission_answers csa
+            ON csa.submission_id = cs.id
 
-u.name AS employee_name,
+        LEFT JOIN questions q
+            ON q.id = csa.question_id
 
-u.employee_id,
+        WHERE 1=1
 
+    `;
 
-d.department_name,
+    const values = [];
 
 
-q.id AS question_id,
 
-q.question,
+    // ==========================================
+    // STORE FILTER
+    // ==========================================
 
-q.sequence_no,
+    if (filters.store_id) {
 
+        sql += `
+            AND cs.store_id = ?
+        `;
 
-csa.answer,
+        values.push(filters.store_id);
 
-csa.remarks,
+    }
 
 
-(
-SELECT COUNT(*)
-FROM checklist_submission_answers csa2
-WHERE csa2.submission_id = cs.id
-) AS total_questions
 
+    // ==========================================
+    // CHECKLIST FILTER
+    // ==========================================
 
+    if (filters.checklist_type_id) {
 
-FROM checklist_submissions cs
+        sql += `
+            AND cs.checklist_type_id = ?
+        `;
 
+        values.push(filters.checklist_type_id);
 
+    }
 
-LEFT JOIN checklist_types ct
-ON ct.id = cs.checklist_type_id
 
 
+    // ==========================================
+    // EMPLOYEE FILTER
+    // ==========================================
 
-LEFT JOIN stores s
-ON s.id = cs.store_id
+    if (filters.employee_id) {
 
+        sql += `
+            AND u.employee_id = ?
+        `;
 
+        values.push(filters.employee_id);
 
-LEFT JOIN users u
-ON u.id = cs.submitted_by
+    }
 
 
 
-LEFT JOIN departments d
-ON d.id = u.department_id
+    // ==========================================
+    // FROM DATE
+    // ==========================================
 
+    if (filters.from_date) {
 
+        sql += `
+            AND DATE(cs.submission_date) >= ?
+        `;
 
-LEFT JOIN checklist_submission_answers csa
-ON csa.submission_id = cs.id
+        values.push(filters.from_date);
 
+    }
 
 
-LEFT JOIN questions q
-ON q.id = csa.question_id
 
+    // ==========================================
+    // TO DATE
+    // ==========================================
 
+    if (filters.to_date) {
 
-WHERE 1=1
+        sql += `
+            AND DATE(cs.submission_date) <= ?
+        `;
 
-`;
+        values.push(filters.to_date);
 
+    }
 
 
-const values=[];
 
+    // ==========================================
+    // SEARCH
+    // ==========================================
 
+    if (filters.search) {
 
+        sql += `
 
-// ================= FILTER =================
+            AND (
 
+                s.store_name LIKE ?
 
+                OR ct.checklist_name LIKE ?
 
-if(filters.store_id){
+                OR u.name LIKE ?
 
+                OR u.employee_id LIKE ?
 
-sql += `
-AND cs.store_id=?
-`;
+                OR d.department_name LIKE ?
 
-values.push(filters.store_id);
+                OR q.question LIKE ?
 
+                OR csa.answer LIKE ?
 
-}
+                OR csa.remarks LIKE ?
 
+            )
 
+        `;
 
-if(filters.checklist_type_id){
+        const keyword = `%${filters.search}%`;
 
+        values.push(
+            keyword,
+            keyword,
+            keyword,
+            keyword,
+            keyword,
+            keyword,
+            keyword,
+            keyword
+        );
 
-sql += `
-AND cs.checklist_type_id=?
-`;
+    }
 
-values.push(filters.checklist_type_id);
 
 
-}
+    // ==========================================
+    // ORDER BY
+    // ==========================================
 
+    sql += `
 
+        ORDER BY
 
+            cs.created_at DESC,
 
-if(filters.employee_id){
+            q.sequence_no ASC
 
+    `;
 
-sql += `
-AND u.employee_id=?
-`;
 
-values.push(filters.employee_id);
 
+    db.query(
 
-}
+        sql,
 
+        values,
 
+        callback
 
-
-
-if(filters.from_date){
-
-
-sql += `
-AND DATE(cs.submission_date)>=?
-`;
-
-values.push(filters.from_date);
-
-
-}
-
-
-
-
-if(filters.to_date){
-
-
-sql += `
-AND DATE(cs.submission_date)<=?
-`;
-
-values.push(filters.to_date);
-
-
-}
-
-
-
-
-
-
-
-// ================= SEARCH =================
-
-
-if(filters.search){
-
-
-sql += `
-
-AND (
-
-s.store_name LIKE ?
-
-OR ct.checklist_name LIKE ?
-
-OR u.name LIKE ?
-
-OR u.employee_id LIKE ?
-
-OR d.department_name LIKE ?
-
-OR q.question LIKE ?
-
-OR csa.answer LIKE ?
-
-OR csa.remarks LIKE ?
-
-)
-
-`;
-
-
-
-const keyword =
-`%${filters.search}%`;
-
-
-
-values.push(
-
-keyword,
-
-keyword,
-
-keyword,
-
-keyword,
-
-keyword,
-
-keyword,
-
-keyword,
-
-keyword
-
-);
-
-
-}
-
-
-
-
-
-
-sql += `
-
-ORDER BY
-
-cs.created_at DESC,
-
-q.sequence_no ASC
-
-`;
-
-
-
-
-
-db.query(
-
-sql,
-
-values,
-
-callback
-
-);
-
-
+    );
 
 };
-
-
-
-
-
-
-
-
-
 // ======================================================
 // GET REPORT BY ID
 // ======================================================
 
+ChecklistReport.getById = (id, callback) => {
 
-ChecklistReport.getById=(id,callback)=>{
+    const sql = `
 
+        SELECT
 
-const sql=`
+            cs.id,
+            cs.submission_date,
+            cs.status,
+            cs.latitude,
+            cs.longitude,
+            cs.device,
+            cs.attachment,
 
+            ct.checklist_name,
 
-SELECT
+            s.store_name,
 
+            u.name AS employee_name,
+            u.employee_id,
 
-cs.id,
+            d.department_name,
 
-cs.submission_date,
+            q.id AS question_id,
+            q.question,
+            q.sequence_no,
 
-cs.status,
+            csa.id AS answer_id,
+            csa.answer,
+            csa.remarks
 
-cs.latitude,
+        FROM checklist_submissions cs
 
-cs.longitude,
+        LEFT JOIN checklist_types ct
+            ON ct.id = cs.checklist_type_id
 
-cs.device,
+        LEFT JOIN stores s
+            ON s.id = cs.store_id
 
-cs.attachment,
+        LEFT JOIN users u
+            ON u.id = cs.submitted_by
 
+        LEFT JOIN departments d
+            ON d.id = u.department_id
 
-ct.checklist_name,
+        LEFT JOIN checklist_submission_answers csa
+            ON csa.submission_id = cs.id
 
+        LEFT JOIN questions q
+            ON q.id = csa.question_id
 
-s.store_name,
+        WHERE cs.id = ?
 
+        ORDER BY q.sequence_no ASC
 
-u.name AS employee_name,
+    `;
 
-u.employee_id,
-
-
-d.department_name,
-
-
-q.question,
-
-q.sequence_no,
-
-
-csa.answer,
-
-csa.remarks
-
-
-
-FROM checklist_submissions cs
-
-
-
-LEFT JOIN checklist_types ct
-
-ON ct.id=cs.checklist_type_id
-
-
-
-LEFT JOIN stores s
-
-ON s.id=cs.store_id
-
-
-
-LEFT JOIN users u
-
-ON u.id=cs.submitted_by
-
-
-
-LEFT JOIN departments d
-
-ON d.id=u.department_id
-
-
-
-LEFT JOIN checklist_submission_answers csa
-
-ON csa.submission_id=cs.id
-
-
-
-LEFT JOIN questions q
-
-ON q.id=csa.question_id
-
-
-
-WHERE cs.id=?
-
-
-
-ORDER BY q.sequence_no ASC
-
-
-`;
-
-
-
-
-db.query(
-
-sql,
-
-[id],
-
-callback
-
-);
-
-
+    db.query(sql, [id], callback);
 
 };
 
 
+// ======================================================
+// UPDATE REPORT
+// ======================================================
 
+ChecklistReport.update = (id, data, callback) => {
 
+    db.beginTransaction((err) => {
 
+        if (err) {
+            return callback(err);
+        }
 
+        // ------------------------------------------
+        // Update checklist submission
+        // ------------------------------------------
 
+        const submissionSql = `
 
+            UPDATE checklist_submissions
 
+            SET
 
+                status = ?
+
+            WHERE id = ?
+
+        `;
+
+        console.log("UPDATE DATA:", data);
+
+        db.query(
+
+            submissionSql,
+
+            [
+
+                data.status,
+
+                id
+
+            ],
+
+            (submissionErr) => {
+
+                if (submissionErr) {
+
+                    console.error("MYSQL UPDATE ERROR:", submissionErr);
+
+                    return db.rollback(() => {
+
+                        callback(submissionErr);
+
+                    });
+
+                }
+
+                // ------------------------------------------
+                // Update Answer
+                // ------------------------------------------
+
+                const answerSql = `
+
+                    UPDATE checklist_submission_answers
+
+                    SET
+
+                        answer = ?,
+                        remarks = ?
+
+                    WHERE submission_id = ?
+
+                `;
+
+                db.query(
+
+                    answerSql,
+
+                    [
+
+                        data.answer,
+
+                        data.remarks,
+
+                        id
+
+                    ],
+
+                    (answerErr, result) => {
+
+                        if (answerErr) {
+
+                            console.error("MYSQL ANSWER UPDATE ERROR:", answerErr);
+
+                            return db.rollback(() => {
+
+                                callback(answerErr);
+
+                            });
+
+                        }
+
+                        db.commit((commitErr) => {
+
+                            if (commitErr) {
+
+                                return db.rollback(() => {
+
+                                    callback(commitErr);
+
+                                });
+
+                            }
+
+                            callback(null, result);
+
+                        });
+
+                    }
+
+                );
+
+            }
+
+        );
+
+    });
+
+};
 
 // ======================================================
 // DELETE REPORT
 // ======================================================
 
+ChecklistReport.delete = (id, callback) => {
 
-ChecklistReport.delete=(id,callback)=>{
+    db.beginTransaction((err) => {
 
+        if (err) {
 
+            return callback(err);
 
-db.beginTransaction((err)=>{
+        }
 
+        db.query(
 
-if(err)
-return callback(err);
+            `
+            DELETE FROM checklist_submission_answers
+            WHERE submission_id = ?
+            `,
 
+            [id],
 
+            (answerErr) => {
 
+                if (answerErr) {
 
+                    return db.rollback(() => {
 
-db.query(
+                        callback(answerErr);
 
-`
-DELETE FROM checklist_submission_answers
-WHERE submission_id=?
-`,
+                    });
 
-[id],
+                }
 
-(answerErr)=>{
+                db.query(
 
+                    `
+                    DELETE FROM checklist_submissions
+                    WHERE id = ?
+                    `,
 
+                    [id],
 
-if(answerErr){
+                    (deleteErr, result) => {
 
-return db.rollback(()=>{
+                        if (deleteErr) {
 
-callback(answerErr);
+                            return db.rollback(() => {
 
-});
+                                callback(deleteErr);
 
-}
+                            });
 
+                        }
 
+                        db.commit((commitErr) => {
 
+                            if (commitErr) {
 
+                                return db.rollback(() => {
 
-db.query(
+                                    callback(commitErr);
 
-`
-DELETE FROM checklist_submissions
-WHERE id=?
-`,
+                                });
 
-[id],
+                            }
 
+                            callback(null, result);
 
-(deleteErr,result)=>{
+                        });
 
+                    }
 
+                );
 
-if(deleteErr){
+            }
 
-return db.rollback(()=>{
+        );
 
-callback(deleteErr);
-
-});
-
-}
-
-
-
-
-db.commit((commitErr)=>{
-
-
-if(commitErr){
-
-return callback(commitErr);
-
-}
-
-
-
-callback(null,result);
-
-
-
-});
-
-
-
-}
-
-
-
-);
-
-
-
-}
-
-
-
-);
-
-
-
-});
-
-
+    });
 
 };
-
-
-
-
-
-
-
-
-// ======================================================
-// IMPORT CSV SUPPORT
-// ======================================================
-
-
-ChecklistReport.importCSV=(rows,callback)=>{
-
-
-if(!rows || rows.length===0){
-
-
-return callback(null,{
-
-inserted:0
-
-});
-
-
-}
-
-
-
-
-let inserted=0;
-
-
-
-
-const insertRow=(index)=>{
-
-
-
-if(index>=rows.length){
-
-
-return callback(null,{
-
-inserted
-
-});
-
-
-}
-
-
-
-
-const row=rows[index];
-
-
-
-
-
-const sql=`
-
-INSERT INTO checklist_submissions
-
-(
-
-checklist_type_id,
-
-store_id,
-
-submitted_by,
-
-submission_date,
-
-device,
-
-attachment,
-
-status
-
-)
-
-VALUES (?,?,?,?,?,?,?)
-
-`;
-
-
-
-
-
-
-db.query(
-
-sql,
-
-[
-
-
-row.checklist_type_id,
-
-row.store_id,
-
-row.submitted_by || null,
-
-
-row.submission_date || new Date(),
-
-
-row.device || "CSV Import",
-
-
-row.attachment || null,
-
-
-row.status || "Submitted"
-
-
-],
-
-
-
-(err,result)=>{
-
-
-
-if(err){
-
-console.log(
-"SUBMISSION INSERT ERROR:",
-err
-);
-
-return callback(err);
-
-
-}
-
-
-
-
-
-const submissionId =
-result.insertId;
-
-
-
-
-
-
-
-
-if(!row.question_id){
-
-
-inserted++;
-
-return insertRow(index+1);
-
-
-}
-
-
-
-
-
-
-
-db.query(
-
-`
-
-INSERT INTO checklist_submission_answers
-
-(
-
-submission_id,
-
-question_id,
-
-answer,
-
-remarks
-
-)
-
-VALUES(?,?,?,?)
-
-`,
-
-[
-
-
-submissionId,
-
-
-row.question_id,
-
-
-row.answer || "",
-
-
-row.remarks || ""
-
-
-],
-
-
-
-(answerErr)=>{
-
-
-
-if(answerErr){
-
-
-return callback(answerErr);
-
-
-}
-
-
-
-
-
-inserted++;
-
-
-insertRow(index+1);
-
-
-
-}
-
-
-);
-
-
-
-}
-
-
-
-);
-
-
-
-};
-
-
-
-
-
-insertRow(0);
-
-
-
-};
-
-
-
-
-
-
-
 module.exports = ChecklistReport;

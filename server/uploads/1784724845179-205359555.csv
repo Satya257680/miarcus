@@ -1,0 +1,5 @@
+Employee ID,Name,Email,Department,Designation,Reports To,Status
+EMP0003,Ashok Dhinda,ashok@miarcus.com,it,Team Lead,Satyajit,Active
+0003,Priya Sharama,priya@miarucs.com,ASM,ASM Manager,Satyajit,Active
+2,Satya,admin@miarcus.com,,,,Active
+00002,Satyajit Nayak,admin@miarcus.com,ASM,,,Active

@@ -329,41 +329,39 @@ li{
    SEARCH
 =========================== */
 
-.search-wrapper{
-    margin-bottom:35px;
-}
-
-.search-box{
+.dashboard-search{
     width:100%;
-    height:60px;
-    background:#ffffff;
-    border-radius:18px;
+    margin-bottom:30px;
     display:flex;
-    align-items:center;
-    padding:0 22px;
-    box-shadow:0 6px 20px rgba(0,0,0,.06);
-    border:1px solid #edf2f7;
+    justify-content:center;
 }
 
-.search-icon{
-    font-size:18px;
-    color:#94a3b8;
-    margin-right:16px;
-}
-
-.search-box input{
-    flex:1;
-    border:none;
-    outline:none;
+.dashboard-search input{
+    width:100%;
+    max-width:900px;      /* Increase to 1000px or 1200px if you want */
+    height:55px;
+    padding:0 20px 0 50px;
+    border:1px solid #d5dce5;
+    border-radius:14px;
     font-size:16px;
-    background:transparent;
-    color:#1f2937;
+    background:#fff;
+    outline:none;
+    transition:.3s;
+    box-shadow:0 4px 12px rgba(0,0,0,.05);
 }
 
-.search-box input::placeholder{
-    color:#9ca3af;
+.dashboard-search input:focus{
+    border-color:#4d7382;
+    box-shadow:0 0 0 4px rgba(77,115,130,.15);
 }
 
+.dashboard-search .search-icon{
+    position:absolute;
+    margin-left:18px;
+    margin-top:18px;
+    color:#7b8794;
+    font-size:18px;
+}
 /* ===========================
    SECTION TITLE
 =========================== */

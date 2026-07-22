@@ -591,16 +591,77 @@ message:
 
 };
 
+// ======================================================
+// TAKE ACTION
+// ======================================================
 
+exports.takeAction = (req, res) => {
 
+    const id = req.params.id;
 
+    const {
 
+        action_taken,
 
+        remarks,
 
+        completion_date
 
+    } = req.body;
 
+    ActionPoint.takeAction(
 
+        id,
 
+        {
+
+            action_taken,
+
+            remarks,
+
+            completion_date
+
+        },
+
+        (err, result) => {
+
+            if (err) {
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    error: err.message
+
+                });
+
+            }
+
+            if (result.affectedRows === 0) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message: "Action Point not found"
+
+                });
+
+            }
+
+            return res.json({
+
+                success: true,
+
+                message: "Action Saved Successfully"
+
+            });
+
+        }
+
+    );
+
+};
 
 
 // ======================================================

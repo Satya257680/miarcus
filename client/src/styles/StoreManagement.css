@@ -118,40 +118,110 @@
 ========================== */
 
 .store-table-container {
-  background: white;
+  background: #fff;
   border-radius: 12px;
-  overflow-x: auto;
+  overflow: hidden;          /* Changed from overflow-x:auto */
   box-shadow: 0 3px 15px rgba(0,0,0,.08);
 }
 
 .store-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
-  min-width: 850px;
+  table-layout: fixed;
 }
 
+/* Table Header */
+
 .store-table thead {
-  background: #dceef3;
+  background: #3F6B78;
 }
 
 .store-table th {
-  padding: 15px;
-  text-align: left;
-  color: #2d4d57;
+  background: #3F6B78;
+  color: #ffffff;
+  padding: 15px 12px;
   font-size: 14px;
   font-weight: 600;
+  text-align: center;
 }
 
-.store-table td {
-  padding: 15px;
-  border-bottom: 1px solid #ececec;
-  font-size: 14px;
+/* Rounded Header */
+
+.store-table thead th:first-child {
+  border-top-left-radius: 12px;
 }
 
-.store-table tbody tr:hover {
-  background: #f7fbfc;
+.store-table thead th:last-child {
+  border-top-right-radius: 12px;
+}
+/* ==========================
+   COLUMN WIDTHS
+========================== */
+
+.store-table th,
+.store-table td{
+    padding:14px 10px;
+    vertical-align:middle;
 }
 
+.store-table th{
+    text-align:center;
+    font-weight:600;
+}
+
+.store-table td{
+    text-align:center;
+}
+
+/* # */
+.store-table th:nth-child(1),
+.store-table td:nth-child(1){
+    width:5%;
+}
+
+/* Store Code */
+.store-table th:nth-child(2),
+.store-table td:nth-child(2){
+    width:10%;
+}
+
+/* Store Name */
+.store-table th:nth-child(3),
+.store-table td:nth-child(3){
+    width:28%;
+    text-align:left;
+}
+
+/* Country */
+.store-table th:nth-child(4),
+.store-table td:nth-child(4){
+    width:11%;
+}
+
+/* State */
+.store-table th:nth-child(5),
+.store-table td:nth-child(5){
+    width:14%;
+}
+
+/* City */
+.store-table th:nth-child(6),
+.store-table td:nth-child(6){
+    width:12%;
+}
+
+/* Status */
+.store-table th:nth-child(7),
+.store-table td:nth-child(7){
+    width:8%;
+}
+
+/* Actions */
+.store-table th:nth-child(8),
+.store-table td:nth-child(8){
+    width:12%;
+}
 /* ==========================
    Status
 ========================== */
@@ -178,33 +248,45 @@
    Action Buttons
 ========================== */
 
-.edit-btn,
-.delete-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-right: 8px;
-  transition: 0.2s;
+.store-action-buttons{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
 }
 
-.edit-btn {
-  background: #d9edf5;
-  color: #1565c0;
+.edit-btn{
+    width:34px;
+    height:34px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    background:#f39c12;
+    color:#fff;
+
+    border:none;
+    border-radius:6px;
+
+    cursor:pointer;
 }
 
-.edit-btn:hover {
-  background: #c4e2ef;
-}
+.delete-btn{
+    width:70px;
+    height:34px;
 
-.delete-btn {
-  background: #fde3e3;
-  color: #d32f2f;
-}
+    display:flex;
+    align-items:center;
+    justify-content:center;
 
-.delete-btn:hover {
-  background: #ffd4d4;
+    background:#dc3545;
+    color:#fff;
+
+    border:none;
+    border-radius:6px;
+
+    cursor:pointer;
 }
 
 /* ==========================

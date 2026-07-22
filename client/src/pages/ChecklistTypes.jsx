@@ -465,24 +465,27 @@ function ChecklistTypes() {
 
                 </td>
 
-                <td>
+  <td>
+  <div className="action-buttons">
 
-                  <button
-                    className="edit-btn"
-                    onClick={() => handleEdit(item)}
-                  >
-                    <FaEdit />
-                  </button>
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(item)}
+      title="Edit"
+    >
+      Edit <FaEdit />
+    </button>
 
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    <FaTrash />
-                  </button>
+    <button
+      className="delete-btn"
+      onClick={() => handleDelete(item.id)}
+      title="Delete"
+    >
+      <FaTrash />
+    </button>
 
-                </td>
-
+  </div>
+</td>
               </tr>
 
             ))

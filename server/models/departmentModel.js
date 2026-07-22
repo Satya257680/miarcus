@@ -135,6 +135,7 @@ const getAssignedUsers = (departmentId, callback) => {
 
   db.query(sql, [departmentId], callback);
 };
+
 module.exports = {
   getAllDepartments,
   getDepartmentById,
