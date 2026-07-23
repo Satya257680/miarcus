@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
+import VerifyOTP from "./pages/VerifyOTP";
 import ResetPassword from "./pages/ResetPassword";
 
 // ================= PROTECTED PAGES =================
@@ -26,7 +27,9 @@ import ReportsTo from "./pages/ReportsTo";
 import Profile from "./pages/Profile";
 
 function App() {
+
   return (
+
     <BrowserRouter>
 
       <Routes>
@@ -43,6 +46,11 @@ function App() {
         <Route
           path="/forgot-password"
           element={<ForgotPassword />}
+        />
+
+        <Route
+          path="/verify-otp"
+          element={<VerifyOTP />}
         />
 
         <Route
@@ -144,7 +152,9 @@ function App() {
       </Routes>
 
     </BrowserRouter>
+
   );
+
 }
 
 export default App;

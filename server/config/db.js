@@ -1,11 +1,19 @@
 const mysql = require("mysql2");
 
+// ======================================================
+// DATABASE CONNECTION
+// ======================================================
+
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Satya@179",
-  database: "miarcus",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 });
+
+// ======================================================
+// CONNECT DATABASE
+// ======================================================
 
 db.connect((err) => {
   if (err) {
@@ -16,5 +24,9 @@ db.connect((err) => {
 
   console.log("✅ MySQL Connected Successfully");
 });
+
+// ======================================================
+// EXPORT
+// ======================================================
 
 module.exports = db;

@@ -1,19 +1,52 @@
 const express = require("express");
 const router = express.Router();
 
+// ======================================================
+// CONTROLLERS
+// ======================================================
+
 const {
     loginUser,
     forgotPassword,
+    verifyOTP,
     resetPassword,
 } = require("../controllers/authController");
 
-// ================= Login =================
+
+// ======================================================
+// LOGIN
+// POST : /api/auth/login
+// ======================================================
+
 router.post("/login", loginUser);
 
-// ================= Forgot Password =================
+
+// ======================================================
+// FORGOT PASSWORD (SEND OTP)
+// POST : /api/auth/forgot-password
+// ======================================================
+
 router.post("/forgot-password", forgotPassword);
 
-// ================= Reset Password =================
+
+// ======================================================
+// VERIFY OTP
+// POST : /api/auth/verify-otp
+// ======================================================
+
+router.post("/verify-otp", verifyOTP);
+
+
+// ======================================================
+// RESET PASSWORD
+// POST : /api/auth/reset-password
+// ======================================================
+
 router.post("/reset-password", resetPassword);
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

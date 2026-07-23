@@ -1,51 +1,81 @@
 import { useState } from "react";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./login.css";
 
-function ForgotPassword() {
+function VerifyOTP() {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const email = location.state?.email || "";
+
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
 
     e.preventDefault();
 
+    if (!email) {
+
+      alert("Email not found. Please try again.");
+
+      navigate("/forgot-password");
+
+      return;
+
+    }
+
     setLoading(true);
 
     try {
 
       const res = await axios.post(
-        "http://localhost:5000/api/auth/forgot-password",
+
+        "http://localhost:5000/api/auth/verify-otp",
+
         {
-          email: email.trim(),
+
+          email,
+
+          otp
+
         }
+
       );
 
       alert(res.data.message);
 
-      navigate("/verify-otp", {
+      navigate("/reset-password", {
+
         state: {
-          email: email.trim(),
-        },
+
+          email
+
+        }
+
       });
 
-    } catch (err) {
+    }
+
+    catch (err) {
 
       if (err.response) {
 
         alert(err.response.data.message);
 
-      } else {
+      }
+
+      else {
 
         alert("Server Error");
 
       }
 
-    } finally {
+    }
+
+    finally {
 
       setLoading(false);
 
@@ -62,36 +92,79 @@ function ForgotPassword() {
         <div className="forgot-logo">
 
           <img
+
             src="/miarcus.png"
+
             alt="Miarcus Logo"
+
             className="logo"
+
           />
 
         </div>
 
-        <h2>Forgot Password</h2>
+        <h2>Verify OTP</h2>
 
         <p className="login-subtitle">
-          Enter your registered email address to receive a verification OTP.
+
+          Enter the 6-digit OTP sent to your email.
+
         </p>
 
         <form onSubmit={handleSubmit}>
 
-          <label>Email Address</label>
+          <label>Email</label>
 
           <input
+
             type="email"
-            placeholder="Enter your registered email"
+
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+
+            readOnly
+
+          />
+
+          <label>OTP</label>
+
+          <input
+
+            type="text"
+
+            placeholder="Enter OTP"
+
+            value={otp}
+
+            maxLength={6}
+
+            onChange={(e) => setOtp(e.target.value)}
+
             required
+
           />
 
           <button
+
             type="submit"
+
             disabled={loading}
+
           >
-            {loading ? "Sending OTP..." : "Send OTP"}
+
+            {
+
+              loading
+
+              ?
+
+              "Verifying..."
+
+              :
+
+              "Verify OTP"
+
+            }
+
           </button>
 
         </form>
@@ -99,7 +172,9 @@ function ForgotPassword() {
         <p className="forgot-password">
 
           <Link to="/">
+
             Back to Login
+
           </Link>
 
         </p>
@@ -112,4 +187,4 @@ function ForgotPassword() {
 
 }
 
-export default ForgotPassword;
+export default VerifyOTP;
