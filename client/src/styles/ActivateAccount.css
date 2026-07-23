@@ -1,0 +1,383 @@
+/* ==========================================
+   ACTIVATE ACCOUNT PAGE
+========================================== */
+
+.activate-page{
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:#edf3f5;
+
+    padding:30px;
+
+}
+
+/* ==========================================
+   CARD
+========================================== */
+
+.activate-card{
+
+    width:470px;
+
+    background:#ffffff;
+
+    border-radius:20px;
+
+    padding:45px 40px;
+
+    text-align:center;
+
+    box-shadow:0 20px 45px rgba(0,0,0,.08);
+
+    animation:fadeIn .45s ease;
+
+}
+
+/* ==========================================
+   LOGO
+========================================== */
+
+.activate-logo{
+
+    width:95px;
+
+    height:auto;
+
+    display:block;
+
+    margin:0 auto 20px;
+
+    object-fit:contain;
+
+}
+
+/* ==========================================
+   TITLE
+========================================== */
+
+.activate-card h2{
+
+    color:#4a3298;
+
+    font-size:34px;
+
+    font-weight:700;
+
+    margin-bottom:10px;
+
+}
+
+/* ==========================================
+   SUBTITLE
+========================================== */
+
+.subtitle{
+
+    color:#6b7280;
+
+    font-size:15px;
+
+    line-height:1.7;
+
+    margin-bottom:30px;
+
+}
+
+/* ==========================================
+   PASSWORD GROUP
+========================================== */
+
+.password-group{
+
+    position:relative;
+
+    margin-bottom:15px;
+
+}
+
+.password-group input{
+
+    width:100%;
+
+    height:54px;
+
+    padding:0 50px 0 48px;
+
+    border:1px solid #d9dce3;
+
+    border-radius:12px;
+
+    background:#fff;
+
+    font-size:15px;
+
+    transition:.3s;
+
+    box-sizing:border-box;
+
+}
+
+.password-group input::placeholder{
+
+    color:#9ca3af;
+
+}
+
+.password-group input:focus{
+
+    outline:none;
+
+    border-color:#6246ea;
+
+    box-shadow:0 0 0 4px rgba(98,70,234,.15);
+
+}
+
+/* ==========================================
+   ICONS
+========================================== */
+
+.lock-icon{
+
+    position:absolute;
+
+    left:16px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#7b61c9;
+
+    font-size:17px;
+
+}
+
+.eye-icon{
+
+    position:absolute;
+
+    right:16px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#7b61c9;
+
+    cursor:pointer;
+
+    font-size:17px;
+
+    transition:.25s;
+
+}
+
+.eye-icon:hover{
+
+    color:#4a3298;
+
+}
+
+/* ==========================================
+   PASSWORD STRENGTH
+========================================== */
+
+.password-strength{
+
+    text-align:left;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#7b61c9;
+
+    margin:-5px 0 18px;
+
+}
+
+/* ==========================================
+   BUTTON
+========================================== */
+
+.activate-card button{
+
+    width:100%;
+
+    height:54px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:linear-gradient(90deg,#5c3fd4,#7050f0);
+
+    color:#fff;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+    margin-top:5px;
+
+}
+
+.activate-card button:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 15px 30px rgba(92,63,212,.30);
+
+}
+
+.activate-card button:disabled{
+
+    opacity:.75;
+
+    cursor:not-allowed;
+
+    transform:none;
+
+    box-shadow:none;
+
+}
+
+/* ==========================================
+   FOOTER
+========================================== */
+
+.activate-footer{
+
+    margin-top:24px;
+
+    font-size:14px;
+
+    color:#6b7280;
+
+}
+
+.activate-footer span{
+
+    color:#5c3fd4;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    margin-left:5px;
+
+    transition:.25s;
+
+}
+
+.activate-footer span:hover{
+
+    text-decoration:underline;
+
+}
+
+/* ==========================================
+   SUCCESS ICON
+========================================== */
+
+.success-icon{
+
+    font-size:72px;
+
+    color:#2ecc71;
+
+    margin-bottom:20px;
+
+    animation:pop .5s ease;
+
+}
+
+/* ==========================================
+   ANIMATIONS
+========================================== */
+
+@keyframes fadeIn{
+
+    from{
+
+        opacity:0;
+
+        transform:translateY(25px);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateY(0);
+
+    }
+
+}
+
+@keyframes pop{
+
+    0%{
+
+        opacity:0;
+
+        transform:scale(.5);
+
+    }
+
+    100%{
+
+        opacity:1;
+
+        transform:scale(1);
+
+    }
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width:600px){
+
+    .activate-page{
+
+        padding:20px;
+
+    }
+
+    .activate-card{
+
+        width:100%;
+
+        padding:35px 25px;
+
+    }
+
+    .activate-card h2{
+
+        font-size:28px;
+
+    }
+
+    .subtitle{
+
+        font-size:14px;
+
+    }
+
+}

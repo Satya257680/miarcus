@@ -470,18 +470,7 @@ const handleEdit = (item) => {
 
         </div>
 
-        <div className="reports-header-actions">
-
-          <button
-            className="export-btn"
-            onClick={exportCSV}
-          >
-            <FaFileExport />
-            Export CSV
-          </button>
-
-        </div>
-
+       
       </div>
 
       {/* ================= NOTE ================= */}

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import {
+    FaLock,
+    FaEye,
+    FaEyeSlash,
+    FaCheckCircle,
+} from "react-icons/fa";
+
+import "../styles/ActivateAccount.css";
 
 function ActivateAccount() {
 
@@ -12,9 +20,17 @@ function ActivateAccount() {
 
     const [confirmPassword, setConfirmPassword] = useState("");
 
+    const [showPassword, setShowPassword] = useState(false);
+
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
     const [loading, setLoading] = useState(true);
 
+    const [submitting, setSubmitting] = useState(false);
+
     const [validToken, setValidToken] = useState(false);
+
+    const [activated, setActivated] = useState(false);
 
     useEffect(() => {
 
@@ -22,14 +38,16 @@ function ActivateAccount() {
 
     }, []);
 
+    // ===============================
+    // Validate Token
+    // ===============================
+
     const validateToken = async () => {
 
         try {
 
             await axios.get(
-
                 `http://localhost:5000/api/users/activate/${token}`
-
             );
 
             setValidToken(true);
@@ -38,7 +56,7 @@ function ActivateAccount() {
 
         catch {
 
-            alert("Invalid or Expired Activation Link");
+            setValidToken(false);
 
         }
 
@@ -50,23 +68,35 @@ function ActivateAccount() {
 
     };
 
+    // ===============================
+    // Activate Account
+    // ===============================
+
     const activateAccount = async () => {
 
         if (!password || !confirmPassword) {
 
-            return alert("Please fill all fields");
+            return alert("Please fill all fields.");
+
+        }
+
+        if (password.length < 8) {
+
+            return alert("Password must be at least 8 characters.");
 
         }
 
         if (password !== confirmPassword) {
 
-            return alert("Passwords do not match");
+            return alert("Passwords do not match.");
 
         }
 
         try {
 
-            const res = await axios.post(
+            setSubmitting(true);
+
+            await axios.post(
 
                 "http://localhost:5000/api/users/activate",
 
@@ -74,15 +104,19 @@ function ActivateAccount() {
 
                     token,
 
-                    password
+                    password,
 
                 }
 
             );
 
-            alert(res.data.message);
+            setActivated(true);
 
-            navigate("/");
+            setTimeout(() => {
+
+                navigate("/");
+
+            }, 2500);
 
         }
 
@@ -98,71 +132,343 @@ function ActivateAccount() {
 
         }
 
+        finally {
+
+            setSubmitting(false);
+
+        }
+
     };
+
+    // ===============================
+    // Password Strength
+    // ===============================
+
+    const getPasswordStrength = () => {
+
+        if (!password) return "";
+
+        if (password.length < 8) return "Weak Password";
+
+        if (password.length < 12) return "Medium Password";
+
+        return "Strong Password";
+
+    };
+
+    // ===============================
+    // Success Screen
+    // ===============================
+
+    if (activated) {
+
+        return (
+
+            <div className="activate-page">
+
+                <div className="activate-card">
+
+                    <FaCheckCircle className="success-icon" />
+
+                    <h2>Account Activated!</h2>
+
+                    <p className="subtitle">
+
+                        Your account has been activated successfully.
+
+                        <br />
+
+                        Redirecting to Login...
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        );
+
+    }
+
+    // ===============================
+    // Loading
+    // ===============================
 
     if (loading) {
 
-        return <h2>Loading...</h2>;
+        return (
+
+            <div className="activate-page">
+
+                <div className="activate-card">
+
+                    <img
+                        src="/miarcus.png"
+                        alt="MIARCUS"
+                        className="activate-logo"
+                    />
+
+                    <h2>Checking Invitation...</h2>
+
+                    <p className="subtitle">
+
+                        Please wait while we verify your invitation.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        );
 
     }
+
+    // ===============================
+    // Invalid Link
+    // ===============================
 
     if (!validToken) {
 
-        return <h2>Invalid Activation Link</h2>;
+        return (
+
+            <div className="activate-page">
+
+                <div className="activate-card">
+
+                    <img
+                        src="/miarcus.png"
+                        alt="MIARCUS"
+                        className="activate-logo"
+                    />
+
+                    <h2>Invalid Invitation</h2>
+
+                    <p className="subtitle">
+
+                        This activation link is invalid,
+
+                        expired, or has already been used.
+
+                    </p>
+
+                    <button
+
+                        onClick={() => navigate("/")}
+
+                    >
+
+                        Back to Login
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        );
 
     }
 
+    // ===============================
+    // Main UI
+    // ===============================
+
     return (
 
-        <div style={{
+        <div className="activate-page">
 
-            width:400,
+            <div className="activate-card">
 
-            margin:"80px auto",
+                <img
+                    src="/miarcus.png"
+                    alt="MIARCUS"
+                    className="activate-logo"
+                />
 
-            padding:30,
+                <h2>Activate Your Account</h2>
 
-            border:"1px solid #ddd",
+                <p className="subtitle">
 
-            borderRadius:10
+                    Welcome to <strong>MIARCUS ERP</strong>.
 
-        }}>
+                    <br />
 
-            <h2>Activate Account</h2>
+                    Create a secure password to activate your account.
 
-            <input
+                </p>
 
-                type="password"
+                {/* Password */}
 
-                placeholder="Create Password"
+                <div className="password-group">
 
-                value={password}
+                    <FaLock className="lock-icon" />
 
-                onChange={(e)=>setPassword(e.target.value)}
+                    <input
 
-            />
+                        type={showPassword ? "text" : "password"}
 
-            <br /><br />
+                        placeholder="Create Password"
 
-            <input
+                        value={password}
 
-                type="password"
+                        onChange={(e) =>
 
-                placeholder="Confirm Password"
+                            setPassword(e.target.value)
 
-                value={confirmPassword}
+                        }
 
-                onChange={(e)=>setConfirmPassword(e.target.value)}
+                    />
 
-            />
+                    <span
 
-            <br /><br />
+                        className="eye-icon"
 
-            <button onClick={activateAccount}>
+                        onClick={() =>
 
-                Activate Account
+                            setShowPassword(!showPassword)
 
-            </button>
+                        }
+
+                    >
+
+                        {
+
+                            showPassword
+
+                                ?
+
+                                <FaEyeSlash />
+
+                                :
+
+                                <FaEye />
+
+                        }
+
+                    </span>
+
+                </div>
+
+                <p className="password-strength">
+
+                    {getPasswordStrength()}
+
+                </p>
+
+                {/* Confirm Password */}
+
+                <div className="password-group">
+
+                    <FaLock className="lock-icon" />
+
+                    <input
+
+                        type={
+
+                            showConfirmPassword
+
+                                ?
+
+                                "text"
+
+                                :
+
+                                "password"
+
+                        }
+
+                        placeholder="Confirm Password"
+
+                        value={confirmPassword}
+
+                        onChange={(e) =>
+
+                            setConfirmPassword(
+
+                                e.target.value
+
+                            )
+
+                        }
+
+                    />
+
+                    <span
+
+                        className="eye-icon"
+
+                        onClick={() =>
+
+                            setShowConfirmPassword(
+
+                                !showConfirmPassword
+
+                            )
+
+                        }
+
+                    >
+
+                        {
+
+                            showConfirmPassword
+
+                                ?
+
+                                <FaEyeSlash />
+
+                                :
+
+                                <FaEye />
+
+                        }
+
+                    </span>
+
+                </div>
+
+                <button
+
+                    onClick={activateAccount}
+
+                    disabled={submitting}
+
+                >
+
+                    {
+
+                        submitting
+
+                            ?
+
+                            "Activating..."
+
+                            :
+
+                            "Activate Account"
+
+                    }
+
+                </button>
+
+                <p className="activate-footer">
+
+                    Already activated?
+
+                    <span
+
+                        onClick={() => navigate("/")}
+
+                    >
+
+                        Back to Login
+
+                    </span>
+
+                </p>
+
+            </div>
 
         </div>
 
