@@ -1,191 +1,173 @@
+/* ==========================================
+   ADD USER MODAL
+   PART 1
+========================================== */
+
 /* =========================
    Overlay
 ========================= */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+.modal-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:9999;
+
+    padding:20px;
+
 }
 
 /* =========================
    Modal
 ========================= */
 
-.add-user-modal {
-  width: 900px;
-  max-width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+.add-user-modal{
+
+    width:920px;
+
+    max-width:95%;
+
+    max-height:92vh;
+
+    overflow-y:auto;
+
+    background:#fff;
+
+    border-radius:18px;
+
+    box-shadow:0 18px 45px rgba(0,0,0,.18);
+
+}
+
+/* Scrollbar */
+
+.add-user-modal::-webkit-scrollbar{
+
+    width:8px;
+
+}
+
+.add-user-modal::-webkit-scrollbar-thumb{
+
+    background:#C4B5FD;
+
+    border-radius:20px;
+
+}
+
+.add-user-modal::-webkit-scrollbar-track{
+
+    background:#F3F4F6;
+
 }
 
 /* =========================
    Header
 ========================= */
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 25px;
-  border-bottom: 1px solid #e5e7eb;
+.modal-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:24px 30px;
+
+    border-bottom:1px solid #E5E7EB;
+
+    background:#fff;
+
+    position:sticky;
+
+    top:0;
+
+    z-index:5;
+
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 24px;
+.modal-header h2{
+
+    margin:0;
+
+    font-size:28px;
+
+    font-weight:700;
+
+    color:#111827;
+
 }
 
-.modal-header p {
-  margin-top: 5px;
-  color: #777;
-}
+.modal-header p{
 
-.close-btn {
-  width: 38px;
-  height: 38px;
-  border: none;
-  background: #f3f4f6;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
-}
+    margin-top:6px;
 
-.close-btn:hover {
-  background: #ddd;
-}
+    color:#6B7280;
 
-/* =========================
-   Sections
-========================= */
+    font-size:15px;
 
-.section {
-  padding: 25px;
-  border-bottom: 1px solid #eee;
-}
-
-.section h3 {
-  margin-bottom: 18px;
-  color: #444;
-}
-
-/* =========================
-   Form Grid
-========================= */
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2,1fr);
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.form-group input,
-.section select,
-.section input[type=text],
-.section input[type=email],
-.section input[type=password] {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.form-group input:focus,
-.section select:focus {
-  outline: none;
-  border-color: #6c63ff;
 }
 
 /* =========================
-   Checkbox List
+   Close Button
 ========================= */
 
-.checkbox-list {
-  margin-top: 15px;
-  display: grid;
-  grid-template-columns: repeat(2,1fr);
-  gap: 12px;
+.close-btn{
+
+    width:42px;
+
+    height:42px;
+
+    border:none;
+
+    border-radius:50%;
+
+    background:#F3F4F6;
+
+    cursor:pointer;
+
+    font-size:18px;
+
+    transition:.2s;
+
 }
 
-.checkbox-list label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.close-btn:hover{
+
+    background:#E5E7EB;
+
+    transform:rotate(90deg);
+
 }
 
 /* =========================
-   Footer
+   Body
 ========================= */
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  padding: 20px 25px;
-}
+.modal-body{
 
-.cancel-btn {
-  padding: 10px 22px;
-  border: 1px solid #ccc;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-}
+    padding:30px;
 
-.create-btn {
-  padding: 10px 22px;
-  border: none;
-  background: #6c63ff;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-}
+    background:#F9FAFB;
 
-.create-btn:hover {
-  background: #5548e8;
 }
 
 /* =========================
-   Responsive
+   Common Sections
 ========================= */
 
-@media(max-width:768px){
-
-.form-grid{
-    grid-template-columns:1fr;
-}
-
-.checkbox-list{
-    grid-template-columns:1fr;
-}
-
-.add-user-modal{
-    width:95%;
-}
-
-}
-/* ======================================
-   Profile Card
-====================================== */
-
-.profile-card{
+.section{
 
     background:#fff;
 
@@ -193,13 +175,17 @@
 
     border-radius:18px;
 
-    padding:28px;
+    padding:26px;
 
-    margin-bottom:30px;
+    margin-bottom:28px;
 
 }
 
-.profile-header{
+/* =========================
+   Common Header
+========================= */
+
+.section-header{
 
     display:flex;
 
@@ -209,23 +195,260 @@
 
 }
 
-.profile-icon{
+.section-icon{
 
-    width:42px;
+    width:46px;
 
-    height:42px;
+    height:46px;
 
-    background:#F3F0FF;
+    border-radius:14px;
 
-    border-radius:12px;
+    background:#F3EEFF;
+
+    color:#7C3AED;
 
     display:flex;
 
+    align-items:center;
+
     justify-content:center;
+
+    font-size:20px;
+
+    flex-shrink:0;
+
+}
+
+.section-header h3{
+
+    margin:0;
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:#111827;
+
+}
+
+.section-subtitle{
+
+    margin-top:5px;
+
+    font-size:14px;
+
+    color:#6B7280;
+
+}
+
+.section-divider{
+
+    border:none;
+
+    border-top:1px solid #ECECEC;
+
+    margin:22px 0;
+
+}
+
+/* =========================
+   Common Form
+========================= */
+
+.form-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:22px;
+
+}
+
+.full-width{
+
+    grid-column:1/-1;
+
+}
+
+.form-group{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.form-group label{
+
+    margin-bottom:8px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#374151;
+
+}
+
+.form-group span{
+
+    color:#EF4444;
+
+}
+
+.form-group input,
+
+.form-select{
+
+    width:100%;
+
+    height:50px;
+
+    padding:0 15px;
+
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    background:#fff;
+
+    font-size:15px;
+
+    transition:.2s;
+
+    box-sizing:border-box;
+
+}
+
+.form-group input:focus,
+
+.form-select:focus{
+
+    outline:none;
+
+    border-color:#7C3AED;
+
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+
+}
+
+.form-group input::placeholder{
+
+    color:#9CA3AF;
+
+}
+
+/* =========================
+   Buttons
+========================= */
+
+.cancel-btn{
+
+    padding:12px 26px;
+
+    border:1px solid #D1D5DB;
+
+    background:#fff;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    transition:.2s;
+
+}
+
+.cancel-btn:hover{
+
+    background:#F3F4F6;
+
+}
+
+.create-btn{
+
+    padding:12px 28px;
+
+    background:#7C3AED;
+
+    color:#fff;
+
+    border:none;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    transition:.2s;
+
+}
+
+.create-btn:hover{
+
+    background:#6D28D9;
+
+}
+
+.create-btn:disabled{
+
+    opacity:.7;
+
+    cursor:not-allowed;
+
+}
+/* ==========================================
+   PROFILE & SIGN-IN
+========================================== */
+
+.profile-card{
+
+    background:#FFFFFF;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:18px;
+
+    padding:28px;
+
+    margin-bottom:28px;
+
+}
+
+.profile-header{
+
+    display:flex;
 
     align-items:center;
 
-    color:#7C5DFA;
+    gap:16px;
+
+}
+
+.profile-icon{
+
+    width:46px;
+
+    height:46px;
+
+    border-radius:14px;
+
+    background:#F3EEFF;
+
+    color:#7C3AED;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    flex-shrink:0;
 
 }
 
@@ -243,11 +466,13 @@
 
 .profile-header p{
 
-    margin-top:4px;
+    margin-top:5px;
+
+    font-size:14px;
 
     color:#6B7280;
 
-    font-size:14px;
+    line-height:1.5;
 
 }
 
@@ -257,31 +482,31 @@
 
     background:#ECECEC;
 
-    margin:22px 0;
+    margin:24px 0;
 
 }
 
-/* ======================================
-   Grid
-====================================== */
+/* ==========================================
+   PROFILE FORM
+========================================== */
 
-.form-grid{
+.profile-card .form-grid{
 
     display:grid;
 
     grid-template-columns:repeat(2,1fr);
 
-    gap:20px;
+    gap:22px;
 
 }
 
-.full-width{
+.profile-card .full-width{
 
-    grid-column:1 / -1;
+    grid-column:1/-1;
 
 }
 
-.form-group{
+.profile-card .form-group{
 
     display:flex;
 
@@ -289,7 +514,7 @@
 
 }
 
-.form-group label{
+.profile-card .form-group label{
 
     font-size:15px;
 
@@ -301,15 +526,19 @@
 
 }
 
-.form-group span{
+.profile-card .form-group span{
 
-    color:red;
+    color:#EF4444;
 
 }
 
-.form-group input{
+.profile-card .form-group input{
 
-    padding:14px 16px;
+    width:100%;
+
+    height:50px;
+
+    padding:0 16px;
 
     border:1px solid #D1D5DB;
 
@@ -317,105 +546,153 @@
 
     font-size:15px;
 
+    background:#FFFFFF;
+
+    transition:.2s;
+
+    box-sizing:border-box;
+
 }
 
-.form-group input:focus{
+.profile-card .form-group input:focus{
 
     outline:none;
 
-    border-color:#7C5DFA;
+    border-color:#7C3AED;
 
     box-shadow:0 0 0 3px rgba(124,93,250,.15);
 
 }
 
-.form-group input::placeholder{
+.profile-card .form-group input::placeholder{
 
     color:#9CA3AF;
 
 }
-/* =====================================
-   Reports To Section
-===================================== */
 
-.section {
-    background: #fff;
-    border: 1px solid #E5E7EB;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 25px;
-}
+/* ==========================================
+   INVITATION INFO BOX
+========================================== */
 
-/* Header */
+.profile-card .form-group div{
 
-.section-header{
-    display:flex;
-    align-items:center;
-    gap:15px;
-}
+    background:#EEF8FF;
 
-.section-icon{
-    width:44px;
-    height:44px;
-    background:#F3EEFF;
-    color:#7C3AED;
-    border-radius:12px;
+    border:1px solid #B8DEFA;
 
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
+    border-radius:10px;
 
-.section-header h3{
-    margin:0;
-    font-size:24px;
-    font-weight:700;
-    color:#111827;
-}
+    padding:16px 18px;
 
-.section-subtitle{
-    margin-top:4px;
-    color:#6B7280;
+    color:#205081;
+
     font-size:14px;
+
+    line-height:1.7;
+
 }
 
-.section-divider{
-    border:none;
-    border-top:1px solid #ECECEC;
-    margin:18px 0 22px;
+.profile-card .form-group div strong{
+
+    color:#1E3A8A;
+
+    font-weight:700;
+
 }
 
-/* =====================================
-   Dropdown
-===================================== */
+/* ==========================================
+   CONTACT FIELD
+========================================== */
+
+.profile-card input[type="text"],
+
+.profile-card input[type="email"]{
+
+    appearance:none;
+
+}
+
+/* ==========================================
+   REQUIRED FIELD STAR
+========================================== */
+
+.form-group label span{
+
+    color:#DC2626;
+
+    margin-left:2px;
+
+}
+
+/* ==========================================
+   INPUT HOVER
+========================================== */
+
+.form-group input:hover{
+
+    border-color:#A78BFA;
+
+}
+
+/* ==========================================
+   SMOOTH TRANSITIONS
+========================================== */
+
+.form-group input,
+
+.profile-card,
+
+.profile-icon{
+
+    transition:all .25s ease;
+
+}
+
+.profile-card:hover{
+
+    border-color:#DDD6FE;
+
+}
+/* ==========================================
+   REPORTS TO
+========================================== */
 
 .report-dropdown{
+
     position:relative;
+
 }
 
 .report-search-input{
 
     width:100%;
-    height:54px;
+
+    height:52px;
+
+    padding:0 50px 0 16px;
 
     border:1px solid #D1D5DB;
 
     border-radius:10px;
 
-    padding:0 50px 0 16px;
+    background:#FFFFFF;
 
     font-size:15px;
 
-    transition:.2s;
+    transition:.25s;
+
+    box-sizing:border-box;
+
 }
 
 .report-search-input:focus{
 
     outline:none;
 
-    border-color:#3B82F6;
+    border-color:#7C3AED;
 
-    box-shadow:0 0 0 3px rgba(59,130,246,.12);
+    box-shadow:0 0 0 3px rgba(124,93,250,.15);
+
 }
 
 .dropdown-icon{
@@ -428,40 +705,64 @@
 
     transform:translateY(-50%);
 
-    color:#6B7280;
-
     cursor:pointer;
 
-    font-size:18px;
+    color:#6B7280;
+
+    font-size:16px;
+
+    transition:.25s;
+
 }
 
-/* =====================================
-   Manager List
-===================================== */
+.dropdown-icon:hover{
+
+    color:#7C3AED;
+
+}
+
+/* ==========================================
+   REPORT LIST
+========================================== */
 
 .report-list{
 
     position:absolute;
 
-    top:60px;
+    top:58px;
 
     left:0;
 
     width:100%;
 
-    background:#fff;
+    background:#FFFFFF;
 
     border:1px solid #E5E7EB;
 
     border-radius:12px;
 
-    box-shadow:0 10px 25px rgba(0,0,0,.08);
+    box-shadow:0 12px 30px rgba(0,0,0,.08);
 
     max-height:260px;
 
     overflow-y:auto;
 
     z-index:999;
+
+}
+
+.report-list::-webkit-scrollbar{
+
+    width:7px;
+
+}
+
+.report-list::-webkit-scrollbar-thumb{
+
+    background:#C4B5FD;
+
+    border-radius:20px;
+
 }
 
 .report-item{
@@ -477,14 +778,14 @@
     cursor:pointer;
 
     transition:.2s;
+
 }
 
 .report-item:hover{
 
-    background:#F8FAFC;
-}
+    background:#F9FAFB;
 
-/* Avatar */
+}
 
 .report-avatar{
 
@@ -496,28 +797,28 @@
 
     background:#7C3AED;
 
-    color:#fff;
+    color:#FFFFFF;
 
     display:flex;
 
-    align-items:center;
-
     justify-content:center;
+
+    align-items:center;
 
     font-size:16px;
 
     font-weight:700;
 
     flex-shrink:0;
-}
 
-/* Details */
+}
 
 .report-details{
 
     display:flex;
 
     flex-direction:column;
+
 }
 
 .report-details strong{
@@ -527,6 +828,7 @@
     font-size:15px;
 
     font-weight:600;
+
 }
 
 .report-details small{
@@ -534,228 +836,109 @@
     color:#6B7280;
 
     font-size:13px;
+
+    margin-top:2px;
+
 }
+
 /* ==========================================
-   Assigned Departments
+   DEPARTMENT
 ========================================== */
 
-.department-top{
-    margin-bottom:18px;
-}
-
-.department-search{
+.form-select{
 
     width:100%;
-    height:50px;
 
-    border:1px solid #D1D5DB;
-    border-radius:10px;
+    height:52px;
 
     padding:0 16px;
 
+    border:1px solid #D1D5DB;
+
+    border-radius:10px;
+
+    background:#FFFFFF;
+
     font-size:15px;
 
-    transition:.2s;
+    cursor:pointer;
+
+    transition:.25s;
+
+    appearance:none;
+
 }
 
-.department-search:focus{
+.form-select:focus{
 
     outline:none;
 
     border-color:#7C3AED;
 
     box-shadow:0 0 0 3px rgba(124,93,250,.15);
-}
-
-.select-all{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    font-size:15px;
-
-    font-weight:600;
-
-    color:#374151;
-
-    margin-bottom:18px;
-
-    cursor:pointer;
-}
-
-.select-all input{
-
-    width:18px;
-    height:18px;
-
-    accent-color:#7C3AED;
-}
-
-.department-list{
-
-    border:1px solid #E5E7EB;
-
-    border-radius:12px;
-
-    padding:18px;
-
-    display:grid;
-
-    grid-template-columns:repeat(2,1fr);
-
-    gap:16px;
-
-    max-height:260px;
-
-    overflow-y:auto;
-
-    background:#fff;
-}
-
-.department-item{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    font-size:15px;
-
-    color:#374151;
-
-    cursor:pointer;
-
-    transition:.2s;
-}
-
-.department-item:hover{
-
-    color:#7C3AED;
-}
-
-.department-item input{
-
-    width:18px;
-
-    height:18px;
-
-    accent-color:#7C3AED;
-}
-
-/* Scrollbar */
-
-.department-list::-webkit-scrollbar{
-
-    width:8px;
-}
-
-.department-list::-webkit-scrollbar-thumb{
-
-    background:#C4B5FD;
-
-    border-radius:20px;
-}
-
-.department-list::-webkit-scrollbar-track{
-
-    background:#F3F4F6;
-}
-
-/* Responsive */
-
-@media(max-width:768px){
-
-.department-list{
-
-    grid-template-columns:1fr;
 
 }
 
-}
-/* =====================================
-   Designations
-===================================== */
+.form-select:hover{
 
-.designation-top{
+    border-color:#A78BFA;
 
-    margin-bottom:18px;
 }
 
-.designation-search{
+/* ==========================================
+   DESIGNATION
+========================================== */
+
+.section select{
 
     width:100%;
-    height:50px;
+
+    height:52px;
+
+    padding:0 16px;
 
     border:1px solid #D1D5DB;
 
     border-radius:10px;
 
-    padding:0 16px;
+    background:#FFFFFF;
 
     font-size:15px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
 }
 
-.designation-search:focus{
+.section select:focus{
 
     outline:none;
 
     border-color:#7C3AED;
 
     box-shadow:0 0 0 3px rgba(124,93,250,.15);
+
 }
 
-.designation-list{
+.section select:hover{
 
-    border:1px solid #E5E7EB;
+    border-color:#A78BFA;
 
-    border-radius:12px;
-
-    padding:18px;
-
-    display:grid;
-
-    grid-template-columns:repeat(2,1fr);
-
-    gap:15px;
-
-    max-height:260px;
-
-    overflow-y:auto;
 }
 
-.designation-item{
+/* ==========================================
+   COMMON SELECT STYLE
+========================================== */
 
-    display:flex;
+select option{
 
-    align-items:center;
+    padding:10px;
 
-    gap:10px;
-
-    cursor:pointer;
-
-    font-size:15px;
 }
-
-.designation-item input{
-
-    width:18px;
-
-    height:18px;
-
-    accent-color:#7C3AED;
-}
-
-.designation-item:hover{
-
-    color:#7C3AED;
-}
-/* =====================================
-   Assigned Stores
-===================================== */
+/* ==========================================
+   ASSIGNED STORES
+========================================== */
 
 .store-top{
 
@@ -767,17 +950,34 @@
 
     width:100%;
 
-    height:50px;
+    height:52px;
+
+    padding:0 16px;
 
     border:1px solid #D1D5DB;
 
     border-radius:10px;
 
-    padding:0 16px;
+    background:#FFFFFF;
 
     font-size:15px;
 
-    transition:.2s;
+    transition:.25s;
+
+    box-sizing:border-box;
+
+}
+
+.store-search::placeholder{
+
+    color:#9CA3AF;
+
+}
+
+.store-search:hover{
+
+    border-color:#A78BFA;
+
 }
 
 .store-search:focus{
@@ -787,7 +987,50 @@
     border-color:#7C3AED;
 
     box-shadow:0 0 0 3px rgba(124,93,250,.15);
+
 }
+
+/* ==========================================
+   SELECT ALL
+========================================== */
+
+.select-all{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    margin-bottom:18px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#374151;
+
+    cursor:pointer;
+
+    user-select:none;
+
+}
+
+.select-all input{
+
+    width:18px;
+
+    height:18px;
+
+    accent-color:#7C3AED;
+
+    cursor:pointer;
+
+}
+
+/* ==========================================
+   STORE LIST
+========================================== */
 
 .store-list{
 
@@ -801,14 +1044,19 @@
 
     grid-template-columns:repeat(2,1fr);
 
-    gap:15px;
+    gap:16px;
 
-    max-height:260px;
+    max-height:270px;
 
     overflow-y:auto;
 
-    background:#fff;
+    background:#FFFFFF;
+
 }
+
+/* ==========================================
+   STORE ITEM
+========================================== */
 
 .store-item{
 
@@ -818,14 +1066,23 @@
 
     gap:10px;
 
-    font-size:15px;
+    padding:8px 10px;
+
+    border-radius:8px;
 
     cursor:pointer;
 
     color:#374151;
+
+    font-size:15px;
+
+    transition:.2s;
+
 }
 
 .store-item:hover{
+
+    background:#F9FAFB;
 
     color:#7C3AED;
 
@@ -838,7 +1095,14 @@
     height:18px;
 
     accent-color:#7C3AED;
+
+    cursor:pointer;
+
 }
+
+/* ==========================================
+   STORE SCROLLBAR
+========================================== */
 
 .store-list::-webkit-scrollbar{
 
@@ -859,11 +1123,55 @@
     background:#F3F4F6;
 
 }
-/* =====================================
-   Module Access
-===================================== */
+
+/* Firefox */
+
+.store-list{
+
+    scrollbar-width:thin;
+
+    scrollbar-color:#C4B5FD #F3F4F6;
+
+}
+
+/* ==========================================
+   STORE EMPTY STATE
+========================================== */
+
+.store-empty{
+
+    grid-column:1/-1;
+
+    text-align:center;
+
+    color:#9CA3AF;
+
+    padding:20px;
+
+    font-size:15px;
+
+}
+
+/* ==========================================
+   STORE RESPONSIVE
+========================================== */
+
+@media (max-width:768px){
+
+    .store-list{
+
+        grid-template-columns:1fr;
+
+    }
+
+}
+/* ==========================================
+   MODULE ACCESS
+========================================== */
 
 .permission-table{
+
+    width:100%;
 
     border:1px solid #E5E7EB;
 
@@ -871,21 +1179,19 @@
 
     overflow:hidden;
 
+    background:#FFFFFF;
+
 }
 
 .permission-head{
 
     display:grid;
 
-    grid-template-columns:
-    2fr
-    repeat(5,1fr);
+    grid-template-columns:2fr repeat(5,1fr);
 
     background:#F9FAFB;
 
-    font-weight:700;
-
-    color:#374151;
+    border-bottom:1px solid #E5E7EB;
 
 }
 
@@ -893,9 +1199,15 @@
 
     padding:16px;
 
-    border-right:1px solid #E5E7EB;
-
     text-align:center;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    color:#374151;
+
+    border-right:1px solid #E5E7EB;
 
 }
 
@@ -905,21 +1217,39 @@
 
 }
 
+.permission-head div:last-child{
+
+    border-right:none;
+
+}
+
 .permission-row{
 
     display:grid;
 
-    grid-template-columns:
-    2fr
-    repeat(5,1fr);
+    grid-template-columns:2fr repeat(5,1fr);
 
     border-top:1px solid #E5E7EB;
+
+    transition:.2s;
+
+}
+
+.permission-row:hover{
+
+    background:#FAFAFC;
 
 }
 
 .module-name{
 
     padding:16px;
+
+    display:flex;
+
+    align-items:center;
+
+    font-size:15px;
 
     font-weight:600;
 
@@ -947,10 +1277,13 @@
 
     accent-color:#7C3AED;
 
+    cursor:pointer;
+
 }
-/* =====================================
-   Account Settings
-===================================== */
+
+/* ==========================================
+   ACCOUNT SETTINGS
+========================================== */
 
 .setting-row{
 
@@ -966,7 +1299,11 @@
 
     gap:12px;
 
-    font-size:16px;
+    font-size:15px;
+
+    font-weight:500;
+
+    color:#374151;
 
     cursor:pointer;
 
@@ -982,7 +1319,9 @@
 
 }
 
-/* Footer */
+/* ==========================================
+   FOOTER
+========================================== */
 
 .modal-footer{
 
@@ -990,49 +1329,73 @@
 
     justify-content:flex-end;
 
+    align-items:center;
+
     gap:15px;
 
-    padding:20px 30px;
+    padding:24px 30px;
 
     border-top:1px solid #E5E7EB;
 
-    background:#fff;
+    background:#FFFFFF;
 
 }
 
 .cancel-btn{
 
-    padding:12px 24px;
+    min-width:120px;
+
+    height:46px;
 
     border:1px solid #D1D5DB;
 
-    background:white;
+    background:#FFFFFF;
+
+    color:#374151;
 
     border-radius:10px;
 
+    font-size:15px;
+
+    font-weight:600;
+
     cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.cancel-btn:hover{
+
+    background:#F3F4F6;
 
 }
 
 .create-btn{
 
-    padding:12px 28px;
+    min-width:220px;
 
-    background:#7C3AED;
-
-    color:white;
+    height:46px;
 
     border:none;
 
     border-radius:10px;
 
+    background:#7C3AED;
+
+    color:#FFFFFF;
+
+    font-size:15px;
+
+    font-weight:600;
+
     cursor:pointer;
 
-    transition:.2s;
+    transition:.25s;
 
 }
 
-.create-btn:hover{
+.create-btn:hover:not(:disabled){
 
     background:#6D28D9;
 
@@ -1040,8 +1403,373 @@
 
 .create-btn:disabled{
 
-    opacity:.7;
+    opacity:.70;
 
     cursor:not-allowed;
 
 }
+
+/* ==========================================
+   BUTTON ACTIVE EFFECT
+========================================== */
+
+.cancel-btn:active,
+
+.create-btn:active{
+
+    transform:scale(.98);
+
+}
+/* ==========================================
+   RESPONSIVE DESIGN
+========================================== */
+
+@media (max-width:1024px){
+
+    .add-user-modal{
+
+        width:95%;
+
+    }
+
+}
+
+@media (max-width:768px){
+
+    .modal-overlay{
+
+        padding:12px;
+
+    }
+
+    .add-user-modal{
+
+        width:100%;
+
+        max-height:95vh;
+
+        border-radius:14px;
+
+    }
+
+    .modal-header{
+
+        padding:18px 20px;
+
+    }
+
+    .modal-header h2{
+
+        font-size:22px;
+
+    }
+
+    .modal-header p{
+
+        font-size:13px;
+
+    }
+
+    .modal-body{
+
+        padding:20px;
+
+    }
+
+    .profile-card,
+
+    .section{
+
+        padding:20px;
+
+    }
+
+    .form-grid{
+
+        grid-template-columns:1fr;
+
+        gap:18px;
+
+    }
+
+    .full-width{
+
+        grid-column:auto;
+
+    }
+
+    .section-header{
+
+        align-items:flex-start;
+
+    }
+
+    .section-header h3{
+
+        font-size:20px;
+
+    }
+
+    .store-list{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .permission-table{
+
+        overflow-x:auto;
+
+    }
+
+    .permission-head,
+
+    .permission-row{
+
+        min-width:700px;
+
+    }
+
+    .modal-footer{
+
+        flex-direction:column-reverse;
+
+        align-items:stretch;
+
+        padding:20px;
+
+    }
+
+    .cancel-btn,
+
+    .create-btn{
+
+        width:100%;
+
+    }
+
+}
+
+/* ==========================================
+   SMALL MOBILE
+========================================== */
+
+@media (max-width:480px){
+
+    .modal-header{
+
+        padding:16px;
+
+    }
+
+    .modal-body{
+
+        padding:16px;
+
+    }
+
+    .profile-card,
+
+    .section{
+
+        padding:16px;
+
+    }
+
+    .profile-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:12px;
+
+    }
+
+    .profile-icon{
+
+        width:42px;
+
+        height:42px;
+
+    }
+
+    .profile-header h3{
+
+        font-size:19px;
+
+    }
+
+    .section-header{
+
+        flex-direction:column;
+
+        gap:12px;
+
+    }
+
+    .section-icon{
+
+        width:42px;
+
+        height:42px;
+
+    }
+
+    .section-header h3{
+
+        font-size:18px;
+
+    }
+
+    .form-group input,
+
+    .form-select,
+
+    .store-search,
+
+    .report-search-input{
+
+        height:46px;
+
+        font-size:14px;
+
+    }
+
+}
+
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+*::-webkit-scrollbar{
+
+    width:8px;
+
+    height:8px;
+
+}
+
+*::-webkit-scrollbar-thumb{
+
+    background:#C4B5FD;
+
+    border-radius:20px;
+
+}
+
+*::-webkit-scrollbar-track{
+
+    background:#F3F4F6;
+
+}
+
+/* Firefox */
+
+*{
+
+    scrollbar-width:thin;
+
+    scrollbar-color:#C4B5FD #F3F4F6;
+
+}
+
+/* ==========================================
+   INPUTS & BUTTONS
+========================================== */
+
+button,
+
+input,
+
+select{
+
+    font-family:inherit;
+
+}
+
+button{
+
+    outline:none;
+
+}
+
+input,
+
+select{
+
+    box-sizing:border-box;
+
+}
+
+/* ==========================================
+   ACCESSIBILITY
+========================================== */
+
+button:focus-visible,
+
+input:focus-visible,
+
+select:focus-visible{
+
+    outline:2px solid #7C3AED;
+
+    outline-offset:2px;
+
+}
+
+/* ==========================================
+   ANIMATIONS
+========================================== */
+
+.modal-overlay{
+
+    animation:fadeIn .25s ease;
+
+}
+
+.add-user-modal{
+
+    animation:modalZoom .25s ease;
+
+}
+
+@keyframes fadeIn{
+
+    from{
+
+        opacity:0;
+
+    }
+
+    to{
+
+        opacity:1;
+
+    }
+
+}
+
+@keyframes modalZoom{
+
+    from{
+
+        opacity:0;
+
+        transform:scale(.97);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:scale(1);
+
+    }
+
+}
+
+/* ==========================================
+   END OF FILE
+========================================== */

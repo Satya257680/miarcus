@@ -2,75 +2,151 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 
+// ======================================================
+// CONTROLLERS
+// ======================================================
+
 const {
+
     getUsers,
+
     createUser,
+
     bulkUploadUsers,
+
     updateUser,
+
     disableUser,
+
     deleteUser,
+
     deleteAllUsers,
+
     getUserNames,
+
+    validateActivationToken,
+
+    activateUserAccount,
+
+    resendInvitation
+
 } = require("../controllers/userController");
 
-// ===========================
-// Multer Configuration
-// ===========================
+// ======================================================
+// MULTER CONFIGURATION
+// ======================================================
 
 const upload = multer({
-    dest: "uploads/",
+
+    dest: "uploads/"
+
 });
 
-// ===========================
-// Get All Users
-// ===========================
+// ======================================================
+// GET ALL USERS
+// GET : /api/users
+// ======================================================
 
 router.get("/", getUsers);
 
-// ===========================
-// Get User Names (Reports To)
-// ===========================
+// ======================================================
+// GET USER NAMES (REPORTS TO)
+// GET : /api/users/names
+// ======================================================
 
 router.get("/names", getUserNames);
 
-// ===========================
-// Add User
-// ===========================
+// ======================================================
+// CREATE USER + SEND INVITATION
+// POST : /api/users
+// ======================================================
 
 router.post("/", createUser);
 
-// ===========================
-// Bulk Upload Users
-// ===========================
+// ======================================================
+// BULK UPLOAD USERS
+// POST : /api/users/bulk-upload
+// ======================================================
 
 router.post(
+
     "/bulk-upload",
+
     upload.single("file"),
+
     bulkUploadUsers
+
 );
 
-// ===========================
-// Update User
-// ===========================
+// ======================================================
+// UPDATE USER
+// PUT : /api/users/:id
+// ======================================================
 
 router.put("/:id", updateUser);
 
-// ===========================
-// Disable User
-// ===========================
+// ======================================================
+// DISABLE USER
+// PUT : /api/users/disable/:id
+// ======================================================
 
 router.put("/disable/:id", disableUser);
 
-// ===========================
-// Delete User
-// ===========================
+// ======================================================
+// DELETE USER
+// DELETE : /api/users/:id
+// ======================================================
 
 router.delete("/:id", deleteUser);
 
-// ===========================
-// Delete All Users
-// ===========================
+// ======================================================
+// DELETE ALL USERS
+// DELETE : /api/users/delete-all
+// ======================================================
 
 router.delete("/delete-all", deleteAllUsers);
+
+// ======================================================
+// VALIDATE ACTIVATION TOKEN
+// GET : /api/users/activate/:token
+// ======================================================
+
+router.get(
+
+    "/activate/:token",
+
+    validateActivationToken
+
+);
+
+// ======================================================
+// ACTIVATE ACCOUNT
+// POST : /api/users/activate
+// ======================================================
+
+router.post(
+
+    "/activate",
+
+    activateUserAccount
+
+);
+
+// ======================================================
+// RESEND INVITATION
+// POST : /api/users/resend-invitation/:id
+// ======================================================
+
+router.post(
+
+    "/resend-invitation/:id",
+
+    resendInvitation
+
+);
+
+// ======================================================
+// EXPORT
+// ======================================================
 
 module.exports = router;

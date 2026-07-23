@@ -40,7 +40,8 @@ const loginUser = (req, res) => {
             password,
             profile_photo,
             department_id,
-            designation_id
+            designation_id,
+            is_activated
         FROM users
         WHERE email=?
         LIMIT 1
@@ -74,7 +75,23 @@ const loginUser = (req, res) => {
 
         const user = result[0];
 
-        let passwordMatched = false;
+// =============================
+// Check Account Activation
+// =============================
+
+if (!user.is_activated) {
+
+    return res.status(403).json({
+
+        success: false,
+
+        message: "Your account is not activated. Please activate it from the invitation email."
+
+    });
+
+}
+
+let passwordMatched = false;
 
         // Check bcrypt password
         try {

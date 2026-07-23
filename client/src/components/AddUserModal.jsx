@@ -5,9 +5,9 @@ import { HiUserGroup } from "react-icons/hi2";
 import axios from "axios";
 
 function AddUserModal({
-    onClose,
-    fetchUsers,
-    editingUser,
+  onClose,
+  fetchUsers,
+  editingUser,
 }) {
 
   // =========================
@@ -17,310 +17,496 @@ function AddUserModal({
   const [fullName, setFullName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
   const [contact, setContact] = useState("");
-
-  // =========================
-  // Reports To
-  // =========================
 
  
 
-// =========================
+  // =========================
+  // Module Access
+  // =========================
+
+  const modules = [
+    "Dashboard",
+    "Users",
+    "Stores",
+    "Departments",
+    "Designations",
+    "Action Points",
+    "Tasks",
+    "Inventory",
+    "Reports",
+    "Settings",
+  ];
+
+  const permissionTypes = [
+    "None",
+    "View",
+    "Add",
+    "Edit",
+    "Full",
+  ];
+
+  // =========================
+  // Create / Update User
+  // =========================
+
+  const handleCreateUser = async () => {
+
+    if (!fullName || !employeeId || !email) {
+
+      alert("Please fill all required fields.");
+
+      return;
+
+    }
+
+    if (!editingUser) {
+
+      if (!confirmEmail) {
+
+        alert("Please confirm email.");
+
+        return;
+
+      }
+
+      if (email.trim() !== confirmEmail.trim()) {
+
+        alert("Email and Confirm Email do not match.");
+
+        return;
+
+      }
+
+    }
+
+    try {
+
+      setLoading(true);
+
+      const payload = {
+
+        fullName,
+
+        employeeId,
+
+        email,
+
+        contact,
+
+        reportsTo: selectedReport,
+
+        department_id: departmentId,
+
+        designation_id: designationId,
+
+        stores: selectedStores,
+
+        permissions: modulePermissions,
+
+        active: isActive,
+
+        administrator: isAdmin,
+
+      };
+
+      if (editingUser) {
+
+        await axios.put(
+
+          `http://localhost:5000/api/users/${editingUser.id}`,
+
+          payload
+
+        );
+
+        alert("User Updated Successfully");
+
+      } else {
+
+        await axios.post(
+
+          "http://localhost:5000/api/users",
+
+          payload
+
+        );
+
+        alert("Invitation sent successfully.");
+
+      }
+
+      fetchUsers();
+
+      await loadReports();
+
+      onClose();
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert(
+
+        err.response?.data?.message ||
+
+        err.response?.data?.error ||
+
+        "Unable to save user."
+
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+    // =========================
+  // Module Permissions
+  // =========================
+
+  const [modulePermissions, setModulePermissions] =
+    useState(
+      modules.reduce((acc, module) => {
+        acc[module] = "View";
+        return acc;
+      }, {})
+    );
+
+  const handlePermissionChange = (
+    module,
+    permission
+  ) => {
+
+    setModulePermissions({
+      ...modulePermissions,
+      [module]: permission,
+    });
+
+  };
+
+  // =========================
 // Stores
 // =========================
 
-const stores = [
-  "Balasore",
-  "Bhubaneswar",
-  "Cuttack",
-  "Rourkela",
-  "Berhampur",
-  "Sambalpur",
-  "Kolkata",
-  "Hyderabad",
-  "Bangalore",
-  "Delhi",
-  "Mumbai",
-  "Chennai",
-];
-// =========================
-// Module Access
-// =========================
+const [stores, setStores] = useState([]);
 
-const modules = [
-  "Dashboard",
-  "Users",
-  "Stores",
-  "Departments",
-  "Designations",
-  "Action Points",
-  "Tasks",
-  "Inventory",
-  "Reports",
-  "Settings",
-];
-
-const permissionTypes = [
-  "None",
-  "View",
-  "Add",
-  "Edit",
-  "Full",
-];
-const handleCreateUser = async () => {
-
-  if (
-    !fullName ||
-    !employeeId ||
-    !email ||
-    !password
-  ) {
-    alert("Please fill all required fields.");
-    return;
-  }
-
-  try {
-
-    setLoading(true);
-
-    const payload = {
-
-      fullName,
-      employeeId,
-      email,
-      password,
-      contact,
-
-      reportsTo: selectedReport,
-
-      department_id: departmentId,
-designation_id: designationId,
-
-      stores: selectedStores,
-
-      permissions: modulePermissions,
-
-      active: isActive,
-
-      administrator: isAdmin,
-
-    };
-
-  if (editingUser) {
-
-    await axios.put(
-        `http://localhost:5000/api/users/${editingUser.id}`,
-        payload
-    );
-
-} else {
-
-    await axios.post(
-        "http://localhost:5000/api/users",
-        payload
-    );
-
-}
-    alert("User Created Successfully");
-
-    fetchUsers();
-
-    await loadReports();
-
-    onClose();
-
-  } catch (err) {
-
-    console.error("Create User Error:", err);
-    console.log(err.response);
-
-    alert(
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      "Unable to create user."
-    );
-
-} finally {
-
-    setLoading(false);
-
-  }
-
-};
-
-const [modulePermissions, setModulePermissions] =
-useState(
-  modules.reduce((acc, module) => {
-    acc[module] = "View";
-    return acc;
-  }, {})
-);
-const handlePermissionChange = (
-  module,
-  permission
-) => {
-
-  setModulePermissions({
-    ...modulePermissions,
-    [module]: permission,
-  });
-
-};
 const [storeSearch, setStoreSearch] = useState("");
 
 const [selectedStores, setSelectedStores] = useState([]);
-const toggleStore = (store) => {
 
-  if (selectedStores.includes(store)) {
+const filteredStores = stores.filter((store) =>
+  store.store_name
+    ?.toLowerCase()
+    .includes(storeSearch.toLowerCase())
+);
+
+// Toggle One Store
+
+const toggleStore = (storeId) => {
+
+  if (selectedStores.includes(storeId)) {
 
     setSelectedStores(
-      selectedStores.filter(
-        (item) => item !== store
-      )
+      selectedStores.filter((id) => id !== storeId)
     );
 
   } else {
 
     setSelectedStores([
       ...selectedStores,
-      store,
+      storeId,
     ]);
 
   }
 
 };
 
+// Toggle All Stores
+
 const toggleAllStores = () => {
 
-  if (selectedStores.length === stores.length) {
+  if (
+    stores.length > 0 &&
+    selectedStores.length === stores.length
+  ) {
 
     setSelectedStores([]);
 
   } else {
 
-    setSelectedStores(stores);
+    setSelectedStores(
+      stores.map((store) => store.id)
+    );
 
   }
 
 };
-// =========================
-// Departments & Designations
-// =========================
-
-const [departments, setDepartments] = useState([]);
-const [designations, setDesignations] = useState([]);
-
-const [departmentId, setDepartmentId] = useState("");
-const [designationId, setDesignationId] = useState("");
-const [reportsList, setReportsList] = useState([]);
-
-const [reportSearch, setReportSearch] = useState("");
-const [selectedReport, setSelectedReport] = useState(null);
-
-const [showReportList, setShowReportList] =
-  useState(false);
   // =========================
-// Account Settings
+  // Departments & Designations
+  // =========================
+
+  const [departments, setDepartments] =
+    useState([]);
+
+  const [designations, setDesignations] =
+    useState([]);
+
+  const [departmentId, setDepartmentId] =
+    useState("");
+
+  const [designationId, setDesignationId] =
+    useState("");
+
+  // =========================
+  // Reports To
+  // =========================
+
+  const [reportsList, setReportsList] =
+    useState([]);
+
+  const [reportSearch, setReportSearch] =
+    useState("");
+
+  const [selectedReport, setSelectedReport] =
+    useState(null);
+
+  const [showReportList, setShowReportList] =
+    useState(false);
+
+  // =========================
+  // Account Settings
+  // =========================
+
+  const [isActive, setIsActive] =
+    useState(true);
+
+  const [isAdmin, setIsAdmin] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  // =========================
+  // Initial Load
+  // =========================
+
+  useEffect(() => {
+
+    loadReports();
+
+    fetchDepartments();
+
+    fetchDesignations();
+
+    fetchStores();
+
+}, []);
+
+  // =========================
+  // Edit Mode
+  // =========================
+
+ useEffect(() => {
+
+  if (!editingUser) {
+
+    setFullName("");
+
+    setEmployeeId("");
+
+    setEmail("");
+
+    setConfirmEmail("");
+
+    setContact("");
+
+    setDepartmentId("");
+
+    setDesignationId("");
+
+    setSelectedReport(null);
+
+    setSelectedStores([]);
+
+    setIsActive(true);
+
+    setIsAdmin(false);
+
+    return;
+
+  }
+
+  setFullName(
+    editingUser.name || ""
+  );
+
+  setEmployeeId(
+    editingUser.employee_id || ""
+  );
+
+  setEmail(
+    editingUser.email || ""
+  );
+
+  setConfirmEmail(
+    editingUser.email || ""
+  );
+
+  setContact(
+    editingUser.contact || ""
+  );
+
+  setDepartmentId(
+    editingUser.department_id || ""
+  );
+
+  setDesignationId(
+    editingUser.designation_id || ""
+  );
+
+  setSelectedReport(
+
+    editingUser.reports_to
+      ? {
+          id: editingUser.reports_to_id,
+          name: editingUser.reports_to,
+        }
+      : null
+
+  );
+
+  // Restore selected stores while editing
+if (
+  editingUser.stores &&
+  Array.isArray(editingUser.stores)
+) {
+
+  setSelectedStores(editingUser.stores);
+
+} else {
+
+  setSelectedStores([]);
+
+}
+
+  setIsActive(
+    editingUser.status === "Active"
+  );
+
+  setIsAdmin(
+    editingUser.is_admin || false
+  );
+
+}, [editingUser]);
+  // =========================
+  // Load Reports
+  // =========================
+
+  const loadReports = async () => {
+
+    try {
+
+      const res = await axios.get(
+        "http://localhost:5000/api/reports"
+      );
+
+      setReportsList(
+
+        res.data.reports.map(
+          (manager) => ({
+
+            id: manager.id,
+
+            name: manager.manager_name,
+
+            email: manager.department,
+
+          })
+        )
+
+      );
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
+
+  // =========================
+  // Departments
+  // =========================
+
+  const fetchDepartments = async () => {
+
+    try {
+
+      const res = await axios.get(
+        "http://localhost:5000/api/departments"
+      );
+
+      setDepartments(
+        res.data.data
+      );
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
+
+  // =========================
+  // Designations
+  // =========================
+
+  const fetchDesignations = async () => {
+
+    try {
+
+      const res = await axios.get(
+        "http://localhost:5000/api/designations"
+      );
+
+      setDesignations(
+        res.data.data
+      );
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
+  // =========================
+// Stores
 // =========================
 
-const [isActive, setIsActive] = useState(true);
-const [isAdmin, setIsAdmin] = useState(false);
-const [loading, setLoading] = useState(false);
-useEffect(() => {
+const fetchStores = async () => {
 
-    if (!editingUser) return;
-
-    setFullName(editingUser.name || "");
-    setEmployeeId(editingUser.employee_id || "");
-    setEmail(editingUser.email || "");
-    setPassword("");
-
-    setDepartmentId(editingUser.department_id || "");
-setDesignationId(editingUser.designation_id || "");
-
-    setSelectedReport(
-        editingUser.reports_to
-            ? {
-                  name: editingUser.reports_to,
-              }
-            : null
-    );
-
-    setIsActive(
-        editingUser.status === "Active"
-    );
-
-}, [editingUser]);
-useEffect(() => {
-  loadReports();
-  fetchDepartments();
-  fetchDesignations();
-}, []);
-const loadReports = async () => {
   try {
-    const res = await axios.get("http://localhost:5000/api/reports");
 
-    setReportsList(
-      res.data.reports.map((manager) => ({
-        id: manager.id,
-        name: manager.manager_name,
-        email: manager.department, // optional
-      }))
-    );
-  } catch (err) {
-    console.log(err);
-  }
-};
-const fetchDepartments = async () => {
-  try {
     const res = await axios.get(
-      "http://localhost:5000/api/departments"
+      "http://localhost:5000/api/stores"
     );
 
-    setDepartments(res.data.data);
+    setStores(res.data.data);
+
   } catch (err) {
+
     console.log(err);
+
   }
+
 };
 
-const fetchDesignations = async () => {
-  try {
-    const res = await axios.get(
-      "http://localhost:5000/api/designations"
-    );
-
-    console.log("Designations:", res.data.data);
-
-    setDesignations(res.data.data);
-  } catch (err) {
-    console.log(err);
-  }
-};
-useEffect(() => {
-
-    if (!editingUser) return;
-
-    setFullName(editingUser.name || "");
-    setEmployeeId(editingUser.employee_id || "");
-    setEmail(editingUser.email || "");
-    setPassword("");
-
-    setDepartmentId(editingUser.department_id || "");
-    setDesignationId(editingUser.designation_id || "");
-
-    setSelectedReport(
-        editingUser.reports_to
-            ? {
-                  name: editingUser.reports_to,
-              }
-            : null
-    );
-
-    setIsActive(editingUser.status === "Active");
-    setIsAdmin(editingUser.is_admin || false);
-
-}, [editingUser]);
   return (
 
     <div className="modal-overlay">
@@ -335,17 +521,23 @@ useEffect(() => {
 
           <div>
 
-           <h2>
-    {editingUser
-        ? "Edit User"
-        : "Add User"}
-</h2>
+            <h2>
 
-           <p>
-{editingUser
-    ? "Update user details."
-    : "Create the account and assign permissions."}
-</p>
+              {editingUser
+                ? "Edit User"
+                : "Add User"}
+
+            </h2>
+
+            <p>
+
+              {editingUser
+
+                ? "Update user details."
+
+                : "Create the account and send an activation invitation."}
+
+            </p>
 
           </div>
 
@@ -363,8 +555,7 @@ useEffect(() => {
         ========================== */}
 
         <div className="modal-body">
-
-         {/* =========================
+          {/* =========================
     Profile & Sign-in
 ========================= */}
 
@@ -378,9 +569,17 @@ useEffect(() => {
 
     <div>
 
-      <h3>Profile & sign-in</h3>
+      <h3>Profile & Sign-in</h3>
 
-      <p>Create the user's login credentials</p>
+      <p>
+
+        {editingUser
+
+          ? "Update user information."
+
+          : "An invitation email will be sent to activate this account."}
+
+      </p>
 
     </div>
 
@@ -395,13 +594,17 @@ useEffect(() => {
     <div className="form-group full-width">
 
       <label>
+
         Full Name <span>*</span>
+
       </label>
 
       <input
         type="text"
         value={fullName}
-        onChange={(e)=>setFullName(e.target.value)}
+        onChange={(e) =>
+          setFullName(e.target.value)
+        }
         placeholder="e.g. Priya Sharma"
       />
 
@@ -412,13 +615,17 @@ useEffect(() => {
     <div className="form-group">
 
       <label>
+
         Employee ID <span>*</span>
+
       </label>
 
       <input
         type="text"
         value={employeeId}
-        onChange={(e)=>setEmployeeId(e.target.value)}
+        onChange={(e) =>
+          setEmployeeId(e.target.value)
+        }
         placeholder="e.g. EMP1023"
       />
 
@@ -429,63 +636,117 @@ useEffect(() => {
     <div className="form-group">
 
       <label>
+
         Email <span>*</span>
+
       </label>
 
       <input
         type="email"
         value={email}
-        onChange={(e)=>setEmail(e.target.value)}
+        onChange={(e) =>
+          setEmail(e.target.value)
+        }
         placeholder="name@company.com"
       />
 
     </div>
 
-    {/* Password */}
+    {/* Confirm Email (Create Only) */}
 
-    <div className="form-group full-width">
+    {!editingUser && (
 
-      <label>
-        Password <span>*</span>
-      </label>
+      <div className="form-group full-width">
 
-      <input
-        type="password"
-        value={password}
-        onChange={(e)=>setPassword(e.target.value)}
-        placeholder="Minimum 6 characters"
-      />
+        <label>
 
-    </div>
+          Confirm Email <span>*</span>
+
+        </label>
+
+        <input
+          type="email"
+          value={confirmEmail}
+          onChange={(e) =>
+            setConfirmEmail(e.target.value)
+          }
+          placeholder="Re-enter email address"
+        />
+
+      </div>
+
+    )}
 
     {/* Contact */}
 
     <div className="form-group full-width">
 
       <label>
+
         Contact
+
       </label>
 
       <input
         type="text"
         value={contact}
-        onChange={(e)=>setContact(e.target.value)}
+        onChange={(e) =>
+          setContact(e.target.value)
+        }
         placeholder="Phone or alternate contact"
       />
 
     </div>
 
+    {/* Invitation Information */}
+
+    {!editingUser && (
+
+      <div className="form-group full-width">
+
+        <div
+          style={{
+            background: "#eef8ff",
+            border: "1px solid #b8defa",
+            borderRadius: "8px",
+            padding: "14px",
+            color: "#205081",
+            fontSize: "14px",
+            lineHeight: "1.6",
+          }}
+        >
+
+          <strong>
+
+            Invitation Workflow
+
+          </strong>
+
+          <br />
+
+          After clicking
+          <strong> Create &amp; Send Invitation</strong>,
+          an activation email will be sent to the user.
+
+          <br /><br />
+
+          The user will create their own password
+          using the secure activation link.
+
+        </div>
+
+      </div>
+
+    )}
+
   </div>
 
 </div>
-
-    {/* =====================================
+{/* =====================================
       Reports To
 ===================================== */}
 
 <div className="section">
-
-  {/* Header */}
 
   <div className="section-header">
 
@@ -494,18 +755,18 @@ useEffect(() => {
     </div>
 
     <div>
+
       <h3>Reports To</h3>
 
       <p className="section-subtitle">
-        Choose one or more managers from the list.
+        Choose a reporting manager.
       </p>
+
     </div>
 
   </div>
 
   <hr className="section-divider" />
-
-  {/* Dropdown */}
 
   <div className="report-dropdown">
 
@@ -543,7 +804,9 @@ useEffect(() => {
           .filter((manager) =>
             (manager.name || "")
               .toLowerCase()
-              .includes(reportSearch.toLowerCase())
+              .includes(
+                reportSearch.toLowerCase()
+              )
           )
           .map((manager) => (
 
@@ -551,21 +814,37 @@ useEffect(() => {
               key={manager.id}
               className="report-item"
               onClick={() => {
+
                 setSelectedReport(manager);
+
                 setReportSearch(manager.name);
+
                 setShowReportList(false);
+
               }}
             >
 
               <div className="report-avatar">
-                {(manager.name || "?").charAt(0).toUpperCase()}
+
+                {(manager.name || "?")
+                  .charAt(0)
+                  .toUpperCase()}
+
               </div>
 
               <div className="report-details">
 
-                <strong>{manager.name}</strong>
+                <strong>
 
-                <small>{manager.email}</small>
+                  {manager.name}
+
+                </strong>
+
+                <small>
+
+                  {manager.email}
+
+                </small>
 
               </div>
 
@@ -574,9 +853,13 @@ useEffect(() => {
           ))}
 
         {reportsList.length === 0 && (
+
           <div className="report-item">
+
             No Users Found
+
           </div>
+
         )}
 
       </div>
@@ -586,21 +869,29 @@ useEffect(() => {
   </div>
 
 </div>
- {/* =========================
-    Departments
-========================= */}
+
+{/* =====================================
+      Department
+===================================== */}
 
 <div className="section">
 
   <div className="section-header">
-    <div className="section-icon">🏢</div>
+
+    <div className="section-icon">
+      🏢
+    </div>
 
     <div>
+
       <h3>Department</h3>
+
       <p className="section-subtitle">
         Select a department.
       </p>
+
     </div>
+
   </div>
 
   <hr className="section-divider" />
@@ -609,60 +900,94 @@ useEffect(() => {
     className="form-select"
     value={departmentId}
     onChange={(e) => {
+
       setDepartmentId(e.target.value);
+
       setDesignationId("");
+
     }}
   >
-    <option value="">Select Department</option>
+
+    <option value="">
+      Select Department
+    </option>
 
     {departments.map((dept) => (
-      <option key={dept.id} value={dept.id}>
+
+      <option
+        key={dept.id}
+        value={dept.id}
+      >
+
         {dept.department_name}
+
       </option>
+
     ))}
+
   </select>
 
 </div>
+
 {/* =====================================
-      Designations
+      Designation
 ===================================== */}
 
 <div className="section">
 
   <div className="section-header">
-    <div className="section-icon">💼</div>
+
+    <div className="section-icon">
+      💼
+    </div>
 
     <div>
+
       <h3>Designation</h3>
+
       <p className="section-subtitle">
         Select a designation.
       </p>
+
     </div>
+
   </div>
 
   <hr className="section-divider" />
 
-  {/* Debug */}
-  {console.log("Department ID:", departmentId)}
-  {console.log("All Designations:", designations)}
-
   <select
     className="form-select"
     value={designationId}
-    onChange={(e) => setDesignationId(e.target.value)}
+    onChange={(e) =>
+      setDesignationId(e.target.value)
+    }
   >
-    <option value="">Select Designation</option>
+
+    <option value="">
+      Select Designation
+    </option>
 
     {designations
       .filter(
-        (des) =>
-          String(des.department_id) === String(departmentId)
+        (designation) =>
+
+          String(designation.department_id) ===
+          String(departmentId)
+
       )
-      .map((des) => (
-        <option key={des.id} value={des.id}>
-          {des.designation_name}
+      .map((designation) => (
+
+        <option
+          key={designation.id}
+          value={designation.id}
+        >
+
+          {designation.designation_name}
+
         </option>
+
       ))}
+
   </select>
 
 </div>
@@ -699,7 +1024,7 @@ useEffect(() => {
       className="store-search"
       placeholder="Filter stores..."
       value={storeSearch}
-      onChange={(e)=>
+      onChange={(e) =>
         setStoreSearch(e.target.value)
       }
     />
@@ -711,47 +1036,53 @@ useEffect(() => {
     <input
       type="checkbox"
       checked={
+        stores.length > 0 &&
         selectedStores.length === stores.length
       }
       onChange={toggleAllStores}
     />
 
-    Select all visible
+    Select All
 
   </label>
 
   <div className="store-list">
 
-    {stores
-      .filter((store)=>
-        store
-          .toLowerCase()
-          .includes(storeSearch.toLowerCase())
-      )
-      .map((store)=>(
+    {filteredStores.length > 0 ? (
+
+      filteredStores.map((store) => (
 
         <label
-          key={store}
+          key={store.id}
           className="store-item"
         >
 
           <input
             type="checkbox"
-            checked={selectedStores.includes(store)}
-            onChange={() =>
-              toggleStore(store)
-            }
+            checked={selectedStores.includes(store.id)}
+            onChange={() => toggleStore(store.id)}
           />
 
-          {store}
+          {store.store_name}
 
         </label>
 
-      ))}
+      ))
+
+    ) : (
+
+      <div className="store-empty">
+
+        No Stores Found
+
+      </div>
+
+    )}
 
   </div>
 
 </div>
+
 {/* =====================================
       Module Access
 ===================================== */}
@@ -784,17 +1115,19 @@ useEffect(() => {
 
       <div>Module</div>
 
-      {permissionTypes.map((type)=>(
+      {permissionTypes.map((type) => (
 
         <div key={type}>
+
           {type}
+
         </div>
 
       ))}
 
     </div>
 
-    {modules.map((module)=>(
+    {modules.map((module) => (
 
       <div
         key={module}
@@ -802,10 +1135,12 @@ useEffect(() => {
       >
 
         <div className="module-name">
+
           {module}
+
         </div>
 
-        {permissionTypes.map((type)=>(
+        {permissionTypes.map((type) => (
 
           <div
             key={type}
@@ -816,9 +1151,9 @@ useEffect(() => {
               type="radio"
               name={module}
               checked={
-                modulePermissions[module]===type
+                modulePermissions[module] === type
               }
-              onChange={()=>
+              onChange={() =>
                 handlePermissionChange(
                   module,
                   type
@@ -837,6 +1172,7 @@ useEffect(() => {
   </div>
 
 </div>
+
 {/* =====================================
       Account Settings
 ===================================== */}
@@ -901,10 +1237,8 @@ useEffect(() => {
 
 </div>
 {/* =========================
-    Footer
+      Footer
 ========================= */}
-
-
 
 <div className="modal-footer">
 
@@ -921,25 +1255,45 @@ useEffect(() => {
     disabled={loading}
   >
 
-    {loading
-? editingUser
-    ? "Updating..."
-    : "Creating..."
-: editingUser
-    ? "Update User"
-    : "Create User"}
+    {loading ? (
+
+      editingUser
+
+        ? "Updating..."
+
+        : "Sending Invitation..."
+
+    ) : (
+
+      editingUser
+
+        ? "Update User"
+
+        : "Create & Send Invitation"
+
+    )}
+
   </button>
 
 </div>
+
+{/* =========================
+      End Body
+========================= */}
+
 </div>
 
-       
+{/* =========================
+      End Modal
+========================= */}
 
-      </div>
+</div>
 
-    </div>
+</div>
 
-  );
+);
+
 }
 
 export default AddUserModal;
+        

@@ -1,66 +1,279 @@
 const fs = require("fs");
 const XLSX = require("xlsx");
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 
 const User = require("../models/userModel");
-
-// ==========================
+const transporter = require("../config/mailer");
+// ==========================================================
 // Get All Users
-// ==========================
+// ==========================================================
 
 const getUsers = (req, res) => {
 
     User.getAllUsers((err, result) => {
 
         if (err) {
+
             console.log(err);
 
             return res.status(500).json({
+
                 success: false,
-                message: "Database Error",
+                message: "Database Error"
+
             });
+
         }
 
         res.json({
+
             success: true,
-            users: result,
+            users: result
+
         });
 
     });
 
 };
 
-// ==========================
-// Add User
-// ==========================
+// ==========================================================
+// Create User + Send Invitation
+// ==========================================================
 
 const createUser = (req, res) => {
 
-    User.addUser(req.body, (err) => {
+    const user = req.body;
 
-        if (err) {
+    // -------------------------
+    // Check Duplicate Email
+    // -------------------------
 
-            console.log(err);
+    User.checkEmailExists(
 
-            return res.status(500).json({
-                success: false,
-                message: "Unable to add user",
-                error: err,
-            });
+        user.email,
+
+        (emailErr, emailResult) => {
+
+            if (emailErr) {
+
+                return res.status(500).json({
+
+                    success: false,
+                    message: "Database Error"
+
+                });
+
+            }
+
+            if (emailResult.length > 0) {
+
+                return res.status(400).json({
+
+                    success: false,
+                    message: "Email already exists"
+
+                });
+
+            }
+
+            // -------------------------
+            // Check Employee ID
+            // -------------------------
+
+            User.checkEmployeeIdExists(
+
+                user.employeeId,
+
+                (empErr, empResult) => {
+
+                    if (empErr) {
+
+                        return res.status(500).json({
+
+                            success: false,
+                            message: "Database Error"
+
+                        });
+
+                    }
+
+                    if (empResult.length > 0) {
+
+                        return res.status(400).json({
+
+                            success: false,
+                            message: "Employee ID already exists"
+
+                        });
+
+                    }
+
+                    // -------------------------
+                    // Save User
+                    // -------------------------
+
+                    User.addUser(
+
+                        user,
+
+                        (addErr, addResult) => {
+
+                            if (addErr) {
+
+                                console.log(addErr);
+
+                                return res.status(500).json({
+
+                                    success: false,
+                                    message: "Unable to add user"
+
+                                });
+
+                            }
+
+                            const userId = addResult.insertId;
+
+                            const token = crypto.randomBytes(32).toString("hex");
+
+                            const expiresAt = new Date(
+
+                                Date.now() + 24 * 60 * 60 * 1000
+
+                            );
+
+                            // -------------------------
+                            // Save Token
+                            // -------------------------
+
+                            User.saveActivationToken(
+
+                                userId,
+
+                                token,
+
+                                expiresAt,
+
+                                (tokenErr) => {
+
+                                    if (tokenErr) {
+
+                                        console.log(tokenErr);
+
+                                        return res.status(500).json({
+
+                                            success: false,
+                                            message: "Unable to create activation token"
+
+                                        });
+
+                                    }
+
+                                    const activationLink =
+                                        `http://localhost:5173/activate-account/${token}`;
+
+                                    // -------------------------
+                                    // Send Mail
+                                    // -------------------------
+
+                                    transporter.sendMail(
+
+                                        {
+
+                                            from: process.env.EMAIL_USER,
+
+                                            to: user.email,
+
+                                            subject: "Welcome to Miarcus ERP",
+
+                                            html: `
+
+                                                <div style="font-family:Arial;padding:30px">
+
+                                                    <h2>Welcome to Miarcus ERP</h2>
+
+                                                    <p>Hello <b>${user.fullName}</b>,</p>
+
+                                                    <p>Your account has been created successfully.</p>
+
+                                                    <p>Please click the button below to activate your account and create your password.</p>
+
+                                                    <p style="margin:30px 0">
+
+                                                        <a
+                                                            href="${activationLink}"
+                                                            style="
+                                                                background:#6c63ff;
+                                                                color:#fff;
+                                                                padding:12px 24px;
+                                                                text-decoration:none;
+                                                                border-radius:6px;
+                                                            "
+                                                        >
+
+                                                            Activate Account
+
+                                                        </a>
+
+                                                    </p>
+
+                                                    <p>This link will expire in 24 hours.</p>
+
+                                                    <p>Regards,<br><b>Miarcus ERP Team</b></p>
+
+                                                </div>
+
+                                            `
+
+                                        },
+
+                                        (mailErr) => {
+
+                                            if (mailErr) {
+
+                                                console.log(mailErr);
+
+                                                return res.status(500).json({
+
+                                                    success: false,
+                                                    message: "User created but invitation email failed"
+
+                                                });
+
+                                            }
+
+                                            return res.status(201).json({
+
+                                                success: true,
+                                                message: "User created and invitation sent successfully"
+
+                                            });
+
+                                        }
+
+                                    );
+
+                                }
+
+                            );
+
+                        }
+
+                    );
+
+                }
+
+            );
 
         }
 
-        res.status(201).json({
-            success: true,
-            message: "User added successfully",
-        });
-
-    });
+    );
 
 };
 
-// ==========================
+// ==========================================================
 // Bulk Upload Users
-// ==========================
+// ==========================================================
 
 const bulkUploadUsers = (req, res) => {
 
@@ -69,28 +282,35 @@ const bulkUploadUsers = (req, res) => {
         if (!req.file) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "No file uploaded",
+                message: "No file uploaded"
+
             });
 
         }
 
         const workbook = XLSX.readFile(req.file.path);
 
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         const users = XLSX.utils.sheet_to_json(sheet, {
+
             defval: "",
-            blankrows: false,
+            blankrows: false
+
         });
 
         const filteredUsers = users.filter((user) => {
 
             return (
+
                 String(user["Employee ID"] || "").trim() !== "" ||
+
                 String(user["Name"] || "").trim() !== "" ||
+
                 String(user["Email"] || "").trim() !== ""
+
             );
 
         });
@@ -100,8 +320,10 @@ const bulkUploadUsers = (req, res) => {
             fs.unlinkSync(req.file.path);
 
             return res.status(400).json({
+
                 success: false,
-                message: "No valid users found in file.",
+                message: "No valid users found."
+
             });
 
         }
@@ -109,7 +331,9 @@ const bulkUploadUsers = (req, res) => {
         User.bulkInsertUsers(filteredUsers, (err, result) => {
 
             if (fs.existsSync(req.file.path)) {
+
                 fs.unlinkSync(req.file.path);
+
             }
 
             if (err) {
@@ -117,62 +341,86 @@ const bulkUploadUsers = (req, res) => {
                 console.log(err);
 
                 return res.status(500).json({
+
                     success: false,
-                    message: "Bulk upload failed",
-                    error: err.sqlMessage,
+                    message: "Bulk Upload Failed"
+
                 });
 
             }
 
             res.json({
+
                 success: true,
-                message: `${result.affectedRows} users uploaded successfully`,
+
+                message: `${result.affectedRows} users uploaded successfully`
+
             });
 
         });
 
-    } catch (err) {
+    }
+
+    catch (err) {
 
         console.log(err);
 
         if (req.file && fs.existsSync(req.file.path)) {
+
             fs.unlinkSync(req.file.path);
+
         }
 
         res.status(500).json({
+
             success: false,
-            message: "Upload Error",
+
+            message: "Upload Error"
+
         });
 
     }
 
 };
-
 // ==========================
 // Update User
 // ==========================
 
 const updateUser = (req, res) => {
 
-    User.updateUser(req.params.id, req.body, (err) => {
+    User.updateUser(
 
-        if (err) {
+        req.params.id,
 
-            console.log(err);
+        req.body,
 
-            return res.status(500).json({
-                success: false,
-                message: "Update Failed",
+        (err) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Update Failed"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message: "User Updated Successfully"
+
             });
 
         }
 
-        res.json({
-            success: true,
-            message: "User Updated Successfully",
-        });
-
-    });
+    );
 
 };
 
@@ -182,25 +430,37 @@ const updateUser = (req, res) => {
 
 const disableUser = (req, res) => {
 
-    User.disableUser(req.params.id, (err) => {
+    User.disableUser(
 
-        if (err) {
+        req.params.id,
 
-            console.log(err);
+        (err) => {
 
-            return res.status(500).json({
-                success: false,
-                message: "Unable to disable user",
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Unable to Disable User"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message: "User Disabled Successfully"
+
             });
 
         }
 
-        res.json({
-            success: true,
-            message: "User Disabled Successfully",
-        });
-
-    });
+    );
 
 };
 
@@ -210,25 +470,37 @@ const disableUser = (req, res) => {
 
 const deleteUser = (req, res) => {
 
-    User.deleteUser(req.params.id, (err) => {
+    User.deleteUser(
 
-        if (err) {
+        req.params.id,
 
-            console.log(err);
+        (err) => {
 
-            return res.status(500).json({
-                success: false,
-                message: "Unable to delete user",
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Unable to Delete User"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message: "User Deleted Successfully"
+
             });
 
         }
 
-        res.json({
-            success: true,
-            message: "User Deleted Successfully",
-        });
-
-    });
+    );
 
 };
 
@@ -238,25 +510,35 @@ const deleteUser = (req, res) => {
 
 const deleteAllUsers = (req, res) => {
 
-    User.deleteAllUsers((err) => {
+    User.deleteAllUsers(
 
-        if (err) {
+        (err) => {
 
-            console.log(err);
+            if (err) {
 
-            return res.status(500).json({
-                success: false,
-                message: "Unable to delete users",
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Unable to Delete Users"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message: "All Users Deleted Successfully"
+
             });
 
         }
 
-        res.json({
-            success: true,
-            message: "All users deleted successfully",
-        });
-
-    });
+    );
 
 };
 
@@ -266,39 +548,383 @@ const deleteAllUsers = (req, res) => {
 
 const getUserNames = (req, res) => {
 
-    User.getUserNames((err, result) => {
+    User.getUserNames(
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Database Error"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                users: result
+
+            });
+
+        }
+
+    );
+
+};
+// ==========================
+// Validate Activation Token
+// ==========================
+
+const validateActivationToken = (req, res) => {
+
+    const { token } = req.params;
+
+    User.getActivationToken(token, (err, result) => {
 
         if (err) {
 
             console.log(err);
 
             return res.status(500).json({
+
                 success: false,
-                message: "Database Error",
+
+                message: "Database Error"
+
+            });
+
+        }
+
+        if (result.length === 0) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid or Expired Activation Link"
+
             });
 
         }
 
         res.json({
+
             success: true,
-            users: result,
+
+            message: "Activation link is valid"
+
         });
 
     });
 
 };
-
 // ==========================
-// Export
+// Activate User Account
 // ==========================
 
+const activateUserAccount = async (req, res) => {
+
+    try {
+
+        const {
+
+            token,
+
+            password
+
+        } = req.body;
+
+        User.getActivationToken(
+
+            token,
+
+            async (err, result) => {
+
+                if (err) {
+
+                    console.log(err);
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message: "Database Error"
+
+                    });
+
+                }
+
+                if (result.length === 0) {
+
+                    return res.status(400).json({
+
+                        success: false,
+
+                        message: "Invalid or Expired Activation Link"
+
+                    });
+
+                }
+
+                const activation = result[0];
+
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                User.activateUser(
+
+                    activation.user_id,
+
+                    hashedPassword,
+
+                    (activateErr) => {
+
+                        if (activateErr) {
+
+                            console.log(activateErr);
+
+                            return res.status(500).json({
+
+                                success: false,
+
+                                message: "Unable to Activate Account"
+
+                            });
+
+                        }
+
+                        User.markTokenUsed(
+
+                            token,
+
+                            (tokenErr) => {
+
+                                if (tokenErr) {
+
+                                    console.log(tokenErr);
+
+                                }
+
+                                return res.json({
+
+                                    success: true,
+
+                                    message: "Account Activated Successfully"
+
+                                });
+
+                            }
+
+                        );
+
+                    }
+
+                );
+
+            }
+
+        );
+
+    }
+
+    catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Server Error"
+
+        });
+
+    }
+
+};
+// ==========================
+// Resend Invitation
+// ==========================
+
+const resendInvitation = (req, res) => {
+
+    const userId = req.params.id;
+
+    User.getUserById(
+
+        userId,
+
+        (err, users) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Database Error"
+
+                });
+
+            }
+
+            if (users.length === 0) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message: "User Not Found"
+
+                });
+
+            }
+
+            const user = users[0];
+
+            if (user.is_activated) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message: "User Already Activated"
+
+                });
+
+            }
+
+            const token = crypto.randomBytes(32).toString("hex");
+
+            const expiresAt = new Date(
+
+                Date.now() + 24 * 60 * 60 * 1000
+
+            );
+
+            User.saveActivationToken(
+
+                user.id,
+
+                token,
+
+                expiresAt,
+
+                (tokenErr) => {
+
+                    if (tokenErr) {
+
+                        console.log(tokenErr);
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message: "Unable to Generate Token"
+
+                        });
+
+                    }
+
+                    const activationLink =
+                        `http://localhost:5173/activate-account/${token}`;
+
+                    transporter.sendMail(
+
+                        {
+
+                            from: process.env.EMAIL_USER,
+
+                            to: user.email,
+
+                            subject: "Miarcus ERP Invitation",
+
+                            html: `
+                                <h2>Hello ${user.name}</h2>
+
+                                <p>Your invitation link has been regenerated.</p>
+
+                                <p>
+
+                                <a href="${activationLink}">
+                                Activate Account
+                                </a>
+
+                                </p>
+
+                                <p>This link expires in 24 hours.</p>
+                            `
+
+                        },
+
+                        (mailErr) => {
+
+                            if (mailErr) {
+
+                                console.log(mailErr);
+
+                                return res.status(500).json({
+
+                                    success: false,
+
+                                    message: "Unable to Send Email"
+
+                                });
+
+                            }
+
+                            res.json({
+
+                                success: true,
+
+                                message: "Invitation Sent Successfully"
+
+                            });
+
+                        }
+
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
+};
 module.exports = {
+
     getUsers,
+
     createUser,
+
     bulkUploadUsers,
+
     updateUser,
+
     disableUser,
+
     deleteUser,
+
     deleteAllUsers,
+
     getUserNames,
+
+    validateActivationToken,
+
+    activateUserAccount,
+
+    resendInvitation
+
 };

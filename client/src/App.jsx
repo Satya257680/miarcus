@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyOTP from "./pages/VerifyOTP";
 import ResetPassword from "./pages/ResetPassword";
+import ActivateAccount from "./pages/ActivateAccount";
 
 // ================= PROTECTED PAGES =================
 
@@ -56,6 +57,13 @@ function App() {
         <Route
           path="/reset-password"
           element={<ResetPassword />}
+        />
+
+        {/* NEW : Activate Account */}
+
+        <Route
+          path="/activate-account/:token"
+          element={<ActivateAccount />}
         />
 
         {/* ==========================
