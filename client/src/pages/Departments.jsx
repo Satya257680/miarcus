@@ -27,6 +27,29 @@ function Departments() {
   const [editDepartment, setEditDepartment] = useState(null);
 
   // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const departmentPermission =
+  permissions["Departments"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(departmentPermission);
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(departmentPermission);
+
+const canEdit =
+  ["Edit", "Full"].includes(departmentPermission);
+
+const canDelete =
+  departmentPermission === "Full";
+
+  // ==========================
   // Load Departments
   // ==========================
 
@@ -58,8 +81,15 @@ function Departments() {
   };
 
   useEffect(() => {
-    fetchDepartments();
-  }, []);
+
+  if (!canView) {
+    alert("You don't have permission to view Departments.");
+    return;
+  }
+
+  fetchDepartments();
+
+}, [canView]);
 
   // ==========================
   // Search
@@ -165,11 +195,19 @@ function Departments() {
     }
   };
 
-  return (
-    <div className="departments-page">
+return (
 
-      <div className="departments-header">
-        <h2>Departments</h2>
+  <div className="departments-page">
+
+    {/* ==========================
+        Header
+    ========================== */}
+
+    <div className="departments-header">
+
+      <h2>Departments</h2>
+
+      {canAdd && (
 
         <button
           className="add-btn"
@@ -178,115 +216,166 @@ function Departments() {
           <FaPlus />
           <span>Add Department</span>
         </button>
-      </div>
 
-      <div className="search-box">
-        <FaSearch className="search-icon" />
+      )}
 
-        <input
-          type="text"
-          placeholder="Search Department..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+    </div>
 
-      <div className="table-container">
-        <table>
+    {/* ==========================
+        Search
+    ========================== */}
 
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Department</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th width="150">Actions</th>
-            </tr>
-          </thead>
+    <div className="search-box">
 
-          <tbody>
+      <FaSearch className="search-icon" />
 
-            {loading ? (
-
-              <tr>
-                <td colSpan="5" className="loading">
-                  Loading...
-                </td>
-              </tr>
-
-            ) : filteredDepartments.length === 0 ? (
-
-              <tr>
-                <td colSpan="5" className="loading">
-                  No Departments Found
-                </td>
-              </tr>
-
-            ) : (
-
-              filteredDepartments.map((department) => (
-
-                <tr key={department.id}>
-
-                  <td>{department.id}</td>
-
-                  <td>{department.department_name}</td>
-
-                  <td>{department.description || "-"}</td>
-
-                  <td>
-                    <span
-                      className={
-                        department.status === "Active"
-                          ? "status active"
-                          : "status inactive"
-                      }
-                    >
-                      {department.status}
-                    </span>
-                  </td>
-<td>
-  <div className="action-buttons">
-
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(department)}
-    >
-      Edit <FaEdit />
-    </button>
-
-    <button
-      className="delete-btn"
-      onClick={() => handleDelete(department.id)}
-    >
-      <FaTrash />
-    </button>
-
-  </div>
-</td>
-                </tr>
-
-              ))
-
-            )}
-
-          </tbody>
-
-        </table>
-      </div>
-
-      <DepartmentModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditDepartment(null);
-        }}
-        onSave={handleSave}
-        department={editDepartment}
+      <input
+        type="text"
+        placeholder="Search Department..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
       />
 
     </div>
-  );
+
+    {/* ==========================
+        Table
+    ========================== */}
+
+    <div className="table-container">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>ID</th>
+
+            <th>Department</th>
+
+            <th>Description</th>
+
+            <th>Status</th>
+
+            <th width="150">Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {loading ? (
+
+            <tr>
+
+              <td colSpan="5" className="loading">
+
+                Loading...
+
+              </td>
+
+            </tr>
+
+          ) : filteredDepartments.length === 0 ? (
+
+            <tr>
+
+              <td colSpan="5" className="loading">
+
+                No Departments Found
+
+              </td>
+
+            </tr>
+
+          ) : (
+
+            filteredDepartments.map((department) => (
+
+              <tr key={department.id}>
+
+                <td>{department.id}</td>
+
+                <td>{department.department_name}</td>
+
+                <td>{department.description || "-"}</td>
+
+                <td>
+
+                  <span
+                    className={
+                      department.status === "Active"
+                        ? "status active"
+                        : "status inactive"
+                    }
+                  >
+                    {department.status}
+                  </span>
+
+                </td>
+
+                <td>
+
+                  <div className="action-buttons">
+
+                    {canEdit && (
+
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(department)}
+                      >
+                        Edit <FaEdit />
+                      </button>
+
+                    )}
+
+                    {canDelete && (
+
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(department.id)}
+                      >
+                        <FaTrash />
+                      </button>
+
+                    )}
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            ))
+
+          )}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    {/* ==========================
+        Modal
+    ========================== */}
+
+    <DepartmentModal
+      isOpen={showModal}
+      onClose={() => {
+        setShowModal(false);
+        setEditDepartment(null);
+      }}
+      onSave={handleSave}
+      department={editDepartment}
+    />
+
+  </div>
+
+);
+
 }
 
 export default Departments;

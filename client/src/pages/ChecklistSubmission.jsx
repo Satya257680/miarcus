@@ -21,14 +21,39 @@ function ChecklistSubmission() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // RBAC
+
+  const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const modulePermission =
+  permissions["Checklist Submission"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(modulePermission);
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(modulePermission);
+
+const canEdit =
+  ["Edit", "Full"].includes(modulePermission);
+
+const canDelete =
+  modulePermission === "Full";
+
   // ==========================================
   // Load Checklist Types + Stores
   // ==========================================
 
-  useEffect(() => {
-    fetchChecklistTypes();
-    fetchStores();
-  }, []);
+ useEffect(() => {
+
+  if (!canView) return;
+
+  fetchChecklistTypes();
+  fetchStores();
+
+}, [canView]);
 
   const fetchChecklistTypes = async () => {
     try {
@@ -66,13 +91,14 @@ function ChecklistSubmission() {
   // Load Questions when Checklist changes
   // ==========================================
 
-  useEffect(() => {
-    if (!checklistTypeId) {
-      setQuestions([]);
-      setAnswers({});
-      setRemarks({});
-      return;
-    }
+ useEffect(() => {
+
+  if (!canView) {
+    setQuestions([]);
+    setAnswers({});
+    setRemarks({});
+    return;
+  }
 
     fetchQuestions();
   }, [checklistTypeId]);
@@ -384,7 +410,16 @@ const getDeviceInfo = () => {
 // ==========================================
 
 const handleSubmit = async (e) => {
+
   e.preventDefault();
+
+  if (!canAdd) {
+
+    alert("You don't have permission to submit checklists.");
+
+    return;
+
+  }
 
   if (!checklistTypeId) {
     alert("Please select Checklist Type.");
@@ -403,7 +438,10 @@ const handleSubmit = async (e) => {
 
   // Validate required questions
   for (const question of questions) {
-    const questionId = question.id || question.question_id;
+
+    const questionId =
+      question.id ||
+      question.question_id;
 
     const required =
       question.required === true ||
@@ -412,6 +450,7 @@ const handleSubmit = async (e) => {
       question.is_required === 1;
 
     if (required && !answers[questionId]) {
+
       alert(
         `Please answer: ${
           question.question ||
@@ -419,51 +458,70 @@ const handleSubmit = async (e) => {
           question.title
         }`
       );
+
       return;
+
     }
+
   }
 
   try {
+
     setSubmitting(true);
 
     // Check browser permission first
     if (navigator.permissions) {
-      const permission = await navigator.permissions.query({
-        name: "geolocation",
-      });
+
+      const permission =
+        await navigator.permissions.query({
+          name: "geolocation",
+        });
 
       if (permission.state === "denied") {
+
         alert(
           "Geolocation is required. Please enable location services and reload."
         );
+
         setSubmitting(false);
+
         return;
+
       }
+
     }
 
     // Get current location
     let location;
 
     try {
-      location = await getCurrentLocation();
+
+      location =
+        await getCurrentLocation();
+
     } catch (error) {
+
       alert(error);
+
       setSubmitting(false);
+
       return;
+
     }
 
     // Continue with your existing code from here...
-      const user =
-        JSON.parse(
-          localStorage.getItem("user")
-        ) || {};
 
-      const formattedAnswers =
-        questions.map((question) => {
-          const questionId =
-            question.id ||
-            question.question_id;
+    const user =
+      JSON.parse(
+        localStorage.getItem("user")
+      ) || {};
 
+    const formattedAnswers =
+      questions.map((question) => {
+
+        const questionId =
+          question.id ||
+          question.question_id;
           return {
             question_id: questionId,
 
@@ -611,203 +669,218 @@ headers:{
   };
 
   // ==========================================
-  // UI
-  // ==========================================
+// UI
+// ==========================================
+
+if (!canView) {
 
   return (
-    <div className="checklist-submission-page">
 
-      <div className="checklist-page-header">
+    <div className="no-permission">
 
-        <h2>
-          Checklist Submission
-        </h2>
+      <h2>Access Denied</h2>
 
-        <p>
-          Complete and submit store checklist
-        </p>
+      <p>
+        You don't have permission to view Checklist Submission.
+      </p>
 
-      </div>
+    </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="checklist-form"
-      >
+  );
 
-        {/* TOP FILTERS */}
+}
 
-        <div className="checklist-selection-card">
+return (
 
-          <div className="checklist-field">
+  <div className="checklist-submission-page">
 
-            <label>
-              Checklist Type
-              <span>*</span>
-            </label>
+    <div className="checklist-page-header">
 
-            <select
-              value={checklistTypeId}
-              onChange={(e) =>
-                setChecklistTypeId(
-                  e.target.value
-                )
-              }
-            >
+      <h2>
+        Checklist Submission
+      </h2>
 
-              <option value="">
-                Select Checklist Type
-              </option>
+      <p>
+        Complete and submit store checklist
+      </p>
 
-              {checklistTypes.map(
-                (checklist) => (
+    </div>
 
-                  <option
-                    key={
-                      checklist.id ||
-                      checklist.checklist_type_id
-                    }
-                    value={
-                      checklist.id ||
-                      checklist.checklist_type_id
-                    }
-                  >
+    <form
+      onSubmit={handleSubmit}
+      className="checklist-form"
+    >
 
-                    {checklist.name ||
-                      checklist.checklist_name ||
-                      checklist.title}
+      {/* TOP FILTERS */}
 
-                  </option>
+      <div className="checklist-selection-card">
 
-                )
-              )}
+        <div className="checklist-field">
 
-            </select>
+          <label>
+            Checklist Type
+            <span>*</span>
+          </label>
 
-          </div>
+          <select
+            value={checklistTypeId}
+            onChange={(e) =>
+              setChecklistTypeId(
+                e.target.value
+              )
+            }
+          >
 
-          <div className="checklist-field">
+            <option value="">
+              Select Checklist Type
+            </option>
 
-            <label>
-              Store
-              <span>*</span>
-            </label>
-
-            <select
-              value={storeId}
-              onChange={(e) =>
-                setStoreId(
-                  e.target.value
-                )
-              }
-            >
-
-              <option value="">
-                Select Store
-              </option>
-
-              {stores.map((store) => (
+            {checklistTypes.map(
+              (checklist) => (
 
                 <option
                   key={
-                    store.id ||
-                    store.store_id
+                    checklist.id ||
+                    checklist.checklist_type_id
                   }
                   value={
-                    store.id ||
-                    store.store_id
+                    checklist.id ||
+                    checklist.checklist_type_id
                   }
                 >
 
-                  {store.store_name ||
-                    store.name}
+                  {checklist.name ||
+                    checklist.checklist_name ||
+                    checklist.title}
 
                 </option>
 
-              ))}
+              )
+            )}
 
-            </select>
-
-          </div>
-
-          <div className="checklist-field">
-
-            <label>
-              Date
-            </label>
-
-            <input
-              type="date"
-              value={submissionDate}
-              onChange={(e) =>
-                setSubmissionDate(
-                  e.target.value
-                )
-              }
-            />
-
-          </div>
-          <div className="checklist-field">
-
-<label>
-Attachment
-</label>
-
-<input
-
-type="file"
-
-onChange={(e)=>
-setAttachmentFile(
-e.target.files[0]
-)
-}
-
-/>
-
-</div>
+          </select>
 
         </div>
 
-        {/* QUESTIONS */}
+        <div className="checklist-field">
 
-        {loadingQuestions && (
+          <label>
+            Store
+            <span>*</span>
+          </label>
+
+          <select
+            value={storeId}
+            onChange={(e) =>
+              setStoreId(
+                e.target.value
+              )
+            }
+          >
+
+            <option value="">
+              Select Store
+            </option>
+
+            {stores.map((store) => (
+
+              <option
+                key={
+                  store.id ||
+                  store.store_id
+                }
+                value={
+                  store.id ||
+                  store.store_id
+                }
+              >
+
+                {store.store_name ||
+                  store.name}
+
+              </option>
+
+            ))}
+
+          </select>
+
+        </div>
+
+        <div className="checklist-field">
+
+          <label>
+            Date
+          </label>
+
+          <input
+            type="date"
+            value={submissionDate}
+            onChange={(e) =>
+              setSubmissionDate(
+                e.target.value
+              )
+            }
+          />
+
+        </div>
+
+        <div className="checklist-field">
+
+          <label>
+            Attachment
+          </label>
+
+          <input
+            type="file"
+            onChange={(e) =>
+              setAttachmentFile(
+                e.target.files[0]
+              )
+            }
+          />
+
+        </div>
+
+      </div>
+
+      {/* QUESTIONS */}
+
+      {loadingQuestions && (
+
+        <div className="checklist-message">
+          Loading questions...
+        </div>
+
+      )}
+
+      {!loadingQuestions &&
+        checklistTypeId &&
+        questions.length === 0 && (
 
           <div className="checklist-message">
-            Loading questions...
+
+            No questions found for this checklist type.
+
           </div>
 
         )}
 
-        {!loadingQuestions &&
-          checklistTypeId &&
-          questions.length === 0 && (
+      {questions.length > 0 && (
 
-            <div className="checklist-message">
+        <div className="questions-section">
 
-              No questions found for this
-              checklist type.
+          <div className="questions-heading">
 
-            </div>
+            <h3>
+              Checklist Questions
+            </h3>
 
-          )}
+            <span>
+              {questions.length} Questions
+            </span>
 
-        {questions.length > 0 && (
-
-          <div className="questions-section">
-
-            <div className="questions-heading">
-
-              <h3>
-                Checklist Questions
-              </h3>
-
-              <span>
-                {questions.length} Questions
-              </span>
-
-            </div>
-
-            {questions.map(
+          </div>
+                      {questions.map(
               (question, index) => {
 
                 const questionId =
@@ -877,6 +950,7 @@ e.target.files[0]
                   </div>
 
                 );
+
               }
             )}
 
@@ -885,12 +959,14 @@ e.target.files[0]
               <button
                 type="submit"
                 className="submit-checklist-btn"
-                disabled={submitting}
+                disabled={!canAdd || submitting}
               >
 
                 {submitting
                   ? "Submitting..."
-                  : "Submit Checklist"}
+                  : canAdd
+                    ? "Submit Checklist"
+                    : "No Permission"}
 
               </button>
 
@@ -903,7 +979,9 @@ e.target.files[0]
       </form>
 
     </div>
+
   );
+
 }
 
 export default ChecklistSubmission;

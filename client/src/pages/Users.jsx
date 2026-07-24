@@ -49,6 +49,36 @@ const [showDeleteModal, setShowDeleteModal] =
 
 const [selectedFile, setSelectedFile] =
   useState(null);
+ // ============================
+// RBAC
+// ============================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const userPermission =
+  permissions["Users"] || "None";
+
+// Debug (temporary)
+console.log("Permissions:", permissions);
+console.log("Users Permission:", userPermission);
+
+// View -> View, Add, Edit, Full
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(userPermission);
+
+// Add -> Add, Edit, Full
+const canAdd =
+  ["Add", "Edit", "Full"].includes(userPermission);
+
+// Edit -> Edit, Full
+const canEdit =
+  ["Edit", "Full"].includes(userPermission);
+
+// Delete/Disable -> Full only
+const canDelete =
+  userPermission === "Full";
 
   // ============================
   // Load Users
@@ -333,60 +363,84 @@ return (
 
         </div>
 
-        {/* Toolbar */}
+     {/* Toolbar */}
 
-        <div className="users-toolbar">
+<div className="users-toolbar">
 
-          <div className="search-box">
+  <div className="search-box">
 
-            <FaSearch className="search-icon" />
+    <FaSearch className="search-icon" />
 
-            <input
-              type="text"
-              placeholder="Search by name, ID, email..."
-              value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-            />
+    <input
+      type="text"
+      placeholder="Search by name, ID, email..."
+      value={search}
+      onChange={(e) =>
+        setSearch(e.target.value)
+      }
+    />
 
-          </div>
+  </div>
 
-          <button
-            className="add-btn"
-            onClick={() =>
-              setShowAddModal(true)
-            }
-          >
-            <FaPlus />
-            Add User
-          </button>
+  {/* Add User */}
 
-         <button
-  className="export-btn"
-  onClick={exportCSV}
->
-  <FaUpload />
-  Export
-</button>
+  {canAdd && (
 
-          <button
-  className="bulk-btn"
-  onClick={() => setShowBulkModal(true)}
->
-  <FaUpload />
-  Bulk Add
-</button>
+    <button
+      className="add-btn"
+      onClick={() =>
+        setShowAddModal(true)
+      }
+    >
+      <FaPlus />
+      Add User
+    </button>
 
-          <button
-  className="delete-btn"
-  onClick={() => setShowDeleteModal(true)}
->
-  <FaTrash />
-  Delete All
-</button>
+  )}
 
-        </div>
+  {/* Export */}
+
+  {canView && (
+
+    <button
+      className="export-btn"
+      onClick={exportCSV}
+    >
+      <FaUpload />
+      Export
+    </button>
+
+  )}
+
+  {/* Bulk Add */}
+
+  {canAdd && (
+
+    <button
+      className="bulk-btn"
+      onClick={() => setShowBulkModal(true)}
+    >
+      <FaUpload />
+      Bulk Add
+    </button>
+
+  )}
+
+  {/* Delete All */}
+
+  {canDelete && (
+
+    <button
+      className="delete-btn"
+      onClick={() => setShowDeleteModal(true)}
+    >
+      <FaTrash />
+      Delete All
+    </button>
+
+  )}
+
+</div>
 
         {/* Filters */}
 
@@ -555,35 +609,43 @@ return (
 
             </td>
 
-            <td>
+      <td>
 
-              <div className="action-buttons">
+  <div className="action-buttons">
 
-  <button
-    className="edit-btn"
-    onClick={() => {
-        setEditingUser(user);
-        setShowAddModal(true);
-    }}
->
-    Edit
-</button>
-  <button
-    className="disable-btn"
-    onClick={() => disableUser(user.id)}
-  >
-    Disable
-  </button>
+    {canEdit && (
+      <button
+        className="edit-btn"
+        onClick={() => {
+          setEditingUser(user);
+          setShowAddModal(true);
+        }}
+      >
+        Edit
+      </button>
+    )}
 
-  <button
-    className="remove-btn"
-    onClick={() => deleteUser(user.id)}
-  >
-    Delete
-  </button>
+    {canDelete && (
+      <button
+        className="disable-btn"
+        onClick={() => disableUser(user.id)}
+      >
+        Disable
+      </button>
+    )}
 
-</div>
-            </td>
+    {canDelete && (
+      <button
+        className="remove-btn"
+        onClick={() => deleteUser(user.id)}
+      >
+        Delete
+      </button>
+    )}
+
+  </div>
+
+</td>
 
           </tr>
 

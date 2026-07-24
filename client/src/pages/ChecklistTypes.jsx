@@ -44,6 +44,35 @@ function ChecklistTypes() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const checklistPermission =
+  permissions["Checklist Types"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    checklistPermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    checklistPermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    checklistPermission
+  );
+
+const canDelete =
+  checklistPermission === "Full";
+
+  // ==========================
   // Load Data
   // ==========================
 
@@ -83,10 +112,19 @@ function ChecklistTypes() {
     }
 
   };
+useEffect(() => {
 
-  useEffect(() => {
-    fetchChecklistTypes();
-  }, []);
+  if (!canView) {
+
+    setLoading(false);
+
+    return;
+
+  }
+
+  fetchChecklistTypes();
+
+}, [canView]);
 
   // ==========================
   // Search
@@ -315,7 +353,7 @@ function ChecklistTypes() {
   const totalPages = Math.ceil(
     filteredChecklists.length / rowsPerPage
   );
-  return (
+ return (
   <div className="checklist-page">
 
     {/* ================= Header ================= */}
@@ -326,43 +364,59 @@ function ChecklistTypes() {
 
       <div className="checklist-actions">
 
-        <button
-          className="add-btn"
-          onClick={handleAddChecklist}
-        >
-          <FaPlus />
-          Add Checklist
-        </button>
+        {canAdd && (
 
-        <button
-          className="export-btn"
-          onClick={handleExport}
-        >
-          <FaDownload />
-          Export
-        </button>
+          <button
+            className="add-btn"
+            onClick={handleAddChecklist}
+          >
+            <FaPlus />
+            Add Checklist
+          </button>
 
-        <label className="import-btn">
+        )}
 
-          <FaUpload />
-          Import
+        {canView && (
 
-          <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            hidden
-            onChange={handleImport}
-          />
+          <button
+            className="export-btn"
+            onClick={handleExport}
+          >
+            <FaDownload />
+            Export
+          </button>
 
-        </label>
+        )}
 
-        <button
-          className="delete-all-btn"
-          onClick={handleDeleteAll}
-        >
-          <FaTrash />
-          Delete All
-        </button>
+        {canAdd && (
+
+          <label className="import-btn">
+
+            <FaUpload />
+            Import
+
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              hidden
+              onChange={handleImport}
+            />
+
+          </label>
+
+        )}
+
+        {canDelete && (
+
+          <button
+            className="delete-all-btn"
+            onClick={handleDeleteAll}
+          >
+            <FaTrash />
+            Delete All
+          </button>
+
+        )}
 
       </div>
 
@@ -465,27 +519,38 @@ function ChecklistTypes() {
 
                 </td>
 
-  <td>
-  <div className="action-buttons">
+                <td>
 
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(item)}
-      title="Edit"
-    >
-      Edit <FaEdit />
-    </button>
+                  <div className="action-buttons">
 
-    <button
-      className="delete-btn"
-      onClick={() => handleDelete(item.id)}
-      title="Delete"
-    >
-      <FaTrash />
-    </button>
+                    {canEdit && (
 
-  </div>
-</td>
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(item)}
+                        title="Edit"
+                      >
+                        Edit <FaEdit />
+                      </button>
+
+                    )}
+
+                    {canDelete && (
+
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(item.id)}
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+
+                    )}
+
+                  </div>
+
+                </td>
+
               </tr>
 
             ))
@@ -552,7 +617,7 @@ function ChecklistTypes() {
 
     {/* ================= Modal ================= */}
 
-    {showModal && (
+    {(canAdd || canEdit) && showModal && (
 
       <AddChecklistTypeModal
         checklist={editingChecklist}

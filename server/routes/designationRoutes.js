@@ -1,18 +1,73 @@
 const express = require("express");
 const router = express.Router();
 
+const authMiddleware = require("../middleware/authMiddleware");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
+
 const designationController = require("../controllers/designationController");
 
-// Get all designations
-router.get("/", designationController.getAllDesignations);
+// ======================================================
+// GET ALL DESIGNATIONS
+// ======================================================
 
-// Create designation
-router.post("/", designationController.createDesignation);
+router.get(
 
-// Update designation
-router.put("/:id", designationController.updateDesignation);
+    "/",
 
-// Delete designation
-router.delete("/:id", designationController.deleteDesignation);
+    authMiddleware,
+
+    permissionMiddleware("Designations", "View"),
+
+    designationController.getAllDesignations
+
+);
+
+// ======================================================
+// CREATE DESIGNATION
+// ======================================================
+
+router.post(
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware("Designations", "Add"),
+
+    designationController.createDesignation
+
+);
+
+// ======================================================
+// UPDATE DESIGNATION
+// ======================================================
+
+router.put(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Designations", "Edit"),
+
+    designationController.updateDesignation
+
+);
+
+// ======================================================
+// DELETE DESIGNATION
+// ======================================================
+
+router.delete(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Designations", "Full"),
+
+    designationController.deleteDesignation
+
+);
 
 module.exports = router;

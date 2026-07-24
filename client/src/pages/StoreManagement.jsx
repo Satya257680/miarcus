@@ -43,6 +43,35 @@ function StoreManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const storePermission =
+  permissions["Stores"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    storePermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    storePermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    storePermission
+  );
+
+const canDelete =
+  storePermission === "Full";
+
+  // ==========================
   // Load Stores
   // ==========================
 
@@ -83,12 +112,19 @@ function StoreManagement() {
 
   };
 
-  useEffect(() => {
+ useEffect(() => {
+
+    if (!canView) {
+
+        setLoading(false);
+
+        return;
+
+    }
 
     fetchStores();
 
-  }, []);
-
+}, [canView]);
   // ==========================
   // Search
   // ==========================
@@ -400,243 +436,260 @@ const handleFileChange = async (e) => {
 
       <div className="store-actions">
 
-        <button
-          className="export-btn"
-          onClick={handleExport}
-        >
-          <FaFileExport />
-          Export
-        </button>
+        {canView && (
+          <button
+            className="export-btn"
+            onClick={handleExport}
+          >
+            <FaFileExport />
+            Export
+          </button>
+        )}
 
-        <button
-          className="import-btn"
-          onClick={handleImport}
-        >
-          <FaFileImport />
-          Import
-        </button>
+        {canAdd && (
+          <button
+            className="import-btn"
+            onClick={handleImport}
+          >
+            <FaFileImport />
+            Import
+          </button>
+        )}
 
-        <button
-          className="delete-all-btn"
-          onClick={handleDeleteAll}
-        >
-          <FaTrash />
-          Delete All
-        </button>
+        {canDelete && (
+          <button
+            className="delete-all-btn"
+            onClick={handleDeleteAll}
+          >
+            <FaTrash />
+            Delete All
+          </button>
+        )}
 
-        <button
-          className="add-store-btn"
-          onClick={handleAddStore}
-        >
-          <FaPlus />
-          Add Store
-        </button>
+        {canAdd && (
+          <button
+            className="add-store-btn"
+            onClick={handleAddStore}
+          >
+            <FaPlus />
+            Add Store
+          </button>
+        )}
 
       </div>
 
     </div>
-      {/* ==========================
-          Search
-      ========================== */}
 
-      <div className="store-search">
+    {/* ==========================
+        Search
+    ========================== */}
 
-        <FaSearch />
+    <div className="store-search">
 
-        <input
-          type="text"
-          placeholder="Search Store..."
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
-        />
+      <FaSearch />
 
-      </div>
+      <input
+        type="text"
+        placeholder="Search Store..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
-      {/* ==========================
-          Table
-      ========================== */}
+    </div>
 
-      <div className="store-table-container">
+    {/* ==========================
+        Table
+    ========================== */}
 
-        <table className="store-table">
+    <div className="store-table-container">
 
-          <thead>
+      <table className="store-table">
+
+        <thead>
+
+          <tr>
+
+            <th>#</th>
+
+            <th>Store Code</th>
+
+            <th>Store Name</th>
+
+            <th>Country</th>
+
+            <th>State</th>
+
+            <th>City</th>
+
+            <th>Status</th>
+
+            <th>Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {loading ? (
 
             <tr>
-
-              <th>#</th>
-
-              <th>Store Code</th>
-
-              <th>Store Name</th>
-
-              <th>Country</th>
-
-              <th>State</th>
-
-              <th>City</th>
-
-              <th>Status</th>
-
-              <th>Actions</th>
-
+              <td colSpan="8" className="text-center">
+                Loading...
+              </td>
             </tr>
 
-          </thead>
+          ) : currentStores.length === 0 ? (
 
-          <tbody>
+            <tr>
+              <td colSpan="8" className="text-center">
+                No Stores Found
+              </td>
+            </tr>
 
-            {loading ? (
+          ) : (
 
-              <tr>
-                <td colSpan="8" className="text-center">
-                  Loading...
+            currentStores.map((store, index) => (
+
+              <tr key={store.id}>
+
+                <td>{indexOfFirstRow + index + 1}</td>
+
+                <td>{store.store_code}</td>
+
+                <td>{store.store_name}</td>
+
+                <td>{store.country}</td>
+
+                <td>{store.state}</td>
+
+                <td>{store.city}</td>
+
+                <td>
+
+                  <span
+                    className={
+                      store.status === "Active"
+                        ? "status active"
+                        : "status inactive"
+                    }
+                  >
+                    {store.status}
+                  </span>
+
                 </td>
+
+                <td>
+
+                  <div className="store-action-buttons">
+
+                    {canEdit && (
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(store)}
+                      >
+                        <FaEdit />
+                      </button>
+                    )}
+
+                    {canDelete && (
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(store.id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    )}
+
+                  </div>
+
+                </td>
+
               </tr>
 
-            ) : currentStores.length === 0 ? (
+            ))
 
-              <tr>
-                <td colSpan="8" className="text-center">
-                  No Stores Found
-                </td>
-              </tr>
+          )}
 
-            ) : (
+        </tbody>
 
-              currentStores.map((store, index) => (
-
-                <tr key={store.id}>
-
-                  <td>{indexOfFirstRow + index + 1}</td>
-
-                  <td>{store.store_code}</td>
-
-                  <td>{store.store_name}</td>
-
-                  <td>{store.country}</td>
-
-                  <td>{store.state}</td>
-
-                  <td>{store.city}</td>
-
-                  <td>
-                    <span
-                      className={
-                        store.status === "Active"
-                          ? "status active"
-                          : "status inactive"
-                      }
-                    >
-                      {store.status}
-                    </span>
-                  </td>
-
-                  <td>
-  <div className="store-action-buttons">
-
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(store)}
-    >
-      <FaEdit />
-    </button>
-
-    <button
-      className="delete-btn"
-      onClick={() => handleDelete(store.id)}
-    >
-      <FaTrash />
-    </button>
-
-  </div>
-</td>
-                </tr>
-
-              ))
-
-            )}
-
-          </tbody>
-
-        </table>
-
-      </div>
-            {/* ==========================
-          Pagination
-      ========================== */}
-
-      <div className="pagination">
-
-        <div className="rows-per-page">
-
-          <span>Rows Per Page:</span>
-
-          <select
-            value={rowsPerPage}
-            onChange={(e) => {
-              setRowsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-
-        </div>
-
-        <div className="page-buttons">
-
-          <button
-            disabled={currentPage === 1}
-            onClick={() =>
-              setCurrentPage((prev) => prev - 1)
-            }
-          >
-            Previous
-          </button>
-
-          <span>
-            Page {currentPage} of {totalPages || 1}
-          </span>
-
-          <button
-            disabled={
-              currentPage === totalPages ||
-              totalPages === 0
-            }
-            onClick={() =>
-              setCurrentPage((prev) => prev + 1)
-            }
-          >
-            Next
-          </button>
-
-        </div>
-
-      </div>
-
-      {/* ==========================
-          Add / Edit Modal
-      ========================== */}
-
-      {showModal && (
-        <AddStoreModal
-          store={editingStore}
-          onSave={handleSave}
-          onClose={() => {
-            setShowModal(false);
-            setEditingStore(null);
-          }}
-        />
-      )}
+      </table>
 
     </div>
-  );
+
+    {/* ==========================
+        Pagination
+    ========================== */}
+
+    <div className="pagination">
+
+      <div className="rows-per-page">
+
+        <span>Rows Per Page:</span>
+
+        <select
+          value={rowsPerPage}
+          onChange={(e) => {
+            setRowsPerPage(Number(e.target.value));
+            setCurrentPage(1);
+          }}
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+        </select>
+
+      </div>
+
+      <div className="page-buttons">
+
+        <button
+          disabled={currentPage === 1}
+          onClick={() =>
+            setCurrentPage((prev) => prev - 1)
+          }
+        >
+          Previous
+        </button>
+
+        <span>
+          Page {currentPage} of {totalPages || 1}
+        </span>
+
+        <button
+          disabled={
+            currentPage === totalPages ||
+            totalPages === 0
+          }
+          onClick={() =>
+            setCurrentPage((prev) => prev + 1)
+          }
+        >
+          Next
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* ==========================
+        Add / Edit Modal
+    ========================== */}
+
+    {showModal && (
+      <AddStoreModal
+        store={editingStore}
+        onSave={handleSave}
+        onClose={() => {
+          setShowModal(false);
+          setEditingStore(null);
+        }}
+      />
+    )}
+
+  </div>
+);
 }
 
 export default StoreManagement;

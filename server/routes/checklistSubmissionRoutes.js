@@ -4,6 +4,10 @@ const router = express.Router();
 const db = require("../config/db");
 const upload = require("../middleware/upload");
 
+// ================= MIDDLEWARE =================
+
+const authMiddleware = require("../middleware/authMiddleware");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 // =====================================================
 // CREATE TABLES
@@ -39,8 +43,6 @@ CREATE TABLE IF NOT EXISTS checklist_submissions (
 
 `;
 
-
-
 const createAnswersTable = `
 
 CREATE TABLE IF NOT EXISTS checklist_submission_answers (
@@ -67,11 +69,9 @@ CREATE TABLE IF NOT EXISTS checklist_submission_answers (
 
 `;
 
+db.query(createSubmissionTable, (err) => {
 
-
-db.query(createSubmissionTable,(err)=>{
-
-    if(err){
+    if (err) {
 
         console.log(
             "Table Error:",
@@ -81,19 +81,17 @@ db.query(createSubmissionTable,(err)=>{
         return;
     }
 
+    db.query(createAnswersTable, (err) => {
 
-    db.query(createAnswersTable,(err)=>{
-
-        if(err){
+        if (err) {
 
             console.log(
-                "Answer Table Error:",
+                "Answer Table Error",
                 err
             );
 
             return;
         }
-
 
         console.log(
             "✅ Checklist Tables Ready"
@@ -101,177 +99,142 @@ db.query(createSubmissionTable,(err)=>{
 
     });
 
-
 });
-
-
-
-
 
 // =====================================================
 // CREATE CHECKLIST SUBMISSION
 // POST /api/checklist-submissions
 // =====================================================
 
-
 router.post(
-"/",
-upload.single("attachment"),
-(req,res)=>{
 
+    "/",
 
-console.log("BODY:",req.body);
+    authMiddleware,
 
-console.log("FILE:",req.file);
+    permissionMiddleware("Checklist Submission", "Add"),
 
+    upload.single("attachment"),
 
+    (req, res) => {
 
-const {
+        console.log("BODY:", req.body);
 
-    checklist_type_id,
+        console.log("FILE:", req.file);
 
-    store_id,
+        const {
 
-    submitted_by,
+            checklist_type_id,
 
-    submission_date,
+            store_id,
 
-    latitude,
+            submitted_by,
 
-    longitude,
+            submission_date,
 
-    device,
+            latitude,
 
-    answers
+            longitude,
 
-}=req.body;
+            device,
 
+            answers
 
+        } = req.body;
 
-// ================= Parse Answers =================
+        // ================= Parse Answers =================
 
+        let checklistAnswers = [];
 
-let checklistAnswers=[];
+        try {
 
+            checklistAnswers =
+                JSON.parse(
+                    answers || "[]"
+                );
 
-try{
+        }
+        catch (error) {
 
-    checklistAnswers =
-    JSON.parse(
-        answers || "[]"
-    );
+            console.log(
+                "Answer Parse Error",
+                error
+            );
 
-}
-catch(error){
+            checklistAnswers = [];
 
-    console.log(
-        "Answer Parse Error",
-        error
-    );
+        }
 
-    checklistAnswers=[];
+        // ================= Attachment =================
 
-}
+        const attachment =
+            req.file
+                ? req.file.path
+                : null;
 
+        // ================= Device =================
 
+        const finalDevice =
+            device ||
+            req.headers["user-agent"] ||
+            "Unknown Device";
 
+        // ================= Validation =================
 
-// ================= Attachment =================
+        if (!checklist_type_id) {
 
+            return res.status(400).json({
 
-const attachment =
-req.file
-?
-req.file.path
-:
-null;
+                success: false,
 
+                message: "Checklist Type required"
 
+            });
 
+        }
 
+        if (!store_id) {
 
-// ================= Device =================
+            return res.status(400).json({
 
+                success: false,
 
-const finalDevice =
-device ||
-req.headers["user-agent"] ||
-"Unknown Device";
+                message: "Store required"
 
+            });
 
+        }
 
+        if (!submission_date) {
 
+            return res.status(400).json({
 
-// ================= Validation =================
+                success: false,
 
+                message: "Date required"
 
-if(!checklist_type_id){
+            });
 
-return res.status(400).json({
+        }
 
-success:false,
+        if (
+            !Array.isArray(checklistAnswers) ||
+            checklistAnswers.length === 0
+        ) {
 
-message:"Checklist Type required"
+            return res.status(400).json({
 
-});
+                success: false,
 
-}
+                message: "Answers required"
 
+            });
 
+        }
 
-if(!store_id){
+        // ================= Insert Submission =================
 
-return res.status(400).json({
-
-success:false,
-
-message:"Store required"
-
-});
-
-}
-
-
-
-if(!submission_date){
-
-return res.status(400).json({
-
-success:false,
-
-message:"Date required"
-
-});
-
-}
-
-
-
-if(
-!Array.isArray(checklistAnswers) ||
-checklistAnswers.length===0
-){
-
-return res.status(400).json({
-
-success:false,
-
-message:"Answers required"
-
-});
-
-}
-
-
-
-
-
-
-// ================= Insert Submission =================
-
-
-
-const sql = `
+        const sql = `
 
 INSERT INTO checklist_submissions
 
@@ -301,120 +264,87 @@ VALUES (?,?,?,?,?,?,?,?,?)
 
 `;
 
+        const values = [
 
+            checklist_type_id,
 
+            store_id,
 
-const values=[
+            submitted_by || null,
 
+            submission_date,
 
-checklist_type_id,
+            latitude || null,
 
-store_id,
+            longitude || null,
 
-submitted_by || null,
+            finalDevice,
 
-submission_date,
+            attachment,
 
-latitude || null,
+            "Submitted"
 
-longitude || null,
+        ];
 
-finalDevice,
+        db.query(
+            sql,
+            values,
+                        (err, result) => {
 
-attachment,
+                if (err) {
 
-"Submitted"
+                    console.log(
+                        "Submission Error",
+                        err
+                    );
 
+                    return res.status(500).json({
 
-];
+                        success: false,
 
+                        message: "Submission failed"
 
+                    });
 
+                }
 
+                const submissionId =
+                    result.insertId;
 
-db.query(
-sql,
-values,
-(err,result)=>{
+                const answerValues =
+                    checklistAnswers
 
+                        .filter(
+                            item => item.question_id
+                        )
 
-if(err){
+                        .map(item => [
 
-console.log(
-"Submission Error",
-err
-);
+                            submissionId,
 
+                            item.question_id,
 
-return res.status(500).json({
+                            item.answer
+                                ? String(item.answer)
+                                : "",
 
-success:false,
+                            item.remarks || ""
 
-message:"Submission failed"
+                        ]);
 
-});
+                if (answerValues.length === 0) {
 
-}
+                    return res.status(400).json({
 
+                        success: false,
 
+                        message: "No valid answers"
 
+                    });
 
-const submissionId =
-result.insertId;
+                }
 
-
-
-
-
-const answerValues =
-checklistAnswers
-
-.filter(
-item=>item.question_id
-)
-
-.map(item=>[
-
-
-submissionId,
-
-item.question_id,
-
-
-item.answer
-?
-String(item.answer)
-:
-"",
-
-
-item.remarks || ""
-
-
-]);
-
-
-
-
-
-if(answerValues.length===0){
-
-return res.status(400).json({
-
-success:false,
-
-message:"No valid answers"
-
-});
-
-}
-
-
-
-
-
-
-const answerSql=`
+                const answerSql = `
 
 INSERT INTO checklist_submission_answers
 
@@ -434,82 +364,76 @@ VALUES ?
 
 `;
 
+                db.query(
 
+                    answerSql,
 
+                    [answerValues],
 
+                    (answerErr) => {
 
-db.query(
+                        if (answerErr) {
 
-answerSql,
+                            console.log(
+                                "Answer Error",
+                                answerErr
+                            );
 
-[answerValues],
+                            return res.status(500).json({
 
-(answerErr)=>{
+                                success: false,
 
+                                message: "Answers not saved"
 
-if(answerErr){
+                            });
 
-console.log(
-"Answer Error",
-answerErr
+                        }
+
+                        return res.status(201).json({
+
+                            success: true,
+
+                            message:
+                                "Checklist submitted successfully",
+
+                            submission_id:
+                                submissionId,
+
+                            attachment:
+                                attachment
+
+                        });
+
+                    }
+
+                );
+
+            }
+
+        );
+
+    }
+
 );
-
-
-
-return res.status(500).json({
-
-success:false,
-
-message:"Answers not saved"
-
-});
-
-}
-
-
-
-
-return res.status(201).json({
-
-success:true,
-
-message:
-"Checklist submitted successfully",
-
-submission_id:
-submissionId,
-
-attachment:
-attachment
-
-});
-
-
-
-});
-
-
-});
-
-
-});
-
-
-
-
-
-
-
 
 // =====================================================
 // GET ALL SUBMISSIONS
 // =====================================================
 
+router.get(
 
-router.get("/",(req,res)=>{
+    "/",
 
+    authMiddleware,
 
-const sql=`
+    permissionMiddleware(
+        "Checklist Submission",
+        "View"
+    ),
+
+    (req, res) => {
+
+        const sql = `
 
 SELECT *
 
@@ -519,56 +443,54 @@ ORDER BY created_at DESC
 
 `;
 
+        db.query(
+            sql,
+            (err, result) => {
 
+                if (err) {
 
-db.query(
-sql,
-(err,result)=>{
+                    return res.status(500).json({
 
+                        success: false
 
-if(err){
+                    });
 
-return res.status(500).json({
+                }
 
-success:false
+                res.json({
 
-});
+                    success: true,
 
-}
+                    data: result
 
+                });
 
+            }
+        );
 
-res.json({
+    }
 
-success:true,
-
-data:result
-
-});
-
-
-});
-
-
-});
-
-
-
-
-
-
+);
 // =====================================================
 // GET SINGLE SUBMISSION
 // =====================================================
 
+router.get(
 
-router.get("/:id",(req,res)=>{
+    "/:id",
 
+    authMiddleware,
 
-const id=req.params.id;
+    permissionMiddleware(
+        "Checklist Submission",
+        "View"
+    ),
 
+    (req, res) => {
 
-const sql=`
+        const id = req.params.id;
+
+        const sql = `
 
 SELECT *
 
@@ -578,45 +500,37 @@ WHERE id=?
 
 `;
 
+        db.query(
 
+            sql,
 
-db.query(
+            [id],
 
-sql,
+            (err, result) => {
 
-[id],
+                if (err) {
 
-(err,result)=>{
+                    return res.status(500).json({
 
+                        success: false
 
-if(err){
+                    });
 
-return res.status(500).json({
+                }
 
-success:false
+                if (result.length === 0) {
 
-});
+                    return res.status(404).json({
 
-}
+                        success: false,
 
+                        message: "Not found"
 
+                    });
 
-if(result.length===0){
+                }
 
-return res.status(404).json({
-
-success:false,
-
-message:"Not found"
-
-});
-
-}
-
-
-
-
-const answerSql=`
+                const answerSql = `
 
 SELECT *
 
@@ -628,43 +542,52 @@ ORDER BY id ASC
 
 `;
 
+                db.query(
 
+                    answerSql,
 
-db.query(
+                    [id],
 
-answerSql,
+                    (err, answers) => {
 
-[id],
+                        if (err) {
 
-(err,answers)=>{
+                            return res.status(500).json({
 
+                                success: false
 
-return res.json({
+                            });
 
-success:true,
+                        }
 
-data:{
+                        return res.json({
 
-...result[0],
+                            success: true,
 
-answers
+                            data: {
 
-}
+                                ...result[0],
 
+                                answers
 
-});
+                            }
 
+                        });
 
-});
+                    }
 
+                );
 
-});
+            }
 
+        );
 
-});
+    }
 
+);
 
-
-
+// =====================================================
+// EXPORT ROUTER
+// =====================================================
 
 module.exports = router;

@@ -2,13 +2,14 @@ const express = require("express");
 
 const router = express.Router();
 
-
 // ================= UPLOAD =================
 
 const upload = require("../middleware/upload");
 
+// ================= MIDDLEWARE =================
 
-
+const authMiddleware = require("../middleware/authMiddleware");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 // ================= CONTROLLER =================
 
@@ -28,104 +29,55 @@ const {
 
 } = require("../controllers/actionPointController");
 
-
-
-
-
-
-
-
-
 // ======================================================
 // ACTION POINT ROUTES
 // Base URL:
 // /api/action-points
 // ======================================================
 
-
-
-
-
-
-
 // ======================================================
 // GET ALL ACTION POINTS
-// GET
-// /api/action-points
-//
-// Query:
-//
-// page
-// limit
-// search
-// store_id
-// department_id
-// status
-// checklist_type_id
-// start_date
-// end_date
-//
 // ======================================================
 
 router.get(
 
     "/",
 
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "View"),
+
     getAllActionPoints
 
 );
 
-
-
-
-
-
-
-
-
 // ======================================================
 // EXPORT CSV
-// GET
-// /api/action-points/export
 // ======================================================
 
 router.get(
 
     "/export",
 
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "View"),
+
     exportActionPointsCSV
 
 );
 
-
-
-
-
-
-
-
-
 // ======================================================
 // CREATE ACTION POINT
-// POST
-// /api/action-points
-//
-// FORM DATA:
-//
-// submission_id
-// question_id
-// answer
-// remarks
-// store_id
-// department_id
-// sla
-// attachment
-//
 // ======================================================
 
 router.post(
 
     "/",
+
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "Add"),
 
     upload.single("attachment"),
 
@@ -133,30 +85,17 @@ router.post(
 
 );
 
-
-
-
-
-
-
-
-
 // ======================================================
 // UPDATE ACTION POINT
-// PUT
-// /api/action-points/:id
-//
-// FORM DATA:
-//
-// answer
-// remarks
-// attachment
-//
 // ======================================================
 
 router.put(
 
     "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "Edit"),
 
     upload.single("attachment"),
 
@@ -164,63 +103,36 @@ router.put(
 
 );
 
-
-
-
-
-
-
-
-
 // ======================================================
 // TAKE ACTION
-// PUT
-// /api/action-points/:id/take-action
-//
-// BODY:
-//
-// action_taken
-// remarks
-// completion_date
-//
 // ======================================================
 
 router.put(
 
     "/:id/take-action",
 
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "Edit"),
+
     takeAction
 
 );
 
-
-
-
-
-
-
-
-
 // ======================================================
 // DELETE ACTION POINT
-// DELETE
-// /api/action-points/:id
 // ======================================================
 
 router.delete(
 
     "/:id",
 
+    authMiddleware,
+
+    permissionMiddleware("Action Points", "Full"),
+
     deleteActionPoint
 
 );
-
-
-
-
-
-
-
-
 
 module.exports = router;

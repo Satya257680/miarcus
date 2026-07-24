@@ -21,6 +21,7 @@
     "exceljs": "^3.4.0",
     "express": "^5.2.1",
     "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "mysql2": "^3.22.6",
     "nodemailer": "^9.0.3",

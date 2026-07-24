@@ -2,6 +2,7 @@ const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const otpGenerator = require("otp-generator");
 const transporter = require("../config/mailer");
+const jwt = require("jsonwebtoken");
 
 
 // ======================================================
@@ -31,21 +32,22 @@ const loginUser = (req, res) => {
 
     const { email, password } = req.body;
 
-    const sql = `
-        SELECT
-            id,
-            employee_id,
-            name,
-            email,
-            password,
-            profile_photo,
-            department_id,
-            designation_id,
-            is_activated
-        FROM users
-        WHERE email=?
-        LIMIT 1
-    `;
+   const sql = `
+    SELECT
+        id,
+        employee_id,
+        name,
+        email,
+        password,
+        profile_photo,
+        department_id,
+        designation_id,
+        status,
+        is_activated
+    FROM users
+    WHERE email=?
+    LIMIT 1
+`;
 
     db.query(sql, [email], async (err, result) => {
 
@@ -74,6 +76,30 @@ const loginUser = (req, res) => {
         }
 
         const user = result[0];
+       // =============================
+// Check User Status
+// =============================
+
+if (user.status !== "Active") {
+
+    return res.status(403).json({
+
+        success: false,
+
+        message: `Dear ${user.name},
+
+Your account is no longer active and access to the miarcus ERP application has been disabled.
+
+Please contact your administrator for further assistance.
+
+Thank you for using the miarcus ERP application.
+
+Regards,
+miarcus Team`
+
+    });
+
+}
 
 // =============================
 // Check Account Activation
@@ -121,39 +147,98 @@ let passwordMatched = false;
 
         }
 
-        return res.status(200).json({
+     // ======================================================
+// LOAD USER PERMISSIONS
+// ======================================================
 
-            success: true,
+const permissionSql = `
+    SELECT
+        module_name,
+        permission
+    FROM user_permissions
+    WHERE user_id = ?
+`;
 
-            message: "Login Successful",
+db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
 
-            user: {
+    if (permissionErr) {
 
-                id: user.id,
+        console.error(permissionErr);
 
-                employee_id:
-                    user.employee_id || "",
+        return res.status(500).json({
 
-                name:
-                    user.name,
-
-                email:
-                    user.email,
-
-                profile_photo:
-                    user.profile_photo || "",
-
-                department_id:
-                    user.department_id || null,
-
-                designation_id:
-                    user.designation_id || null
-
-            }
+            success: false,
+            message: "Failed to Load Permissions"
 
         });
 
+    }
+
+    const permissions = {};
+
+    permissionRows.forEach((row) => {
+
+        permissions[row.module_name] = row.permission;
+
     });
+
+    // ======================================================
+    // GENERATE JWT TOKEN
+    // ======================================================
+
+    const token = jwt.sign(
+
+        {
+
+            id: user.id,
+
+            email: user.email
+
+        },
+
+        process.env.JWT_SECRET || "miarcus_secret_key",
+
+        {
+
+            expiresIn: "1d"
+
+        }
+
+    );
+
+    return res.status(200).json({
+
+        success: true,
+
+        message: "Login Successful",
+
+        token,
+
+        user: {
+
+            id: user.id,
+
+            employee_id: user.employee_id || "",
+
+            name: user.name,
+
+            email: user.email,
+
+            profile_photo: user.profile_photo || "",
+
+            department_id: user.department_id || null,
+
+            designation_id: user.designation_id || null
+
+        },
+
+        permissions
+
+    });
+
+});
+
+});
 
 };
 // ======================================================

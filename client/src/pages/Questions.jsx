@@ -32,6 +32,35 @@ function Questions() {
 
   const [selectedQuestion, setSelectedQuestion] = useState(null);
 
+  // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const questionPermission =
+  permissions["Questions"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    questionPermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    questionPermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    questionPermission
+  );
+
+const canDelete =
+  questionPermission === "Full";
+
   // ===============================
   // Load Questions
   // ===============================
@@ -51,9 +80,19 @@ function Questions() {
     }
   };
 
-  useEffect(() => {
-    loadQuestions();
-  }, []);
+ useEffect(() => {
+
+  if (!canView) {
+
+    setLoading(false);
+
+    return;
+
+  }
+
+  loadQuestions();
+
+}, [canView]);
 
   // ===============================
   // Delete Question
@@ -155,166 +194,191 @@ function Questions() {
   ];
 
   return (
-    <div className="questions-page">
+  <div className="questions-page">
 
-      <div className="page-header">
-        <h2>Checklist Questions</h2>
+    <div className="page-header">
+      <h2>Checklist Questions</h2>
+    </div>
+
+    <div className="toolbar">
+
+      <div className="search-box">
+
+        <FaSearch />
+
+        <input
+          type="text"
+          placeholder="Search..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
       </div>
 
-      <div className="toolbar">
+      <select
+        value={typeFilter}
+        onChange={(e) => setTypeFilter(e.target.value)}
+      >
+        <option value="">
+          All Checklist Types
+        </option>
 
-        <div className="search-box">
-
-          <FaSearch />
-
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-          />
-
-        </div>
-
-        <select
-          value={typeFilter}
-          onChange={(e) =>
-            setTypeFilter(e.target.value)
-          }
-        >
-          <option value="">
-            All Checklist Types
+        {checklistTypes.map((type) => (
+          <option key={type} value={type}>
+            {type}
           </option>
+        ))}
+      </select>
 
-          {checklistTypes.map((type) => (
-            <option
-              key={type}
-              value={type}
-            >
-              {type}
-            </option>
-          ))}
-        </select>
+      <select
+        value={departmentFilter}
+        onChange={(e) => setDepartmentFilter(e.target.value)}
+      >
+        <option value="">
+          All Departments
+        </option>
 
-        <select
-          value={departmentFilter}
-          onChange={(e) =>
-            setDepartmentFilter(e.target.value)
-          }
-        >
-          <option value="">
-            All Departments
+        {departments.map((dept) => (
+          <option key={dept} value={dept}>
+            {dept}
           </option>
+        ))}
+      </select>
 
-          {departments.map((dept) => (
-            <option
-              key={dept}
-              value={dept}
-            >
-              {dept}
-            </option>
-          ))}
-        </select>
+      {canAdd && (
 
         <button
           className="add-btn"
           onClick={handleAdd}
         >
-          <FaPlus /> Add Question
+          <FaPlus />
+          Add Question
         </button>
 
+      )}
+
+      {canView && (
+
         <button className="export-btn">
-          <FaFileExport /> Export
+          <FaFileExport />
+          Export
         </button>
+
+      )}
+
+      {canDelete && (
 
         <button
           className="delete-btn"
           onClick={handleDeleteAll}
         >
-          <FaTrash /> Delete All
+          <FaTrash />
+          Delete All
         </button>
 
-      </div>
-            {/* ===============================
-          Questions Table
-      =============================== */}
+      )}
 
-      <div className="table-container">
-        <table className="questions-table">
+    </div>
 
-          <thead>
+    {/* ===============================
+        Questions Table
+    =============================== */}
+
+    <div className="table-container">
+
+      <table className="questions-table">
+
+        <thead>
+
+          <tr>
+
+            <th>Checklist Type</th>
+
+            <th>Question</th>
+
+            <th>Seq</th>
+
+            <th>Answer Type</th>
+
+            <th>SLA</th>
+
+            <th>Departments</th>
+
+            <th>Answer Required</th>
+
+            <th>Status</th>
+
+            <th width="140">Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {loading ? (
+
             <tr>
-              <th>Checklist Type</th>
-              <th>Question</th>
-              <th>Seq</th>
-              <th>Answer Type</th>
-              <th>SLA</th>
-              <th>Departments</th>
-              <th>Answer Required</th>
-              <th>Status</th>
-              <th width="140">Actions</th>
+
+              <td colSpan="9" style={{ textAlign: "center" }}>
+                Loading...
+              </td>
+
             </tr>
-          </thead>
 
-          <tbody>
+          ) : filteredQuestions.length === 0 ? (
 
-            {loading ? (
+            <tr>
 
-              <tr>
-                <td colSpan="9" style={{ textAlign: "center" }}>
-                  Loading...
+              <td colSpan="9" style={{ textAlign: "center" }}>
+                No Questions Found
+              </td>
+
+            </tr>
+
+          ) : (
+
+            filteredQuestions.map((row) => (
+
+              <tr key={row.id}>
+
+                <td>{row.checklist_name}</td>
+
+                <td>{row.question}</td>
+
+                <td>{row.sequence_no}</td>
+
+                <td>{row.answer_type}</td>
+
+                <td>
+                  {row.sla_value
+                    ? `${row.sla_value} ${row.sla_unit}`
+                    : "-"}
                 </td>
-              </tr>
 
-            ) : filteredQuestions.length === 0 ? (
+                <td>{row.departments || "-"}</td>
 
-              <tr>
-                <td colSpan="9" style={{ textAlign: "center" }}>
-                  No Questions Found
+                <td>
+                  {row.answer_required ? "Yes" : "No"}
                 </td>
-              </tr>
 
-            ) : (
+                <td>
 
-              filteredQuestions.map((row) => (
+                  <span
+                    className={
+                      row.status?.toLowerCase() === "active"
+                        ? "status active"
+                        : "status inactive"
+                    }
+                  >
+                    {row.status}
+                  </span>
 
-                <tr key={row.id}>
+                </td>
 
-                  <td>{row.checklist_name}</td>
+                <td>
 
-                  <td>{row.question}</td>
-
-                  <td>{row.sequence_no}</td>
-
-                  <td>{row.answer_type}</td>
-
-                  <td>
-                    {row.sla_value
-                      ? `${row.sla_value} ${row.sla_unit}`
-                      : "-"}
-                  </td>
-
-                  <td>{row.departments || "-"}</td>
-
-                  <td>
-                    {row.answer_required ? "Yes" : "No"}
-                  </td>
-
-                 <td>
-  <span
-    className={
-      row.status?.toLowerCase() === "active"
-        ? "status active"
-        : "status inactive"
-    }
-  >
-    {row.status}
-  </span>
-</td>
-
-                  <td>
+                  {canEdit && (
 
                     <button
                       className="edit-btn"
@@ -323,6 +387,10 @@ function Questions() {
                       <FaEdit />
                     </button>
 
+                  )}
+
+                  {canDelete && (
+
                     <button
                       className="delete-btn-table"
                       onClick={() => handleDelete(row.id)}
@@ -330,40 +398,45 @@ function Questions() {
                       <FaTrash />
                     </button>
 
-                  </td>
+                  )}
 
-                </tr>
+                </td>
 
-              ))
+              </tr>
 
-            )}
+            ))
 
-          </tbody>
+          )}
 
-        </table>
-      </div>
+        </tbody>
 
-      {/* ===============================
-          Add / Edit Modal
-      =============================== */}
-
-      {showModal && (
-        <AddQuestionModal
-          question={selectedQuestion}
-          onClose={() => {
-            setShowModal(false);
-            setSelectedQuestion(null);
-          }}
-          onSuccess={() => {
-            setShowModal(false);
-            setSelectedQuestion(null);
-            loadQuestions();
-          }}
-        />
-      )}
+      </table>
 
     </div>
-  );
+
+    {/* ===============================
+        Add / Edit Modal
+    =============================== */}
+
+    {(canAdd || canEdit) && showModal && (
+
+      <AddQuestionModal
+        question={selectedQuestion}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedQuestion(null);
+        }}
+        onSuccess={() => {
+          setShowModal(false);
+          setSelectedQuestion(null);
+          loadQuestions();
+        }}
+      />
+
+    )}
+
+  </div>
+);
 }
 
 export default Questions;

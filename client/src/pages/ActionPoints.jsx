@@ -62,6 +62,35 @@ const [completionDate, setCompletionDate] = useState("");
     sla: "",
   });
 
+  // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const actionPointPermission =
+  permissions["Action Points"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    actionPointPermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    actionPointPermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    actionPointPermission
+  );
+
+const canDelete =
+  actionPointPermission === "Full";
+
   // ================= FETCH ACTION POINTS =================
 
   const fetchActionPoints = async () => {
@@ -108,21 +137,29 @@ const [completionDate, setCompletionDate] = useState("");
   // ================= LOAD DATA =================
 
   useEffect(() => {
-    fetchFilters();
-  }, []);
 
+  if (!canView) return;
+
+  fetchFilters();
+
+}, [canView]);
   useEffect(() => {
-    fetchActionPoints();
-  }, [
-    page,
-    search,
-    store,
-    department,
-    status,
-    checklistType,
-    startDate,
-    endDate,
-  ]);
+
+  if (!canView) return;
+
+  fetchActionPoints();
+
+}, [
+  canView,
+  page,
+  search,
+  store,
+  department,
+  status,
+  checklistType,
+  startDate,
+  endDate,
+]);
     // ================= UPDATE ACTION POINT =================
 
   const updateActionPoint = async () => {
@@ -357,21 +394,29 @@ return (
 
       <div className="action-buttons">
 
-        <button
-          className="create-btn"
-          onClick={() => setShowModal(true)}
-        >
-          <FaPlus />
-          Add Action Point
-        </button>
+        {canAdd && (
 
-        <button
-          className="export-btn"
-          onClick={exportCSV}
-        >
-          <FaFileCsv />
-          Export CSV
-        </button>
+          <button
+            className="create-btn"
+            onClick={() => setShowModal(true)}
+          >
+            <FaPlus />
+            Add Action Point
+          </button>
+
+        )}
+
+        {canView && (
+
+          <button
+            className="export-btn"
+            onClick={exportCSV}
+          >
+            <FaFileCsv />
+            Export CSV
+          </button>
+
+        )}
 
         <button
           className="clear-btn"
@@ -430,390 +475,403 @@ return (
 
         </thead>
 
-       <tbody>
+        <tbody>
+                  
 
-{actionPoints.length === 0 ? (
+          {actionPoints.length === 0 ? (
 
-<tr>
-<td colSpan="16" className="no-data">
-No Action Points Found
-</td>
-</tr>
+            <tr>
 
-) : (
+              <td colSpan="16" className="no-data">
+                No Action Points Found
+              </td>
 
-actionPoints.map((item) => (
+            </tr>
 
-<tr key={item.id}>
+          ) : (
 
-<td>
-{item.date
-? new Date(item.date).toLocaleString()
-: "-"}
-</td>
+            actionPoints.map((item) => (
 
-<td>{item.store_name}</td>
+              <tr key={item.id}>
 
-<td>{item.city || "-"}</td>
+                <td>
+                  {item.date
+                    ? new Date(item.date).toLocaleString()
+                    : "-"}
+                </td>
 
-<td>{item.state || "-"}</td>
+                <td>{item.store_name}</td>
 
-<td>{item.checklist_name}</td>
+                <td>{item.city || "-"}</td>
 
-<td>{item.question}</td>
+                <td>{item.state || "-"}</td>
 
-<td>{item.department_name || "-"}</td>
+                <td>{item.checklist_name}</td>
 
-<td>{item.answer || "-"}</td>
+                <td>{item.question}</td>
 
-<td>{item.comment || "-"}</td>
+                <td>{item.department_name || "-"}</td>
 
-<td>
+                <td>{item.answer || "-"}</td>
 
-{item.attachment ? (
+                <td>{item.comment || "-"}</td>
 
-<a
-className="view-link"
-href={`${API}/${item.attachment.replace(/\\/g,"/")}`}
-target="_blank"
-rel="noreferrer"
->
+                <td>
 
-<FaEye />
+                  {item.attachment ? (
 
-<span>View</span>
+                    <a
+                      className="view-link"
+                      href={`${API}/${item.attachment.replace(/\\/g, "/")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
 
-</a>
+                      <FaEye />
 
-) : (
+                      <span>View</span>
 
-"-"
+                    </a>
 
-)}
+                  ) : (
 
-</td>
-<td>
+                    "-"
 
-<div className="status-box">
+                  )}
 
-{item.status}
+                </td>
 
-</div>
+                <td>
 
-</td>
+                  <div className="status-box">
 
-<td className="sla">
-    {item.sla_status || "-"}
-</td>
-<td>
+                    {item.status}
 
-{item.next_action ? (
+                  </div>
 
-<button
+                </td>
 
-className="open-btn"
+                <td className="sla">
 
-onClick={() => handleOpen(item)}
+                  {item.sla_status || "-"}
 
->
+                </td>
 
-{item.next_action}
+                <td>
 
-</button>
+                  {item.next_action ? (
 
-) : (
+                    <button
+                      className="open-btn"
+                      onClick={() => handleOpen(item)}
+                    >
 
-"-"
+                      {item.next_action}
 
-)}
+                    </button>
 
-</td>
-<td>
+                  ) : (
 
-{item.remarks || "-"}
+                    "-"
 
-</td>
+                  )}
 
-<td className="action-buttons-cell">
+                </td>
 
-  <button
-    className="edit-btn"
-    onClick={() => {
+                <td>
 
-      setEditData({
-        id: item.id,
-        question: item.question,
-        department_name: item.department_name,
-        answer: item.answer || "",
-        comment: item.comment || "",
-        sla: item.sla || ""
-      });
+                  {item.remarks || "-"}
 
-      setShowEdit(true);
+                </td>
 
-    }}
-  >
-    Edit <FaEdit />
-  </button>
+                <td className="action-buttons-cell">
 
-  <button
-    className="delete-btn"
-    onClick={() => deleteActionPoint(item.id)}
-  >
-    <FaTrash />
-  </button>
+                  {canEdit && (
 
-</td>
-<td>
+                    <button
+                      className="edit-btn"
+                      onClick={() => {
 
-{item.history || "-"}
+                        setEditData({
 
-</td>
+                          id: item.id,
 
-</tr>
+                          question: item.question,
 
-))
+                          department_name: item.department_name,
 
-)}
+                          answer: item.answer || "",
 
-</tbody>
+                          comment: item.comment || "",
 
-</table>
+                          sla: item.sla || ""
 
-</div>
+                        });
 
-{/* ================= PAGINATION ================= */}
+                        setShowEdit(true);
 
-<div className="pagination">
+                      }}
+                    >
 
-<button
+                      Edit <FaEdit />
 
-disabled={page===1}
+                    </button>
 
-onClick={()=>setPage(page-1)}
+                  )}
 
->
+                  {canDelete && (
 
-Previous
+                    <button
+                      className="delete-btn"
+                      onClick={() => deleteActionPoint(item.id)}
+                    >
 
-</button>
+                      <FaTrash />
 
-<span>
+                    </button>
 
-Page {page} of {totalPages || 1}
+                  )}
 
-</span>
+                </td>
 
-<button
+                <td>
 
-disabled={page>=totalPages}
+                  {item.history || "-"}
 
-onClick={()=>setPage(page+1)}
+                </td>
 
->
+              </tr>
 
-Next
+            ))
 
-</button>
+          )}
 
-<span>
+        </tbody>
 
-Total : {total}
+      </table>
 
-</span>
+    </div>
+        {/* ================= PAGINATION ================= */}
 
-</div>
+    <div className="pagination">
 
-{/* ================= CREATE MODAL ================= */}
+      <button
+        disabled={page === 1}
+        onClick={() => setPage(page - 1)}
+      >
+        Previous
+      </button>
 
-<CreatePointModal
+      <span>
 
-isOpen={showModal}
+        Page {page} of {totalPages || 1}
 
-onClose={()=>setShowModal(false)}
+      </span>
 
-onSuccess={fetchActionPoints}
+      <button
+        disabled={page >= totalPages}
+        onClick={() => setPage(page + 1)}
+      >
+        Next
+      </button>
 
-/>
+      <span>
 
+        Total : {total}
 
-{/* ================= EDIT MODAL ================= */}
+      </span>
 
-{
-showEdit && (
+    </div>
 
-<div className="modal-overlay">
+    {/* ================= CREATE MODAL ================= */}
 
-<div className="modal-box">
+    {canAdd && (
 
-<h3>Edit Action Point</h3>
+      <CreatePointModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={fetchActionPoints}
+      />
 
-<input
-type="text"
-value={editData.question}
-readOnly
-/>
+    )}
 
-<input
-type="text"
-value={editData.department_name}
-readOnly
-/>
+    {/* ================= EDIT MODAL ================= */}
 
-<div className="sla-row">
+    {canEdit && showEdit && (
 
-<input
-type="text"
-value={editData.sla}
-readOnly
-/>
+      <div className="modal-overlay">
 
-</div>
+        <div className="modal-box">
 
-<input
-type="text"
-placeholder="Answer"
-value={editData.answer}
-onChange={(e)=>
-setEditData({
-...editData,
-answer:e.target.value
-})
-}
-/>
+          <h3>Edit Action Point</h3>
 
-<textarea
-rows="4"
-placeholder="Remarks"
-value={editData.comment}
-onChange={(e)=>
-setEditData({
-...editData,
-comment:e.target.value
-})
-}
-/>
+          <input
+            type="text"
+            value={editData.question}
+            readOnly
+          />
 
-<div className="modal-actions">
+          <input
+            type="text"
+            value={editData.department_name}
+            readOnly
+          />
 
-<button
-className="cancel-btn"
-onClick={() => setShowEdit(false)}
->
-Cancel
-</button>
+          <div className="sla-row">
 
-<button
-className="submit-btn"
-onClick={updateActionPoint}
->
-Update
-</button>
+            <input
+              type="text"
+              value={editData.sla}
+              readOnly
+            />
 
-</div>
+          </div>
 
-</div>
+          <input
+            type="text"
+            placeholder="Answer"
+            value={editData.answer}
+            onChange={(e) =>
+              setEditData({
+                ...editData,
+                answer: e.target.value,
+              })
+            }
+          />
 
-</div>
+          <textarea
+            rows="4"
+            placeholder="Remarks"
+            value={editData.comment}
+            onChange={(e) =>
+              setEditData({
+                ...editData,
+                comment: e.target.value,
+              })
+            }
+          />
 
-)
+          <div className="modal-actions">
 
-}
-{
-showOpenModal && (
+            <button
+              className="cancel-btn"
+              onClick={() => setShowEdit(false)}
+            >
+              Cancel
+            </button>
 
-<div className="modal-overlay">
+            <button
+              className="submit-btn"
+              onClick={updateActionPoint}
+            >
+              Update
+            </button>
 
-<div className="modal-box">
+          </div>
 
-<h3>Take Action</h3>
+        </div>
 
-<label>Question</label>
+      </div>
 
-<input
-type="text"
-value={selectedAction?.question || ""}
-readOnly
-/>
+    )}
 
-<label>Department</label>
+    {/* ================= TAKE ACTION MODAL ================= */}
 
-<input
-type="text"
-value={selectedAction?.department_name || ""}
-readOnly
-/>
+    {canEdit && showOpenModal && (
 
-<label>Answer</label>
+      <div className="modal-overlay">
 
-<input
-type="text"
-value={selectedAction?.answer || ""}
-readOnly
-/>
+        <div className="modal-box">
 
-<label>Current Status</label>
+          <h3>Take Action</h3>
 
-<input
-type="text"
-value={selectedAction?.status || ""}
-readOnly
-/>
+          <label>Question</label>
 
-<label>Action Taken</label>
+          <input
+            type="text"
+            value={selectedAction?.question || ""}
+            readOnly
+          />
 
-<textarea
-rows="4"
-placeholder="Example: Product shifted to front display."
-value={actionTaken}
-onChange={(e)=>setActionTaken(e.target.value)}
-></textarea>
+          <label>Department</label>
 
-<label>Remarks</label>
+          <input
+            type="text"
+            value={selectedAction?.department_name || ""}
+            readOnly
+          />
 
-<textarea
-rows="4"
-placeholder="Enter remarks..."
-value={remarks}
-onChange={(e)=>setRemarks(e.target.value)}
-></textarea>
+          <label>Answer</label>
 
-<label>Completion Date</label>
+          <input
+            type="text"
+            value={selectedAction?.answer || ""}
+            readOnly
+          />
 
-<input
-type="date"
-value={completionDate}
-onChange={(e)=>setCompletionDate(e.target.value)}
-/>
+          <label>Current Status</label>
 
-<div className="modal-actions">
+          <input
+            type="text"
+            value={selectedAction?.status || ""}
+            readOnly
+          />
 
-<button
-className="submit-btn"
-onClick={saveActionPoint}
->
-Save
-</button>
+          <label>Action Taken</label>
 
-<button
-className="cancel-btn"
-onClick={() => setShowOpenModal(false)}
->
-Close
-</button>
+          <textarea
+            rows="4"
+            placeholder="Example: Product shifted to front display."
+            value={actionTaken}
+            onChange={(e) => setActionTaken(e.target.value)}
+          />
 
-</div>
+          <label>Remarks</label>
 
-</div>
+          <textarea
+            rows="4"
+            placeholder="Enter remarks..."
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+          />
 
-</div>
+          <label>Completion Date</label>
 
-)
-}
-</div>
+          <input
+            type="date"
+            value={completionDate}
+            onChange={(e) => setCompletionDate(e.target.value)}
+          />
+
+          <div className="modal-actions">
+
+            <button
+              className="submit-btn"
+              onClick={saveActionPoint}
+            >
+              Save
+            </button>
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowOpenModal(false)}
+            >
+              Close
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    )}
+
+  </div>
 
 );
 
 }
 
 export default ActionPoints;
+

@@ -85,32 +85,37 @@ function AddUserModal({
 
       setLoading(true);
 
-      const payload = {
+     const payload = {
 
-        fullName,
+  fullName,
 
-        employeeId,
+  employeeId,
 
-        email,
+  email,
 
-        contact,
+  contact,
 
-        reportsTo: selectedReport,
+  reportsTo: selectedReport ? selectedReport.id : null,
 
-        department_id: departmentId,
+  department_id:
+    departmentId === ""
+      ? null
+      : Number(departmentId),
 
-        designation_id: designationId,
+  designation_id:
+    designationId === ""
+      ? null
+      : Number(designationId),
 
-        stores: selectedStores,
+  stores: selectedStores,
 
-        permissions: modulePermissions,
+  permissions: modulePermissions,
 
-        active: isActive,
+  active: isActive,
 
-        administrator: isAdmin,
+  administrator: isAdmin,
 
-      };
-
+};
       if (editingUser) {
 
         await axios.put(
@@ -306,59 +311,47 @@ const toggleAllStores = () => {
 
 }, []);
 
-  // =========================
-  // Edit Mode
-  // =========================
+ // =========================
+// Edit Mode
+// =========================
 
- useEffect(() => {
+useEffect(() => {
 
   if (!editingUser) {
 
     setFullName("");
-
     setEmployeeId("");
-
     setEmail("");
-
     setConfirmEmail("");
-
     setContact("");
-
     setDepartmentId("");
-
     setDesignationId("");
-
     setSelectedReport(null);
-
     setSelectedStores([]);
-
     setIsActive(true);
-
     setIsAdmin(false);
+
+    // Reset module permissions
+    setModulePermissions(
+      modules.reduce((acc, module) => {
+        acc[module] = "None";
+        return acc;
+      }, {})
+    );
 
     return;
 
   }
 
-  setFullName(
-    editingUser.name || ""
-  );
+  // =========================
+  // Basic Details
+  // =========================
 
-  setEmployeeId(
-    editingUser.employee_id || ""
-  );
-
-  setEmail(
-    editingUser.email || ""
-  );
-
-  setConfirmEmail(
-    editingUser.email || ""
-  );
-
-  setContact(
-    editingUser.contact || ""
-  );
+  setFullName(editingUser.name || "");
+  setEmployeeId(editingUser.employee_id || "");
+  setEmail(editingUser.email || "");
+  setConfirmEmail(editingUser.email || "");
+  setContact(editingUser.contact || "");
 
   setDepartmentId(
     editingUser.department_id || ""
@@ -367,6 +360,10 @@ const toggleAllStores = () => {
   setDesignationId(
     editingUser.designation_id || ""
   );
+
+  // =========================
+  // Reports To
+  // =========================
 
   setSelectedReport(
 
@@ -379,27 +376,61 @@ const toggleAllStores = () => {
 
   );
 
-  // Restore selected stores while editing
-if (
-  editingUser.stores &&
-  Array.isArray(editingUser.stores)
-) {
+  // =========================
+  // Stores
+  // =========================
 
-  setSelectedStores(editingUser.stores);
+  if (
+    editingUser.stores &&
+    Array.isArray(editingUser.stores)
+  ) {
 
-} else {
+    setSelectedStores(editingUser.stores);
 
-  setSelectedStores([]);
+  } else {
 
-}
+    setSelectedStores([]);
+
+  }
+
+  // =========================
+  // Account
+  // =========================
 
   setIsActive(
     editingUser.status === "Active"
   );
 
   setIsAdmin(
-    editingUser.is_admin || false
+    Number(editingUser.is_admin) === 1
   );
+
+  // =========================
+  // DEBUG
+  // =========================
+
+  console.log("Editing User :", editingUser);
+  console.log("is_admin :", editingUser.is_admin);
+  console.log("Status :", editingUser.status);
+  console.log("Permissions :", editingUser.permissions);
+
+  // =========================
+  // Restore Module Permissions
+  // =========================
+
+  setModulePermissions({
+
+    ...modules.reduce((acc, module) => {
+
+      acc[module] = "None";
+
+      return acc;
+
+    }, {}),
+
+    ...(editingUser.permissions || {})
+
+  });
 
 }, [editingUser]);
   // =========================
@@ -1199,23 +1230,29 @@ const fetchStores = async () => {
 
   <hr className="section-divider" />
 
-  <div className="setting-row">
+  {/* Show Active Account only for Normal Users */}
 
-    <label>
+  {!isAdmin && (
 
-      <input
-        type="checkbox"
-        checked={isActive}
-        onChange={() =>
-          setIsActive(!isActive)
-        }
-      />
+    <div className="setting-row">
 
-      Active Account
+      <label>
 
-    </label>
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={() => setIsActive(!isActive)}
+        />
 
-  </div>
+        Active Account
+
+      </label>
+
+    </div>
+
+  )}
+
+  {/* Administrator */}
 
   <div className="setting-row">
 
@@ -1224,9 +1261,31 @@ const fetchStores = async () => {
       <input
         type="checkbox"
         checked={isAdmin}
-        onChange={() =>
-          setIsAdmin(!isAdmin)
-        }
+        onChange={(e) => {
+
+          const checked = e.target.checked;
+
+          setIsAdmin(checked);
+
+          if (checked) {
+
+            // Administrator is always Active
+            setIsActive(true);
+
+            // Give Full Permission
+            const fullPermissions = {};
+
+            modules.forEach((module) => {
+
+              fullPermissions[module] = "Full";
+
+            });
+
+            setModulePermissions(fullPermissions);
+
+          }
+
+        }}
       />
 
       Administrator

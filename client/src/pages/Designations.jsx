@@ -30,6 +30,35 @@ function Designations() {
   const [editDesignation, setEditDesignation] = useState(null);
 
   // ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const designationPermission =
+  permissions["Designations"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    designationPermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    designationPermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    designationPermission
+  );
+
+const canDelete =
+  designationPermission === "Full";
+
+  // ==========================
   // Load Designations
   // ==========================
 
@@ -73,10 +102,20 @@ function Designations() {
     }
   };
 
-  useEffect(() => {
-    fetchDesignations();
-    fetchDepartments();
-  }, []);
+ useEffect(() => {
+
+  if (!canView) {
+
+    setLoading(false);
+
+    return;
+
+  }
+
+  fetchDesignations();
+  fetchDepartments();
+
+}, [canView]);
 
   // ==========================
   // Search
@@ -183,10 +222,14 @@ function Designations() {
     }
   };
     return (
-    <div className="departments-page">
 
-      <div className="departments-header">
-        <h2>Designations</h2>
+  <div className="departments-page">
+
+    <div className="departments-header">
+
+      <h2>Designations</h2>
+
+      {canAdd && (
 
         <button
           className="add-btn"
@@ -195,119 +238,154 @@ function Designations() {
           <FaPlus />
           <span>Add Designation</span>
         </button>
-      </div>
 
-      <div className="search-box">
-        <FaSearch className="search-icon" />
+      )}
 
-        <input
-          type="text"
-          placeholder="Search Designation..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+    </div>
 
-      <div className="table-container">
-        <table>
+    <div className="search-box">
 
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Department</th>
-              <th>Designation</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th width="150">Actions</th>
-            </tr>
-          </thead>
+      <FaSearch className="search-icon" />
 
-          <tbody>
-
-            {loading ? (
-
-              <tr>
-                <td colSpan="6" className="loading">
-                  Loading...
-                </td>
-              </tr>
-
-            ) : filteredDesignations.length === 0 ? (
-
-              <tr>
-                <td colSpan="6" className="loading">
-                  No Designations Found
-                </td>
-              </tr>
-
-            ) : (
-
-              filteredDesignations.map((designation) => (
-
-                <tr key={designation.id}>
-
-                  <td>{designation.id}</td>
-
-                  <td>{designation.department_name}</td>
-
-                  <td>{designation.designation_name}</td>
-
-                  <td>{designation.description || "-"}</td>
-
-                  <td>
-                    <span
-                      className={
-                        designation.status === "Active"
-                          ? "status active"
-                          : "status inactive"
-                      }
-                    >
-                      {designation.status}
-                    </span>
-                  </td>
-<td>
-  <div className="action-buttons">
-
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(designation)}
-    >
-      Edit <FaEdit />
-    </button>
-
-    <button
-      className="delete-btn"
-      onClick={() => handleDelete(designation.id)}
-    >
-      <FaTrash />
-    </button>
-
-  </div>
-</td>
-                </tr>
-
-              ))
-
-            )}
-
-          </tbody>
-
-        </table>
-      </div>
-
-      <DesignationModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditDesignation(null);
-        }}
-        onSave={handleSave}
-        designation={editDesignation}
-        departments={departments}
+      <input
+        type="text"
+        placeholder="Search Designation..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
       />
 
     </div>
-  );
+
+    <div className="table-container">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>ID</th>
+
+            <th>Department</th>
+
+            <th>Designation</th>
+
+            <th>Description</th>
+
+            <th>Status</th>
+
+            <th width="150">Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {loading ? (
+
+            <tr>
+
+              <td colSpan="6" className="loading">
+                Loading...
+              </td>
+
+            </tr>
+
+          ) : filteredDesignations.length === 0 ? (
+
+            <tr>
+
+              <td colSpan="6" className="loading">
+                No Designations Found
+              </td>
+
+            </tr>
+
+          ) : (
+
+            filteredDesignations.map((designation) => (
+
+              <tr key={designation.id}>
+
+                <td>{designation.id}</td>
+
+                <td>{designation.department_name}</td>
+
+                <td>{designation.designation_name}</td>
+
+                <td>{designation.description || "-"}</td>
+
+                <td>
+
+                  <span
+                    className={
+                      designation.status === "Active"
+                        ? "status active"
+                        : "status inactive"
+                    }
+                  >
+                    {designation.status}
+                  </span>
+
+                </td>
+
+                <td>
+
+                  <div className="action-buttons">
+
+                    {canEdit && (
+
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(designation)}
+                      >
+                        Edit <FaEdit />
+                      </button>
+
+                    )}
+
+                    {canDelete && (
+
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(designation.id)}
+                      >
+                        <FaTrash />
+                      </button>
+
+                    )}
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            ))
+
+          )}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <DesignationModal
+      isOpen={showModal}
+      onClose={() => {
+        setShowModal(false);
+        setEditDesignation(null);
+      }}
+      onSave={handleSave}
+      designation={editDesignation}
+      departments={departments}
+    />
+
+  </div>
+
+);
 }
 
 export default Designations;

@@ -21,10 +21,46 @@ function ReportsTo() {
 const [showBulkModal, setShowBulkModal] = useState(false);
 const [selectedFile, setSelectedFile] = useState(null);
 const [uploading, setUploading] = useState(false);
-  useEffect(() => {
-    loadReports();
-  }, []);
 
+// ==========================
+// RBAC
+// ==========================
+
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
+
+const reportsPermission =
+  permissions["Reports To"] || "None";
+
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    reportsPermission
+  );
+
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    reportsPermission
+  );
+
+const canEdit =
+  ["Edit", "Full"].includes(
+    reportsPermission
+  );
+
+const canDelete =
+  reportsPermission === "Full";
+
+
+ useEffect(() => {
+
+  if (!canView) {
+    return;
+  }
+
+  loadReports();
+
+}, [canView]);
   // ===============================
   // Load Managers
   // ===============================
@@ -104,103 +140,167 @@ const [uploading, setUploading] = useState(false);
 
  return (
   <div className="reports-page">
+
     <div className="reports-header">
+
       <h2>Reports To</h2>
 
       <div className="report-actions">
 
-        <button
-          className="bulk-btn"
-          onClick={() => setShowBulkModal(true)}
-        >
-          <FaUpload /> Bulk Add
-        </button>
+        {canAdd && (
+          <button
+            className="bulk-btn"
+            onClick={() => setShowBulkModal(true)}
+          >
+            <FaUpload />
+            Bulk Add
+          </button>
+        )}
 
-        <button
-          className="add-report-btn"
-          onClick={() => {
-            setEditData(null);
-            setShowModal(true);
-          }}
-        >
-          <FaPlus /> Add Manager
-        </button>
+        {canAdd && (
+          <button
+            className="add-report-btn"
+            onClick={() => {
+              setEditData(null);
+              setShowModal(true);
+            }}
+          >
+            <FaPlus />
+            Add Manager
+          </button>
+        )}
 
       </div>
+
     </div>
 
+    {/* ==========================
+        Search
+    ========================== */}
+
     <div className="reports-search">
+
       <FaSearch />
+
       <input
         type="text"
         placeholder="Search Manager..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+
     </div>
 
+    {/* ==========================
+        Table
+    ========================== */}
+
     <table className="reports-table">
+
       <thead>
+
         <tr>
+
           <th>Manager Name</th>
+
           <th>Department</th>
+
           <th>Designation</th>
+
           <th>Status</th>
+
           <th width="150">Actions</th>
+
         </tr>
+
       </thead>
 
       <tbody>
+
         {filteredReports.length === 0 ? (
+
           <tr>
+
             <td colSpan="5" align="center">
               No Managers Found
             </td>
+
           </tr>
+
         ) : (
+
           filteredReports.map((manager) => (
+
             <tr key={manager.id}>
+
               <td>{manager.manager_name}</td>
+
               <td>{manager.department}</td>
+
               <td>{manager.designation}</td>
-            <td>
-  <span
-    className={
-      manager.status?.toLowerCase() === "active"
-        ? "status active"
-        : "status inactive"
-    }
-  >
-    {manager.status}
-  </span>
-</td>
 
-<td>
-  <div className="action-buttons">
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(manager)}
-    >
-      Edit <FaEdit />
-    </button>
+              <td>
 
-    <button
-      className="delete-btn"
-      onClick={() => handleDelete(manager.id)}
-    >
-      <FaTrash />
-    </button>
-  </div>
-</td>
+                <span
+                  className={
+                    manager.status?.toLowerCase() === "active"
+                      ? "status active"
+                      : "status inactive"
+                  }
+                >
+                  {manager.status}
+                </span>
+
+              </td>
+
+              <td>
+
+                <div className="action-buttons">
+
+                  {canEdit && (
+
+                    <button
+                      className="edit-btn"
+                      onClick={() => handleEdit(manager)}
+                    >
+                      Edit <FaEdit />
+                    </button>
+
+                  )}
+
+                  {canDelete && (
+
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDelete(manager.id)}
+                    >
+                      <FaTrash />
+                    </button>
+
+                  )}
+
+                </div>
+
+              </td>
+
             </tr>
+
           ))
+
         )}
+
       </tbody>
+
     </table>
 
-    {/* Bulk Upload Modal */}
-    {showBulkModal && (
+    {/* ==========================
+        Bulk Upload Modal
+    ========================== */}
+
+    {canAdd && showBulkModal && (
+
       <div className="modal-overlay">
+
         <div className="bulk-modal">
 
           <h2>Bulk Add Managers</h2>
@@ -212,7 +312,9 @@ const [uploading, setUploading] = useState(false);
           <input
             type="file"
             accept=".csv,.xlsx,.xls"
-            onChange={(e) => setSelectedFile(e.target.files[0])}
+            onChange={(e) =>
+              setSelectedFile(e.target.files[0])
+            }
           />
 
           <div className="bulk-buttons">
@@ -230,23 +332,36 @@ const [uploading, setUploading] = useState(false);
               onClick={handleBulkUpload}
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload Managers"}
+              {uploading
+                ? "Uploading..."
+                : "Upload Managers"}
             </button>
 
           </div>
 
         </div>
+
       </div>
+
     )}
 
-    {/* Add/Edit Manager Modal */}
-    {showModal && (
+    {/* ==========================
+        Add / Edit Modal
+    ========================== */}
+
+    {(canAdd || canEdit) && showModal && (
+
       <AddReportModal
         editData={editData}
-        closeModal={() => setShowModal(false)}
+        closeModal={() => {
+          setShowModal(false);
+          setEditData(null);
+        }}
         refresh={loadReports}
       />
+
     )}
+
   </div>
 );
 }

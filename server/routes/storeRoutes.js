@@ -3,6 +3,9 @@ const multer = require("multer");
 
 const router = express.Router();
 
+const authMiddleware = require("../middleware/authMiddleware");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
+
 const {
   getStores,
   createStore,
@@ -34,13 +37,23 @@ const upload = multer({
 // Get All Stores
 // ==============================
 
-router.get("/", getStores);
+router.get(
+  "/",
+  authMiddleware,
+  permissionMiddleware("Stores", "View"),
+  getStores
+);
 
 // ==============================
 // Create Store
 // ==============================
 
-router.post("/", createStore);
+router.post(
+  "/",
+  authMiddleware,
+  permissionMiddleware("Stores", "Add"),
+  createStore
+);
 
 // ==============================
 // Import CSV
@@ -48,6 +61,8 @@ router.post("/", createStore);
 
 router.post(
   "/import",
+  authMiddleware,
+  permissionMiddleware("Stores", "Add"),
   upload.single("file"),
   importStoresFromCSV
 );
@@ -56,18 +71,33 @@ router.post(
 // Delete All Stores
 // ==============================
 
-router.delete("/delete-all", deleteAllStores);
+router.delete(
+  "/delete-all",
+  authMiddleware,
+  permissionMiddleware("Stores", "Full"),
+  deleteAllStores
+);
 
 // ==============================
 // Update Store
 // ==============================
 
-router.put("/:id", updateStore);
+router.put(
+  "/:id",
+  authMiddleware,
+  permissionMiddleware("Stores", "Edit"),
+  updateStore
+);
 
 // ==============================
 // Delete Single Store
 // ==============================
 
-router.delete("/:id", deleteStore);
+router.delete(
+  "/:id",
+  authMiddleware,
+  permissionMiddleware("Stores", "Full"),
+  deleteStore
+);
 
 module.exports = router;

@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 
+const authMiddleware = require("../middleware/authMiddleware");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
+
 // ======================================================
 // CONTROLLERS
 // ======================================================
@@ -47,21 +50,47 @@ const upload = multer({
 // GET : /api/users
 // ======================================================
 
-router.get("/", getUsers);
+router.get(
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "View"),
+
+    getUsers
+
+);
 
 // ======================================================
-// GET USER NAMES (REPORTS TO)
+// GET USER NAMES
 // GET : /api/users/names
 // ======================================================
 
-router.get("/names", getUserNames);
+router.get(
+
+    "/names",
+
+    getUserNames
+
+);
 
 // ======================================================
-// CREATE USER + SEND INVITATION
+// CREATE USER
 // POST : /api/users
 // ======================================================
 
-router.post("/", createUser);
+router.post(
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Add"),
+
+    createUser
+
+);
 
 // ======================================================
 // BULK UPLOAD USERS
@@ -71,6 +100,10 @@ router.post("/", createUser);
 router.post(
 
     "/bulk-upload",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Add"),
 
     upload.single("file"),
 
@@ -83,28 +116,68 @@ router.post(
 // PUT : /api/users/:id
 // ======================================================
 
-router.put("/:id", updateUser);
+router.put(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Edit"),
+
+    updateUser
+
+);
 
 // ======================================================
 // DISABLE USER
 // PUT : /api/users/disable/:id
 // ======================================================
 
-router.put("/disable/:id", disableUser);
+router.put(
+
+    "/disable/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Full"),
+
+    disableUser
+
+);
 
 // ======================================================
 // DELETE USER
 // DELETE : /api/users/:id
 // ======================================================
 
-router.delete("/:id", deleteUser);
+router.delete(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Full"),
+
+    deleteUser
+
+);
 
 // ======================================================
 // DELETE ALL USERS
 // DELETE : /api/users/delete-all
 // ======================================================
 
-router.delete("/delete-all", deleteAllUsers);
+router.delete(
+
+    "/delete-all",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Full"),
+
+    deleteAllUsers
+
+);
 
 // ======================================================
 // VALIDATE ACTIVATION TOKEN

@@ -410,6 +410,150 @@ const updateUser = (req, res) => {
 
             }
 
+            // ======================================
+            // Send Activation / Deactivation Email
+            // ======================================
+
+            const user = req.body;
+
+            let subject = "";
+
+            let html = "";
+
+            if (user.active) {
+
+                subject = "Miarcus ERP - Account Activated";
+
+                html = `
+                    <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
+
+                        <h2 style="color:#6C63FF;">
+                            Miarcus ERP
+                        </h2>
+
+                        <p>Dear <b>${user.fullName}</b>,</p>
+
+                        <p>
+                            We are pleased to inform you that your
+                            <b>Miarcus ERP account has been activated.</b>
+                        </p>
+
+                        <p>
+                            Click the button below to log in to the Miarcus ERP application.
+                        </p>
+
+                        <p style="margin:30px 0;">
+
+                            <a
+                                href="http://localhost:5173/"
+                                style="
+                                    background:#6C63FF;
+                                    color:#ffffff;
+                                    padding:14px 28px;
+                                    text-decoration:none;
+                                    border-radius:6px;
+                                    font-size:16px;
+                                    font-weight:bold;
+                                    display:inline-block;
+                                "
+                            >
+                                Login to Miarcus ERP
+                            </a>
+
+                        </p>
+
+                        <p>
+                            If the button doesn't work, copy and paste this link into your browser:
+                        </p>
+
+                        <p>
+                            <a href="http://localhost:5173/">
+                                http://localhost:5173/
+                            </a>
+                        </p>
+
+                        <hr style="margin:30px 0;">
+
+                        <p>
+                            Thank you for using the Miarcus ERP application.
+                        </p>
+
+                        <p>
+                            Regards,<br>
+                            <b>Miarcus Team</b>
+                        </p>
+
+                    </div>
+                `;
+
+            } else {
+
+                subject = "Miarcus ERP - Account Deactivated";
+
+                html = `
+                    <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
+
+                        <h2 style="color:#6C63FF;">
+                            Miarcus ERP
+                        </h2>
+
+                        <p>Dear <b>${user.fullName}</b>,</p>
+
+                        <p>
+                            Your <b>Miarcus ERP account has been deactivated.</b>
+                        </p>
+
+                        <p>
+                            You can no longer access the application.
+                        </p>
+
+                        <p>
+                            If you believe this action was taken in error,
+                            please contact your administrator.
+                        </p>
+
+                        <hr style="margin:30px 0;">
+
+                        <p>
+                            Thank you for using the Miarcus ERP application.
+                        </p>
+
+                        <p>
+                            Regards,<br>
+                            <b>Miarcus Team</b>
+                        </p>
+
+                    </div>
+                `;
+
+            }
+
+            transporter.sendMail(
+
+                {
+
+                    from: process.env.EMAIL_USER,
+
+                    to: user.email,
+
+                    subject,
+
+                    html
+
+                },
+
+                (mailErr) => {
+
+                    if (mailErr) {
+
+                        console.log(mailErr);
+
+                    }
+
+                }
+
+            );
+
             res.json({
 
                 success: true,
