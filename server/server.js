@@ -179,7 +179,24 @@ console.log(
 
 
 
+// ======================================================
+// PUBLIC IMAGES
+// ======================================================
 
+const publicImages = path.join(
+    __dirname,
+    "public/images"
+);
+
+app.use(
+    "/images",
+    express.static(publicImages)
+);
+
+console.log(
+    "🖼️ Image Path:",
+    publicImages
+);
 
 
 

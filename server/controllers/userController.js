@@ -170,107 +170,59 @@ const createUser = (req, res) => {
 
                                     }
 
-                                    const activationLink =
-                                        `http://localhost:5173/activate-account/${token}`;
+                                 const activationLink =
+    `${process.env.FRONTEND_URL}/activate-account/${token}`;
+// -------------------------
+// Send Invitation Email
+// -------------------------
 
-                                    // -------------------------
-                                    // Send Mail
-                                    // -------------------------
+sendInvitationEmail(user, activationLink)
 
-                                    transporter.sendMail(
+    .then(() => {
 
-                                        {
+        return res.status(201).json({
 
-                                            from: process.env.EMAIL_USER,
+            success: true,
 
-                                            to: user.email,
+            message: "User created and invitation sent successfully"
 
-                                            subject: "Welcome to Miarcus ERP",
+        });
 
-                                            html: `
+    })
 
-                                                <div style="font-family:Arial;padding:30px">
+    .catch((mailErr) => {
 
-                                                    <h2>Welcome to Miarcus ERP</h2>
+        console.log(mailErr);
 
-                                                    <p>Hello <b>${user.fullName}</b>,</p>
+        return res.status(500).json({
 
-                                                    <p>Your account has been created successfully.</p>
+            success: false,
 
-                                                    <p>Please click the button below to activate your account and create your password.</p>
+            message: "User created but invitation email failed"
 
-                                                    <p style="margin:30px 0">
+        });
 
-                                                        <a
-                                                            href="${activationLink}"
-                                                            style="
-                                                                background:#6c63ff;
-                                                                color:#fff;
-                                                                padding:12px 24px;
-                                                                text-decoration:none;
-                                                                border-radius:6px;
-                                                            "
-                                                        >
+    });
 
-                                                            Activate Account
+}
 
-                                                        </a>
+);
 
-                                                    </p>
+}
 
-                                                    <p>This link will expire in 24 hours.</p>
+);
 
-                                                    <p>Regards,<br><b>Miarcus ERP Team</b></p>
+}
 
-                                                </div>
+);
 
-                                            `
+}
 
-                                        },
+);
 
-                                        (mailErr) => {
+}
 
-                                            if (mailErr) {
 
-                                                console.log(mailErr);
-
-                                                return res.status(500).json({
-
-                                                    success: false,
-                                                    message: "User created but invitation email failed"
-
-                                                });
-
-                                            }
-
-                                            return res.status(201).json({
-
-                                                success: true,
-                                                message: "User created and invitation sent successfully"
-
-                                            });
-
-                                        }
-
-                                    );
-
-                                }
-
-                            );
-
-                        }
-
-                    );
-
-                }
-
-            );
-
-        }
-
-    );
-
-};
 
 // ==========================================================
 // Bulk Upload Users
@@ -983,64 +935,39 @@ const resendInvitation = (req, res) => {
 
                     }
 
-                    const activationLink =
-                        `http://localhost:5173/activate-account/${token}`;
+                   const activationLink =
+    `${process.env.FRONTEND_URL}/activate-account/${token}`;
+// -------------------------
+// Send Invitation Email
+// -------------------------
 
-                    transporter.sendMail(
+sendInvitationEmail(user, activationLink)
 
-                        {
+    .then(() => {
 
-                            from: process.env.EMAIL_USER,
+        return res.json({
 
-                            to: user.email,
+            success: true,
 
-                            subject: "Miarcus ERP Invitation",
+            message: "Invitation Sent Successfully"
 
-                            html: `
-                                <h2>Hello ${user.name}</h2>
+        });
 
-                                <p>Your invitation link has been regenerated.</p>
+    })
 
-                                <p>
+    .catch((mailErr) => {
 
-                                <a href="${activationLink}">
-                                Activate Account
-                                </a>
+        console.log(mailErr);
 
-                                </p>
+        return res.status(500).json({
 
-                                <p>This link expires in 24 hours.</p>
-                            `
+            success: false,
 
-                        },
+            message: "Unable to Send Email"
 
-                        (mailErr) => {
+        });
 
-                            if (mailErr) {
-
-                                console.log(mailErr);
-
-                                return res.status(500).json({
-
-                                    success: false,
-
-                                    message: "Unable to Send Email"
-
-                                });
-
-                            }
-
-                            res.json({
-
-                                success: true,
-
-                                message: "Invitation Sent Successfully"
-
-                            });
-
-                        }
-
-                    );
+    });
 
                 }
 
