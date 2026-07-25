@@ -16,7 +16,6 @@ const getAllUsers = (callback) => {
             u.profile_photo,
             u.reports_to,
             u.status,
-            u.is_admin,
             u.created_at,
 
             u.department_id,
@@ -28,15 +27,7 @@ const getAllUsers = (callback) => {
             u.is_activated,
             u.activated_at,
 
-            GROUP_CONCAT(DISTINCT us.store_id) AS store_ids,
-
-            GROUP_CONCAT(
-                DISTINCT CONCAT(
-                    up.module_name,
-                    ':',
-                    up.permission
-                )
-            ) AS permission_data
+            GROUP_CONCAT(us.store_id) AS store_ids
 
         FROM users u
 
@@ -48,9 +39,6 @@ const getAllUsers = (callback) => {
 
         LEFT JOIN user_stores us
             ON u.id = us.user_id
-
-        LEFT JOIN user_permissions up
-            ON u.id = up.user_id
 
         GROUP BY u.id
 
@@ -74,33 +62,6 @@ const getAllUsers = (callback) => {
                 : [];
 
             delete user.store_ids;
-
-            // ==========================
-            // Restore Permissions
-            // ==========================
-
-            const permissionString =
-                user.permission_data;
-
-            user.permissions = {};
-
-            if (permissionString) {
-
-                permissionString
-                    .split(",")
-                    .forEach((item) => {
-
-                        const [module, permission] =
-                            item.split(":");
-
-                        user.permissions[module] =
-                            permission;
-
-                    });
-
-            }
-
-            delete user.permission_data;
 
         });
 
@@ -149,68 +110,52 @@ const checkEmployeeIdExists = (employeeId, callback) => {
 // ==========================
 
 const addUser = (user, callback) => {
-    if (user.administrator) {
 
-    user.active = true;
-
-    user.permissions = {
-        Dashboard: "Full",
-        Users: "Full",
-        Stores: "Full",
-        Departments: "Full",
-        Designations: "Full",
-        "Action Points": "Full",
-        Tasks: "Full",
-        Inventory: "Full",
-        Reports: "Full",
-        Settings: "Full",
-    };
-
-}
-
-  const sql = `
-    INSERT INTO users
-    (
-        employee_id,
-        name,
-        email,
-        password,
-        department_id,
-        designation_id,
-        reports_to,
-        status,
-        is_activated,
-        is_admin
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`;
+    const sql = `
+        INSERT INTO users
+        (
+            employee_id,
+            name,
+            email,
+            password,
+            department_id,
+            designation_id,
+            reports_to,
+            status,
+            is_activated
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
     db.query(
 
         sql,
-[
-    user.employeeId,
 
-    user.fullName,
+        [
 
-    user.email,
+            user.employeeId,
 
-    null,
+            user.fullName,
 
-    user.department_id || null,
+            user.email,
 
-    user.designation_id || null,
+            null,
 
-    user.reportsTo || null,
+            user.department_id,
 
-    user.active
-        ? "Active"
-        : "Inactive",
+            user.designation_id,
 
-    0,
+            user.reportsTo
+                ? user.reportsTo.name || user.reportsTo
+                : "",
 
-    user.administrator ? 1 : 0
-],
+            user.active
+                ? "Active"
+                : "Inactive",
+
+            0
+
+        ],
 
         (err, result) => {
 
@@ -560,6 +505,7 @@ const bulkInsertUsers = (users, callback) => {
     db.query(sql, [values], callback);
 
 };
+
 // ==========================
 // Update User
 // ==========================
@@ -574,40 +520,6 @@ const updateUser = (
 
 ) => {
 
-    // ==========================================
-    // Administrator always gets Full Access
-    // ==========================================
-
-    if (user.administrator) {
-
-        user.active = true;
-
-        user.permissions = {
-
-            Dashboard: "Full",
-
-            Users: "Full",
-
-            Stores: "Full",
-
-            Departments: "Full",
-
-            Designations: "Full",
-
-            "Action Points": "Full",
-
-            Tasks: "Full",
-
-            Inventory: "Full",
-
-            Reports: "Full",
-
-            Settings: "Full"
-
-        };
-
-    }
-
     const sql = `
         UPDATE users
         SET
@@ -617,8 +529,7 @@ const updateUser = (
             department_id=?,
             designation_id=?,
             reports_to=?,
-            status=?,
-            is_admin=?
+            status=?
         WHERE id=?
     `;
 
@@ -634,17 +545,17 @@ const updateUser = (
 
             user.email,
 
-            user.department_id || null,
+            user.department_id,
 
-            user.designation_id || null,
+            user.designation_id,
 
-            user.reportsTo || null,
+            user.reportsTo
+                ? user.reportsTo.name || user.reportsTo
+                : "",
 
             user.active
                 ? "Active"
                 : "Inactive",
-
-            user.administrator ? 1 : 0,
 
             id
 
@@ -658,41 +569,39 @@ const updateUser = (
 
             }
 
-            updateUserStores(
+           updateUserStores(
 
-                id,
+    id,
 
-                user.stores || [],
+    user.stores || [],
 
-                (storeErr) => {
+    (storeErr) => {
 
-                    if (storeErr) {
+        if (storeErr) {
 
-                        return callback(storeErr);
+            return callback(storeErr);
 
-                    }
+        }
 
-                    updateUserPermissions(
+        updateUserPermissions(
 
-                        id,
+            id,
 
-                        user.permissions || {},
+            user.permissions || {},
 
-                        callback
+            callback
 
-                    );
+        );
 
-                }
+    }
 
-            );
+);
 
         }
 
     );
 
 };
-
-
 // ==========================
 // Update User Stores
 // ==========================
