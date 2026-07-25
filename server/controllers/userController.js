@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 
 const User = require("../models/userModel");
 const transporter = require("../config/mailer");
-const { sendInvitationEmail } = require("../services/emailServices");
+const { sendInvitationEmail } = require("../services/emailService");
 // ==========================================================
 // Get All Users
 // ==========================================================
