@@ -18,26 +18,28 @@ function AddUserModal({
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
-  const [contact, setContact] = useState("");
-
- 
-
+ const [callContact, setCallContact] = useState("");
+const [whatsappContact, setWhatsappContact] = useState("");
+const [confirmWhatsappContact, setConfirmWhatsappContact] = useState("");
   // =========================
   // Module Access
   // =========================
 
   const modules = [
-    "Dashboard",
-    "Users",
-    "Stores",
-    "Departments",
-    "Designations",
-    "Action Points",
-    "Tasks",
-    "Inventory",
-    "Reports",
-    "Settings",
-  ];
+  "Dashboard",
+  "Action Points",
+  "Checklist Reports",
+  "Checklist Submit",
+  "Checklist Types",
+  "Questions",
+  "Departments",
+  "Designations",
+  "Store Management",
+  "Users",
+  "Reports To",
+  "Profile",
+  "Settings",
+];
 
   const permissionTypes = [
     "None",
@@ -47,134 +49,165 @@ function AddUserModal({
     "Full",
   ];
 
+ // =========================
+// Create / Update User
+// =========================
+
+const handleCreateUser = async () => {
+
   // =========================
-  // Create / Update User
+  // Required Fields
   // =========================
 
-  const handleCreateUser = async () => {
+  if (
+  !fullName ||
+  !employeeId ||
+  !email ||
+  !callContact ||
+  !whatsappContact
+) {
 
-    if (!fullName || !employeeId || !email) {
+    alert("Please fill all required fields.");
 
-      alert("Please fill all required fields.");
+    return;
+
+  }
+
+  // =========================
+  // Validation (New User Only)
+  // =========================
+
+  if (!editingUser) {
+
+    // Confirm Email
+
+    if (!confirmEmail) {
+
+      alert("Please confirm email.");
 
       return;
 
     }
 
-    if (!editingUser) {
+    if (email.trim() !== confirmEmail.trim()) {
 
-      if (!confirmEmail) {
+      alert("Email and Confirm Email do not match.");
 
-        alert("Please confirm email.");
-
-        return;
-
-      }
-
-      if (email.trim() !== confirmEmail.trim()) {
-
-        alert("Email and Confirm Email do not match.");
-
-        return;
-
-      }
+      return;
 
     }
 
-    try {
+    // Confirm Contact
 
-      setLoading(true);
+    if (!confirmWhatsappContact) {
+  alert("Please confirm WhatsApp contact.");
+  return;
+}
 
-      const payload = {
+if (
+  whatsappContact.trim() !==
+  confirmWhatsappContact.trim()
+) {
+  alert("WhatsApp contacts do not match.");
+  return;
+}
+  }
 
-        fullName,
+  try {
 
-        employeeId,
+    setLoading(true);
 
-        email,
+    const payload = {
 
-        contact,
+      fullName,
 
-        reportsTo: selectedReport,
+      employeeId,
 
-        department_id: departmentId,
+      email,
 
-        designation_id: designationId,
+      callContact,
+whatsappContact,
 
-        stores: selectedStores,
+      reportsTo: selectedReport,
 
-        permissions: modulePermissions,
+      department_id: departmentId,
 
-        active: isActive,
+      designation_id: designationId,
 
-        administrator: isAdmin,
+      stores: selectedStores,
 
-      };
+      permissions: modulePermissions,
 
-      if (editingUser) {
+      active: isActive,
 
-        await axios.put(
+      administrator: isAdmin,
 
-          `http://localhost:5000/api/users/${editingUser.id}`,
+    };
 
-          payload
+    if (editingUser) {
 
-        );
+      await axios.put(
 
-        alert("User Updated Successfully");
+        `http://localhost:5000/api/users/${editingUser.id}`,
 
-      } else {
-
-        await axios.post(
-
-          "http://localhost:5000/api/users",
-
-          payload
-
-        );
-
-        alert("Invitation sent successfully.");
-
-      }
-
-      fetchUsers();
-
-      await loadReports();
-
-      onClose();
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(
-
-        err.response?.data?.message ||
-
-        err.response?.data?.error ||
-
-        "Unable to save user."
+        payload
 
       );
 
-    } finally {
+      alert("User Updated Successfully");
 
-      setLoading(false);
+    } else {
+
+      await axios.post(
+
+        "http://localhost:5000/api/users",
+
+        payload
+
+      );
+
+      alert("Invitation sent successfully.");
 
     }
 
-  };
+    fetchUsers();
+
+    await loadReports();
+
+    onClose();
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+
+      err.response?.data?.message ||
+
+      err.response?.data?.error ||
+
+      "Unable to save user."
+
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
     // =========================
   // Module Permissions
   // =========================
 
   const [modulePermissions, setModulePermissions] =
-    useState(
-      modules.reduce((acc, module) => {
-        acc[module] = "View";
-        return acc;
-      }, {})
-    );
+useState(
+modules.reduce((acc, module) => {
+acc[module] = "None";
+return acc;
+}, {})
+);
 
   const handlePermissionChange = (
     module,
@@ -306,11 +339,11 @@ const toggleAllStores = () => {
 
 }, []);
 
-  // =========================
-  // Edit Mode
-  // =========================
+ // =========================
+// Edit Mode
+// =========================
 
- useEffect(() => {
+useEffect(() => {
 
   if (!editingUser) {
 
@@ -322,7 +355,9 @@ const toggleAllStores = () => {
 
     setConfirmEmail("");
 
-    setContact("");
+    setCallContact("");
+setWhatsappContact("");
+setConfirmWhatsappContact("");
 
     setDepartmentId("");
 
@@ -331,6 +366,14 @@ const toggleAllStores = () => {
     setSelectedReport(null);
 
     setSelectedStores([]);
+
+    // Reset module permissions
+    setModulePermissions(
+      modules.reduce((acc, module) => {
+        acc[module] = "None";
+        return acc;
+      }, {})
+    );
 
     setIsActive(true);
 
@@ -355,11 +398,17 @@ const toggleAllStores = () => {
   setConfirmEmail(
     editingUser.email || ""
   );
+setCallContact(
+  editingUser.call_contact || ""
+);
 
-  setContact(
-    editingUser.contact || ""
-  );
+setWhatsappContact(
+  editingUser.whatsapp_contact || ""
+);
 
+setConfirmWhatsappContact(
+  editingUser.whatsapp_contact || ""
+);
   setDepartmentId(
     editingUser.department_id || ""
   );
@@ -369,29 +418,27 @@ const toggleAllStores = () => {
   );
 
   setSelectedReport(
-
     editingUser.reports_to
       ? {
           id: editingUser.reports_to_id,
           name: editingUser.reports_to,
         }
       : null
-
   );
 
-  // Restore selected stores while editing
-if (
-  editingUser.stores &&
-  Array.isArray(editingUser.stores)
-) {
+  // Restore selected stores
+  if (
+    editingUser.stores &&
+    Array.isArray(editingUser.stores)
+  ) {
 
-  setSelectedStores(editingUser.stores);
+    setSelectedStores(editingUser.stores);
 
-} else {
+  } else {
 
-  setSelectedStores([]);
+    setSelectedStores([]);
 
-}
+  }
 
   setIsActive(
     editingUser.status === "Active"
@@ -400,6 +447,22 @@ if (
   setIsAdmin(
     editingUser.is_admin || false
   );
+
+  // Restore module permissions
+  if (editingUser.permissions) {
+
+    setModulePermissions(editingUser.permissions);
+
+  } else {
+
+    setModulePermissions(
+      modules.reduce((acc, module) => {
+        acc[module] = "None";
+        return acc;
+      }, {})
+    );
+
+  }
 
 }, [editingUser]);
   // =========================
@@ -679,24 +742,51 @@ const fetchStores = async () => {
 
     {/* Contact */}
 
-    <div className="form-group full-width">
+    <div className="form-row">
 
-      <label>
+  {/* Call Contact */}
 
-        Contact
+  <div className="form-group">
+    <label>Call Contact *</label>
+    <input
+      type="text"
+      value={callContact}
+      onChange={(e) => setCallContact(e.target.value)}
+      placeholder="Enter Call Contact"
+      maxLength={10}
+    />
+  </div>
 
-      </label>
+  {/* WhatsApp Contact */}
 
-      <input
-        type="text"
-        value={contact}
-        onChange={(e) =>
-          setContact(e.target.value)
-        }
-        placeholder="Phone or alternate contact"
-      />
+  <div className="form-group">
+    <label>WhatsApp Contact *</label>
+    <input
+      type="text"
+      value={whatsappContact}
+      onChange={(e) => setWhatsappContact(e.target.value)}
+      placeholder="Enter WhatsApp Contact"
+      maxLength={10}
+    />
+  </div>
 
-    </div>
+</div>
+
+<div className="form-group full-width">
+
+  <label>Confirm WhatsApp Contact *</label>
+
+  <input
+    type="text"
+    value={confirmWhatsappContact}
+    onChange={(e) =>
+      setConfirmWhatsappContact(e.target.value)
+    }
+    placeholder="Re-enter WhatsApp Contact"
+    maxLength={10}
+  />
+
+</div>
 
     {/* Invitation Information */}
 
@@ -1147,19 +1237,15 @@ const fetchStores = async () => {
             className="permission-cell"
           >
 
-            <input
-              type="radio"
-              name={module}
-              checked={
-                modulePermissions[module] === type
-              }
-              onChange={() =>
-                handlePermissionChange(
-                  module,
-                  type
-                )
-              }
-            />
+           <input
+  type="radio"
+  name={module}
+  checked={modulePermissions[module] === type}
+  disabled={isAdmin}
+  onChange={() =>
+    handlePermissionChange(module, type)
+  }
+/>
 
           </div>
 
@@ -1219,21 +1305,39 @@ const fetchStores = async () => {
 
   <div className="setting-row">
 
-    <label>
+  <label>
 
-      <input
-        type="checkbox"
-        checked={isAdmin}
-        onChange={() =>
-          setIsAdmin(!isAdmin)
+    <input
+      type="checkbox"
+      checked={isAdmin}
+      onChange={(e) => {
+
+        const checked = e.target.checked;
+
+        setIsAdmin(checked);
+
+        if (checked) {
+
+          setIsActive(true);
+
+          const fullPermissions = {};
+
+          modules.forEach((module) => {
+            fullPermissions[module] = "Full";
+          });
+
+          setModulePermissions(fullPermissions);
+
         }
-      />
 
-      Administrator
+      }}
+    />
 
-    </label>
+    Administrator
 
-  </div>
+  </label>
+
+</div>
 
 </div>
 {/* =========================

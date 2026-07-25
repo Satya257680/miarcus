@@ -49,6 +49,9 @@ const [showDeleteModal, setShowDeleteModal] =
 
 const [selectedFile, setSelectedFile] =
   useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+const usersPerPage = 10;
  // ============================
 // RBAC
 // ============================
@@ -341,6 +344,20 @@ const fetchDepartments = async () => {
 const [showAddModal, setShowAddModal] = useState(false);
 const [editingUser, setEditingUser] = useState(null);
 
+const indexOfLastUser = currentPage * usersPerPage;
+
+const indexOfFirstUser =
+  indexOfLastUser - usersPerPage;
+
+const currentUsers =
+  filteredUsers.slice(
+    indexOfFirstUser,
+    indexOfLastUser
+  );
+
+const totalPages = Math.ceil(
+  filteredUsers.length / usersPerPage
+);
 return (
   
     <div className="users-page">
@@ -532,8 +549,7 @@ return (
 
       {filteredUsers.length > 0 ? (
 
-        filteredUsers.map((user) => (
-
+       currentUsers.map((user) => (
           <tr key={user.id}>
 
             <td>
@@ -610,7 +626,6 @@ return (
             </td>
 
       <td>
-
   <div className="action-buttons">
 
     {canEdit && (
@@ -644,9 +659,7 @@ return (
     )}
 
   </div>
-
 </td>
-
           </tr>
 
         ))
@@ -687,6 +700,25 @@ return (
     <strong>
 
       {" "}
+      {indexOfFirstUser + 1}
+
+    </strong>
+
+    {" - "}
+
+    <strong>
+
+      {Math.min(
+        indexOfLastUser,
+        filteredUsers.length
+      )}
+
+    </strong>
+
+    {" of "}
+
+    <strong>
+
       {filteredUsers.length}
 
     </strong>
@@ -697,26 +729,29 @@ return (
 
   <div className="pagination">
 
-    <button>
+  <button
+    disabled={currentPage === 1}
+    onClick={() =>
+      setCurrentPage(currentPage - 1)
+    }
+  >
+    Previous
+  </button>
 
-      Previous
+  <span>
+    Page {currentPage} of {totalPages}
+  </span>
 
-    </button>
+  <button
+    disabled={currentPage === totalPages}
+    onClick={() =>
+      setCurrentPage(currentPage + 1)
+    }
+  >
+    Next
+  </button>
 
-    <span>
-
-      Page 1
-
-    </span>
-
-    <button>
-
-      Next
-
-    </button>
-
-  </div>
-
+</div>
 </div>
 
 {/* ============================
@@ -810,14 +845,12 @@ return (
       >
         Cancel
       </button>
-
-      <button
-        className="remove-btn"
-        onClick={deleteAllUsers}
-      >
-        Delete
-      </button>
-
+<button
+  className="modal-delete-btn"
+  onClick={deleteAllUsers}
+>
+  Delete
+</button>
     </div>
 
   </div>

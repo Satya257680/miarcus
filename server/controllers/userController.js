@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 
 const User = require("../models/userModel");
 const transporter = require("../config/mailer");
+const { sendInvitationEmail } = require("../services/emailServices");
 // ==========================================================
 // Get All Users
 // ==========================================================
@@ -410,161 +411,164 @@ const updateUser = (req, res) => {
 
             }
 
-            // ======================================
-            // Send Activation / Deactivation Email
-            // ======================================
+           // ======================================
+// Send Activation / Deactivation Email
+// ======================================
 
-            const user = req.body;
+const user = req.body;
 
-            let subject = "";
+let subject = "";
 
-            let html = "";
+let html = "";
 
-            if (user.active) {
+if (user.active) {
 
-                subject = "Miarcus ERP - Account Activated";
+    subject = "miarcus - Account Activated";
 
-                html = `
-                    <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
+    html = `
+        <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
 
-                        <h2 style="color:#6C63FF;">
-                            Miarcus ERP
-                        </h2>
+            <h2 style="color:#6C63FF;">
+                miarcus
+            </h2>
 
-                        <p>Dear <b>${user.fullName}</b>,</p>
+            <p>Dear <b>${user.fullName}</b>,</p>
 
-                        <p>
-                            We are pleased to inform you that your
-                            <b>Miarcus ERP account has been activated.</b>
-                        </p>
+            <p>
+                We are pleased to inform you that your
+                <b>miarcus account has been activated.</b>
+            </p>
 
-                        <p>
-                            Click the button below to log in to the Miarcus ERP application.
-                        </p>
+            <p>
+                Your account is now active and ready to use.
+            </p>
 
-                        <p style="margin:30px 0;">
+            <p>
+                Click the button below to log in.
+            </p>
 
-                            <a
-                                href="http://localhost:5173/"
-                                style="
-                                    background:#6C63FF;
-                                    color:#ffffff;
-                                    padding:14px 28px;
-                                    text-decoration:none;
-                                    border-radius:6px;
-                                    font-size:16px;
-                                    font-weight:bold;
-                                    display:inline-block;
-                                "
-                            >
-                                Login to Miarcus ERP
-                            </a>
+            <p style="margin:30px 0;">
 
-                        </p>
+                <a
+                    href="http://localhost:5173/"
+                    style="
+                        background:#6C63FF;
+                        color:#ffffff;
+                        padding:14px 28px;
+                        text-decoration:none;
+                        border-radius:6px;
+                        font-size:16px;
+                        font-weight:bold;
+                        display:inline-block;
+                    "
+                >
+                    Login to miarcus
+                </a>
 
-                        <p>
-                            If the button doesn't work, copy and paste this link into your browser:
-                        </p>
+            </p>
 
-                        <p>
-                            <a href="http://localhost:5173/">
-                                http://localhost:5173/
-                            </a>
-                        </p>
+            <p>
+                If the button doesn't work, copy and paste this link into your browser:
+            </p>
 
-                        <hr style="margin:30px 0;">
+            <p>
+                <a href="http://localhost:5173/">
+                    http://localhost:5173/
+                </a>
+            </p>
 
-                        <p>
-                            Thank you for using the Miarcus ERP application.
-                        </p>
+            <hr style="margin:30px 0;">
 
-                        <p>
-                            Regards,<br>
-                            <b>Miarcus Team</b>
-                        </p>
+            <p>
+                Thank you for using <b>miarcus</b>.
+            </p>
 
-                    </div>
-                `;
+            <p>
+                Regards,<br>
+                <b>miarcus Team</b>
+            </p>
 
-            } else {
+        </div>
+    `;
 
-                subject = "Miarcus ERP - Account Deactivated";
+} else {
 
-                html = `
-                    <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
+    subject = "miarcus - Account Deactivated";
 
-                        <h2 style="color:#6C63FF;">
-                            Miarcus ERP
-                        </h2>
+    html = `
+        <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
 
-                        <p>Dear <b>${user.fullName}</b>,</p>
+            <h2 style="color:#6C63FF;">
+                miarcus
+            </h2>
 
-                        <p>
-                            Your <b>Miarcus ERP account has been deactivated.</b>
-                        </p>
+            <p>Dear <b>${user.fullName}</b>,</p>
 
-                        <p>
-                            You can no longer access the application.
-                        </p>
+            <p>
+                Your <b>miarcus account has been deactivated.</b>
+            </p>
 
-                        <p>
-                            If you believe this action was taken in error,
-                            please contact your administrator.
-                        </p>
+            <p>
+                You can no longer access your account.
+            </p>
 
-                        <hr style="margin:30px 0;">
+            <p>
+                If you believe this action was taken in error, please contact your administrator.
+            </p>
 
-                        <p>
-                            Thank you for using the Miarcus ERP application.
-                        </p>
+            <hr style="margin:30px 0;">
 
-                        <p>
-                            Regards,<br>
-                            <b>Miarcus Team</b>
-                        </p>
+            <p>
+                Thank you for using <b>miarcus</b>.
+            </p>
 
-                    </div>
-                `;
+            <p>
+                Regards,<br>
+                <b>miarcus Team</b>
+            </p>
 
-            }
+        </div>
+    `;
 
-            transporter.sendMail(
+}
 
-                {
+transporter.sendMail(
 
-                    from: process.env.EMAIL_USER,
+    {
 
-                    to: user.email,
+        from: process.env.EMAIL_USER,
 
-                    subject,
+        to: user.email,
 
-                    html
+        subject,
 
-                },
+        html
 
-                (mailErr) => {
+    },
 
-                    if (mailErr) {
+    (mailErr) => {
 
-                        console.log(mailErr);
+        if (mailErr) {
 
-                    }
-
-                }
-
-            );
-
-            res.json({
-
-                success: true,
-
-                message: "User Updated Successfully"
-
-            });
+            console.log(mailErr);
 
         }
 
-    );
+    }
+
+);
+
+res.json({
+
+    success: true,
+
+    message: "User Updated Successfully"
+
+});
+
+}
+
+);
 
 };
 

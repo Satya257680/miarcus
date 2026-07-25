@@ -8,11 +8,13 @@ const getAllUsers = (callback) => {
 
     const sql = `
         SELECT
-            u.id,
-            u.employee_id,
-            u.name,
-            u.email,
-            u.password,
+           u.id,
+u.employee_id,
+u.name,
+u.email,
+u.call_contact,
+u.whatsapp_contact,
+u.password,
             u.profile_photo,
             u.reports_to,
             u.status,
@@ -24,10 +26,11 @@ const getAllUsers = (callback) => {
             u.designation_id,
             dg.designation_name AS designation,
 
+            u.is_admin,
             u.is_activated,
             u.activated_at,
 
-            GROUP_CONCAT(us.store_id) AS store_ids
+            GROUP_CONCAT(DISTINCT us.store_id) AS store_ids
 
         FROM users u
 
@@ -45,27 +48,62 @@ const getAllUsers = (callback) => {
         ORDER BY u.id DESC
     `;
 
-    db.query(sql, (err, rows) => {
+    db.query(sql, (err, users) => {
 
         if (err) {
-
             return callback(err);
-
         }
 
-        rows.forEach((user) => {
+        // Restore stores
+        users.forEach((user) => {
 
             user.stores = user.store_ids
-                ? user.store_ids
-                      .split(",")
-                      .map(Number)
+                ? user.store_ids.split(",").map(Number)
                 : [];
 
             delete user.store_ids;
 
+            user.permissions = {};
+
         });
 
-        callback(null, rows);
+        // Load permissions
+        db.query(
+
+            `
+            SELECT
+                user_id,
+                module_name,
+                permission
+            FROM user_permissions
+            `,
+
+            (permissionErr, permissions) => {
+
+                if (permissionErr) {
+                    return callback(permissionErr);
+                }
+
+                permissions.forEach((row) => {
+
+                    const user = users.find(
+                        (u) => u.id === row.user_id
+                    );
+
+                    if (user) {
+
+                        user.permissions[row.module_name] =
+                            row.permission;
+
+                    }
+
+                });
+
+                callback(null, users);
+
+            }
+
+        );
 
     });
 
@@ -115,31 +153,33 @@ const addUser = (user, callback) => {
         INSERT INTO users
         (
             employee_id,
-            name,
-            email,
-            password,
-            department_id,
-            designation_id,
-            reports_to,
-            status,
-            is_activated
+name,
+email,
+call_contact,
+whatsapp_contact,
+password,
+department_id,
+designation_id,
+reports_to,
+status,
+is_activated
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.query(
 
         sql,
 
-        [
+        
 
-            user.employeeId,
-
-            user.fullName,
-
-            user.email,
-
-            null,
+           [
+    user.employeeId,
+    user.fullName,
+    user.email,
+    user.callContact,
+    user.whatsappContact,
+    null,
 
             user.department_id,
 
@@ -470,35 +510,31 @@ const bulkInsertUsers = (users, callback) => {
     const sql = `
         INSERT INTO users
         (
-            employee_id,
-            name,
-            email,
-            password,
-            department,
-            designation,
-            reports_to,
-            status
+           employee_id,
+name,
+email,
+call_contact,
+whatsapp_contact,
+password,
+department,
+designation,
+reports_to,
+status
         )
         VALUES ?
     `;
 
     const values = users.map((user) => [
-
-        user["Employee ID"] || "",
-
-        user["Name"] || "",
-
-        user["Email"] || "",
-
-        null,
-
-        user["Department"] || "",
-
-        user["Designation"] || "",
-
-        user["Reports To"] || "",
-
-        user["Status"] || "Active",
+    user["Employee ID"] || "",
+    user["Name"] || "",
+    user["Email"] || "",
+    user["Call Contact"] || "",
+    user["WhatsApp Contact"] || "",
+    null,
+    user["Department"] || "",
+    user["Designation"] || "",
+    user["Reports To"] || "",
+    user["Status"] || "Active",
 
     ]);
 
@@ -522,11 +558,13 @@ const updateUser = (
 
     const sql = `
         UPDATE users
-        SET
-            employee_id=?,
-            name=?,
-            email=?,
-            department_id=?,
+       SET
+    employee_id=?,
+    name=?,
+    email=?,
+    call_contact=?,
+    whatsapp_contact=?,
+    department_id=?,
             designation_id=?,
             reports_to=?,
             status=?
@@ -538,15 +576,12 @@ const updateUser = (
         sql,
 
         [
-
-            user.employeeId,
-
-            user.fullName,
-
-            user.email,
-
-            user.department_id,
-
+user.employeeId,
+user.fullName,
+user.email,
+user.callContact,
+user.whatsappContact,
+user.department_id,
             user.designation_id,
 
             user.reportsTo
@@ -816,12 +851,14 @@ const deleteAllUsers = (callback) => {
 const getUserById = (id, callback) => {
 
     const sql = `
-        SELECT
-            id,
-            name,
-            email,
-            is_activated
-        FROM users
+       SELECT
+    id,
+    name,
+    email,
+    call_contact,
+    whatsapp_contact,
+    is_activated
+FROM users
         WHERE id=?
         LIMIT 1
     `;
