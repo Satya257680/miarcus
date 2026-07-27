@@ -1,9 +1,12 @@
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const otpGenerator = require("otp-generator");
-const transporter = require("../config/mailer");
-const jwt = require("jsonwebtoken");
 
+const jwt = require("jsonwebtoken");
+const {
+    sendForgotPasswordOTPEmail,
+    sendResetPasswordEmail
+} = require("../services/emailService");
 
 // ======================================================
 // GENERATE OTP
@@ -248,52 +251,55 @@ db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
 
 const forgotPassword = (req, res) => {
 
-    console.log("BODY:", req.body);
-
     const { email } = req.body;
 
-    console.log("EMAIL:", email);
-
     const checkUserSql = `
-        SELECT id
+        SELECT id, name, email
         FROM users
         WHERE email=?
     `;
 
     db.query(checkUserSql, [email], (err, result) => {
 
-        console.log("DB RESULT:", result);
-
         if (err) {
+
             console.log(err);
 
             return res.status(500).json({
+
                 success: false,
+
                 message: "Database Error"
+
             });
+
         }
 
         if (result.length === 0) {
 
-            console.log("USER NOT FOUND");
-
             return res.status(404).json({
+
                 success: false,
+
                 message: "Email Not Found"
+
             });
 
         }
 
-        console.log("USER FOUND");
+        const user = result[0];
 
-        // keep the remaining code exactly the same...
         const otp = generateOTP();
 
         const expiresAt = new Date(
+
             Date.now() + 10 * 60 * 1000
+
         );
 
-        // Remove old OTPs
+        // ======================================
+        // Remove Previous OTP
+        // ======================================
 
         db.query(
 
@@ -308,6 +314,7 @@ const forgotPassword = (req, res) => {
                     return res.status(500).json({
 
                         success: false,
+
                         message: "Database Error"
 
                     });
@@ -325,9 +332,13 @@ const forgotPassword = (req, res) => {
                     insertSql,
 
                     [
+
                         email,
+
                         otp,
+
                         expiresAt
+
                     ],
 
                     (insertErr) => {
@@ -337,68 +348,44 @@ const forgotPassword = (req, res) => {
                             return res.status(500).json({
 
                                 success: false,
+
                                 message: "Failed to Save OTP"
 
                             });
 
                         }
 
-                        transporter.sendMail(
+                        // ======================================
+                        // Send OTP Email
+                        // ======================================
 
-                            {
+                        sendForgotPasswordOTPEmail(user, otp)
 
-                                from: process.env.EMAIL_USER,
-
-                                to: email,
-
-                                subject: "Miarcus ERP Password Reset OTP",
-
-                                html: `
-                                    <h2>Password Reset OTP</h2>
-
-                                    <p>Hello,</p>
-
-                                    <p>Your OTP is:</p>
-
-                                    <h1>${otp}</h1>
-
-                                    <p>
-                                        This OTP is valid for
-                                        <b>10 minutes</b>.
-                                    </p>
-
-                                    <p>
-                                        Do not share this OTP.
-                                    </p>
-                                `
-
-                            },
-
-                            (mailErr) => {
-
-                                if (mailErr) {
-
-                                    console.error(mailErr);
-
-                                    return res.status(500).json({
-
-                                        success: false,
-                                        message: "Failed to Send OTP"
-
-                                    });
-
-                                }
+                            .then(() => {
 
                                 return res.status(200).json({
 
                                     success: true,
+
                                     message: "OTP Sent Successfully"
 
                                 });
 
-                            }
+                            })
 
-                        );
+                            .catch((mailErr) => {
+
+                                console.error(mailErr);
+
+                                return res.status(500).json({
+
+                                    success: false,
+
+                                    message: "Failed to Send OTP"
+
+                                });
+
+                            });
 
                     }
 
@@ -411,8 +398,6 @@ const forgotPassword = (req, res) => {
     });
 
 };
-
-
 
 // ======================================================
 // VERIFY OTP
@@ -630,7 +615,9 @@ const resetPassword = async (req, res) => {
 
                         }
 
-                        // Delete OTP after successful reset
+                        // ======================================
+                        // Delete OTP
+                        // ======================================
 
                         db.query(
 
@@ -644,9 +631,28 @@ const resetPassword = async (req, res) => {
 
                         );
 
+                        // ======================================
+                        // Send Password Reset Confirmation Email
+                        // ======================================
+
+                        const user = {
+
+                            email
+
+                        };
+
+                        sendResetPasswordEmail(user)
+
+                            .catch((mailErr) => {
+
+                                console.error(mailErr);
+
+                            });
+
                         return res.status(200).json({
 
                             success: true,
+
                             message: "Password Updated Successfully"
 
                         });
@@ -664,6 +670,7 @@ const resetPassword = async (req, res) => {
                 return res.status(500).json({
 
                     success: false,
+
                     message: "Password Hashing Failed"
 
                 });
@@ -675,6 +682,7 @@ const resetPassword = async (req, res) => {
     );
 
 };
+
 module.exports = {
 
     loginUser,

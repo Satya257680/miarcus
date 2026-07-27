@@ -4,8 +4,15 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
 const User = require("../models/userModel");
-const transporter = require("../config/mailer");
-const { sendInvitationEmail } = require("../services/emailService");
+
+const {
+    sendInvitationEmail,
+    sendAccountUpdatedEmail,
+    sendAccountActivatedEmail,
+    sendAccountDisabledEmail,
+    sendAccountEnabledEmail,
+    sendAccountDeletedEmail
+} = require("../services/emailService");
 // ==========================================================
 // Get All Users
 // ==========================================================
@@ -172,6 +179,9 @@ const createUser = (req, res) => {
 
                                  const activationLink =
     `${process.env.FRONTEND_URL}/activate-account/${token}`;
+    console.log("User Object:", user);
+console.log("user.name:", user.name);
+console.log("user.fullName:", user.fullName);
 // -------------------------
 // Send Invitation Email
 // -------------------------
@@ -363,167 +373,32 @@ const updateUser = (req, res) => {
 
             }
 
-           // ======================================
-// Send Activation / Deactivation Email
-// ======================================
+            // ======================================
+            // Send Account Updated Email
+            // ======================================
 
-const user = req.body;
+            const user = req.body;
 
-let subject = "";
+            sendAccountUpdatedEmail(user)
+                .catch((mailErr) => {
 
-let html = "";
+                    console.log(mailErr);
 
-if (user.active) {
+                });
 
-    subject = "miarcus - Account Activated";
+            return res.json({
 
-    html = `
-        <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
+                success: true,
 
-            <h2 style="color:#6C63FF;">
-                miarcus
-            </h2>
+                message: "User Updated Successfully"
 
-            <p>Dear <b>${user.fullName}</b>,</p>
-
-            <p>
-                We are pleased to inform you that your
-                <b>miarcus account has been activated.</b>
-            </p>
-
-            <p>
-                Your account is now active and ready to use.
-            </p>
-
-            <p>
-                Click the button below to log in.
-            </p>
-
-            <p style="margin:30px 0;">
-
-                <a
-                    href="http://localhost:5173/"
-                    style="
-                        background:#6C63FF;
-                        color:#ffffff;
-                        padding:14px 28px;
-                        text-decoration:none;
-                        border-radius:6px;
-                        font-size:16px;
-                        font-weight:bold;
-                        display:inline-block;
-                    "
-                >
-                    Login to miarcus
-                </a>
-
-            </p>
-
-            <p>
-                If the button doesn't work, copy and paste this link into your browser:
-            </p>
-
-            <p>
-                <a href="http://localhost:5173/">
-                    http://localhost:5173/
-                </a>
-            </p>
-
-            <hr style="margin:30px 0;">
-
-            <p>
-                Thank you for using <b>miarcus</b>.
-            </p>
-
-            <p>
-                Regards,<br>
-                <b>miarcus Team</b>
-            </p>
-
-        </div>
-    `;
-
-} else {
-
-    subject = "miarcus - Account Deactivated";
-
-    html = `
-        <div style="font-family:Arial,sans-serif;padding:30px;line-height:1.8;color:#333;">
-
-            <h2 style="color:#6C63FF;">
-                miarcus
-            </h2>
-
-            <p>Dear <b>${user.fullName}</b>,</p>
-
-            <p>
-                Your <b>miarcus account has been deactivated.</b>
-            </p>
-
-            <p>
-                You can no longer access your account.
-            </p>
-
-            <p>
-                If you believe this action was taken in error, please contact your administrator.
-            </p>
-
-            <hr style="margin:30px 0;">
-
-            <p>
-                Thank you for using <b>miarcus</b>.
-            </p>
-
-            <p>
-                Regards,<br>
-                <b>miarcus Team</b>
-            </p>
-
-        </div>
-    `;
-
-}
-
-transporter.sendMail(
-
-    {
-
-        from: process.env.EMAIL_USER,
-
-        to: user.email,
-
-        subject,
-
-        html
-
-    },
-
-    (mailErr) => {
-
-        if (mailErr) {
-
-            console.log(mailErr);
+            });
 
         }
 
-    }
-
-);
-
-res.json({
-
-    success: true,
-
-    message: "User Updated Successfully"
-
-});
-
-}
-
-);
+    );
 
 };
-
 // ==========================
 // Disable User
 // ==========================
@@ -550,53 +425,122 @@ const disableUser = (req, res) => {
 
             }
 
-            res.json({
+            // ======================================
+            // Get User Details
+            // ======================================
 
-                success: true,
+            User.getUserById(
 
-                message: "User Disabled Successfully"
+                req.params.id,
 
-            });
+                (userErr, users) => {
+
+                    if (!userErr && users.length > 0) {
+
+                        sendAccountDisabledEmail(users[0])
+                            .catch(console.error);
+
+                    }
+
+                    return res.json({
+
+                        success: true,
+
+                        message: "User Disabled Successfully"
+
+                    });
+
+                }
+
+            );
 
         }
 
     );
 
 };
-
 // ==========================
 // Delete User
 // ==========================
 
 const deleteUser = (req, res) => {
 
-    User.deleteUser(
+    User.getUserById(
 
         req.params.id,
 
-        (err) => {
+        (userErr, users) => {
 
-            if (err) {
+            if (userErr) {
 
-                console.log(err);
+                console.log(userErr);
 
                 return res.status(500).json({
 
                     success: false,
 
-                    message: "Unable to Delete User"
+                    message: "Database Error"
 
                 });
 
             }
 
-            res.json({
+            if (users.length === 0) {
 
-                success: true,
+                return res.status(404).json({
 
-                message: "User Deleted Successfully"
+                    success: false,
 
-            });
+                    message: "User Not Found"
+
+                });
+
+            }
+
+            const user = users[0];
+
+            User.deleteUser(
+
+                req.params.id,
+
+                (err) => {
+
+                    if (err) {
+
+                        console.log(err);
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message: "Unable to Delete User"
+
+                        });
+
+                    }
+
+                    // ======================================
+                    // Send Account Deleted Email
+                    // ======================================
+
+                    sendAccountDeletedEmail(user)
+                        .catch((mailErr) => {
+
+                            console.log(mailErr);
+
+                        });
+
+                    return res.json({
+
+                        success: true,
+
+                        message: "User Deleted Successfully"
+
+                    });
+
+                }
+
+            );
 
         }
 
@@ -800,30 +744,50 @@ const activateUserAccount = async (req, res) => {
 
                         }
 
-                        User.markTokenUsed(
+                       // ======================================
+// Send Account Activated Email
+// ======================================
 
-                            token,
+User.getUserById(
 
-                            (tokenErr) => {
+    activation.user_id,
 
-                                if (tokenErr) {
+    (userErr, users) => {
 
-                                    console.log(tokenErr);
+        if (!userErr && users.length > 0) {
 
-                                }
+            sendAccountActivatedEmail(users[0])
+                .catch(console.error);
 
-                                return res.json({
+        }
 
-                                    success: true,
+        User.markTokenUsed(
 
-                                    message: "Account Activated Successfully"
+            token,
 
-                                });
+            (tokenErr) => {
 
-                            }
+                if (tokenErr) {
 
-                        );
+                    console.log(tokenErr);
 
+                }
+
+                return res.json({
+
+                    success: true,
+
+                    message: "Account Activated Successfully"
+
+                });
+
+            }
+
+        );
+
+    }
+
+);
                     }
 
                 );
@@ -937,6 +901,7 @@ const resendInvitation = (req, res) => {
 
                    const activationLink =
     `${process.env.FRONTEND_URL}/activate-account/${token}`;
+    
 // -------------------------
 // Send Invitation Email
 // -------------------------
