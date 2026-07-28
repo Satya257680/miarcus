@@ -1,147 +1,337 @@
+/* ======================================================
+   QUESTIONS PAGE
+====================================================== */
+
 .questions-page {
-  padding: 20px;
+  padding: 24px;
   background: #edf3f5;
-  min-height: calc(100vh - 70px);
+  min-height: calc(100vh - 72px);
 }
+
+/* ======================================================
+   HEADER
+====================================================== */
 
 .page-header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:20px;
+  margin-bottom:22px;
 }
 
 .page-header h2{
-  color:#2f4f5f;
-  font-size:24px;
+  margin:0;
+  color:#234454;
+  font-size:30px;
+  font-weight:700;
 }
+
+/* ======================================================
+   TOOLBAR
+====================================================== */
 
 .toolbar{
   display:flex;
+  align-items:center;
   gap:12px;
   flex-wrap:wrap;
-  align-items:center;
   margin-bottom:20px;
 }
 
 .search-box{
+  flex:1;
+  min-width:300px;
   display:flex;
   align-items:center;
   background:#fff;
-  border:1px solid #d9d9d9;
+  border:1px solid #d8d8d8;
   border-radius:8px;
-  padding:0 12px;
-  min-width:280px;
+  padding:0 14px;
 }
 
 .search-box input{
+  flex:1;
   border:none;
   outline:none;
-  width:100%;
-  padding:10px;
+  padding:11px;
+  font-size:14px;
+  background:transparent;
 }
 
 .toolbar select{
   height:42px;
+  min-width:150px;
   padding:0 12px;
-  border:1px solid #ccc;
+  border:1px solid #d8d8d8;
   border-radius:8px;
   background:#fff;
+  font-size:14px;
 }
+
+/* ======================================================
+   TOP BUTTONS
+====================================================== */
 
 .add-btn,
 .export-btn,
 .delete-btn{
+  height:42px;
   border:none;
-  color:#fff;
-  padding:10px 18px;
   border-radius:8px;
-  cursor:pointer;
+  padding:0 18px;
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:8px;
+  color:#fff;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:600;
+  transition:.25s;
 }
 
 .add-btn{
   background:#2e8b57;
 }
 
+.add-btn:hover{
+  background:#237246;
+}
+
 .export-btn{
   background:#1976d2;
+}
+
+.export-btn:hover{
+  background:#125fb0;
 }
 
 .delete-btn{
   background:#d32f2f;
 }
 
-.table-container{
-  background:#fff;
-  border-radius:10px;
-  overflow:auto;
-  box-shadow:0 2px 10px rgba(0,0,0,.08);
+.delete-btn:hover{
+  background:#b71c1c;
 }
 
+/* ======================================================
+   TABLE CONTAINER
+====================================================== */
+
+.table-container{
+    width:100%;
+    overflow-x:auto;
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+/* ======================================================
+   TABLE
+====================================================== */
+
 .questions-table{
-  width:100%;
-  border-collapse:collapse;
+    width:100%;
+    min-width:1450px;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+/* ======================================================
+   HEADER
+====================================================== */
+
+.questions-table thead{
+    background:#4b7584;
 }
 
 .questions-table th{
-  background:#b7d7df;
-  color:#234;
-  padding:14px;
-  text-align:left;
+    height:56px;
+    padding:0 16px;
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+    vertical-align:middle;
+    white-space:nowrap;
 }
+
+/* ======================================================
+   BODY
+====================================================== */
 
 .questions-table td{
-  padding:14px;
-  border-bottom:1px solid #eee;
+    padding:18px 16px;
+    font-size:14px;
+    color:#333;
+    text-align:center;
+    vertical-align:middle;
+    border-bottom:1px solid #ececec;
 }
 
-.questions-table tr:hover{
-  background:#f7fbfc;
+.questions-table tbody tr:hover{
+    background:#f7fbfc;
+}
+
+/* ======================================================
+   COLUMN WIDTHS
+====================================================== */
+
+/* Checklist Type */
+
+.questions-table th:nth-child(1),
+.questions-table td:nth-child(1){
+    width:170px;
+    text-align:left;
+}
+
+/* Question */
+
+.questions-table th:nth-child(2),
+.questions-table td:nth-child(2){
+    width:320px;
+    text-align:left;
+}
+
+/* Seq */
+
+.questions-table th:nth-child(3),
+.questions-table td:nth-child(3){
+    width:60px;
+}
+
+/* Answer Type */
+
+.questions-table th:nth-child(4),
+.questions-table td:nth-child(4){
+    width:120px;
+}
+
+/* SLA */
+
+.questions-table th:nth-child(5),
+.questions-table td:nth-child(5){
+    width:90px;
+}
+
+/* Departments */
+
+.questions-table th:nth-child(6),
+.questions-table td:nth-child(6){
+    width:170px;
+}
+
+/* Answer Required */
+
+.questions-table th:nth-child(7),
+.questions-table td:nth-child(7){
+    width:150px;
+}
+
+/* Status */
+
+.questions-table th:nth-child(8),
+.questions-table td:nth-child(8){
+    width:110px;
+}
+
+/* Actions */
+
+.questions-table th:nth-child(9),
+.questions-table td:nth-child(9){
+    width:150px;
+}
+
+/* ======================================================
+   ACTION BUTTONS
+====================================================== */
+
+.action-buttons{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
 }
 
 .edit-btn,
 .delete-btn-table{
-  width:36px;
-  height:36px;
+  width:40px;
+  height:40px;
   border:none;
-  border-radius:6px;
+  border-radius:8px;
   cursor:pointer;
   color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:.25s;
 }
 
 .edit-btn{
   background:#f39c12;
-  margin-right:8px;
+}
+
+.edit-btn:hover{
+  background:#e67e22;
 }
 
 .delete-btn-table{
   background:#d32f2f;
 }
-/* ==========================
-   STATUS BADGE
-========================== */
+
+.delete-btn-table:hover{
+  background:#b71c1c;
+}
+
+/* ======================================================
+   STATUS
+====================================================== */
 
 .status{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-width:70px;
-  height:30px;
-  padding:0 14px;
-  border-radius:20px;
+  min-width:80px;
+  height:32px;
+  padding:0 15px;
+  border-radius:30px;
   font-size:13px;
   font-weight:600;
 }
 
 .status.active{
-  background:#d8f5df;
-  color:#18783b;
+  background:#dff7e4;
+  color:#1b7d3a;
 }
 
 .status.inactive{
   background:#ffe3e3;
   color:#d32f2f;
+}
+
+/* ======================================================
+   RESPONSIVE
+====================================================== */
+
+@media (max-width:992px){
+
+  .toolbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .search-box{
+    width:100%;
+  }
+
+  .toolbar select{
+    width:100%;
+  }
+
+  .add-btn,
+  .export-btn,
+  .delete-btn{
+    width:100%;
+  }
+
 }

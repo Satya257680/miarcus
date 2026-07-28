@@ -37,18 +37,18 @@ const loginUser = (req, res) => {
 
    const sql = `
     SELECT
-    id,
-    employee_id,
-    name,
-    email,
-    password,
-    profile_photo,
-    department_id,
-    designation_id,
-    
-    status,
-    is_activated
-FROM users
+        id,
+        employee_id,
+        name,
+        email,
+        password,
+        profile_photo,
+        department_id,
+        designation_id,
+        is_admin,
+        status,
+        is_activated
+    FROM users
     WHERE email=?
     LIMIT 1
 `;
@@ -210,38 +210,37 @@ db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
 
     );
 
-    return res.status(200).json({
+   return res.status(200).json({
 
-        success: true,
+    success: true,
 
-        message: "Login Successful",
+    message: "Login Successful",
 
-        token,
+    token,
 
-       user: {
+    user: {
 
-    id: user.id,
+        id: user.id,
 
-    employee_id: user.employee_id || "",
+        employee_id: user.employee_id || "",
 
-    name: user.name,
+        name: user.name,
 
-    email: user.email,
+        email: user.email,
 
-    profile_photo: user.profile_photo || "",
+        profile_photo: user.profile_photo || "",
 
-    department_id: user.department_id || null,
+        department_id: user.department_id || null,
 
-    designation_id: user.designation_id || null,
+        designation_id: user.designation_id || null,
 
-    
+        administrator: user.is_admin === 1
 
-},
+    },
 
-        permissions
+    permissions
 
-    });
-
+});
 });
 
 });

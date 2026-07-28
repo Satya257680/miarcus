@@ -513,31 +513,29 @@ setTimeout(() => {
 
                 </td>
 
-                <td>
+              <td>
+  <div className="action-buttons">
 
-                  {canEdit && (
+    {canEdit && (
+      <button
+        className="edit-btn"
+        onClick={() => handleEdit(question)}
+      >
+        <FaEdit />
+      </button>
+    )}
 
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEdit(row)}
-                    >
-                      <FaEdit />
-                    </button>
+    {canDelete && (
+      <button
+        className="delete-btn"
+        onClick={() => handleDelete(question.id)}
+      >
+        <FaTrash />
+      </button>
+    )}
 
-                  )}
-
-                  {canDelete && (
-
-                    <button
-                      className="delete-btn-table"
-                      onClick={() => handleDelete(row.id)}
-                    >
-                      <FaTrash />
-                    </button>
-
-                  )}
-
-                </td>
+  </div>
+</td>
 
               </tr>
 

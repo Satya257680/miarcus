@@ -501,7 +501,15 @@ loadRoute(
 
 
 
+loadRoute(
 
+"./routes/nsoRuleRoutes",
+
+"/api/nso-rules",
+
+"NSO Rule Routes"
+
+);
 
 
 

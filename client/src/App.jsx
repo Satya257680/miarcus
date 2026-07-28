@@ -25,6 +25,7 @@ import StoreManagement from "./pages/StoreManagement";
 import ChecklistTypes from "./pages/ChecklistTypes";
 import Questions from "./pages/Questions";
 import ReportsTo from "./pages/ReportsTo";
+import NSORules from "./pages/NSORules";
 import Profile from "./pages/Profile";
 
 function App() {
@@ -58,8 +59,6 @@ function App() {
           path="/reset-password"
           element={<ResetPassword />}
         />
-
-        {/* NEW : Activate Account */}
 
         <Route
           path="/activate-account/:token"
@@ -137,6 +136,15 @@ function App() {
           <Route
             path="/reports-to"
             element={<ReportsTo />}
+          />
+
+          {/* ==========================
+              NSO Rules
+          ========================== */}
+
+          <Route
+            path="/nso-rules"
+            element={<NSORules />}
           />
 
           {/* Profile */}

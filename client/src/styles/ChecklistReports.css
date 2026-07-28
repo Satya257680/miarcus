@@ -413,86 +413,87 @@
     text-align:center;
 }
 
-/* ===============================
-   ACTION BUTTONS
-================================ */
+/* ==========================================
+   ACTION COLUMN
+========================================== */
+
+.action-column{
+    text-align:center;
+    vertical-align:middle;
+    width:190px;
+}
 
 .action-buttons{
     display:flex;
-    align-items:center;
     justify-content:center;
-    gap:10px;
+    align-items:center;
+    gap:8px;
+    flex-wrap:nowrap;
 }
 
-/* ===============================
+/* ==========================================
    COMMON BUTTON
-================================ */
+========================================== */
 
 .view-btn,
 .edit-btn,
 .delete-btn{
     border:none;
-    outline:none;
+    border-radius:6px;
     cursor:pointer;
-    transition:.25s ease;
     display:flex;
-    align-items:center;
     justify-content:center;
+    align-items:center;
+    gap:6px;
+    font-size:13px;
     font-weight:600;
-    font-size:14px;
+    color:#fff;
+    height:36px;
+    transition:.25s;
 }
 
-/* ===============================
+/* ==========================================
    VIEW
-================================ */
+========================================== */
 
 .view-btn{
-    width:42px;
-    height:42px;
-    border-radius:8px;
+    width:38px;
     background:#2196f3;
-    color:#fff;
 }
 
 .view-btn:hover{
     background:#1976d2;
-    transform:translateY(-2px);
 }
 
-/* ===============================
+/* ==========================================
    EDIT
-================================ */
+========================================== */
 
 .edit-btn{
-    height:42px;
-    padding:0 18px;
-    border-radius:8px;
     background:#f39c12;
-    color:#fff;
-    gap:8px;
-    min-width:100px;
+    padding:0 12px;
+    min-width:74px;
 }
 
 .edit-btn:hover{
     background:#e67e22;
-    transform:translateY(-2px);
 }
 
-/* ===============================
+/* ==========================================
    DELETE
-================================ */
+========================================== */
 
 .delete-btn{
-    width:42px;
-    height:42px;
-    border-radius:8px;
-    background:#d32f2f;
-    color:#fff;
+    width:38px;
+    background:#e53935;
 }
 
 .delete-btn:hover{
-    background:#b71c1c;
-    transform:translateY(-2px);
+    background:#c62828;
+}
+
+.edit-btn span{
+    line-height:1;
 }
 /* =====================================================
    EMPTY RECORDS

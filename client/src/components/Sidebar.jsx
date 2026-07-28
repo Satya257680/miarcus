@@ -16,11 +16,13 @@ import {
   FaQuestionCircle,
   FaUserCircle,
   FaSitemap,
+  FaBell,
 } from "react-icons/fa";
 
 import "./Sidebar.css";
 
 function Sidebar({ collapsed }) {
+
   const location = useLocation();
 
   // ==========================================
@@ -29,28 +31,42 @@ function Sidebar({ collapsed }) {
 
   const [settingsOpen, setSettingsOpen] = useState(true);
 
-  // Automatically keep Settings open
-  // when user is inside any Settings page
   useEffect(() => {
+
     const settingsRoutes = [
+
       "/checklist-types",
+
       "/questions",
+
       "/departments",
+
       "/designations",
+
       "/stores",
+
       "/users",
+
       "/reports-to",
+
+      "/nso-rules",
+
     ];
 
     if (settingsRoutes.includes(location.pathname)) {
+
       setSettingsOpen(true);
+
     }
+
   }, [location.pathname]);
 
   return (
+
     <aside
       className={`sidebar ${collapsed ? "collapsed" : ""}`}
     >
+
       <nav>
 
         {/* ==========================================
@@ -68,7 +84,6 @@ function Sidebar({ collapsed }) {
           )}
         </NavLink>
 
-
         {/* ==========================================
             ACTION POINTS
         ========================================== */}
@@ -83,7 +98,6 @@ function Sidebar({ collapsed }) {
             <span>Action Points</span>
           )}
         </NavLink>
-
 
         {/* ==========================================
             CHECKLIST REPORTS
@@ -100,7 +114,6 @@ function Sidebar({ collapsed }) {
           )}
         </NavLink>
 
-
         {/* ==========================================
             CHECKLIST SUBMISSION
         ========================================== */}
@@ -115,7 +128,6 @@ function Sidebar({ collapsed }) {
             <span>Checklist Submit</span>
           )}
         </NavLink>
-
 
         {/* ==========================================
             SETTINGS
@@ -148,7 +160,6 @@ function Sidebar({ collapsed }) {
 
         </button>
 
-
         {/* ==========================================
             SETTINGS SUBMENU
         ========================================== */}
@@ -165,11 +176,9 @@ function Sidebar({ collapsed }) {
             >
               <FaListAlt />
 
-              <span>
-                Checklist Types
-              </span>
-            </NavLink>
+              <span>Checklist Types</span>
 
+            </NavLink>
 
             {/* Questions */}
 
@@ -179,11 +188,9 @@ function Sidebar({ collapsed }) {
             >
               <FaQuestionCircle />
 
-              <span>
-                Questions
-              </span>
-            </NavLink>
+              <span>Questions</span>
 
+            </NavLink>
 
             {/* Departments */}
 
@@ -193,11 +200,9 @@ function Sidebar({ collapsed }) {
             >
               <FaBuilding />
 
-              <span>
-                Departments
-              </span>
-            </NavLink>
+              <span>Departments</span>
 
+            </NavLink>
 
             {/* Designations */}
 
@@ -207,11 +212,9 @@ function Sidebar({ collapsed }) {
             >
               <FaUserTie />
 
-              <span>
-                Designations
-              </span>
-            </NavLink>
+              <span>Designations</span>
 
+            </NavLink>
 
             {/* Store Management */}
 
@@ -221,11 +224,9 @@ function Sidebar({ collapsed }) {
             >
               <FaBuilding />
 
-              <span>
-                Store Management
-              </span>
-            </NavLink>
+              <span>Store Management</span>
 
+            </NavLink>
 
             {/* Users */}
 
@@ -235,11 +236,9 @@ function Sidebar({ collapsed }) {
             >
               <FaUsers />
 
-              <span>
-                Users
-              </span>
-            </NavLink>
+              <span>Users</span>
 
+            </NavLink>
 
             {/* Reports To */}
 
@@ -249,15 +248,25 @@ function Sidebar({ collapsed }) {
             >
               <FaSitemap />
 
-              <span>
-                Reports To
-              </span>
+              <span>Reports To</span>
+
+            </NavLink>
+
+            {/* NSO Rules */}
+
+            <NavLink
+              to="/nso-rules"
+              className="submenu-item"
+            >
+              <FaBell />
+
+              <span>NSO Rules</span>
+
             </NavLink>
 
           </div>
 
         )}
-
 
         {/* ==========================================
             PROFILE
@@ -275,8 +284,11 @@ function Sidebar({ collapsed }) {
         </NavLink>
 
       </nav>
+
     </aside>
+
   );
+
 }
 
 export default Sidebar;

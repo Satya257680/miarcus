@@ -21,11 +21,11 @@ function AddUserModal({
  const [callContact, setCallContact] = useState("");
 const [whatsappContact, setWhatsappContact] = useState("");
 const [confirmWhatsappContact, setConfirmWhatsappContact] = useState("");
-  // =========================
-  // Module Access
-  // =========================
+ // =========================
+// Module Access
+// =========================
 
-  const modules = [
+const modules = [
   "Dashboard",
   "Action Points",
   "Checklist Reports",
@@ -37,18 +37,18 @@ const [confirmWhatsappContact, setConfirmWhatsappContact] = useState("");
   "Store Management",
   "Users",
   "Reports To",
+  "NSO Rules",
   "Profile",
   "Settings",
 ];
 
-  const permissionTypes = [
-    "None",
-    "View",
-    "Add",
-    "Edit",
-    "Full",
-  ];
-
+const permissionTypes = [
+  "None",
+  "View",
+  "Add",
+  "Edit",
+  "Full",
+];
  // =========================
 // Create / Update User
 // =========================

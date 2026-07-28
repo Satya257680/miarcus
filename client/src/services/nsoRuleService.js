@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/users";
+const API = "http://localhost:5000/api/nso-rules";
 
 // ==============================
 // Axios Config
@@ -13,10 +13,10 @@ const authConfig = () => ({
 });
 
 // ==============================
-// Get All Users
+// Get All NSO Rules
 // ==============================
 
-export const getUsers = async () => {
+export const getRules = async () => {
   const response = await axios.get(
     API,
     authConfig()
@@ -26,10 +26,10 @@ export const getUsers = async () => {
 };
 
 // ==============================
-// Get User By ID
+// Get NSO Rule By ID
 // ==============================
 
-export const getUserById = async (id) => {
+export const getRuleById = async (id) => {
   const response = await axios.get(
     `${API}/${id}`,
     authConfig()
@@ -39,10 +39,10 @@ export const getUserById = async (id) => {
 };
 
 // ==============================
-// Create User
+// Create NSO Rule
 // ==============================
 
-export const createUser = async (data) => {
+export const createRule = async (data) => {
   const response = await axios.post(
     API,
     data,
@@ -53,10 +53,10 @@ export const createUser = async (data) => {
 };
 
 // ==============================
-// Update User
+// Update NSO Rule
 // ==============================
 
-export const updateUser = async (id, data) => {
+export const updateRule = async (id, data) => {
   const response = await axios.put(
     `${API}/${id}`,
     data,
@@ -67,10 +67,10 @@ export const updateUser = async (id, data) => {
 };
 
 // ==============================
-// Delete User
+// Delete NSO Rule
 // ==============================
 
-export const deleteUser = async (id) => {
+export const deleteRule = async (id) => {
   const response = await axios.delete(
     `${API}/${id}`,
     authConfig()
@@ -80,13 +80,53 @@ export const deleteUser = async (id) => {
 };
 
 // ==============================
-// Delete All Users
+// Delete All NSO Rules
 // ==============================
 
-export const deleteAllUsers = async () => {
+export const deleteAllRules = async () => {
   const response = await axios.delete(
     `${API}/delete-all`,
     authConfig()
+  );
+
+  return response.data;
+};
+
+// ==============================
+// Export NSO Rules
+// ==============================
+
+export const exportRules = async () => {
+  const response = await axios.get(
+    `${API}/export`,
+    {
+      ...authConfig(),
+      responseType: "blob",
+    }
+  );
+
+  return response;
+};
+
+// ==============================
+// Import NSO Rules
+// ==============================
+
+export const importRules = async (file) => {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await axios.post(
+    `${API}/import`,
+    formData,
+    {
+      ...authConfig(),
+      headers: {
+        ...authConfig().headers,
+        "Content-Type": "multipart/form-data",
+      },
+    }
   );
 
   return response.data;

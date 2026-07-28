@@ -29,8 +29,13 @@ function Dashboard() {
   // User & Permissions
   // ======================================================
 
-  const user = JSON.parse(localStorage.getItem("user")) || {};
-  const permissions = JSON.parse(localStorage.getItem("permissions")) || {};
+  const user = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
+
+  const permissions = JSON.parse(
+    localStorage.getItem("permissions") || "{}"
+  );
 
   const isAdmin =
     user.administrator === true ||
@@ -146,28 +151,24 @@ function Dashboard() {
   ];
 
   // ======================================================
-  // Show Modules Based On Permission
+  // Visible Modules
   // ======================================================
 
   const visibleModules = isAdmin
     ? modules
-    : modules.filter((module) => {
-
-        return module.permission.some((key) => {
-
+    : modules.filter((module) =>
+        module.permission.some((key) => {
           const permission = permissions[key];
 
           return (
             permission &&
             permission !== "None"
           );
-
-        });
-
-      });
+        })
+      );
 
   // ======================================================
-  // Search Filter
+  // Search
   // ======================================================
 
   const filteredModules = visibleModules.filter((module) =>
@@ -194,7 +195,7 @@ function Dashboard() {
 
       </div>
 
-      {/* Cards */}
+      {/* Dashboard Cards */}
 
       <div className="dashboard-grid">
 
@@ -209,7 +210,9 @@ function Dashboard() {
             <div className="card-icon-box">
 
               <div className="card-icon">
+
                 {module.icon}
+
               </div>
 
             </div>

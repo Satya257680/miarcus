@@ -7,34 +7,62 @@ import Sidebar from "./Sidebar";
 import "../styles/Layout.css";
 
 function Layout() {
+
   const navigate = useNavigate();
 
   const [collapsed, setCollapsed] = useState(false);
 
+  // ==========================================
+  // Toggle Sidebar
+  // ==========================================
+
   const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+
+    setCollapsed((prev) => !prev);
+
   };
 
-  // Redirect to login if user is not logged in
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
+  // ==========================================
+  // Check Login
+  // ==========================================
 
-    if (!userId) {
+  useEffect(() => {
+
+    const user = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+
+    if (!user || !token) {
+
       navigate("/", { replace: true });
+
     }
+
   }, [navigate]);
 
   return (
+
     <div className="layout">
 
-      <Topbar toggleSidebar={toggleSidebar} />
+      {/* Top Navigation */}
+
+      <Topbar
+        toggleSidebar={toggleSidebar}
+      />
 
       <div className="layout-body">
 
-        <Sidebar collapsed={collapsed} />
+        {/* Sidebar */}
+
+        <Sidebar
+          collapsed={collapsed}
+        />
+
+        {/* Main Content */}
 
         <main
-          className={`page-content ${collapsed ? "expanded" : ""}`}
+          className={`page-content ${
+            collapsed ? "expanded" : ""
+          }`}
         >
           <Outlet />
         </main>
@@ -42,7 +70,9 @@ function Layout() {
       </div>
 
     </div>
+
   );
+
 }
 
 export default Layout;

@@ -1126,45 +1126,40 @@ if (loading) {
 
                   </td>
 <td className="action-column">
+  <div className="action-buttons">
 
-    <div className="action-buttons">
+    {canView && (
+      <button
+        className="view-btn"
+        onClick={() => viewReport(item.id)}
+        title="View"
+      >
+        <FaEye />
+      </button>
+    )}
 
-  {canView && (
+    {canEdit && (
+      <button
+        className="edit-btn"
+        onClick={() => handleEdit(item)}
+        title="Edit"
+      >
+        <FaEdit />
+        <span>Edit</span>
+      </button>
+    )}
 
-    <button
-      className="view-btn"
-      onClick={() => viewReport(item.id)}
-    >
-      <FaEye />
-    </button>
+    {canDelete && (
+      <button
+        className="delete-btn"
+        onClick={() => deleteReport(item.id)}
+        title="Delete"
+      >
+        <FaTrash />
+      </button>
+    )}
 
-  )}
-
-  {canEdit && (
-
-    <button
-      className="edit-btn"
-      onClick={() => handleEdit(item)}
-    >
-      <FaEdit />
-      <span>Edit</span>
-    </button>
-
-  )}
-
-  {canDelete && (
-
-    <button
-      className="delete-btn"
-      onClick={() => deleteReport(item.id)}
-    >
-      <FaTrash />
-    </button>
-
-  )}
-
-</div>
-
+  </div>
 </td>
                 </tr>
 

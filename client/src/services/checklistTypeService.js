@@ -3,11 +3,25 @@ import axios from "axios";
 const API_URL = "http://localhost:5000/api/checklist-types";
 
 // ========================================
+// Axios Config
+// ========================================
+
+const authConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
+
+// ========================================
 // Get All Checklist Types
 // ========================================
 
 export const getChecklistTypes = async () => {
-  const { data } = await axios.get(API_URL);
+  const { data } = await axios.get(
+    API_URL,
+    authConfig()
+  );
+
   return data;
 };
 
@@ -16,7 +30,11 @@ export const getChecklistTypes = async () => {
 // ========================================
 
 export const getChecklistTypeById = async (id) => {
-  const { data } = await axios.get(`${API_URL}/${id}`);
+  const { data } = await axios.get(
+    `${API_URL}/${id}`,
+    authConfig()
+  );
+
   return data;
 };
 
@@ -25,7 +43,12 @@ export const getChecklistTypeById = async (id) => {
 // ========================================
 
 export const createChecklistType = async (payload) => {
-  const { data } = await axios.post(API_URL, payload);
+  const { data } = await axios.post(
+    API_URL,
+    payload,
+    authConfig()
+  );
+
   return data;
 };
 
@@ -34,7 +57,12 @@ export const createChecklistType = async (payload) => {
 // ========================================
 
 export const updateChecklistType = async (id, payload) => {
-  const { data } = await axios.put(`${API_URL}/${id}`, payload);
+  const { data } = await axios.put(
+    `${API_URL}/${id}`,
+    payload,
+    authConfig()
+  );
+
   return data;
 };
 
@@ -43,7 +71,11 @@ export const updateChecklistType = async (id, payload) => {
 // ========================================
 
 export const deleteChecklistType = async (id) => {
-  const { data } = await axios.delete(`${API_URL}/${id}`);
+  const { data } = await axios.delete(
+    `${API_URL}/${id}`,
+    authConfig()
+  );
+
   return data;
 };
 
@@ -53,7 +85,10 @@ export const deleteChecklistType = async (id) => {
 
 export const deleteAllChecklistTypes = async () => {
   try {
-    const response = await axios.delete(`${API_URL}/delete-all`);
+    const response = await axios.delete(
+      `${API_URL}/delete-all`,
+      authConfig()
+    );
 
     console.log("✅ Delete All Response:", response.data);
 
@@ -74,9 +109,13 @@ export const deleteAllChecklistTypes = async () => {
 
 export const exportChecklistTypes = async () => {
   try {
-    const response = await axios.get(`${API_URL}/export`, {
-      responseType: "blob",
-    });
+    const response = await axios.get(
+      `${API_URL}/export`,
+      {
+        ...authConfig(),
+        responseType: "blob",
+      }
+    );
 
     return response;
   } catch (err) {
@@ -95,6 +134,7 @@ export const exportChecklistTypes = async () => {
 
 export const importChecklistTypes = async (file) => {
   const formData = new FormData();
+
   formData.append("file", file);
 
   try {
@@ -102,7 +142,9 @@ export const importChecklistTypes = async (file) => {
       `${API_URL}/import`,
       formData,
       {
+        ...authConfig(),
         headers: {
+          ...authConfig().headers,
           "Content-Type": "multipart/form-data",
         },
       }
