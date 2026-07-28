@@ -3,11 +3,21 @@ import axios from "axios";
 const API = "http://localhost:5000/api/stores";
 
 // ==============================
+// Axios Config
+// ==============================
+
+const authConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
+
+// ==============================
 // Get All Stores
 // ==============================
 
 export const getStores = async () => {
-  const res = await axios.get(API);
+  const res = await axios.get(API, authConfig());
   return res.data;
 };
 
@@ -16,7 +26,7 @@ export const getStores = async () => {
 // ==============================
 
 export const createStore = async (data) => {
-  const res = await axios.post(API, data);
+  const res = await axios.post(API, data, authConfig());
   return res.data;
 };
 
@@ -25,7 +35,12 @@ export const createStore = async (data) => {
 // ==============================
 
 export const updateStore = async (id, data) => {
-  const res = await axios.put(`${API}/${id}`, data);
+  const res = await axios.put(
+    `${API}/${id}`,
+    data,
+    authConfig()
+  );
+
   return res.data;
 };
 
@@ -34,7 +49,11 @@ export const updateStore = async (id, data) => {
 // ==============================
 
 export const deleteStore = async (id) => {
-  const res = await axios.delete(`${API}/${id}`);
+  const res = await axios.delete(
+    `${API}/${id}`,
+    authConfig()
+  );
+
   return res.data;
 };
 
@@ -43,15 +62,20 @@ export const deleteStore = async (id) => {
 // ==============================
 
 export const deleteAllStores = async () => {
-  const res = await axios.delete(`${API}/delete-all`);
+  const res = await axios.delete(
+    `${API}/delete-all`,
+    authConfig()
+  );
+
   return res.data;
 };
 
 // ==============================
-// Import Stores (CSV)
+// Import Stores
 // ==============================
 
 export const importStores = async (file) => {
+
   const formData = new FormData();
 
   formData.append("file", file);
@@ -60,7 +84,9 @@ export const importStores = async (file) => {
     `${API}/import`,
     formData,
     {
+      ...authConfig(),
       headers: {
+        ...authConfig().headers,
         "Content-Type": "multipart/form-data",
       },
     }

@@ -60,8 +60,11 @@ const isAdmin =
 
 const storePermission = isAdmin
   ? "Full"
-  : permissions["Stores"] || "None";
-
+  : (
+      permissions["Store Management"] ||
+      permissions["Stores"] ||
+      "None"
+    );
 const canView =
   ["View", "Add", "Edit", "Full"].includes(storePermission);
 

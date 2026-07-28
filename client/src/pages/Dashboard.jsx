@@ -50,97 +50,96 @@ function Dashboard() {
 
   // ======================================================
   // Dashboard Modules
-  // permission must match database module_name
   // ======================================================
 
   const modules = [
     {
       title: "Action Points",
-      permission: "Action Points",
+      permission: ["Action Points"],
       icon: <FaTasks />,
       link: "/action-points",
     },
     {
       title: "Announcements",
-      permission: "Announcements",
+      permission: ["Announcements"],
       icon: <FaBullhorn />,
       link: "/announcements",
     },
     {
       title: "Asset Master",
-      permission: "Asset Master",
+      permission: ["Asset Master"],
       icon: <FaBoxes />,
       link: "/asset-master",
     },
     {
       title: "Attendance",
-      permission: "Attendance",
+      permission: ["Attendance"],
       icon: <FaCalendarAlt />,
       link: "/attendance",
     },
     {
       title: "Checklist",
-      permission: "Checklist",
+      permission: ["Checklist Submit", "Checklist"],
       icon: <FaClipboardList />,
       link: "/checklist-submit",
     },
     {
       title: "Reports",
-      permission: "Reports",
+      permission: ["Checklist Reports", "Reports"],
       icon: <FaChartBar />,
       link: "/checklist-reports",
     },
     {
       title: "Expenses",
-      permission: "Expenses",
+      permission: ["Expenses"],
       icon: <FaMoneyBillWave />,
       link: "/expenses",
     },
     {
       title: "Collection Tracking",
-      permission: "Collection Tracking",
+      permission: ["Collection Tracking"],
       icon: <FaLayerGroup />,
       link: "/collection-tracking",
     },
     {
       title: "Inventory Planning",
-      permission: "Inventory Planning",
+      permission: ["Inventory Planning"],
       icon: <FaLayerGroup />,
       link: "/inventory-planning",
     },
     {
       title: "Listing Tracker",
-      permission: "Listing Tracker",
+      permission: ["Listing Tracker"],
       icon: <FaGlobe />,
       link: "/listing-tracker",
     },
     {
       title: "New Store Openings",
-      permission: "New Store Openings",
+      permission: ["New Store Openings"],
       icon: <FaStore />,
       link: "/new-store-openings",
     },
     {
       title: "NSO Rules",
-      permission: "NSO Rules",
+      permission: ["NSO Rules"],
       icon: <FaBook />,
       link: "/nso-rules",
     },
     {
       title: "Quiz",
-      permission: "Quiz",
+      permission: ["Quiz"],
       icon: <FaQuestionCircle />,
       link: "/quiz",
     },
     {
       title: "Sales Team",
-      permission: "Sales Team",
+      permission: ["Sales Team"],
       icon: <FaUsers />,
       link: "/sales-team",
     },
     {
       title: "Settings",
-      permission: "Settings",
+      permission: ["Settings"],
       icon: <FaCog />,
       link: "/settings",
     },
@@ -153,12 +152,18 @@ function Dashboard() {
   const visibleModules = isAdmin
     ? modules
     : modules.filter((module) => {
-        const permission = permissions[module.permission];
 
-        return (
-          permission &&
-          permission !== "None"
-        );
+        return module.permission.some((key) => {
+
+          const permission = permissions[key];
+
+          return (
+            permission &&
+            permission !== "None"
+          );
+
+        });
+
       });
 
   // ======================================================
@@ -203,11 +208,11 @@ function Dashboard() {
 
             <div className="card-icon-box">
 
-  <div className="card-icon">
-    {module.icon}
-  </div>
+              <div className="card-icon">
+                {module.icon}
+              </div>
 
-</div>
+            </div>
 
             <h3>{module.title}</h3>
 

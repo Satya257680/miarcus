@@ -31,165 +31,216 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
         const userId = req.user.id;
 
+        // ======================================================
+        // DEBUG REQUEST
+        // ======================================================
+
         console.log("\n====================================");
         console.log("PERMISSION CHECK");
-        console.log("User ID :", userId);
-        console.log("Module  :", moduleName);
-        console.log("Required:", requiredPermission);
+        console.log("====================================");
+        console.log("REQ.USER :", req.user);
+        console.log("USER ID  :", userId);
+        console.log("MODULE   : [" + moduleName + "]");
+        console.log("LENGTH   :", moduleName.length);
+        console.log("REQUIRED :", requiredPermission);
         console.log("====================================");
 
         // ======================================================
-        // LOAD USER PERMISSION
+        // SHOW ALL USER PERMISSIONS
         // ======================================================
-
-        const permissionSql = `
-            SELECT permission
-            FROM user_permissions
-            WHERE user_id = ?
-            AND module_name = ?
-            LIMIT 1
-        `;
-
-        console.log("SQL:");
-        console.log(permissionSql);
-        console.log("Values:", [userId, moduleName]);
 
         db.query(
 
-            permissionSql,
+            `
+            SELECT module_name, permission
+            FROM user_permissions
+            WHERE user_id = ?
+            ORDER BY module_name
+            `,
 
-            [userId, moduleName],
+            [userId],
 
-            (err, result) => {
+            (listErr, permissions) => {
 
-                if (err) {
+                if (listErr) {
 
-                    console.error("DATABASE ERROR");
-                    console.error(err);
+                    console.error("FAILED TO LOAD USER PERMISSIONS");
+                    console.error(listErr);
 
-                    return res.status(500).json({
+                } else {
 
-                        success: false,
+                    console.log("========== USER PERMISSIONS ==========");
 
-                        message: "Permission Check Failed"
+                    permissions.forEach((row) => {
 
-                    });
-
-                }
-
-                console.log("Permission Result:", result);
-
-                if (result.length === 0) {
-
-                    console.log("NO PERMISSION FOUND");
-
-                    return res.status(403).json({
-
-                        success: false,
-
-                        message: "Access Denied"
+                        console.log(
+                            "[" + row.module_name + "] => " + row.permission
+                        );
 
                     });
 
-                }
-
-                const permission = result[0].permission;
-
-                console.log("User Permission:", permission);
-
-                // ======================================================
-                // FULL ACCESS
-                // ======================================================
-
-                if (permission === "Full") {
-
-                    console.log("FULL ACCESS GRANTED");
-
-                    return next();
+                    console.log("======================================");
 
                 }
 
                 // ======================================================
-                // VIEW
+                // LOAD REQUESTED PERMISSION
                 // ======================================================
 
-                if (
+                const permissionSql = `
+                    SELECT permission
+                    FROM user_permissions
+                    WHERE user_id = ?
+                    AND module_name = ?
+                    LIMIT 1
+                `;
 
-                    requiredPermission === "View" &&
+                console.log("SQL:");
+                console.log(permissionSql);
+                console.log("VALUES:", [userId, moduleName]);
 
-                    ["View", "Add", "Edit", "Full"].includes(permission)
+                db.query(
 
-                ) {
+                    permissionSql,
 
-                    console.log("VIEW ACCESS GRANTED");
+                    [userId, moduleName],
 
-                    return next();
+                    (err, result) => {
 
-                }
+                        if (err) {
 
-                // ======================================================
-                // ADD
-                // ======================================================
+                            console.error("DATABASE ERROR");
+                            console.error(err);
 
-                if (
+                            return res.status(500).json({
 
-                    requiredPermission === "Add" &&
+                                success: false,
 
-                    ["Add", "Edit", "Full"].includes(permission)
+                                message: "Permission Check Failed"
 
-                ) {
+                            });
 
-                    console.log("ADD ACCESS GRANTED");
+                        }
 
-                    return next();
+                        console.log("Permission Result:", result);
 
-                }
+                        if (result.length === 0) {
 
-                // ======================================================
-                // EDIT
-                // ======================================================
+                            console.log("NO PERMISSION FOUND");
+                            console.log("User ID :", userId);
+                            console.log("Module  :", "[" + moduleName + "]");
 
-                if (
+                            return res.status(403).json({
 
-                    requiredPermission === "Edit" &&
+                                success: false,
 
-                    ["Edit", "Full"].includes(permission)
+                                message: "Access Denied"
 
-                ) {
+                            });
 
-                    console.log("EDIT ACCESS GRANTED");
+                        }
 
-                    return next();
+                        const permission = result[0].permission;
 
-                }
+                        console.log("User Permission:", permission);
 
-                // ======================================================
-                // DELETE
-                // ======================================================
+                        // ======================================================
+                        // FULL
+                        // ======================================================
 
-                if (
+                        if (permission === "Full") {
 
-                    requiredPermission === "Full" &&
+                            console.log("FULL ACCESS GRANTED");
 
-                    permission === "Full"
+                            return next();
 
-                ) {
+                        }
 
-                    console.log("DELETE ACCESS GRANTED");
+                        // ======================================================
+                        // VIEW
+                        // ======================================================
 
-                    return next();
+                        if (
 
-                }
+                            requiredPermission === "View" &&
 
-                console.log("INSUFFICIENT PERMISSION");
+                            ["View", "Add", "Edit", "Full"].includes(permission)
 
-                return res.status(403).json({
+                        ) {
 
-                    success: false,
+                            console.log("VIEW ACCESS GRANTED");
 
-                    message: "Insufficient Permission"
+                            return next();
 
-                });
+                        }
+
+                        // ======================================================
+                        // ADD
+                        // ======================================================
+
+                        if (
+
+                            requiredPermission === "Add" &&
+
+                            ["Add", "Edit", "Full"].includes(permission)
+
+                        ) {
+
+                            console.log("ADD ACCESS GRANTED");
+
+                            return next();
+
+                        }
+
+                        // ======================================================
+                        // EDIT
+                        // ======================================================
+
+                        if (
+
+                            requiredPermission === "Edit" &&
+
+                            ["Edit", "Full"].includes(permission)
+
+                        ) {
+
+                            console.log("EDIT ACCESS GRANTED");
+
+                            return next();
+
+                        }
+
+                        // ======================================================
+                        // DELETE
+                        // ======================================================
+
+                        if (
+
+                            requiredPermission === "Full" &&
+
+                            permission === "Full"
+
+                        ) {
+
+                            console.log("DELETE ACCESS GRANTED");
+
+                            return next();
+
+                        }
+
+                        console.log("INSUFFICIENT PERMISSION");
+
+                        return res.status(403).json({
+
+                            success: false,
+
+                            message: "Insufficient Permission"
+
+                        });
+
+                    }
+
+                );
 
             }
 

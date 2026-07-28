@@ -72,7 +72,7 @@ const upload = multer({
 router.get(
   "/",
   authMiddleware,
-  permissionMiddleware("Stores", "View"),
+  permissionMiddleware("Store Management", "View"),
   getStores
 );
 
@@ -84,7 +84,7 @@ router.get(
 router.post(
   "/",
   authMiddleware,
-  permissionMiddleware("Stores", "Add"),
+  permissionMiddleware("Store Management", "Add"),
   createStore
 );
 
@@ -96,7 +96,7 @@ router.post(
 router.post(
   "/import",
   authMiddleware,
-  permissionMiddleware("Stores", "Add"),
+  permissionMiddleware("Store Management", "Add"),
   upload.single("file"),
   importStoresFromCSV
 );
@@ -109,7 +109,7 @@ router.post(
 router.put(
   "/:id",
   authMiddleware,
-  permissionMiddleware("Stores", "Edit"),
+  permissionMiddleware("Store Management", "Edit"),
   updateStore
 );
 
@@ -121,7 +121,7 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
-  permissionMiddleware("Stores", "Full"),
+  permissionMiddleware("Store Management", "Full"),
   deleteStore
 );
 
@@ -133,7 +133,7 @@ router.delete(
 router.delete(
   "/delete-all",
   authMiddleware,
-  permissionMiddleware("Stores", "Full"),
+  permissionMiddleware("Store Management", "Full"),
   deleteAllStores
 );
 
