@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 import {
   FaSearch,
@@ -22,88 +22,153 @@ import {
 import "../styles/Dashboard.css";
 
 function Dashboard() {
+
   const [search, setSearch] = useState("");
+
+  // ======================================================
+  // User & Permissions
+  // ======================================================
+
+  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const permissions = JSON.parse(localStorage.getItem("permissions")) || {};
+
+  const isAdmin =
+    user.administrator === true ||
+    user.administrator === 1;
+
+  // ======================================================
+  // Dashboard Permission
+  // ======================================================
+
+  if (
+    !isAdmin &&
+    (!permissions.Dashboard ||
+      permissions.Dashboard === "None")
+  ) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // ======================================================
+  // Dashboard Modules
+  // permission must match database module_name
+  // ======================================================
 
   const modules = [
     {
       title: "Action Points",
+      permission: "Action Points",
       icon: <FaTasks />,
       link: "/action-points",
     },
     {
       title: "Announcements",
+      permission: "Announcements",
       icon: <FaBullhorn />,
       link: "/announcements",
     },
     {
       title: "Asset Master",
+      permission: "Asset Master",
       icon: <FaBoxes />,
       link: "/asset-master",
     },
     {
       title: "Attendance",
+      permission: "Attendance",
       icon: <FaCalendarAlt />,
       link: "/attendance",
     },
     {
       title: "Checklist",
+      permission: "Checklist",
       icon: <FaClipboardList />,
       link: "/checklist-submit",
     },
     {
       title: "Reports",
+      permission: "Reports",
       icon: <FaChartBar />,
       link: "/checklist-reports",
     },
     {
       title: "Expenses",
+      permission: "Expenses",
       icon: <FaMoneyBillWave />,
       link: "/expenses",
     },
     {
       title: "Collection Tracking",
+      permission: "Collection Tracking",
       icon: <FaLayerGroup />,
       link: "/collection-tracking",
     },
     {
       title: "Inventory Planning",
+      permission: "Inventory Planning",
       icon: <FaLayerGroup />,
       link: "/inventory-planning",
     },
     {
       title: "Listing Tracker",
+      permission: "Listing Tracker",
       icon: <FaGlobe />,
       link: "/listing-tracker",
     },
     {
       title: "New Store Openings",
+      permission: "New Store Openings",
       icon: <FaStore />,
       link: "/new-store-openings",
     },
     {
       title: "NSO Rules",
+      permission: "NSO Rules",
       icon: <FaBook />,
       link: "/nso-rules",
     },
     {
       title: "Quiz",
+      permission: "Quiz",
       icon: <FaQuestionCircle />,
       link: "/quiz",
     },
     {
       title: "Sales Team",
+      permission: "Sales Team",
       icon: <FaUsers />,
       link: "/sales-team",
     },
     {
       title: "Settings",
+      permission: "Settings",
       icon: <FaCog />,
       link: "/settings",
     },
   ];
 
-  const filteredModules = modules.filter((module) =>
-    module.title.toLowerCase().includes(search.toLowerCase())
+  // ======================================================
+  // Show Modules Based On Permission
+  // ======================================================
+
+  const visibleModules = isAdmin
+    ? modules
+    : modules.filter((module) => {
+        const permission = permissions[module.permission];
+
+        return (
+          permission &&
+          permission !== "None"
+        );
+      });
+
+  // ======================================================
+  // Search Filter
+  // ======================================================
+
+  const filteredModules = visibleModules.filter((module) =>
+    module.title
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
   return (
@@ -136,11 +201,13 @@ function Dashboard() {
             className="dashboard-card"
           >
 
-            <div className="card-icon">
+            <div className="card-icon-box">
 
-              {module.icon}
+  <div className="card-icon">
+    {module.icon}
+  </div>
 
-            </div>
+</div>
 
             <h3>{module.title}</h3>
 

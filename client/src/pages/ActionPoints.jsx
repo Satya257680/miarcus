@@ -62,16 +62,26 @@ const [completionDate, setCompletionDate] = useState("");
     sla: "",
   });
 
-  // ==========================
+// ==========================
 // RBAC
 // ==========================
+
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const actionPointPermission =
-  permissions["Action Points"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const actionPointPermission = isAdmin
+  ? "Full"
+  : permissions["Action Points"] || "None";
 
 const canView =
   ["View", "Add", "Edit", "Full"].includes(
@@ -160,62 +170,122 @@ const canDelete =
   startDate,
   endDate,
 ]);
-    // ================= UPDATE ACTION POINT =================
+   // ================= UPDATE ACTION POINT =================
 
-  const updateActionPoint = async () => {
-    try {
-      await axios.put(
-        `${API}/api/action-points/${editData.id}`,
-        {
-          answer: editData.answer,
-          remarks: editData.comment,
-          status: "No Action Taken",
-        }
-      );
+const updateActionPoint = async () => {
 
-      alert("Action Point Updated Successfully");
+  if (!canEdit) {
 
-      setShowEdit(false);
+    alert("You don't have permission to edit Action Points.");
 
-      fetchActionPoints();
-    } catch (error) {
-      console.log("Update Error:", error);
+    return;
 
-      alert("Unable to update action point.");
-    }
-  };
+  }
 
-  // ================= DELETE ACTION POINT =================
+  try {
 
-  const deleteActionPoint = async (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this Action Point?"
+    await axios.put(
+
+      `${API}/api/action-points/${editData.id}`,
+
+      {
+
+        answer: editData.answer,
+
+        remarks: editData.comment,
+
+        status: "No Action Taken",
+
+      }
+
     );
 
-    if (!confirmDelete) return;
+    alert("Action Point Updated Successfully");
 
-    try {
-      await axios.delete(`${API}/api/action-points/${id}`);
+    setShowEdit(false);
 
-      alert("Deleted Successfully");
+    fetchActionPoints();
 
-      fetchActionPoints();
-    } catch (error) {
-      console.log("Delete Error:", error);
+  } catch (error) {
 
-      alert("Unable to delete Action Point");
-    }
-  };
+    console.log("Update Error:", error);
 
-  const handleOpen = (item) => {
+    alert("Unable to update Action Point.");
 
-    setSelectedAction(item);
-
-    setShowOpenModal(true);
+  }
 
 };
 
+
+// ================= DELETE ACTION POINT =================
+
+const deleteActionPoint = async (id) => {
+
+  if (!canDelete) {
+
+    alert("You don't have permission to delete Action Points.");
+
+    return;
+
+  }
+
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this Action Point?"
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+
+    await axios.delete(
+      `${API}/api/action-points/${id}`
+    );
+
+    alert("Deleted Successfully");
+
+    fetchActionPoints();
+
+  } catch (error) {
+
+    console.log("Delete Error:", error);
+
+    alert("Unable to delete Action Point.");
+
+  }
+
+};
+
+
+// ================= OPEN TAKE ACTION MODAL =================
+
+const handleOpen = (item) => {
+
+  if (!canEdit) {
+
+    alert("You don't have permission to update Action Points.");
+
+    return;
+
+  }
+
+  setSelectedAction(item);
+
+  setShowOpenModal(true);
+
+};
+
+
+// ================= SAVE ACTION POINT =================
+
 const saveActionPoint = async () => {
+
+  if (!canEdit) {
+
+    alert("You don't have permission to update Action Points.");
+
+    return;
+
+  }
 
   try {
 
@@ -247,37 +317,80 @@ const saveActionPoint = async () => {
 
     console.log(error);
 
-    alert("Unable to save action.");
+    alert("Unable to save Action Point.");
 
   }
 
 };
+ // ================= EXPORT CSV =================
 
-  // ================= EXPORT CSV =================
+const exportCSV = () => {
 
-  const exportCSV = () => {
-    window.open(
-      `${API}/api/action-points/export`,
-      "_blank"
-    );
-  };
+  if (!canView) {
 
-  // ================= CLEAR FILTERS =================
+    alert("You don't have permission to export Action Points.");
 
-  const clearFilters = () => {
-    setSearch("");
-    setStore("");
-    setDepartment("");
-    setStatus("");
-    setChecklistType("");
-    setStartDate("");
-    setEndDate("");
-    setPage(1);
-  };
+    return;
 
-  // ================= PAGINATION =================
+  }
 
-  const totalPages = Math.ceil(total / limit);
+  window.open(
+    `${API}/api/action-points/export`,
+    "_blank"
+  );
+
+};
+
+
+// ================= CLEAR FILTERS =================
+
+const clearFilters = () => {
+
+  setSearch("");
+
+  setStore("");
+
+  setDepartment("");
+
+  setStatus("");
+
+  setChecklistType("");
+
+  setStartDate("");
+
+  setEndDate("");
+
+  setPage(1);
+
+};
+
+
+// ================= PAGINATION =================
+
+const totalPages = Math.ceil(total / limit);
+
+
+// ===========================
+// ACCESS DENIED
+// ===========================
+
+if (!canView) {
+
+  return (
+
+    <div className="no-permission">
+
+      <h2>Access Denied</h2>
+
+      <p>
+        You don't have permission to view Action Points.
+      </p>
+
+    </div>
+
+  );
+
+}
 return (
   <div className="action-page">
 

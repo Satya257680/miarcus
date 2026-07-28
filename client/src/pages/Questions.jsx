@@ -32,16 +32,26 @@ function Questions() {
 
   const [selectedQuestion, setSelectedQuestion] = useState(null);
 
-  // ==========================
+ // ==========================
 // RBAC
 // ==========================
+
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const questionPermission =
-  permissions["Questions"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const questionPermission = isAdmin
+  ? "Full"
+  : permissions["Questions"] || "None";
 
 const canView =
   ["View", "Add", "Edit", "Full"].includes(
@@ -98,54 +108,178 @@ const canDelete =
   // Delete Question
   // ===============================
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this question?")) return;
+ const handleDelete = async (id) => {
 
-    try {
-      await deleteQuestion(id);
+  if (!canDelete) {
 
-      loadQuestions();
-    } catch (err) {
-      console.error(err);
-      alert("Delete failed.");
-    }
-  };
+    alert("You don't have permission to delete questions.");
+
+    return;
+
+  }
+
+  if (!window.confirm("Delete this question?")) return;
+
+  try {
+
+    await deleteQuestion(id);
+
+    alert("Question deleted successfully.");
+
+    loadQuestions();
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Delete failed.");
+
+  }
+
+};
 
   // ===============================
   // Delete All
   // ===============================
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm("Delete ALL Questions?")) return;
+ const handleDeleteAll = async () => {
 
-    try {
-      await deleteAllQuestions();
+  if (!canDelete) {
 
-      loadQuestions();
-    } catch (err) {
-      console.error(err);
-      alert("Delete failed.");
-    }
-  };
+    alert("You don't have permission to delete all questions.");
 
+    return;
+
+  }
+
+  if (!window.confirm("Delete ALL Questions?")) return;
+
+  try {
+
+    await deleteAllQuestions();
+
+    alert("All questions deleted successfully.");
+
+    loadQuestions();
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Delete failed.");
+
+  }
+
+};
   // ===============================
   // Edit
   // ===============================
 
   const handleEdit = (row) => {
-    setSelectedQuestion(row);
-    setShowModal(true);
-  };
+
+  if (!canEdit) return;
+
+  setSelectedQuestion(row);
+
+  setShowModal(true);
+
+};
 
   // ===============================
   // Add
   // ===============================
 
-  const handleAdd = () => {
-    setSelectedQuestion(null);
-    setShowModal(true);
-  };
+ const handleAdd = () => {
 
+  if (!canAdd) return;
+
+  setSelectedQuestion(null);
+
+  setShowModal(true);
+
+};
+// ===============================
+// Export Questions CSV
+// ===============================
+
+const handleExport = () => {
+
+  if (!canView) {
+
+    alert("You don't have permission to export questions.");
+
+    return;
+
+  }
+
+  if (filteredQuestions.length === 0) {
+
+    alert("No question data available.");
+
+    return;
+
+  }
+
+  const headers = [
+    "Checklist Type",
+    "Question",
+    "Sequence",
+    "Answer Type",
+    "SLA",
+    "Departments",
+    "Answer Required",
+    "Status",
+  ];
+
+  const rows = filteredQuestions.map((q) => [
+
+    q.checklist_name,
+
+    q.question,
+
+    q.sequence_no,
+
+    q.answer_type,
+
+    q.sla_value
+      ? `${q.sla_value} ${q.sla_unit}`
+      : "",
+
+    q.departments,
+
+    q.answer_required ? "Yes" : "No",
+
+    q.status,
+
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) => row.join(",")),
+  ].join("\n");
+
+  const blob = new Blob(
+    [csvContent],
+    {
+      type: "text/csv;charset=utf-8;",
+    }
+  );
+
+  const link = document.createElement("a");
+
+  const url = URL.createObjectURL(blob);
+
+link.href = url;
+
+link.download = "questions.csv";
+
+link.click();
+
+// Clean up after the download starts
+setTimeout(() => {
+  URL.revokeObjectURL(url);
+}, 100);
+};
   // ===============================
   // Filters
   // ===============================
@@ -257,14 +391,17 @@ const canDelete =
 
       )}
 
-      {canView && (
+    {canView && (
 
-        <button className="export-btn">
-          <FaFileExport />
-          Export
-        </button>
+  <button
+    className="export-btn"
+    onClick={handleExport}
+  >
+    <FaFileExport />
+    Export
+  </button>
 
-      )}
+)}
 
       {canDelete && (
 

@@ -43,16 +43,26 @@ function ChecklistTypes() {
 
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // ==========================
+ // ==========================
 // RBAC
 // ==========================
+
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const checklistPermission =
-  permissions["Checklist Types"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const checklistPermission = isAdmin
+  ? "Full"
+  : permissions["Checklist Types"] || "None";
 
 const canView =
   ["View", "Add", "Edit", "Full"].includes(
@@ -158,185 +168,241 @@ useEffect(() => {
 
   const handleAddChecklist = () => {
 
-    setEditingChecklist(null);
+  if (!canAdd) return;
 
-    setShowModal(true);
+  setEditingChecklist(null);
 
-  };
+  setShowModal(true);
 
+};
   // ==========================
   // Edit
   // ==========================
 
-  const handleEdit = (item) => {
+ const handleEdit = (item) => {
 
-    setEditingChecklist(item);
+  if (!canEdit) return;
 
-    setShowModal(true);
+  setEditingChecklist(item);
 
-  };
+  setShowModal(true);
+
+};
 
   // ==========================
-  // Delete
-  // ==========================
+// Delete
+// ==========================
 
-  const handleDelete = async (id) => {
+const handleDelete = async (id) => {
 
-    if (!window.confirm("Delete this Checklist Type?")) return;
+  if (!canDelete) {
 
-    try {
+    alert("You don't have permission to delete checklist types.");
 
-      const res = await deleteChecklistType(id);
+    return;
 
-      if (res.success) {
+  }
 
-        fetchChecklistTypes();
+  if (!window.confirm("Delete this Checklist Type?")) return;
 
-      }
+  try {
 
-    } catch (err) {
+    const res = await deleteChecklistType(id);
 
-      console.error(err);
+    if (res.success) {
 
-      alert(err.response?.data?.message || err.message);
+      fetchChecklistTypes();
 
     }
 
-  };
+  } catch (err) {
 
-  // ==========================
-  // Delete All
-  // ==========================
+    console.error(err);
 
-  const handleDeleteAll = async () => {
+    alert(err.response?.data?.message || err.message);
 
-    if (!window.confirm("Delete ALL Checklist Types?")) return;
+  }
 
-    try {
+};
 
-      const res = await deleteAllChecklistTypes();
+// ==========================
+// Delete All
+// ==========================
 
-      if (res.success) {
+const handleDeleteAll = async () => {
 
-        fetchChecklistTypes();
+  if (!canDelete) {
 
-      }
+    alert("You don't have permission to delete all checklist types.");
 
-    } catch (err) {
+    return;
 
-      console.error(err);
+  }
 
-      alert(err.response?.data?.message || err.message);
+  if (!window.confirm("Delete ALL Checklist Types?")) return;
+
+  try {
+
+    const res = await deleteAllChecklistTypes();
+
+    if (res.success) {
+
+      fetchChecklistTypes();
 
     }
 
-  };
+  } catch (err) {
 
-  // ==========================
-  // Export
-  // ==========================
+    console.error(err);
 
-  const handleExport = async () => {
+    alert(err.response?.data?.message || err.message);
 
-    try {
+  }
 
-      const response = await exportChecklistTypes();
+};// ==========================
+// Export
+// ==========================
 
-      const url = window.URL.createObjectURL(
-        new Blob([response.data])
+const handleExport = async () => {
+
+  if (!canView) {
+
+    alert("You don't have permission to export checklist types.");
+
+    return;
+
+  }
+
+  try {
+
+    const response = await exportChecklistTypes();
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data])
+    );
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    link.download = "ChecklistTypes.xlsx";
+
+    link.click();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Export failed");
+
+  }
+
+};
+
+// ==========================
+// Import
+// ==========================
+
+const handleImport = async (e) => {
+
+  if (!canAdd) {
+
+    alert("You don't have permission to import checklist types.");
+
+    return;
+
+  }
+
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  try {
+
+    const res = await importChecklistTypes(file);
+
+    if (res.success) {
+
+      fetchChecklistTypes();
+
+    }
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(err.response?.data?.message || err.message);
+
+  }
+
+};
+
+// ==========================
+// Save
+// ==========================
+
+const handleSave = async (data) => {
+
+  if (editingChecklist) {
+
+    if (!canEdit) {
+
+      alert("You don't have permission to edit checklist types.");
+
+      return;
+
+    }
+
+  } else {
+
+    if (!canAdd) {
+
+      alert("You don't have permission to add checklist types.");
+
+      return;
+
+    }
+
+  }
+
+  try {
+
+    let res;
+
+    if (editingChecklist) {
+
+      res = await updateChecklistType(
+        editingChecklist.id,
+        data
       );
 
-      const link = document.createElement("a");
+    } else {
 
-      link.href = url;
-
-      link.download = "ChecklistTypes.xlsx";
-
-      link.click();
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert("Export failed");
+      res = await createChecklistType(data);
 
     }
 
-  };
+    if (res.success) {
 
-  // ==========================
-  // Import
-  // ==========================
+      setShowModal(false);
 
-  const handleImport = async (e) => {
+      setEditingChecklist(null);
 
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    try {
-
-      const res = await importChecklistTypes(file);
-
-      if (res.success) {
-
-        fetchChecklistTypes();
-
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(err.response?.data?.message || err.message);
+      fetchChecklistTypes();
 
     }
 
-  };
+  } catch (err) {
 
-  // ==========================
-  // Save
-  // ==========================
+    console.error(err);
 
-  const handleSave = async (data) => {
+    alert(err.response?.data?.message || err.message);
 
-    try {
+  }
 
-      let res;
-
-      if (editingChecklist) {
-
-        res = await updateChecklistType(
-          editingChecklist.id,
-          data
-        );
-
-      } else {
-
-        res = await createChecklistType(data);
-
-      }
-
-      if (res.success) {
-
-        setShowModal(false);
-
-        setEditingChecklist(null);
-
-        fetchChecklistTypes();
-
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(err.response?.data?.message || err.message);
-
-    }
-
-  };
-
+};
   // ==========================
   // Pagination
   // ==========================

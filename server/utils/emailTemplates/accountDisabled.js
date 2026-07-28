@@ -30,7 +30,11 @@ const accountDisabled = (user) => {
             <strong style="color:#5F39FF;">
                 miarcus
             </strong>
-            account has been temporarily disabled.
+            account has been temporarily disabled by your administrator.
+
+            <br><br>
+
+            As a result, you are currently unable to access the platform until your account is reactivated.
         `,
 
         // ===========================
@@ -38,49 +42,57 @@ const accountDisabled = (user) => {
         // ===========================
 
         message: `
-            Your administrator has temporarily disabled your account.
+            Your account has been placed in an inactive status.
 
             <br><br>
 
-            As a result, you will no longer be able to sign in or access the miarcus system until your account has been reactivated.
+            While your account remains disabled, you will not be able to sign in or access any
+            <strong>miarcus</strong>
+            features, modules, or services.
 
             <br><br>
 
-            This action may have been taken due to administrative, security, or organizational reasons.
+            This action may have been taken for administrative, organizational, or security reasons.
 
             <br><br>
 
-            If you believe this action was taken in error or you require additional information, please contact your administrator.
+            If you believe your account was disabled by mistake or you require additional information, please contact your administrator for assistance.
         `,
 
         // ===========================
         // Button
         // ===========================
 
-        buttonText: "Contact Administrator",
+        buttonText: "Visit miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
         // ===========================
 
-        infoBoxTitle: "Account Status",
+        infoBoxTitle: "Account Status Information",
 
         infoBoxMessage: `
             ✓ Your account is currently inactive and cannot be used to sign in.
 
             <br><br>
 
-            ✓ Once your administrator reactivates your account, you will regain access to the system.
+            ✓ Once your administrator reactivates your account, your access will be restored.
 
             <br><br>
 
-            ✓ Any changes made to your profile or permissions while your account is disabled will take effect when your account is reactivated.
+            ✓ Any updates made to your profile, department, designation, reporting manager, role, or permissions while your account is disabled will automatically take effect when your account is reactivated.
 
             <br><br>
 
             ✓ If you have any questions regarding your account status, please contact your administrator.
+
+            <br><br>
+
+            ✓ For your security, never share your account credentials with anyone.
         `,
 
         // ===========================
@@ -92,8 +104,22 @@ const accountDisabled = (user) => {
 
             <br><br>
 
+            We appreciate your patience while your account remains inactive.
+
+            <br><br>
+
             If you require assistance or believe this account status is incorrect, please contact your administrator for further support.
+
+            <br><br>
+
+            We look forward to welcoming you back to
+            <strong>miarcus</strong>
+            once your account has been reactivated.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

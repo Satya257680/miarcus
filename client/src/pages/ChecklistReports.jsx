@@ -49,107 +49,302 @@ const [importFile,setImportFile] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
 
   // ===========================
-  // LOAD DATA
-  // ===========================
+// RBAC
+// ===========================
 
-  useEffect(() => {
-    loadData();
-  }, []);
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
-  const loadData = async () => {
-    try {
+const permissions = JSON.parse(
+  localStorage.getItem("permissions") || "{}"
+);
 
-      setLoading(true);
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
 
-      const [
-        reportRes,
-        storeRes,
-        checklistRes,
-        userRes,
-      ] = await Promise.all([
-        axios.get(`${API}/checklist-reports`),
-        axios.get(`${API}/stores`),
-        axios.get(`${API}/checklist-types`),
-        axios.get(`${API}/users`)
-      ]);
+const reportPermission = isAdmin
+  ? "Full"
+  : permissions["Checklist Reports"] || "None";
 
-      setReports(reportRes.data.data || []);
-      setStores(storeRes.data.data || []);
-      setChecklistTypes(checklistRes.data.data || []);
-      setUsers(userRes.data.data || []);
+const canView =
+  ["View", "Add", "Edit", "Full"].includes(
+    reportPermission
+  );
 
-    } catch (err) {
+const canAdd =
+  ["Add", "Edit", "Full"].includes(
+    reportPermission
+  );
 
-      console.log(err);
+const canEdit =
+  ["Edit", "Full"].includes(
+    reportPermission
+  );
 
-    } finally {
-
-      setLoading(false);
-
-    }
-  };
+const canDelete =
+  reportPermission === "Full";
 
   // ===========================
-  // DELETE REPORT
-  // ===========================
+// LOAD DATA
+// ===========================
 
-  const deleteReport = async (id) => {
+useEffect(() => {
 
-    if (!window.confirm("Delete this report?"))
-      return;
+  if (!canView) {
 
-    try {
+    setLoading(false);
 
-      await axios.delete(`${API}/checklist-reports/${id}`);
+    return;
 
-      loadData();
+  }
 
-    } catch (err) {
+  loadData();
 
-      console.log(err);
+}, [canView]);
 
-    }
-  };
+const loadData = async () => {
 
-  // ===========================
-  // VIEW REPORT
-  // ===========================
+  try {
 
-  const viewReport = async (id) => {
+    setLoading(true);
 
-    try {
+    const results = await Promise.allSettled([
 
-      const res = await axios.get(
-        `${API}/checklist-reports/${id}`
+      axios.get(`${API}/checklist-reports`),
+
+      axios.get(`${API}/stores`),
+
+      axios.get(`${API}/checklist-types`),
+
+      axios.get(`${API}/users`)
+
+    ]);
+
+    const [
+
+      reportRes,
+
+      storeRes,
+
+      checklistRes,
+
+      userRes
+
+    ] = results;
+
+    // ===========================
+    // CHECKLIST REPORTS
+    // ===========================
+
+    if (reportRes.status === "fulfilled") {
+
+      console.log(
+        "REPORT API RESPONSE:",
+        reportRes.value.data
       );
 
-      setSelectedReport(res.data.data);
+      console.log(
+        "REPORTS:",
+        reportRes.value.data.data
+      );
 
-      setShowModal(true);
+      setReports(
+        reportRes.value.data.data || []
+      );
 
-    } catch (err) {
+    } else {
 
-      console.log(err);
+      console.error(
+        "Checklist Reports Error:",
+        reportRes.reason
+      );
+
+      setReports([]);
 
     }
-  };
+
+    // ===========================
+    // STORES
+    // ===========================
+
+    if (storeRes.status === "fulfilled") {
+
+      setStores(
+        storeRes.value.data.data || []
+      );
+
+    } else {
+
+      console.warn(
+        "Stores API returned 403 or failed."
+      );
+
+      setStores([]);
+
+    }
+
+    // ===========================
+    // CHECKLIST TYPES
+    // ===========================
+
+    if (checklistRes.status === "fulfilled") {
+
+      setChecklistTypes(
+        checklistRes.value.data.data || []
+      );
+
+    } else {
+
+      console.warn(
+        "Checklist Types API failed."
+      );
+
+      setChecklistTypes([]);
+
+    }
+
+    // ===========================
+    // USERS
+    // ===========================
+
+    if (userRes.status === "fulfilled") {
+
+      setUsers(
+        userRes.value.data.data || []
+      );
+
+    } else {
+
+      console.warn(
+        "Users API failed."
+      );
+
+      setUsers([]);
+
+    }
+
+  } catch (err) {
+
+    console.error(err);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
+ // ===========================
+// DELETE REPORT
+// ===========================
+
+const deleteReport = async (id) => {
+
+  if (!canDelete) {
+
+    alert("You don't have permission to delete reports.");
+
+    return;
+
+  }
+
+  if (!window.confirm("Delete this report?")) {
+
+    return;
+
+  }
+
+  try {
+
+    await axios.delete(
+      `${API}/checklist-reports/${id}`
+    );
+
+    loadData();
+
+  } catch (err) {
+
+    console.log(err);
+
+    alert(
+      err.response?.data?.message ||
+      "Unable to delete report."
+    );
+
+  }
+
+};
   // ===========================
+// VIEW REPORT
+// ===========================
+
+const viewReport = async (id) => {
+
+  if (!canView) {
+
+    alert("You don't have permission to view reports.");
+
+    return;
+
+  }
+
+  try {
+
+    const res = await axios.get(
+      `${API}/checklist-reports/${id}`
+    );
+
+    setSelectedReport(res.data.data);
+
+    setShowModal(true);
+
+  } catch (err) {
+
+    console.log(err);
+
+    alert(
+      err.response?.data?.message ||
+      "Unable to load report."
+    );
+
+  }
+
+};
+
+// ===========================
 // EDIT REPORT
 // ===========================
 
 const [showEditModal, setShowEditModal] = useState(false);
 
 const [editingReport, setEditingReport] = useState({
+
   id: "",
+
   status: "",
+
   answer: "",
+
   remarks: ""
+
 });
+
 // ===========================
 // UPDATE REPORT
 // ===========================
 
 const updateReport = async () => {
+
+  if (!canEdit) {
+
+    alert("You don't have permission to edit reports.");
+
+    return;
+
+  }
 
   try {
 
@@ -175,9 +370,7 @@ const updateReport = async () => {
 
     loadData();
 
-  }
-
-  catch (error) {
+  } catch (error) {
 
     console.log(error);
 
@@ -186,67 +379,153 @@ const updateReport = async () => {
     console.log(error.response?.data);
 
     alert(
-        error.response?.data?.message ||
-        error.message
+
+      error.response?.data?.message ||
+
+      error.message ||
+
+      "Unable to update report."
+
     );
 
-}
+  }
+
 };
-    // ===========================
-  // EXPORT CSV
-  // ===========================
 
-  const exportCSV = () => {
+// ===========================
+// OPEN EDIT MODAL
+// ===========================
 
-    if (filteredReports.length === 0) {
-      alert("No records found.");
-      return;
-    }
+const handleEdit = (item) => {
 
-    const rows = filteredReports.map((r) => ({
-      "Submitted At": r.submission_date,
-      Status: r.status,
-      Checklist: r.checklist_name,
-      Store: r.store_name,
-      Employee: r.employee_name,
-      "Employee ID": r.employee_id || "-",
-      Question: r.question || "-",
-      Answer: r.answer || "-",
-      Comment: r.remarks || "-",
-      Department: r.department_name || "-",
-      Latitude: r.latitude || "-",
-      Longitude: r.longitude || "-",
-    }));
+  if (!canEdit) {
 
-    const csv = [
-      Object.keys(rows[0]).join(","),
-      ...rows.map((row) =>
-        Object.values(row)
-          .map((item) => `"${item}"`)
-          .join(",")
-      ),
-    ].join("\n");
+    alert("You don't have permission to edit reports.");
 
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
+    return;
 
-    const url = window.URL.createObjectURL(blob);
+  }
 
-    const link = document.createElement("a");
+  setEditingReport({
 
-    link.href = url;
+    id: item.id,
 
-    link.download = "ChecklistReports.csv";
+    status: item.status || "",
 
-    link.click();
+    submission_date: item.submission_date || "",
 
-    window.URL.revokeObjectURL(url);
-  };
-  const handleImportCSV = async () => {
+    device: item.device || "",
 
+    answer: item.answer || "",
 
-  if(!importFile){
+    remarks: item.remarks || ""
+
+  });
+
+  setShowEditModal(true);
+
+};
+   // ===========================
+// EXPORT CSV
+// ===========================
+
+const exportCSV = () => {
+
+  if (!canView) {
+
+    alert("You don't have permission to export reports.");
+
+    return;
+
+  }
+
+  if (filteredReports.length === 0) {
+
+    alert("No records found.");
+
+    return;
+
+  }
+
+  const rows = filteredReports.map((r) => ({
+
+    "Submitted At": r.submission_date,
+
+    Status: r.status,
+
+    Checklist: r.checklist_name,
+
+    Store: r.store_name,
+
+    Employee: r.employee_name,
+
+    "Employee ID": r.employee_id || "-",
+
+    Question: r.question || "-",
+
+    Answer: r.answer || "-",
+
+    Comment: r.remarks || "-",
+
+    Department: r.department_name || "-",
+
+    Latitude: r.latitude || "-",
+
+    Longitude: r.longitude || "-",
+
+  }));
+
+  const csv = [
+
+    Object.keys(rows[0]).join(","),
+
+    ...rows.map((row) =>
+
+      Object.values(row)
+
+        .map((item) => `"${item}"`)
+
+        .join(",")
+
+    ),
+
+  ].join("\n");
+
+  const blob = new Blob([csv], {
+
+    type: "text/csv;charset=utf-8;",
+
+  });
+
+  const url = window.URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+
+  link.download = "ChecklistReports.csv";
+
+  link.click();
+
+  window.URL.revokeObjectURL(url);
+
+};
+
+// ===========================
+// IMPORT CSV
+// ===========================
+
+const handleImportCSV = async () => {
+
+  if (!canAdd) {
+
+    alert("You don't have permission to import reports.");
+
+    return;
+
+  }
+
+  if (!importFile) {
 
     alert("Please select CSV file");
 
@@ -254,66 +533,60 @@ const updateReport = async () => {
 
   }
 
-
-
   const formData = new FormData();
-
 
   formData.append(
     "file",
     importFile
   );
 
-
-
-  try{
-
+  try {
 
     const response = await axios.post(
 
-      "http://localhost:5000/api/checklist-reports/import",
+      `${API}/checklist-reports/import`,
 
       formData,
 
       {
-        headers:{
-          "Content-Type":"multipart/form-data"
-        }
+
+        headers: {
+
+          "Content-Type": "multipart/form-data",
+
+        },
+
       }
 
     );
 
-
-
     alert(response.data.message);
-
-
 
     setShowImportModal(false);
 
     setImportFile(null);
 
+    // Refresh reports
 
+    loadData();
 
-   // refresh reports
+  } catch (error) {
 
-loadData();
+    console.error(
+      "CSV IMPORT ERROR:",
+      error.response?.data || error
+    );
+
+    alert(
+
+      error.response?.data?.message ||
+
+      "CSV upload failed"
+
+    );
 
   }
- catch(error){
 
-  console.error(
-    "CSV IMPORT ERROR:",
-    error.response?.data || error
-  );
-
-
-  alert(
-    error.response?.data?.message ||
-    "CSV upload failed"
-  );
-
-}
 };
 
   // ===========================
@@ -384,72 +657,77 @@ loadData();
     toDate,
   ]);
 
-  // ===========================
-  // PAGINATION
-  // ===========================
-
-  const indexOfLast = currentPage * rowsPerPage;
-
-  const indexOfFirst = indexOfLast - rowsPerPage;
-
-  const currentReports = filteredReports.slice(
-    indexOfFirst,
-    indexOfLast
-  );
-
-  const totalPages = Math.ceil(
-    filteredReports.length / rowsPerPage
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    search,
-    selectedStore,
-    selectedChecklist,
-    selectedEmployee,
-    fromDate,
-    toDate,
-    rowsPerPage,
-  ]);
-  // ===========================
-// EDIT REPORT
+ // ===========================
+// PAGINATION
 // ===========================
 
-const handleEdit = (item) => {
+const indexOfLast = currentPage * rowsPerPage;
 
-  setEditingReport({
+const indexOfFirst = indexOfLast - rowsPerPage;
 
-    id: item.id,
+const currentReports = filteredReports.slice(
+  indexOfFirst,
+  indexOfLast
+);
 
-    status: item.status || "",
+const totalPages = Math.ceil(
+  filteredReports.length / rowsPerPage
+);
 
-    submission_date: item.submission_date || "",
+useEffect(() => {
 
-    device: item.device || "",
+  setCurrentPage(1);
 
-    answer: item.answer || "",
+}, [
+  search,
+  selectedStore,
+  selectedChecklist,
+  selectedEmployee,
+  fromDate,
+  toDate,
+  rowsPerPage,
+]);
 
-    remarks: item.remarks || ""
 
-});
+// ===========================
+// ACCESS DENIED
+// ===========================
 
-  setShowEditModal(true);
+if (!canView) {
 
-};
+  return (
 
-  // ===========================
-  // LOADING
-  // ===========================
+    <div className="no-permission">
 
-  if (loading) {
-    return (
-      <div className="reports-loading">
-        Loading Checklist Reports...
-      </div>
-    );
-  }
+      <h2>Access Denied</h2>
 
+      <p>
+        You don't have permission to view Checklist Reports.
+      </p>
+
+    </div>
+
+  );
+
+}
+
+// ===========================
+// LOADING
+// ===========================
+
+if (loading) {
+
+  return (
+
+    <div className="reports-loading">
+
+      Loading Checklist Reports...
+
+    </div>
+
+  );
+
+}
   // ===========================
   // JSX START
   // ===========================
@@ -635,31 +913,34 @@ const handleEdit = (item) => {
 
         <div className="button-row">
 
-          <button
-            className="export-btn"
-            onClick={exportCSV}
-          >
+         {canView && (
 
-            <FaFileExport />
-
-            Export CSV
-
-          </button>
 <button
-
-className="import-btn"
-
-onClick={()=>
- setShowImportModal(true)
-}
-
+  className="export-btn"
+  onClick={exportCSV}
 >
 
-<FaUpload />
+  <FaFileExport />
 
-Import CSV
+  Export CSV
 
 </button>
+
+)}
+{canAdd && (
+
+<button
+  className="import-btn"
+  onClick={() => setShowImportModal(true)}
+>
+
+  <FaUpload />
+
+  Import CSV
+
+</button>
+
+)}
           <button
             className="clear-btn"
             onClick={() => {
@@ -848,29 +1129,41 @@ Import CSV
 
     <div className="action-buttons">
 
-        <button
-            className="view-btn"
-            onClick={() => viewReport(item.id)}
-        >
-            <FaEye />
-        </button>
+  {canView && (
 
-        <button
-            className="edit-btn"
-            onClick={() => handleEdit(item)}
-        >
-            <FaEdit />
-            <span>Edit</span>
-        </button>
+    <button
+      className="view-btn"
+      onClick={() => viewReport(item.id)}
+    >
+      <FaEye />
+    </button>
 
-        <button
-            className="delete-btn"
-            onClick={() => deleteReport(item.id)}
-        >
-            <FaTrash />
-        </button>
+  )}
 
-    </div>
+  {canEdit && (
+
+    <button
+      className="edit-btn"
+      onClick={() => handleEdit(item)}
+    >
+      <FaEdit />
+      <span>Edit</span>
+    </button>
+
+  )}
+
+  {canDelete && (
+
+    <button
+      className="delete-btn"
+      onClick={() => deleteReport(item.id)}
+    >
+      <FaTrash />
+    </button>
+
+  )}
+
+</div>
 
 </td>
                 </tr>
@@ -1257,12 +1550,18 @@ Import CSV
                     Cancel
                 </button>
 
-               <button
-    className="upload-btn"
-    onClick={updateReport}
+              {canEdit && (
+
+<button
+className="upload-btn"
+onClick={updateReport}
 >
+
     Save Changes
+
 </button>
+
+)}
             </div>
 
         </div>
@@ -1370,19 +1669,19 @@ Import CSV
 
 
 
-        <button
+       {canAdd && (
 
-          className="upload-btn"
+<button
+  className="upload-btn"
+  onClick={handleImportCSV}
+  disabled={!importFile}
+>
 
-          onClick={handleImportCSV}
+  Upload CSV
 
-          disabled={!importFile}
+</button>
 
-        >
-
-          Upload CSV
-
-        </button>
+)}
 
 
       </div>

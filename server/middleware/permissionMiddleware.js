@@ -8,9 +8,41 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
     return (req, res, next) => {
 
+        // ======================================================
+        // CHECK AUTHENTICATION
+        // ======================================================
+
+        if (!req.user || !req.user.id) {
+
+            console.log("====================================");
+            console.log("AUTH FAILED");
+            console.log(req.user);
+            console.log("====================================");
+
+            return res.status(401).json({
+
+                success: false,
+
+                message: "Unauthorized"
+
+            });
+
+        }
+
         const userId = req.user.id;
 
-        const sql = `
+        console.log("\n====================================");
+        console.log("PERMISSION CHECK");
+        console.log("User ID :", userId);
+        console.log("Module  :", moduleName);
+        console.log("Required:", requiredPermission);
+        console.log("====================================");
+
+        // ======================================================
+        // LOAD USER PERMISSION
+        // ======================================================
+
+        const permissionSql = `
             SELECT permission
             FROM user_permissions
             WHERE user_id = ?
@@ -18,9 +50,13 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
             LIMIT 1
         `;
 
+        console.log("SQL:");
+        console.log(permissionSql);
+        console.log("Values:", [userId, moduleName]);
+
         db.query(
 
-            sql,
+            permissionSql,
 
             [userId, moduleName],
 
@@ -28,6 +64,7 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 if (err) {
 
+                    console.error("DATABASE ERROR");
                     console.error(err);
 
                     return res.status(500).json({
@@ -40,7 +77,11 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 }
 
+                console.log("Permission Result:", result);
+
                 if (result.length === 0) {
+
+                    console.log("NO PERMISSION FOUND");
 
                     return res.status(403).json({
 
@@ -54,11 +95,15 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 const permission = result[0].permission;
 
+                console.log("User Permission:", permission);
+
                 // ======================================================
                 // FULL ACCESS
                 // ======================================================
 
                 if (permission === "Full") {
+
+                    console.log("FULL ACCESS GRANTED");
 
                     return next();
 
@@ -66,24 +111,17 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 // ======================================================
                 // VIEW
-                // View, Add and Edit users can view
                 // ======================================================
 
                 if (
 
                     requiredPermission === "View" &&
 
-                    [
-
-                        "View",
-
-                        "Add",
-
-                        "Edit"
-
-                    ].includes(permission)
+                    ["View", "Add", "Edit", "Full"].includes(permission)
 
                 ) {
+
+                    console.log("VIEW ACCESS GRANTED");
 
                     return next();
 
@@ -91,22 +129,17 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 // ======================================================
                 // ADD
-                // Add and Edit users can add
                 // ======================================================
 
                 if (
 
                     requiredPermission === "Add" &&
 
-                    [
-
-                        "Add",
-
-                        "Edit"
-
-                    ].includes(permission)
+                    ["Add", "Edit", "Full"].includes(permission)
 
                 ) {
+
+                    console.log("ADD ACCESS GRANTED");
 
                     return next();
 
@@ -114,24 +147,41 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 // ======================================================
                 // EDIT
-                // Only Edit users can edit
                 // ======================================================
 
                 if (
 
                     requiredPermission === "Edit" &&
 
-                    permission === "Edit"
+                    ["Edit", "Full"].includes(permission)
 
                 ) {
+
+                    console.log("EDIT ACCESS GRANTED");
 
                     return next();
 
                 }
 
                 // ======================================================
-                // ACCESS DENIED
+                // DELETE
                 // ======================================================
+
+                if (
+
+                    requiredPermission === "Full" &&
+
+                    permission === "Full"
+
+                ) {
+
+                    console.log("DELETE ACCESS GRANTED");
+
+                    return next();
+
+                }
+
+                console.log("INSUFFICIENT PERMISSION");
 
                 return res.status(403).json({
 

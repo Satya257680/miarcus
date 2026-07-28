@@ -1,5 +1,4 @@
 const transporter = require("../config/mailer");
-const path = require("path");
 
 // =============================
 // Email Templates
@@ -15,42 +14,11 @@ const forgotPasswordOTP = require("../utils/emailTemplates/forgotPasswordOTP");
 const resetPassword = require("../utils/emailTemplates/resetPassword");
 
 // ======================================================
-// Embedded Images (CID)
+// Common Sender
 // ======================================================
 
-const emailAttachments = [
-
-    {
-        filename: "Miarcus.png",
-        path: path.join(__dirname, "../public/images/Miarcus.png"),
-        cid: "miarcus-logo"
-    },
-
-    {
-        filename: "facebook.png",
-        path: path.join(__dirname, "../public/images/facebook.png"),
-        cid: "facebook-icon"
-    },
-
-    {
-        filename: "linkedin.png",
-        path: path.join(__dirname, "../public/images/linkedin.png"),
-        cid: "linkedin-icon"
-    },
-
-    {
-        filename: "x.png",
-        path: path.join(__dirname, "../public/images/x.png"),
-        cid: "x-icon"
-    },
-
-    {
-        filename: "instagram.png",
-        path: path.join(__dirname, "../public/images/instagram.png"),
-        cid: "instagram-icon"
-    }
-
-];
+const EMAIL_FROM =
+    process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
 // ======================================================
 // Invitation Email
@@ -60,15 +28,13 @@ const sendInvitationEmail = async (user, activationLink) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Welcome to miarcus",
 
-        html: invitationEmail(user, activationLink),
-
-        attachments: emailAttachments
+        html: invitationEmail(user, activationLink)
 
     });
 
@@ -82,15 +48,13 @@ const sendAccountUpdatedEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your miarcus Account Has Been Updated",
 
-        html: accountUpdated(user),
-
-        attachments: emailAttachments
+        html: accountUpdated(user)
 
     });
 
@@ -104,15 +68,13 @@ const sendAccountActivatedEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your miarcus Account Has Been Activated",
 
-        html: accountActivated(user),
-
-        attachments: emailAttachments
+        html: accountActivated(user)
 
     });
 
@@ -126,15 +88,13 @@ const sendAccountDisabledEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your miarcus Account Has Been Disabled",
 
-        html: accountDisabled(user),
-
-        attachments: emailAttachments
+        html: accountDisabled(user)
 
     });
 
@@ -148,15 +108,13 @@ const sendAccountEnabledEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your miarcus Account Has Been Reactivated",
 
-        html: accountEnabled(user),
-
-        attachments: emailAttachments
+        html: accountEnabled(user)
 
     });
 
@@ -170,15 +128,13 @@ const sendAccountDeletedEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your miarcus Account Has Been Deleted",
 
-        html: accountDeleted(user),
-
-        attachments: emailAttachments
+        html: accountDeleted(user)
 
     });
 
@@ -192,37 +148,33 @@ const sendForgotPasswordOTPEmail = async (user, otp) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
         subject: "Your Password Reset OTP",
 
-        html: forgotPasswordOTP(user, otp),
-
-        attachments: emailAttachments
+        html: forgotPasswordOTP(user, otp)
 
     });
 
 };
 
 // ======================================================
-// Reset Password Confirmation
+// Password Reset Confirmation
 // ======================================================
 
 const sendResetPasswordEmail = async (user) => {
 
     return transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from: EMAIL_FROM,
 
         to: user.email,
 
-        subject: "Your Password Has Been Reset",
+        subject: "Your Password Has Been Reset Successfully",
 
-        html: resetPassword(user),
-
-        attachments: emailAttachments
+        html: resetPassword(user)
 
     });
 

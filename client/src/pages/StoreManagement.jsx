@@ -41,32 +41,35 @@ function StoreManagement() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  // ==========================
+// ==========================
 // RBAC
 // ==========================
+
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const storePermission =
-  permissions["Stores"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const storePermission = isAdmin
+  ? "Full"
+  : permissions["Stores"] || "None";
 
 const canView =
-  ["View", "Add", "Edit", "Full"].includes(
-    storePermission
-  );
+  ["View", "Add", "Edit", "Full"].includes(storePermission);
 
 const canAdd =
-  ["Add", "Edit", "Full"].includes(
-    storePermission
-  );
+  ["Add", "Edit", "Full"].includes(storePermission);
 
 const canEdit =
-  ["Edit", "Full"].includes(
-    storePermission
-  );
+  ["Edit", "Full"].includes(storePermission);
 
 const canDelete =
   storePermission === "Full";
@@ -161,148 +164,204 @@ const canDelete =
   // Add Store
   // ==========================
 
-  const handleAddStore = () => {
+ const handleAddStore = () => {
 
-    setEditingStore(null);
+  if (!canAdd) return;
 
-    setShowModal(true);
+  setEditingStore(null);
+  setShowModal(true);
 
-  };
-
+};
   // ==========================
   // Edit Store
   // ==========================
 
   const handleEdit = (store) => {
 
-    setEditingStore(store);
+  if (!canEdit) return;
 
-    setShowModal(true);
+  setEditingStore(store);
+  setShowModal(true);
 
-  };
-
+};
   // ==========================
-  // Delete Store
-  // ==========================
+// Delete Store
+// ==========================
 
-  const handleDelete = async (id) => {
+const handleDelete = async (id) => {
 
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this store?"
-      )
-    ) {
-      return;
-    }
+  // RBAC Check
+  if (!canDelete) {
+    alert("You don't have permission to delete stores.");
+    return;
+  }
 
-    try {
+  // Confirmation
+  if (
+    !window.confirm(
+      "Are you sure you want to delete this store?"
+    )
+  ) {
+    return;
+  }
 
-      const res = await deleteStore(id);
+  try {
 
-      if (res.success) {
+    const res = await deleteStore(id);
 
-        fetchStores();
+    if (res.success) {
 
-      } else {
+      alert("Store deleted successfully.");
 
-        alert(res.message);
+      fetchStores();
 
-      }
-
-    } catch (err) {
-
-      console.error(err);
+    } else {
 
       alert(
-        err.response?.data?.message ||
-        err.message
+        res.message || "Failed to delete store."
       );
 
     }
 
-  };
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      err.response?.data?.message ||
+      err.message ||
+      "Unable to delete store."
+    );
+
+  }
+
+};
 
   // ==========================
-  // Delete All
-  // ==========================
+// Delete All Stores
+// ==========================
 
-  const handleDeleteAll = async () => {
+const handleDeleteAll = async () => {
 
-    if (
-      !window.confirm(
-        "Delete all stores?"
-      )
-    ) {
-      return;
-    }
+  // RBAC Check
+  if (!canDelete) {
+    alert("You don't have permission to delete all stores.");
+    return;
+  }
 
-    try {
+  // Confirmation
+  if (
+    !window.confirm(
+      "Delete all stores?"
+    )
+  ) {
+    return;
+  }
 
-      const res = await deleteAllStores();
+  try {
 
-      if (res.success) {
+    const res = await deleteAllStores();
 
-        fetchStores();
+    if (res.success) {
 
-      }
+      alert("All stores deleted successfully.");
 
-    } catch (err) {
+      fetchStores();
 
-      console.error(err);
-
-    }
-
-  };
-
-  // ==========================
-  // Save Store
-  // ==========================
-
-  const handleSave = async (data) => {
-
-    try {
-
-      let res;
-
-      if (editingStore) {
-
-        res = await updateStore(
-          editingStore.id,
-          data
-        );
-
-      } else {
-
-        res = await createStore(data);
-
-      }
-
-      if (res.success) {
-
-        setShowModal(false);
-
-        setEditingStore(null);
-
-        fetchStores();
-
-      } else {
-
-        alert(res.message);
-
-      }
-
-    } catch (err) {
-
-      console.error(err);
+    } else {
 
       alert(
-        err.response?.data?.message ||
-        err.message
+        res.message || "Failed to delete stores."
       );
 
     }
 
-  };
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      err.response?.data?.message ||
+      err.message ||
+      "Unable to delete stores."
+    );
+
+  }
+
+};
+
+ // ==========================
+// Save Store
+// ==========================
+
+const handleSave = async (data) => {
+
+  // RBAC Check
+  if (editingStore) {
+
+    if (!canEdit) {
+      alert("You don't have permission to edit stores.");
+      return;
+    }
+
+  } else {
+
+    if (!canAdd) {
+      alert("You don't have permission to add stores.");
+      return;
+    }
+
+  }
+
+  try {
+
+    let res;
+
+    if (editingStore) {
+
+      res = await updateStore(
+        editingStore.id,
+        data
+      );
+
+    } else {
+
+      res = await createStore(data);
+
+    }
+
+    if (res.success) {
+
+      alert(
+        editingStore
+          ? "Store updated successfully."
+          : "Store created successfully."
+      );
+
+      setShowModal(false);
+
+      setEditingStore(null);
+
+      fetchStores();
+
+    } else {
+
+      alert(res.message);
+
+    }
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      err.response?.data?.message ||
+      err.message
+    );
+
+  }
+
+};
     // ==========================
   // Pagination
   // ==========================
@@ -319,98 +378,145 @@ const canDelete =
     filteredStores.length / rowsPerPage
   );
 
-  // ==========================
-  // Export CSV
-  // ==========================
 
-  const handleExport = () => {
-    if (filteredStores.length === 0) {
-      alert("No store data available.");
-      return;
-    }
+ // ==========================
+// Export CSV
+// ==========================
 
-    const headers = [
-      "Store Code",
-      "Store Name",
-      "Country",
-      "State",
-      "City",
-      "Manager",
-      "Contact",
-      "Email",
-      "Status",
-    ];
+const handleExport = () => {
 
-    const rows = filteredStores.map((store) => [
-      store.store_code,
-      store.store_name,
-      store.country,
-      store.state,
-      store.city,
-      store.manager_name,
-      store.contact_number,
-      store.email,
-      store.status,
-    ]);
+  if (!canView) {
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
+    alert("You don't have permission to export stores.");
 
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+    return;
 
-    const link = document.createElement("a");
+  }
 
-    link.href = URL.createObjectURL(blob);
+  if (filteredStores.length === 0) {
 
-    link.download = "stores.csv";
+    alert("No store data available.");
 
-    link.click();
-  };
+    return;
 
-  // ==========================
-  // Import CSV (Placeholder)
-  // ==========================
+  }
 
-  const handleImport = () => {
-    fileInputRef.current.click();
+  const headers = [
+    "Store Code",
+    "Store Name",
+    "Country",
+    "State",
+    "City",
+    "Manager",
+    "Contact",
+    "Email",
+    "Status",
+  ];
+
+  const rows = filteredStores.map((store) => [
+    store.store_code,
+    store.store_name,
+    store.country,
+    store.state,
+    store.city,
+    store.manager_name,
+    store.contact_number,
+    store.email,
+    store.status,
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) => row.join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const link = document.createElement("a");
+
+  link.href = URL.createObjectURL(blob);
+
+  link.download = "stores.csv";
+
+  link.click();
+
 };
+ // ==========================
+// Import CSV
+// ==========================
+
+const handleImport = () => {
+
+  // RBAC Check
+  if (!canAdd) {
+
+    alert("You don't have permission to import stores.");
+
+    return;
+
+  }
+
+  fileInputRef.current.click();
+
+};
+
+// ==========================
+// Handle CSV File
+// ==========================
 
 const handleFileChange = async (e) => {
 
-    const file = e.target.files[0];
+  // RBAC Check
+  if (!canAdd) {
 
-    if (!file) return;
+    alert("You don't have permission to import stores.");
 
-    try {
+    e.target.value = "";
 
-        const res = await importStores(file);
+    return;
 
-        if (res.success) {
+  }
 
-            alert(res.message);
+  const file = e.target.files[0];
 
-            fetchStores();
+  if (!file) return;
 
-        } else {
+  try {
 
-            alert(res.message);
+    const res = await importStores(file);
 
-        }
+    if (res.success) {
 
-    } catch (err) {
+      alert(res.message || "Stores imported successfully.");
 
-        console.error(err);
+      fetchStores();
 
-        alert(
-            err.response?.data?.message ||
-            "CSV Import Failed"
-        );
+    } else {
+
+      alert(
+        res.message || "Import failed."
+      );
 
     }
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      err.response?.data?.message ||
+      err.message ||
+      "CSV Import Failed"
+    );
+
+  } finally {
+
+    // Allow selecting the same file again
+    e.target.value = "";
+
+  }
 
 };
 

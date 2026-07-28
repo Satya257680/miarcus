@@ -30,13 +30,24 @@ function Departments() {
 // RBAC
 // ==========================
 
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
+
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const departmentPermission =
-  permissions["Departments"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
 
+const departmentPermission = isAdmin
+  ? "Full"
+  : permissions["Departments"] || "None";
+
+// Permission Levels
 const canView =
   ["View", "Add", "Edit", "Full"].includes(departmentPermission);
 
@@ -48,7 +59,6 @@ const canEdit =
 
 const canDelete =
   departmentPermission === "Full";
-
   // ==========================
   // Load Departments
   // ==========================
@@ -79,13 +89,9 @@ const canDelete =
       setLoading(false);
     }
   };
+useEffect(() => {
 
-  useEffect(() => {
-
-  if (!canView) {
-    alert("You don't have permission to view Departments.");
-    return;
-  }
+  if (!canView) return;
 
   fetchDepartments();
 
@@ -116,84 +122,98 @@ const canDelete =
   // ==========================
 
   const handleAdd = () => {
-    setEditDepartment(null);
-    setShowModal(true);
-  };
+  if (!canAdd) return;
+
+  setEditDepartment(null);
+  setShowModal(true);
+};
 
   // ==========================
   // Edit Department
   // ==========================
 
   const handleEdit = (department) => {
-    setEditDepartment(department);
-    setShowModal(true);
-  };
+  if (!canEdit) return;
+
+  setEditDepartment(department);
+  setShowModal(true);
+};
 
   // ==========================
   // Delete Department
   // ==========================
 
   const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this department?"
-      )
-    ) {
-      return;
+  if (!canDelete) return;
+
+  if (
+    !window.confirm(
+      "Are you sure you want to delete this department?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const res = await deleteDepartment(id);
+
+    if (res.success) {
+      fetchDepartments();
+    } else {
+      alert(res.message);
+    }
+  } catch (err) {
+    console.error("Delete Error:", err);
+    console.error("Response:", err.response?.data);
+
+    alert(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message
+    );
+  }
+};
+
+ // ==========================
+// Save Department
+// ==========================
+
+const handleSave = async (data) => {
+
+  // RBAC Check
+  if (editDepartment) {
+    if (!canEdit) return;
+  } else {
+    if (!canAdd) return;
+  }
+
+  try {
+    let res;
+
+    if (editDepartment) {
+      res = await updateDepartment(editDepartment.id, data);
+    } else {
+      res = await createDepartment(data);
     }
 
-    try {
-      const res = await deleteDepartment(id);
-
-      if (res.success) {
-        fetchDepartments();
-      } else {
-        alert(res.message);
-      }
-    } catch (err) {
-      console.error("Delete Error:", err);
-      console.error("Response:", err.response?.data);
-
-      alert(
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message
-      );
+    if (res.success) {
+      setShowModal(false);
+      setEditDepartment(null);
+      fetchDepartments();
+    } else {
+      alert(res.message);
     }
-  };
+  } catch (err) {
+    console.error("Save Error:", err);
+    console.error("Backend Response:", err.response?.data);
 
-  // ==========================
-  // Save Department
-  // ==========================
-
-  const handleSave = async (data) => {
-    try {
-      let res;
-
-      if (editDepartment) {
-        res = await updateDepartment(editDepartment.id, data);
-      } else {
-        res = await createDepartment(data);
-      }
-
-      if (res.success) {
-        setShowModal(false);
-        setEditDepartment(null);
-        fetchDepartments();
-      } else {
-        alert(res.message);
-      }
-    } catch (err) {
-      console.error("Save Error:", err);
-      console.error("Backend Response:", err.response?.data);
-
-      alert(
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message
-      );
-    }
-  };
+    alert(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message
+    );
+  }
+};
 
 return (
 

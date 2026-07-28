@@ -8,7 +8,7 @@ const accountActivated = (user) => {
         // Page Title
         // ===========================
 
-        title: "Account Activated",
+        title: "Account Activated Successfully",
 
         // ===========================
         // Greeting
@@ -41,19 +41,27 @@ const accountActivated = (user) => {
         // ===========================
 
         message: `
-            Congratulations! Your account has been activated successfully.
+            Congratulations! Your account activation has been completed successfully.
 
             <br><br>
 
-            You can now sign in to the miarcus platform and access the features and modules available to you based on your assigned role and permissions.
+            You can now sign in to the
+            <strong>miarcus</strong>
+            platform using your registered email address and the password you created during activation.
 
             <br><br>
 
-            We recommend reviewing your profile information, department, designation, and account settings after signing in to ensure everything is accurate.
+            Once you sign in, you'll have access to the features and modules assigned to your role and permissions by your administrator.
 
             <br><br>
 
-            We look forward to supporting you as you begin using miarcus.
+            We recommend reviewing your profile information, department, designation, reporting manager, and account settings to ensure everything is accurate.
+
+            <br><br>
+
+            We're excited to have you as part of the
+            <strong>miarcus</strong>
+            community and look forward to supporting your success.
         `,
 
         // ===========================
@@ -62,7 +70,9 @@ const accountActivated = (user) => {
 
         buttonText: "Login to miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -79,11 +89,19 @@ const accountActivated = (user) => {
 
             <br><br>
 
-            ✓ Your available modules and features are based on the permissions assigned by your administrator.
+            ✓ Your available features and modules are determined by the permissions assigned by your administrator.
 
             <br><br>
 
-            ✓ If you experience any issues signing in, please contact your administrator for assistance.
+            ✓ Please review your account information after signing in to ensure everything is accurate.
+
+            <br><br>
+
+            ✓ Keep your password secure and never share your login credentials with anyone.
+
+            <br><br>
+
+            ✓ If you experience any issues accessing your account, please contact your administrator for assistance.
         `,
 
         // ===========================
@@ -91,13 +109,27 @@ const accountActivated = (user) => {
         // ===========================
 
         bottomMessage: `
-            Thank you for joining
+            Thank you for choosing
             <strong>miarcus</strong>.
 
             <br><br>
 
-            We're excited to have you on board and hope you have a productive experience using our platform. If you need any assistance, please contact your administrator.
+            We're delighted to welcome you and hope you have a productive and successful experience using our platform.
+
+            <br><br>
+
+            If you need any assistance or have any questions, please don't hesitate to contact your administrator.
+
+            <br><br>
+
+            Welcome aboard, and thank you for being part of the
+            <strong>miarcus</strong>
+            community.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

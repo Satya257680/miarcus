@@ -12,7 +12,57 @@ const baseTemplate = ({
     showInfoBox = true,
 }) => {
 
-    return `
+const backendUrl =
+    process.env.BACKEND_URL || "http://localhost:5000";
+
+// ======================================================
+// MIARCUS LOGO
+// ======================================================
+
+const logo = `${backendUrl}/images/Miarcus.png`;
+
+// ======================================================
+// OFFICIAL MIARCUS LINKS
+// ======================================================
+
+const WEBSITE =
+    "https://miarcus.com/";
+
+const FACEBOOK =
+    "https://www.facebook.com/MiArcusOfficial";
+
+const INSTAGRAM =
+    "https://www.instagram.com/official_miarcus/";
+
+const LINKEDIN =
+    "https://www.linkedin.com/company/mi-arcus";
+
+const X =
+    "https://x.com/officialmiarcus";
+
+const YOUTUBE =
+    "https://www.youtube.com/@official_miarcus";
+
+// ======================================================
+// SOCIAL ICONS
+// ======================================================
+
+const facebook =
+    "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg";
+
+const linkedin =
+    "https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png";
+
+const x =
+    "https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png";
+
+const instagram =
+    "https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png";
+
+const youtube =
+    "https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg";
+
+return `
 <!DOCTYPE html>
 <html>
 
@@ -20,7 +70,9 @@ const baseTemplate = ({
 
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <title>${title}</title>
 
@@ -87,7 +139,7 @@ background:#6C63FF;
 ">
 
 <a
-href="${process.env.FRONTEND_URL || "#"}"
+href="${WEBSITE}"
 target="_blank"
 rel="noopener noreferrer"
 style="
@@ -96,7 +148,7 @@ text-decoration:none;
 ">
 
 <img
-src="cid:miarcus-logo"
+src="${logo}"
 alt="miarcus"
 style="
 max-width:180px;
@@ -349,14 +401,38 @@ Stay Connected
 align="center"
 style="padding:15px 0 25px;">
 
+<!-- Website -->
+
 <a
-href="https://www.facebook.com/"
+href="${WEBSITE}"
 target="_blank"
 rel="noopener noreferrer"
 style="display:inline-block;margin:0 8px;">
 
 <img
-src="cid:facebook-icon"
+src="${logo}"
+width="40"
+alt="Website"
+style="
+display:block;
+border:0;
+outline:none;
+text-decoration:none;
+border-radius:8px;
+">
+
+</a>
+
+<!-- Facebook -->
+
+<a
+href="${FACEBOOK}"
+target="_blank"
+rel="noopener noreferrer"
+style="display:inline-block;margin:0 8px;">
+
+<img
+src="${facebook}"
 width="40"
 alt="Facebook"
 style="
@@ -368,14 +444,37 @@ text-decoration:none;
 
 </a>
 
+<!-- Instagram -->
+
 <a
-href="https://www.linkedin.com/"
+href="${INSTAGRAM}"
 target="_blank"
 rel="noopener noreferrer"
 style="display:inline-block;margin:0 8px;">
 
 <img
-src="cid:linkedin-icon"
+src="${instagram}"
+width="40"
+alt="Instagram"
+style="
+display:block;
+border:0;
+outline:none;
+text-decoration:none;
+">
+
+</a>
+
+<!-- LinkedIn -->
+
+<a
+href="${LINKEDIN}"
+target="_blank"
+rel="noopener noreferrer"
+style="display:inline-block;margin:0 8px;">
+
+<img
+src="${linkedin}"
 width="40"
 alt="LinkedIn"
 style="
@@ -386,14 +485,17 @@ text-decoration:none;
 ">
 
 </a>
+
+<!-- X -->
+
 <a
-href="https://x.com/"
+href="${X}"
 target="_blank"
 rel="noopener noreferrer"
 style="display:inline-block;margin:0 8px;">
 
 <img
-src="cid:x-icon"
+src="${x}"
 width="40"
 alt="X"
 style="
@@ -405,16 +507,18 @@ text-decoration:none;
 
 </a>
 
+<!-- YouTube -->
+
 <a
-href="https://www.instagram.com/"
+href="${YOUTUBE}"
 target="_blank"
 rel="noopener noreferrer"
 style="display:inline-block;margin:0 8px;">
 
 <img
-src="cid:instagram-icon"
+src="${youtube}"
 width="40"
-alt="Instagram"
+alt="YouTube"
 style="
 display:block;
 border:0;
@@ -427,7 +531,6 @@ text-decoration:none;
 </td>
 
 </tr>
-
 <tr>
 
 <td
@@ -445,11 +548,29 @@ Need help?
 
 <br><br>
 
-Please contact your administrator if you have any questions regarding your account.
+If you have any questions regarding your account or the miarcus ERP application,
+please contact your administrator or visit our official website.
+
+<br><br>
+
+<a
+href="${WEBSITE}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+font-weight:bold;
+text-decoration:none;
+">
+
+${WEBSITE}
+
+</a>
 
 </td>
 
 </tr>
+
 <tr>
 
 <td
@@ -461,6 +582,102 @@ color:#999;
 ">
 
 © ${new Date().getFullYear()} miarcus. All Rights Reserved.
+
+<br><br>
+
+<a
+href="${WEBSITE}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+Website
+
+</a>
+
+|
+
+<a
+href="${FACEBOOK}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+Facebook
+
+</a>
+
+|
+
+<a
+href="${INSTAGRAM}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+Instagram
+
+</a>
+
+|
+
+<a
+href="${LINKEDIN}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+LinkedIn
+
+</a>
+
+|
+
+<a
+href="${X}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+X
+
+</a>
+
+|
+
+<a
+href="${YOUTUBE}"
+target="_blank"
+rel="noopener noreferrer"
+style="
+color:#5F39FF;
+text-decoration:none;
+margin:0 8px;
+">
+
+YouTube
+
+</a>
 
 </td>
 

@@ -146,23 +146,6 @@ router.put(
 );
 
 // ======================================================
-// DELETE USER
-// DELETE : /api/users/:id
-// ======================================================
-
-router.delete(
-
-    "/:id",
-
-    authMiddleware,
-
-    permissionMiddleware("Users", "Full"),
-
-    deleteUser
-
-);
-
-// ======================================================
 // DELETE ALL USERS
 // DELETE : /api/users/delete-all
 // ======================================================
@@ -176,6 +159,23 @@ router.delete(
     permissionMiddleware("Users", "Full"),
 
     deleteAllUsers
+
+);
+
+// ======================================================
+// DELETE USER
+// DELETE : /api/users/:id
+// ======================================================
+
+router.delete(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Full"),
+
+    deleteUser
 
 );
 

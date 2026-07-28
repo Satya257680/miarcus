@@ -31,6 +31,10 @@ const forgotPassword = (user, resetLink) => {
                 miarcus
             </strong>
             account.
+
+            <br><br>
+
+            To help protect your account, we've generated a secure password reset link for you.
         `,
 
         // ===========================
@@ -38,19 +42,19 @@ const forgotPassword = (user, resetLink) => {
         // ===========================
 
         message: `
-            To create a new password, click the button below.
+            Click the button below to create a new password for your account.
 
             <br><br>
 
-            This secure password reset link will take you to the password reset page, where you can create a new password for your account.
+            This secure password reset link will take you directly to the password reset page.
 
             <br><br>
 
-            For your security, this link is unique to your account and can only be used once.
+            Once you've successfully created a new password, you'll be able to sign in using your updated credentials.
 
             <br><br>
 
-            If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged unless the reset process is completed.
+            For your security, this password reset link is unique to your account and can only be used once.
         `,
 
         // ===========================
@@ -59,7 +63,10 @@ const forgotPassword = (user, resetLink) => {
 
         buttonText: "Reset Password",
 
-        buttonLink: resetLink,
+        buttonLink:
+            resetLink ||
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -73,7 +80,7 @@ const forgotPassword = (user, resetLink) => {
 
             <br><br>
 
-            ✓ This link can only be used once.
+            ✓ This password reset link can only be used once.
 
             <br><br>
 
@@ -81,11 +88,11 @@ const forgotPassword = (user, resetLink) => {
 
             <br><br>
 
-            ✓ If the link expires, you can request a new password reset at any time.
+            ✓ Create a strong password using uppercase letters, lowercase letters, numbers, and special characters.
 
             <br><br>
 
-            ✓ Choose a strong password containing uppercase letters, lowercase letters, numbers, and special characters.
+            ✓ Avoid using personal information or previously used passwords.
         `,
 
         // ===========================
@@ -93,12 +100,26 @@ const forgotPassword = (user, resetLink) => {
         // ===========================
 
         bottomMessage: `
-            If you did not request a password reset, no further action is required.
+            If you did not request this password reset, you can safely ignore this email.
 
             <br><br>
 
-            If you believe someone is attempting to access your account without your permission, please contact your administrator immediately.
+            Your current password will remain unchanged unless you complete the password reset process.
+
+            <br><br>
+
+            If you suspect unauthorized access to your account, please contact your administrator immediately.
+
+            <br><br>
+
+            Thank you for trusting
+            <strong>miarcus</strong>
+            to help keep your account secure.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

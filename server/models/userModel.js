@@ -500,47 +500,52 @@ const markTokenUsed = (
     );
 
 };
-
 // ==========================
-// Bulk Insert Users
+// Get Department ID By Name
 // ==========================
 
-const bulkInsertUsers = (users, callback) => {
+const getDepartmentIdByName = (departmentName, callback) => {
 
-    const sql = `
-        INSERT INTO users
-        (
-           employee_id,
-name,
-email,
-call_contact,
-whatsapp_contact,
-password,
-department,
-designation,
-reports_to,
-status
-        )
-        VALUES ?
-    `;
+    db.query(
 
-    const values = users.map((user) => [
-    user["Employee ID"] || "",
-    user["Name"] || "",
-    user["Email"] || "",
-    user["Call Contact"] || "",
-    user["WhatsApp Contact"] || "",
-    null,
-    user["Department"] || "",
-    user["Designation"] || "",
-    user["Reports To"] || "",
-    user["Status"] || "Active",
+        `
+        SELECT id
+        FROM departments
+        WHERE department_name = ?
+        LIMIT 1
+        `,
 
-    ]);
+        [departmentName],
 
-    db.query(sql, [values], callback);
+        callback
+
+    );
 
 };
+
+// ==========================
+// Get Designation ID By Name
+// ==========================
+
+const getDesignationIdByName = (designationName, callback) => {
+
+    db.query(
+
+        `
+        SELECT id
+        FROM designations
+        WHERE designation_name = ?
+        LIMIT 1
+        `,
+
+        [designationName],
+
+        callback
+
+    );
+
+};
+
 
 // ==========================
 // Update User
@@ -558,16 +563,17 @@ const updateUser = (
 
     const sql = `
         UPDATE users
-       SET
-    employee_id=?,
-    name=?,
-    email=?,
-    call_contact=?,
-    whatsapp_contact=?,
-    department_id=?,
+        SET
+            employee_id=?,
+            name=?,
+            email=?,
+            call_contact=?,
+            whatsapp_contact=?,
+            department_id=?,
             designation_id=?,
             reports_to=?,
-            status=?
+            status=?,
+            is_admin=?
         WHERE id=?
     `;
 
@@ -576,12 +582,19 @@ const updateUser = (
         sql,
 
         [
-user.employeeId,
-user.fullName,
-user.email,
-user.callContact,
-user.whatsappContact,
-user.department_id,
+
+            user.employeeId,
+
+            user.fullName,
+
+            user.email,
+
+            user.callContact,
+
+            user.whatsappContact,
+
+            user.department_id,
+
             user.designation_id,
 
             user.reportsTo
@@ -591,6 +604,8 @@ user.department_id,
             user.active
                 ? "Active"
                 : "Inactive",
+
+            user.administrator ? 1 : 0,
 
             id
 
@@ -604,33 +619,33 @@ user.department_id,
 
             }
 
-           updateUserStores(
+            updateUserStores(
 
-    id,
+                id,
 
-    user.stores || [],
+                user.stores || [],
 
-    (storeErr) => {
+                (storeErr) => {
 
-        if (storeErr) {
+                    if (storeErr) {
 
-            return callback(storeErr);
+                        return callback(storeErr);
 
-        }
+                    }
 
-        updateUserPermissions(
+                    updateUserPermissions(
 
-            id,
+                        id,
 
-            user.permissions || {},
+                        user.permissions || {},
 
-            callback
+                        callback
 
-        );
+                    );
 
-    }
+                }
 
-);
+            );
 
         }
 
@@ -829,21 +844,23 @@ const deleteUser = (
 };
 
 // ==========================
-// Delete All Users
+// Delete All Users Except Admin
 // ==========================
 
 const deleteAllUsers = (callback) => {
 
     db.query(
 
-        "DELETE FROM users",
+        `
+        DELETE FROM users
+        WHERE is_admin = 0
+        `,
 
         callback
 
     );
 
 };
-
 /// ==========================
 // Get User By ID
 // ==========================
@@ -900,6 +917,11 @@ module.exports = {
 
     saveUserPermissions,
 
+    // NEW
+    getDepartmentIdByName,
+
+    getDesignationIdByName,
+
     updateUser,
 
     updateUserStores,
@@ -915,8 +937,6 @@ module.exports = {
     markTokenUsed,
 
     getUserById,
-
-    bulkInsertUsers,
 
     disableUser,
 

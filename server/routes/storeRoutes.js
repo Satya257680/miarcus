@@ -20,21 +20,53 @@ const {
 // ==============================
 
 const storage = multer.diskStorage({
+
   destination: (req, file, cb) => {
+
     cb(null, "uploads/");
+
   },
 
   filename: (req, file, cb) => {
+
     cb(null, Date.now() + "-" + file.originalname);
+
   },
+
 });
 
 const upload = multer({
+
   storage,
+
+  limits: {
+
+    fileSize: 5 * 1024 * 1024, // 5 MB
+
+  },
+
+  fileFilter: (req, file, cb) => {
+
+    if (
+      file.mimetype === "text/csv" ||
+      file.originalname.toLowerCase().endsWith(".csv")
+    ) {
+
+      cb(null, true);
+
+    } else {
+
+      cb(new Error("Only CSV files are allowed."));
+
+    }
+
+  },
+
 });
 
 // ==============================
 // Get All Stores
+// Permission: View
 // ==============================
 
 router.get(
@@ -46,6 +78,7 @@ router.get(
 
 // ==============================
 // Create Store
+// Permission: Add
 // ==============================
 
 router.post(
@@ -56,7 +89,8 @@ router.post(
 );
 
 // ==============================
-// Import CSV
+// Import Stores CSV
+// Permission: Add
 // ==============================
 
 router.post(
@@ -68,18 +102,8 @@ router.post(
 );
 
 // ==============================
-// Delete All Stores
-// ==============================
-
-router.delete(
-  "/delete-all",
-  authMiddleware,
-  permissionMiddleware("Stores", "Full"),
-  deleteAllStores
-);
-
-// ==============================
 // Update Store
+// Permission: Edit
 // ==============================
 
 router.put(
@@ -91,6 +115,7 @@ router.put(
 
 // ==============================
 // Delete Single Store
+// Permission: Full
 // ==============================
 
 router.delete(
@@ -98,6 +123,18 @@ router.delete(
   authMiddleware,
   permissionMiddleware("Stores", "Full"),
   deleteStore
+);
+
+// ==============================
+// Delete All Stores
+// Permission: Full
+// ==============================
+
+router.delete(
+  "/delete-all",
+  authMiddleware,
+  permissionMiddleware("Stores", "Full"),
+  deleteAllStores
 );
 
 module.exports = router;

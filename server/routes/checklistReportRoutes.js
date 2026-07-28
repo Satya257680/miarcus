@@ -4,6 +4,10 @@ const router = express.Router();
 
 const upload = require("../middleware/upload");
 
+const authMiddleware = require("../middleware/authMiddleware");
+
+const permissionMiddleware = require("../middleware/permissionMiddleware");
+
 const {
 
     getAllReports,
@@ -29,10 +33,13 @@ const {
 // ======================================================
 // GET ALL REPORTS
 // GET /api/checklist-reports
+// Permission: View
 // ======================================================
 
 router.get(
     "/",
+    authMiddleware,
+    permissionMiddleware("Checklist Reports", "View"),
     getAllReports
 );
 
@@ -40,10 +47,13 @@ router.get(
 // ======================================================
 // IMPORT CSV REPORTS
 // POST /api/checklist-reports/import
+// Permission: Add
 // ======================================================
 
 router.post(
     "/import",
+    authMiddleware,
+    permissionMiddleware("Checklist Reports", "Add"),
     upload.single("file"),
     (req, res, next) => {
 
@@ -69,10 +79,13 @@ router.post(
 // ======================================================
 // GET REPORT DETAILS
 // GET /api/checklist-reports/:id
+// Permission: View
 // ======================================================
 
 router.get(
     "/:id",
+    authMiddleware,
+    permissionMiddleware("Checklist Reports", "View"),
     getReportById
 );
 
@@ -80,10 +93,13 @@ router.get(
 // ======================================================
 // UPDATE REPORT
 // PUT /api/checklist-reports/:id
+// Permission: Edit
 // ======================================================
 
 router.put(
     "/:id",
+    authMiddleware,
+    permissionMiddleware("Checklist Reports", "Edit"),
     updateReport
 );
 
@@ -91,10 +107,13 @@ router.put(
 // ======================================================
 // DELETE REPORT
 // DELETE /api/checklist-reports/:id
+// Permission: Full
 // ======================================================
 
 router.delete(
     "/:id",
+    authMiddleware,
+    permissionMiddleware("Checklist Reports", "Full"),
     deleteReport
 );
 

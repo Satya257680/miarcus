@@ -31,6 +31,10 @@ const forgotPasswordOTP = (user, otp) => {
                 miarcus
             </strong>
             account.
+
+            <br><br>
+
+            To protect your account, we need to verify your identity before allowing you to reset your password.
         `,
 
         // ===========================
@@ -38,7 +42,7 @@ const forgotPasswordOTP = (user, otp) => {
         // ===========================
 
         message: `
-            To verify your identity, please use the One-Time Password (OTP) below to continue resetting your password.
+            Please use the One-Time Password (OTP) below to continue resetting your password.
 
             <br><br>
 
@@ -48,19 +52,20 @@ const forgotPasswordOTP = (user, otp) => {
                 border-radius:12px;
                 padding:25px;
                 text-align:center;
-                margin:25px 0;
+                margin:30px 0;
             ">
 
                 <div style="
-                    font-size:14px;
+                    font-size:15px;
                     color:#666;
-                    margin-bottom:10px;
+                    margin-bottom:12px;
+                    font-weight:600;
                 ">
                     Your Verification Code
                 </div>
 
                 <div style="
-                    font-size:36px;
+                    font-size:38px;
                     font-weight:bold;
                     letter-spacing:10px;
                     color:#6C63FF;
@@ -101,19 +106,21 @@ const forgotPasswordOTP = (user, otp) => {
 
             <br><br>
 
-            ✓ miarcus will never ask for your OTP by email, phone call, or text message.
+            ✓ miarcus will never ask for your OTP by email, phone call, text message, or social media.
 
             <br><br>
 
-            ✓ This OTP is valid for <strong>10 minutes</strong> and can only be used once.
+            ✓ This OTP is valid for
+            <strong>10 minutes</strong>
+            and can only be used once.
 
             <br><br>
 
-            ✓ If your OTP expires, simply request a new password reset.
+            ✓ If your OTP expires, simply request another password reset.
 
             <br><br>
 
-            ✓ If you did not request this OTP, ignore this email and notify your administrator if you suspect unauthorized access.
+            ✓ If you did not request this password reset, ignore this email and contact your administrator immediately if you suspect unauthorized access.
         `,
 
         // ===========================
@@ -126,7 +133,20 @@ const forgotPasswordOTP = (user, otp) => {
             <br><br>
 
             If you believe someone is attempting to access your account without your permission, please contact your administrator immediately.
+
+            <br><br>
+
+            Protecting your account and personal information is our highest priority.
+
+            <br><br>
+
+            Thank you for choosing
+            <strong>miarcus</strong>.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: false,
 

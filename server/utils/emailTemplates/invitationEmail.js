@@ -30,11 +30,14 @@ const invitationEmail = (user, activationLink) => {
             <strong style="color:#5F39FF;">
                 miarcus
             </strong>!
+
             <br><br>
 
             Your administrator has successfully created an account for you.
-            To begin using the platform, you'll need to activate your account
-            and create your own secure password.
+
+            <br><br>
+
+            To begin using the platform, you'll first need to activate your account and create a secure password.
         `,
 
         // ===========================
@@ -42,11 +45,12 @@ const invitationEmail = (user, activationLink) => {
         // ===========================
 
         message: `
-            We're delighted to welcome you to the miarcus platform.
+            We're delighted to welcome you to the
+            <strong>miarcus</strong> platform.
 
             <br><br>
 
-            Click the button below to activate your account and set your password.
+            Click the button below to activate your account and create your password.
 
             <br><br>
 
@@ -54,7 +58,7 @@ const invitationEmail = (user, activationLink) => {
 
             <br><br>
 
-            Please complete the activation process as soon as possible to begin accessing your account.
+            Please complete the activation process as soon as possible to start using all the features available to you.
         `,
 
         // ===========================
@@ -63,7 +67,10 @@ const invitationEmail = (user, activationLink) => {
 
         buttonText: "Activate Account",
 
-        buttonLink: activationLink,
+        buttonLink:
+            activationLink ||
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -85,7 +92,7 @@ const invitationEmail = (user, activationLink) => {
 
             <br><br>
 
-            ✓ After activating your account, create a strong password to help protect your account.
+            ✓ Create a strong password containing uppercase letters, lowercase letters, numbers, and special characters.
 
             <br><br>
 
@@ -101,7 +108,12 @@ const invitationEmail = (user, activationLink) => {
 
             <br><br>
 
-            If you have any questions or require assistance with your account activation, please contact your administrator.
+            If you have any questions or require assistance during the activation process, please contact your administrator.
+
+            <br><br>
+
+            We look forward to welcoming you to
+            <strong>miarcus</strong>.
         `,
 
         showButton: true,

@@ -26,11 +26,15 @@ const resetPassword = (user) => {
         // ===========================
 
         intro: `
-            Your password for your
+            Your
             <strong style="color:#5F39FF;">
                 miarcus
             </strong>
-            account has been changed successfully.
+            account password has been changed successfully.
+
+            <br><br>
+
+            This email confirms that your password has been updated and your account is now secured with your new password.
         `,
 
         // ===========================
@@ -38,18 +42,19 @@ const resetPassword = (user) => {
         // ===========================
 
         message: `
-            This email confirms that your password has been updated successfully.
-            <br><br>
-
             You can now sign in to your account using your new password.
 
             <br><br>
 
-            If you did not make this change, your account may have been compromised.
+            If you made this change, no further action is required.
 
             <br><br>
 
-            Please contact your administrator immediately and reset your password again to secure your account.
+            If you did <strong>not</strong> change your password, your account may have been compromised.
+
+            <br><br>
+
+            Please reset your password immediately and contact your administrator if you believe someone has gained unauthorized access to your account.
         `,
 
         // ===========================
@@ -58,7 +63,9 @@ const resetPassword = (user) => {
 
         buttonText: "Login to miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -68,15 +75,19 @@ const resetPassword = (user) => {
 
         infoBoxMessage: `
             ✓ Never share your password with anyone.
+
             <br><br>
 
             ✓ Use a strong password containing uppercase letters, lowercase letters, numbers, and special characters.
+
             <br><br>
 
-            ✓ Avoid using the same password across multiple websites or applications.
+            ✓ Avoid reusing passwords across multiple websites or applications.
+
             <br><br>
 
-            ✓ Change your password periodically to improve account security.
+            ✓ Change your password regularly to improve account security.
+
             <br><br>
 
             ✓ Always sign out when using a shared or public computer.
@@ -88,15 +99,17 @@ const resetPassword = (user) => {
 
         bottomMessage: `
             Thank you for helping us keep your
-            <strong>miarcus</strong> account secure.
+            <strong>miarcus</strong>
+            account secure.
+
             <br><br>
 
-            If you notice any suspicious activity or have questions regarding your account, please contact your administrator immediately.
+            If you notice any suspicious activity or require assistance, please contact your administrator immediately.
         `,
 
         showButton: true,
 
-        showInfoBox: true
+        showInfoBox: true,
 
     });
 

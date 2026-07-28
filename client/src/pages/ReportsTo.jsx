@@ -16,6 +16,7 @@ function ReportsTo() {
 
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
  // Bulk Upload
 const [showBulkModal, setShowBulkModal] = useState(false);
@@ -26,12 +27,22 @@ const [uploading, setUploading] = useState(false);
 // RBAC
 // ==========================
 
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
+
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const reportsPermission =
-  permissions["Reports To"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const reportsPermission = isAdmin
+  ? "Full"
+  : permissions["Reports To"] || "None";
 
 const canView =
   ["View", "Add", "Edit", "Full"].includes(
@@ -51,7 +62,6 @@ const canEdit =
 const canDelete =
   reportsPermission === "Full";
 
-
  useEffect(() => {
 
   if (!canView) {
@@ -61,31 +71,59 @@ const canDelete =
   loadReports();
 
 }, [canView]);
-  // ===============================
-  // Load Managers
-  // ===============================
-  const loadReports = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/reports");
-      setReports(res.data.reports || []);
-    } catch (err) {
-      console.log(err);
-    }
-  };
+ // ===============================
+// Load Managers
+// ===============================
+const loadReports = async () => {
 
+  try {
+
+    setLoading(true);
+
+    const res = await axios.get(
+      "http://localhost:5000/api/reports"
+    );
+
+    setReports(res.data.reports || []);
+
+  } catch (err) {
+
+    console.log(err);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
   // ===============================
   // Bulk Upload
   // ===============================
  const handleBulkUpload = async () => {
-  if (!selectedFile) {
-    alert("Please select a CSV or Excel file.");
+
+  if (!canAdd) {
+
+    alert("You don't have permission to bulk upload managers.");
+
     return;
+
+  }
+
+  if (!selectedFile) {
+
+    alert("Please select a CSV or Excel file.");
+
+    return;
+
   }
 
   const formData = new FormData();
+
   formData.append("file", selectedFile);
 
   try {
+
     setUploading(true);
 
     const res = await axios.post(
@@ -101,39 +139,83 @@ const canDelete =
     alert(res.data.message);
 
     setSelectedFile(null);
+
     setShowBulkModal(false);
 
     loadReports();
-  } catch (err) {
-    console.log(err);
-    alert("Bulk upload failed.");
-  } finally {
-    setUploading(false);
-  }
-};
 
+  } catch (err) {
+
+    console.log(err);
+
+    alert("Bulk upload failed.");
+
+  } finally {
+
+    setUploading(false);
+
+  }
+
+};
   // ===============================
   // Delete Manager
   // ===============================
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this manager?")) return;
+ const handleDelete = async (id) => {
 
-    try {
-      await axios.delete(`http://localhost:5000/api/reports/${id}`);
-      loadReports();
-    } catch (err) {
-      console.log(err);
-    }
-  };
+  if (!canDelete) {
 
+    alert("You don't have permission to delete managers.");
+
+    return;
+
+  }
+
+  if (!window.confirm("Delete this manager?")) return;
+
+  try {
+
+    await axios.delete(
+      `http://localhost:5000/api/reports/${id}`
+    );
+
+    alert("Manager deleted successfully.");
+
+    loadReports();
+
+  } catch (err) {
+
+    console.log(err);
+
+    alert("Delete failed.");
+
+  }
+
+};
+// ===============================
+// Add Manager
+// ===============================
+
+const handleAdd = () => {
+
+  if (!canAdd) return;
+
+  setEditData(null);
+
+  setShowModal(true);
+
+};
   // ===============================
   // Edit Manager
   // ===============================
   const handleEdit = (manager) => {
-    setEditData(manager);
-    setShowModal(true);
-  };
 
+  if (!canEdit) return;
+
+  setEditData(manager);
+
+  setShowModal(true);
+
+};
   const filteredReports = reports.filter((item) =>
     item.manager_name.toLowerCase().includes(search.toLowerCase())
   );
@@ -149,9 +231,15 @@ const canDelete =
 
         {canAdd && (
           <button
-            className="bulk-btn"
-            onClick={() => setShowBulkModal(true)}
-          >
+  className="bulk-btn"
+  onClick={() => {
+
+    if (!canAdd) return;
+
+    setShowBulkModal(true);
+
+  }}
+>
             <FaUpload />
             Bulk Add
           </button>
@@ -159,15 +247,12 @@ const canDelete =
 
         {canAdd && (
           <button
-            className="add-report-btn"
-            onClick={() => {
-              setEditData(null);
-              setShowModal(true);
-            }}
-          >
-            <FaPlus />
-            Add Manager
-          </button>
+  className="add-report-btn"
+  onClick={handleAdd}
+>
+  <FaPlus />
+  Add Manager
+</button>
         )}
 
       </div>
@@ -215,82 +300,91 @@ const canDelete =
 
       </thead>
 
-      <tbody>
+     <tbody>
 
-        {filteredReports.length === 0 ? (
+  {loading ? (
 
-          <tr>
+    <tr>
 
-            <td colSpan="5" align="center">
-              No Managers Found
-            </td>
+      <td colSpan="5" align="center">
+        Loading...
+      </td>
 
-          </tr>
+    </tr>
 
-        ) : (
+  ) : filteredReports.length === 0 ? (
 
-          filteredReports.map((manager) => (
+    <tr>
 
-            <tr key={manager.id}>
+      <td colSpan="5" align="center">
+        No Managers Found
+      </td>
 
-              <td>{manager.manager_name}</td>
+    </tr>
 
-              <td>{manager.department}</td>
+  ) : (
 
-              <td>{manager.designation}</td>
+    filteredReports.map((manager) => (
 
-              <td>
+      <tr key={manager.id}>
 
-                <span
-                  className={
-                    manager.status?.toLowerCase() === "active"
-                      ? "status active"
-                      : "status inactive"
-                  }
-                >
-                  {manager.status}
-                </span>
+        <td>{manager.manager_name}</td>
 
-              </td>
+        <td>{manager.department}</td>
 
-              <td>
+        <td>{manager.designation}</td>
 
-                <div className="action-buttons">
+        <td>
 
-                  {canEdit && (
+          <span
+            className={
+              manager.status?.toLowerCase() === "active"
+                ? "status active"
+                : "status inactive"
+            }
+          >
+            {manager.status}
+          </span>
 
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEdit(manager)}
-                    >
-                      Edit <FaEdit />
-                    </button>
+        </td>
 
-                  )}
+        <td>
 
-                  {canDelete && (
+          <div className="action-buttons">
 
-                    <button
-                      className="delete-btn"
-                      onClick={() => handleDelete(manager.id)}
-                    >
-                      <FaTrash />
-                    </button>
+            {canEdit && (
 
-                  )}
+              <button
+                className="edit-btn"
+                onClick={() => handleEdit(manager)}
+              >
+                Edit <FaEdit />
+              </button>
 
-                </div>
+            )}
 
-              </td>
+            {canDelete && (
 
-            </tr>
+              <button
+                className="delete-btn"
+                onClick={() => handleDelete(manager.id)}
+              >
+                <FaTrash />
+              </button>
 
-          ))
+            )}
 
-        )}
+          </div>
 
-      </tbody>
+        </td>
 
+      </tr>
+
+    ))
+
+  )}
+
+</tbody>
     </table>
 
     {/* ==========================

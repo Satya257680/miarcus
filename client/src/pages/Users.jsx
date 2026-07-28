@@ -87,13 +87,15 @@ const canDelete =
   // Load Users
   // ============================
 
-  const fetchUsers = async () => {
+ const fetchUsers = async () => {
   try {
     const res = await axios.get(
       "http://localhost:5000/api/users"
     );
 
-    setUsers(res.data.users);
+    console.log("Fetched Users:", res.data.users);
+
+    setUsers([...res.data.users]);
 
   } catch (err) {
     console.log(err);
@@ -172,7 +174,6 @@ const uploadUsers = async () => {
   }
 
   const formData = new FormData();
-
   formData.append("file", selectedFile);
 
   try {
@@ -187,13 +188,19 @@ const uploadUsers = async () => {
       }
     );
 
-    alert(res.data.message);
+    // Refresh users after upload
+    await fetchUsers();
 
-    fetchUsers();
-
+    // Close modal
     setShowBulkModal(false);
 
+    // Clear selected file
     setSelectedFile(null);
+
+    // Reset file input (if you have a ref)
+    // fileInputRef.current.value = "";
+
+    alert(res.data.message);
 
   } catch (err) {
 
@@ -203,7 +210,6 @@ const uploadUsers = async () => {
   }
 
 };
-
 // ============================
 // Delete All Users
 // ============================

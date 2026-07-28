@@ -28,36 +28,38 @@ function Designations() {
 
   const [showModal, setShowModal] = useState(false);
   const [editDesignation, setEditDesignation] = useState(null);
-
-  // ==========================
+// ==========================
 // RBAC
 // ==========================
+
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
 
 const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const designationPermission =
-  permissions["Designations"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
+
+const designationPermission = isAdmin
+  ? "Full"
+  : permissions["Designations"] || "None";
 
 const canView =
-  ["View", "Add", "Edit", "Full"].includes(
-    designationPermission
-  );
+  ["View", "Add", "Edit", "Full"].includes(designationPermission);
 
 const canAdd =
-  ["Add", "Edit", "Full"].includes(
-    designationPermission
-  );
+  ["Add", "Edit", "Full"].includes(designationPermission);
 
 const canEdit =
-  ["Edit", "Full"].includes(
-    designationPermission
-  );
+  ["Edit", "Full"].includes(designationPermission);
 
 const canDelete =
   designationPermission === "Full";
-
   // ==========================
   // Load Designations
   // ==========================
@@ -149,78 +151,93 @@ const canDelete =
   // ==========================
 
   const handleAdd = () => {
-    setEditDesignation(null);
-    setShowModal(true);
-  };
+
+  if (!canAdd) return;
+
+  setEditDesignation(null);
+  setShowModal(true);
+
+};
 
   // ==========================
   // Edit
   // ==========================
 
   const handleEdit = (designation) => {
-    setEditDesignation(designation);
-    setShowModal(true);
-  };
 
+  if (!canEdit) return;
+
+  setEditDesignation(designation);
+  setShowModal(true);
+
+};
   // ==========================
   // Delete
   // ==========================
 
-  const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        "Delete this designation?"
-      )
-    )
-      return;
+ const handleDelete = async (id) => {
 
-    try {
-      const res = await deleteDesignation(id);
+  if (!canDelete) return;
 
-      if (res.success) {
-        fetchDesignations();
-      } else {
-        alert(res.message);
-      }
-    } catch (err) {
-      alert(
-        err.response?.data?.message ||
-        err.message
-      );
+  if (!window.confirm("Delete this designation?")) {
+    return;
+  }
+
+  try {
+    const res = await deleteDesignation(id);
+
+    if (res.success) {
+      fetchDesignations();
+    } else {
+      alert(res.message);
     }
-  };
+  } catch (err) {
+    alert(
+      err.response?.data?.message ||
+      err.message
+    );
+  }
 
+};
   // ==========================
   // Save
   // ==========================
 
-  const handleSave = async (data) => {
-    try {
-      let res;
+ const handleSave = async (data) => {
 
-      if (editDesignation) {
-        res = await updateDesignation(
-          editDesignation.id,
-          data
-        );
-      } else {
-        res = await createDesignation(data);
-      }
+  if (editDesignation) {
+    if (!canEdit) return;
+  } else {
+    if (!canAdd) return;
+  }
 
-      if (res.success) {
-        setShowModal(false);
-        setEditDesignation(null);
-        fetchDesignations();
-      } else {
-        alert(res.message);
-      }
-    } catch (err) {
-      alert(
-        err.response?.data?.message ||
-        err.message
+  try {
+    let res;
+
+    if (editDesignation) {
+      res = await updateDesignation(
+        editDesignation.id,
+        data
       );
+    } else {
+      res = await createDesignation(data);
     }
-  };
+
+    if (res.success) {
+      setShowModal(false);
+      setEditDesignation(null);
+      fetchDesignations();
+    } else {
+      alert(res.message);
+    }
+  } catch (err) {
+    alert(
+      err.response?.data?.message ||
+      err.message
+    );
+  }
+
+};
     return (
 
   <div className="departments-page">

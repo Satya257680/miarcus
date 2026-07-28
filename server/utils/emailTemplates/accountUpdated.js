@@ -8,7 +8,7 @@ const accountUpdated = (user) => {
         // Page Title
         // ===========================
 
-        title: "Account Updated",
+        title: "Account Updated Successfully",
 
         // ===========================
         // Greeting
@@ -31,6 +31,10 @@ const accountUpdated = (user) => {
                 miarcus
             </strong>
             account information has been updated successfully.
+
+            <br><br>
+
+            Your administrator has made changes to your account settings and profile information.
         `,
 
         // ===========================
@@ -38,19 +42,19 @@ const accountUpdated = (user) => {
         // ===========================
 
         message: `
-            Your administrator has updated your account information.
+            Your account has been updated successfully.
 
             <br><br>
 
-            These updates may include changes to your profile details, department, designation, role, permissions, or other account settings.
+            These updates may include changes to your profile details, department, designation, reporting manager, permissions, role, or other account settings.
 
             <br><br>
 
-            Please sign in to your miarcus account to review the updated information and ensure everything is correct.
+            Please sign in to your account to review the updated information and ensure everything is correct.
 
             <br><br>
 
-            If you notice any unexpected changes, please contact your administrator as soon as possible.
+            If you notice any information that appears incorrect or unexpected, please contact your administrator immediately.
         `,
 
         // ===========================
@@ -59,7 +63,9 @@ const accountUpdated = (user) => {
 
         buttonText: "Login to miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -68,19 +74,23 @@ const accountUpdated = (user) => {
         infoBoxTitle: "Account Update Information",
 
         infoBoxMessage: `
-            ✓ Your profile information, department, designation, role, or permissions may have been updated.
+            ✓ Your profile information, department, designation, reporting manager, permissions, or role may have been updated.
 
             <br><br>
 
-            ✓ Some changes may affect the features or modules you can access.
+            ✓ Some updates may change the features and modules you can access.
 
             <br><br>
 
-            ✓ Review your account after signing in to ensure all information is accurate.
+            ✓ Please review your account after signing in to ensure all information is accurate.
 
             <br><br>
 
-            ✓ If you believe any changes were made in error, please contact your administrator immediately.
+            ✓ If any information appears incorrect or unfamiliar, contact your administrator immediately.
+
+            <br><br>
+
+            ✓ Keep your account information and password secure at all times.
         `,
 
         // ===========================
@@ -93,8 +103,16 @@ const accountUpdated = (user) => {
 
             <br><br>
 
+            We are committed to providing you with a secure and reliable platform.
+
+            <br><br>
+
             If you have any questions regarding these updates or require assistance, please contact your administrator.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

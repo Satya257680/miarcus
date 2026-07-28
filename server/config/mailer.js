@@ -8,7 +8,11 @@ const transporter = nodemailer.createTransport({
 
     secure: false,
 
-    requireTLS: true,
+    pool: true,
+
+    maxConnections: 2,
+
+    maxMessages: 100,
 
     auth: {
 
@@ -30,11 +34,10 @@ transporter.verify((err) => {
 
     if (err) {
 
-        console.log("❌ Mail Error:", err);
+        console.error("❌ Mail Server Error");
+        console.error(err);
 
-    }
-
-    else {
+    } else {
 
         console.log("✅ Mail Server Ready");
 

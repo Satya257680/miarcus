@@ -8,7 +8,7 @@ const accountEnabled = (user) => {
         // Page Title
         // ===========================
 
-        title: "Account Reactivated",
+        title: "Account Reactivated Successfully",
 
         // ===========================
         // Greeting
@@ -26,15 +26,14 @@ const accountEnabled = (user) => {
         // ===========================
 
         intro: `
-            Great news!
+            Welcome back to
+            <strong style="color:#5F39FF;">
+                miarcus
+            </strong>!
 
             <br><br>
 
-            Your
-            <strong style="color:#5F39FF;">
-                miarcus
-            </strong>
-            account has been successfully reactivated.
+            Your account has been successfully reactivated by your administrator, and you can now access the platform again.
         `,
 
         // ===========================
@@ -42,19 +41,19 @@ const accountEnabled = (user) => {
         // ===========================
 
         message: `
-            Your administrator has restored access to your account.
+            Your account is now active and ready to use.
 
             <br><br>
 
-            You can now sign in and continue using all the features and modules available to you based on your assigned role and permissions.
+            You can sign in using your registered email address and continue accessing the features and modules available based on your assigned role and permissions.
 
             <br><br>
 
-            We recommend reviewing your account information after logging in to ensure everything is up to date.
+            We recommend reviewing your account information after logging in to ensure all your profile details, department, designation, reporting manager, and permissions are correct.
 
             <br><br>
 
-            If you experience any issues while signing in, please contact your administrator for assistance.
+            If you experience any issues while signing in or notice any unexpected changes, please contact your administrator immediately.
         `,
 
         // ===========================
@@ -63,7 +62,9 @@ const accountEnabled = (user) => {
 
         buttonText: "Login to miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -76,15 +77,19 @@ const accountEnabled = (user) => {
 
             <br><br>
 
-            ✓ Any updates made to your profile, role, department, or permissions while your account was inactive will now take effect.
+            ✓ Any updates made to your profile, department, designation, reporting manager, role, or permissions while your account was inactive are now in effect.
 
             <br><br>
 
-            ✓ Review your account information after signing in.
+            ✓ Review your account information after signing in to ensure everything is accurate.
 
             <br><br>
 
-            ✓ If you notice any unexpected changes or experience login issues, please contact your administrator immediately.
+            ✓ Contact your administrator immediately if you experience login issues or notice any unexpected account changes.
+
+            <br><br>
+
+            ✓ Keep your login credentials secure and never share your password with anyone.
         `,
 
         // ===========================
@@ -92,13 +97,26 @@ const accountEnabled = (user) => {
         // ===========================
 
         bottomMessage: `
-            Welcome back to
-            <strong>miarcus</strong>!
+            Thank you for being a valued member of
+            <strong>miarcus</strong>.
 
             <br><br>
 
-            We're pleased to have you back. If you need any assistance, please don't hesitate to contact your administrator.
+            We're pleased to welcome you back and look forward to supporting your continued success.
+
+            <br><br>
+
+            If you require any assistance, please don't hesitate to contact your administrator.
+
+            <br><br>
+
+            We wish you a productive and successful experience with
+            <strong>miarcus</strong>.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

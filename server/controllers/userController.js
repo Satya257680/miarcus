@@ -13,6 +13,7 @@ const {
     sendAccountEnabledEmail,
     sendAccountDeletedEmail
 } = require("../services/emailService");
+const { addToQueue } = require("../utils/emailTemplates/emailQueue");
 // ==========================================================
 // Get All Users
 // ==========================================================
@@ -232,13 +233,13 @@ sendInvitationEmail(user, activationLink)
 
 }
 
-
-
 // ==========================================================
 // Bulk Upload Users
 // ==========================================================
 
-const bulkUploadUsers = (req, res) => {
+const bulkUploadUsers = async (req, res) => {
+
+    console.time("Total Upload");
 
     try {
 
@@ -291,36 +292,222 @@ const bulkUploadUsers = (req, res) => {
 
         }
 
-        User.bulkInsertUsers(filteredUsers, (err, result) => {
+        let imported = 0;
+        let skipped = 0;
+        let emailsSent = 0;
+        const errors = [];
 
-            if (fs.existsSync(req.file.path)) {
+        for (const row of filteredUsers) {
 
-                fs.unlinkSync(req.file.path);
+            const user = {
 
-            }
+                employeeId: row["Employee ID"],
+                fullName: row["Name"],
+                email: row["Email"],
+                callContact: row["Call Contact"],
+                whatsappContact: row["WhatsApp Contact"],
+               department_id: null,
+designation_id: null,
+                reportsTo: row["Reports To"],
+                active: (row["Status"] || "Active") === "Active",
+                stores: [],
+                permissions: {}
 
-            if (err) {
+            };
 
-                console.log(err);
+            try {
 
-                return res.status(500).json({
+                const emailExists = await new Promise((resolve, reject) => {
 
-                    success: false,
-                    message: "Bulk Upload Failed"
+                    User.checkEmailExists(user.email, (err, result) => {
+
+                        if (err) return reject(err);
+
+                        resolve(result);
+
+                    });
 
                 });
 
+                if (emailExists.length > 0) {
+
+                    skipped++;
+                    errors.push(`${user.email} - Email already exists`);
+                    continue;
+
+                }
+
+                const empExists = await new Promise((resolve, reject) => {
+
+                    User.checkEmployeeIdExists(user.employeeId, (err, result) => {
+
+                        if (err) return reject(err);
+
+                        resolve(result);
+
+                    });
+
+                });
+
+                if (empExists.length > 0) {
+
+                    skipped++;
+                    errors.push(`${user.employeeId} - Employee ID already exists`);
+                    continue;
+
+                }
+                const department = await new Promise((resolve, reject) => {
+
+    User.getDepartmentIdByName(
+
+        row["Department"],
+
+        (err, result) => {
+
+            if (err) return reject(err);
+
+            resolve(result);
+
+        }
+
+    );
+
+});
+
+const designation = await new Promise((resolve, reject) => {
+
+    User.getDesignationIdByName(
+
+        row["Designation"],
+
+        (err, result) => {
+
+            if (err) return reject(err);
+
+            resolve(result);
+
+        }
+
+    );
+
+});
+
+if (!department.length) {
+
+    skipped++;
+    errors.push(`Department not found: ${row["Department"]}`);
+    continue;
+
+}
+
+if (!designation.length) {
+
+    skipped++;
+    errors.push(`Designation not found: ${row["Designation"]}`);
+    continue;
+
+}
+
+user.department_id = department[0].id;
+user.designation_id = designation[0].id;
+                const addResult = await new Promise((resolve, reject) => {
+
+    User.addUser(user, (err, result) => {
+
+        if (err) return reject(err);
+
+        resolve(result);
+
+    });
+
+});
+
+const userId = addResult.insertId;
+
+const token = crypto.randomBytes(32).toString("hex");
+
+const expiresAt = new Date(
+
+    Date.now() + 24 * 60 * 60 * 1000
+
+);
+
+await new Promise((resolve, reject) => {
+
+    User.saveActivationToken(
+
+        userId,
+
+        token,
+
+        expiresAt,
+
+        (err) => {
+
+            if (err) return reject(err);
+
+            resolve();
+
+        }
+
+    );
+
+});
+
+const activationLink =
+`${process.env.FRONTEND_URL}/activate-account/${token}`;
+
+addToQueue(async () => {
+
+    await sendInvitationEmail(user, activationLink);
+
+    console.log(`Invitation email sent to ${user.email}`);
+
+});
+
+imported++;
+emailsSent++;
             }
 
-            res.json({
+            catch (err) {
 
-                success: true,
+                console.log(err);
 
-                message: `${result.affectedRows} users uploaded successfully`
+                skipped++;
 
-            });
+                errors.push(
 
-        });
+                    `${user.email || user.employeeId} - ${err.message}`
+
+                );
+
+            }
+
+        }
+
+       if (fs.existsSync(req.file.path)) {
+
+    fs.unlinkSync(req.file.path);
+
+}
+
+console.timeEnd("Total Upload");
+
+return res.json({
+
+    success: true,
+
+    message: "Bulk Upload Completed",
+
+    imported,
+
+    skipped,
+
+    emailsSent,
+
+    errors
+
+});
 
     }
 
@@ -334,7 +521,7 @@ const bulkUploadUsers = (req, res) => {
 
         }
 
-        res.status(500).json({
+        return res.status(500).json({
 
             success: false,
 
@@ -345,6 +532,7 @@ const bulkUploadUsers = (req, res) => {
     }
 
 };
+
 // ==========================
 // Update User
 // ==========================

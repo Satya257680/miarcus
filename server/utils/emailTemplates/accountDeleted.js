@@ -30,7 +30,11 @@ const accountDeleted = (user) => {
             <strong style="color:#5F39FF;">
                 miarcus
             </strong>
-            account has been permanently deleted.
+            account has been permanently deleted by your administrator.
+
+            <br><br>
+
+            This means your access to the platform has been permanently removed.
         `,
 
         // ===========================
@@ -38,19 +42,25 @@ const accountDeleted = (user) => {
         // ===========================
 
         message: `
-            Your administrator has permanently removed your account from the miarcus system.
+            Your account has been permanently removed from the
+            <strong>miarcus</strong>
+            system.
 
             <br><br>
 
-            As a result, you can no longer sign in or access any features, data, or services associated with your previous account.
+            You can no longer sign in or access any features, modules, data, or services associated with your previous account.
 
             <br><br>
 
-            If this action was unexpected or you believe it was performed in error, please contact your administrator as soon as possible for assistance.
+            Your previous login credentials are no longer valid and cannot be used to access the platform.
 
             <br><br>
 
-            Please note that restoring access may require your administrator to create a new account for you.
+            If this action was unexpected or you believe it was performed in error, please contact your administrator as soon as possible.
+
+            <br><br>
+
+            If access is required again in the future, your administrator will need to create a new account for you.
         `,
 
         // ===========================
@@ -59,7 +69,9 @@ const accountDeleted = (user) => {
 
         buttonText: "Visit miarcus",
 
-        buttonLink: process.env.FRONTEND_URL,
+        buttonLink:
+            process.env.FRONTEND_URL ||
+            "https://miarcus.com/",
 
         // ===========================
         // Information Box
@@ -76,7 +88,13 @@ const accountDeleted = (user) => {
 
             <br><br>
 
-            ✓ Future access to miarcus will require your administrator to create a new account for you.
+            ✓ All access to
+            <strong>miarcus</strong>
+            has been revoked.
+
+            <br><br>
+
+            ✓ A new account must be created by your administrator if future access is required.
 
             <br><br>
 
@@ -88,13 +106,26 @@ const accountDeleted = (user) => {
         // ===========================
 
         bottomMessage: `
-            Thank you for being a part of
+            Thank you for being a valued member of
             <strong>miarcus</strong>.
 
             <br><br>
 
-            We appreciate your time with us and wish you continued success. If you have any questions regarding your account, please contact your administrator.
+            We appreciate the time you spent using our platform and wish you continued success in your future endeavors.
+
+            <br><br>
+
+            If you have any questions regarding your account deletion or require further assistance, please contact your administrator.
+
+            <br><br>
+
+            Thank you for choosing
+            <strong>miarcus</strong>.
         `,
+
+        // ===========================
+        // Options
+        // ===========================
 
         showButton: true,
 

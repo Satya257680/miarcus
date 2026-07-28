@@ -21,27 +21,43 @@ function ChecklistSubmission() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // RBAC
+ // ==========================================
+// RBAC
+// ==========================================
 
-  const permissions = JSON.parse(
+const user = JSON.parse(
+  localStorage.getItem("user") || "{}"
+);
+
+const permissions = JSON.parse(
   localStorage.getItem("permissions") || "{}"
 );
 
-const modulePermission =
-  permissions["Checklist Submission"] || "None";
+// Administrator always gets Full Access
+const isAdmin =
+  user.administrator === true ||
+  user.administrator === 1;
 
+const modulePermission = isAdmin
+  ? "Full"
+  : permissions["Checklist Submit"] || "None";
 const canView =
-  ["View", "Add", "Edit", "Full"].includes(modulePermission);
+  ["View", "Add", "Edit", "Full"].includes(
+    modulePermission
+  );
 
 const canAdd =
-  ["Add", "Edit", "Full"].includes(modulePermission);
+  ["Add", "Edit", "Full"].includes(
+    modulePermission
+  );
 
 const canEdit =
-  ["Edit", "Full"].includes(modulePermission);
+  ["Edit", "Full"].includes(
+    modulePermission
+  );
 
 const canDelete =
   modulePermission === "Full";
-
   // ==========================================
   // Load Checklist Types + Stores
   // ==========================================
