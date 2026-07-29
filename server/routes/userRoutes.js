@@ -71,6 +71,10 @@ router.get(
 
     "/names",
 
+    authMiddleware,
+
+    permissionMiddleware("Users", "View"),
+
     getUserNames
 
 );
@@ -180,6 +184,23 @@ router.delete(
 );
 
 // ======================================================
+// RESEND INVITATION
+// POST : /api/users/resend-invitation/:id
+// ======================================================
+
+router.post(
+
+    "/resend-invitation/:id",
+
+    authMiddleware,
+
+    permissionMiddleware("Users", "Edit"),
+
+    resendInvitation
+
+);
+
+// ======================================================
 // VALIDATE ACTIVATION TOKEN
 // GET : /api/users/activate/:token
 // ======================================================
@@ -202,19 +223,6 @@ router.post(
     "/activate",
 
     activateUserAccount
-
-);
-
-// ======================================================
-// RESEND INVITATION
-// POST : /api/users/resend-invitation/:id
-// ======================================================
-
-router.post(
-
-    "/resend-invitation/:id",
-
-    resendInvitation
 
 );
 

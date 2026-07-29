@@ -9,13 +9,17 @@ const authMiddleware = (req, res, next) => {
 
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
+    // ======================================================
+    // CHECK AUTHORIZATION HEADER
+    // ======================================================
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
 
         return res.status(401).json({
 
             success: false,
 
-            message: "No Token Provided"
+            message: "Authorization Token Missing or Invalid"
 
         });
 
@@ -41,17 +45,17 @@ const authMiddleware = (req, res, next) => {
 
             token,
 
-            process.env.JWT_SECRET || "miarcus_secret_key"
+            process.env.JWT_SECRET
 
         );
 
-        // ==========================================
-        // Check Current User Status
-        // ==========================================
+        // ======================================================
+        // CHECK CURRENT USER STATUS
+        // ======================================================
 
         db.query(
 
-            "SELECT name, status FROM users WHERE id=? LIMIT 1",
+            "SELECT name, status FROM users WHERE id = ? LIMIT 1",
 
             [decoded.id],
 
@@ -110,9 +114,7 @@ miarcus Team`
 
         );
 
-    }
-
-    catch (err) {
+    } catch (err) {
 
         return res.status(401).json({
 
