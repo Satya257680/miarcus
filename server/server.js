@@ -511,7 +511,15 @@ loadRoute(
 
 );
 
+loadRoute(
 
+    "./routes/newStoreOpeningRoutes",
+
+    "/api/new-store-openings",
+
+    "New Store Opening Routes"
+
+);
 
 
 

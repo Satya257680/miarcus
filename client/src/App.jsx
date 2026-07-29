@@ -25,151 +25,159 @@ import StoreManagement from "./pages/StoreManagement";
 import ChecklistTypes from "./pages/ChecklistTypes";
 import Questions from "./pages/Questions";
 import ReportsTo from "./pages/ReportsTo";
+
 import NSORules from "./pages/NSORules";
+import NewStoreOpenings from "./pages/NewStoreOpenings";
+
 import Profile from "./pages/Profile";
 
 function App() {
 
-  return (
+    return (
 
-    <BrowserRouter>
+        <BrowserRouter>
 
-      <Routes>
+            <Routes>
 
-        {/* ==========================
-            PUBLIC ROUTES
-        ========================== */}
+                {/* ==========================
+                    PUBLIC ROUTES
+                ========================== */}
 
-        <Route
-          path="/"
-          element={<Login />}
-        />
+                <Route
+                    path="/"
+                    element={<Login />}
+                />
 
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
+                <Route
+                    path="/forgot-password"
+                    element={<ForgotPassword />}
+                />
 
-        <Route
-          path="/verify-otp"
-          element={<VerifyOTP />}
-        />
+                <Route
+                    path="/verify-otp"
+                    element={<VerifyOTP />}
+                />
 
-        <Route
-          path="/reset-password"
-          element={<ResetPassword />}
-        />
+                <Route
+                    path="/reset-password"
+                    element={<ResetPassword />}
+                />
 
-        <Route
-          path="/activate-account/:token"
-          element={<ActivateAccount />}
-        />
+                <Route
+                    path="/activate-account/:token"
+                    element={<ActivateAccount />}
+                />
 
-        {/* ==========================
-            PROTECTED ROUTES
-        ========================== */}
+                {/* ==========================
+                    PROTECTED ROUTES
+                ========================== */}
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
+                <Route
+                    element={
+                        <ProtectedRoute>
+                            <Layout />
+                        </ProtectedRoute>
+                    }
+                >
 
-          {/* Dashboard */}
+                    {/* Dashboard */}
 
-          <Route
-            path="/dashboard"
-            element={<Dashboard />}
-          />
+                    <Route
+                        path="/dashboard"
+                        element={<Dashboard />}
+                    />
 
-          {/* Checklist */}
+                    {/* Checklist */}
 
-          <Route
-            path="/checklist-submit"
-            element={<ChecklistSubmission />}
-          />
+                    <Route
+                        path="/checklist-submit"
+                        element={<ChecklistSubmission />}
+                    />
 
-          <Route
-            path="/checklist-reports"
-            element={<ChecklistReports />}
-          />
+                    <Route
+                        path="/checklist-reports"
+                        element={<ChecklistReports />}
+                    />
 
-          <Route
-            path="/action-points"
-            element={<ActionPoints />}
-          />
+                    <Route
+                        path="/action-points"
+                        element={<ActionPoints />}
+                    />
 
-          {/* Settings */}
+                    {/* Settings */}
 
-          <Route
-            path="/checklist-types"
-            element={<ChecklistTypes />}
-          />
+                    <Route
+                        path="/checklist-types"
+                        element={<ChecklistTypes />}
+                    />
 
-          <Route
-            path="/questions"
-            element={<Questions />}
-          />
+                    <Route
+                        path="/questions"
+                        element={<Questions />}
+                    />
 
-          <Route
-            path="/departments"
-            element={<Departments />}
-          />
+                    <Route
+                        path="/departments"
+                        element={<Departments />}
+                    />
 
-          <Route
-            path="/designations"
-            element={<Designations />}
-          />
+                    <Route
+                        path="/designations"
+                        element={<Designations />}
+                    />
 
-          <Route
-            path="/stores"
-            element={<StoreManagement />}
-          />
+                    <Route
+                        path="/stores"
+                        element={<StoreManagement />}
+                    />
 
-          <Route
-            path="/users"
-            element={<Users />}
-          />
+                    <Route
+                        path="/users"
+                        element={<Users />}
+                    />
 
-          <Route
-            path="/reports-to"
-            element={<ReportsTo />}
-          />
+                    <Route
+                        path="/reports-to"
+                        element={<ReportsTo />}
+                    />
 
-          {/* ==========================
-              NSO Rules
-          ========================== */}
+                    {/* ==========================
+                        NSO MODULE
+                    ========================== */}
 
-          <Route
-            path="/nso-rules"
-            element={<NSORules />}
-          />
+                    <Route
+                        path="/new-store-openings"
+                        element={<NewStoreOpenings />}
+                    />
 
-          {/* Profile */}
+                    <Route
+                        path="/nso-rules"
+                        element={<NSORules />}
+                    />
 
-          <Route
-            path="/profile"
-            element={<Profile />}
-          />
+                    {/* Profile */}
 
-        </Route>
+                    <Route
+                        path="/profile"
+                        element={<Profile />}
+                    />
 
-        {/* ==========================
-            FALLBACK
-        ========================== */}
+                </Route>
 
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
+                {/* ==========================
+                    FALLBACK
+                ========================== */}
 
-      </Routes>
+                <Route
+                    path="*"
+                    element={<Navigate to="/" replace />}
+                />
 
-    </BrowserRouter>
+            </Routes>
 
-  );
+        </BrowserRouter>
+
+    );
 
 }
 

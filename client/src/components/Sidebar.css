@@ -1,126 +1,319 @@
-/* ===========================
-   Sidebar
-=========================== */
+/* ==========================================
+   SIDEBAR
+========================================== */
 
 .sidebar {
-    width: 260px;
-    background: #b7d7df;
-    border-right: 1px solid #9fbec6;
-    padding: 20px 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    transition: width 0.3s ease;
+
+    width: 270px;
+
+    height: 100%;
+
+    background: #9CBFC4;
+
+    border-right: 1px solid #8FB3B9;
+
+    overflow: hidden;
+
+    display: flex;
+
+    flex-direction: column;
+
+    transition: all 0.3s ease;
+
 }
 
-/* Collapsed Sidebar */
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+.sidebar::-webkit-scrollbar {
+
+    width: 6px;
+
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+
+    background: #84AEB5;
+
+    border-radius: 50px;
+
+}
+
+.sidebar::-webkit-scrollbar-track {
+
+    background: transparent;
+
+}
+
+/* ==========================================
+   COLLAPSED
+========================================== */
 
 .sidebar.collapsed {
+
     width: 80px;
+
 }
 
-/* ===========================
-   Navigation
-=========================== */
+/* ==========================================
+   NAVIGATION
+========================================== */
 
 .sidebar nav {
+
     display: flex;
+
     flex-direction: column;
+
+    flex: 1;
+
+    overflow-y: auto;
+
+    overflow-x: hidden;
+
+    padding: 18px 0;
+
 }
 
-/* ===========================
-   Menu Items
-=========================== */
+/* ==========================================
+   MENU ITEMS
+========================================== */
 
 .menu-item,
 .submenu-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
 
-    padding: 14px 20px;
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    width: 100%;
+
+    padding: 14px 22px;
+
+    box-sizing: border-box;
 
     text-decoration: none;
-    color: #2f4f5a;
+
+    color: #2F4E58;
+
     font-size: 15px;
 
-    transition: all 0.25s ease;
+    font-weight: 500;
+
+    border-left: 4px solid transparent;
+
+    transition: all .25s ease;
+
 }
 
-/* Hover */
+.menu-item svg,
+.submenu-item svg {
+
+    min-width: 20px;
+
+    font-size: 18px;
+
+    color: #385661;
+
+}
+
+/* ==========================================
+   HOVER
+========================================== */
 
 .menu-item:hover,
-.submenu-item:hover {
-    background: rgba(255,255,255,.45);
+.submenu-item:hover,
+.settings-btn:hover {
+
+    background: rgba(255,255,255,.30);
+
+    color: #0F4C5C;
+
 }
 
-/* Active */
+/* ==========================================
+   ACTIVE
+========================================== */
 
 .menu-item.active,
 .submenu-item.active {
-    background: white;
-    color: #0f4c5c;
+
+    background: #F9FCFD;
+
+    color: #0F4C5C;
+
     font-weight: 600;
-    border-left: 4px solid #3f6b78;
+
+    border-left: 4px solid #6D57C8;
+
+    box-shadow: none;
+
 }
 
-/* ===========================
-   Settings
-=========================== */
+/* ==========================================
+   SETTINGS BUTTON
+========================================== */
 
 .settings-btn {
+
     width: 100%;
+
     border: none;
+
     background: transparent;
+
     cursor: pointer;
+
+    display: flex;
+
+    align-items: center;
+
     justify-content: space-between;
+
+    color: inherit;
+
+    font-family: inherit;
+
+    font-size: inherit;
+
 }
 
 .settings-left {
+
     display: flex;
+
     align-items: center;
-    gap: 12px;
+
+    gap: 14px;
+
 }
 
-/* ===========================
-   Submenu
-=========================== */
+/* ==========================================
+   SUBMENU
+========================================== */
 
 .submenu {
-    margin-left: 18px;
+
+    margin: 6px 0 8px 32px;
+
+    border-left: 2px solid rgba(47,78,88,.18);
+
 }
 
 .submenu-item {
-    font-size: 14px;
+
     padding: 12px 20px;
+
+    font-size: 14px;
+
+    border-left: none;
+
 }
 
-/* ===========================
-   Collapsed Mode
-=========================== */
+.submenu-item.active {
+
+    border-left: none;
+
+    background: rgba(255,255,255,.70);
+
+    color: #0F4C5C;
+
+    font-weight: 600;
+
+}
+
+/* ==========================================
+   SIDEBAR FOOTER
+========================================== */
+
+.sidebar-footer {
+
+    margin-top: auto;
+
+    background: #9CBFC4;
+
+    border-top: 1px solid #8FB3B9;
+
+    padding: 10px 0;
+
+}
+
+.sidebar-footer .menu-item {
+
+    margin: 0;
+
+}
+
+/* ==========================================
+   COLLAPSED MODE
+========================================== */
 
 .sidebar.collapsed .menu-item {
-    justify-content: center;
-    padding: 16px 0;
-}
 
-.sidebar.collapsed .submenu {
-    display: none;
+    justify-content: center;
+
+    padding: 16px 0;
+
 }
 
 .sidebar.collapsed .settings-btn {
+
     justify-content: center;
+
 }
 
 .sidebar.collapsed .settings-left {
+
     justify-content: center;
+
+}
+
+.sidebar.collapsed .submenu {
+
+    display: none;
+
 }
 
 .sidebar.collapsed .menu-item span,
 .sidebar.collapsed .submenu-item span {
+
     display: none;
+
 }
 
 .sidebar.collapsed .menu-item svg,
 .sidebar.collapsed .submenu-item svg {
+
     font-size: 20px;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width:768px){
+
+    .sidebar{
+
+        width:240px;
+
+    }
+
+    .sidebar.collapsed{
+
+        width:70px;
+
+    }
+
+    .menu-item,
+    .submenu-item{
+
+        padding:12px 18px;
+
+    }
+
 }

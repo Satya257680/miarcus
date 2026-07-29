@@ -1,0 +1,1408 @@
+/* ==========================================
+   PAGE
+========================================== */
+
+.new-store-page{
+
+    padding:25px;
+
+    background:#edf3f5;
+
+    min-height:calc(100vh - 72px);
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:20px;
+
+    overflow:hidden;
+
+}
+
+
+
+/* ==========================================
+   PAGE HEADER
+========================================== */
+
+.page-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:20px;
+
+    flex-wrap:wrap;
+
+}
+
+
+
+.page-header h2{
+
+    margin:0;
+
+    color:#7b61c9;
+
+    font-size:28px;
+
+    font-weight:700;
+
+    letter-spacing:.3px;
+
+}
+
+
+
+.page-header button{
+
+    background:#7b61c9;
+
+    color:#fff;
+
+    border:none;
+
+    border-radius:8px;
+
+    padding:11px 22px;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:all .25s ease;
+
+    box-shadow:0 3px 8px rgba(123,97,201,.25);
+
+}
+
+
+
+.page-header button:hover{
+
+    background:#684fb5;
+
+    transform:translateY(-1px);
+
+}
+
+
+
+.page-header button:active{
+
+    transform:scale(.98);
+
+}
+
+
+
+/* ==========================================
+   CARD WRAPPER
+========================================== */
+
+.new-store-page>.toolbar,
+
+.new-store-page>.table-wrapper,
+
+.new-store-page>.pagination{
+
+    background:#fff;
+
+    border-radius:12px;
+
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+
+}
+
+
+
+/* ==========================================
+   COMMON BUTTON STYLE
+========================================== */
+
+button{
+
+    font-family:inherit;
+
+}
+
+
+
+button:focus{
+
+    outline:none;
+
+}
+/* ==========================================
+   TOOLBAR
+========================================== */
+
+.toolbar{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    gap:15px;
+
+    padding:18px 20px;
+
+    flex-wrap:wrap;
+
+}
+
+
+
+.toolbar input{
+
+    flex:1;
+
+    min-width:280px;
+
+    height:44px;
+
+    padding:0 15px;
+
+    border:1px solid #d8dce7;
+
+    border-radius:8px;
+
+    background:#fff;
+
+    color:#333;
+
+    font-size:14px;
+
+    transition:.3s;
+
+}
+
+
+
+.toolbar input::placeholder{
+
+    color:#9ca3af;
+
+}
+
+
+
+.toolbar input:focus{
+
+    outline:none;
+
+    border-color:#7b61c9;
+
+    box-shadow:0 0 0 3px rgba(123,97,201,.12);
+
+}
+
+
+
+.toolbar button{
+
+    height:44px;
+
+    padding:0 18px;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    transition:all .25s ease;
+
+    white-space:nowrap;
+
+}
+
+
+
+/* ==========================================
+   CLEAR BUTTON
+========================================== */
+
+.toolbar button:nth-of-type(1){
+
+    background:#eef2f7;
+
+    color:#374151;
+
+}
+
+
+
+.toolbar button:nth-of-type(1):hover{
+
+    background:#dce4ee;
+
+}
+
+
+
+/* ==========================================
+   EXPORT BUTTON
+========================================== */
+
+.toolbar button:nth-of-type(2){
+
+    background:#10b981;
+
+    color:#fff;
+
+}
+
+
+
+.toolbar button:nth-of-type(2):hover{
+
+    background:#059669;
+
+}
+
+
+
+/* ==========================================
+   BUTTON EFFECTS
+========================================== */
+
+.toolbar button:hover{
+
+    transform:translateY(-1px);
+
+}
+
+
+
+.toolbar button:active{
+
+    transform:scale(.97);
+
+}
+
+
+
+/* ==========================================
+   TOOLBAR RESPONSIVE
+========================================== */
+
+.toolbar>*{
+
+    flex-shrink:0;
+
+}
+
+
+
+.toolbar input{
+
+    flex-grow:1;
+
+}
+/* ==========================================
+   TABLE WRAPPER
+========================================== */
+
+.table-wrapper{
+
+    width:100%;
+
+    overflow-x:auto;
+
+    overflow-y:auto;
+
+    max-height:70vh;
+
+    border-radius:12px;
+
+    border:1px solid #e5e7eb;
+
+    background:#fff;
+
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+
+}
+
+
+
+/* ==========================================
+   TABLE
+========================================== */
+
+.table-wrapper table{
+
+    width:max-content;
+
+    min-width:100%;
+
+    border-collapse:collapse;
+
+    table-layout:auto;
+
+}
+
+
+
+/* ==========================================
+   TABLE HEADER
+========================================== */
+
+.table-wrapper thead{
+
+    background:#7b61c9;
+
+    position:sticky;
+
+    top:0;
+
+    z-index:100;
+
+}
+
+
+
+.table-wrapper thead th{
+
+    position:sticky;
+
+    top:0;
+
+    background:#7b61c9;
+
+    color:#fff;
+
+    padding:14px 16px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    white-space:nowrap;
+
+    text-align:left;
+
+    border-right:1px solid rgba(255,255,255,.15);
+
+    letter-spacing:.2px;
+
+}
+
+
+
+.table-wrapper thead th:last-child{
+
+    border-right:none;
+
+}
+
+
+
+/* ==========================================
+   TABLE BODY
+========================================== */
+
+.table-wrapper tbody tr{
+
+    transition:background .25s ease;
+
+}
+
+
+
+.table-wrapper tbody tr:nth-child(even){
+
+    background:#fafbfc;
+
+}
+
+
+
+.table-wrapper tbody tr:hover{
+
+    background:#eef3ff;
+
+}
+
+
+
+.table-wrapper tbody td{
+
+    padding:13px 16px;
+
+    border-bottom:1px solid #eceff3;
+
+    border-right:1px solid #f2f4f7;
+
+    color:#444;
+
+    font-size:13px;
+
+    white-space:nowrap;
+
+    vertical-align:middle;
+
+}
+
+
+
+.table-wrapper tbody td:last-child{
+
+    border-right:none;
+
+}
+
+
+
+/* ==========================================
+   COLUMN WIDTHS
+========================================== */
+
+.table-wrapper th,
+
+.table-wrapper td{
+
+    min-width:140px;
+
+}
+
+
+
+.table-wrapper th:first-child,
+
+.table-wrapper td:first-child{
+
+    min-width:180px;
+
+}
+
+
+
+.table-wrapper th:last-child,
+
+.table-wrapper td:last-child{
+
+    min-width:170px;
+
+}
+
+
+
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+.table-wrapper::-webkit-scrollbar{
+
+    height:10px;
+
+    width:10px;
+
+}
+
+
+
+.table-wrapper::-webkit-scrollbar-track{
+
+    background:#edf3f5;
+
+    border-radius:10px;
+
+}
+
+
+
+.table-wrapper::-webkit-scrollbar-thumb{
+
+    background:#b7bfd4;
+
+    border-radius:10px;
+
+}
+
+
+
+.table-wrapper::-webkit-scrollbar-thumb:hover{
+
+    background:#7b61c9;
+
+}
+/* ==========================================
+   ACTION COLUMN
+========================================== */
+
+.action-buttons{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    min-width:150px;
+
+}
+
+
+
+.action-buttons button{
+
+    border:none;
+
+    border-radius:6px;
+
+    padding:8px 14px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:all .25s ease;
+
+    white-space:nowrap;
+
+}
+
+
+
+/* ==========================================
+   EDIT BUTTON
+========================================== */
+
+.action-buttons .edit-btn{
+
+    background:#3b82f6;
+
+    color:#fff;
+
+}
+
+
+
+.action-buttons .edit-btn:hover{
+
+    background:#2563eb;
+
+    transform:translateY(-1px);
+
+}
+
+
+
+/* ==========================================
+   DELETE BUTTON
+========================================== */
+
+.action-buttons .delete-btn{
+
+    background:#ef4444;
+
+    color:#fff;
+
+}
+
+
+
+.action-buttons .delete-btn:hover{
+
+    background:#dc2626;
+
+    transform:translateY(-1px);
+
+}
+
+
+
+.action-buttons button:active{
+
+    transform:scale(.96);
+
+}
+
+
+
+/* ==========================================
+   ATTACHMENT LINK
+========================================== */
+
+.attachment-link{
+
+    color:#2563eb;
+
+    font-weight:600;
+
+    text-decoration:none;
+
+    transition:.25s;
+
+}
+
+
+
+.attachment-link:hover{
+
+    color:#1d4ed8;
+
+    text-decoration:underline;
+
+}
+
+
+
+/* ==========================================
+   STATUS BADGES (Optional)
+========================================== */
+
+.status{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:5px 12px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    white-space:nowrap;
+
+}
+
+
+
+.status.completed{
+
+    background:#dcfce7;
+
+    color:#15803d;
+
+}
+
+
+
+.status.pending{
+
+    background:#fef3c7;
+
+    color:#b45309;
+
+}
+
+
+
+.status.delay{
+
+    background:#fee2e2;
+
+    color:#dc2626;
+
+}
+
+
+
+/* ==========================================
+   NO RECORDS FOUND
+========================================== */
+
+.table-wrapper tbody td[colspan]{
+
+    padding:45px 20px;
+
+    text-align:center;
+
+    color:#6b7280;
+
+    font-size:15px;
+
+    font-weight:500;
+
+    background:#fff;
+
+}
+
+
+
+/* ==========================================
+   TABLE CELL UTILITIES
+========================================== */
+
+.text-center{
+
+    text-align:center;
+
+}
+
+
+
+.text-right{
+
+    text-align:right;
+
+}
+
+
+
+.text-left{
+
+    text-align:left;
+
+}
+
+
+
+.font-bold{
+
+    font-weight:600;
+
+}
+
+
+
+.text-muted{
+
+    color:#6b7280;
+
+}
+
+
+
+/* ==========================================
+   LINKS INSIDE TABLE
+========================================== */
+
+.table-wrapper td a{
+
+    color:#2563eb;
+
+    text-decoration:none;
+
+    font-weight:500;
+
+}
+
+
+
+.table-wrapper td a:hover{
+
+    text-decoration:underline;
+
+}
+
+
+
+/* ==========================================
+   DISABLED BUTTON
+========================================== */
+
+.action-buttons button:disabled{
+
+    opacity:.6;
+
+    cursor:not-allowed;
+
+    transform:none;
+
+}
+/* ==========================================
+   PAGINATION
+========================================== */
+
+.pagination{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:20px;
+
+    margin-top:20px;
+
+    padding:16px 20px;
+
+    flex-wrap:wrap;
+
+}
+
+
+
+.pagination-left,
+
+.pagination-right{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    flex-wrap:wrap;
+
+}
+
+
+
+/* ==========================================
+   PAGINATION BUTTONS
+========================================== */
+
+.pagination button{
+
+    min-width:100px;
+
+    height:42px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#7b61c9;
+
+    color:#fff;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:all .25s ease;
+
+}
+
+
+
+.pagination button:hover:not(:disabled){
+
+    background:#684fb5;
+
+    transform:translateY(-1px);
+
+}
+
+
+
+.pagination button:active{
+
+    transform:scale(.97);
+
+}
+
+
+
+.pagination button:disabled{
+
+    background:#cbd5e1;
+
+    color:#fff;
+
+    cursor:not-allowed;
+
+    transform:none;
+
+}
+
+
+
+/* ==========================================
+   PAGE INFO
+========================================== */
+
+.pagination span{
+
+    font-size:14px;
+
+    color:#4b5563;
+
+    font-weight:500;
+
+    white-space:nowrap;
+
+}
+
+
+
+/* ==========================================
+   PAGE SIZE
+========================================== */
+
+.pagination select{
+
+    min-width:80px;
+
+    height:42px;
+
+    padding:0 12px;
+
+    border:1px solid #d1d5db;
+
+    border-radius:8px;
+
+    background:#fff;
+
+    color:#374151;
+
+    font-size:14px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+
+
+.pagination select:focus{
+
+    outline:none;
+
+    border-color:#7b61c9;
+
+    box-shadow:0 0 0 3px rgba(123,97,201,.12);
+
+}
+
+
+
+/* ==========================================
+   TOTAL RECORDS
+========================================== */
+
+.total-records{
+
+    color:#6b7280;
+
+    font-size:14px;
+
+    font-weight:600;
+
+}
+
+
+
+/* ==========================================
+   LOADING
+========================================== */
+
+.loading{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    min-height:250px;
+
+    color:#6b7280;
+
+    font-size:16px;
+
+    font-weight:600;
+
+}
+
+
+
+/* ==========================================
+   EMPTY STATE
+========================================== */
+
+.empty-state{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    min-height:250px;
+
+    color:#9ca3af;
+
+    font-size:16px;
+
+    font-weight:500;
+
+}
+
+
+
+/* ==========================================
+   FOOTER INFO
+========================================== */
+
+.table-footer{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:15px;
+
+    padding:15px 20px;
+
+    border-top:1px solid #eceff3;
+
+    background:#fff;
+
+}
+
+
+
+/* ==========================================
+   SMALL LABELS
+========================================== */
+
+.label{
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#6b7280;
+
+}
+
+
+
+/* ==========================================
+   HELPERS
+========================================== */
+
+.w-100{
+
+    width:100%;
+
+}
+
+.text-nowrap{
+
+    white-space:nowrap;
+
+}
+
+.overflow-auto{
+
+    overflow:auto;
+
+}
+/* ==========================================
+   RESPONSIVE - LARGE TABLETS
+========================================== */
+
+@media (max-width:1200px){
+
+    .page-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:15px;
+
+    }
+
+    .toolbar{
+
+        flex-wrap:wrap;
+
+    }
+
+    .toolbar input{
+
+        min-width:100%;
+
+    }
+
+}
+
+
+
+/* ==========================================
+   RESPONSIVE - TABLETS
+========================================== */
+
+@media (max-width:992px){
+
+    .new-store-page{
+
+        padding:18px;
+
+    }
+
+    .toolbar{
+
+        flex-direction:column;
+
+        align-items:stretch;
+
+    }
+
+    .toolbar input{
+
+        width:100%;
+
+        min-width:100%;
+
+    }
+
+    .toolbar button{
+
+        width:100%;
+
+    }
+
+    .pagination{
+
+        justify-content:center;
+
+        text-align:center;
+
+    }
+
+    .pagination-left,
+
+    .pagination-right{
+
+        justify-content:center;
+
+        width:100%;
+
+    }
+
+}
+
+
+
+/* ==========================================
+   RESPONSIVE - MOBILE
+========================================== */
+
+@media (max-width:768px){
+
+    .new-store-page{
+
+        padding:15px;
+
+    }
+
+    .page-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+    }
+
+    .page-header h2{
+
+        font-size:24px;
+
+    }
+
+    .page-header button{
+
+        width:100%;
+
+    }
+
+    .table-wrapper{
+
+        border-radius:8px;
+
+    }
+
+    .table-wrapper table{
+
+        min-width:1600px;
+
+    }
+
+    .table-wrapper th,
+
+    .table-wrapper td{
+
+        padding:12px;
+
+        font-size:12px;
+
+    }
+
+    .action-buttons{
+
+        flex-direction:column;
+
+        width:100%;
+
+    }
+
+    .action-buttons button{
+
+        width:100%;
+
+        margin:0;
+
+    }
+
+}
+
+
+
+/* ==========================================
+   RESPONSIVE - SMALL MOBILE
+========================================== */
+
+@media (max-width:480px){
+
+    .page-header h2{
+
+        font-size:22px;
+
+    }
+
+    .toolbar{
+
+        padding:15px;
+
+    }
+
+    .pagination{
+
+        padding:15px;
+
+    }
+
+    .pagination button{
+
+        width:100%;
+
+    }
+
+    .pagination select{
+
+        width:100%;
+
+    }
+
+}
+
+
+
+/* ==========================================
+   TABLE TEXT HELPERS
+========================================== */
+
+.text-success{
+
+    color:#16a34a;
+
+}
+
+.text-danger{
+
+    color:#dc2626;
+
+}
+
+.text-warning{
+
+    color:#d97706;
+
+}
+
+.text-primary{
+
+    color:#2563eb;
+
+}
+
+
+
+/* ==========================================
+   CURSOR HELPERS
+========================================== */
+
+.pointer{
+
+    cursor:pointer;
+
+}
+
+
+
+/* ==========================================
+   TRANSITIONS
+========================================== */
+
+*{
+
+    box-sizing:border-box;
+
+}
+
+button,
+
+input,
+
+select,
+
+a{
+
+    transition:all .25s ease;
+
+}
+
+
+
+/* ==========================================
+   REMOVE LAST BORDERS
+========================================== */
+
+.table-wrapper tbody tr:last-child td{
+
+    border-bottom:none;
+
+}
+
+
+
+/* ==========================================
+   SELECTION
+========================================== */
+
+::selection{
+
+    background:#7b61c9;
+
+    color:#fff;
+
+}
+
+
+
+/* ==========================================
+   END OF FILE
+========================================== */

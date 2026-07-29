@@ -17,6 +17,7 @@ import {
   FaUserCircle,
   FaSitemap,
   FaBell,
+  FaStore,
 } from "react-icons/fa";
 
 import "./Sidebar.css";
@@ -24,6 +25,35 @@ import "./Sidebar.css";
 function Sidebar({ collapsed }) {
 
   const location = useLocation();
+
+  // ==========================================
+  // RBAC
+  // ==========================================
+
+  const user = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
+
+  const permissions = JSON.parse(
+    localStorage.getItem("permissions") || "{}"
+  );
+
+  const isAdministrator = user?.administrator === true;
+
+  const hasPermission = (moduleName) => {
+
+    if (isAdministrator) return true;
+
+    const permission = permissions[moduleName];
+
+    return [
+      "View",
+      "Add",
+      "Edit",
+      "Full",
+    ].includes(permission);
+
+  };
 
   // ==========================================
   // Settings Dropdown
@@ -49,8 +79,6 @@ function Sidebar({ collapsed }) {
 
       "/reports-to",
 
-      "/nso-rules",
-
     ];
 
     if (settingsRoutes.includes(location.pathname)) {
@@ -73,61 +101,121 @@ function Sidebar({ collapsed }) {
             DASHBOARD
         ========================================== */}
 
-        <NavLink
-          to="/dashboard"
-          className="menu-item"
-        >
-          <FaHome />
+        {hasPermission("Dashboard") && (
 
-          {!collapsed && (
-            <span>Dashboard</span>
-          )}
-        </NavLink>
+          <NavLink
+            to="/dashboard"
+            className="menu-item"
+          >
+            <FaHome />
+
+            {!collapsed && (
+              <span>Dashboard</span>
+            )}
+
+          </NavLink>
+
+        )}
 
         {/* ==========================================
             ACTION POINTS
         ========================================== */}
 
-        <NavLink
-          to="/action-points"
-          className="menu-item"
-        >
-          <FaTasks />
+        {hasPermission("Action Points") && (
 
-          {!collapsed && (
-            <span>Action Points</span>
-          )}
-        </NavLink>
+          <NavLink
+            to="/action-points"
+            className="menu-item"
+          >
+            <FaTasks />
+
+            {!collapsed && (
+              <span>Action Points</span>
+            )}
+
+          </NavLink>
+
+        )}
 
         {/* ==========================================
             CHECKLIST REPORTS
         ========================================== */}
 
-        <NavLink
-          to="/checklist-reports"
-          className="menu-item"
-        >
-          <FaClipboardList />
+        {hasPermission("Checklist Reports") && (
 
-          {!collapsed && (
-            <span>Checklist Reports</span>
-          )}
-        </NavLink>
+          <NavLink
+            to="/checklist-reports"
+            className="menu-item"
+          >
+            <FaClipboardList />
+
+            {!collapsed && (
+              <span>Checklist Reports</span>
+            )}
+
+          </NavLink>
+
+        )}
 
         {/* ==========================================
             CHECKLIST SUBMISSION
         ========================================== */}
 
-        <NavLink
-          to="/checklist-submit"
-          className="menu-item"
-        >
-          <FaClipboardCheck />
+        {hasPermission("Checklist Submission") && (
 
-          {!collapsed && (
-            <span>Checklist Submit</span>
-          )}
-        </NavLink>
+          <NavLink
+            to="/checklist-submit"
+            className="menu-item"
+          >
+            <FaClipboardCheck />
+
+            {!collapsed && (
+              <span>Checklist Submit</span>
+            )}
+
+          </NavLink>
+
+        )}
+
+        {/* ==========================================
+            NEW STORE OPENINGS
+        ========================================== */}
+
+        {hasPermission("New Store Openings") && (
+
+          <NavLink
+            to="/new-store-openings"
+            className="menu-item"
+          >
+            <FaStore />
+
+            {!collapsed && (
+              <span>New Store Openings</span>
+            )}
+
+          </NavLink>
+
+        )}
+
+        {/* ==========================================
+            NSO RULES
+        ========================================== */}
+
+        {hasPermission("NSO Rules") && (
+
+          <NavLink
+            to="/nso-rules"
+            className="menu-item"
+          >
+            <FaBell />
+
+            {!collapsed && (
+              <span>NSO Rules</span>
+            )}
+
+          </NavLink>
+
+        )}
 
         {/* ==========================================
             SETTINGS
@@ -159,8 +247,7 @@ function Sidebar({ collapsed }) {
             ))}
 
         </button>
-
-        {/* ==========================================
+                {/* ==========================================
             SETTINGS SUBMENU
         ========================================== */}
 
@@ -170,99 +257,115 @@ function Sidebar({ collapsed }) {
 
             {/* Checklist Types */}
 
-            <NavLink
-              to="/checklist-types"
-              className="submenu-item"
-            >
-              <FaListAlt />
+            {hasPermission("Checklist Types") && (
 
-              <span>Checklist Types</span>
+              <NavLink
+                to="/checklist-types"
+                className="submenu-item"
+              >
+                <FaListAlt />
 
-            </NavLink>
+                <span>Checklist Types</span>
+
+              </NavLink>
+
+            )}
 
             {/* Questions */}
 
-            <NavLink
-              to="/questions"
-              className="submenu-item"
-            >
-              <FaQuestionCircle />
+            {hasPermission("Questions") && (
 
-              <span>Questions</span>
+              <NavLink
+                to="/questions"
+                className="submenu-item"
+              >
+                <FaQuestionCircle />
 
-            </NavLink>
+                <span>Questions</span>
+
+              </NavLink>
+
+            )}
 
             {/* Departments */}
 
-            <NavLink
-              to="/departments"
-              className="submenu-item"
-            >
-              <FaBuilding />
+            {hasPermission("Departments") && (
 
-              <span>Departments</span>
+              <NavLink
+                to="/departments"
+                className="submenu-item"
+              >
+                <FaBuilding />
 
-            </NavLink>
+                <span>Departments</span>
+
+              </NavLink>
+
+            )}
 
             {/* Designations */}
 
-            <NavLink
-              to="/designations"
-              className="submenu-item"
-            >
-              <FaUserTie />
+            {hasPermission("Designations") && (
 
-              <span>Designations</span>
+              <NavLink
+                to="/designations"
+                className="submenu-item"
+              >
+                <FaUserTie />
 
-            </NavLink>
+                <span>Designations</span>
+
+              </NavLink>
+
+            )}
 
             {/* Store Management */}
 
-            <NavLink
-              to="/stores"
-              className="submenu-item"
-            >
-              <FaBuilding />
+            {hasPermission("Stores") && (
 
-              <span>Store Management</span>
+              <NavLink
+                to="/stores"
+                className="submenu-item"
+              >
+                <FaBuilding />
 
-            </NavLink>
+                <span>Store Management</span>
+
+              </NavLink>
+
+            )}
 
             {/* Users */}
 
-            <NavLink
-              to="/users"
-              className="submenu-item"
-            >
-              <FaUsers />
+            {hasPermission("Users") && (
 
-              <span>Users</span>
+              <NavLink
+                to="/users"
+                className="submenu-item"
+              >
+                <FaUsers />
 
-            </NavLink>
+                <span>Users</span>
+
+              </NavLink>
+
+            )}
 
             {/* Reports To */}
 
-            <NavLink
-              to="/reports-to"
-              className="submenu-item"
-            >
-              <FaSitemap />
+            {hasPermission("Reports To") && (
 
-              <span>Reports To</span>
+              <NavLink
+                to="/reports-to"
+                className="submenu-item"
+              >
+                <FaSitemap />
 
-            </NavLink>
+                <span>Reports To</span>
 
-            {/* NSO Rules */}
+              </NavLink>
 
-            <NavLink
-              to="/nso-rules"
-              className="submenu-item"
-            >
-              <FaBell />
-
-              <span>NSO Rules</span>
-
-            </NavLink>
+            )}
 
           </div>
 
@@ -272,17 +375,21 @@ function Sidebar({ collapsed }) {
             PROFILE
         ========================================== */}
 
-        <NavLink
-          to="/profile"
-          className="menu-item"
-        >
-          <FaUserCircle />
+       <div className="sidebar-footer">
 
-          {!collapsed && (
+    <NavLink
+        to="/profile"
+        className="menu-item"
+    >
+        <FaUserCircle />
+
+        {!collapsed && (
             <span>Profile</span>
-          )}
-        </NavLink>
+        )}
 
+    </NavLink>
+
+</div>
       </nav>
 
     </aside>
