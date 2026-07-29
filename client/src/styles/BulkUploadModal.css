@@ -1,0 +1,217 @@
+/* ======================================================
+   Overlay
+====================================================== */
+
+.bulk-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* ======================================================
+   Modal
+====================================================== */
+
+.bulk-modal {
+    width: 520px;
+    max-width: 92%;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    animation: bulkFadeIn .25s ease;
+}
+
+/* ======================================================
+   Header
+====================================================== */
+
+.bulk-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 28px;
+    border-bottom: 1px solid #ececec;
+}
+
+.bulk-modal-header h2 {
+    margin: 0;
+    color: #6b4fd3;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.bulk-close-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: #7c5ce4;
+    color: #ffffff;
+    font-size: 22px;
+    cursor: pointer;
+    transition: .25s;
+}
+
+.bulk-close-btn:hover {
+    background: #6748d6;
+}
+
+/* ======================================================
+   Body
+====================================================== */
+
+.bulk-modal-body {
+    padding: 28px;
+}
+
+.bulk-modal-body p {
+    margin: 0 0 18px;
+    color: #555;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* ======================================================
+   File Picker
+====================================================== */
+
+.bulk-file-picker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fafafa;
+}
+
+.choose-file-btn {
+    border: none;
+    background: #7c5ce4;
+    color: #ffffff;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: .25s;
+    white-space: nowrap;
+}
+
+.choose-file-btn:hover {
+    background: #6748d6;
+}
+
+.file-name {
+    color: #555;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* ======================================================
+   Footer
+====================================================== */
+
+.bulk-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 28px;
+    border-top: 1px solid #ececec;
+}
+
+.cancel-btn,
+.upload-btn {
+    min-width: 120px;
+    padding: 11px 22px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .25s;
+}
+
+.cancel-btn {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.cancel-btn:hover {
+    background: #e5e7eb;
+}
+
+.upload-btn {
+    background: #7c5ce4;
+    color: #ffffff;
+}
+
+.upload-btn:hover:not(:disabled) {
+    background: #6748d6;
+}
+
+.upload-btn:disabled {
+    background: #b6b6b6;
+    cursor: not-allowed;
+}
+
+/* ======================================================
+   Animation
+====================================================== */
+
+@keyframes bulkFadeIn {
+
+    from {
+        opacity: 0;
+        transform: scale(.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+}
+
+/* ======================================================
+   Responsive
+====================================================== */
+
+@media (max-width: 600px) {
+
+    .bulk-modal {
+        width: 95%;
+    }
+
+    .bulk-file-picker {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .choose-file-btn {
+        width: 100%;
+    }
+
+    .file-name {
+        text-align: center;
+    }
+
+    .bulk-modal-footer {
+        flex-direction: column;
+    }
+
+    .cancel-btn,
+    .upload-btn {
+        width: 100%;
+    }
+
+}

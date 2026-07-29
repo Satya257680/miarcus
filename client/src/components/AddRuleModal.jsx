@@ -49,11 +49,19 @@ function AddRuleModal({
   // Filter Departments
   // ==========================================
 
-  const filteredDepartments = departments.filter((department) =>
+  const filteredDepartments = departments.filter(
 
-    department.department_name
-      .toLowerCase()
-      .includes(departmentSearch.toLowerCase())
+    (department) =>
+
+      department.department_name
+
+        .toLowerCase()
+
+        .includes(
+
+          departmentSearch.toLowerCase()
+
+        )
 
   );
 
@@ -96,7 +104,9 @@ function AddRuleModal({
         const names =
 
           editData.departments
+
             ?.split(",")
+
             .map((item) => item.trim()) || [];
 
         return names.includes(
@@ -119,410 +129,480 @@ function AddRuleModal({
 
     });
 
-  }, [editData, departments]);
+  }, [
+
+    editData,
+
+    departments,
+
+  ]);
+
   // ==========================================
-// Load Dropdown Data
-// ==========================================
+  // Load Dropdown Data
+  // ==========================================
 
-const loadData = async () => {
+  const loadData = async () => {
 
-  try {
+    try {
 
-    setLoading(true);
+      setLoading(true);
 
-    const questionRes = await getQuestions();
+      const questionRes = await getQuestions();
 
-    const departmentRes = await getDepartments();
+      const departmentRes = await getDepartments();
 
-    setQuestions(questionRes.data || []);
+      setQuestions(
 
-    setDepartments(departmentRes.data || []);
+        questionRes.data || []
 
-  } catch (err) {
+      );
 
-    console.error(err);
+      setDepartments(
 
-    alert("Failed to load dropdown data.");
+        departmentRes.data || []
 
-  } finally {
+      );
 
-    setLoading(false);
+    } catch (err) {
 
-  }
+      console.error(err);
 
-};
+      alert(
 
-// ==========================================
-// Handle Input Change
-// ==========================================
+        "Failed to load dropdown data."
 
-const handleChange = (e) => {
+      );
 
-  const { name, value } = e.target;
+    } finally {
 
-  setForm((prev) => ({
+      setLoading(false);
 
-    ...prev,
+    }
 
-    [name]: value,
+  };
+    // ==========================================
+  // Handle Input Change
+  // ==========================================
 
-  }));
+  const handleChange = (e) => {
 
-};
+    const { name, value } = e.target;
 
-// ==========================================
-// Toggle Department
-// ==========================================
-
-const toggleDepartment = (id) => {
-
-  setForm((prev) => {
-
-    const exists = prev.departments.includes(id);
-
-    return {
+    setForm((prev) => ({
 
       ...prev,
 
-      departments: exists
+      [name]: value,
 
-        ? prev.departments.filter(
-            (item) => item !== id
-          )
+    }));
 
-        : [...prev.departments, id],
+  };
 
-    };
+  // ==========================================
+  // Toggle Department
+  // ==========================================
 
-  });
+  const toggleDepartment = (id) => {
 
-};
+    setForm((prev) => {
 
-// ==========================================
-// Handle Submit
-// ==========================================
+      const exists = prev.departments.includes(id);
 
-const handleSubmit = async (e) => {
+      return {
 
-  e.preventDefault();
+        ...prev,
 
-  if (!form.trigger_column) {
+        departments: exists
 
-    alert("Please select Trigger Column.");
+          ? prev.departments.filter(
 
-    return;
+              (item) => item !== id
 
-  }
+            )
 
-  if (form.departments.length === 0) {
+          : [
 
-    alert("Please select at least one Department.");
+              ...prev.departments,
 
-    return;
+              id,
 
-  }
+            ],
 
-  try {
-
-    setSaving(true);
-
-    const payload = {
-
-      trigger_column: form.trigger_column,
-
-      departments: form.departments,
-
-    };
-
-    if (editData) {
-
-      await updateRule(editData.id, payload);
-
-      alert("Rule updated successfully.");
-
-    } else {
-
-      await createRule(payload);
-
-      alert("Rule created successfully.");
-
-    }
-
-    if (onSuccess) {
-
-      onSuccess();
-
-    }
-
-    onClose();
-
-    setForm({
-
-      trigger_column: "",
-
-      departments: [],
+      };
 
     });
 
-    setDepartmentSearch("");
+  };
 
-  } catch (err) {
+  // ==========================================
+  // Handle Submit
+  // ==========================================
 
-    console.error(err);
+  const handleSubmit = async (e) => {
 
-    alert(
+    e.preventDefault();
 
-      err.response?.data?.message ||
+    if (!form.trigger_column) {
 
-      "Failed to save rule."
+      alert("Please select Trigger Column.");
 
-    );
+      return;
 
-  } finally {
+    }
 
-    setSaving(false);
+    if (form.departments.length === 0) {
 
-  }
+      alert("Please select at least one Department.");
 
-};
-// ==========================================
-// Don't Render if Closed
-// ==========================================
+      return;
 
-if (!isOpen) return null;
+    }
 
-return (
+    try {
 
-  <div className="modal-overlay">
+      setSaving(true);
 
-    <div className="modal">
+      const payload = {
 
-      <div className="modal-header">
+        trigger_column:
 
-        <h2>
+          form.trigger_column,
 
-          {editData
-            ? "Edit NSO Rule"
-            : "Add NSO Rule"}
+        departments:
 
-        </h2>
+          form.departments,
 
-        <button
-          className="close-btn"
-          onClick={onClose}
-        >
-          ✕
-        </button>
+      };
 
-      </div>
+      if (editData) {
 
-      {loading ? (
+        await updateRule(
 
-        <div className="loading-container">
+          editData.id,
 
-          Loading...
+          payload
+
+        );
+
+        alert(
+
+          "Rule updated successfully."
+
+        );
+
+      } else {
+
+        await createRule(payload);
+
+        alert(
+
+          "Rule created successfully."
+
+        );
+
+      }
+
+      if (onSuccess) {
+
+        onSuccess();
+
+      }
+
+      onClose();
+
+      setForm({
+
+        trigger_column: "",
+
+        departments: [],
+
+      });
+
+      setDepartmentSearch("");
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert(
+
+        err.response?.data?.message ||
+
+        "Failed to save rule."
+
+      );
+
+    } finally {
+
+      setSaving(false);
+
+    }
+
+  };
+
+  // ==========================================
+  // Don't Render if Closed
+  // ==========================================
+
+  if (!isOpen) return null;
+
+  // ==========================================
+  // JSX
+  // ==========================================
+
+  return (
+
+    <div className="modal-overlay">
+
+      <div className="modal">
+
+        <div className="modal-header">
+
+          <h2>
+
+            {editData
+
+              ? "Edit NSO Rule"
+
+              : "Add NSO Rule"}
+
+          </h2>
+
+          <button
+
+            className="close-btn"
+
+            onClick={onClose}
+
+          >
+
+            ✕
+
+          </button>
 
         </div>
 
-      ) : (
+        {loading ? (
 
-        <form onSubmit={handleSubmit}>
+          <div className="loading-container">
 
-          {/* ================= Trigger Column ================= */}
+            Loading...
 
-          <div className="form-group">
+          </div>
 
-            <label>
+        ) : (
 
-              Trigger Column
+          <form onSubmit={handleSubmit}>
 
-            </label>
+            {/* ================= Trigger Column ================= */}
 
-            <select
+            <div className="form-group">
 
-              name="trigger_column"
+              <label>
 
-              value={form.trigger_column}
+                Trigger Column
 
-              onChange={handleChange}
+              </label>
 
-              required
+              <select
 
-            >
+                name="trigger_column"
 
-              <option value="">
+                value={form.trigger_column}
 
-                Select Trigger Column
+                onChange={handleChange}
 
-              </option>
+                required
 
-              {questions.map((question) => (
+              >
 
-                <option
-                  key={question.id}
-                  value={question.question}
-                >
+                <option value="">
 
-                  {question.question}
+                  Select Trigger Column
 
                 </option>
 
-              ))}
+                {questions.map((question) => (
 
-            </select>
+                  <option
 
-          </div>
+                    key={question.id}
 
-          {/* ================= Departments ================= */}
-
-          <div className="form-group">
-
-            <label>
-
-              Assigned Departments
-
-            </label>
-
-            <input
-
-              type="text"
-
-              className="department-search"
-
-              placeholder="Search departments..."
-
-              value={departmentSearch}
-
-              onChange={(e) =>
-                setDepartmentSearch(e.target.value)
-              }
-
-            />
-
-            <div className="department-box">
-
-              {filteredDepartments.length > 0 ? (
-
-                filteredDepartments.map((department) => (
-
-                  <label
-
-                    key={department.id}
-
-                    htmlFor={`department-${department.id}`}
-
-                    className="department-row"
-
-                    onClick={() =>
-                      toggleDepartment(department.id)
-                    }
+                    value={question.question}
 
                   >
 
-                    <input
+                    {question.question}
 
-                      id={`department-${department.id}`}
+                  </option>
 
-                      type="checkbox"
+                ))}
 
-                      checked={form.departments.includes(
-                        department.id
-                      )}
-
-                      onClick={(e) =>
-                        e.stopPropagation()
-                      }
-
-                      onChange={() =>
-                        toggleDepartment(department.id)
-                      }
-
-                    />
-
-                    <span>
-
-                      {department.department_name}
-
-                    </span>
-
-                  </label>
-
-                ))
-
-              ) : (
-
-                <div className="no-department">
-
-                  No departments found.
-
-                </div>
-
-              )}
+              </select>
 
             </div>
 
-          </div>
-                    {/* ================= Buttons ================= */}
+            {/* ================= Departments ================= */}
 
-          <div className="modal-actions">
+            <div className="form-group">
 
-            <button
+              <label>
 
-              type="submit"
+                Assigned Departments
 
-              className="save-btn"
+              </label>
 
-              disabled={saving}
+              <input
 
-            >
+                type="text"
 
-              {saving
-                ? "Saving..."
-                : editData
-                ? "Update Rule"
-                : "Create Rule"}
+                className="department-search"
 
-            </button>
+                placeholder="Search departments..."
 
-            <button
+                value={departmentSearch}
 
-              type="button"
+                onChange={(e) =>
 
-              className="cancel-btn"
+                  setDepartmentSearch(
 
-              onClick={() => {
+                    e.target.value
 
-                setForm({
+                  )
 
-                  trigger_column: "",
+                }
 
-                  departments: [],
+              />
 
-                });
+                            <div className="department-box">
 
-                setDepartmentSearch("");
+                {filteredDepartments.length > 0 ? (
 
-                onClose();
+                  filteredDepartments.map((department) => (
 
-              }}
+                    <label
 
-            >
+                      key={department.id}
 
-              Cancel
+                      htmlFor={`department-${department.id}`}
 
-            </button>
+                      className="department-row"
 
-          </div>
+                    >
 
-        </form>
+                      <input
 
-      )}
+                        id={`department-${department.id}`}
+
+                        type="checkbox"
+
+                        checked={form.departments.includes(
+
+                          department.id
+
+                        )}
+
+                        onChange={() =>
+
+                          toggleDepartment(
+
+                            department.id
+
+                          )
+
+                        }
+
+                      />
+
+                      <span>
+
+                        {department.department_name}
+
+                      </span>
+
+                    </label>
+
+                  ))
+
+                ) : (
+
+                  <div className="no-department">
+
+                    No departments found.
+
+                  </div>
+
+                )}
+
+              </div>
+
+            </div>
+
+            {/* ================= Buttons ================= */}
+
+            <div className="modal-actions">
+
+              <button
+
+                type="submit"
+
+                className="save-btn"
+
+                disabled={saving}
+
+              >
+
+                {saving
+
+                  ? "Saving..."
+
+                  : editData
+
+                  ? "Update Rule"
+
+                  : "Create Rule"}
+
+              </button>
+
+              <button
+
+                type="button"
+
+                className="cancel-btn"
+
+                onClick={() => {
+
+                  setForm({
+
+                    trigger_column: "",
+
+                    departments: [],
+
+                  });
+
+                  setDepartmentSearch("");
+
+                  onClose();
+
+                }}
+
+              >
+
+                Cancel
+
+              </button>
+
+            </div>
+
+          </form>
+
+        )}
+
+      </div>
 
     </div>
 
-  </div>
-
-);
+  );
 
 }
 

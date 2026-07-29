@@ -1,28 +1,45 @@
 const NSORule = require("../models/nsoRuleModel");
-
+const XLSX = require("xlsx");
 // ==============================
 // Get All Rules
 // ==============================
 
 exports.getRules = (req, res) => {
 
-    NSORule.getAllRules((err, results) => {
+    const filters = {
+
+        search: req.query.search || "",
+
+        page: req.query.page || null,
+
+        limit: req.query.limit || null
+
+    };
+
+    NSORule.getAllRules(filters, (err, results) => {
 
         if (err) {
 
             console.error(err);
 
             return res.status(500).json({
+
                 success: false,
-                message: err.message,
+
+                message: err.message
+
             });
 
         }
 
         res.status(200).json({
+
             success: true,
+
             count: results.length,
-            data: results,
+
+            data: results
+
         });
 
     });
@@ -35,13 +52,7 @@ exports.getRules = (req, res) => {
 
 exports.createRule = (req, res) => {
 
-    const {
-
-        trigger_column,
-
-        departments
-
-    } = req.body;
+    const { trigger_column, departments } = req.body;
 
     if (!trigger_column) {
 
@@ -67,35 +78,124 @@ exports.createRule = (req, res) => {
 
     }
 
-    NSORule.createRule({
+    NSORule.checkDuplicateTriggerColumn(
 
         trigger_column,
 
-        created_by: req.user?.id || null
+        (err, rows) => {
 
-    }, (err, result) => {
+            if (err) {
 
-        if (err) {
+                console.error(err);
 
-            console.error(err);
+                return res.status(500).json({
 
-            return res.status(500).json({
+                    success: false,
 
-                success: false,
+                    message: err.message
 
-                message: err.message
+                });
 
-            });
+            }
+
+            if (rows.length > 0) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message: "Trigger Column already exists."
+
+                });
+
+            }
+
+            NSORule.createRuleWithDepartments(
+
+                {
+
+                    trigger_column,
+
+                    departments,
+
+                    created_by: req.user?.id || null
+
+                },
+
+                (err) => {
+
+                    if (err) {
+
+                        console.error(err);
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message: err.message
+
+                        });
+
+                    }
+
+                    res.status(201).json({
+
+                        success: true,
+
+                        message: "Rule created successfully."
+
+                    });
+
+                }
+
+            );
 
         }
 
-        const ruleId = result.insertId;
+    );
 
-        NSORule.addDepartments(
+};
+// ==============================
+// Bulk Upload Rules
+// ==============================
 
-            ruleId,
+exports.bulkUploadRules = (req, res) => {
 
-            departments,
+    if (!req.file) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Please upload an Excel file."
+
+        });
+
+    }
+
+    try {
+
+        const workbook = XLSX.readFile(req.file.path);
+
+        const sheet = workbook.Sheets[
+            workbook.SheetNames[0]
+        ];
+
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        const rules = rows.map(row => ({
+
+            trigger_column: row["Trigger Column"],
+
+            department_ids: String(row["Department IDs"])
+                .split(",")
+                .map(id => Number(id.trim()))
+
+        }));
+
+        NSORule.bulkCreateRules(
+
+            rules,
 
             (err) => {
 
@@ -113,11 +213,11 @@ exports.createRule = (req, res) => {
 
                 }
 
-                res.status(201).json({
+                res.status(200).json({
 
                     success: true,
 
-                    message: "Rule created successfully."
+                    message: "Rules uploaded successfully."
 
                 });
 
@@ -125,10 +225,21 @@ exports.createRule = (req, res) => {
 
         );
 
-    });
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Invalid Excel file."
+
+        });
+
+    }
 
 };
-
 // ==============================
 // Update Rule
 // ==============================
@@ -137,21 +248,39 @@ exports.updateRule = (req, res) => {
 
     const id = req.params.id;
 
-    const {
+    const { trigger_column, departments } = req.body;
 
-        trigger_column,
+    if (!trigger_column) {
 
-        departments
+        return res.status(400).json({
 
-    } = req.body;
+            success: false,
 
-    NSORule.updateRule(
+            message: "Trigger Column is required."
+
+        });
+
+    }
+
+    if (!departments || departments.length === 0) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Select at least one department."
+
+        });
+
+    }
+
+    NSORule.checkDuplicateForUpdate(
 
         id,
 
         trigger_column,
 
-        (err) => {
+        (err, rows) => {
 
             if (err) {
 
@@ -167,13 +296,31 @@ exports.updateRule = (req, res) => {
 
             }
 
-            NSORule.deleteDepartments(
+            if (rows.length > 0) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message: "Trigger Column already exists."
+
+                });
+
+            }
+
+            NSORule.updateRuleWithDepartments(
 
                 id,
+
+                trigger_column,
+
+                departments,
 
                 (err) => {
 
                     if (err) {
+
+                        console.error(err);
 
                         return res.status(500).json({
 
@@ -185,37 +332,13 @@ exports.updateRule = (req, res) => {
 
                     }
 
-                    NSORule.addDepartments(
+                    res.status(200).json({
 
-                        id,
+                        success: true,
 
-                        departments,
+                        message: "Rule updated successfully."
 
-                        (err) => {
-
-                            if (err) {
-
-                                return res.status(500).json({
-
-                                    success: false,
-
-                                    message: err.message
-
-                                });
-
-                            }
-
-                            res.json({
-
-                                success: true,
-
-                                message: "Rule updated successfully."
-
-                            });
-
-                        }
-
-                    );
+                    });
 
                 }
 
@@ -253,7 +376,7 @@ exports.deleteRule = (req, res) => {
 
             }
 
-            res.json({
+            res.status(200).json({
 
                 success: true,
 
@@ -266,5 +389,86 @@ exports.deleteRule = (req, res) => {
     );
 
 };
+// ==============================
+// Delete All Rules
+// ==============================
+
+exports.deleteAllRules = (req, res) => {
+
+    NSORule.deleteAllRules((err) => {
+
+        if (err) {
+
+            console.error(err);
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: err.message
+
+            });
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "All rules deleted successfully."
+
+        });
+
+    });
+
+};
+// ==============================
+// Export Rules (CSV)
+// ==============================
+
+exports.exportRules = (req, res) => {
+
+    NSORule.exportRules((err, results) => {
+
+        if (err) {
+
+            console.error(err);
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: err.message
+
+            });
+
+        }
+
+        let csv = "Trigger Column,Departments\n";
+
+        results.forEach((rule) => {
+
+            csv += `"${rule.trigger_column}","${rule.departments}"\n`;
+
+        });
+
+        res.setHeader(
+            "Content-Type",
+            "text/csv"
+        );
+
+        res.setHeader(
+            "Content-Disposition",
+            "attachment; filename=NSO_Rules.csv"
+        );
+
+        res.status(200).send(csv);
+
+    });
+
+};
+
+console.log("Controller Loaded");
+console.log("Available Exports:", exports);
 
 module.exports = exports;

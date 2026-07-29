@@ -6,6 +6,7 @@
   padding: 24px;
   background: #f4f7fb;
   min-height: 100vh;
+  box-sizing: border-box;
 }
 
 /* ==========================================
@@ -17,154 +18,345 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  gap: 20px;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 700;
-  color: #1f2937;
+  color: #6757d6;
 }
 
 /* ==========================================
-   Add Button
+   Header Buttons
 ========================================== */
 
-.add-btn {
-  background: #2e7d32;
-  color: #fff;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: 0.3s;
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.add-btn:hover {
-  background: #1b5e20;
+/* ==========================================
+   Common Button Style
+========================================== */
+
+.header-buttons .clear-btn,
+.header-buttons .add-btn,
+.header-buttons .bulk-upload-btn,
+.header-buttons .delete-all-btn,
+.header-buttons .export-btn {
+
+  width: 140px;
+  height: 42px;
+
+  border: none !important;
+  border-radius: 8px !important;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all .25s ease;
+
+  box-shadow: 0 4px 10px rgba(0,0,0,.15);
+
+}
+
+/* ==========================================
+   Clear Filters
+========================================== */
+
+.header-buttons .clear-btn{
+
+  background:#0B3D91 !important;
+  color:#ffffff !important;
+
+}
+
+.header-buttons .clear-btn:hover{
+
+  background:#082d6b !important;
+  transform:translateY(-2px);
+
+}
+
+/* ==========================================
+   Add Rule
+========================================== */
+
+.header-buttons .add-btn{
+
+  background:#2F8E4D !important;
+  color:#ffffff !important;
+
+}
+
+.header-buttons .add-btn:hover{
+
+  background:#23703b !important;
+  transform:translateY(-2px);
+
+}
+
+/* ==========================================
+   Bulk Upload
+========================================== */
+
+.header-buttons .bulk-upload-btn{
+
+  background:#1565C0 !important;
+  color:#ffffff !important;
+
+}
+
+.header-buttons .bulk-upload-btn:hover{
+
+  background:#0d47a1 !important;
+  transform:translateY(-2px);
+
+}
+
+/* ==========================================
+   Delete All
+========================================== */
+
+.header-buttons .delete-all-btn{
+
+  background:#D32F2F !important;
+  color:#ffffff !important;
+
+}
+
+.header-buttons .delete-all-btn:hover{
+
+  background:#B71C1C !important;
+  transform:translateY(-2px);
+
+}
+
+/* ==========================================
+   Export
+========================================== */
+
+.header-buttons .export-btn{
+
+  background:#F9A825 !important;
+  color:#000000 !important;
+
+}
+
+.header-buttons .export-btn:hover{
+
+  background:#F57F17 !important;
+  transform:translateY(-2px);
+
 }
 
 /* ==========================================
    Search
 ========================================== */
 
-.search-container {
-  margin-bottom: 20px;
+.search-container{
+  margin-bottom:20px;
 }
 
-.search-container input {
-  width: 320px;
-  max-width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  outline: none;
-  font-size: 14px;
-  transition: .3s;
+.search-container input{
+
+  width:400px;
+  max-width:100%;
+
+  padding:11px 15px;
+
+  border:1px solid #d6dce5;
+  border-radius:8px;
+
+  outline:none;
+
+  font-size:14px;
+
+  transition:.3s;
+
 }
 
-.search-container input:focus {
-  border-color: #1976d2;
-  box-shadow: 0 0 5px rgba(25,118,210,.25);
-}
+.search-container input:focus{
 
+  border-color:#1565C0;
+
+  box-shadow:0 0 6px rgba(21,101,192,.2);
+
+}
 /* ==========================================
    Table
 ========================================== */
 
 .table-container {
-  background: #fff;
+
+  background: white;
+
   border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+
   overflow-x: auto;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+
 }
 
 .table-container table {
+
   width: 100%;
+
   border-collapse: collapse;
+
 }
 
 .table-container thead {
-  background: #4f7d8b;
-  color: #fff;
+
+  background: #487181;
+
+  color: white;
+
 }
 
 .table-container th {
+
   padding: 16px;
-  font-size: 15px;
-  font-weight: 600;
+
   text-align: left;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
 }
 
 .table-container td {
-  padding: 16px;
+
+  padding: 18px 16px;
+
+  text-align: center;
+
   font-size: 14px;
+
   color: #374151;
+
   border-bottom: 1px solid #edf2f7;
-  vertical-align: middle;
+
 }
 
 .table-container tbody tr:hover {
-  background: #f8fbfd;
+
+  background: #f7fbfd;
+
 }
 
 .table-container tbody tr:last-child td {
-  border-bottom: none;
-}
 
+  border-bottom: none;
+
+}
 /* ==========================================
-   Actions Column
+   Action Buttons Column
 ========================================== */
 
 .table-container th:last-child,
 .table-container td:last-child {
-  text-align: center;
+
   width: 220px;
+
+  text-align: center;
+
 }
 
 .action-buttons {
+
   display: flex;
+
   justify-content: center;
+
   align-items: center;
+
   gap: 10px;
+
 }
 
 /* ==========================================
-   Buttons
+   Edit Button
 ========================================== */
 
-.edit-btn,
-.delete-btn {
-  min-width: 90px;
-  height: 38px;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: .3s;
-}
-
 .edit-btn {
-  background: #ff9800;
+
+  min-width: 90px;
+
+  height: 36px;
+
+  border: none;
+
+  border-radius: 6px;
+
+  background: #1976D2;
+
+  color: white;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: .25s;
+
 }
 
 .edit-btn:hover {
-  background: #f57c00;
+
+  background: #1565C0;
+
   transform: translateY(-2px);
+
 }
 
+/* ==========================================
+   Delete Button
+========================================== */
+
 .delete-btn {
-  background: #e53935;
+
+  min-width: 90px;
+
+  height: 36px;
+
+  border: none;
+
+  border-radius: 6px;
+
+  background: #F44336;
+
+  color: white;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: .25s;
+
 }
 
 .delete-btn:hover {
-  background: #c62828;
+
+  background: #D32F2F;
+
   transform: translateY(-2px);
+
 }
 
 /* ==========================================
@@ -172,80 +364,182 @@
 ========================================== */
 
 .pagination {
+
   display: flex;
+
   justify-content: center;
+
   align-items: center;
+
+  flex-wrap: wrap;
+
   gap: 8px;
-  margin-top: 24px;
+
+  margin-top: 25px;
+
 }
 
 .pagination button {
-  min-width: 40px;
+
+  min-width: 42px;
+
   height: 40px;
-  border: 1px solid #d0d7de;
-  background: #fff;
+
+  padding: 0 14px;
+
+  border: 1px solid #d6dce5;
+
   border-radius: 6px;
+
+  background: white;
+
+  color: #374151;
+
+  font-size: 14px;
+
   cursor: pointer;
-  transition: .3s;
+
+  transition: .25s;
+
 }
 
 .pagination button:hover:not(:disabled) {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
+
+  background: #1565C0;
+
+  color: white;
+
+  border-color: #1565C0;
+
 }
 
 .pagination button:disabled {
+
   opacity: .5;
+
   cursor: not-allowed;
+
 }
 
 .active-page {
-  background: #1976d2 !important;
-  color: #fff !important;
-  border-color: #1976d2 !important;
+
+  background: #1565C0 !important;
+
+  color: white !important;
+
+  border-color: #1565C0 !important;
+
+}
+
+/* ==========================================
+   Total Records
+========================================== */
+
+.total-records {
+
+  margin-top: 18px;
+
+  text-align: right;
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+  color: #6b7280;
+
 }
 
 /* ==========================================
    Responsive
 ========================================== */
 
-@media (max-width: 768px) {
+@media (max-width:992px){
 
-  .page-container {
-    padding: 16px;
+  .page-header{
+
+    flex-direction:column;
+
+    align-items:flex-start;
+
+    gap:15px;
+
   }
 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+  .header-buttons{
+
+    width:100%;
+
+    justify-content:flex-start;
+
   }
 
-  .page-header h2 {
-    font-size: 24px;
+}
+
+@media (max-width:768px){
+
+  .page-container{
+
+    padding:16px;
+
   }
 
-  .search-container input {
-    width: 100%;
+  .page-header h2{
+
+    font-size:28px;
+
   }
 
-  .table-container {
-    overflow-x: auto;
+  .header-buttons{
+
+    width:100%;
+
+    flex-direction:column;
+
+    align-items:stretch;
+
   }
 
-  .action-buttons {
-    flex-direction: column;
-    width: 100%;
+  .clear-btn,
+  .add-btn,
+  .bulk-upload-btn,
+  .delete-all-btn,
+  .export-btn{
+
+    width:100%;
+
+  }
+
+  .search-container input{
+
+    width:100%;
+
+  }
+
+  .action-buttons{
+
+    flex-direction:column;
+
+    gap:8px;
+
   }
 
   .edit-btn,
-  .delete-btn {
-    width: 100%;
-    min-width: unset;
+  .delete-btn{
+
+    width:100%;
+
   }
 
-  .pagination {
-    flex-wrap: wrap;
+  .pagination{
+
+    justify-content:center;
+
   }
+
+  .total-records{
+
+    text-align:center;
+
+  }
+
 }

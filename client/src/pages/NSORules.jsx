@@ -1,35 +1,45 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   getRules,
   deleteRule,
+  deleteAllRules,
+  bulkUploadRules,
+  exportRules,
 } from "../services/nsoRuleService";
 
 import AddRuleModal from "../components/AddRuleModal";
+import BulkUploadModal from "../components/BulkUploadModal";
 
 import "../styles/NSORules.css";
-
 function NSORules() {
 
   // ==========================================
   // States
   // ==========================================
 
-  const [rules, setRules] = useState([]);
+ const [rules, setRules] = useState([]);
 
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
+const [search, setSearch] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
+const [showModal, setShowModal] = useState(false);
 
-  const [editData, setEditData] = useState(null);
+const [editData, setEditData] = useState(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
+const [currentPage, setCurrentPage] = useState(1);
 
-  const rowsPerPage = 10;
+const [totalPages, setTotalPages] = useState(1);
 
-  // ==========================================
+const [totalRecords, setTotalRecords] = useState(0);
+
+const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+const rowsPerPage = 10;
+
+
+ // ==========================================
 // User & Permissions
 // ==========================================
 
@@ -54,7 +64,7 @@ const canView =
 
 const canAdd =
   isAdmin ||
-  ["Add", "Full"].includes(permission);
+  ["Add", "Edit", "Full"].includes(permission);
 
 const canEdit =
   isAdmin ||
@@ -63,19 +73,52 @@ const canEdit =
 const canDelete =
   isAdmin ||
   permission === "Full";
+
   // ==========================================
   // Load Rules
   // ==========================================
 
-  const loadRules = async () => {
+  const loadRules = async (
+
+    page = currentPage,
+
+    keyword = search
+
+  ) => {
 
     try {
 
       setLoading(true);
 
-      const res = await getRules();
+      const res = await getRules(
+
+        keyword,
+
+        page,
+
+        rowsPerPage
+
+      );
 
       setRules(res.data || []);
+
+      setTotalRecords(res.count || 0);
+
+      setTotalPages(
+
+        Math.max(
+
+          1,
+
+          Math.ceil(
+
+            (res.count || 0) / rowsPerPage
+
+          )
+
+        )
+
+      );
 
     } catch (err) {
 
@@ -91,100 +134,57 @@ const canDelete =
 
   };
 
+  // ==========================================
+  // Load Data
+  // ==========================================
+
   useEffect(() => {
 
-    loadRules();
+    loadRules(
 
-  }, []);
+      currentPage,
 
-  // ==========================================
-  // Search
-  // ==========================================
+      search
 
-  const filteredRules = useMemo(() => {
+    );
 
-    return rules.filter((rule) => {
+  }, [
 
-      const trigger =
-        rule.trigger_column?.toLowerCase() || "";
+    currentPage,
 
-      const departments =
-        rule.departments?.toLowerCase() || "";
+    search
 
-      return (
+  ]);
 
-        trigger.includes(search.toLowerCase()) ||
-
-        departments.includes(search.toLowerCase())
-
-      );
-
-    });
-
-  }, [rules, search]);
-
- // ==========================================
-// Pagination
-// ==========================================
-
-const totalPages = Math.max(
-  1,
-  Math.ceil(filteredRules.length / rowsPerPage)
-);
-
-// Keep current page within valid range
-const safeCurrentPage = Math.min(
-  currentPage,
-  totalPages
-);
-
-const indexOfLastRow =
-  safeCurrentPage * rowsPerPage;
-
-const indexOfFirstRow =
-  indexOfLastRow - rowsPerPage;
-
-const currentRows = filteredRules.slice(
-  indexOfFirstRow,
-  indexOfLastRow
-);
-// ==========================================
-// Keep Page Valid
-// ==========================================
-
-useEffect(() => {
-
-  if (currentPage > totalPages) {
-
-    setCurrentPage(totalPages);
-
-  }
-
-}, [currentPage, totalPages]);
   // ==========================================
   // Open Add Modal
   // ==========================================
 
-  const handleAdd = () => {
+      const handleAdd = () => {
 
-    setEditData(null);
+  if (!canAdd) return;
 
-    setShowModal(true);
+  setEditData(null);
 
-  };
+  setShowModal(true);
+
+};
 
   // ==========================================
   // Open Edit Modal
   // ==========================================
 
-  const handleEdit = (rule) => {
+ const handleEdit = (rule) => {
 
-    setEditData(rule);
+  if (!canEdit) return;
 
-    setShowModal(true);
+  setEditData(rule);
 
-  };
-    // ==========================================
+  setShowModal(true);
+
+};
+
+  // ==========================================
   // Delete Rule
   // ==========================================
 
@@ -209,14 +209,106 @@ useEffect(() => {
       console.error(err);
 
       alert(
+
         err.response?.data?.message ||
+
         "Failed to delete rule."
+
       );
 
     }
 
   };
+  
+// ==========================================
+// Delete All Rules
+// ==========================================
 
+const handleDeleteAll = async () => {
+
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete ALL NSO Rules?"
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+
+    await deleteAllRules();
+
+    alert("All rules deleted successfully.");
+
+    setCurrentPage(1);
+
+    loadRules(1, "");
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+
+      err.response?.data?.message ||
+
+      "Failed to delete all rules."
+
+    );
+
+  }
+
+};
+  // ==========================================
+// Export Rules
+// ==========================================
+
+const handleExport = async () => {
+
+  try {
+
+    const response = await exportRules();
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data])
+    );
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    link.setAttribute(
+      "download",
+      "NSO_Rules.csv"
+    );
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Failed to export rules.");
+
+  }
+
+};
+
+// ==========================================
+// Clear Filters
+// ==========================================
+
+const handleClearFilters = () => {
+
+  setSearch("");
+
+  setCurrentPage(1);
+
+  loadRules(1, "");
+
+};
   // ==========================================
   // No Permission
   // ==========================================
@@ -241,56 +333,99 @@ useEffect(() => {
   // JSX
   // ==========================================
 
-  return (
+    return (
 
     <div className="page-container">
 
+      {/* ================= Header ================= */}
+
       <div className="page-header">
 
-        <h2>NSO Rules</h2>
+  <h2>NSO Rules</h2>
 
-        {canAdd && (
+  <div className="header-buttons">
 
-          <button
+    <button
+      className="clear-btn"
+      onClick={handleClearFilters}
+    >
+      Clear Filters
+    </button>
 
-            className="add-btn"
+    {canAdd && (
 
-            onClick={handleAdd}
+      <button
+        className="add-btn"
+        onClick={handleAdd}
+      >
+        + Add Rule
+      </button>
 
-          >
+    )}
+    {canDelete && (
 
-            + Add Rule
+  <button
+    className="delete-all-btn"
+    onClick={handleDeleteAll}
+  >
+    Delete All
+  </button>
 
-          </button>
+)}
+{canAdd && (
+  <>
+    <button
+      className="bulk-upload-btn"
+      onClick={() => setShowBulkUpload(true)}
+    >
+      Bulk Upload
+    </button>
 
-        )}
+    <BulkUploadModal
+      isOpen={showBulkUpload}
+      onClose={() => setShowBulkUpload(false)}
+      onSuccess={() => {
+        loadRules(); // Replace with your actual function if it's named differently
+        setShowBulkUpload(false);
+      }}
+      uploadFunction={bulkUploadRules}
+      title="Bulk Upload NSO Rules"
+    />
+  </>
+)}
+    <button
+      className="export-btn"
+      onClick={handleExport}
+    >
+      Export
+    </button>
 
-      </div>
+  </div>
 
+</div>
       {/* ================= Search ================= */}
 
-      <div className="search-container">
+     <div className="search-container">
 
-        <input
+  <input
 
-          type="text"
+    type="text"
 
-          placeholder="Search..."
+    placeholder="Search..."
 
-          value={search}
+    value={search}
 
-          onChange={(e) => {
+    onChange={(e) => {
 
-            setSearch(e.target.value);
+      setSearch(e.target.value);
 
-            setCurrentPage(1);
+      setCurrentPage(1);
 
-          }}
+    }}
 
-        />
+  />
 
-      </div>
-
+</div>
       {/* ================= Table ================= */}
 
       <div className="table-container">
@@ -307,8 +442,11 @@ useEffect(() => {
 
               <th>Departments</th>
 
-              <th>Actions</th>
+              {(canEdit || canDelete) && (
 
+  <th>Actions</th>
+
+)}
             </tr>
 
           </thead>
@@ -327,7 +465,7 @@ useEffect(() => {
 
               </tr>
 
-            ) : currentRows.length === 0 ? (
+            ) : rules.length === 0 ? (
 
               <tr>
 
@@ -341,7 +479,7 @@ useEffect(() => {
 
             ) : (
 
-              currentRows.map((rule, index) => (
+              rules.map((rule, index) => (
 
                 <tr key={rule.id}>
 
@@ -363,29 +501,49 @@ useEffect(() => {
 
                   </td>
 
-                  <td>
-  <div className="action-buttons">
+                  {(canEdit || canDelete) && (
 
-    {canEdit && (
-      <button
-        className="edit-btn"
-        onClick={() => handleEdit(rule)}
-      >
-        Edit
-      </button>
-    )}
+  <td>
 
-    {canDelete && (
-      <button
-        className="delete-btn"
-        onClick={() => handleDelete(rule.id)}
-      >
-        Delete
-      </button>
-    )}
+    <div className="action-buttons">
 
-  </div>
-</td>
+      {canEdit && (
+
+        <button
+
+          className="edit-btn"
+
+          onClick={() => handleEdit(rule)}
+
+        >
+
+          Edit
+
+        </button>
+
+      )}
+
+      {canDelete && (
+
+        <button
+
+          className="delete-btn"
+
+          onClick={() => handleDelete(rule.id)}
+
+        >
+
+          Delete
+
+        </button>
+
+      )}
+
+    </div>
+
+  </td>
+
+)}
                 </tr>
 
               ))
@@ -425,54 +583,84 @@ useEffect(() => {
         editData={editData}
 
       />
-           {/* ================= Pagination ================= */}
 
-{!loading && totalPages > 1 && (
+         {/* ================= Pagination ================= */}
 
-  <div className="pagination">
+      {!loading && totalPages > 1 && (
 
-    <button
-      disabled={safeCurrentPage === 1}
-      onClick={() =>
-        setCurrentPage(safeCurrentPage - 1)
-      }
-    >
-      Previous
-    </button>
+        <div className="pagination">
 
-    {Array.from(
-      { length: totalPages },
-      (_, i) => (
+          <button
 
-        <button
-          key={i + 1}
-          className={
-            safeCurrentPage === i + 1
-              ? "active-page"
-              : ""
-          }
-          onClick={() =>
-            setCurrentPage(i + 1)
-          }
-        >
-          {i + 1}
-        </button>
+            disabled={currentPage === 1}
 
-      )
-    )}
+            onClick={() =>
 
-    <button
-      disabled={safeCurrentPage === totalPages}
-      onClick={() =>
-        setCurrentPage(safeCurrentPage + 1)
-      }
-    >
-      Next
-    </button>
+              setCurrentPage(currentPage - 1)
 
-  </div>
+            }
 
-)}
+          >
+
+            Previous
+
+          </button>
+
+          {Array.from(
+
+            { length: totalPages },
+
+            (_, i) => (
+
+              <button
+
+                key={i + 1}
+
+                className={
+
+                  currentPage === i + 1
+
+                    ? "active-page"
+
+                    : ""
+
+                }
+
+                onClick={() =>
+
+                  setCurrentPage(i + 1)
+
+                }
+
+              >
+
+                {i + 1}
+
+              </button>
+
+            )
+
+          )}
+
+          <button
+
+            disabled={currentPage === totalPages}
+
+            onClick={() =>
+
+              setCurrentPage(currentPage + 1)
+
+            }
+
+          >
+
+            Next
+
+          </button>
+
+        </div>
+
+      )}
 
     </div>
 

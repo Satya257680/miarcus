@@ -10,6 +10,8 @@
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 /* ==========================================
@@ -17,8 +19,10 @@
 ========================================== */
 
 .modal {
-  width: 620px;
-  max-width: 95%;
+  width: 650px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
   background: #ffffff;
   border-radius: 10px;
   padding: 24px;
@@ -33,13 +37,19 @@
 @keyframes popup {
 
   from {
+
     opacity: 0;
+
     transform: scale(0.95);
+
   }
 
   to {
+
     opacity: 1;
+
     transform: scale(1);
+
   }
 
 }
@@ -112,8 +122,8 @@
   padding: 0 14px;
   font-size: 15px;
   outline: none;
-  box-sizing: border-box;
   background: #fff;
+  box-sizing: border-box;
   transition: 0.25s;
 }
 
@@ -122,13 +132,12 @@
   border-color: #7b61ff;
   box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.15);
 }
-
 /* ==========================================
    Search Box
 ========================================== */
 
 .department-search {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 /* ==========================================
@@ -139,7 +148,7 @@
   border: 1px solid #d8dce5;
   border-radius: 6px;
   background: #fff;
-  height: 180px;
+  height: 200px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -172,6 +181,7 @@
 }
 
 .department-row span {
+  flex: 1;
   font-size: 15px;
   color: #333;
   line-height: 1.4;
@@ -182,7 +192,7 @@
 ========================================== */
 
 .no-department {
-  padding: 18px;
+  padding: 20px;
   text-align: center;
   color: #888;
   font-size: 14px;
@@ -196,6 +206,10 @@
   width: 8px;
 }
 
+.department-box::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+
 .department-box::-webkit-scrollbar-thumb {
   background: #c0c0c0;
   border-radius: 10px;
@@ -204,11 +218,6 @@
 .department-box::-webkit-scrollbar-thumb:hover {
   background: #9f9f9f;
 }
-
-.department-box::-webkit-scrollbar-track {
-  background: #f5f5f5;
-}
-
 /* ==========================================
    Help Text
 ========================================== */
@@ -242,7 +251,7 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: 0.25s;
+  transition: all 0.25s ease;
 }
 
 .save-btn {
@@ -277,6 +286,28 @@
   text-align: center;
   color: #666;
   font-size: 15px;
+  font-weight: 500;
+}
+
+/* ==========================================
+   Modal Scrollbar
+========================================== */
+
+.modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+
+.modal::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 10px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover {
+  background: #9f9f9f;
 }
 
 /* ==========================================
@@ -287,12 +318,17 @@
 
   .modal {
     width: 95%;
+    max-height: 90vh;
     padding: 20px;
   }
 
   .modal-header {
     margin: -20px -20px 20px;
     padding: 16px 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
   }
 
   .department-box {
@@ -306,6 +342,7 @@
   .save-btn,
   .cancel-btn {
     width: 100%;
+    min-width: unset;
   }
 
 }
