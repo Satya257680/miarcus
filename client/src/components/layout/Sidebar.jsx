@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 import {
   FaHome,
@@ -7,24 +6,14 @@ import {
   FaClipboardList,
   FaClipboardCheck,
   FaCog,
-  FaChevronDown,
-  FaChevronRight,
-  FaBuilding,
-  FaUserTie,
-  FaUsers,
-  FaListAlt,
-  FaQuestionCircle,
-  FaUserCircle,
-  FaSitemap,
   FaBell,
   FaStore,
+  FaUserCircle,
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
 
 function Sidebar({ collapsed }) {
-
-  const location = useLocation();
 
   // ==========================================
   // RBAC
@@ -54,40 +43,6 @@ function Sidebar({ collapsed }) {
     ].includes(permission);
 
   };
-
-  // ==========================================
-  // Settings Dropdown
-  // ==========================================
-
-  const [settingsOpen, setSettingsOpen] = useState(true);
-
-  useEffect(() => {
-
-    const settingsRoutes = [
-
-      "/checklist-types",
-
-      "/questions",
-
-      "/departments",
-
-      "/designations",
-
-      "/stores",
-
-      "/users",
-
-      "/reports-to",
-
-    ];
-
-    if (settingsRoutes.includes(location.pathname)) {
-
-      setSettingsOpen(true);
-
-    }
-
-  }, [location.pathname]);
 
   return (
 
@@ -221,153 +176,37 @@ function Sidebar({ collapsed }) {
             SETTINGS
         ========================================== */}
 
-        <button
-          type="button"
-          className="menu-item settings-btn"
-          onClick={() =>
-            setSettingsOpen((previous) => !previous)
-          }
-        >
+        {(
 
-          <div className="settings-left">
+          isAdministrator ||
 
+          hasPermission("Users") ||
+
+          hasPermission("Departments") ||
+
+          hasPermission("Designations") ||
+
+          hasPermission("Stores") ||
+
+          hasPermission("Questions") ||
+
+          hasPermission("Checklist Types") ||
+
+          hasPermission("Reports To")
+
+        ) && (
+
+          <NavLink
+            to="/settings"
+            className="menu-item"
+          >
             <FaCog />
 
             {!collapsed && (
               <span>Settings</span>
             )}
 
-          </div>
-
-          {!collapsed &&
-            (settingsOpen ? (
-              <FaChevronDown />
-            ) : (
-              <FaChevronRight />
-            ))}
-
-        </button>
-                {/* ==========================================
-            SETTINGS SUBMENU
-        ========================================== */}
-
-        {settingsOpen && !collapsed && (
-
-          <div className="submenu">
-
-            {/* Checklist Types */}
-
-            {hasPermission("Checklist Types") && (
-
-              <NavLink
-                to="/checklist-types"
-                className="submenu-item"
-              >
-                <FaListAlt />
-
-                <span>Checklist Types</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Questions */}
-
-            {hasPermission("Questions") && (
-
-              <NavLink
-                to="/questions"
-                className="submenu-item"
-              >
-                <FaQuestionCircle />
-
-                <span>Questions</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Departments */}
-
-            {hasPermission("Departments") && (
-
-              <NavLink
-                to="/departments"
-                className="submenu-item"
-              >
-                <FaBuilding />
-
-                <span>Departments</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Designations */}
-
-            {hasPermission("Designations") && (
-
-              <NavLink
-                to="/designations"
-                className="submenu-item"
-              >
-                <FaUserTie />
-
-                <span>Designations</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Store Management */}
-
-            {hasPermission("Stores") && (
-
-              <NavLink
-                to="/stores"
-                className="submenu-item"
-              >
-                <FaBuilding />
-
-                <span>Store Management</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Users */}
-
-            {hasPermission("Users") && (
-
-              <NavLink
-                to="/users"
-                className="submenu-item"
-              >
-                <FaUsers />
-
-                <span>Users</span>
-
-              </NavLink>
-
-            )}
-
-            {/* Reports To */}
-
-            {hasPermission("Reports To") && (
-
-              <NavLink
-                to="/reports-to"
-                className="submenu-item"
-              >
-                <FaSitemap />
-
-                <span>Reports To</span>
-
-              </NavLink>
-
-            )}
-
-          </div>
+          </NavLink>
 
         )}
 
@@ -375,21 +214,22 @@ function Sidebar({ collapsed }) {
             PROFILE
         ========================================== */}
 
-       <div className="sidebar-footer">
+        <div className="sidebar-footer">
 
-    <NavLink
-        to="/profile"
-        className="menu-item"
-    >
-        <FaUserCircle />
+          <NavLink
+            to="/profile"
+            className="menu-item"
+          >
+            <FaUserCircle />
 
-        {!collapsed && (
-            <span>Profile</span>
-        )}
+            {!collapsed && (
+              <span>Profile</span>
+            )}
 
-    </NavLink>
+          </NavLink>
 
-</div>
+        </div>
+
       </nav>
 
     </aside>

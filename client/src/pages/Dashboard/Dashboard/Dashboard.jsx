@@ -19,7 +19,7 @@ import {
   FaCog,
 } from "react-icons/fa";
 
-import "../styles/Dashboard.css";
+import "../../../styles/dashboard/Dashboard.css";
 
 function Dashboard() {
 
