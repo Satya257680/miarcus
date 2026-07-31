@@ -13,6 +13,8 @@ import ActivateAccount from "./pages/ActivateAccount";
 
 // ================= PROTECTED PAGES =================
 import Dashboard from "./pages/Dashboard/Dashboard/Dashboard";
+import DashboardAnalytics from "./pages/Dashboard/Dashboard/DashboardAnalytics";
+
 import ChecklistSubmission from "./pages/ChecklistSubmission";
 import ChecklistReports from "./pages/ChecklistReports";
 import ActionPoints from "./pages/ActionPoints";
@@ -62,12 +64,19 @@ function App() {
                 >
 
                     {/* Dashboard */}
+
                     <Route
                         path="/dashboard"
                         element={<Dashboard />}
                     />
 
+                    <Route
+                        path="/dashboard-analytics"
+                        element={<DashboardAnalytics />}
+                    />
+
                     {/* Checklist */}
+
                     <Route
                         path="/checklist-submit"
                         element={<ChecklistSubmission />}

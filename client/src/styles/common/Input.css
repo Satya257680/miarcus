@@ -1,0 +1,157 @@
+/* ==========================================
+   INPUT GROUP
+========================================== */
+
+.input-group{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+    width:100%;
+
+}
+
+/* ==========================================
+   LABEL
+========================================== */
+
+.input-label{
+
+    font-size:14px;
+
+    font-weight:600;
+
+    color:#344054;
+
+}
+
+.required{
+
+    color:#dc2626;
+
+    margin-left:4px;
+
+}
+
+/* ==========================================
+   INPUT
+========================================== */
+
+.input-wrapper{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    background:#ffffff;
+
+    border:1px solid #d0d5dd;
+
+    border-radius:8px;
+
+    padding:0 14px;
+
+    transition:.25s;
+
+}
+
+.input-wrapper:focus-within{
+
+    border-color:#3f6b78;
+
+    box-shadow:0 0 0 3px rgba(63,107,120,.15);
+
+}
+
+.input-wrapper input{
+
+    flex:1;
+
+    height:44px;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    font-size:14px;
+
+    color:#344054;
+
+}
+
+.input-wrapper input::placeholder{
+
+    color:#98a2b3;
+
+}
+
+.input-wrapper input:disabled{
+
+    cursor:not-allowed;
+
+    opacity:.6;
+
+}
+
+.input-icon{
+
+    display:flex;
+
+    align-items:center;
+
+    color:#667085;
+
+}
+
+/* ==========================================
+   ERROR
+========================================== */
+
+.input-error{
+
+    border-color:#dc2626;
+
+}
+
+.input-error:focus-within{
+
+    border-color:#dc2626;
+
+    box-shadow:0 0 0 3px rgba(220,38,38,.15);
+
+}
+
+.input-message{
+
+    font-size:12px;
+
+    color:#667085;
+
+}
+
+.input-message.error{
+
+    color:#dc2626;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:768px){
+
+    .input-wrapper input{
+
+        font-size:13px;
+
+    }
+
+}

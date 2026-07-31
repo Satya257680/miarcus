@@ -1,0 +1,145 @@
+/* ==========================================
+   PAGINATION
+========================================== */
+
+.pagination{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:20px;
+
+    margin-top:20px;
+
+    flex-wrap:wrap;
+
+}
+
+/* ==========================================
+   LEFT
+========================================== */
+
+.pagination-left{
+
+    font-size:14px;
+
+    color:#667085;
+
+}
+
+/* ==========================================
+   CENTER
+========================================== */
+
+.pagination-center{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex-wrap:wrap;
+
+}
+
+.pagination-center button{
+
+    min-width:36px;
+
+    height:36px;
+
+    border:1px solid #d0d5dd;
+
+    background:#fff;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.pagination-center button:hover:not(:disabled){
+
+    background:#eef4f6;
+
+}
+
+.pagination-center button.active{
+
+    background:#3f6b78;
+
+    color:#fff;
+
+    border-color:#3f6b78;
+
+}
+
+.pagination-center button:disabled{
+
+    opacity:.5;
+
+    cursor:not-allowed;
+
+}
+
+/* ==========================================
+   RIGHT
+========================================== */
+
+.pagination-right{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+}
+
+.pagination-right label{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    font-size:14px;
+
+    color:#667085;
+
+}
+
+.pagination-right select{
+
+    padding:6px 10px;
+
+    border:1px solid #d0d5dd;
+
+    border-radius:8px;
+
+    outline:none;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:768px){
+
+    .pagination{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+    }
+
+}

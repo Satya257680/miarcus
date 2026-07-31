@@ -1,0 +1,93 @@
+/* ==========================================
+   EMPTY STATE
+========================================== */
+
+.empty-state{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    text-align:center;
+
+    padding:50px 20px;
+
+}
+
+.empty-state-icon{
+
+    width:80px;
+
+    height:80px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-radius:50%;
+
+    background:#eef4f6;
+
+    color:#3f6b78;
+
+    font-size:32px;
+
+    margin-bottom:20px;
+
+}
+
+.empty-state h3{
+
+    margin:0;
+
+    font-size:22px;
+
+    font-weight:600;
+
+    color:#23404A;
+
+}
+
+.empty-state p{
+
+    margin:12px 0 24px;
+
+    max-width:420px;
+
+    color:#667085;
+
+    font-size:15px;
+
+    line-height:1.6;
+
+}
+
+.empty-state-action{
+
+    display:flex;
+
+    justify-content:center;
+
+}
+
+@media(max-width:768px){
+
+    .empty-state{
+
+        padding:40px 16px;
+
+    }
+
+    .empty-state h3{
+
+        font-size:20px;
+
+    }
+
+}

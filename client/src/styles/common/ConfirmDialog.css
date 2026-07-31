@@ -1,0 +1,123 @@
+/* ==========================================
+   OVERLAY
+========================================== */
+
+.confirm-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:10000;
+
+    padding:20px;
+
+}
+
+/* ==========================================
+   DIALOG
+========================================== */
+
+.confirm-dialog{
+
+    width:100%;
+
+    max-width:420px;
+
+    background:#fff;
+
+    border-radius:12px;
+
+    overflow:hidden;
+
+    box-shadow:0 12px 40px rgba(0,0,0,.2);
+
+}
+
+/* ==========================================
+   HEADER
+========================================== */
+
+.confirm-header{
+
+    padding:20px 24px;
+
+    border-bottom:1px solid #eaecf0;
+
+}
+
+.confirm-header h2{
+
+    margin:0;
+
+    font-size:20px;
+
+    color:#23404A;
+
+}
+
+/* ==========================================
+   BODY
+========================================== */
+
+.confirm-body{
+
+    padding:24px;
+
+}
+
+.confirm-body p{
+
+    margin:0;
+
+    color:#667085;
+
+    line-height:1.6;
+
+}
+
+/* ==========================================
+   FOOTER
+========================================== */
+
+.confirm-footer{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:12px;
+
+    padding:20px 24px;
+
+    border-top:1px solid #eaecf0;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:768px){
+
+    .confirm-footer{
+
+        flex-direction:column-reverse;
+
+    }
+
+    .confirm-footer button{
+
+        width:100%;
+
+    }
+
+}

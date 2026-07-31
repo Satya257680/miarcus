@@ -1,4 +1,5 @@
 import React from "react";
+import { PageHeader } from "../../components/common/PageHeader";
 
 import {
     FaUsers,
@@ -117,15 +118,10 @@ function Settings() {
 
         <div className="settings-page">
 
-            <div className="settings-header">
-
-                <h1>Settings</h1>
-
-                <p>
-                    Manage all application configuration from one place.
-                </p>
-
-            </div>
+           <PageHeader
+    title="Settings"
+    subtitle="Manage all application configuration from one place."
+/>
 
             <div className="settings-grid">
 

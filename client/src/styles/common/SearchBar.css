@@ -1,0 +1,103 @@
+/* ==========================================
+   SEARCH BAR
+========================================== */
+
+.search-bar{
+
+    display:flex;
+
+    align-items:center;
+
+    width:100%;
+
+    max-width:380px;
+
+    background:#fff;
+
+    border:1px solid #d0d5dd;
+
+    border-radius:10px;
+
+    padding:0 14px;
+
+    transition:0.25s;
+
+}
+
+.search-bar:focus-within{
+
+    border-color:#3f6b78;
+
+    box-shadow:0 0 0 3px rgba(63,107,120,.15);
+
+}
+
+.search-icon{
+
+    color:#667085;
+
+    font-size:14px;
+
+    margin-right:10px;
+
+}
+
+.search-bar input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    padding:12px 0;
+
+    font-size:14px;
+
+    color:#344054;
+
+}
+
+.search-bar input::placeholder{
+
+    color:#98a2b3;
+
+}
+
+.clear-btn{
+
+    border:none;
+
+    background:none;
+
+    cursor:pointer;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    color:#667085;
+
+    transition:.2s;
+
+}
+
+.clear-btn:hover{
+
+    color:#d92d20;
+
+}
+
+@media(max-width:768px){
+
+    .search-bar{
+
+        max-width:100%;
+
+    }
+
+}

@@ -1,0 +1,121 @@
+/* ==========================================
+   STATUS BADGE
+========================================== */
+
+.status-badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:4px 12px;
+
+    border-radius:999px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    text-transform:capitalize;
+
+    white-space:nowrap;
+
+}
+
+/* ==========================================
+   DEFAULT
+========================================== */
+
+.status-default{
+
+    background:#f2f4f7;
+
+    color:#475467;
+
+}
+
+/* ==========================================
+   ACTIVE
+========================================== */
+
+.status-active{
+
+    background:#dcfce7;
+
+    color:#15803d;
+
+}
+
+/* ==========================================
+   INACTIVE
+========================================== */
+
+.status-inactive{
+
+    background:#fee2e2;
+
+    color:#b91c1c;
+
+}
+
+/* ==========================================
+   PENDING
+========================================== */
+
+.status-pending{
+
+    background:#fef3c7;
+
+    color:#b45309;
+
+}
+
+/* ==========================================
+   COMPLETED
+========================================== */
+
+.status-completed{
+
+    background:#dbeafe;
+
+    color:#1d4ed8;
+
+}
+
+/* ==========================================
+   OVERDUE
+========================================== */
+
+.status-overdue{
+
+    background:#ffe4e6;
+
+    color:#be123c;
+
+}
+
+/* ==========================================
+   CLOSED
+========================================== */
+
+.status-closed{
+
+    background:#e5e7eb;
+
+    color:#374151;
+
+}
+
+/* ==========================================
+   OPEN
+========================================== */
+
+.status-open{
+
+    background:#d1fae5;
+
+    color:#047857;
+
+}

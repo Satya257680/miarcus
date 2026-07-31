@@ -522,7 +522,15 @@ loadRoute(
 );
 
 
+loadRoute(
 
+    "./routes/dashboardRoutes",
+
+    "/api/dashboard",
+
+    "Dashboard Routes"
+
+);
 
 
 // ======================================================

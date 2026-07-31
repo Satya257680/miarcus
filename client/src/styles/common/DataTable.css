@@ -1,0 +1,103 @@
+/* ==========================================
+   TABLE WRAPPER
+========================================== */
+
+.data-table-wrapper{
+
+    width:100%;
+
+    overflow-x:auto;
+
+    border:1px solid #e4e7ec;
+
+    border-radius:12px;
+
+    background:#fff;
+
+}
+
+/* ==========================================
+   TABLE
+========================================== */
+
+.data-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    min-width:900px;
+
+}
+
+/* ==========================================
+   HEADER
+========================================== */
+
+.data-table thead{
+
+    background:#f8fafc;
+
+}
+
+.data-table th{
+
+    padding:14px 18px;
+
+    text-align:left;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    color:#344054;
+
+    border-bottom:1px solid #e4e7ec;
+
+}
+
+/* ==========================================
+   BODY
+========================================== */
+
+.data-table td{
+
+    padding:14px 18px;
+
+    border-bottom:1px solid #f2f4f7;
+
+    font-size:14px;
+
+    color:#475467;
+
+}
+
+.data-table tbody tr:hover{
+
+    background:#f9fbfc;
+
+}
+
+/* ==========================================
+   LAST ROW
+========================================== */
+
+.data-table tbody tr:last-child td{
+
+    border-bottom:none;
+
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:768px){
+
+    .data-table{
+
+        min-width:700px;
+
+    }
+
+}
