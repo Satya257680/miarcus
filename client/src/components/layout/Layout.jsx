@@ -4,7 +4,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
 
-import "../styles/Layout.css";
+import "../../styles/layout/Layout.css";
 
 function Layout() {
 

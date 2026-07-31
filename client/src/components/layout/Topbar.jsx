@@ -8,9 +8,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
-
-import miarcusLogo from "../assets/Miarcus.png";
-import "./Topbar.css";
+import miarcusLogo from "../../assets/Miarcus.png";
+import "../../styles/layout/Topbar.css";
 
 function Topbar({ toggleSidebar }) {
 

@@ -20,7 +20,7 @@ import {
   FaStore,
 } from "react-icons/fa";
 
-import "./Sidebar.css";
+import "../../styles/layout/Sidebar.css";
 
 function Sidebar({ collapsed }) {
 
