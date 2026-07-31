@@ -1,0 +1,309 @@
+/* ======================================================
+   RECENT ACTIVITY
+====================================================== */
+
+.recent-activity-card{
+
+    background:#ffffff;
+
+    border:1px solid #e8eef5;
+
+    border-radius:18px;
+
+    padding:30px;
+
+    margin-top:30px;
+
+    box-shadow:0 8px 24px rgba(0,0,0,.05);
+
+}
+
+/* ======================================================
+   HEADER
+====================================================== */
+
+.recent-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:28px;
+
+}
+
+.recent-header h2{
+
+    font-size:24px;
+
+    font-weight:700;
+
+    color:#1f2937;
+
+    margin:0;
+
+}
+
+.recent-header p{
+
+    color:#6b7280;
+
+    font-size:14px;
+
+    margin-top:6px;
+
+}
+
+/* ======================================================
+   GRID
+====================================================== */
+
+.activity-list{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:22px;
+
+}
+
+/* ======================================================
+   CARD
+====================================================== */
+
+.activity-card{
+
+    background:#ffffff;
+
+    border:1px solid #edf2f7;
+
+    border-radius:18px;
+
+    padding:24px;
+
+    transition:.3s;
+
+    box-shadow:0 6px 18px rgba(0,0,0,.05);
+
+    display:flex;
+
+    flex-direction:column;
+
+    height:100%;
+
+}
+
+.activity-card:hover{
+
+    transform:translateY(-6px);
+
+    box-shadow:0 18px 35px rgba(0,0,0,.12);
+
+    border-color:#2563eb;
+
+}
+
+/* ======================================================
+   ICON
+====================================================== */
+
+.activity-card-icon{
+
+    margin-bottom:18px;
+
+}
+
+.activity-icon{
+
+    width:64px;
+
+    height:64px;
+
+    border-radius:18px;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    font-size:28px;
+
+}
+
+/* User */
+
+.activity-icon.user{
+
+    background:#eef4ff;
+
+    color:#2563eb;
+
+}
+
+/* Store */
+
+.activity-icon.store{
+
+    background:#ebfff3;
+
+    color:#16a34a;
+
+}
+
+/* Checklist */
+
+.activity-icon.checklist{
+
+    background:#fff4ea;
+
+    color:#f97316;
+
+}
+
+/* New Store Opening */
+
+.activity-icon.nso{
+
+    background:#f3e8ff;
+
+    color:#7c3aed;
+
+}
+
+/* ======================================================
+   BODY
+====================================================== */
+
+.activity-card-body{
+
+    flex:1;
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.activity-card-body h4{
+
+    font-size:18px;
+
+    color:#111827;
+
+    font-weight:700;
+
+    margin-bottom:10px;
+
+}
+
+.activity-card-body p{
+
+    color:#6b7280;
+
+    font-size:14px;
+
+    line-height:1.6;
+
+    flex:1;
+
+    margin-bottom:18px;
+
+}
+
+.activity-card-body span{
+
+    font-size:13px;
+
+    color:#94a3b8;
+
+    font-weight:600;
+
+}
+
+/* ======================================================
+   LOADING / EMPTY
+====================================================== */
+
+.activity-loading,
+
+.activity-empty{
+
+    text-align:center;
+
+    padding:60px;
+
+    color:#94a3b8;
+
+    font-size:15px;
+
+}
+
+/* ======================================================
+   RESPONSIVE
+====================================================== */
+
+@media(max-width:1200px){
+
+    .activity-list{
+
+        grid-template-columns:repeat(2,1fr);
+
+    }
+
+}
+
+@media(max-width:768px){
+
+    .recent-activity-card{
+
+        padding:20px;
+
+    }
+
+    .recent-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:6px;
+
+    }
+
+    .activity-list{
+
+        grid-template-columns:1fr;
+
+    }
+
+}
+.view-all-btn{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    background:#2563eb;
+    color:#fff;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    transition:.3s;
+}
+
+.view-all-btn:hover{
+    background:#1d4ed8;
+}
+
+.activity-card{
+    cursor:pointer;
+    transition:.25s;
+}
+
+.activity-card:hover{
+    transform:translateY(-4px);
+}

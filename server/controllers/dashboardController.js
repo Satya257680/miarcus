@@ -34,8 +34,44 @@ const getDashboardStats = (req, res) => {
 
 };
 
+// ======================================================
+// GET RECENT ACTIVITIES
+// ======================================================
+
+const getRecentActivities = (req, res) => {
+
+    Dashboard.getRecentActivities((err, results) => {
+
+        if (err) {
+
+            console.error(err);
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: "Failed to fetch recent activities."
+
+            });
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            data: results
+
+        });
+
+    });
+
+};
+
 module.exports = {
 
-    getDashboardStats
+    getDashboardStats,
+
+    getRecentActivities
 
 };

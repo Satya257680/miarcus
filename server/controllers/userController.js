@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
 const User = require("../models/userModel");
+const { logActivity } = require("../utils/activityLogger");
 
 const {
     sendInvitationEmail,
@@ -191,6 +192,28 @@ sendInvitationEmail(user, activationLink)
 
     .then(() => {
 
+        logActivity({
+
+            activity_type: "User",
+
+            reference_id: userId,
+
+            title: "User Created",
+
+            description: `${user.fullName || user.name} was added`,
+
+            module_name: "Users",
+
+            status: "Open",
+
+            priority: "Medium",
+
+            created_by: userId,
+
+            assigned_to: userId
+
+        });
+
         return res.status(201).json({
 
             success: true,
@@ -214,7 +237,6 @@ sendInvitationEmail(user, activationLink)
         });
 
     });
-
 }
 
 );
@@ -561,11 +583,11 @@ const updateUser = (req, res) => {
 
             }
 
+            const user = req.body;
+
             // ======================================
             // Send Account Updated Email
             // ======================================
-
-            const user = req.body;
 
             sendAccountUpdatedEmail(user)
                 .catch((mailErr) => {
@@ -573,6 +595,32 @@ const updateUser = (req, res) => {
                     console.log(mailErr);
 
                 });
+
+            // ======================================
+            // Log Activity
+            // ======================================
+
+            logActivity({
+
+                activity_type: "User",
+
+                reference_id: req.params.id,
+
+                title: "User Updated",
+
+                description: `${user.fullName} was updated`,
+
+                module_name: "Users",
+
+                status: "Open",
+
+                priority: "Medium",
+
+                created_by: req.params.id,
+
+                assigned_to: req.params.id
+
+            });
 
             return res.json({
 
@@ -613,10 +661,6 @@ const disableUser = (req, res) => {
 
             }
 
-            // ======================================
-            // Get User Details
-            // ======================================
-
             User.getUserById(
 
                 req.params.id,
@@ -627,6 +671,32 @@ const disableUser = (req, res) => {
 
                         sendAccountDisabledEmail(users[0])
                             .catch(console.error);
+
+                        // ======================================
+                        // Log Activity
+                        // ======================================
+
+                        logActivity({
+
+                            activity_type: "User",
+
+                            reference_id: req.params.id,
+
+                            title: "User Disabled",
+
+                            description: `${users[0].name} was disabled`,
+
+                            module_name: "Users",
+
+                            status: "Open",
+
+                            priority: "High",
+
+                            created_by: req.params.id,
+
+                            assigned_to: req.params.id
+
+                        });
 
                     }
 
@@ -717,6 +787,43 @@ const deleteUser = (req, res) => {
                             console.log(mailErr);
 
                         });
+
+                    // ======================================
+                    // Log Activity
+                    // ======================================
+
+                    logActivity({
+
+                        activity_type: "User",
+
+                        reference_id: req.params.id,
+
+                        title: "User Deleted",
+
+                        description: `${user.name} was deleted`,
+
+                        module_name: "Users",
+
+                        status: "Closed",
+
+                        priority: "High",
+
+                        created_by: req.params.id,
+
+                        assigned_to: req.params.id
+
+                    });
+
+                    return res.json({
+
+                        success: true,
+
+                        message: "User Deleted Successfully"
+
+                    });
+
+                
+                
 
                     return res.json({
 

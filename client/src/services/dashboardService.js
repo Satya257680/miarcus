@@ -7,9 +7,9 @@ const API = "http://localhost:5000/api/dashboard";
 // ==============================
 
 const authConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
+    headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
 });
 
 // ==============================
@@ -17,10 +17,33 @@ const authConfig = () => ({
 // ==============================
 
 export const getDashboardStats = async () => {
-  const response = await axios.get(
-    `${API}/stats`,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.get(
+
+        `${API}/stats`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
+};
+
+// ==============================
+// Get Recent Activities
+// ==============================
+
+export const getRecentActivities = async () => {
+
+    const response = await axios.get(
+
+        `${API}/recent-activities`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };

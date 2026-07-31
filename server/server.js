@@ -532,6 +532,16 @@ loadRoute(
 
 );
 
+loadRoute(
+
+    "./routes/activityRoutes",
+
+    "/api/activities",
+
+    "Activity Routes"
+
+);
+
 
 // ======================================================
 // MULTER ERROR HANDLER

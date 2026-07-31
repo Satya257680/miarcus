@@ -32,7 +32,7 @@ import { SearchBar } from "../../../components/common/SearchBar";
 import { Card } from "../../../components/common/Card";
 import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
-
+import RecentActivity from "../components/RecentActivity";
 function Dashboard() {
 
   const [search, setSearch] = useState("");
@@ -386,104 +386,109 @@ const currentDate = now.toLocaleDateString("en-IN", {
             modules={filteredModules}
         />
 
-        {/* ==========================================
-            Dashboard Statistics
-        ========================================== */}
+      {/* ==========================================
+    Dashboard Statistics
+========================================== */}
 
-        <div className="dashboard-stats-grid">
+<div className="dashboard-stats-grid">
 
-            <Card className="dashboard-stat-card">
+    <Card className="dashboard-stat-card">
 
-                <div className="dashboard-stat-top">
+        <div className="dashboard-stat-top">
 
-                    <div className="dashboard-stat-icon users">
-                        <FaUserFriends />
-                    </div>
+            <div className="dashboard-stat-icon users">
+                <FaUserFriends />
+            </div>
 
-                    <div>
+            <div>
 
-                        <h3>Total Users</h3>
+                <h3>Total Users</h3>
 
-                        <h2>{dashboardStats.totalUsers}</h2>
+                <h2>{dashboardStats.totalUsers}</h2>
 
-                        <p>Registered Users</p>
+                <p>Registered Users</p>
 
-                    </div>
-
-                </div>
-
-            </Card>
-
-            <Card className="dashboard-stat-card">
-
-                <div className="dashboard-stat-top">
-
-                    <div className="dashboard-stat-icon stores">
-                        <FaStore />
-                    </div>
-
-                    <div>
-
-                        <h3>Total Stores</h3>
-
-                        <h2>{dashboardStats.totalStores}</h2>
-
-                        <p>Active Stores</p>
-
-                    </div>
-
-                </div>
-
-            </Card>
-
-            <Card className="dashboard-stat-card">
-
-                <div className="dashboard-stat-top">
-
-                    <div className="dashboard-stat-icon checklist">
-                        <FaClipboardCheck />
-                    </div>
-
-                    <div>
-
-                        <h3>Checklist Submissions</h3>
-
-                        <h2>{dashboardStats.totalChecklists}</h2>
-
-                        <p>Total Submissions</p>
-
-                    </div>
-
-                </div>
-
-            </Card>
-
-            <Card className="dashboard-stat-card">
-
-                <div className="dashboard-stat-top">
-
-                    <div className="dashboard-stat-icon pending">
-                        <FaExclamationTriangle />
-                    </div>
-
-                    <div>
-
-                        <h3>Pending Action Points</h3>
-
-                        <h2>{dashboardStats.pendingActionPoints}</h2>
-
-                        <p>Need Attention</p>
-
-                    </div>
-
-                </div>
-
-            </Card>
+            </div>
 
         </div>
 
-    </div>
+    </Card>
 
+    <Card className="dashboard-stat-card">
+
+        <div className="dashboard-stat-top">
+
+            <div className="dashboard-stat-icon stores">
+                <FaStore />
+            </div>
+
+            <div>
+
+                <h3>Total Stores</h3>
+
+                <h2>{dashboardStats.totalStores}</h2>
+
+                <p>Active Stores</p>
+
+            </div>
+
+        </div>
+
+    </Card>
+
+    <Card className="dashboard-stat-card">
+
+        <div className="dashboard-stat-top">
+
+            <div className="dashboard-stat-icon checklist">
+                <FaClipboardCheck />
+            </div>
+
+            <div>
+
+                <h3>Checklist Submissions</h3>
+
+                <h2>{dashboardStats.totalChecklists}</h2>
+
+                <p>Total Submissions</p>
+
+            </div>
+
+        </div>
+
+    </Card>
+
+    <Card className="dashboard-stat-card">
+
+        <div className="dashboard-stat-top">
+
+            <div className="dashboard-stat-icon pending">
+                <FaExclamationTriangle />
+            </div>
+
+            <div>
+
+                <h3>Pending Action Points</h3>
+
+                <h2>{dashboardStats.pendingActionPoints}</h2>
+
+                <p>Need Attention</p>
+
+            </div>
+
+        </div>
+
+    </Card>
+
+</div>
+
+{/* ==========================================
+    Recent Activity
+========================================== */}
+
+<RecentActivity />
+
+</div>
 
 );
 

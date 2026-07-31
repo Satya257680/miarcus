@@ -33,19 +33,42 @@ import NewStoreOpenings from "./pages/NewStoreOpenings";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
 
+// ================= NEW =================
+import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
+import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
+
 function App() {
+
     return (
+
         <BrowserRouter>
+
             <Routes>
 
                 {/* ==========================
                     PUBLIC ROUTES
                 ========================== */}
 
-                <Route path="/" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/verify-otp" element={<VerifyOTP />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route
+                    path="/"
+                    element={<Login />}
+                />
+
+                <Route
+                    path="/forgot-password"
+                    element={<ForgotPassword />}
+                />
+
+                <Route
+                    path="/verify-otp"
+                    element={<VerifyOTP />}
+                />
+
+                <Route
+                    path="/reset-password"
+                    element={<ResetPassword />}
+                />
+
                 <Route
                     path="/activate-account/:token"
                     element={<ActivateAccount />}
@@ -63,7 +86,7 @@ function App() {
                     }
                 >
 
-                    {/* Dashboard */}
+                    {/* ================= Dashboard ================= */}
 
                     <Route
                         path="/dashboard"
@@ -74,8 +97,19 @@ function App() {
                         path="/dashboard-analytics"
                         element={<DashboardAnalytics />}
                     />
+{/* ================= Activity Center ================= */}
 
-                    {/* Checklist */}
+<Route
+    path="/activity-center"
+    element={<ActivityCenter />}
+/>
+
+<Route
+    path="/activity-center/:id"
+    element={<ActivityDetails />}
+/>
+
+                    {/* ================= Checklist ================= */}
 
                     <Route
                         path="/checklist-submit"
@@ -92,16 +126,12 @@ function App() {
                         element={<ActionPoints />}
                     />
 
-                    {/* ==========================
-                        SETTINGS DASHBOARD
-                    ========================== */}
+                    {/* ================= Settings ================= */}
 
                     <Route
                         path="/settings"
                         element={<Settings />}
                     />
-
-                    {/* Settings Modules */}
 
                     <Route
                         path="/users"
@@ -138,7 +168,7 @@ function App() {
                         element={<ReportsTo />}
                     />
 
-                    {/* NSO */}
+                    {/* ================= NSO ================= */}
 
                     <Route
                         path="/new-store-openings"
@@ -150,7 +180,7 @@ function App() {
                         element={<NSORules />}
                     />
 
-                    {/* Profile */}
+                    {/* ================= Profile ================= */}
 
                     <Route
                         path="/profile"
@@ -169,8 +199,11 @@ function App() {
                 />
 
             </Routes>
+
         </BrowserRouter>
+
     );
+
 }
 
 export default App;
