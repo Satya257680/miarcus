@@ -1,122 +1,189 @@
 const db = require("../config/db");
 
-// ==========================
-// Get All Users
-// ==========================
+// ==========================================================
+// GET ALL USERS
+// ==========================================================
 
 const getAllUsers = (callback) => {
 
     const sql = `
+
         SELECT
-           u.id,
-u.employee_id,
-u.name,
-u.email,
-u.call_contact,
-u.whatsapp_contact,
-u.password,
+
+            u.id,
+
+            u.employee_id,
+
+            u.name,
+
+            u.email,
+
+            u.call_contact,
+
+            u.whatsapp_contact,
+
+            u.password,
+
             u.profile_photo,
+
             u.reports_to,
+
             u.status,
+
             u.created_at,
 
             u.department_id,
+
             d.department_name AS department,
 
             u.designation_id,
+
             dg.designation_name AS designation,
 
             u.is_admin,
+
             u.is_activated,
+
             u.activated_at,
 
-            GROUP_CONCAT(DISTINCT us.store_id) AS store_ids
+            GROUP_CONCAT(
+
+                DISTINCT us.store_id
+
+            ) AS store_ids
 
         FROM users u
 
         LEFT JOIN departments d
+
             ON u.department_id = d.id
 
         LEFT JOIN designations dg
+
             ON u.designation_id = dg.id
 
         LEFT JOIN user_stores us
+
             ON u.id = us.user_id
 
         GROUP BY u.id
 
         ORDER BY u.id DESC
+
     `;
-
-    db.query(sql, (err, users) => {
-
-        if (err) {
-            return callback(err);
-        }
-
-        // Restore stores
-        users.forEach((user) => {
-
-            user.stores = user.store_ids
-                ? user.store_ids.split(",").map(Number)
-                : [];
-
-            delete user.store_ids;
-
-            user.permissions = {};
-
-        });
-
-        // Load permissions
-        db.query(
-
-            `
-            SELECT
-                user_id,
-                module_name,
-                permission
-            FROM user_permissions
-            `,
-
-            (permissionErr, permissions) => {
-
-                if (permissionErr) {
-                    return callback(permissionErr);
-                }
-
-                permissions.forEach((row) => {
-
-                    const user = users.find(
-                        (u) => u.id === row.user_id
-                    );
-
-                    if (user) {
-
-                        user.permissions[row.module_name] =
-                            row.permission;
-
-                    }
-
-                });
-
-                callback(null, users);
-
-            }
-
-        );
-
-    });
-
-};
-// ==========================
-// Check Existing Email
-// ==========================
-
-const checkEmailExists = (email, callback) => {
 
     db.query(
 
-        "SELECT id FROM users WHERE email=?",
+        sql,
+
+        (err, users) => {
+
+            if (err) {
+
+                return callback(err);
+
+            }
+
+            // ======================================
+            // Restore Stores Array
+            // ======================================
+
+            users.forEach((user) => {
+
+                user.stores = user.store_ids
+
+                    ? user.store_ids
+                        .split(",")
+                        .map(Number)
+
+                    : [];
+
+                delete user.store_ids;
+
+                user.permissions = {};
+
+            });
+
+            // ======================================
+            // Load User Permissions
+            // ======================================
+
+            db.query(
+
+                `
+                SELECT
+
+                    user_id,
+
+                    module_name,
+
+                    permission
+
+                FROM user_permissions
+                `,
+
+                (permissionErr, permissions) => {
+
+                    if (permissionErr) {
+
+                        return callback(permissionErr);
+
+                    }
+
+                    permissions.forEach((row) => {
+
+                        const user = users.find(
+
+                            (u) => u.id === row.user_id
+
+                        );
+
+                        if (user) {
+
+                            user.permissions[row.module_name] =
+                                row.permission;
+
+                        }
+
+                    });
+
+                    return callback(
+
+                        null,
+
+                        users
+
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
+};
+// ==========================
+// CHECK EXISTING EMAIL
+// ==========================
+
+const checkEmailExists = (
+
+    email,
+
+    callback
+
+) => {
+
+    db.query(
+
+        `
+        SELECT id
+        FROM users
+        WHERE email = ?
+        LIMIT 1
+        `,
 
         [email],
 
@@ -127,14 +194,25 @@ const checkEmailExists = (email, callback) => {
 };
 
 // ==========================
-// Check Existing Employee ID
+// CHECK EXISTING EMPLOYEE ID
 // ==========================
 
-const checkEmployeeIdExists = (employeeId, callback) => {
+const checkEmployeeIdExists = (
+
+    employeeId,
+
+    callback
+
+) => {
 
     db.query(
 
-        "SELECT id FROM users WHERE employee_id=?",
+        `
+        SELECT id
+        FROM users
+        WHERE employee_id = ?
+        LIMIT 1
+        `,
 
         [employeeId],
 
@@ -143,54 +221,90 @@ const checkEmployeeIdExists = (employeeId, callback) => {
     );
 
 };
+
 // ==========================
-// Add User
+// ADD USER
 // ==========================
 
-const addUser = (user, callback) => {
+const addUser = (
+
+    user,
+
+    callback
+
+) => {
 
     const sql = `
+
         INSERT INTO users
         (
+
             employee_id,
-name,
-email,
-call_contact,
-whatsapp_contact,
-password,
-department_id,
-designation_id,
-reports_to,
-status,
-is_activated
+
+            name,
+
+            email,
+
+            call_contact,
+
+            whatsapp_contact,
+
+            password,
+
+            department_id,
+
+            designation_id,
+
+            reports_to,
+
+            status,
+
+            is_activated
+
         )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+        VALUES
+
+        (
+
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+
+        )
+
     `;
 
     db.query(
 
         sql,
 
-        
+        [
 
-           [
-    user.employeeId,
-    user.fullName,
-    user.email,
-    user.callContact,
-    user.whatsappContact,
-    null,
+            user.employeeId,
+
+            user.fullName,
+
+            user.email,
+
+            user.callContact,
+
+            user.whatsappContact,
+
+            null,
 
             user.department_id,
 
             user.designation_id,
 
             user.reportsTo
+
                 ? user.reportsTo.name || user.reportsTo
+
                 : "",
 
             user.active
+
                 ? "Active"
+
                 : "Inactive",
 
             0
@@ -207,43 +321,57 @@ is_activated
 
             const userId = result.insertId;
 
+            // ======================================
+            // SAVE USER STORES
+            // ======================================
+
             saveUserStores(
 
-    userId,
+                userId,
 
-    user.stores || [],
+                user.stores || [],
 
-    (storeErr) => {
+                (storeErr) => {
 
-        if (storeErr) {
+                    if (storeErr) {
 
-            return callback(storeErr);
+                        return callback(storeErr);
 
-        }
+                    }
 
-        saveUserPermissions(
+                    // ======================================
+                    // SAVE USER PERMISSIONS
+                    // ======================================
 
-            userId,
+                    saveUserPermissions(
 
-            user.permissions || {},
+                        userId,
 
-            (permissionErr) => {
+                        user.permissions || {},
 
-                if (permissionErr) {
+                        (permissionErr) => {
 
-                    return callback(permissionErr);
+                            if (permissionErr) {
+
+                                return callback(permissionErr);
+
+                            }
+
+                            return callback(
+
+                                null,
+
+                                result
+
+                            );
+
+                        }
+
+                    );
 
                 }
 
-                callback(null, result);
-
-            }
-
-        );
-
-    }
-
-);
+            );
 
         }
 
@@ -251,7 +379,7 @@ is_activated
 
 };
 // ==========================
-// Save User Stores
+// SAVE USER STORES
 // ==========================
 
 const saveUserStores = (
@@ -264,32 +392,49 @@ const saveUserStores = (
 
 ) => {
 
+    // ======================================
+    // NO STORES TO SAVE
+    // ======================================
+
     if (!stores || stores.length === 0) {
 
         return callback(null);
 
     }
 
-    const values = stores.map((storeId) => [
+    const values = stores.map(
 
-        userId,
+        (storeId) => [
 
-        storeId
+            userId,
 
-    ]);
+            storeId
+
+        ]
+
+    );
 
     db.query(
 
         `
         INSERT INTO user_stores
         (
+
             user_id,
+
             store_id
+
         )
+
         VALUES ?
+
         `,
 
-        [values],
+        [
+
+            values
+
+        ],
 
         callback
 
@@ -297,7 +442,7 @@ const saveUserStores = (
 
 };
 // ==========================
-// Save User Permissions
+// SAVE USER PERMISSIONS
 // ==========================
 
 const saveUserPermissions = (
@@ -310,13 +455,27 @@ const saveUserPermissions = (
 
 ) => {
 
-    if (!permissions || Object.keys(permissions).length === 0) {
+    // ======================================
+    // NO PERMISSIONS TO SAVE
+    // ======================================
+
+    if (
+
+        !permissions ||
+
+        Object.keys(permissions).length === 0
+
+    ) {
 
         return callback(null);
 
     }
 
-    const values = Object.entries(permissions).map(
+    const values = Object.entries(
+
+        permissions
+
+    ).map(
 
         ([moduleName, permission]) => [
 
@@ -335,14 +494,24 @@ const saveUserPermissions = (
         `
         INSERT INTO user_permissions
         (
+
             user_id,
+
             module_name,
+
             permission
+
         )
+
         VALUES ?
+
         `,
 
-        [values],
+        [
+
+            values
+
+        ],
 
         callback
 
@@ -350,7 +519,7 @@ const saveUserPermissions = (
 
 };
 // ==========================
-// Save Activation Token
+// SAVE ACTIVATION TOKEN
 // ==========================
 
 const saveActivationToken = (
@@ -366,13 +535,20 @@ const saveActivationToken = (
 ) => {
 
     const sql = `
+
         INSERT INTO user_activation_tokens
         (
+
             user_id,
+
             token,
+
             expires_at
+
         )
+
         VALUES (?, ?, ?)
+
     `;
 
     db.query(
@@ -382,7 +558,9 @@ const saveActivationToken = (
         [
 
             userId,
+
             token,
+
             expiresAt
 
         ],
@@ -394,7 +572,7 @@ const saveActivationToken = (
 };
 
 // ==========================
-// Get Activation Token
+// GET ACTIVATION TOKEN
 // ==========================
 
 const getActivationToken = (
@@ -406,11 +584,17 @@ const getActivationToken = (
 ) => {
 
     const sql = `
+
         SELECT *
+
         FROM user_activation_tokens
-        WHERE token=?
-        AND used=0
+
+        WHERE token = ?
+
+        AND used = 0
+
         LIMIT 1
+
     `;
 
     db.query(
@@ -430,7 +614,7 @@ const getActivationToken = (
 };
 
 // ==========================
-// Activate User
+// ACTIVATE USER
 // ==========================
 
 const activateUser = (
@@ -444,12 +628,19 @@ const activateUser = (
 ) => {
 
     const sql = `
+
         UPDATE users
+
         SET
-            password=?,
-            is_activated=1,
-            activated_at=NOW()
-        WHERE id=?
+
+            password = ?,
+
+            is_activated = 1,
+
+            activated_at = NOW()
+
+        WHERE id = ?
+
     `;
 
     db.query(
@@ -459,6 +650,7 @@ const activateUser = (
         [
 
             password,
+
             userId
 
         ],
@@ -470,7 +662,7 @@ const activateUser = (
 };
 
 // ==========================
-// Mark Token Used
+// MARK TOKEN AS USED
 // ==========================
 
 const markTokenUsed = (
@@ -484,9 +676,13 @@ const markTokenUsed = (
     db.query(
 
         `
+
         UPDATE user_activation_tokens
-        SET used=1
-        WHERE token=?
+
+        SET used = 1
+
+        WHERE token = ?
+
         `,
 
         [
@@ -501,44 +697,40 @@ const markTokenUsed = (
 
 };
 // ==========================
-// Get Department ID By Name
+// GET DEPARTMENT ID BY NAME
 // ==========================
 
-const getDepartmentIdByName = (departmentName, callback) => {
+const getDepartmentIdByName = (
 
-    db.query(
+    departmentName,
 
-        `
-        SELECT id
+    callback
+
+) => {
+
+    const sql = `
+
+        SELECT
+
+            id
+
         FROM departments
+
         WHERE department_name = ?
+
         LIMIT 1
-        `,
 
-        [departmentName],
-
-        callback
-
-    );
-
-};
-
-// ==========================
-// Get Designation ID By Name
-// ==========================
-
-const getDesignationIdByName = (designationName, callback) => {
+    `;
 
     db.query(
 
-        `
-        SELECT id
-        FROM designations
-        WHERE designation_name = ?
-        LIMIT 1
-        `,
+        sql,
 
-        [designationName],
+        [
+
+            departmentName
+
+        ],
 
         callback
 
@@ -546,9 +738,49 @@ const getDesignationIdByName = (designationName, callback) => {
 
 };
 
-
 // ==========================
-// Update User
+// GET DESIGNATION ID BY NAME
+// ==========================
+
+const getDesignationIdByName = (
+
+    designationName,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        SELECT
+
+            id
+
+        FROM designations
+
+        WHERE designation_name = ?
+
+        LIMIT 1
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            designationName
+
+        ],
+
+        callback
+
+    );
+
+};
+// ==========================
+// UPDATE USER
 // ==========================
 
 const updateUser = (
@@ -562,19 +794,33 @@ const updateUser = (
 ) => {
 
     const sql = `
+
         UPDATE users
+
         SET
-            employee_id=?,
-            name=?,
-            email=?,
-            call_contact=?,
-            whatsapp_contact=?,
-            department_id=?,
-            designation_id=?,
-            reports_to=?,
-            status=?,
-            is_admin=?
-        WHERE id=?
+
+            employee_id = ?,
+
+            name = ?,
+
+            email = ?,
+
+            call_contact = ?,
+
+            whatsapp_contact = ?,
+
+            department_id = ?,
+
+            designation_id = ?,
+
+            reports_to = ?,
+
+            status = ?,
+
+            is_admin = ?
+
+        WHERE id = ?
+
     `;
 
     db.query(
@@ -598,11 +844,15 @@ const updateUser = (
             user.designation_id,
 
             user.reportsTo
+
                 ? user.reportsTo.name || user.reportsTo
+
                 : "",
 
             user.active
+
                 ? "Active"
+
                 : "Inactive",
 
             user.administrator ? 1 : 0,
@@ -619,6 +869,10 @@ const updateUser = (
 
             }
 
+            // ======================================
+            // UPDATE USER STORES
+            // ======================================
+
             updateUserStores(
 
                 id,
@@ -632,6 +886,10 @@ const updateUser = (
                         return callback(storeErr);
 
                     }
+
+                    // ======================================
+                    // UPDATE USER PERMISSIONS
+                    // ======================================
 
                     updateUserPermissions(
 
@@ -653,7 +911,7 @@ const updateUser = (
 
 };
 // ==========================
-// Update User Stores
+// UPDATE USER STORES
 // ==========================
 
 const updateUserStores = (
@@ -668,9 +926,17 @@ const updateUserStores = (
 
     db.query(
 
-        "DELETE FROM user_stores WHERE user_id=?",
+        `
+        DELETE
+        FROM user_stores
+        WHERE user_id = ?
+        `,
 
-        [userId],
+        [
+
+            userId
+
+        ],
 
         (err) => {
 
@@ -680,32 +946,55 @@ const updateUserStores = (
 
             }
 
-            if (!stores || stores.length === 0) {
+            // ======================================
+            // NO STORES TO SAVE
+            // ======================================
+
+            if (
+
+                !stores ||
+
+                stores.length === 0
+
+            ) {
 
                 return callback(null);
 
             }
 
-            const values = stores.map((storeId) => [
+            const values = stores.map(
 
-                userId,
+                (storeId) => [
 
-                storeId
+                    userId,
 
-            ]);
+                    storeId
+
+                ]
+
+            );
 
             db.query(
 
                 `
                 INSERT INTO user_stores
                 (
+
                     user_id,
+
                     store_id
+
                 )
+
                 VALUES ?
+
                 `,
 
-                [values],
+                [
+
+                    values
+
+                ],
 
                 callback
 
@@ -716,8 +1005,9 @@ const updateUserStores = (
     );
 
 };
+
 // ==========================
-// Update User Permissions
+// UPDATE USER PERMISSIONS
 // ==========================
 
 const updateUserPermissions = (
@@ -732,9 +1022,17 @@ const updateUserPermissions = (
 
     db.query(
 
-        "DELETE FROM user_permissions WHERE user_id=?",
+        `
+        DELETE
+        FROM user_permissions
+        WHERE user_id = ?
+        `,
 
-        [userId],
+        [
+
+            userId
+
+        ],
 
         (err) => {
 
@@ -744,13 +1042,27 @@ const updateUserPermissions = (
 
             }
 
-            if (!permissions || Object.keys(permissions).length === 0) {
+            // ======================================
+            // NO PERMISSIONS
+            // ======================================
+
+            if (
+
+                !permissions ||
+
+                Object.keys(permissions).length === 0
+
+            ) {
 
                 return callback(null);
 
             }
 
-            const values = Object.entries(permissions).map(
+            const values = Object.entries(
+
+                permissions
+
+            ).map(
 
                 ([moduleName, permission]) => [
 
@@ -769,14 +1081,24 @@ const updateUserPermissions = (
                 `
                 INSERT INTO user_permissions
                 (
+
                     user_id,
+
                     module_name,
+
                     permission
+
                 )
+
                 VALUES ?
+
                 `,
 
-                [values],
+                [
+
+                    values
+
+                ],
 
                 callback
 
@@ -788,7 +1110,7 @@ const updateUserPermissions = (
 
 };
 // ==========================
-// Disable User
+// DISABLE USER
 // ==========================
 
 const disableUser = (
@@ -801,7 +1123,11 @@ const disableUser = (
 
     db.query(
 
-        "UPDATE users SET status='Inactive' WHERE id=?",
+        `
+        UPDATE users
+        SET status = 'Inactive'
+        WHERE id = ?
+        `,
 
         [
 
@@ -816,7 +1142,7 @@ const disableUser = (
 };
 
 // ==========================
-// Delete User
+// DELETE USER
 // ==========================
 
 const deleteUser = (
@@ -829,7 +1155,11 @@ const deleteUser = (
 
     db.query(
 
-        "DELETE FROM users WHERE id=?",
+        `
+        DELETE
+        FROM users
+        WHERE id = ?
+        `,
 
         [
 
@@ -844,15 +1174,20 @@ const deleteUser = (
 };
 
 // ==========================
-// Delete All Users Except Admin
+// DELETE ALL USERS EXCEPT ADMIN
 // ==========================
 
-const deleteAllUsers = (callback) => {
+const deleteAllUsers = (
+
+    callback
+
+) => {
 
     db.query(
 
         `
-        DELETE FROM users
+        DELETE
+        FROM users
         WHERE is_admin = 0
         `,
 
@@ -861,55 +1196,125 @@ const deleteAllUsers = (callback) => {
     );
 
 };
-/// ==========================
-// Get User By ID
+
+// ==========================
+// GET USER BY ID
 // ==========================
 
-const getUserById = (id, callback) => {
+const getUserById = (
 
-    const sql = `
-       SELECT
     id,
-    name,
-    email,
-    call_contact,
-    whatsapp_contact,
-    is_activated
-FROM users
-        WHERE id=?
-        LIMIT 1
-    `;
 
-    db.query(sql, [id], callback);
+    callback
 
-};
-
-// ==========================
-// Get User Names
-// ==========================
-
-const getUserNames = (callback) => {
+) => {
 
     const sql = `
+
         SELECT
+
             id,
-            name
+
+            name,
+
+            email,
+
+            call_contact,
+
+            whatsapp_contact,
+
+            is_activated
+
         FROM users
-        WHERE status='Active'
-        ORDER BY name ASC
+
+        WHERE id = ?
+
+        LIMIT 1
+
     `;
 
-    db.query(sql, callback);
+    db.query(
+
+        sql,
+
+        [
+
+            id
+
+        ],
+
+        callback
+
+    );
 
 };
+
+// ==========================
+// GET USER NAMES
+// ==========================
+
+const getUserNames = (
+
+    callback
+
+) => {
+
+    const sql = `
+
+        SELECT
+
+            id,
+
+            name
+
+        FROM users
+
+        WHERE status = 'Active'
+
+        ORDER BY name ASC
+
+    `;
+
+    db.query(
+
+        sql,
+
+        callback
+
+    );
+
+};
+// ==========================================================
+// EXPORT MODEL FUNCTIONS
+// ==========================================================
 
 module.exports = {
 
+    // ======================================
+    // User Retrieval
+    // ======================================
+
     getAllUsers,
+
+    getUserById,
+
+    getUserNames,
+
+    // ======================================
+    // Validation
+    // ======================================
 
     checkEmailExists,
 
     checkEmployeeIdExists,
+
+    getDepartmentIdByName,
+
+    getDesignationIdByName,
+
+    // ======================================
+    // User Creation
+    // ======================================
 
     addUser,
 
@@ -917,16 +1322,19 @@ module.exports = {
 
     saveUserPermissions,
 
-    // NEW
-    getDepartmentIdByName,
-
-    getDesignationIdByName,
+    // ======================================
+    // User Update
+    // ======================================
 
     updateUser,
 
     updateUserStores,
 
     updateUserPermissions,
+
+    // ======================================
+    // Account Activation
+    // ======================================
 
     saveActivationToken,
 
@@ -936,14 +1344,14 @@ module.exports = {
 
     markTokenUsed,
 
-    getUserById,
+    // ======================================
+    // User Status
+    // ======================================
 
     disableUser,
 
     deleteUser,
 
-    deleteAllUsers,
-
-    getUserNames
+    deleteAllUsers
 
 };

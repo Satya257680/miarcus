@@ -1,110 +1,69 @@
 const express = require("express");
+
 const router = express.Router();
 
-const db = require("../config/db");
-const upload = require("../middleware/upload");
 
-// ================= MIDDLEWARE =================
+// ======================================================
+// MIDDLEWARE
+// ======================================================
 
-const authMiddleware = require("../middleware/authMiddleware");
-const permissionMiddleware = require("../middleware/permissionMiddleware");
+const authMiddleware = require(
+    "../middleware/authMiddleware"
+);
 
-// =====================================================
-// CREATE TABLES
-// =====================================================
 
-const createSubmissionTable = `
+const permissionMiddleware = require(
+    "../middleware/permissionMiddleware"
+);
 
-CREATE TABLE IF NOT EXISTS checklist_submissions (
 
-    id INT AUTO_INCREMENT PRIMARY KEY,
+const upload = require(
+    "../middleware/upload"
+);
 
-    checklist_type_id INT NOT NULL,
 
-    store_id INT NOT NULL,
 
-    submitted_by INT NULL,
 
-    submission_date DATE NOT NULL,
+// ======================================================
+// CONTROLLER
+// ======================================================
 
-    latitude DECIMAL(10,7) NULL,
+const {
 
-    longitude DECIMAL(10,7) NULL,
+    createSubmission,
 
-    device VARCHAR(255) NULL,
+    getAllSubmissions,
 
-    attachment VARCHAR(500) NULL,
+    getSubmissionById,
 
-    status VARCHAR(50) DEFAULT 'Submitted',
+    updateStatus,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    exportSubmissions
 
-)
 
-`;
+} = require(
+    "../controllers/checklistSubmissionController"
+);
 
-const createAnswersTable = `
 
-CREATE TABLE IF NOT EXISTS checklist_submission_answers (
 
-    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    submission_id INT NOT NULL,
 
-    question_id INT NOT NULL,
+// ======================================================
+// BASE URL
+// /api/checklist-submissions
+// ======================================================
 
-    answer TEXT NULL,
 
-    remarks TEXT NULL,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY(submission_id)
 
-    REFERENCES checklist_submissions(id)
 
-    ON DELETE CASCADE
-
-)
-
-`;
-
-db.query(createSubmissionTable, (err) => {
-
-    if (err) {
-
-        console.log(
-            "Table Error:",
-            err
-        );
-
-        return;
-    }
-
-    db.query(createAnswersTable, (err) => {
-
-        if (err) {
-
-            console.log(
-                "Answer Table Error",
-                err
-            );
-
-            return;
-        }
-
-        console.log(
-            "✅ Checklist Tables Ready"
-        );
-
-    });
-
-});
-
-// =====================================================
+// ======================================================
 // CREATE CHECKLIST SUBMISSION
 // POST /api/checklist-submissions
-// =====================================================
+// Permission : Add
+// ======================================================
 
 router.post(
 
@@ -112,313 +71,32 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware("Checklist Submission", "Add"),
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "Add"
+
+    ),
 
     upload.single("attachment"),
 
-    (req, res) => {
-
-        console.log("BODY:", req.body);
-
-        console.log("FILE:", req.file);
-
-        const {
-
-            checklist_type_id,
-
-            store_id,
-
-            submitted_by,
-
-            submission_date,
-
-            latitude,
-
-            longitude,
-
-            device,
-
-            answers
-
-        } = req.body;
-
-        // ================= Parse Answers =================
-
-        let checklistAnswers = [];
-
-        try {
-
-            checklistAnswers =
-                JSON.parse(
-                    answers || "[]"
-                );
-
-        }
-        catch (error) {
-
-            console.log(
-                "Answer Parse Error",
-                error
-            );
-
-            checklistAnswers = [];
-
-        }
-
-        // ================= Attachment =================
-
-        const attachment =
-            req.file
-                ? req.file.path
-                : null;
-
-        // ================= Device =================
-
-        const finalDevice =
-            device ||
-            req.headers["user-agent"] ||
-            "Unknown Device";
-
-        // ================= Validation =================
-
-        if (!checklist_type_id) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Checklist Type required"
-
-            });
-
-        }
-
-        if (!store_id) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Store required"
-
-            });
-
-        }
-
-        if (!submission_date) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Date required"
-
-            });
-
-        }
-
-        if (
-            !Array.isArray(checklistAnswers) ||
-            checklistAnswers.length === 0
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Answers required"
-
-            });
-
-        }
-
-        // ================= Insert Submission =================
-
-        const sql = `
-
-INSERT INTO checklist_submissions
-
-(
-
-checklist_type_id,
-
-store_id,
-
-submitted_by,
-
-submission_date,
-
-latitude,
-
-longitude,
-
-device,
-
-attachment,
-
-status
-
-)
-
-VALUES (?,?,?,?,?,?,?,?,?)
-
-`;
-
-        const values = [
-
-            checklist_type_id,
-
-            store_id,
-
-            submitted_by || null,
-
-            submission_date,
-
-            latitude || null,
-
-            longitude || null,
-
-            finalDevice,
-
-            attachment,
-
-            "Submitted"
-
-        ];
-
-        db.query(
-            sql,
-            values,
-                        (err, result) => {
-
-                if (err) {
-
-                    console.log(
-                        "Submission Error",
-                        err
-                    );
-
-                    return res.status(500).json({
-
-                        success: false,
-
-                        message: "Submission failed"
-
-                    });
-
-                }
-
-                const submissionId =
-                    result.insertId;
-
-                const answerValues =
-                    checklistAnswers
-
-                        .filter(
-                            item => item.question_id
-                        )
-
-                        .map(item => [
-
-                            submissionId,
-
-                            item.question_id,
-
-                            item.answer
-                                ? String(item.answer)
-                                : "",
-
-                            item.remarks || ""
-
-                        ]);
-
-                if (answerValues.length === 0) {
-
-                    return res.status(400).json({
-
-                        success: false,
-
-                        message: "No valid answers"
-
-                    });
-
-                }
-
-                const answerSql = `
-
-INSERT INTO checklist_submission_answers
-
-(
-
-submission_id,
-
-question_id,
-
-answer,
-
-remarks
-
-)
-
-VALUES ?
-
-`;
-
-                db.query(
-
-                    answerSql,
-
-                    [answerValues],
-
-                    (answerErr) => {
-
-                        if (answerErr) {
-
-                            console.log(
-                                "Answer Error",
-                                answerErr
-                            );
-
-                            return res.status(500).json({
-
-                                success: false,
-
-                                message: "Answers not saved"
-
-                            });
-
-                        }
-
-                        return res.status(201).json({
-
-                            success: true,
-
-                            message:
-                                "Checklist submitted successfully",
-
-                            submission_id:
-                                submissionId,
-
-                            attachment:
-                                attachment
-
-                        });
-
-                    }
-
-                );
-
-            }
-
-        );
-
-    }
+    createSubmission
 
 );
 
-// =====================================================
+
+
+
+
+
+
+// ======================================================
 // GET ALL SUBMISSIONS
-// =====================================================
+// SEARCH + PAGINATION
+// GET /api/checklist-submissions
+// Permission : View
+// ======================================================
 
 router.get(
 
@@ -427,53 +105,61 @@ router.get(
     authMiddleware,
 
     permissionMiddleware(
+
         "Checklist Submission",
+
         "View"
+
     ),
 
-    (req, res) => {
-
-        const sql = `
-
-SELECT *
-
-FROM checklist_submissions
-
-ORDER BY created_at DESC
-
-`;
-
-        db.query(
-            sql,
-            (err, result) => {
-
-                if (err) {
-
-                    return res.status(500).json({
-
-                        success: false
-
-                    });
-
-                }
-
-                res.json({
-
-                    success: true,
-
-                    data: result
-
-                });
-
-            }
-        );
-
-    }
+    getAllSubmissions
 
 );
-// =====================================================
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT SUBMISSIONS
+// GET /api/checklist-submissions/export
+// Permission : View
+// IMPORTANT BEFORE /:id
+// ======================================================
+
+router.get(
+
+    "/export",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    exportSubmissions
+
+);
+
+
+
+
+
+
+
+
+// ======================================================
 // GET SINGLE SUBMISSION
-// =====================================================
+// GET /api/checklist-submissions/:id
+// Permission : View
+// ======================================================
 
 router.get(
 
@@ -482,112 +168,57 @@ router.get(
     authMiddleware,
 
     permissionMiddleware(
+
         "Checklist Submission",
+
         "View"
+
     ),
 
-    (req, res) => {
-
-        const id = req.params.id;
-
-        const sql = `
-
-SELECT *
-
-FROM checklist_submissions
-
-WHERE id=?
-
-`;
-
-        db.query(
-
-            sql,
-
-            [id],
-
-            (err, result) => {
-
-                if (err) {
-
-                    return res.status(500).json({
-
-                        success: false
-
-                    });
-
-                }
-
-                if (result.length === 0) {
-
-                    return res.status(404).json({
-
-                        success: false,
-
-                        message: "Not found"
-
-                    });
-
-                }
-
-                const answerSql = `
-
-SELECT *
-
-FROM checklist_submission_answers
-
-WHERE submission_id=?
-
-ORDER BY id ASC
-
-`;
-
-                db.query(
-
-                    answerSql,
-
-                    [id],
-
-                    (err, answers) => {
-
-                        if (err) {
-
-                            return res.status(500).json({
-
-                                success: false
-
-                            });
-
-                        }
-
-                        return res.json({
-
-                            success: true,
-
-                            data: {
-
-                                ...result[0],
-
-                                answers
-
-                            }
-
-                        });
-
-                    }
-
-                );
-
-            }
-
-        );
-
-    }
+    getSubmissionById
 
 );
 
-// =====================================================
+
+
+
+
+
+
+
+// ======================================================
+// UPDATE STATUS
+// PUT /api/checklist-submissions/:id/status
+// Permission : Edit
+// ======================================================
+
+router.put(
+
+    "/:id/status",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "Edit"
+
+    ),
+
+    updateStatus
+
+);
+
+
+
+
+
+
+
+
+// ======================================================
 // EXPORT ROUTER
-// =====================================================
+// ======================================================
 
 module.exports = router;

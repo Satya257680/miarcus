@@ -2,18 +2,24 @@ const express = require("express");
 
 const router = express.Router();
 
+
 // ======================================================
 // UPLOAD
 // ======================================================
 
 const upload = require("../middleware/upload");
 
+
+
 // ======================================================
 // MIDDLEWARE
 // ======================================================
 
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+
+
 
 // ======================================================
 // CONTROLLER
@@ -31,9 +37,17 @@ const {
 
     deleteNewStoreOpening,
 
-    exportNewStoreOpeningsCSV
+    deleteAllNewStoreOpenings,
+
+    exportNewStoreOpeningsCSV,
+
+    bulkUploadNewStoreOpenings
+
 
 } = require("../controllers/newStoreOpeningController");
+
+
+
 
 // ======================================================
 // NEW STORE OPENINGS ROUTES
@@ -43,9 +57,12 @@ const {
 
 
 
+
+
+
 // ======================================================
 // EXPORT CSV
-// IMPORTANT: MUST BE BEFORE "/:id"
+// IMPORTANT: BEFORE "/:id"
 // ======================================================
 
 router.get(
@@ -54,7 +71,10 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "View"),
+    permissionMiddleware(
+        "New Store Openings",
+        "View"
+    ),
 
     exportNewStoreOpeningsCSV
 
@@ -62,8 +82,42 @@ router.get(
 
 
 
+
+
+
+
+// ======================================================
+// BULK IMPORT
+// EXCEL UPLOAD
+// IMPORTANT: BEFORE "/:id"
+// ======================================================
+
+router.post(
+
+    "/bulk-upload",
+
+    authMiddleware,
+
+    permissionMiddleware(
+        "New Store Openings",
+        "Add"
+    ),
+
+    upload.single("file"),
+
+    bulkUploadNewStoreOpenings
+
+);
+
+
+
+
+
+
+
 // ======================================================
 // GET ALL
+// SEARCH + PAGINATION
 // ======================================================
 
 router.get(
@@ -72,11 +126,18 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "View"),
+    permissionMiddleware(
+        "New Store Openings",
+        "View"
+    ),
 
     getAllNewStoreOpenings
 
 );
+
+
+
+
 
 
 
@@ -90,11 +151,18 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "View"),
+    permissionMiddleware(
+        "New Store Openings",
+        "View"
+    ),
 
     getNewStoreOpeningById
 
 );
+
+
+
+
 
 
 
@@ -108,13 +176,20 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "Add"),
+    permissionMiddleware(
+        "New Store Openings",
+        "Add"
+    ),
 
     upload.single("attachment"),
 
     createNewStoreOpening
 
 );
+
+
+
+
 
 
 
@@ -128,7 +203,10 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "Edit"),
+    permissionMiddleware(
+        "New Store Openings",
+        "Edit"
+    ),
 
     upload.single("attachment"),
 
@@ -138,8 +216,37 @@ router.put(
 
 
 
+
+
+
+
 // ======================================================
-// DELETE
+// DELETE ALL
+// ======================================================
+
+router.delete(
+
+    "/delete-all",
+
+    authMiddleware,
+
+    permissionMiddleware(
+        "New Store Openings",
+        "Full"
+    ),
+
+    deleteAllNewStoreOpenings
+
+);
+
+
+
+
+
+
+
+// ======================================================
+// DELETE SINGLE
 // ======================================================
 
 router.delete(
@@ -148,10 +255,19 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware("New Store Openings", "Full"),
+    permissionMiddleware(
+        "New Store Openings",
+        "Full"
+    ),
 
     deleteNewStoreOpening
 
 );
+
+
+
+
+
+
 
 module.exports = router;

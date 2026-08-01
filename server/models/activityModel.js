@@ -7,7 +7,7 @@ const Activity = {};
 // SEARCH + FILTER + PAGINATION
 // ======================================================
 
-Activity.getAll = (filters, callback) => {
+Activity.getAll = (filters, user, callback) => {
 
     let sql = `
         SELECT
@@ -23,6 +23,23 @@ Activity.getAll = (filters, callback) => {
     `;
 
     const params = [];
+        // ======================================================
+    // RBAC - ADMIN CAN SEE ALL
+    // NORMAL USER CAN SEE ONLY OWN OR ASSIGNED ACTIVITIES
+    // ======================================================
+
+    if (!user.is_admin) {
+
+        sql += `
+            AND (
+                a.created_by = ?
+                OR a.assigned_to = ?
+            )
+        `;
+
+        params.push(user.id, user.id);
+
+    }
 
     // ======================================================
     // SEARCH
@@ -109,12 +126,12 @@ Activity.getAll = (filters, callback) => {
 };
 
 // ======================================================
-// GET ACTIVITY BY ID
+// GET ACTIVITY BY ID (RBAC)
 // ======================================================
 
-Activity.getById = (id, callback) => {
+Activity.getById = (activityId, user, callback) => {
 
-    const sql = `
+    let sql = `
         SELECT
             a.*,
             u.name AS created_by_name,
@@ -127,28 +144,47 @@ Activity.getById = (id, callback) => {
         WHERE a.id = ?
     `;
 
-    db.query(sql, [id], callback);
+    const params = [activityId];
+
+    // ======================================================
+    // RBAC
+    // ======================================================
+
+    if (!user.is_admin) {
+
+        sql += `
+            AND (
+                a.created_by = ?
+                OR a.assigned_to = ?
+            )
+        `;
+
+        params.push(user.id, user.id);
+
+    }
+
+    db.query(sql, params, callback);
 
 };
 
 // ======================================================
-// GET ACTIVITY DETAILS
+// GET ACTIVITY DETAILS (RBAC)
 // ======================================================
 
-Activity.getDetails = (id, callback) => {
+Activity.getDetails = (activityId, user, callback) => {
 
-    const sql = `
+    let sql = `
         SELECT
 
             a.*,
 
-            creator.employee_id      AS created_by_employee_id,
-            creator.name             AS created_by_name,
-            creator.email            AS created_by_email,
+            creator.employee_id AS created_by_employee_id,
+            creator.name AS created_by_name,
+            creator.email AS created_by_email,
 
-            assignee.employee_id     AS assigned_employee_id,
-            assignee.name            AS assigned_to_name,
-            assignee.email           AS assigned_to_email,
+            assignee.employee_id AS assigned_employee_id,
+            assignee.name AS assigned_to_name,
+            assignee.email AS assigned_to_email,
 
             d.department_name,
 
@@ -171,10 +207,28 @@ Activity.getDetails = (id, callback) => {
         WHERE a.id = ?
     `;
 
-    db.query(sql, [id], callback);
+    const params = [activityId];
+
+    // ======================================================
+    // RBAC
+    // ======================================================
+
+    if (!user.is_admin) {
+
+        sql += `
+            AND (
+                a.created_by = ?
+                OR a.assigned_to = ?
+            )
+        `;
+
+        params.push(user.id, user.id);
+
+    }
+
+    db.query(sql, params, callback);
 
 };
-
 // ======================================================
 // GET ACTIVITY COMMENTS
 // ======================================================
@@ -426,5 +480,132 @@ Activity.deleteFile = (
     );
 
 };
+// ======================================================
+// CHECK ACTIVITY ACCESS (RBAC)
+// ======================================================
 
+Activity.hasAccess = (activityId, user, callback) => {
+
+    let sql = `
+        SELECT id
+        FROM activities
+        WHERE id = ?
+    `;
+
+    const params = [activityId];
+
+    // ======================================================
+    // NORMAL USER
+    // ======================================================
+
+    if (!user.is_admin) {
+
+        sql += `
+            AND (
+                created_by = ?
+                OR assigned_to = ?
+            )
+        `;
+
+        params.push(user.id, user.id);
+
+    }
+
+    db.query(sql, params, (err, results) => {
+
+        if (err) {
+
+            return callback(err);
+
+        }
+
+        callback(null, results.length > 0);
+
+    });
+
+};
+// ======================================================
+// GET ACTIVITY ID BY FILE ID
+// ======================================================
+
+Activity.getActivityIdByFileId = (fileId, callback) => {
+
+    const sql = `
+        SELECT activity_id
+        FROM activity_files
+        WHERE id = ?
+        LIMIT 1
+    `;
+
+    db.query(sql, [fileId], callback);
+
+};
+// ======================================================
+// CREATE ACTIVITY
+// ======================================================
+
+Activity.create = (
+
+    data,
+
+    callback
+
+) => {
+
+
+    const sql = `
+
+        INSERT INTO activities
+
+        (
+
+            title,
+
+            description,
+
+            module_name,
+
+            status,
+
+            priority,
+
+            created_by,
+
+            assigned_to
+
+        )
+
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+
+    `;
+
+
+    db.query(
+
+        sql,
+
+        [
+
+            data.title,
+
+            data.description,
+
+            data.module_name,
+
+            data.status || "Open",
+
+            data.priority || "Medium",
+
+            data.created_by,
+
+            data.assigned_to || null
+
+        ],
+
+        callback
+
+    );
+
+
+};
 module.exports = Activity;

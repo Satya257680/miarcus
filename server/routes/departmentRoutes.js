@@ -1,77 +1,197 @@
 const express = require("express");
+
 const router = express.Router();
 
-// ==============================
-// Middleware
-// ==============================
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
 
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
-// ==============================
-// Controller
-// ==============================
 
-const departmentController = require("../controllers/departmentController");
 
-// ==============================
-// GET All Departments
-// Permission: View / Add / Edit / Full
-// ==============================
+// ======================================================
+// CONTROLLER
+// ======================================================
+
+const {
+
+    getDepartments,
+
+    getAssignedUsers,
+
+    createDepartment,
+
+    updateDepartment,
+
+    deleteDepartment
+
+
+} = require("../controllers/departmentController");
+
+
+
+
+
+// ======================================================
+// BASE URL
+// /api/departments
+// ======================================================
+
+
+
+
+
+// ======================================================
+// GET ALL DEPARTMENTS
+// GET /api/departments
+// Permission : View
+// ======================================================
 
 router.get(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Departments", "View"),
-  departmentController.getDepartments
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "View"
+
+    ),
+
+    getDepartments
+
 );
 
-// ==============================
-// GET Assigned Users
-// Permission: View / Add / Edit / Full
-// ==============================
+
+
+
+
+
+// ======================================================
+// GET ASSIGNED USERS
+// GET /api/departments/:id/users
+// Permission : View
+// ======================================================
 
 router.get(
-  "/:id/users",
-  authMiddleware,
-  permissionMiddleware("Departments", "View"),
-  departmentController.getAssignedUsers
+
+    "/:id/users",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "View"
+
+    ),
+
+    getAssignedUsers
+
 );
 
-// ==============================
-// CREATE Department
-// Permission: Add / Edit / Full
-// ==============================
+
+
+
+
+
+// ======================================================
+// CREATE DEPARTMENT
+// POST /api/departments
+// Permission : Add
+// ======================================================
 
 router.post(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Departments", "Add"),
-  departmentController.createDepartment
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Add"
+
+    ),
+
+    createDepartment
+
 );
 
-// ==============================
-// UPDATE Department
-// Permission: Edit / Full
-// ==============================
+
+
+
+
+
+// ======================================================
+// UPDATE DEPARTMENT
+// PUT /api/departments/:id
+// Permission : Edit
+// ======================================================
 
 router.put(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Departments", "Edit"),
-  departmentController.updateDepartment
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Edit"
+
+    ),
+
+    updateDepartment
+
 );
 
-// ==============================
-// DELETE Department
-// Permission: Full
-// ==============================
+
+
+
+
+
+// ======================================================
+// DELETE DEPARTMENT
+// DELETE /api/departments/:id
+// Permission : Full
+// ======================================================
 
 router.delete(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Departments", "Full"),
-  departmentController.deleteDepartment
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Full"
+
+    ),
+
+    deleteDepartment
+
 );
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

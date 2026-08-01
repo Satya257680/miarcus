@@ -1,466 +1,323 @@
-const ActionPoint = require("../models/actionPointModel");
+const ActionPoint = require(
+    "../models/actionPointModel"
+);
 
-const { Parser } = require("json2csv");
+
+const { Parser } = require(
+    "json2csv"
+);
+
+
+
+// ======================================================
+// ACTIVITY CENTER
+// ======================================================
+
+const Activity = require(
+    "../models/activityModel"
+);
+
+
+
+// ======================================================
+// AUDIT TRAIL
+// ======================================================
+
+const Audit = require(
+    "../models/auditModel"
+);
+
+
+
 
 
 
 
 // ======================================================
 // GET ALL ACTION POINTS
+// SEARCH + FILTER + PAGINATION
 // ======================================================
+
 
 exports.getAllActionPoints = (req,res)=>{
 
 
-try{
+    try{
 
 
-const page =
-parseInt(req.query.page) || 1;
+        const page =
 
+        Number(req.query.page) || 1;
 
-const limit =
-parseInt(req.query.limit) || 10;
 
 
-const offset =
-(page - 1) * limit;
+        const limit =
 
+        Number(req.query.limit) || 10;
 
 
 
-const filters={
+        const offset =
 
+        (page - 1) * limit;
 
-store_id:req.query.store_id || null,
 
-department_id:req.query.department_id || null,
 
-status:req.query.status || null,
 
-checklist_type_id:req.query.checklist_type_id || null,
 
-start_date:req.query.start_date || null,
 
-end_date:req.query.end_date || null,
 
-search:req.query.search || null,
+        const filters = {
 
-offset,
 
-limit
 
+            store_id:
 
-};
+            req.query.store_id || null,
 
 
 
+            department_id:
 
+            req.query.department_id || null,
 
-ActionPoint.getAll(
 
-filters,
 
-(err,data)=>{
+            status:
 
+            req.query.status || null,
 
-if(err){
 
-console.error(
-"GET ACTION POINT ERROR:",
-err
-);
 
+            checklist_type_id:
 
-return res.status(500).json({
+            req.query.checklist_type_id || null,
 
-success:false,
 
-message:"Unable to fetch action points",
 
-error:err.message
+            start_date:
 
-});
+            req.query.start_date || null,
 
-}
 
 
+            end_date:
 
+            req.query.end_date || null,
 
-ActionPoint.count(
 
-filters,
 
-(err,count)=>{
+            search:
 
+            req.query.search || null,
 
-if(err){
 
 
-return res.status(500).json({
+            offset,
 
-success:false,
 
-message:"Unable to count action points",
+            limit
 
-error:err.message
 
-});
 
+        };
 
-}
 
 
 
 
 
-const total =
-count[0]?.total || 0;
 
 
+        ActionPoint.getAll(
 
 
-return res.json({
+            filters,
 
-success:true,
 
-page,
+            (err,data)=>{
 
-limit,
 
-total,
 
-totalPages:
-Math.ceil(total/limit),
+                if(err){
 
-data:data || []
 
-});
+                    console.error(
 
+                        "GET ACTION POINT ERROR:",
 
+                        err
 
-});
+                    );
 
 
-}
 
+                    return res.status(500).json({
 
-);
 
+                        success:false,
 
 
-}
+                        message:
 
+                        "Unable to fetch action points",
 
-catch(error){
 
+                        error:
 
-return res.status(500).json({
+                        err.message
 
-success:false,
 
-message:"Internal Server Error",
+                    });
 
-error:error.message
 
-});
+                }
 
 
-}
 
 
-};
 
 
 
 
 
+                ActionPoint.count(
 
 
+                    filters,
 
 
-// ======================================================
-// EXPORT CSV
-// ======================================================
+                    (countErr,count)=>{
 
-exports.exportActionPointsCSV=(req,res)=>{
 
 
-const filters={
+                        if(countErr){
 
 
-store_id:req.query.store_id || null,
+                            return res.status(500).json({
 
-department_id:req.query.department_id || null,
 
-status:req.query.status || null,
+                                success:false,
 
-checklist_type_id:req.query.checklist_type_id || null,
 
-search:req.query.search || null,
+                                message:
 
+                                "Unable to count action points",
 
-offset:0,
 
-limit:10000
+                                error:
 
+                                countErr.message
 
-};
 
+                            });
 
 
+                        }
 
 
-ActionPoint.getAll(
 
-filters,
 
-(err,data)=>{
 
 
-if(err){
 
 
-return res.status(500).json({
+                        const total =
 
-success:false,
+                        count[0]?.total || 0;
 
-error:err.message
 
-});
 
 
-}
 
 
 
 
+                        return res.status(200).json({
 
-try{
 
 
-const parser =
-new Parser();
+                            success:true,
 
 
-const csv =
-parser.parse(data || []);
 
+                            page,
 
 
 
-res.header(
-"Content-Type",
-"text/csv"
-);
+                            limit,
 
 
-res.attachment(
-"action_points.csv"
-);
 
+                            total,
 
-return res.send(csv);
 
 
+                            totalPages:
 
-}
+                            Math.ceil(
 
-catch(error){
+                                total /
 
+                                limit
 
-return res.status(500).json({
+                            ),
 
-success:false,
 
-error:error.message
 
-});
+                            data:
 
+                            data || []
 
-}
 
 
+                        });
 
-}
 
 
+                    }
 
-);
 
+                );
 
-};
 
 
+            }
 
 
+        );
 
 
 
+    }
 
 
 
+    catch(error){
 
-// ======================================================
-// CREATE ACTION POINT
-// ======================================================
 
-exports.createActionPoint=(req,res)=>{
 
+        return res.status(500).json({
 
-try{
 
+            success:false,
 
-const {
 
+            message:
 
-submission_id,
+            "Internal Server Error",
 
-question_id,
 
-answer,
+            error:
 
-remarks,
+            error.message
 
-store_id,
 
-department_id,
 
-sla
+        });
 
 
-}=req.body;
-
-
-
-
-
-if(!submission_id || !question_id){
-
-
-return res.status(400).json({
-
-success:false,
-
-message:
-"Submission ID and Question ID required"
-
-});
-
-
-}
-
-
-
-
-
-
-
-const attachment =
-req.file
-?
-req.file.path.replace(/\\/g,"/")
-:
-null;
-
-
-
-
-
-
-
-ActionPoint.create(
-
-{
-
-
-submission_id,
-
-question_id,
-
-answer:answer || "",
-
-remarks:remarks || "",
-
-store_id,
-
-department_id,
-
-sla,
-
-attachment
-
-
-},
-
-
-(err,result)=>{
-
-
-if(err){
-
-
-console.error(
-"CREATE ERROR:",
-err
-);
-
-
-return res.status(500).json({
-
-success:false,
-
-message:"Create Failed",
-
-error:err.message
-
-});
-
-
-}
-
-
-
-
-
-return res.status(201).json({
-
-success:true,
-
-message:
-"Action Point Created Successfully",
-
-id:
-result.insertId
-
-
-});
-
-
-}
-
-
-
-);
-
-
-
-}
-
-catch(error){
-
-
-return res.status(500).json({
-
-success:false,
-
-message:error.message
-
-});
-
-
-}
-
+    }
 
 
 };
@@ -477,264 +334,1615 @@ message:error.message
 
 
 // ======================================================
-// UPDATE ACTION POINT
+// EXPORT ACTION POINTS CSV
 // ======================================================
 
-exports.updateActionPoint=(req,res)=>{
 
+exports.exportActionPointsCSV = (req,res)=>{
 
-const id =
-req.params.id;
 
 
+    const filters = {
 
-const {
 
 
-answer,
+        store_id:
 
-remarks
+        req.query.store_id || null,
 
 
-}=req.body;
 
+        department_id:
 
+        req.query.department_id || null,
 
 
 
-const attachment =
-req.file
-?
-req.file.path.replace(/\\/g,"/")
-:
-null;
+        status:
 
+        req.query.status || null,
 
 
 
+        checklist_type_id:
 
+        req.query.checklist_type_id || null,
 
 
-ActionPoint.update(
 
-id,
+        search:
 
-{
+        req.query.search || null,
 
 
-answer,
 
-remarks,
+        offset:0,
 
-attachment
 
 
-},
+        limit:100000
 
 
-(err,result)=>{
 
+    };
 
-if(err){
 
 
-return res.status(500).json({
 
-success:false,
 
-error:err.message
 
-});
 
 
-}
+    ActionPoint.getAll(
 
 
+        filters,
 
 
-if(result.affectedRows===0){
+        (err,data)=>{
 
 
-return res.status(404).json({
 
-success:false,
+            if(err){
 
-message:
-"Action Point not found"
 
-});
-
-
-}
-
-
-
-
-
-return res.json({
-
-success:true,
-
-message:
-"Action Point Updated Successfully"
-
-});
-
-
-
-}
-
-
-
-);
-
-
-};
-
-// ======================================================
-// TAKE ACTION
-// ======================================================
-
-exports.takeAction = (req, res) => {
-
-    const id = req.params.id;
-
-    const {
-
-        action_taken,
-
-        remarks,
-
-        completion_date
-
-    } = req.body;
-
-    ActionPoint.takeAction(
-
-        id,
-
-        {
-
-            action_taken,
-
-            remarks,
-
-            completion_date
-
-        },
-
-        (err, result) => {
-
-            if (err) {
 
                 return res.status(500).json({
 
-                    success: false,
 
-                    error: err.message
+                    success:false,
 
-                });
 
-            }
+                    message:
 
-            if (result.affectedRows === 0) {
+                    err.message
 
-                return res.status(404).json({
 
-                    success: false,
-
-                    message: "Action Point not found"
 
                 });
 
+
             }
 
-            return res.json({
 
-                success: true,
 
-                message: "Action Saved Successfully"
 
-            });
+
+
+
+
+            try{
+
+
+
+                const parser =
+
+                new Parser();
+
+
+
+
+                const csv =
+
+                parser.parse(
+
+                    data || []
+
+                );
+
+
+
+
+
+
+
+                Activity.create({
+
+
+
+                    title:
+
+                    "Action Points Exported",
+
+
+
+                    description:
+
+                    "Action points exported as CSV",
+
+
+
+                    module_name:
+
+                    "Action Points",
+
+
+
+                    status:
+
+                    "Closed",
+
+
+
+                    priority:
+
+                    "Low",
+
+
+
+                    created_by:
+
+                    req.user.id,
+
+
+
+                    assigned_to:
+
+                    null
+
+
+
+                },()=>{});
+
+
+
+
+
+
+
+
+                res.setHeader(
+
+                    "Content-Type",
+
+                    "text/csv"
+
+                );
+
+
+
+
+
+                res.setHeader(
+
+                    "Content-Disposition",
+
+                    "attachment; filename=action_points.csv"
+
+                );
+
+
+
+
+
+
+                return res.send(csv);
+
+
+
+            }
+
+
+
+            catch(error){
+
+
+
+                return res.status(500).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    error.message
+
+
+
+                });
+
+
+            }
+
+
 
         }
 
+
+
     );
+
+
+};
+// ======================================================
+// CREATE ACTION POINT
+// POST /api/action-points
+// ======================================================
+
+
+exports.createActionPoint = (req,res)=>{
+
+
+    try{
+
+
+        const {
+
+
+            submission_id,
+
+
+            question_id,
+
+
+            answer,
+
+
+            remarks,
+
+
+            store_id,
+
+
+            department_id,
+
+
+            sla
+
+
+
+        } = req.body;
+
+
+
+
+
+
+
+        // ======================================
+        // VALIDATION
+        // ======================================
+
+
+        if(
+
+            !submission_id ||
+
+            !question_id
+
+        ){
+
+
+            return res.status(400).json({
+
+
+                success:false,
+
+
+                message:
+
+                "Submission ID and Question ID required."
+
+
+
+            });
+
+
+        }
+
+
+
+
+
+
+
+
+        // ======================================
+        // ATTACHMENT
+        // ======================================
+
+
+        const attachment =
+
+
+        req.file
+
+        ?
+
+        req.file.path.replace(/\\/g,"/")
+
+        :
+
+        null;
+
+
+
+
+
+
+
+
+
+        const actionPointData = {
+
+
+
+            submission_id,
+
+
+            question_id,
+
+
+            answer:
+
+            answer || "",
+
+
+
+            remarks:
+
+            remarks || "",
+
+
+
+            store_id:
+
+
+            store_id || null,
+
+
+
+            department_id:
+
+
+            department_id || null,
+
+
+
+            sla:
+
+
+            sla || null,
+
+
+
+            attachment
+
+
+
+        };
+
+
+
+
+
+
+
+
+
+        // ======================================
+        // CREATE
+        // ======================================
+
+
+        ActionPoint.create(
+
+
+            actionPointData,
+
+
+            (err,result)=>{
+
+
+
+                if(err){
+
+
+
+                    console.error(
+
+                        "CREATE ACTION POINT ERROR:",
+
+                        err
+
+                    );
+
+
+
+                    return res.status(500).json({
+
+
+
+                        success:false,
+
+
+
+                        message:
+
+                        "Create Action Point Failed.",
+
+
+
+                        error:
+
+                        err.message
+
+
+
+                    });
+
+
+                }
+
+
+
+
+
+
+
+
+
+                const actionPointId =
+
+                result.insertId;
+
+
+
+
+
+
+
+
+
+                // ======================================
+                // ACTIVITY CENTER
+                // ======================================
+
+
+                Activity.create({
+
+
+
+                    title:
+
+                    "Action Point Created",
+
+
+
+                    description:
+
+                    `Action Point ${actionPointId} created`,
+
+
+
+                    module_name:
+
+                    "Action Points",
+
+
+
+                    status:
+
+                    "Open",
+
+
+
+                    priority:
+
+                    "Medium",
+
+
+
+                    created_by:
+
+                    req.user.id,
+
+
+
+                    assigned_to:
+
+                    null
+
+
+
+                },()=>{});
+
+
+
+
+
+
+
+
+
+                // ======================================
+                // AUDIT TRAIL
+                // ======================================
+
+
+                Audit.create({
+
+
+
+                    module_name:
+
+                    "Action Points",
+
+
+
+                    reference_id:
+
+                    actionPointId,
+
+
+
+                    action:
+
+                    "CREATE",
+
+
+
+                    old_data:
+
+                    null,
+
+
+
+                    new_data:
+
+                    actionPointData,
+
+
+
+                    changed_by:
+
+                    req.user.id
+
+
+
+                },()=>{});
+
+
+
+
+
+
+
+
+
+                return res.status(201).json({
+
+
+
+                    success:true,
+
+
+
+                    message:
+
+                    "Action Point Created Successfully",
+
+
+
+                    id:
+
+                    actionPointId
+
+
+
+                });
+
+
+
+            }
+
+
+
+        );
+
+
+
+
+    }
+
+
+
+    catch(error){
+
+
+
+        return res.status(500).json({
+
+
+
+            success:false,
+
+
+
+            message:
+
+            error.message
+
+
+
+        });
+
+
+    }
+
+
+
+};
+// ======================================================
+// UPDATE ACTION POINT
+// PUT /api/action-points/:id
+// ======================================================
+
+
+exports.updateActionPoint = (req,res)=>{
+
+
+    const id = req.params.id;
+
+
+
+    const {
+
+
+        answer,
+
+
+        remarks
+
+
+
+    } = req.body;
+
+
+
+
+
+
+
+    const attachment =
+
+
+    req.file
+
+    ?
+
+    req.file.path.replace(/\\/g,"/")
+
+    :
+
+    null;
+
+
+
+
+
+
+
+
+    // ======================================
+    // GET OLD DATA
+    // ======================================
+
+
+    ActionPoint.getById = undefined;
+
+
+
+
+
+    const updateData = {
+
+
+
+        answer:
+
+        answer || "",
+
+
+
+        remarks:
+
+        remarks || "",
+
+
+
+        attachment
+
+
+
+    };
+
+
+
+
+
+
+
+
+
+    ActionPoint.update(
+
+
+        id,
+
+
+        updateData,
+
+
+
+        (err,result)=>{
+
+
+
+            if(err){
+
+
+
+                console.error(
+
+                    "UPDATE ACTION POINT ERROR:",
+
+                    err
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    "Update Failed",
+
+
+                    error:
+
+                    err.message
+
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+            if(
+
+                result.affectedRows===0
+
+            ){
+
+
+
+                return res.status(404).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    "Action Point not found"
+
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // ACTIVITY CENTER
+            // ======================================
+
+
+            Activity.create({
+
+
+
+                title:
+
+                "Action Point Updated",
+
+
+
+
+                description:
+
+                `Action Point ${id} updated`,
+
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                status:
+
+                "Open",
+
+
+
+
+                priority:
+
+                "Medium",
+
+
+
+
+                created_by:
+
+                req.user.id,
+
+
+
+
+                assigned_to:
+
+                null
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // AUDIT TRAIL
+            // ======================================
+
+
+            Audit.create({
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                reference_id:
+
+                id,
+
+
+
+
+                action:
+
+                "UPDATE",
+
+
+
+
+                old_data:
+
+                null,
+
+
+
+
+                new_data:
+
+                updateData,
+
+
+
+
+                changed_by:
+
+                req.user.id
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            return res.status(200).json({
+
+
+
+                success:true,
+
+
+
+                message:
+
+                "Action Point Updated Successfully"
+
+
+
+            });
+
+
+
+        }
+
+
+    );
+
+
 
 };
 
 
+
+
+
+
+
+
+
+// ======================================================
+// TAKE ACTION
+// PUT /api/action-points/take-action/:id
+// ======================================================
+
+
+exports.takeAction = (req,res)=>{
+
+
+
+    const id = req.params.id;
+
+
+
+    const {
+
+
+        action_taken,
+
+
+        remarks,
+
+
+        completion_date
+
+
+
+    } = req.body;
+
+
+
+
+
+
+
+
+    ActionPoint.takeAction(
+
+
+        id,
+
+
+        {
+
+
+
+            action_taken,
+
+
+            remarks,
+
+
+            completion_date
+
+
+
+        },
+
+
+
+        (err,result)=>{
+
+
+
+            if(err){
+
+
+
+                console.error(
+
+                    "TAKE ACTION ERROR:",
+
+                    err
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+
+                    success:false,
+
+
+                    error:
+
+                    err.message
+
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+            if(
+
+                result.affectedRows===0
+
+            ){
+
+
+
+                return res.status(404).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    "Action Point not found"
+
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // ACTIVITY CENTER
+            // ======================================
+
+
+            Activity.create({
+
+
+
+                title:
+
+                "Action Taken",
+
+
+
+
+                description:
+
+                `Action completed for Action Point ${id}`,
+
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                status:
+
+                "Closed",
+
+
+
+
+                priority:
+
+                "High",
+
+
+
+
+                created_by:
+
+                req.user.id,
+
+
+
+
+                assigned_to:
+
+                null
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // AUDIT TRAIL
+            // ======================================
+
+
+            Audit.create({
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                reference_id:
+
+                id,
+
+
+
+
+                action:
+
+                "TAKE_ACTION",
+
+
+
+
+                old_data:
+
+                null,
+
+
+
+
+                new_data:{
+
+
+
+                    action_taken,
+
+
+                    remarks,
+
+
+                    completion_date
+
+
+
+                },
+
+
+
+
+                changed_by:
+
+                req.user.id
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            return res.status(200).json({
+
+
+
+                success:true,
+
+
+
+                message:
+
+                "Action Saved Successfully"
+
+
+
+            });
+
+
+
+        }
+
+
+    );
+
+
+
+};
 // ======================================================
 // DELETE ACTION POINT
+// DELETE /api/action-points/:id
 // ======================================================
 
-exports.deleteActionPoint=(req,res)=>{
+
+exports.deleteActionPoint = (req,res)=>{
 
 
-const id =
-req.params.id;
-
-
-
-ActionPoint.delete(
-
-id,
-
-
-(err,result)=>{
-
-
-if(err){
-
-
-return res.status(500).json({
-
-success:false,
-
-error:err.message
-
-});
-
-
-}
+    const id = req.params.id;
 
 
 
 
 
-if(result.affectedRows===0){
-
-
-return res.status(404).json({
-
-success:false,
-
-message:
-"Action Point not found"
-
-});
-
-
-}
 
 
 
-
-return res.json({
-
-success:true,
-
-message:
-"Action Point Deleted Successfully"
-
-});
+    ActionPoint.delete(
 
 
-}
+        id,
+
+
+        (err,result)=>{
 
 
 
-);
+            if(err){
 
+
+
+                console.error(
+
+                    "DELETE ACTION POINT ERROR:",
+
+                    err
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+
+                    success:false,
+
+
+
+                    message:
+
+                    "Delete Failed",
+
+
+
+                    error:
+
+                    err.message
+
+
+
+                });
+
+
+
+            }
+
+
+
+
+
+
+
+
+            if(
+
+                result.affectedRows === 0
+
+            ){
+
+
+
+                return res.status(404).json({
+
+
+
+                    success:false,
+
+
+
+                    message:
+
+                    "Action Point not found"
+
+
+
+                });
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // ACTIVITY CENTER
+            // ======================================
+
+
+            Activity.create({
+
+
+
+                title:
+
+                "Action Point Deleted",
+
+
+
+
+                description:
+
+                `Action Point ${id} deleted`,
+
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                status:
+
+                "Closed",
+
+
+
+
+                priority:
+
+                "High",
+
+
+
+
+                created_by:
+
+                req.user.id,
+
+
+
+
+                assigned_to:
+
+                null
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // AUDIT TRAIL
+            // ======================================
+
+
+            Audit.create({
+
+
+
+                module_name:
+
+                "Action Points",
+
+
+
+
+                reference_id:
+
+                id,
+
+
+
+
+                action:
+
+                "DELETE",
+
+
+
+
+                old_data:
+
+                null,
+
+
+
+
+                new_data:
+
+                null,
+
+
+
+
+                changed_by:
+
+                req.user.id
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            return res.status(200).json({
+
+
+
+                success:true,
+
+
+
+                message:
+
+                "Action Point Deleted Successfully"
+
+
+
+            });
+
+
+
+        }
+
+
+
+    );
+
+
+
+};
+
+
+
+
+
+
+
+
+
+
+
+// ======================================================
+// MODULE EXPORT
+// ======================================================
+
+
+module.exports = {
+
+    getAllActionPoints:
+    exports.getAllActionPoints,
+
+
+    exportActionPointsCSV:
+    exports.exportActionPointsCSV,
+
+
+    createActionPoint:
+    exports.createActionPoint,
+
+
+    updateActionPoint:
+    exports.updateActionPoint,
+
+
+    takeAction:
+    exports.takeAction,
+
+
+    deleteActionPoint:
+    exports.deleteActionPoint
 
 };

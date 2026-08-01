@@ -1,534 +1,1354 @@
-import React, { useEffect, useState } from "react";
+import React, {
+    useEffect,
+    useState
+} from "react";
+
+
+// ======================================================
+// SERVICES
+// ======================================================
 
 import {
+
     getNewStoreOpenings,
+
     deleteNewStoreOpening,
+
+    deleteAllNewStoreOpenings,
+
+    bulkUploadNewStoreOpenings,
+
     exportNewStoreOpenings
+
 } from "../services/newStoreOpeningService";
+
+
+
+
+// ======================================================
+// COMPONENTS
+// ======================================================
 
 import AddNewStoreOpeningModal from "../components/AddNewStoreOpeningModal";
 
+
+// ======================================================
+// STYLE
+// ======================================================
+
 import "../styles/NewStoreOpenings.css";
 
-function NewStoreOpenings() {
 
-    // ==========================================
+
+
+
+function NewStoreOpenings(){
+
+
+
+    // ======================================================
     // STATES
-    // ==========================================
+    // ======================================================
 
-    const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(false);
 
-    const [search, setSearch] = useState("");
+    const [data,setData] = useState([]);
 
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
 
-    const [totalPages, setTotalPages] = useState(1);
-    const [total, setTotal] = useState(0);
+    const [loading,setLoading] = useState(false);
 
-    const [showModal, setShowModal] = useState(false);
-    const [editData, setEditData] = useState(null);
 
-    // ==========================================
+
+    // SEARCH
+
+    const [search,setSearch] = useState("");
+
+
+
+    // PAGINATION
+
+    const [page,setPage] = useState(1);
+
+
+    const [limit,setLimit] = useState(10);
+
+
+    const [totalPages,setTotalPages] = useState(1);
+
+
+    const [total,setTotal] = useState(0);
+
+
+
+
+    // MODALS
+
+
+    const [showAddModal,setShowAddModal] = useState(false);
+
+
+   
+
+
+    const [selectedData,setSelectedData] = useState(null);
+
+
+
+
+
+    // IMPORT FILE
+
+
+    const [selectedFile,setSelectedFile] = useState(null);
+
+
+
+
+
+
+    // ======================================================
     // LOAD DATA
-    // ==========================================
+    // SEARCH + PAGINATION
+    // ======================================================
 
-    const loadData = async () => {
 
-        try {
+    const loadData = async()=>{
+
+
+        try{
+
 
             setLoading(true);
 
-            const res = await getNewStoreOpenings({
+
+
+            const response = await getNewStoreOpenings({
 
                 page,
+
                 limit,
+
                 search
 
             });
 
-            setData(res.data.data || []);
-            setTotalPages(res.data.totalPages || 1);
-            setTotal(res.data.total || 0);
+
+
+
+
+            setData(
+
+                response.data.data || []
+
+            );
+
+
+
+            setTotal(
+
+                response.data.total || 0
+
+            );
+
+
+
+            setTotalPages(
+
+                response.data.totalPages || 1
+
+            );
+
+
 
         }
 
-        catch (err) {
 
-            console.error(err);
+        catch(error){
+
+
+            console.error(
+
+                "FETCH NEW STORE ERROR",
+
+                error
+
+            );
+
 
         }
 
-        finally {
+
+        finally{
+
 
             setLoading(false);
 
+
         }
+
 
     };
 
-    useEffect(() => {
+
+
+
+
+
+    // ======================================================
+    // USE EFFECT
+    // ======================================================
+
+
+    useEffect(()=>{
+
 
         loadData();
 
-    }, [page, limit, search]);
 
-    // ==========================================
-    // DELETE
-    // ==========================================
+    },[
 
-    const handleDelete = async (id) => {
+        page,
 
-        if (!window.confirm("Delete this record?")) return;
+        limit,
 
-        try {
+        search
 
-            await deleteNewStoreOpening(id);
+    ]);
 
-            loadData();
 
-        }
+// ======================================================
+// OPEN ADD MODAL
+// ======================================================
 
-        catch (err) {
+const handleAdd = () => {
 
-            console.error(err);
 
-        }
+    setSelectedData(null);
 
-    };
 
-    // ==========================================
-    // EXPORT
-    // ==========================================
+    setShowAddModal(true);
 
-    const handleExport = async () => {
 
-    try {
+};
 
-        const response = await exportNewStoreOpenings({
+
+
+
+
+
+// ======================================================
+// OPEN EDIT MODAL
+// ======================================================
+
+const handleEdit = (item) => {
+
+
+    setSelectedData(item);
+
+
+    setShowAddModal(true);
+
+
+};
+
+
+
+
+
+
+// ======================================================
+// DELETE SINGLE
+// ======================================================
+
+const handleDelete = async(id)=>{
+
+
+    const confirmDelete =
+    window.confirm(
+        "Delete this New Store Opening?"
+    );
+
+
+
+    if(!confirmDelete)
+
+        return;
+
+
+
+
+
+    try{
+
+
+        await deleteNewStoreOpening(id);
+
+
+
+        alert(
+            "Deleted Successfully"
+        );
+
+
+
+        loadData();
+
+
+
+    }
+
+
+    catch(error){
+
+
+        console.error(
+
+            "DELETE ERROR",
+
+            error
+
+        );
+
+
+    }
+
+
+
+};
+
+
+
+
+
+
+
+
+// ======================================================
+// DELETE ALL
+// ======================================================
+
+const handleDeleteAll = async()=>{
+
+
+    const confirmDelete =
+
+    window.confirm(
+
+        "Delete all New Store Openings?"
+
+    );
+
+
+
+    if(!confirmDelete)
+
+        return;
+
+
+
+
+
+    try{
+
+
+        await deleteAllNewStoreOpenings();
+
+
+
+        alert(
+
+            "All Records Deleted"
+
+        );
+
+
+
+        loadData();
+
+
+
+    }
+
+
+    catch(error){
+
+
+        console.error(
+
+            "DELETE ALL ERROR",
+
+            error
+
+        );
+
+
+    }
+
+
+
+};
+
+
+
+
+
+
+
+
+
+// ======================================================
+// IMPORT EXCEL
+// ======================================================
+
+const handleImport = async()=>{
+
+
+    if(!selectedFile){
+
+
+        alert(
+
+            "Please select Excel file"
+
+        );
+
+
+        return;
+
+
+    }
+
+
+
+
+
+    try{
+
+
+        await bulkUploadNewStoreOpenings(
+
+            selectedFile
+
+        );
+
+
+
+        alert(
+
+            "Import Successfully Completed"
+
+        );
+
+
+
+        setSelectedFile(null);
+
+
+
+        loadData();
+
+
+
+    }
+
+
+    catch(error){
+
+
+        console.error(
+
+            "IMPORT ERROR",
+
+            error
+
+        );
+
+
+        alert(
+
+            "Import Failed"
+
+        );
+
+
+    }
+
+
+
+};
+
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT CSV
+// ======================================================
+
+const handleExport = async()=>{
+
+
+    try{
+
+
+        const response =
+
+        await exportNewStoreOpenings({
 
             search
 
         });
 
-        const url = window.URL.createObjectURL(
+
+
+
+
+        const url =
+
+        window.URL.createObjectURL(
+
             new Blob([response.data])
+
         );
 
-        const link = document.createElement("a");
+
+
+
+
+        const link =
+
+        document.createElement("a");
+
+
+
+
 
         link.href = url;
-        link.download = "new_store_openings.csv";
+
+
+
+        link.download =
+
+        "new_store_openings.csv";
+
+
+
+
 
         document.body.appendChild(link);
 
+
+
         link.click();
+
+
 
         document.body.removeChild(link);
 
-    }
 
-    catch (err) {
-
-        console.log("Export Error:", err);
-
-        if (err.response) {
-
-            console.log("Status:", err.response.status);
-            console.log("Data:", err.response.data);
-
-        }
 
     }
+
+
+    catch(error){
+
+
+        console.error(
+
+            "EXPORT ERROR",
+
+            error
+
+        );
+
+
+    }
+
+
 
 };
 
-    return (
 
-        <div className="new-store-page">
 
-            {/* ==========================================
-                HEADER
-            ========================================== */}
 
-            <div className="page-header">
 
-                <h2>New Store Openings</h2>
 
-                <button
-                    onClick={() => {
 
-                        setEditData(null);
-                        setShowModal(true);
 
-                    }}
-                >
-                    + Add Entry
-                </button>
 
-            </div>
+// ======================================================
+// AFTER SAVE SUCCESS
+// ======================================================
 
-            {/* ==========================================
-                TOOLBAR
-            ========================================== */}
+const handleSuccess = ()=>{
 
-            <div className="toolbar">
 
-                <input
-                    type="text"
-                    placeholder="Search..."
-                    value={search}
-                    onChange={(e) => {
+    setShowAddModal(false);
 
-                        setPage(1);
-                        setSearch(e.target.value);
 
-                    }}
-                />
+    setShowEditModal(false);
 
-                <button
-                    onClick={() => {
 
-                        setSearch("");
-                        setPage(1);
+    setSelectedData(null);
 
-                    }}
-                >
-                    Clear
-                </button>
 
-                <button
-                    onClick={handleExport}
-                >
-                    Export CSV
-                </button>
 
-            </div>
+    loadData();
 
-            {loading ? (
 
-                <p>Loading...</p>
+};
+return (
 
-            ) : (
+<div className="new-store-page">
 
-                <div className="table-wrapper">
 
-                    <table>
+{/* ======================================================
+    HEADER
+====================================================== */}
 
-                                               <thead>
+<div className="page-header">
 
-                            <tr>
 
-                                <th>Location</th>
+<h2>
 
-                                <th>City</th>
+New Store Openings
 
-                                <th>SB Area</th>
+</h2>
 
-                                <th>Carpet Area</th>
 
-                                <th>CAM</th>
 
-                                <th>MG</th>
+<button
 
-                                <th>Electricity (KVA)</th>
+className="add-btn"
 
-                                <th>Revenue Share</th>
+onClick={handleAdd}
 
-                                <th>Escalation</th>
+>
 
-                                <th>Expected Sale</th>
++ Add Entry
 
-                                <th>Possession Date (LOI)</th>
+</button>
 
-                                <th>Broker Name</th>
 
-                                <th>Operation Head Assigned</th>
 
-                                <th>ASM Assigned</th>
+</div>
 
-                                <th>Deal Days</th>
 
-                                <th>Approver Name</th>
 
-                                <th>Construction Vendor</th>
 
-                                <th>Project Taken By</th>
 
-                                <th>Actual Possession Date</th>
+{/* ======================================================
+    TOOLBAR
+====================================================== */}
 
-                                <th>Possession Date (Broker)</th>
 
-                                <th>Delay</th>
+<div className="toolbar">
 
-                                <th>Layout by NSO</th>
 
-                                <th>Revised Layout</th>
 
-                                <th>Approval Deadline</th>
+<input
 
-                                <th>Visit by Operation Team</th>
+type="text"
 
-                                <th>GST</th>
+placeholder="Search..."
 
-                                <th>HR Hiring</th>
+value={search}
 
-                                <th>Team Training</th>
+onChange={(e)=>{
 
-                                <th>Visit by NSO Team</th>
+    setSearch(e.target.value);
 
-                                <th>Stock Planning</th>
+    setPage(1);
 
-                                <th>Collaterals Planning</th>
+}}
 
-                                <th>Field Training</th>
+/>
 
-                                <th>Dispatch Stock</th>
 
-                                <th>NSO Handover</th>
 
-                                <th>VM Handover</th>
 
-                                <th>Scanning</th>
 
-                                <th>Billing Start</th>
+<button
 
-                                <th>Remarks</th>
+onClick={()=>{
 
-                                <th>Attachment</th>
+setSearch("");
 
-                                <th>Actions</th>
+setPage(1);
 
-                            </tr>
+}}
 
-                        </thead>
+>
 
-                        <tbody>
+Clear
 
-                            {data.length === 0 ? (
+</button>
 
-                                <tr>
 
-                                    <td colSpan="40">
 
-                                        No Records Found
 
-                                    </td>
 
-                                </tr>
 
-                            ) : (
 
-                                data.map((item) => (
-<tr key={item.id}>
+<input
 
-    <td>{item.location}</td>
+type="file"
 
-    <td>{item.city}</td>
+accept=".xlsx,.xls"
 
-    <td>{item.sb_area}</td>
+onChange={(e)=>
 
-    <td>{item.carpet_area}</td>
+setSelectedFile(
 
-    <td>{item.cam}</td>
+e.target.files[0]
 
-    <td>{item.mg}</td>
+)
 
-    <td>{item.electricity_kva}</td>
+}
 
-    <td>{item.revenue_share}</td>
+/>
 
-    <td>{item.escalation}</td>
 
-    <td>{item.expected_sale}</td>
 
-    <td>{item.possession_date_loi}</td>
 
-    <td>{item.broker_name}</td>
 
-    <td>{item.operation_head_assigned}</td>
 
-    <td>{item.asm_assigned}</td>
+<button
 
-    <td>{item.deal_days}</td>
+className="import-btn"
 
-    <td>{item.approver_name}</td>
+onClick={handleImport}
 
-    <td>{item.construction_vendor}</td>
+>
 
-    <td>{item.project_taken_by}</td>
+Import Excel
 
-    <td>{item.actual_possession_date || "-"}</td>
+</button>
 
-    <td>{item.possession_date_broker || "-"}</td>
 
-    <td>{item.delay_loi_vs_broker || "-"}</td>
 
-    <td>{item.layout_by_nso || "-"}</td>
 
-    <td>{item.revised_layout_by_nso || "-"}</td>
 
-    <td>{item.approval_deadline || "-"}</td>
 
-    <td>{item.visit_by_op_team || "-"}</td>
 
-    <td>{item.gst_deadline || "-"}</td>
+<button
 
-    <td>{item.hr_hiring_deadline || "-"}</td>
+className="export-btn"
 
-    <td>{item.team_training_deadline || "-"}</td>
+onClick={handleExport}
 
-    <td>{item.visit_by_nso_team_deadline || "-"}</td>
+>
 
-    <td>{item.plan_of_stock_deadline || "-"}</td>
+Export CSV
 
-    <td>{item.plan_of_collaterals_deadline || "-"}</td>
+</button>
 
-    <td>{item.on_field_training_deadline || "-"}</td>
 
-    <td>{item.dispatch_stock_deadline || "-"}</td>
 
-    <td>{item.nso_handover_deadline || "-"}</td>
 
-    <td>{item.vm_handover_deadline || "-"}</td>
 
-    <td>{item.scanning_deadline || "-"}</td>
 
-    <td>{item.billing_start_date || "-"}</td>
 
-    <td>{item.remarks || "-"}</td>
+<button
 
-    <td>
+className="delete-all-btn"
 
-        {item.attachment ? (
+onClick={handleDeleteAll}
 
-            <a
-                href={item.attachment}
-                target="_blank"
-                rel="noreferrer"
-            >
-                View
-            </a>
+>
 
-        ) : (
+Delete All
 
-            "-"
+</button>
 
-        )}
 
-    </td>
 
-    <td className="action-buttons">
 
-        <button
-            className="edit-btn"
-            onClick={() => {
 
-                setEditData(item);
+</div>
 
-                setShowModal(true);
 
-            }}
-        >
-            Edit
-        </button>
 
-        <button
-            className="delete-btn"
-            onClick={() => handleDelete(item.id)}
-        >
-            Delete
-        </button>
 
-    </td>
+
+
+
+
+
+
+{/* ======================================================
+    TABLE
+====================================================== */}
+
+
+
+{
+
+loading ? (
+
+
+<h3>
+
+Loading...
+
+</h3>
+
+
+
+)
+
+:
+
+(
+
+
+<div className="table-wrapper">
+
+
+
+<table>
+
+
+
+<thead>
+
+
+<tr>
+
+
+<th>
+Location
+</th>
+
+
+<th>
+City
+</th>
+
+
+<th>
+SB Area
+</th>
+
+
+<th>
+Carpet Area
+</th>
+
+
+<th>
+CAM
+</th>
+
+
+<th>
+MG
+</th>
+
+
+<th>
+Electricity KVA
+</th>
+
+
+<th>
+Revenue Share
+</th>
+
+
+<th>
+Escalation
+</th>
+
+
+<th>
+Expected Sale
+</th>
+
+
+<th>
+Broker Name
+</th>
+
+
+<th>
+Operation Head
+</th>
+
+
+<th>
+ASM
+</th>
+
+
+<th>
+Deal Days
+</th>
+
+
+<th>
+Actual Possession
+</th>
+
+
+<th>
+Remarks
+</th>
+
+
+<th>
+Attachment
+</th>
+
+
+<th>
+Actions
+</th>
+
 
 </tr>
 
-                                ))
 
-                            )}
+</thead>
 
-                        </tbody>
 
-                    </table>
 
-                </div>
 
-            )}
-            <div className="pagination">
 
-                <button
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
-                >
-                    Previous
-                </button>
 
-                <span>
-                    Page {page} of {totalPages}
-                </span>
+<tbody>
 
-                <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage(page + 1)}
-                >
-                    Next
-                </button>
 
-                <select
-                    value={limit}
-                    onChange={(e) => {
 
-                        setLimit(Number(e.target.value));
-                        setPage(1);
+{
 
-                    }}
-                >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </select>
+data.length===0 ?
 
-                <span>
 
-                    Total Records : {total}
 
-                </span>
+(
 
-            </div>
 
-            <AddNewStoreOpeningModal
+<tr>
 
-                isOpen={showModal}
 
-                onClose={() => {
+<td colSpan="18">
 
-                    setShowModal(false);
 
-                    setEditData(null);
+No Records Found
 
-                }}
 
-                onSuccess={() => {
+</td>
 
-                    setShowModal(false);
 
-                    setEditData(null);
+</tr>
 
-                    loadData();
 
-                }}
+)
 
-                editData={editData}
 
-            />
 
-        </div>
+:
 
-    );
+
+
+data.map((item)=>(
+
+
+<tr key={item.id}>
+
+
+<td>
+{item.location}
+</td>
+
+
+
+<td>
+{item.city}
+</td>
+
+
+
+<td>
+{item.sb_area}
+</td>
+
+
+
+<td>
+{item.carpet_area}
+</td>
+
+
+
+<td>
+{item.cam}
+</td>
+
+
+
+<td>
+{item.mg}
+</td>
+
+
+
+<td>
+{item.electricity_kva}
+</td>
+
+
+
+<td>
+{item.revenue_share}
+</td>
+
+
+
+<td>
+{item.escalation}
+</td>
+
+
+
+<td>
+{item.expected_sale}
+</td>
+
+
+
+<td>
+{item.broker_name}
+</td>
+
+
+
+<td>
+{item.operation_head_assigned}
+</td>
+
+
+
+<td>
+{item.asm_assigned}
+</td>
+
+
+
+<td>
+{item.deal_days}
+</td>
+
+
+
+<td>
+
+{
+item.actual_possession_date || "-"
+}
+
+</td>
+
+
+
+<td>
+
+{
+item.remarks || "-"
+}
+
+</td>
+
+
+
+
+<td>
+
+
+{
+
+item.attachment ?
+
+
+(
+
+<a
+
+href={item.attachment}
+
+target="_blank"
+
+rel="noreferrer"
+
+>
+
+View
+
+</a>
+
+
+)
+
+
+:
+
+("-")
+
 
 }
+
+
+</td>
+
+
+
+
+
+
+<td className="action-buttons">
+
+
+
+<button
+
+className="edit-btn"
+
+onClick={()=>handleEdit(item)}
+
+>
+
+Edit
+
+</button>
+
+
+
+
+
+
+<button
+
+className="delete-btn"
+
+onClick={()=>handleDelete(item.id)}
+
+>
+
+Delete
+
+</button>
+
+
+
+
+
+</td>
+
+
+
+
+</tr>
+
+
+
+))
+
+
+}
+
+
+
+</tbody>
+
+
+
+</table>
+
+
+
+</div>
+
+
+
+)
+
+
+
+}
+// ======================================================
+// PAGINATION
+// ======================================================
+
+
+<div className="pagination">
+
+
+
+<button
+
+disabled={page === 1}
+
+onClick={()=>setPage(page-1)}
+
+>
+
+Previous
+
+</button>
+
+
+
+
+
+<span>
+
+Page {page} of {totalPages}
+
+</span>
+
+
+
+
+
+<button
+
+disabled={page === totalPages}
+
+onClick={()=>setPage(page+1)}
+
+>
+
+Next
+
+</button>
+
+
+
+
+
+
+<select
+
+value={limit}
+
+onChange={(e)=>{
+
+setLimit(
+
+Number(e.target.value)
+
+);
+
+setPage(1);
+
+
+}}
+
+>
+
+
+<option value={10}>
+
+10
+
+</option>
+
+
+
+<option value={25}>
+
+25
+
+</option>
+
+
+
+<option value={50}>
+
+50
+
+</option>
+
+
+
+<option value={100}>
+
+100
+
+</option>
+
+
+
+</select>
+
+
+
+
+
+
+
+<span>
+
+Total Records : {total}
+
+</span>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+{/* ======================================================
+    ADD / EDIT MODAL
+====================================================== */}
+
+
+<AddNewStoreOpeningModal
+
+
+    isOpen={showAddModal}
+
+
+    editData={selectedData}
+
+
+    onClose={()=>{
+
+
+        setShowAddModal(false);
+
+
+        setSelectedData(null);
+
+
+    }}
+
+
+
+    onSuccess={handleSuccess}
+
+
+/>
+
+
+
+</div>
+
+);
+
+}
+
+
 
 export default NewStoreOpenings;

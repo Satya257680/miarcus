@@ -2,16 +2,36 @@ const express = require("express");
 
 const router = express.Router();
 
-// ================= UPLOAD =================
 
-const upload = require("../middleware/upload");
+// ======================================================
+// UPLOAD MIDDLEWARE
+// ======================================================
 
-// ================= MIDDLEWARE =================
+const upload = require(
+    "../middleware/upload"
+);
 
-const authMiddleware = require("../middleware/authMiddleware");
-const permissionMiddleware = require("../middleware/permissionMiddleware");
 
-// ================= CONTROLLER =================
+
+// ======================================================
+// AUTH + PERMISSION
+// ======================================================
+
+const authMiddleware = require(
+    "../middleware/authMiddleware"
+);
+
+
+const permissionMiddleware = require(
+    "../middleware/permissionMiddleware"
+);
+
+
+
+
+// ======================================================
+// CONTROLLER
+// ======================================================
 
 const {
 
@@ -27,17 +47,32 @@ const {
 
     takeAction
 
-} = require("../controllers/actionPointController");
+
+} = require(
+    "../controllers/actionPointController"
+);
+
+
+
+
 
 // ======================================================
-// ACTION POINT ROUTES
-// Base URL:
+// BASE URL
 // /api/action-points
 // ======================================================
 
+
+
+
+
+
+
 // ======================================================
 // GET ALL ACTION POINTS
+// GET /api/action-points
+// Permission: View
 // ======================================================
+
 
 router.get(
 
@@ -45,15 +80,32 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "View"),
+    permissionMiddleware(
+
+        "Action Points",
+
+        "View"
+
+    ),
 
     getAllActionPoints
 
 );
 
+
+
+
+
+
+
+
 // ======================================================
-// EXPORT CSV
+// EXPORT ACTION POINT CSV
+// GET /api/action-points/export
+// Permission: View
+// IMPORTANT: BEFORE /:id
 // ======================================================
+
 
 router.get(
 
@@ -61,15 +113,32 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "View"),
+    permissionMiddleware(
+
+        "Action Points",
+
+        "View"
+
+    ),
 
     exportActionPointsCSV
 
 );
 
+
+
+
+
+
+
+
+
 // ======================================================
 // CREATE ACTION POINT
+// POST /api/action-points
+// Permission: Add
 // ======================================================
+
 
 router.post(
 
@@ -77,17 +146,38 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "Add"),
+    permissionMiddleware(
 
-    upload.single("attachment"),
+        "Action Points",
+
+        "Add"
+
+    ),
+
+    upload.single(
+
+        "attachment"
+
+    ),
 
     createActionPoint
 
 );
 
+
+
+
+
+
+
+
+
 // ======================================================
 // UPDATE ACTION POINT
+// PUT /api/action-points/:id
+// Permission: Edit
 // ======================================================
+
 
 router.put(
 
@@ -95,17 +185,38 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "Edit"),
+    permissionMiddleware(
 
-    upload.single("attachment"),
+        "Action Points",
+
+        "Edit"
+
+    ),
+
+    upload.single(
+
+        "attachment"
+
+    ),
 
     updateActionPoint
 
 );
 
+
+
+
+
+
+
+
+
 // ======================================================
 // TAKE ACTION
+// PUT /api/action-points/:id/take-action
+// Permission: Edit
 // ======================================================
+
 
 router.put(
 
@@ -113,15 +224,32 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "Edit"),
+    permissionMiddleware(
+
+        "Action Points",
+
+        "Edit"
+
+    ),
 
     takeAction
 
 );
 
+
+
+
+
+
+
+
+
 // ======================================================
 // DELETE ACTION POINT
+// DELETE /api/action-points/:id
+// Permission: Full
 // ======================================================
+
 
 router.delete(
 
@@ -129,10 +257,29 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware("Action Points", "Full"),
+    permissionMiddleware(
+
+        "Action Points",
+
+        "Full"
+
+    ),
 
     deleteActionPoint
 
 );
+
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
+
 
 module.exports = router;

@@ -1,671 +1,1140 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+    useEffect,
+    useState
+} from "react";
+
 
 import {
-  getRules,
-  deleteRule,
-  deleteAllRules,
-  bulkUploadRules,
-  exportRules,
+
+    getRules,
+
+    deleteRule,
+
+    deleteAllRules,
+
+    bulkUploadRules,
+
+    exportRules
+
 } from "../services/nsoRuleService";
 
+
 import AddRuleModal from "../components/AddRuleModal";
+
 import BulkUploadModal from "../components/BulkUploadModal";
 
+
 import "../styles/NSORules.css";
-function NSORules() {
 
-  // ==========================================
-  // States
-  // ==========================================
 
- const [rules, setRules] = useState([]);
 
-const [loading, setLoading] = useState(true);
+function NSORules(){
 
-const [search, setSearch] = useState("");
 
-const [showModal, setShowModal] = useState(false);
+// ==========================================
+// STATES
+// ==========================================
 
-const [editData, setEditData] = useState(null);
 
-const [currentPage, setCurrentPage] = useState(1);
+const [rules,setRules] = useState([]);
 
-const [totalPages, setTotalPages] = useState(1);
 
-const [totalRecords, setTotalRecords] = useState(0);
+const [loading,setLoading] = useState(true);
 
-const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+
+const [search,setSearch] = useState("");
+
+
+
+const [currentPage,setCurrentPage] = useState(1);
+
+
+
+const [totalPages,setTotalPages] = useState(1);
+
+
+
+const [totalRecords,setTotalRecords] = useState(0);
+
+
+
+const [showModal,setShowModal] = useState(false);
+
+
+
+const [editData,setEditData] = useState(null);
+
+
+
+const [showBulkUpload,setShowBulkUpload] = useState(false);
+
+
 
 const rowsPerPage = 10;
 
 
- // ==========================================
-// User & Permissions
+
+// ==========================================
+// USER + RBAC
 // ==========================================
 
+
 const user = JSON.parse(
-  localStorage.getItem("user") || "{}"
+
+    localStorage.getItem("user") || "{}"
+
 );
+
+
 
 const permissions = JSON.parse(
-  localStorage.getItem("permissions") || "{}"
+
+    localStorage.getItem("permissions") || "{}"
+
 );
 
+
+
 const isAdmin =
-  user.administrator === true ||
-  user.administrator === 1;
+
+user.administrator === true ||
+
+user.administrator === 1;
+
+
 
 const permission =
-  permissions["NSO Rules"] || "None";
+
+permissions["NSO Rules"] || "None";
+
+
 
 const canView =
-  isAdmin ||
-  ["View", "Add", "Edit", "Full"].includes(permission);
+
+isAdmin ||
+
+[
+
+"View",
+
+"Add",
+
+"Edit",
+
+"Full"
+
+].includes(permission);
+
+
 
 const canAdd =
-  isAdmin ||
-  ["Add", "Edit", "Full"].includes(permission);
+
+isAdmin ||
+
+[
+
+"Add",
+
+"Edit",
+
+"Full"
+
+].includes(permission);
+
+
 
 const canEdit =
-  isAdmin ||
-  ["Edit", "Full"].includes(permission);
+
+isAdmin ||
+
+[
+
+"Edit",
+
+"Full"
+
+].includes(permission);
+
+
 
 const canDelete =
-  isAdmin ||
-  permission === "Full";
 
-  // ==========================================
-  // Load Rules
-  // ==========================================
+isAdmin ||
 
-  const loadRules = async (
+permission === "Full";
+
+
+// ==========================================
+// LOAD NSO RULES
+// SEARCH + PAGINATION
+// ==========================================
+
+const loadRules = async (
 
     page = currentPage,
 
     keyword = search
 
-  ) => {
+) => {
+
 
     try {
 
-      setLoading(true);
 
-      const res = await getRules(
+        setLoading(true);
 
-        keyword,
 
-        page,
 
-        rowsPerPage
+        const res = await getRules(
 
-      );
+            keyword,
 
-      setRules(res.data || []);
+            page,
 
-      setTotalRecords(res.count || 0);
+            rowsPerPage
 
-      setTotalPages(
+        );
 
-        Math.max(
 
-          1,
 
-          Math.ceil(
+        setRules(
 
-            (res.count || 0) / rowsPerPage
+            res.data || []
 
-          )
+        );
 
-        )
 
-      );
 
-    } catch (err) {
+        setTotalRecords(
 
-      console.error(err);
+            res.pagination?.total || 0
 
-      alert("Failed to load NSO Rules.");
+        );
 
-    } finally {
 
-      setLoading(false);
+
+        setTotalPages(
+
+            res.pagination?.totalPages || 1
+
+        );
+
+
 
     }
 
-  };
+    catch(err){
 
-  // ==========================================
-  // Load Data
-  // ==========================================
 
-  useEffect(() => {
+        console.error(err);
+
+
+        alert(
+
+            "Failed to load NSO Rules."
+
+        );
+
+
+    }
+
+    finally{
+
+
+        setLoading(false);
+
+
+    }
+
+
+};
+
+
+
+
+// ==========================================
+// INITIAL LOAD
+// ==========================================
+
+
+useEffect(()=>{
+
 
     loadRules(
 
-      currentPage,
+        currentPage,
 
-      search
+        search
 
     );
 
-  }, [
+
+},[
 
     currentPage,
 
     search
 
-  ]);
+]);
 
-  // ==========================================
-  // Open Add Modal
-  // ==========================================
 
-      const handleAdd = () => {
 
-  if (!canAdd) return;
 
-  setEditData(null);
+// ==========================================
+// ADD RULE
+// ==========================================
 
-  setShowModal(true);
 
-};
+const handleAdd = ()=>{
 
-  // ==========================================
-  // Open Edit Modal
-  // ==========================================
 
- const handleEdit = (rule) => {
+    if(!canAdd) return;
 
-  if (!canEdit) return;
 
-  setEditData(rule);
 
-  setShowModal(true);
+    setEditData(null);
+
+
+
+    setShowModal(true);
+
 
 };
 
-  // ==========================================
-  // Delete Rule
-  // ==========================================
 
-  const handleDelete = async (id) => {
+
+
+// ==========================================
+// EDIT RULE
+// ==========================================
+
+
+const handleEdit = (rule)=>{
+
+
+    if(!canEdit) return;
+
+
+
+    setEditData(rule);
+
+
+
+    setShowModal(true);
+
+
+};
+
+
+
+
+// ==========================================
+// DELETE SINGLE RULE
+// ==========================================
+
+
+const handleDelete = async(id)=>{
+
 
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this rule?"
+
+        "Are you sure you want to delete this rule?"
+
     );
 
-    if (!confirmDelete) return;
 
-    try {
 
-      await deleteRule(id);
+    if(!confirmDelete) return;
 
-      alert("Rule deleted successfully.");
 
-      loadRules();
 
-    } catch (err) {
+    try{
 
-      console.error(err);
 
-      alert(
+        await deleteRule(id);
 
-        err.response?.data?.message ||
 
-        "Failed to delete rule."
 
-      );
+        alert(
+
+            "Rule deleted successfully."
+
+        );
+
+
+
+        loadRules();
+
+
 
     }
 
-  };
-  
+    catch(err){
+
+
+        console.error(err);
+
+
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Failed to delete rule."
+
+        );
+
+
+    }
+
+
+};
+
+
+
+
 // ==========================================
-// Delete All Rules
+// DELETE ALL RULES
 // ==========================================
 
-const handleDeleteAll = async () => {
 
-  const confirmDelete = window.confirm(
-    "Are you sure you want to delete ALL NSO Rules?"
-  );
+const handleDeleteAll = async()=>{
 
-  if (!confirmDelete) return;
 
-  try {
+    if(!canDelete){
 
-    await deleteAllRules();
 
-    alert("All rules deleted successfully.");
+        alert(
+
+            "No permission."
+
+        );
+
+
+        return;
+
+
+    }
+
+
+
+    const confirmDelete = window.confirm(
+
+        "Are you sure you want to delete ALL NSO Rules?"
+
+    );
+
+
+
+    if(!confirmDelete) return;
+
+
+
+    try{
+
+
+        await deleteAllRules();
+
+
+
+        alert(
+
+            "All NSO Rules deleted successfully."
+
+        );
+
+
+
+        setCurrentPage(1);
+
+
+
+        loadRules(
+
+            1,
+
+            ""
+
+        );
+
+
+    }
+
+    catch(err){
+
+
+        console.error(err);
+
+
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Failed to delete all rules."
+
+        );
+
+
+    }
+
+
+};
+
+
+
+
+// ==========================================
+// EXPORT RULES
+// ==========================================
+
+
+const handleExport = async()=>{
+
+
+    try{
+
+
+        const response = await exportRules();
+
+
+
+        const url = window.URL.createObjectURL(
+
+            new Blob([response.data])
+
+        );
+
+
+
+        const link = document.createElement("a");
+
+
+
+        link.href = url;
+
+
+
+        link.setAttribute(
+
+            "download",
+
+            "NSO_Rules.csv"
+
+        );
+
+
+
+        document.body.appendChild(link);
+
+
+
+        link.click();
+
+
+
+        link.remove();
+
+
+
+    }
+
+    catch(err){
+
+
+        console.error(err);
+
+
+
+        alert(
+
+            "Failed to export rules."
+
+        );
+
+
+    }
+
+
+};
+
+
+
+
+// ==========================================
+// CLEAR SEARCH
+// ==========================================
+
+
+const handleClearFilters = ()=>{
+
+
+    setSearch("");
 
     setCurrentPage(1);
 
-    loadRules(1, "");
 
-  } catch (err) {
 
-    console.error(err);
+    loadRules(
 
-    alert(
+        1,
 
-      err.response?.data?.message ||
-
-      "Failed to delete all rules."
+        ""
 
     );
 
-  }
 
 };
-  // ==========================================
-// Export Rules
+// ==========================================
+// RETURN JSX
 // ==========================================
 
-const handleExport = async () => {
+return (
 
-  try {
+<div className="nso-rules-page">
 
-    const response = await exportRules();
 
-    const url = window.URL.createObjectURL(
-      new Blob([response.data])
-    );
+{/* ==========================================
+    HEADER
+========================================== */}
 
-    const link = document.createElement("a");
+<div className="page-header">
 
-    link.href = url;
 
-    link.setAttribute(
-      "download",
-      "NSO_Rules.csv"
-    );
+<h2>
 
-    document.body.appendChild(link);
+NSO Rules
 
-    link.click();
+</h2>
 
-    link.remove();
 
-  } catch (err) {
 
-    console.error(err);
+<div className="header-actions">
 
-    alert("Failed to export rules.");
 
-  }
 
-};
-
-// ==========================================
-// Clear Filters
-// ==========================================
-
-const handleClearFilters = () => {
-
-  setSearch("");
-
-  setCurrentPage(1);
-
-  loadRules(1, "");
-
-};
-  // ==========================================
-  // No Permission
-  // ==========================================
-
-  if (!canView) {
-
-    return (
-
-      <div className="page-container">
-
-        <h2>NSO Rules</h2>
-
-        <p>You don't have permission to view this page.</p>
-
-      </div>
-
-    );
-
-  }
-
-  // ==========================================
-  // JSX
-  // ==========================================
-
-    return (
-
-    <div className="page-container">
-
-      {/* ================= Header ================= */}
-
-      <div className="page-header">
-
-  <h2>NSO Rules</h2>
-
-  <div className="header-buttons">
-
-    <button
-      className="clear-btn"
-      onClick={handleClearFilters}
-    >
-      Clear Filters
-    </button>
-
-    {canAdd && (
-
-      <button
-        className="add-btn"
-        onClick={handleAdd}
-      >
-        + Add Rule
-      </button>
-
-    )}
-    {canDelete && (
-
-  <button
-    className="delete-all-btn"
-    onClick={handleDeleteAll}
-  >
-    Delete All
-  </button>
-
-)}
 {canAdd && (
-  <>
-    <button
-      className="bulk-upload-btn"
-      onClick={() => setShowBulkUpload(true)}
-    >
-      Bulk Upload
-    </button>
 
-    <BulkUploadModal
-      isOpen={showBulkUpload}
-      onClose={() => setShowBulkUpload(false)}
-      onSuccess={() => {
-        loadRules(); // Replace with your actual function if it's named differently
-        setShowBulkUpload(false);
-      }}
-      uploadFunction={bulkUploadRules}
-      title="Bulk Upload NSO Rules"
-    />
-  </>
+<button
+
+className="add-btn"
+
+onClick={handleAdd}
+
+>
+
++ Add Rule
+
+</button>
+
 )}
-    <button
-      className="export-btn"
-      onClick={handleExport}
-    >
-      Export
-    </button>
 
-  </div>
+
+
+
+{canAdd && (
+
+<button
+
+className="bulk-btn"
+
+onClick={()=>setShowBulkUpload(true)}
+
+>
+
+Bulk Upload
+
+</button>
+
+)}
+
+
+
+
+{canView && (
+
+<button
+
+className="export-btn"
+
+onClick={handleExport}
+
+>
+
+Export
+
+</button>
+
+)}
+
+
+
+
+{canDelete && (
+
+<button
+
+className="delete-all-btn"
+
+onClick={handleDeleteAll}
+
+>
+
+Delete All
+
+</button>
+
+)}
+
+
 
 </div>
-      {/* ================= Search ================= */}
 
-     <div className="search-container">
-
-  <input
-
-    type="text"
-
-    placeholder="Search..."
-
-    value={search}
-
-    onChange={(e) => {
-
-      setSearch(e.target.value);
-
-      setCurrentPage(1);
-
-    }}
-
-  />
 
 </div>
-      {/* ================= Table ================= */}
 
-      <div className="table-container">
 
-        <table>
 
-          <thead>
 
-            <tr>
 
-              <th>#</th>
+{/* ==========================================
+    SEARCH
+========================================== */}
 
-              <th>Trigger Column</th>
 
-              <th>Departments</th>
+<div className="filter-section">
 
-              {(canEdit || canDelete) && (
 
-  <th>Actions</th>
+
+<input
+
+type="text"
+
+placeholder="Search trigger column or department..."
+
+value={search}
+
+onChange={(e)=>{
+
+
+setSearch(e.target.value);
+
+
+setCurrentPage(1);
+
+
+}}
+
+className="search-input"
+
+/>
+
+
+
+
+<button
+
+className="clear-btn"
+
+onClick={handleClearFilters}
+
+>
+
+Clear
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+{/* ==========================================
+    TABLE
+========================================== */}
+
+
+
+<div className="table-container">
+
+
+{loading ? (
+
+
+<div className="loading">
+
+Loading...
+
+</div>
+
+
+) : (
+
+
+
+<table>
+
+
+
+<thead>
+
+
+<tr>
+
+
+<th>
+
+ID
+
+</th>
+
+
+<th>
+
+Trigger Column
+
+</th>
+
+
+<th>
+
+Departments
+
+</th>
+
+
+<th>
+
+Actions
+
+</th>
+
+
+</tr>
+
+
+</thead>
+
+
+
+
+
+<tbody>
+
+
+{rules.length > 0 ? (
+
+
+rules.map((rule)=>(
+
+
+
+<tr
+
+key={rule.id}
+
+>
+
+
+<td>
+
+{rule.id}
+
+</td>
+
+
+
+<td>
+
+{rule.trigger_column}
+
+</td>
+
+
+
+<td>
+
+{rule.departments || "-"}
+
+</td>
+
+
+
+
+
+<td>
+
+
+<div className="action-buttons">
+
+
+
+{canEdit && (
+
+<button
+
+className="edit-btn"
+
+onClick={()=>handleEdit(rule)}
+
+>
+
+Edit
+
+</button>
 
 )}
-            </tr>
 
-          </thead>
 
-          <tbody>
 
-            {loading ? (
 
-              <tr>
 
-                <td colSpan="4">
+{canDelete && (
 
-                  Loading...
+<button
 
-                </td>
+className="delete-btn"
 
-              </tr>
+onClick={()=>handleDelete(rule.id)}
 
-            ) : rules.length === 0 ? (
+>
 
-              <tr>
+Delete
 
-                <td colSpan="4">
-
-                  No Rules Found
-
-                </td>
-
-              </tr>
-
-            ) : (
-
-              rules.map((rule, index) => (
-
-                <tr key={rule.id}>
-
-                  <td>
-
-                    {(currentPage - 1) * rowsPerPage + index + 1}
-
-                  </td>
-
-                  <td>
-
-                    {rule.trigger_column}
-
-                  </td>
-
-                  <td>
-
-                    {rule.departments}
-
-                  </td>
-
-                  {(canEdit || canDelete) && (
-
-  <td>
-
-    <div className="action-buttons">
-
-      {canEdit && (
-
-        <button
-
-          className="edit-btn"
-
-          onClick={() => handleEdit(rule)}
-
-        >
-
-          Edit
-
-        </button>
-
-      )}
-
-      {canDelete && (
-
-        <button
-
-          className="delete-btn"
-
-          onClick={() => handleDelete(rule.id)}
-
-        >
-
-          Delete
-
-        </button>
-
-      )}
-
-    </div>
-
-  </td>
+</button>
 
 )}
-                </tr>
 
-              ))
 
-            )}
 
-          </tbody>
+</div>
 
-        </table>
 
-      </div>
+</td>
 
-      {/* ================= Modal ================= */}
 
-      <AddRuleModal
 
-        isOpen={showModal}
+</tr>
 
-        onClose={() => {
 
-          setShowModal(false);
 
-          setEditData(null);
+))
 
-        }}
 
-        onSuccess={() => {
+) : (
 
-          loadRules();
 
-          setShowModal(false);
+<tr>
 
-          setEditData(null);
 
-        }}
+<td
 
-        editData={editData}
+colSpan="4"
 
-      />
+className="no-data"
 
-         {/* ================= Pagination ================= */}
+>
 
-      {!loading && totalPages > 1 && (
+No NSO Rules Found
 
-        <div className="pagination">
+</td>
 
-          <button
 
-            disabled={currentPage === 1}
+</tr>
 
-            onClick={() =>
 
-              setCurrentPage(currentPage - 1)
+)}
 
-            }
 
-          >
 
-            Previous
+</tbody>
 
-          </button>
 
-          {Array.from(
+</table>
 
-            { length: totalPages },
 
-            (_, i) => (
 
-              <button
+)}
 
-                key={i + 1}
 
-                className={
 
-                  currentPage === i + 1
+</div>
 
-                    ? "active-page"
 
-                    : ""
 
-                }
 
-                onClick={() =>
 
-                  setCurrentPage(i + 1)
+{/* ==========================================
+    PAGINATION
+========================================== */}
 
-                }
 
-              >
 
-                {i + 1}
+<div className="pagination">
 
-              </button>
 
-            )
 
-          )}
+<button
 
-          <button
+disabled={currentPage === 1}
 
-            disabled={currentPage === totalPages}
+onClick={()=>setCurrentPage(
 
-            onClick={() =>
+prev=>prev-1
 
-              setCurrentPage(currentPage + 1)
+)}
 
-            }
+>
 
-          >
+Previous
 
-            Next
+</button>
 
-          </button>
 
-        </div>
 
-      )}
 
-    </div>
 
-  );
+<span>
+
+
+Page {currentPage} of {totalPages}
+
+
+</span>
+
+
+
+
+
+<button
+
+disabled={currentPage === totalPages}
+
+onClick={()=>setCurrentPage(
+
+prev=>prev+1
+
+)}
+
+>
+
+Next
+
+</button>
+
+
+
+</div>
+// ==========================================
+// ADD / EDIT RULE MODAL
+// ==========================================
+
+
+<AddRuleModal
+
+
+isOpen={showModal}
+
+
+
+editData={editData}
+
+
+
+onClose={()=>{
+
+
+    setShowModal(false);
+
+
+    setEditData(null);
+
+
+}}
+
+
+
+onSuccess={()=>{
+
+
+    setShowModal(false);
+
+
+    setEditData(null);
+
+
+    loadRules();
+
+
+}}
+
+
+/>
+
+
+
+
+
+{/* ==========================================
+    BULK UPLOAD MODAL
+========================================== */}
+
+
+
+<BulkUploadModal
+
+
+
+isOpen={showBulkUpload}
+
+
+
+onClose={()=>{
+
+
+    setShowBulkUpload(false);
+
+
+}}
+
+
+
+uploadFunction={bulkUploadRules}
+
+
+
+title="Bulk Upload NSO Rules"
+
+
+
+onSuccess={()=>{
+
+
+    setShowBulkUpload(false);
+
+
+    loadRules();
+
+
+}}
+
+
+/>
+
+
+
+</div>
+
+);
 
 }
+
+
+
+
 
 export default NSORules;

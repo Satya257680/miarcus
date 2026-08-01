@@ -1,4 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, {
+
+    useEffect,
+
+    useState
+
+} from "react";
+
 
 import {
 
@@ -8,527 +15,1563 @@ import {
 
 } from "../services/newStoreOpeningService";
 
+
 import "../styles/AddNewStoreOpeningModal.css";
+
+
+
 
 // ======================================================
 // INITIAL FORM STATE
 // ======================================================
 
+
 const initialState = {
 
-    location: "",
 
-    city: "",
+    // BASIC DETAILS
 
-    sb_area: "",
+    location:"",
 
-    carpet_area: "",
+    city:"",
 
-    cam: "",
 
-    mg: "",
+    // AREA DETAILS
 
-    electricity_kva: "",
+    sb_area:"",
 
-    revenue_share: "",
+    carpet_area:"",
 
-    escalation: "",
 
-    expected_sale: "",
 
-    possession_date_loi: "",
+    // FINANCIAL DETAILS
 
-    broker_name: "",
+    cam:"",
 
-    operation_head_assigned: "",
+    mg:"",
 
-    asm_assigned: "",
+    electricity_kva:"",
 
-    deal_days: "",
+    revenue_share:"",
 
-    approver_name: "",
+    escalation:"",
 
-    construction_vendor: "",
+    expected_sale:"",
 
-    project_taken_by: ""
+
+
+    // POSSESSION DETAILS
+
+    possession_date_loi:"",
+
+    possession_date_broker:"",
+
+    actual_possession_date:"",
+
+
+
+    // PEOPLE DETAILS
+
+    broker_name:"",
+
+    operation_head_assigned:"",
+
+    asm_assigned:"",
+
+
+
+    // DEAL DETAILS
+
+    deal_days:"",
+
+
+
+    // APPROVAL DETAILS
+
+    approver_name:"",
+
+    construction_vendor:"",
+
+    project_taken_by:"",
+
+
+
+    // DEADLINES
+
+    visit_by_op_team:"",
+
+    gst_deadline:"",
+
+    hr_hiring_deadline:"",
+
+    team_training_deadline:"",
+
+    visit_by_nso_team_deadline:"",
+
+    plan_of_stock_deadline:"",
+
+    plan_of_collaterals_deadline:"",
+
+    on_field_training_deadline:"",
+
+    dispatch_stock_deadline:"",
+
+    nso_handover_deadline:"",
+
+    vm_handover_deadline:"",
+
+    scanning_deadline:"",
+
+    billing_start_date:"",
+
+
+
+    // OTHER
+
+    remarks:"",
+
+    attachment:""
+
 
 };
 
+
+
+
+
+
 function AddNewStoreOpeningModal({
+
 
     isOpen,
 
+
     onClose,
+
 
     onSuccess,
 
+
     editData
+
 
 }) {
 
-    const [form, setForm] = useState(initialState);
 
-    const [loading, setLoading] = useState(false);
 
     // ======================================================
-    // LOAD EDIT DATA
+    // STATES
     // ======================================================
 
-    useEffect(() => {
 
-        if (editData) {
+    const [form,setForm] = useState(
 
-            setForm({
+        initialState
 
-                ...initialState,
+    );
 
-                ...editData
 
-            });
+
+    const [loading,setLoading] = useState(false);
+
+
+
+    const [file,setFile] = useState(null);
+
+    // ======================================================
+// LOAD EDIT DATA
+// ======================================================
+
+useEffect(()=>{
+
+
+    if(editData){
+
+
+        setForm({
+
+            ...initialState,
+
+            ...editData
+
+        });
+
+
+    }
+
+    else{
+
+
+        setForm(initialState);
+
+
+        setFile(null);
+
+
+    }
+
+
+},[editData,isOpen]);
+
+
+
+
+
+
+
+
+// ======================================================
+// HANDLE INPUT CHANGE
+// ======================================================
+
+const handleChange = (e)=>{
+
+
+    const {
+
+        name,
+
+        value
+
+    } = e.target;
+
+
+
+    setForm((prev)=>({
+
+
+        ...prev,
+
+
+        [name]:value
+
+
+    }));
+
+
+
+};
+
+
+
+
+
+
+
+// ======================================================
+// HANDLE FILE CHANGE
+// ======================================================
+
+const handleFileChange = (e)=>{
+
+
+    const selectedFile =
+
+    e.target.files[0];
+
+
+
+    setFile(selectedFile);
+
+
+};
+
+
+
+
+
+
+
+
+// ======================================================
+// VALIDATION
+// ======================================================
+
+const validateForm = ()=>{
+
+
+    if(!form.location){
+
+
+        alert(
+            "Location is required"
+        );
+
+
+        return false;
+
+
+    }
+
+
+
+
+    if(!form.city){
+
+
+        alert(
+            "City is required"
+        );
+
+
+        return false;
+
+
+    }
+
+
+
+
+    if(!form.broker_name){
+
+
+        alert(
+            "Broker Name is required"
+        );
+
+
+        return false;
+
+
+    }
+
+
+
+
+    return true;
+
+
+};
+
+
+
+
+
+
+
+
+// ======================================================
+// SUBMIT FORM
+// ======================================================
+
+const handleSubmit = async(e)=>{
+
+
+    e.preventDefault();
+
+
+
+
+    if(!validateForm())
+
+        return;
+
+
+
+
+
+    try{
+
+
+        setLoading(true);
+
+
+
+
+        const formData = new FormData();
+
+
+
+
+
+        Object.keys(form).forEach((key)=>{
+
+
+            formData.append(
+
+                key,
+
+                form[key] || ""
+
+            );
+
+
+        });
+
+
+
+
+
+
+
+        // FILE UPLOAD
+
+        if(file){
+
+
+            formData.append(
+
+                "attachment",
+
+                file
+
+            );
+
 
         }
 
-        else {
 
-            setForm(initialState);
 
-        }
 
-    }, [editData, isOpen]);
 
-    // ======================================================
-    // HANDLE INPUT CHANGE
-    // ======================================================
 
-    const handleChange = (e) => {
+        if(editData){
 
-        const {
 
-            name,
+            await updateNewStoreOpening(
 
-            value
 
-        } = e.target;
+                editData.id,
 
-        setForm((prev) => ({
 
-            ...prev,
+                formData
 
-            [name]: value
 
-        }));
+            );
 
-    };
 
-    // ======================================================
-    // SUBMIT
-    // ======================================================
+            alert(
 
-    const handleSubmit = async (e) => {
+                "New Store Opening Updated Successfully"
 
-        e.preventDefault();
+            );
 
-        try {
-
-            setLoading(true);
-
-            const data = new FormData();
-
-            Object.keys(form).forEach((key) => {
-
-                data.append(key, form[key]);
-
-            });
-
-            if (editData) {
-
-                await updateNewStoreOpening(
-
-                    editData.id,
-
-                    data
-
-                );
-
-            }
-
-            else {
-
-                await createNewStoreOpening(data);
-
-            }
-
-            onSuccess();
 
         }
 
-        catch (err) {
 
-            console.error(err);
+        else{
+
+
+            await createNewStoreOpening(
+
+                formData
+
+            );
+
+
+            alert(
+
+                "New Store Opening Created Successfully"
+
+            );
+
 
         }
 
-        finally {
 
-            setLoading(false);
 
-        }
 
-    };
 
-    if (!isOpen) return null;
 
+        setFile(null);
+
+
+
+        onSuccess();
+
+
+
+
+
+    }
+
+
+    catch(error){
+
+
+        console.error(
+
+            "SAVE ERROR:",
+
+            error
+
+        );
+
+
+
+        alert(
+
+            "Failed to save New Store Opening"
+
+        );
+
+
+    }
+
+
+    finally{
+
+
+        setLoading(false);
+
+
+    }
+
+
+
+};
+
+
+
+
+
+
+
+
+if(!isOpen)
+
+    return null;
     return (
 
-        <div className="nso-modal-overlay">
+<div className="nso-modal-overlay">
 
-            <div className="nso-modal">
 
-                <div className="nso-modal-header">
+<div className="nso-modal">
 
-                    <h2>Add New Store Entry</h2>
 
-                    <button
 
-                        className="close-btn"
+{/* ======================================================
+    HEADER
+====================================================== */}
 
-                        onClick={onClose}
 
-                    >
+<div className="nso-modal-header">
 
-                        ×
 
-                    </button>
+<h2>
 
-                </div>
+{
 
-                <form onSubmit={handleSubmit}>
+editData
 
-                    <div className="nso-grid">
-                        <div className="form-group">
+?
 
-    <label>Location</label>
+"Edit New Store Opening"
 
-    <input
-        type="text"
-        name="location"
-        value={form.location}
-        onChange={handleChange}
-        placeholder="Location"
-    />
+:
 
-    <small>
+"Add New Store Opening"
 
-        For names with spaces, use an underscore (_).
+}
 
-        <br />
+</h2>
 
-        Ex:
 
-        <strong>
 
-            GOMTI_NAGAR
 
-        </strong>
+<button
 
-    </small>
+className="close-btn"
+
+onClick={onClose}
+
+>
+
+×
+
+</button>
+
 
 </div>
+
+
+
+
+
+
+
+<form onSubmit={handleSubmit}>
+
+
+
+<div className="nso-grid">
+
+
+
+
+
+{/* ================= BASIC ================= */}
+
 
 <div className="form-group">
 
-    <label>City</label>
+<label>Location</label>
 
-    <input
-        type="text"
-        name="city"
-        value={form.city}
-        onChange={handleChange}
-        placeholder="City"
-    />
+<input
+
+type="text"
+
+name="location"
+
+value={form.location}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
 
 <div className="form-group">
 
-    <label>SB Area (sqft)</label>
+<label>City</label>
 
-    <input
-        type="number"
-        name="sb_area"
-        value={form.sb_area}
-        onChange={handleChange}
-        placeholder="SB Area (sqft)"
-    />
+<input
+
+type="text"
+
+name="city"
+
+value={form.city}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Carpet Area (sqft)</label>
+<label>SB Area</label>
 
-    <input
-        type="number"
-        name="carpet_area"
-        value={form.carpet_area}
-        onChange={handleChange}
-        placeholder="Carpet Area (sqft)"
-    />
+<input
+
+type="number"
+
+name="sb_area"
+
+value={form.sb_area}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>CAM</label>
+<label>Carpet Area</label>
 
-    <input
-        type="number"
-        name="cam"
-        value={form.cam}
-        onChange={handleChange}
-        placeholder="CAM"
-    />
+<input
+
+type="number"
+
+name="carpet_area"
+
+value={form.carpet_area}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
+
+{/* ================= FINANCIAL ================= */}
+
+
 
 <div className="form-group">
 
-    <label>MG</label>
+<label>CAM</label>
 
-    <input
-        type="number"
-        name="mg"
-        value={form.mg}
-        onChange={handleChange}
-        placeholder="MG"
-    />
+<input
+
+type="number"
+
+name="cam"
+
+value={form.cam}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Electricity (KVa)</label>
+<label>MG</label>
 
-    <input
-        type="text"
-        name="electricity_kva"
-        value={form.electricity_kva}
-        onChange={handleChange}
-        placeholder="Electricity (KVa)"
-    />
+<input
+
+type="number"
+
+name="mg"
+
+value={form.mg}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Rev Share (%)</label>
+<label>Electricity KVA</label>
 
-    <input
-        type="number"
-        name="revenue_share"
-        value={form.revenue_share}
-        onChange={handleChange}
-        placeholder="Rev Share (%)"
-    />
+<input
+
+type="text"
+
+name="electricity_kva"
+
+value={form.electricity_kva}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Escalation (%)</label>
+<label>Revenue Share %</label>
 
-    <input
-        type="number"
-        name="escalation"
-        value={form.escalation}
-        onChange={handleChange}
-        placeholder="Escalation (%)"
-    />
+<input
+
+type="number"
+
+name="revenue_share"
+
+value={form.revenue_share}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Expected Sale (INR)</label>
+<label>Escalation %</label>
 
-    <input
-        type="number"
-        name="expected_sale"
-        value={form.expected_sale}
-        onChange={handleChange}
-        placeholder="Expected Sale (INR)"
-    />
+<input
+
+type="number"
+
+name="escalation"
+
+value={form.escalation}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Possession Date (as per LOI)</label>
+<label>Expected Sale</label>
 
-    <input
-        type="date"
-        name="possession_date_loi"
-        value={form.possession_date_loi}
-        onChange={handleChange}
-    />
+<input
+
+type="number"
+
+name="expected_sale"
+
+value={form.expected_sale}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
+
+{/* ================= POSSESSION ================= */}
+
+
 
 <div className="form-group">
 
-    <label>Broker Name</label>
+<label>Possession Date LOI</label>
 
-    <input
-        type="text"
-        name="broker_name"
-        value={form.broker_name}
-        onChange={handleChange}
-        placeholder="Broker Name"
-    />
+<input
+
+type="date"
+
+name="possession_date_loi"
+
+value={form.possession_date_loi}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Operation Head Assigned</label>
+<label>Possession Date Broker</label>
 
-    <input
-        type="text"
-        name="operation_head_assigned"
-        value={form.operation_head_assigned}
-        onChange={handleChange}
-        placeholder="Operation Head Assigned"
-    />
+<input
+
+type="date"
+
+name="possession_date_broker"
+
+value={form.possession_date_broker}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>ASM Assigned</label>
+<label>Actual Possession Date</label>
 
-    <input
-        type="text"
-        name="asm_assigned"
-        value={form.asm_assigned}
-        onChange={handleChange}
-        placeholder="ASM Assigned"
-    />
+<input
+
+type="date"
+
+name="actual_possession_date"
+
+value={form.actual_possession_date}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
+
+
+
+{/* ================= PEOPLE ================= */}
+
+
 
 <div className="form-group">
 
-    <label>Deal Days</label>
+<label>Broker Name</label>
 
-    <input
-        type="number"
-        name="deal_days"
-        value={form.deal_days}
-        onChange={handleChange}
-        placeholder="Deal Days"
-    />
+<input
+
+type="text"
+
+name="broker_name"
+
+value={form.broker_name}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Approver Name</label>
+<label>Operation Head Assigned</label>
 
-    <input
-        type="text"
-        name="approver_name"
-        value={form.approver_name}
-        onChange={handleChange}
-        placeholder="Approver Name"
-    />
+<input
+
+type="text"
+
+name="operation_head_assigned"
+
+value={form.operation_head_assigned}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Construction Vendor</label>
+<label>ASM Assigned</label>
 
-    <input
-        type="text"
-        name="construction_vendor"
-        value={form.construction_vendor}
-        onChange={handleChange}
-        placeholder="Construction Vendor"
-    />
+<input
+
+type="text"
+
+name="asm_assigned"
+
+value={form.asm_assigned}
+
+onChange={handleChange}
+
+/>
 
 </div>
+
+
+
+
+
+
 
 <div className="form-group">
 
-    <label>Project Taken By</label>
+<label>Deal Days</label>
 
-    <input
-        type="text"
-        name="project_taken_by"
-        value={form.project_taken_by}
-        onChange={handleChange}
-        placeholder="Project Taken By"
-    />
+<input
+
+type="number"
+
+name="deal_days"
+
+value={form.deal_days}
+
+onChange={handleChange}
+
+/>
 
 </div>
-                </div>
 
-                {/* ==========================================
-                    FOOTER
-                ========================================== */}
 
-                <div className="modal-footer">
 
-                    <button
 
-                        type="button"
 
-                        className="cancel-btn"
 
-                        onClick={onClose}
 
-                    >
+{/* ================= APPROVAL ================= */}
 
-                        Cancel
 
-                    </button>
 
-                    <button
+<div className="form-group">
 
-                        type="submit"
+<label>Approver Name</label>
 
-                        className="submit-btn"
+<input
 
-                        disabled={loading}
+type="text"
 
-                    >
+name="approver_name"
 
-                        {
+value={form.approver_name}
 
-                            loading
+onChange={handleChange}
 
-                                ? "Saving..."
+/>
 
-                                : editData
+</div>
 
-                                    ? "Update Entry"
 
-                                    : "Submit Entry"
 
-                        }
 
-                    </button>
 
-                </div>
 
-            </form>
 
-        </div>
+<div className="form-group">
 
-    </div>
+<label>Construction Vendor</label>
+
+<input
+
+type="text"
+
+name="construction_vendor"
+
+value={form.construction_vendor}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+
+
+<div className="form-group">
+
+<label>Project Taken By</label>
+
+<input
+
+type="text"
+
+name="project_taken_by"
+
+value={form.project_taken_by}
+
+onChange={handleChange}
+
+/>
+
+</div>
+// ======================================================
+// DEADLINES
+// ======================================================
+
+
+<div className="form-group">
+
+<label>Visit By Operation Team</label>
+
+<input
+
+type="date"
+
+name="visit_by_op_team"
+
+value={form.visit_by_op_team}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>GST Deadline</label>
+
+<input
+
+type="date"
+
+name="gst_deadline"
+
+value={form.gst_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>HR Hiring Deadline</label>
+
+<input
+
+type="date"
+
+name="hr_hiring_deadline"
+
+value={form.hr_hiring_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Team Training Deadline</label>
+
+<input
+
+type="date"
+
+name="team_training_deadline"
+
+value={form.team_training_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Visit By NSO Team Deadline</label>
+
+<input
+
+type="date"
+
+name="visit_by_nso_team_deadline"
+
+value={form.visit_by_nso_team_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Plan Of Stock Deadline</label>
+
+<input
+
+type="date"
+
+name="plan_of_stock_deadline"
+
+value={form.plan_of_stock_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Plan Of Collaterals Deadline</label>
+
+<input
+
+type="date"
+
+name="plan_of_collaterals_deadline"
+
+value={form.plan_of_collaterals_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>On Field Training Deadline</label>
+
+<input
+
+type="date"
+
+name="on_field_training_deadline"
+
+value={form.on_field_training_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Dispatch Stock Deadline</label>
+
+<input
+
+type="date"
+
+name="dispatch_stock_deadline"
+
+value={form.dispatch_stock_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>NSO Handover Deadline</label>
+
+<input
+
+type="date"
+
+name="nso_handover_deadline"
+
+value={form.nso_handover_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>VM Handover Deadline</label>
+
+<input
+
+type="date"
+
+name="vm_handover_deadline"
+
+value={form.vm_handover_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Scanning Deadline</label>
+
+<input
+
+type="date"
+
+name="scanning_deadline"
+
+value={form.scanning_deadline}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+<div className="form-group">
+
+<label>Billing Start Date</label>
+
+<input
+
+type="date"
+
+name="billing_start_date"
+
+value={form.billing_start_date}
+
+onChange={handleChange}
+
+/>
+
+</div>
+
+
+
+
+
+
+
+{/* ======================================================
+    REMARKS
+====================================================== */}
+
+
+<div className="form-group full-width">
+
+
+<label>
+
+Remarks
+
+</label>
+
+
+
+<textarea
+
+name="remarks"
+
+value={form.remarks}
+
+onChange={handleChange}
+
+placeholder="Enter remarks"
+
+/>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+{/* ======================================================
+    ATTACHMENT
+====================================================== */}
+
+
+<div className="form-group full-width">
+
+
+<label>
+
+Attachment
+
+</label>
+
+
+
+<input
+
+type="file"
+
+onChange={handleFileChange}
+
+/>
+
+
+
+{
+
+editData?.attachment &&
+
+(
+
+<small>
+
+Existing File Available
+
+</small>
+
+)
+
+}
+
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+{/* ======================================================
+    FOOTER
+====================================================== */}
+
+
+<div className="modal-footer">
+
+
+
+<button
+
+type="button"
+
+className="cancel-btn"
+
+onClick={onClose}
+
+>
+
+Cancel
+
+</button>
+
+
+
+
+
+
+
+<button
+
+type="submit"
+
+className="submit-btn"
+
+disabled={loading}
+
+>
+
+
+{
+
+loading
+
+?
+
+"Saving..."
+
+:
+
+editData
+
+?
+
+"Update Entry"
+
+:
+
+"Submit Entry"
+
+}
+
+
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+</form>
+
+
+
+</div>
+
+
+
+</div>
+
 
 );
 
 }
+
+
+
 
 export default AddNewStoreOpeningModal;

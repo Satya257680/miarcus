@@ -1,76 +1,216 @@
 const express = require("express");
-const router = express.Router();
+
 const multer = require("multer");
 
+const router = express.Router();
+
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+
+
+// ======================================================
+// CONTROLLER
+// ======================================================
+
+const reportsToController = require("../controllers/reportsToController");
+
+
+
+
+
+// ======================================================
+// MULTER CONFIGURATION
+// ======================================================
+
 const upload = multer({
-  dest: "uploads/",
+
+    dest:"uploads/"
+
 });
 
-const {
-  getReports,
-  createReport,
-  bulkUploadReports,
-  editReport,
-  removeReport,
-} = require("../controllers/reportsToController");
 
-// ===============================
-// Get All Managers
-// ===============================
+
+
+
+
+
+// ======================================================
+// BASE URL
+// /api/reports-to
+// ======================================================
+
+
+
+
+
+
+
+// ======================================================
+// GET ALL REPORTS
+// GET /api/reports-to
+// Permission : View
+// ======================================================
 
 router.get(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Reports To", "View"),
-  getReports
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "View"
+
+    ),
+
+    reportsToController.getReports
+
 );
 
-// ===============================
-// Add Manager
-// ===============================
+
+
+
+
+
+
+
+// ======================================================
+// CREATE REPORT
+// POST /api/reports-to
+// Permission : Add
+// ======================================================
 
 router.post(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Reports To", "Add"),
-  createReport
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "Add"
+
+    ),
+
+    reportsToController.createReport
+
 );
 
-// ===============================
-// Bulk Upload Managers
-// ===============================
+
+
+
+
+
+
+
+// ======================================================
+// BULK UPLOAD REPORTS
+// POST /api/reports-to/bulk-upload
+// Permission : Add
+// ======================================================
 
 router.post(
-  "/bulk-upload",
-  authMiddleware,
-  permissionMiddleware("Reports To", "Add"),
-  upload.single("file"),
-  bulkUploadReports
+
+    "/bulk-upload",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "Add"
+
+    ),
+
+    upload.single("file"),
+
+    reportsToController.bulkUploadReports
+
 );
 
-// ===============================
-// Update Manager
-// ===============================
+
+
+
+
+
+
+
+// ======================================================
+// UPDATE REPORT
+// PUT /api/reports-to/:id
+// Permission : Edit
+// ======================================================
 
 router.put(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Reports To", "Edit"),
-  editReport
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "Edit"
+
+    ),
+
+    reportsToController.editReport
+
 );
 
-// ===============================
-// Delete Manager
-// ===============================
+
+
+
+
+
+
+
+// ======================================================
+// DELETE REPORT
+// DELETE /api/reports-to/:id
+// Permission : Full
+// ======================================================
 
 router.delete(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Reports To", "Full"),
-  removeReport
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "Full"
+
+    ),
+
+    reportsToController.removeReport
+
 );
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

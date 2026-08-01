@@ -1,337 +1,727 @@
 const db = require("../config/db");
 
+
 const ChecklistSubmission = {};
+
 
 
 // ======================================================
 // CREATE REQUIRED TABLES
 // ======================================================
 
-ChecklistSubmission.createTables = (callback) => {
+ChecklistSubmission.createTables = (callback)=>{
 
-  const submissionTable = `
 
-    CREATE TABLE IF NOT EXISTS checklist_submissions (
+    const submissionTable = `
 
-      id INT AUTO_INCREMENT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS checklist_submissions
 
-      checklist_type_id INT NOT NULL,
+    (
 
-      store_id INT NOT NULL,
+        id INT AUTO_INCREMENT PRIMARY KEY,
 
-      submitted_by INT NULL,
 
-      submission_date DATE NOT NULL,
+        checklist_type_id INT NOT NULL,
 
-      latitude DECIMAL(10,7) NULL,
 
-      longitude DECIMAL(10,7) NULL,
+        store_id INT NOT NULL,
 
-      device VARCHAR(255) NULL,
 
-      attachment VARCHAR(500) NULL,
+        submitted_by INT NULL,
 
-      status VARCHAR(50) DEFAULT 'Submitted',
 
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        submission_date DATE NOT NULL,
 
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      ON UPDATE CURRENT_TIMESTAMP
+
+        latitude DECIMAL(10,7) NULL,
+
+
+        longitude DECIMAL(10,7) NULL,
+
+
+        device VARCHAR(255) NULL,
+
+
+        attachment VARCHAR(500) NULL,
+
+
+        status VARCHAR(50)
+        DEFAULT 'Submitted',
+
+
+        created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+
+        updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+
 
     )
-
-  `;
-
-
-  const answersTable = `
-
-    CREATE TABLE IF NOT EXISTS checklist_submission_answers (
-
-      id INT AUTO_INCREMENT PRIMARY KEY,
-
-      submission_id INT NOT NULL,
-
-      question_id INT NOT NULL,
-
-      answer TEXT NULL,
-
-      remarks TEXT NULL,
-
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-
-      FOREIGN KEY (submission_id)
-
-      REFERENCES checklist_submissions(id)
-
-      ON DELETE CASCADE
-
-    )
-
-  `;
-
-
-
-  db.query(submissionTable,(err)=>{
-
-    if(err){
-      return callback(err);
-    }
-
-
-    db.query(
-      answersTable,
-      callback
-    );
-
-  });
-
-
-};
-
-
-
-
-// ======================================================
-// CREATE SUBMISSION WITH ANSWERS
-// ======================================================
-
-
-ChecklistSubmission.create = (
-  submission,
-  answers,
-  callback
-)=>{
-
-
-  db.beginTransaction((transactionError)=>{
-
-
-    if(transactionError){
-
-      return callback(transactionError);
-
-    }
-
-
-
-    const submissionSql = `
-
-      INSERT INTO checklist_submissions
-
-      (
-
-        checklist_type_id,
-
-        store_id,
-
-        submitted_by,
-
-        submission_date,
-
-        latitude,
-
-        longitude,
-
-        device,
-
-        attachment,
-
-        status
-
-      )
-
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
     `;
 
 
 
-    const submissionValues = [
 
-      submission.checklist_type_id,
+    const answersTable = `
 
-      submission.store_id,
 
-      submission.submitted_by || null,
+    CREATE TABLE IF NOT EXISTS checklist_submission_answers
 
-      submission.submission_date,
+    (
 
-      submission.latitude ?? null,
+        id INT AUTO_INCREMENT PRIMARY KEY,
 
-      submission.longitude ?? null,
 
-      submission.device || null,
+        submission_id INT NOT NULL,
 
-      submission.attachment || null,
 
-      submission.status || "Submitted"
+        question_id INT NOT NULL,
 
-    ];
+
+        answer TEXT NULL,
+
+
+        remarks TEXT NULL,
+
+
+        created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+
+        FOREIGN KEY(submission_id)
+
+        REFERENCES checklist_submissions(id)
+
+        ON DELETE CASCADE
+
+
+    )
+
+    `;
+
 
 
 
 
     db.query(
-      submissionSql,
-      submissionValues,
 
-      (submissionError,submissionResult)=>{
+        submissionTable,
+
+        (err)=>{
 
 
-        if(submissionError){
+            if(err){
 
-          return db.rollback(()=>{
+                return callback(err);
 
-            callback(submissionError);
+            }
 
-          });
+
+
+            db.query(
+
+                answersTable,
+
+                callback
+
+            );
+
+
+        }
+
+    );
+
+
+};
+// ======================================================
+// CREATE SUBMISSION WITH ANSWERS
+// ======================================================
+
+ChecklistSubmission.create = (
+
+    submission,
+
+    answers,
+
+    callback
+
+)=>{
+
+
+    db.beginTransaction((transactionError)=>{
+
+
+        if(transactionError){
+
+            return callback(transactionError);
 
         }
 
 
 
-        const submissionId =
-        submissionResult.insertId;
+
+        // ======================================
+        // INSERT SUBMISSION
+        // ======================================
 
 
-
-        if(!answers || answers.length===0){
-
-          return db.commit(()=>{
-
-            callback(null,{
-              submissionId
-            });
-
-          });
-
-        }
+        const submissionSql = `
 
 
+        INSERT INTO checklist_submissions
 
+        (
 
-        const answerValues = answers.map(
-          (item)=>[
+            checklist_type_id,
 
-            submissionId,
+            store_id,
 
-            item.question_id,
+            submitted_by,
 
-            item.answer !== undefined &&
-            item.answer !== null
+            submission_date,
 
-            ? String(item.answer)
+            latitude,
 
-            : "",
+            longitude,
 
+            device,
 
-            item.remarks || ""
+            attachment,
 
-          ]
+            status
 
-        );
+        )
 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
-
-
-        const answerSql = `
-
-
-          INSERT INTO checklist_submission_answers
-
-          (
-
-            submission_id,
-
-            question_id,
-
-            answer,
-
-            remarks
-
-          )
-
-          VALUES ?
 
         `;
 
 
 
 
+
+        const submissionValues = [
+
+
+            submission.checklist_type_id,
+
+
+            submission.store_id,
+
+
+            submission.submitted_by || null,
+
+
+            submission.submission_date,
+
+
+            submission.latitude || null,
+
+
+            submission.longitude || null,
+
+
+            submission.device || null,
+
+
+            submission.attachment || null,
+
+
+            submission.status || "Submitted"
+
+
+        ];
+
+
+
+
+
+
+
         db.query(
 
-          answerSql,
+            submissionSql,
 
-          [answerValues],
-
-
-          (answerError)=>{
+            submissionValues,
 
 
-            if(answerError){
+            (submissionError,result)=>{
 
 
-              return db.rollback(()=>{
+                if(submissionError){
 
-                callback(answerError);
 
-              });
+                    return db.rollback(()=>{
+
+
+                        callback(submissionError);
+
+
+                    });
+
+
+                }
+
+
+
+
+
+
+
+                const submissionId =
+
+                result.insertId;
+
+
+
+
+
+
+
+                // ======================================
+                // NO ANSWERS
+                // ======================================
+
+
+                if(
+
+                    !answers ||
+
+                    answers.length === 0
+
+                ){
+
+
+
+                    return db.commit((commitError)=>{
+
+
+                        if(commitError){
+
+
+                            return db.rollback(()=>{
+
+
+                                callback(commitError);
+
+
+                            });
+
+
+                        }
+
+
+
+
+                        callback(null,{
+
+                            submissionId
+
+                        });
+
+
+
+                    });
+
+
+
+                }
+
+
+
+
+
+
+
+
+                // ======================================
+                // ANSWERS INSERT
+                // ======================================
+
+
+                const answerValues =
+
+                answers.map((item)=>[
+
+
+                    submissionId,
+
+
+                    item.question_id,
+
+
+                    item.answer !== undefined &&
+
+                    item.answer !== null
+
+                    ?
+
+                    String(item.answer)
+
+                    :
+
+                    "",
+
+
+
+                    item.remarks || ""
+
+
+                ]);
+
+
+
+
+
+
+
+                const answerSql = `
+
+
+                INSERT INTO checklist_submission_answers
+
+                (
+
+                    submission_id,
+
+                    question_id,
+
+                    answer,
+
+                    remarks
+
+                )
+
+                VALUES ?
+
+
+                `;
+
+
+
+
+
+
+
+                db.query(
+
+                    answerSql,
+
+                    [answerValues],
+
+
+                    (answerError)=>{
+
+
+                        if(answerError){
+
+
+                            return db.rollback(()=>{
+
+
+                                callback(answerError);
+
+
+                            });
+
+
+                        }
+
+
+
+
+
+
+
+                        db.commit((commitError)=>{
+
+
+                            if(commitError){
+
+
+                                return db.rollback(()=>{
+
+
+                                    callback(commitError);
+
+
+                                });
+
+
+                            }
+
+
+
+
+
+
+                            callback(null,{
+
+
+                                submissionId
+
+
+                            });
+
+
+
+
+
+                        });
+
+
+
+
+                    }
+
+
+                );
+
+
 
 
             }
-
-
-
-
-
-            db.commit((commitError)=>{
-
-
-              if(commitError){
-
-
-                return db.rollback(()=>{
-
-                  callback(commitError);
-
-                });
-
-
-              }
-
-
-
-              callback(null,{
-
-                submissionId
-
-              });
-
-
-
-            });
-
-
-
-          }
 
 
         );
 
 
 
-      }
 
+    });
+
+
+
+};
+// ======================================================
+// GET ALL SUBMISSIONS
+// SEARCH + PAGINATION
+// ======================================================
+
+ChecklistSubmission.getAll = (
+
+    filters,
+
+    callback
+
+)=>{
+
+
+    let sql = `
+
+
+    SELECT
+
+
+        cs.*,
+
+
+        ct.type_name AS checklist_type_name,
+
+
+        s.store_name,
+
+
+        u.name AS submitted_by_name
+
+
+
+    FROM checklist_submissions cs
+
+
+
+    LEFT JOIN checklist_types ct
+
+        ON cs.checklist_type_id = ct.id
+
+
+
+    LEFT JOIN stores s
+
+        ON cs.store_id = s.id
+
+
+
+    LEFT JOIN users u
+
+        ON cs.submitted_by = u.id
+
+
+
+    WHERE 1=1
+
+
+    `;
+
+
+
+    const params = [];
+
+
+
+
+    // ======================================
+    // SEARCH
+    // ======================================
+
+
+    if(filters.search){
+
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            s.store_name LIKE ?
+
+
+            OR ct.type_name LIKE ?
+
+
+            OR cs.status LIKE ?
+
+
+            OR u.name LIKE ?
+
+
+        )
+
+
+        `;
+
+
+
+        const search =
+
+        `%${filters.search}%`;
+
+
+
+        params.push(
+
+            search,
+
+            search,
+
+            search,
+
+            search
+
+        );
+
+
+
+    }
+
+
+
+
+
+    // ======================================
+    // ORDER
+    // ======================================
+
+
+    sql += `
+
+
+    ORDER BY cs.created_at DESC
+
+
+    `;
+
+
+
+
+
+
+
+    // ======================================
+    // PAGINATION
+    // ======================================
+
+
+    if(
+
+        filters.page &&
+
+        filters.limit
+
+    ){
+
+
+
+        const offset =
+
+
+        (
+
+            Number(filters.page) - 1
+
+        )
+
+        *
+
+        Number(filters.limit);
+
+
+
+
+
+        sql += `
+
+
+        LIMIT ?
+
+        OFFSET ?
+
+
+        `;
+
+
+
+
+        params.push(
+
+
+            Number(filters.limit),
+
+
+            offset
+
+
+        );
+
+
+
+    }
+
+
+
+
+
+
+
+    db.query(
+
+        sql,
+
+        params,
+
+        callback
 
     );
 
 
 
-  });
-
-
-
 };
 
 
@@ -339,67 +729,330 @@ ChecklistSubmission.create = (
 
 
 
+
+
 // ======================================================
-// GET ALL SUBMISSIONS
+// COUNT SUBMISSIONS
 // ======================================================
 
+ChecklistSubmission.countAll = (
 
-ChecklistSubmission.getAll = (callback)=>{
+    filters,
+
+    callback
+
+)=>{
 
 
-  const sql = `
+    let sql = `
+
 
     SELECT
 
-      cs.*
+        COUNT(*) AS total
+
+
 
     FROM checklist_submissions cs
 
-    ORDER BY cs.created_at DESC
-
-  `;
 
 
-  db.query(
-    sql,
-    callback
-  );
+    LEFT JOIN checklist_types ct
+
+        ON cs.checklist_type_id = ct.id
+
+
+
+    LEFT JOIN stores s
+
+        ON cs.store_id = s.id
+
+
+
+    LEFT JOIN users u
+
+        ON cs.submitted_by = u.id
+
+
+
+    WHERE 1=1
+
+
+
+    `;
+
+
+
+    const params = [];
+
+
+
+
+
+    if(filters.search){
+
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            s.store_name LIKE ?
+
+
+            OR ct.type_name LIKE ?
+
+
+            OR cs.status LIKE ?
+
+
+            OR u.name LIKE ?
+
+
+        )
+
+
+        `;
+
+
+
+        const search =
+
+        `%${filters.search}%`;
+
+
+
+        params.push(
+
+            search,
+
+            search,
+
+            search,
+
+            search
+
+        );
+
+
+
+    }
+
+
+
+
+
+    db.query(
+
+        sql,
+
+        params,
+
+        callback
+
+    );
+
 
 
 };
-
-
-
-
-
-
 // ======================================================
 // GET SINGLE SUBMISSION
 // ======================================================
 
-
 ChecklistSubmission.getById = (
-  id,
-  callback
+
+    id,
+
+    callback
+
 )=>{
 
 
-  const sql = `
+    const sql = `
 
-    SELECT *
 
-    FROM checklist_submissions
+    SELECT
+
+
+        cs.*,
+
+
+        ct.type_name AS checklist_type_name,
+
+
+        s.store_name,
+
+
+        u.name AS submitted_by_name
+
+
+
+    FROM checklist_submissions cs
+
+
+
+    LEFT JOIN checklist_types ct
+
+        ON cs.checklist_type_id = ct.id
+
+
+
+    LEFT JOIN stores s
+
+        ON cs.store_id = s.id
+
+
+
+    LEFT JOIN users u
+
+        ON cs.submitted_by = u.id
+
+
+
+    WHERE cs.id = ?
+
+
+
+    `;
+
+
+
+    db.query(
+
+        sql,
+
+        [id],
+
+        callback
+
+    );
+
+
+};
+
+
+
+
+
+
+// ======================================================
+// GET SUBMISSION ANSWERS
+// ======================================================
+
+ChecklistSubmission.getAnswers = (
+
+    submissionId,
+
+    callback
+
+)=>{
+
+
+    const sql = `
+
+
+    SELECT
+
+
+        csa.*,
+
+
+        q.question
+
+
+
+    FROM checklist_submission_answers csa
+
+
+
+    LEFT JOIN questions q
+
+        ON csa.question_id = q.id
+
+
+
+    WHERE csa.submission_id = ?
+
+
+
+    ORDER BY csa.id ASC
+
+
+
+    `;
+
+
+
+    db.query(
+
+        sql,
+
+        [submissionId],
+
+        callback
+
+    );
+
+
+};
+
+
+
+
+
+
+
+
+// ======================================================
+// UPDATE SUBMISSION STATUS
+// ======================================================
+
+ChecklistSubmission.updateStatus = (
+
+    id,
+
+    status,
+
+    callback
+
+)=>{
+
+
+    const sql = `
+
+
+    UPDATE checklist_submissions
+
+
+    SET status = ?
+
 
     WHERE id = ?
 
-  `;
 
 
-  db.query(
-    sql,
-    [id],
-    callback
-  );
+    `;
+
+
+
+    db.query(
+
+        sql,
+
+        [
+
+            status,
+
+            id
+
+        ],
+
+        callback
+
+    );
 
 
 };
@@ -409,35 +1062,83 @@ ChecklistSubmission.getById = (
 
 
 
+
 // ======================================================
-// GET ANSWERS
+// EXPORT SUBMISSIONS
 // ======================================================
 
+ChecklistSubmission.exportData = (
 
-ChecklistSubmission.getAnswers = (
-  submissionId,
-  callback
+    callback
+
 )=>{
 
 
-  const sql = `
-
-    SELECT *
-
-    FROM checklist_submission_answers
-
-    WHERE submission_id = ?
-
-    ORDER BY id ASC
-
-  `;
+    const sql = `
 
 
-  db.query(
-    sql,
-    [submissionId],
-    callback
-  );
+    SELECT
+
+
+        cs.id,
+
+
+        ct.type_name AS checklist_type,
+
+
+        s.store_name,
+
+
+        u.name AS submitted_by,
+
+
+        cs.submission_date,
+
+
+        cs.status,
+
+
+        cs.created_at
+
+
+
+    FROM checklist_submissions cs
+
+
+
+    LEFT JOIN checklist_types ct
+
+        ON cs.checklist_type_id = ct.id
+
+
+
+    LEFT JOIN stores s
+
+        ON cs.store_id = s.id
+
+
+
+    LEFT JOIN users u
+
+        ON cs.submitted_by = u.id
+
+
+
+    ORDER BY cs.created_at DESC
+
+
+
+    `;
+
+
+
+    db.query(
+
+        sql,
+
+        callback
+
+    );
 
 
 };
@@ -445,5 +1146,11 @@ ChecklistSubmission.getAnswers = (
 
 
 
+
+
+
+// ======================================================
+// EXPORT MODEL
+// ======================================================
 
 module.exports = ChecklistSubmission;

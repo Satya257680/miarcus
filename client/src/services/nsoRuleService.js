@@ -1,21 +1,40 @@
 import axios from "axios";
 
+
 const API = "http://localhost:5000/api/nso-rules";
 
-// ==============================
-// Axios Config
-// ==============================
 
-const authConfig = () => ({
-    headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-});
 
-// ==============================
-// Get All NSO Rules
-// Search + Pagination
-// ==============================
+// ======================================================
+// AUTH CONFIG
+// ======================================================
+
+const authConfig = () => {
+
+
+    return {
+
+        headers: {
+
+            Authorization:
+
+            `Bearer ${localStorage.getItem("token")}`
+
+        }
+
+    };
+
+
+};
+
+
+
+
+
+// ======================================================
+// GET ALL NSO RULES
+// SEARCH + PAGINATION
+// ======================================================
 
 export const getRules = async (
 
@@ -27,6 +46,7 @@ export const getRules = async (
 
 ) => {
 
+
     const response = await axios.get(
 
         API,
@@ -35,29 +55,42 @@ export const getRules = async (
 
             ...authConfig(),
 
+
             params: {
+
 
                 search,
 
                 page,
 
-                limit,
+                limit
 
-            },
+
+            }
+
 
         }
 
     );
 
+
     return response.data;
+
 
 };
 
-// ==============================
-// Get NSO Rule By ID
-// ==============================
 
-export const getRuleById = async (id) => {
+
+
+
+
+
+// ======================================================
+// GET RULE BY ID
+// ======================================================
+
+export const getRuleById = async(id)=>{
+
 
     const response = await axios.get(
 
@@ -67,15 +100,24 @@ export const getRuleById = async (id) => {
 
     );
 
+
     return response.data;
+
 
 };
 
-// ==============================
-// Create NSO Rule
-// ==============================
 
-export const createRule = async (data) => {
+
+
+
+
+
+// ======================================================
+// CREATE NSO RULE
+// ======================================================
+
+export const createRule = async(data)=>{
+
 
     const response = await axios.post(
 
@@ -87,49 +129,30 @@ export const createRule = async (data) => {
 
     );
 
-    return response.data;
-
-};
-
-// ==============================
-// Bulk Upload NSO Rules
-// ==============================
-
-export const bulkUploadRules = async (file) => {
-
-    const formData = new FormData();
-
-    formData.append("file", file);
-
-    const response = await axios.post(
-
-        `${API}/bulk-upload`,
-
-        formData,
-
-        {
-
-            headers: {
-
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-
-                "Content-Type": "multipart/form-data"
-
-            }
-
-        }
-
-    );
 
     return response.data;
 
+
 };
 
-// ==============================
-// Update NSO Rule
-// ==============================
 
-export const updateRule = async (id, data) => {
+
+
+
+
+
+// ======================================================
+// UPDATE NSO RULE
+// ======================================================
+
+export const updateRule = async(
+
+    id,
+
+    data
+
+)=>{
+
 
     const response = await axios.put(
 
@@ -141,15 +164,24 @@ export const updateRule = async (id, data) => {
 
     );
 
+
     return response.data;
+
 
 };
 
-// ==============================
-// Delete NSO Rule
-// ==============================
 
-export const deleteRule = async (id) => {
+
+
+
+
+
+// ======================================================
+// DELETE SINGLE NSO RULE
+// ======================================================
+
+export const deleteRule = async(id)=>{
+
 
     const response = await axios.delete(
 
@@ -159,15 +191,24 @@ export const deleteRule = async (id) => {
 
     );
 
+
     return response.data;
+
 
 };
 
-// ==============================
-// Delete All NSO Rules
-// ==============================
 
-export const deleteAllRules = async () => {
+
+
+
+
+
+// ======================================================
+// DELETE ALL NSO RULES
+// ======================================================
+
+export const deleteAllRules = async()=>{
+
 
     const response = await axios.delete(
 
@@ -177,15 +218,87 @@ export const deleteAllRules = async () => {
 
     );
 
+
     return response.data;
+
 
 };
 
-// ==============================
-// Export NSO Rules
-// ==============================
 
-export const exportRules = async () => {
+
+
+
+
+
+// ======================================================
+// BULK UPLOAD NSO RULES
+// EXCEL
+// ======================================================
+
+export const bulkUploadRules = async(file)=>{
+
+
+    const formData = new FormData();
+
+
+
+    formData.append(
+
+        "file",
+
+        file
+
+    );
+
+
+
+    const response = await axios.post(
+
+        `${API}/bulk-upload`,
+
+        formData,
+
+        {
+
+            headers:{
+
+
+                Authorization:
+
+                `Bearer ${localStorage.getItem("token")}`,
+
+
+                "Content-Type":
+
+                "multipart/form-data"
+
+
+            }
+
+
+        }
+
+    );
+
+
+
+    return response.data;
+
+
+};
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT NSO RULES CSV
+// ======================================================
+
+export const exportRules = async()=>{
+
 
     const response = await axios.get(
 
@@ -193,14 +306,20 @@ export const exportRules = async () => {
 
         {
 
+
             ...authConfig(),
 
-            responseType: "blob",
+
+            responseType:"blob"
+
 
         }
 
     );
 
+
+
     return response;
+
 
 };

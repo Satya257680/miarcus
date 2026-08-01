@@ -8,463 +8,852 @@ const ActionPoint = {};
 
 // ======================================================
 // GET ALL ACTION POINTS
-// FILTER + PAGINATION
+// FILTER + SEARCH + PAGINATION
 // ======================================================
 
 
 ActionPoint.getAll = (filters, callback)=>{
 
 
-let sql = `
+    let sql = `
 
-SELECT
 
-cs.id,
+    SELECT
 
-cs.submission_date AS date,
 
-s.store_name,
+        cs.id,
 
-s.city,
 
-s.state,
+        cs.submission_date AS date,
 
-ct.checklist_name,
 
-q.question,
+        s.store_name,
 
-d.department_name,
 
-csa.answer,
+        s.city,
 
-csa.remarks AS comment,
 
-cs.attachment,
+        s.state,
 
 
+        ct.checklist_name,
 
-CASE
 
-WHEN csa.answer IS NULL
-OR csa.answer=''
+        q.question,
 
-THEN 'Pending'
 
-ELSE 'No Action Taken'
+        d.department_name,
 
-END AS status,
 
+        csa.answer,
 
 
-CASE
+        csa.remarks AS comment,
 
-WHEN csa.answer IS NOT NULL
 
-THEN '6d 23h Remaining'
+        cs.attachment,
 
-ELSE '-'
 
-END AS sla_status,
 
+        CASE
 
+            WHEN csa.answer IS NULL
 
-'Open' AS next_action,
+            OR csa.answer=''
 
+            THEN 'Pending'
 
 
-CASE
+            ELSE 'No Action Taken'
 
-WHEN csa.action_remarks IS NULL
-OR csa.action_remarks=''
 
-THEN '-'
+        END AS status,
 
-ELSE csa.action_remarks
 
-END AS remarks,
 
 
-'No Action Taken by System Auto' AS history,
+        CASE
 
+            WHEN csa.answer IS NOT NULL
 
-u.name AS employee_name,
+            THEN '6d 23h Remaining'
 
-u.employee_id
 
+            ELSE '-'
 
 
-FROM checklist_submissions cs
+        END AS sla_status,
 
 
 
-LEFT JOIN checklist_submission_answers csa
 
-ON csa.submission_id = cs.id
+        'Open' AS next_action,
 
 
 
-LEFT JOIN questions q
 
-ON q.id = csa.question_id
+        CASE
 
+            WHEN csa.action_remarks IS NULL
 
+            OR csa.action_remarks=''
 
-LEFT JOIN checklist_types ct
 
-ON ct.id = cs.checklist_type_id
+            THEN '-'
 
 
+            ELSE csa.action_remarks
 
-LEFT JOIN stores s
 
-ON s.id = cs.store_id
+        END AS remarks,
 
 
 
-LEFT JOIN users u
 
-ON u.id = cs.submitted_by
+        'No Action Taken by System Auto'
 
+        AS history,
 
 
-LEFT JOIN departments d
 
-ON d.id = u.department_id
 
+        u.name AS employee_name,
 
 
-WHERE 1=1
+        u.employee_id
 
 
-`;
 
 
+    FROM checklist_submissions cs
 
-let values=[];
 
 
 
+    LEFT JOIN checklist_submission_answers csa
 
-// STORE
+    ON csa.submission_id = cs.id
 
-if(filters.store_id){
 
-sql += " AND cs.store_id=? ";
 
-values.push(filters.store_id);
 
-}
+    LEFT JOIN questions q
 
+    ON q.id = csa.question_id
 
 
 
-// DEPARTMENT
 
-if(filters.department_id){
+    LEFT JOIN checklist_types ct
 
-sql += " AND d.id=? ";
+    ON ct.id = cs.checklist_type_id
 
-values.push(filters.department_id);
 
-}
 
 
+    LEFT JOIN stores s
 
+    ON s.id = cs.store_id
 
-// STATUS
 
-if(filters.status){
 
-sql += `
 
-AND
+    LEFT JOIN users u
 
-(
+    ON u.id = cs.submitted_by
 
-CASE
 
-WHEN csa.answer IS NULL
-OR csa.answer=''
 
-THEN 'Pending'
 
-ELSE 'No Action Taken'
+    LEFT JOIN departments d
 
-END
+    ON d.id = u.department_id
 
-)=?
 
-`;
 
-values.push(filters.status);
 
-}
+    WHERE 1=1
 
 
 
+    `;
 
-// CHECKLIST TYPE
 
-if(filters.checklist_type_id){
 
-sql += " AND cs.checklist_type_id=? ";
 
-values.push(filters.checklist_type_id);
+    const values = [];
 
-}
 
 
 
 
-// DATE
 
-if(filters.start_date){
 
-sql += " AND DATE(cs.submission_date)>=? ";
+    // ======================================
+    // STORE FILTER
+    // ======================================
 
-values.push(filters.start_date);
 
-}
+    if(filters.store_id){
 
 
-if(filters.end_date){
+        sql += `
 
-sql += " AND DATE(cs.submission_date)<=? ";
+        AND cs.store_id = ?
 
-values.push(filters.end_date);
+        `;
 
-}
 
+        values.push(
 
+            filters.store_id
 
+        );
 
-// SEARCH
 
-if(filters.search){
+    }
 
 
-sql += `
 
-AND
 
-(
 
-s.store_name LIKE ?
 
-OR s.city LIKE ?
 
-OR s.state LIKE ?
+    // ======================================
+    // DEPARTMENT FILTER
+    // ======================================
 
-OR ct.checklist_name LIKE ?
 
-OR q.question LIKE ?
+    if(filters.department_id){
 
-OR d.department_name LIKE ?
 
-OR csa.answer LIKE ?
+        sql += `
 
-OR csa.remarks LIKE ?
+        AND d.id = ?
 
-)
+        `;
 
-`;
 
+        values.push(
 
+            filters.department_id
 
-let key=`%${filters.search}%`;
+        );
 
 
+    }
 
-values.push(
 
-key,
-key,
-key,
-key,
-key,
-key,
-key,
-key
 
-);
 
 
-}
 
 
 
+    // ======================================
+    // STATUS FILTER
+    // ======================================
 
 
-sql += `
+    if(filters.status){
 
-ORDER BY cs.id DESC
 
-LIMIT ?,?
+        sql += `
 
-`;
 
+        AND
 
+        (
 
-values.push(
+            CASE
 
-filters.offset,
 
-filters.limit
+            WHEN csa.answer IS NULL
 
-);
+            OR csa.answer=''
 
 
+            THEN 'Pending'
 
-db.query(
 
-sql,
+            ELSE 'No Action Taken'
 
-values,
 
-callback
+            END
 
-);
+
+        ) = ?
+
+
+        `;
+
+
+        values.push(
+
+            filters.status
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // CHECKLIST TYPE FILTER
+    // ======================================
+
+
+    if(filters.checklist_type_id){
+
+
+        sql += `
+
+        AND cs.checklist_type_id = ?
+
+        `;
+
+
+        values.push(
+
+            filters.checklist_type_id
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // DATE FILTER
+    // ======================================
+
+
+    if(filters.start_date){
+
+
+        sql += `
+
+        AND DATE(cs.submission_date) >= ?
+
+        `;
+
+
+        values.push(
+
+            filters.start_date
+
+        );
+
+
+    }
+
+
+
+
+
+    if(filters.end_date){
+
+
+        sql += `
+
+        AND DATE(cs.submission_date) <= ?
+
+        `;
+
+
+        values.push(
+
+            filters.end_date
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+
+    // ======================================
+    // SEARCH
+    // ======================================
+
+
+    if(filters.search){
+
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            s.store_name LIKE ?
+
+            OR s.city LIKE ?
+
+            OR s.state LIKE ?
+
+            OR ct.checklist_name LIKE ?
+
+            OR q.question LIKE ?
+
+            OR d.department_name LIKE ?
+
+            OR csa.answer LIKE ?
+
+            OR csa.remarks LIKE ?
+
+        )
+
+
+        `;
+
+
+
+
+        const keyword =
+
+        `%${filters.search}%`;
+
+
+
+
+        values.push(
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword
+
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // SORT + PAGINATION
+    // ======================================
+
+
+    sql += `
+
+
+    ORDER BY cs.id DESC
+
+
+    LIMIT ?,?
+
+
+    `;
+
+
+
+
+    values.push(
+
+        filters.offset || 0,
+
+
+        filters.limit || 10
+
+
+    );
+
+
+
+
+
+
+
+    db.query(
+
+        sql,
+
+        values,
+
+        callback
+
+    );
 
 
 
 };
-
-
-
-
-
-
-
-
-
-
-
 // ======================================================
-// COUNT
+// COUNT ACTION POINTS
 // ======================================================
 
 
-ActionPoint.count=(filters,callback)=>{
+ActionPoint.count = (filters, callback)=>{
 
 
-let sql=`
+    let sql = `
 
 
-SELECT COUNT(*) AS total
+    SELECT COUNT(*) AS total
 
 
-FROM checklist_submissions cs
+    FROM checklist_submissions cs
 
 
-LEFT JOIN checklist_submission_answers csa
 
-ON csa.submission_id=cs.id
+    LEFT JOIN checklist_submission_answers csa
 
+    ON csa.submission_id = cs.id
 
-LEFT JOIN questions q
 
-ON q.id=csa.question_id
 
+    LEFT JOIN questions q
 
-LEFT JOIN checklist_types ct
+    ON q.id = csa.question_id
 
-ON ct.id=cs.checklist_type_id
 
 
-LEFT JOIN stores s
+    LEFT JOIN checklist_types ct
 
-ON s.id=cs.store_id
+    ON ct.id = cs.checklist_type_id
 
 
-LEFT JOIN users u
 
-ON u.id=cs.submitted_by
+    LEFT JOIN stores s
 
+    ON s.id = cs.store_id
 
-LEFT JOIN departments d
 
-ON d.id=u.department_id
 
+    LEFT JOIN users u
 
-WHERE 1=1
+    ON u.id = cs.submitted_by
 
 
-`;
 
+    LEFT JOIN departments d
 
+    ON d.id = u.department_id
 
-let values=[];
 
 
+    WHERE 1=1
 
 
-if(filters.search){
+    `;
 
 
-sql+=`
 
-AND
+    const values = [];
 
-(
 
-s.store_name LIKE ?
 
-OR s.city LIKE ?
 
-OR s.state LIKE ?
 
-OR q.question LIKE ?
+    // ======================================
+    // STORE
+    // ======================================
 
-OR ct.checklist_name LIKE ?
+    if(filters.store_id){
 
-OR csa.answer LIKE ?
 
-OR csa.remarks LIKE ?
+        sql += `
 
-)
+        AND cs.store_id = ?
 
-`;
+        `;
 
 
+        values.push(
 
-let key=`%${filters.search}%`;
+            filters.store_id
 
+        );
 
 
-values.push(
+    }
 
-key,
-key,
-key,
-key,
-key,
-key,
-key
 
-);
 
 
-}
 
 
+    // ======================================
+    // DEPARTMENT
+    // ======================================
 
 
-db.query(
+    if(filters.department_id){
 
-sql,
 
-values,
+        sql += `
 
-callback
+        AND d.id = ?
 
-);
+        `;
 
+
+        values.push(
+
+            filters.department_id
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // STATUS
+    // ======================================
+
+
+    if(filters.status){
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            CASE
+
+
+            WHEN csa.answer IS NULL
+
+            OR csa.answer=''
+
+
+            THEN 'Pending'
+
+
+            ELSE 'No Action Taken'
+
+
+            END
+
+
+        ) = ?
+
+
+        `;
+
+
+        values.push(
+
+            filters.status
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // CHECKLIST TYPE
+    // ======================================
+
+
+    if(filters.checklist_type_id){
+
+
+        sql += `
+
+        AND cs.checklist_type_id = ?
+
+        `;
+
+
+        values.push(
+
+            filters.checklist_type_id
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // DATE
+    // ======================================
+
+
+    if(filters.start_date){
+
+
+        sql += `
+
+        AND DATE(cs.submission_date)>=?
+
+        `;
+
+
+        values.push(
+
+            filters.start_date
+
+        );
+
+
+    }
+
+
+
+
+
+    if(filters.end_date){
+
+
+        sql += `
+
+        AND DATE(cs.submission_date)<=?
+
+        `;
+
+
+        values.push(
+
+            filters.end_date
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    // ======================================
+    // SEARCH
+    // ======================================
+
+
+    if(filters.search){
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            s.store_name LIKE ?
+
+            OR s.city LIKE ?
+
+            OR s.state LIKE ?
+
+            OR q.question LIKE ?
+
+            OR ct.checklist_name LIKE ?
+
+            OR csa.answer LIKE ?
+
+            OR csa.remarks LIKE ?
+
+        )
+
+
+        `;
+
+
+
+        const keyword =
+
+        `%${filters.search}%`;
+
+
+
+        values.push(
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    db.query(
+
+        sql,
+
+        values,
+
+        callback
+
+    );
 
 
 };
-
-
-
 
 
 
@@ -479,65 +868,79 @@ callback
 // ======================================================
 
 
-ActionPoint.create=(data,callback)=>{
+ActionPoint.create = (
 
+    data,
 
-let sql=`
+    callback
 
-
-INSERT INTO checklist_submission_answers
-
-(
-
-submission_id,
-
-question_id,
-
-answer,
-
-remarks
-
-)
-
-VALUES(?,?,?,?)
-
-
-`;
+)=>{
 
 
 
-db.query(
-
-sql,
-
-[
+    const sql = `
 
 
-data.submission_id,
+    INSERT INTO checklist_submission_answers
 
 
-data.question_id,
+    (
+
+        submission_id,
+
+        question_id,
+
+        answer,
+
+        remarks
 
 
-data.answer || "",
+    )
 
 
-data.remarks || ""
+    VALUES(?,?,?,?)
 
 
-],
+    `;
 
 
-callback
 
 
-);
+
+
+    db.query(
+
+
+        sql,
+
+
+        [
+
+
+            data.submission_id,
+
+
+            data.question_id,
+
+
+            data.answer || "",
+
+
+            data.remarks || ""
+
+
+        ],
+
+
+
+        callback
+
+
+    );
+
 
 
 };
-
-
-
 
 
 
@@ -552,147 +955,455 @@ callback
 // ======================================================
 
 
-ActionPoint.update=(id,data,callback)=>{
+ActionPoint.update = (
 
+    id,
 
-let sql=`
+    data,
 
+    callback
 
-UPDATE checklist_submission_answers
-
-
-SET
-
-
-answer=?,
-
-
-remarks=?
-
-
-WHERE submission_id=?
-
-
-`;
+)=>{
 
 
 
-db.query(
-
-sql,
-
-[
+    const sql = `
 
 
-data.answer || "",
+    UPDATE checklist_submission_answers
 
 
-data.remarks || "",
+    SET
 
 
-id
+        answer = ?,
 
 
-],
+        remarks = ?
 
 
-callback
+
+    WHERE submission_id = ?
 
 
-);
+
+    `;
+
+
+
+
+
+
+    db.query(
+
+
+        sql,
+
+
+        [
+
+
+            data.answer || "",
+
+
+            data.remarks || "",
+
+
+            id
+
+
+
+        ],
+
+
+
+        callback
+
+
+    );
 
 
 
 };
-
-
-
-
-
-
-
-
-
-
-
-
 // ======================================================
 // DELETE ACTION POINT
 // ======================================================
 
 
-ActionPoint.delete=(id,callback)=>{
+ActionPoint.delete = (
+
+    id,
+
+    callback
+
+)=>{
 
 
-let sql=`
+    const sql = `
 
 
-DELETE FROM checklist_submission_answers
+    DELETE FROM checklist_submission_answers
 
 
-WHERE submission_id=?
+    WHERE submission_id = ?
 
 
-`;
+    `;
 
 
 
-db.query(
 
-sql,
 
-[id],
+    db.query(
 
-callback
 
-);
+        sql,
+
+
+        [id],
+
+
+        callback
+
+
+    );
 
 
 
 };
+
+
+
+
+
+
+
+
 
 // ======================================================
 // TAKE ACTION
 // ======================================================
 
-ActionPoint.takeAction = (id, data, callback) => {
+
+ActionPoint.takeAction = (
+
+    id,
+
+    data,
+
+    callback
+
+)=>{
+
+
 
     const sql = `
 
-        UPDATE checklist_submission_answers
 
-        SET
+    UPDATE checklist_submission_answers
 
-            action_remarks = ?,
 
-            action_taken = ?,
+    SET
 
-            completion_date = ?
 
-        WHERE submission_id = ?
+        action_remarks = ?,
+
+
+        action_taken = ?,
+
+
+        completion_date = ?
+
+
+
+    WHERE submission_id = ?
+
+
 
     `;
 
+
+
+
+
+
     db.query(
+
 
         sql,
 
+
         [
+
+
 
             data.remarks || "",
 
+
+
             data.action_taken || "",
+
+
 
             data.completion_date || null,
 
+
+
             id
+
+
 
         ],
 
+
+
         callback
+
 
     );
 
+
+
 };
+
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT ACTION POINTS
+// CSV DATA
+// ======================================================
+
+
+ActionPoint.exportActionPoints = (
+
+    filters,
+
+    callback
+
+)=>{
+
+
+
+    let sql = `
+
+
+    SELECT
+
+
+        cs.id,
+
+
+        cs.submission_date AS date,
+
+
+        s.store_name,
+
+
+        s.city,
+
+
+        s.state,
+
+
+        ct.checklist_name,
+
+
+        q.question,
+
+
+        d.department_name,
+
+
+        csa.answer,
+
+
+        csa.remarks,
+
+
+        u.name AS employee_name,
+
+
+        u.employee_id
+
+
+
+    FROM checklist_submissions cs
+
+
+
+    LEFT JOIN checklist_submission_answers csa
+
+    ON csa.submission_id = cs.id
+
+
+
+    LEFT JOIN questions q
+
+    ON q.id = csa.question_id
+
+
+
+    LEFT JOIN checklist_types ct
+
+    ON ct.id = cs.checklist_type_id
+
+
+
+    LEFT JOIN stores s
+
+    ON s.id = cs.store_id
+
+
+
+    LEFT JOIN users u
+
+    ON u.id = cs.submitted_by
+
+
+
+    LEFT JOIN departments d
+
+    ON d.id = u.department_id
+
+
+
+    WHERE 1=1
+
+
+
+    `;
+
+
+
+
+    const values = [];
+
+
+
+
+
+
+
+    if(filters.search){
+
+
+
+        sql += `
+
+
+        AND
+
+        (
+
+            s.store_name LIKE ?
+
+            OR s.city LIKE ?
+
+            OR s.state LIKE ?
+
+            OR ct.checklist_name LIKE ?
+
+            OR q.question LIKE ?
+
+            OR csa.answer LIKE ?
+
+            OR csa.remarks LIKE ?
+
+        )
+
+
+        `;
+
+
+
+        const keyword =
+
+        `%${filters.search}%`;
+
+
+
+        values.push(
+
+
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword
+
+
+
+        );
+
+
+
+    }
+
+
+
+
+
+
+
+
+    sql += `
+
+
+    ORDER BY cs.id DESC
+
+
+    `;
+
+
+
+
+
+
+
+    db.query(
+
+
+        sql,
+
+
+        values,
+
+
+        callback
+
+
+    );
+
+
+
+};
+
+
+
+
+
+
+
+
+
+// ======================================================
+// MODULE EXPORT
+// ======================================================
+
 
 module.exports = ActionPoint;

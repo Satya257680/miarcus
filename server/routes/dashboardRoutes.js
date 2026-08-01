@@ -2,19 +2,59 @@ const express = require("express");
 
 const router = express.Router();
 
-const authMiddleware = require("../middleware/authMiddleware");
+
+
+// ======================================================
+// AUTH MIDDLEWARE
+// ======================================================
+
+const authMiddleware = require(
+    "../middleware/authMiddleware"
+);
+
+
+
+// ======================================================
+// CONTROLLER
+// ======================================================
 
 const {
 
     getDashboardStats,
 
-    getRecentActivities
+    getRecentActivities,
 
-} = require("../controllers/dashboardController");
+    getChecklistSummary,
 
-// ==========================================
+    getActionPointSummary
+
+
+} = require(
+    "../controllers/dashboardController"
+);
+
+
+
+
+
+
+
+// ======================================================
+// BASE URL
+// /api/dashboard
+// ======================================================
+
+
+
+
+
+
+
+// ======================================================
 // DASHBOARD STATS
-// ==========================================
+// GET /api/dashboard/stats
+// ======================================================
+
 
 router.get(
 
@@ -26,9 +66,19 @@ router.get(
 
 );
 
-// ==========================================
+
+
+
+
+
+
+
+
+// ======================================================
 // RECENT ACTIVITIES
-// ==========================================
+// GET /api/dashboard/recent-activities
+// ======================================================
+
 
 router.get(
 
@@ -39,5 +89,66 @@ router.get(
     getRecentActivities
 
 );
+
+
+
+
+
+
+
+
+
+// ======================================================
+// CHECKLIST SUMMARY
+// GET /api/dashboard/checklist-summary
+// ======================================================
+
+
+router.get(
+
+    "/checklist-summary",
+
+    authMiddleware,
+
+    getChecklistSummary
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// ACTION POINT SUMMARY
+// GET /api/dashboard/action-summary
+// ======================================================
+
+
+router.get(
+
+    "/action-summary",
+
+    authMiddleware,
+
+    getActionPointSummary
+
+);
+
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
+
 
 module.exports = router;

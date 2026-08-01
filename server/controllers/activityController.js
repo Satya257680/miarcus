@@ -15,26 +15,39 @@ exports.getAllActivities = (req, res) => {
         limit: req.query.limit || 10
     };
 
-    Activity.getAll(filters, (err, results) => {
+    Activity.getAll(
+
+    filters,
+
+    req.user,
+
+    (err, results) => {
 
         if (err) {
 
             console.error(err);
 
             return res.status(500).json({
+
                 success: false,
+
                 message: "Failed to fetch activities"
+
             });
 
         }
 
         res.json({
+
             success: true,
+
             data: results
+
         });
 
-    });
+    }
 
+);
 };
 
 // ======================================================
@@ -45,7 +58,13 @@ exports.getActivityById = (req, res) => {
 
     const { id } = req.params;
 
-    Activity.getById(id, (err, results) => {
+Activity.getById(
+
+    id,
+
+    req.user,
+
+    (err, results) => {
 
         if (err) {
 
@@ -84,7 +103,13 @@ exports.getActivityDetails = (req, res) => {
 
     const { id } = req.params;
 
-    Activity.getDetails(id, (err, results) => {
+    Activity.getDetails(
+
+    id,
+
+    req.user,
+
+    (err, results) => {
 
         if (err) {
 
@@ -130,21 +155,26 @@ exports.getActivityComments = (req, res) => {
             console.error(err);
 
             return res.status(500).json({
+
                 success: false,
+
                 message: "Failed to fetch comments"
+
             });
 
         }
 
         res.json({
+
             success: true,
+
             data: results
+
         });
 
     });
 
 };
-
 // ======================================================
 // GET ACTIVITY FILES
 // ======================================================
@@ -242,22 +272,58 @@ exports.getActivityTimeline = (req, res) => {
 
     const { id } = req.params;
 
-    Activity.getTimeline(id, (err, results) => {
+    Activity.hasAccess(id, req.user, (err, allowed) => {
 
         if (err) {
 
             console.error(err);
 
             return res.status(500).json({
+
                 success: false,
-                message: "Failed to fetch activity timeline"
+
+                message: "Permission Check Failed"
+
             });
 
         }
 
-        res.json({
-            success: true,
-            data: results
+        if (!allowed) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message: "Access Denied"
+
+            });
+
+        }
+
+        Activity.getTimeline(id, (err, results) => {
+
+            if (err) {
+
+                console.error(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to fetch activity timeline"
+
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                data: results
+
+            });
+
         });
 
     });

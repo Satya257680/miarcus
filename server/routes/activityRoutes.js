@@ -6,6 +6,7 @@ const activityController = require("../controllers/activityController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+const activityAccessMiddleware = require("../middleware/activityAccessMiddleware");
 const upload = require("../middleware/upload");
 
 // ======================================================
@@ -26,7 +27,6 @@ router.get(
 
 // ======================================================
 // GET ACTIVITY DETAILS
-// IMPORTANT: Place this BEFORE "/:id"
 // ======================================================
 
 router.get(
@@ -36,6 +36,8 @@ router.get(
     authMiddleware,
 
     permissionMiddleware("Activity Center", "View"),
+
+    activityAccessMiddleware,
 
     activityController.getActivityDetails
 
@@ -53,6 +55,8 @@ router.get(
 
     permissionMiddleware("Activity Center", "View"),
 
+    activityAccessMiddleware,
+
     activityController.getActivityComments
 
 );
@@ -68,6 +72,8 @@ router.post(
     authMiddleware,
 
     permissionMiddleware("Activity Center", "Edit"),
+
+    activityAccessMiddleware,
 
     activityController.addComment
 
@@ -85,6 +91,8 @@ router.get(
 
     permissionMiddleware("Activity Center", "View"),
 
+    activityAccessMiddleware,
+
     activityController.getActivityFiles
 
 );
@@ -100,6 +108,8 @@ router.post(
     authMiddleware,
 
     permissionMiddleware("Activity Center", "Edit"),
+
+    activityAccessMiddleware,
 
     upload.single("file"),
 
@@ -119,6 +129,8 @@ router.delete(
 
     permissionMiddleware("Activity Center", "Edit"),
 
+    activityAccessMiddleware,
+
     activityController.deleteActivityFile
 
 );
@@ -134,6 +146,8 @@ router.get(
     authMiddleware,
 
     permissionMiddleware("Activity Center", "View"),
+
+    activityAccessMiddleware,
 
     activityController.getActivityNotifications
 
@@ -151,6 +165,8 @@ router.get(
 
     permissionMiddleware("Activity Center", "View"),
 
+    activityAccessMiddleware,
+
     activityController.getActivityMentions
 
 );
@@ -167,13 +183,14 @@ router.get(
 
     permissionMiddleware("Activity Center", "View"),
 
+    activityAccessMiddleware,
+
     activityController.getActivityTimeline
 
 );
 
 // ======================================================
 // GET ACTIVITY BY ID
-// KEEP THIS LAST
 // ======================================================
 
 router.get(
@@ -183,6 +200,8 @@ router.get(
     authMiddleware,
 
     permissionMiddleware("Activity Center", "View"),
+
+    activityAccessMiddleware,
 
     activityController.getActivityById
 

@@ -542,6 +542,15 @@ loadRoute(
 
 );
 
+loadRoute(
+
+    "./routes/nsoTrackingRoutes",
+
+    "/api/nso-tracking",
+
+    "NSO Tracking Routes"
+
+);
 
 // ======================================================
 // MULTER ERROR HANDLER
@@ -615,7 +624,21 @@ app.use(
 
 
 
+// ======================================================
+// TEST API ROUTES
+// ======================================================
 
+app.get("/api/test",(req,res)=>{
+
+    res.json({
+
+        success:true,
+
+        message:"API Working"
+
+    });
+
+});
 
 
 

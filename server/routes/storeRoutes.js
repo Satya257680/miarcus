@@ -3,138 +3,344 @@ const multer = require("multer");
 
 const router = express.Router();
 
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+
+
+// ======================================================
+// CONTROLLER
+// ======================================================
+
 const {
-  getStores,
-  createStore,
-  updateStore,
-  deleteStore,
-  deleteAllStores,
-  importStoresFromCSV,
+
+    getStores,
+
+    getStoreById,
+
+    createStore,
+
+    updateStore,
+
+    deleteStore,
+
+    deleteAllStores,
+
+    importStoresFromCSV
+
+
 } = require("../controllers/storeController");
 
-// ==============================
-// Multer Configuration
-// ==============================
+
+
+
+
+// ======================================================
+// MULTER CONFIGURATION
+// ======================================================
 
 const storage = multer.diskStorage({
 
-  destination: (req, file, cb) => {
+    destination:(req,file,cb)=>{
 
-    cb(null, "uploads/");
+        cb(null,"uploads/");
 
-  },
+    },
 
-  filename: (req, file, cb) => {
 
-    cb(null, Date.now() + "-" + file.originalname);
+    filename:(req,file,cb)=>{
 
-  },
+        cb(
 
-});
+            null,
 
-const upload = multer({
+            `${Date.now()}-${file.originalname}`
 
-  storage,
-
-  limits: {
-
-    fileSize: 5 * 1024 * 1024, // 5 MB
-
-  },
-
-  fileFilter: (req, file, cb) => {
-
-    if (
-      file.mimetype === "text/csv" ||
-      file.originalname.toLowerCase().endsWith(".csv")
-    ) {
-
-      cb(null, true);
-
-    } else {
-
-      cb(new Error("Only CSV files are allowed."));
+        );
 
     }
 
-  },
+});
+
+
+
+
+const upload = multer({
+
+    storage,
+
+
+    limits:{
+
+        fileSize:5 * 1024 * 1024
+
+    },
+
+
+    fileFilter:(req,file,cb)=>{
+
+
+        if(
+
+            file.mimetype === "text/csv" ||
+
+            file.originalname
+            .toLowerCase()
+            .endsWith(".csv")
+
+        ){
+
+            return cb(null,true);
+
+        }
+
+
+        return cb(
+
+            new Error(
+                "Only CSV files are allowed."
+            )
+
+        );
+
+
+    }
+
 
 });
 
-// ==============================
-// Get All Stores
-// Permission: View
-// ==============================
+
+
+
+
+
+
+// ======================================================
+// GET ALL STORES
+// GET /api/stores
+// Permission : View
+// ======================================================
 
 router.get(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Store Management", "View"),
-  getStores
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "View"
+
+    ),
+
+    getStores
+
 );
 
-// ==============================
-// Create Store
-// Permission: Add
-// ==============================
+
+
+
+
+
+
+// ======================================================
+// IMPORT STORES CSV
+// POST /api/stores/import
+// Permission : Add
+// ======================================================
 
 router.post(
-  "/",
-  authMiddleware,
-  permissionMiddleware("Store Management", "Add"),
-  createStore
+
+    "/import",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "Add"
+
+    ),
+
+    upload.single("file"),
+
+    importStoresFromCSV
+
 );
 
-// ==============================
-// Import Stores CSV
-// Permission: Add
-// ==============================
+
+
+
+
+
+
+
+// ======================================================
+// CREATE STORE
+// POST /api/stores
+// Permission : Add
+// ======================================================
 
 router.post(
-  "/import",
-  authMiddleware,
-  permissionMiddleware("Store Management", "Add"),
-  upload.single("file"),
-  importStoresFromCSV
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "Add"
+
+    ),
+
+    createStore
+
 );
 
-// ==============================
-// Update Store
-// Permission: Edit
-// ==============================
+
+
+
+
+
+
+
+// ======================================================
+// GET STORE BY ID
+// GET /api/stores/:id
+// Permission : View
+// ======================================================
+
+router.get(
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "View"
+
+    ),
+
+    getStoreById
+
+);
+
+
+
+
+
+
+
+
+// ======================================================
+// UPDATE STORE
+// PUT /api/stores/:id
+// Permission : Edit
+// ======================================================
 
 router.put(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Store Management", "Edit"),
-  updateStore
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "Edit"
+
+    ),
+
+    updateStore
+
 );
 
-// ==============================
-// Delete Single Store
-// Permission: Full
-// ==============================
+
+
+
+
+
+
+
+// ======================================================
+// DELETE ALL STORES
+// DELETE /api/stores/delete-all
+// Permission : Full
+// ======================================================
 
 router.delete(
-  "/:id",
-  authMiddleware,
-  permissionMiddleware("Store Management", "Full"),
-  deleteStore
+
+    "/delete-all",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "Full"
+
+    ),
+
+    deleteAllStores
+
 );
 
-// ==============================
-// Delete All Stores
-// Permission: Full
-// ==============================
+
+
+
+
+
+
+
+// ======================================================
+// DELETE STORE
+// DELETE /api/stores/:id
+// Permission : Full
+// ======================================================
 
 router.delete(
-  "/delete-all",
-  authMiddleware,
-  permissionMiddleware("Store Management", "Full"),
-  deleteAllStores
+
+    "/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Store Management",
+
+        "Full"
+
+    ),
+
+    deleteStore
+
 );
+
+
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

@@ -29,181 +29,371 @@ import ReportsTo from "./pages/ReportsTo";
 
 import NSORules from "./pages/NSORules";
 import NewStoreOpenings from "./pages/NewStoreOpenings";
+import NSOTracking from "./pages/NSOTracking";
 
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
 
-// ================= NEW =================
+// ================= ACTIVITY =================
+
 import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
 import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
 
+
 function App() {
+
 
     return (
 
         <BrowserRouter>
 
+
             <Routes>
 
-                {/* ==========================
-                    PUBLIC ROUTES
-                ========================== */}
+
+                {/* ================= PUBLIC ================= */}
+
 
                 <Route
+
                     path="/"
+
                     element={<Login />}
+
                 />
 
+
+
                 <Route
+
                     path="/forgot-password"
+
                     element={<ForgotPassword />}
+
                 />
 
+
+
                 <Route
+
                     path="/verify-otp"
+
                     element={<VerifyOTP />}
+
                 />
 
+
+
                 <Route
+
                     path="/reset-password"
+
                     element={<ResetPassword />}
+
                 />
 
+
+
                 <Route
+
                     path="/activate-account/:token"
+
                     element={<ActivateAccount />}
+
                 />
 
-                {/* ==========================
-                    PROTECTED ROUTES
-                ========================== */}
+
+
+
+
+                {/* ================= PROTECTED ================= */}
+
 
                 <Route
+
                     element={
+
                         <ProtectedRoute>
+
                             <Layout />
+
                         </ProtectedRoute>
+
                     }
+
                 >
 
-                    {/* ================= Dashboard ================= */}
+
+
+                    {/* ================= DASHBOARD ================= */}
+
+
 
                     <Route
+
                         path="/dashboard"
+
                         element={<Dashboard />}
+
                     />
 
+
+
                     <Route
+
                         path="/dashboard-analytics"
+
                         element={<DashboardAnalytics />}
+
                     />
-{/* ================= Activity Center ================= */}
 
-<Route
-    path="/activity-center"
-    element={<ActivityCenter />}
-/>
 
-<Route
-    path="/activity-center/:id"
-    element={<ActivityDetails />}
-/>
 
-                    {/* ================= Checklist ================= */}
+
+
+                    {/* ================= ACTIVITY CENTER ================= */}
+
+
 
                     <Route
+
+                        path="/activity-center"
+
+                        element={<ActivityCenter />}
+
+                    />
+
+
+
+                    <Route
+
+                        path="/activity-center/:id"
+
+                        element={<ActivityDetails />}
+
+                    />
+
+
+
+
+
+
+                    {/* ================= CHECKLIST ================= */}
+
+
+
+                    <Route
+
                         path="/checklist-submit"
+
                         element={<ChecklistSubmission />}
+
                     />
 
+
+
                     <Route
+
                         path="/checklist-reports"
+
                         element={<ChecklistReports />}
+
                     />
 
+
+
                     <Route
+
                         path="/action-points"
+
                         element={<ActionPoints />}
+
                     />
 
-                    {/* ================= Settings ================= */}
+
+
+
+
+
+
+                    {/* ================= ADMIN ================= */}
+
+
 
                     <Route
-                        path="/settings"
-                        element={<Settings />}
-                    />
 
-                    <Route
                         path="/users"
+
                         element={<Users />}
+
                     />
 
+
+
                     <Route
+
                         path="/departments"
+
                         element={<Departments />}
+
                     />
 
+
+
                     <Route
+
                         path="/designations"
+
                         element={<Designations />}
+
                     />
 
+
+
                     <Route
+
                         path="/stores"
+
                         element={<StoreManagement />}
+
                     />
 
+
+
                     <Route
+
                         path="/questions"
+
                         element={<Questions />}
+
                     />
 
+
+
                     <Route
+
                         path="/checklist-types"
+
                         element={<ChecklistTypes />}
+
                     />
 
+
+
                     <Route
+
                         path="/reports-to"
+
                         element={<ReportsTo />}
+
                     />
+
+
+
+
+
+
+
 
                     {/* ================= NSO ================= */}
 
+
+
                     <Route
+
                         path="/new-store-openings"
+
                         element={<NewStoreOpenings />}
+
                     />
 
+
+
                     <Route
+
                         path="/nso-rules"
+
                         element={<NSORules />}
+
                     />
 
-                    {/* ================= Profile ================= */}
+
 
                     <Route
-                        path="/profile"
-                        element={<Profile />}
+
+                        path="/nso-tracking"
+
+                        element={<NSOTracking />}
+
                     />
+
+
+
+
+
+
+
+
+                    {/* ================= SETTINGS ================= */}
+
+
+
+                    <Route
+
+                        path="/settings"
+
+                        element={<Settings />}
+
+                    />
+
+
+
+
+
+                    {/* ================= PROFILE ================= */}
+
+
+
+                    <Route
+
+                        path="/profile"
+
+                        element={<Profile />}
+
+                    />
+
+
 
                 </Route>
 
-                {/* ==========================
-                    FALLBACK
-                ========================== */}
+
+
+
+
+
+
+                {/* ================= FALLBACK ================= */}
+
+
 
                 <Route
+
                     path="*"
+
                     element={<Navigate to="/" replace />}
+
                 />
 
+
+
             </Routes>
+
 
         </BrowserRouter>
 
     );
 
 }
+
 
 export default App;

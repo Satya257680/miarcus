@@ -1,65 +1,176 @@
 const express = require("express");
+
 const router = express.Router();
+
 
 // ======================================================
 // MIDDLEWARE
 // ======================================================
 
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+
+
 
 // ======================================================
 // CONTROLLER
 // ======================================================
 
-const designationController = require("../controllers/designationController");
+const departmentController = require("../controllers/departmentController");
+
+
+
 
 // ======================================================
-// GET ALL DESIGNATIONS
-// Permission: View / Add / Edit / Full
+// BASE URL
+// /api/departments
+// ======================================================
+
+
+
+// ======================================================
+// GET ALL DEPARTMENTS
+// GET /api/departments
+// Permission : View
 // ======================================================
 
 router.get(
+
     "/",
+
     authMiddleware,
-    permissionMiddleware("Designations", "View"),
-    designationController.getAllDesignations
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "View"
+
+    ),
+
+    departmentController.getDepartments
+
 );
 
+
+
+
+
 // ======================================================
-// CREATE DESIGNATION
-// Permission: Add / Edit / Full
+// GET ASSIGNED USERS
+// GET /api/departments/:id/users
+// Permission : View
+// ======================================================
+
+router.get(
+
+    "/:id/users",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "View"
+
+    ),
+
+    departmentController.getAssignedUsers
+
+);
+
+
+
+
+
+// ======================================================
+// CREATE DEPARTMENT
+// POST /api/departments
+// Permission : Add
 // ======================================================
 
 router.post(
+
     "/",
+
     authMiddleware,
-    permissionMiddleware("Designations", "Add"),
-    designationController.createDesignation
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Add"
+
+    ),
+
+    departmentController.createDepartment
+
 );
 
+
+
+
+
 // ======================================================
-// UPDATE DESIGNATION
-// Permission: Edit / Full
+// UPDATE DEPARTMENT
+// PUT /api/departments/:id
+// Permission : Edit
 // ======================================================
 
 router.put(
+
     "/:id",
+
     authMiddleware,
-    permissionMiddleware("Designations", "Edit"),
-    designationController.updateDesignation
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Edit"
+
+    ),
+
+    departmentController.updateDepartment
+
 );
 
+
+
+
+
 // ======================================================
-// DELETE DESIGNATION
-// Permission: Full
+// DELETE DEPARTMENT
+// DELETE /api/departments/:id
+// Permission : Full
 // ======================================================
 
 router.delete(
+
     "/:id",
+
     authMiddleware,
-    permissionMiddleware("Designations", "Full"),
-    designationController.deleteDesignation
+
+    permissionMiddleware(
+
+        "Departments",
+
+        "Full"
+
+    ),
+
+    departmentController.deleteDepartment
+
 );
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

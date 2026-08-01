@@ -1,9 +1,31 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
 
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+
+// ======================================================
+// FILE UPLOAD
+// ======================================================
+
+// If you already have a common upload middleware,
+// use this line instead:
+//
+// const upload = require("../middleware/upload");
+//
+// Otherwise keep multer below.
+
+const multer = require("multer");
+
+const upload = multer({
+
+    dest: "uploads/"
+
+});
 
 // ======================================================
 // CONTROLLERS
@@ -34,16 +56,6 @@ const {
     resendInvitation
 
 } = require("../controllers/userController");
-
-// ======================================================
-// MULTER CONFIGURATION
-// ======================================================
-
-const upload = multer({
-
-    dest: "uploads/"
-
-});
 
 // ======================================================
 // GET ALL USERS
@@ -227,7 +239,7 @@ router.post(
 );
 
 // ======================================================
-// EXPORT
+// EXPORT ROUTER
 // ======================================================
 
 module.exports = router;

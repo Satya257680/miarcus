@@ -1,26 +1,63 @@
 import axios from "axios";
 
+
 // ======================================================
 // BASE URL
 // ======================================================
 
 const BASE_URL = "http://localhost:5000/api";
 
+
+
+// ======================================================
+// AUTH CONFIG
+// ======================================================
+
+const authConfig = () => ({
+
+    headers: {
+
+        Authorization:
+        `Bearer ${localStorage.getItem("token")}`
+
+    }
+
+});
+
+
+
+
+
 // ======================================================
 // GET ALL
+// SEARCH + PAGINATION
 // ======================================================
 
 export const getNewStoreOpenings = (params) => {
+
 
     return axios.get(
 
         `${BASE_URL}/new-store-openings`,
 
-        { params }
+        {
+
+            ...authConfig(),
+
+            params
+
+        }
 
     );
 
+
 };
+
+
+
+
+
+
 
 // ======================================================
 // GET BY ID
@@ -28,19 +65,30 @@ export const getNewStoreOpenings = (params) => {
 
 export const getNewStoreOpening = (id) => {
 
+
     return axios.get(
 
-        `${BASE_URL}/new-store-openings/${id}`
+        `${BASE_URL}/new-store-openings/${id}`,
+
+        authConfig()
 
     );
 
+
 };
+
+
+
+
+
+
 
 // ======================================================
 // CREATE
 // ======================================================
 
 export const createNewStoreOpening = (formData) => {
+
 
     return axios.post(
 
@@ -52,7 +100,11 @@ export const createNewStoreOpening = (formData) => {
 
             headers: {
 
-                "Content-Type": "multipart/form-data"
+                Authorization:
+                `Bearer ${localStorage.getItem("token")}`,
+
+                "Content-Type":
+                "multipart/form-data"
 
             }
 
@@ -60,13 +112,27 @@ export const createNewStoreOpening = (formData) => {
 
     );
 
+
 };
+
+
+
+
+
+
 
 // ======================================================
 // UPDATE
 // ======================================================
 
-export const updateNewStoreOpening = (id, formData) => {
+export const updateNewStoreOpening = (
+
+    id,
+
+    formData
+
+) => {
+
 
     return axios.put(
 
@@ -78,7 +144,11 @@ export const updateNewStoreOpening = (id, formData) => {
 
             headers: {
 
-                "Content-Type": "multipart/form-data"
+                Authorization:
+                `Bearer ${localStorage.getItem("token")}`,
+
+                "Content-Type":
+                "multipart/form-data"
 
             }
 
@@ -86,7 +156,14 @@ export const updateNewStoreOpening = (id, formData) => {
 
     );
 
+
 };
+
+
+
+
+
+
 
 // ======================================================
 // DELETE
@@ -94,13 +171,100 @@ export const updateNewStoreOpening = (id, formData) => {
 
 export const deleteNewStoreOpening = (id) => {
 
+
     return axios.delete(
 
-        `${BASE_URL}/new-store-openings/${id}`
+        `${BASE_URL}/new-store-openings/${id}`,
+
+        authConfig()
 
     );
 
+
 };
+
+
+
+
+
+
+
+// ======================================================
+// DELETE ALL
+// ======================================================
+
+export const deleteAllNewStoreOpenings = () => {
+
+
+    return axios.delete(
+
+        `${BASE_URL}/new-store-openings/delete-all`,
+
+        authConfig()
+
+    );
+
+
+};
+
+
+
+
+
+
+
+// ======================================================
+// BULK IMPORT
+// ======================================================
+
+export const bulkUploadNewStoreOpenings = (file) => {
+
+
+    const formData = new FormData();
+
+
+    formData.append(
+
+        "file",
+
+        file
+
+    );
+
+
+
+
+
+    return axios.post(
+
+        `${BASE_URL}/new-store-openings/bulk-upload`,
+
+        formData,
+
+        {
+
+            headers: {
+
+                Authorization:
+                `Bearer ${localStorage.getItem("token")}`,
+
+                "Content-Type":
+                "multipart/form-data"
+
+            }
+
+        }
+
+    );
+
+
+};
+
+
+
+
+
+
 
 // ======================================================
 // EXPORT CSV
@@ -108,18 +272,24 @@ export const deleteNewStoreOpening = (id) => {
 
 export const exportNewStoreOpenings = (params) => {
 
+
     return axios.get(
 
         `${BASE_URL}/new-store-openings/export`,
 
         {
 
+            ...authConfig(),
+
             params,
 
-            responseType: "blob"
+            responseType:
+
+            "blob"
 
         }
 
     );
+
 
 };

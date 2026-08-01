@@ -187,28 +187,30 @@ db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
     });
 
     // ======================================================
-    // GENERATE JWT TOKEN
-    // ======================================================
+// GENERATE JWT TOKEN
+// ======================================================
 
-    const token = jwt.sign(
+const token = jwt.sign(
 
-        {
+    {
 
-            id: user.id,
+        id: user.id,
 
-            email: user.email
+        email: user.email,
 
-        },
+        is_admin: user.is_admin
 
-        process.env.JWT_SECRET || "miarcus_secret_key",
+    },
 
-        {
+    process.env.JWT_SECRET || "miarcus_secret_key",
 
-            expiresIn: "1d"
+    {
 
-        }
+        expiresIn: "1d"
 
-    );
+    }
+
+);
 
    return res.status(200).json({
 

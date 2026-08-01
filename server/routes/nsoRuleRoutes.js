@@ -2,103 +2,265 @@ const express = require("express");
 
 const router = express.Router();
 
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+
 const authMiddleware = require("../middleware/authMiddleware");
+
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+
 const upload = require("../middleware/upload");
 
+
+
+// ======================================================
+// CONTROLLER
+// ======================================================
+
 const {
+
     getRules,
+
     createRule,
+
     bulkUploadRules,
+
     updateRule,
+
     deleteRule,
+
     deleteAllRules,
+
     exportRules
+
+
 } = require("../controllers/nsoRuleController");
 
-// ==========================================
-// Get All Rules
-// Permission: View
-// ==========================================
+
+
+
+// ======================================================
+// BASE URL
+// /api/nso-rules
+// ======================================================
+
+
+
+
+
+// ======================================================
+// GET ALL RULES
+// SEARCH + PAGINATION
+// GET /api/nso-rules
+// Permission : View
+// ======================================================
 
 router.get(
+
     "/",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "View"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "View"
+
+    ),
+
     getRules
+
 );
 
-// ==========================================
-// Export Rules
-// Permission: View
-// ==========================================
+
+
+
+
+
+// ======================================================
+// EXPORT RULES CSV
+// GET /api/nso-rules/export
+// Permission : View
+// IMPORTANT: BEFORE /:id
+// ======================================================
 
 router.get(
+
     "/export",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "View"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "View"
+
+    ),
+
     exportRules
+
 );
 
-// ==========================================
-// Create Rule
-// Permission: Add
-// ==========================================
+
+
+
+
+
+// ======================================================
+// CREATE RULE
+// POST /api/nso-rules
+// Permission : Add
+// ======================================================
 
 router.post(
+
     "/",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "Add"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "Add"
+
+    ),
+
     createRule
+
 );
 
-// ==========================================
-// Bulk Upload Rules
-// Permission: Add
-// ==========================================
+
+
+
+
+
+// ======================================================
+// BULK UPLOAD RULES
+// POST /api/nso-rules/bulk-upload
+// Permission : Add
+// IMPORTANT: BEFORE /:id
+// ======================================================
 
 router.post(
+
     "/bulk-upload",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "Add"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "Add"
+
+    ),
+
     upload.single("file"),
+
     bulkUploadRules
+
 );
 
-// ==========================================
-// Update Rule
-// Permission: Edit
-// ==========================================
+
+
+
+
+
+// ======================================================
+// UPDATE RULE
+// PUT /api/nso-rules/:id
+// Permission : Edit
+// ======================================================
 
 router.put(
+
     "/:id",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "Edit"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "Edit"
+
+    ),
+
     updateRule
+
 );
 
-// ==========================================
-// Delete All Rules
-// Permission: Full
-// ==========================================
+
+
+
+
+
+// ======================================================
+// DELETE ALL RULES
+// DELETE /api/nso-rules/delete-all
+// Permission : Full
+// IMPORTANT: BEFORE /:id
+// ======================================================
 
 router.delete(
+
     "/delete-all",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "Full"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "Full"
+
+    ),
+
     deleteAllRules
+
 );
 
-// ==========================================
-// Delete Rule
-// Permission: Full
-// ==========================================
+
+
+
+
+
+// ======================================================
+// DELETE SINGLE RULE
+// DELETE /api/nso-rules/:id
+// Permission : Full
+// ======================================================
 
 router.delete(
+
     "/:id",
+
     authMiddleware,
-    permissionMiddleware("NSO Rules", "Full"),
+
+    permissionMiddleware(
+
+        "NSO Rules",
+
+        "Full"
+
+    ),
+
     deleteRule
+
 );
+
+
+
+
+
+
+// ======================================================
+// EXPORT ROUTER
+// ======================================================
 
 module.exports = router;

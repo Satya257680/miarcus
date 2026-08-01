@@ -1,7 +1,5 @@
 const express = require("express");
 
-const multer = require("multer");
-
 const router = express.Router();
 
 
@@ -14,71 +12,46 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 
-
-// ======================================================
-// MULTER CONFIGURATION
-// ======================================================
-
-const upload = multer({
-
-    storage: multer.memoryStorage()
-
-});
-
-
-
 // ======================================================
 // CONTROLLER
 // ======================================================
 
-const checklistTypeController = require("../controllers/checklistTypeController");
+const {
+
+    getAllNSOTracking,
+
+    getNSOTrackingById,
+
+    getByStoreOpening,
+
+    createNSOTracking,
+
+    updateNSOTracking,
+
+    updateStatus,
+
+    deleteNSOTracking,
+
+    deleteAllNSOTracking,
+
+    exportNSOTracking
+
+
+} = require("../controllers/nsoTrackingController");
 
 
 
 
 // ======================================================
 // BASE URL
-// /api/checklist-types
+// /api/nso-tracking
 // ======================================================
 
 
 
-
-
 // ======================================================
-// GET ALL CHECKLIST TYPES
-// GET /api/checklist-types
-// Permission : View
-// ======================================================
-
-router.get(
-
-    "/",
-
-    authMiddleware,
-
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "View"
-
-    ),
-
-    checklistTypeController.getChecklistTypes
-
-);
-
-
-
-
-
-
-
-// ======================================================
-// EXPORT CHECKLIST TYPES
-// GET /api/checklist-types/export
-// Permission : View
+// EXPORT CSV
+// IMPORTANT: BEFORE /:id
 // ======================================================
 
 router.get(
@@ -88,14 +61,11 @@ router.get(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "View"
-
     ),
 
-    checklistTypeController.exportChecklistTypes
+    exportNSOTracking
 
 );
 
@@ -103,12 +73,55 @@ router.get(
 
 
 
+// ======================================================
+// GET ALL
+// SEARCH + PAGINATION
+// ======================================================
+
+router.get(
+
+    "/",
+
+    authMiddleware,
+
+    permissionMiddleware(
+        "NSO Tracking",
+        "View"
+    ),
+
+    getAllNSOTracking
+
+);
+
+
+
 
 
 // ======================================================
-// CREATE CHECKLIST TYPE
-// POST /api/checklist-types
-// Permission : Add
+// GET BY NEW STORE OPENING ID
+// ======================================================
+
+router.get(
+
+    "/store/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+        "NSO Tracking",
+        "View"
+    ),
+
+    getByStoreOpening
+
+);
+
+
+
+
+
+// ======================================================
+// CREATE
 // ======================================================
 
 router.post(
@@ -118,14 +131,11 @@ router.post(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "Add"
-
     ),
 
-    checklistTypeController.createChecklistType
+    createNSOTracking
 
 );
 
@@ -133,44 +143,8 @@ router.post(
 
 
 
-
-
 // ======================================================
-// IMPORT CHECKLIST TYPES
-// POST /api/checklist-types/import
-// Permission : Add
-// ======================================================
-
-router.post(
-
-    "/import",
-
-    authMiddleware,
-
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Add"
-
-    ),
-
-    upload.single("file"),
-
-    checklistTypeController.importChecklistTypes
-
-);
-
-
-
-
-
-
-
-// ======================================================
-// DELETE ALL CHECKLIST TYPES
-// DELETE /api/checklist-types/delete-all
-// Permission : Full
+// DELETE ALL
 // ======================================================
 
 router.delete(
@@ -180,14 +154,11 @@ router.delete(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "Full"
-
     ),
 
-    checklistTypeController.deleteAllChecklistTypes
+    deleteAllNSOTracking
 
 );
 
@@ -195,12 +166,31 @@ router.delete(
 
 
 
+// ======================================================
+// UPDATE STATUS
+// ======================================================
+
+router.patch(
+
+    "/status/:id",
+
+    authMiddleware,
+
+    permissionMiddleware(
+        "NSO Tracking",
+        "Edit"
+    ),
+
+    updateStatus
+
+);
+
+
+
 
 
 // ======================================================
-// GET CHECKLIST TYPE BY ID
-// GET /api/checklist-types/:id
-// Permission : View
+// GET BY ID
 // ======================================================
 
 router.get(
@@ -210,14 +200,11 @@ router.get(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "View"
-
     ),
 
-    checklistTypeController.getChecklistTypeById
+    getNSOTrackingById
 
 );
 
@@ -225,12 +212,8 @@ router.get(
 
 
 
-
-
 // ======================================================
-// UPDATE CHECKLIST TYPE
-// PUT /api/checklist-types/:id
-// Permission : Edit
+// UPDATE
 // ======================================================
 
 router.put(
@@ -240,14 +223,11 @@ router.put(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "Edit"
-
     ),
 
-    checklistTypeController.updateChecklistType
+    updateNSOTracking
 
 );
 
@@ -255,12 +235,8 @@ router.put(
 
 
 
-
-
 // ======================================================
-// DELETE CHECKLIST TYPE
-// DELETE /api/checklist-types/:id
-// Permission : Full
+// DELETE
 // ======================================================
 
 router.delete(
@@ -270,25 +246,14 @@ router.delete(
     authMiddleware,
 
     permissionMiddleware(
-
-        "Checklist Types",
-
+        "NSO Tracking",
         "Full"
-
     ),
 
-    checklistTypeController.deleteChecklistType
+    deleteNSOTracking
 
 );
 
 
-
-
-
-
-
-// ======================================================
-// EXPORT ROUTER
-// ======================================================
 
 module.exports = router;

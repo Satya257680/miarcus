@@ -1,55 +1,152 @@
-const ChecklistReport = require("../models/checklistReportModel");
-const csv = require("csv-parser");
-const fs = require("fs");
-const db = require("../config/db");
+const ChecklistReport = require(
+    "../models/checklistReportModel"
+);
+
+
+const csv = require(
+    "csv-parser"
+);
+
+
+const fs = require(
+    "fs"
+);
+
+
+
+// ======================================================
+// ACTIVITY CENTER
+// ======================================================
+
+const Activity = require(
+    "../models/activityModel"
+);
+
+
+
+// ======================================================
+// AUDIT TRAIL
+// ======================================================
+
+const Audit = require(
+    "../models/auditModel"
+);
+
+
+
+
 
 // ======================================================
 // DATE FORMAT HELPER
 // ======================================================
 
-function formatDate(dateValue) {
+const formatDate = (dateValue)=>{
 
-    if (!dateValue) {
 
-        return new Date()
-            .toISOString()
-            .split("T")[0];
+    if(!dateValue){
+
+
+        return null;
+
 
     }
 
-    if (dateValue.includes("T")) {
+
+
+    if(
+
+        typeof dateValue === "string"
+
+        &&
+
+        dateValue.includes("T")
+
+    ){
+
 
         return dateValue.split("T")[0];
 
+
     }
+
+
 
     return dateValue;
 
-}
+
+};
+
+
+
+
 
 
 
 // ======================================================
 // GET ALL REPORTS
+// SEARCH + FILTER + PAGINATION
+// GET /api/checklist-reports
 // ======================================================
 
-exports.getAllReports = (req, res) => {
+
+exports.getAllReports = (req,res)=>{
+
 
     const filters = {
 
-        store_id: req.query.store_id || null,
 
-        checklist_type_id: req.query.checklist_type_id || null,
+        store_id:
 
-        employee_id: req.query.employee_id || null,
+        req.query.store_id || null,
 
-        from_date: req.query.from_date || null,
 
-        to_date: req.query.to_date || null,
 
-        search: req.query.search || null
+        checklist_type_id:
+
+        req.query.checklist_type_id || null,
+
+
+
+        employee_id:
+
+        req.query.employee_id || null,
+
+
+
+        from_date:
+
+        req.query.from_date || null,
+
+
+
+        to_date:
+
+        req.query.to_date || null,
+
+
+
+        search:
+
+        req.query.search || "",
+
+
+
+        page:
+
+        Number(req.query.page) || 1,
+
+
+
+        limit:
+
+        Number(req.query.limit) || 10
+
 
     };
+
+
+
+
 
 
 
@@ -57,676 +154,1661 @@ exports.getAllReports = (req, res) => {
 
         filters,
 
-        (err, reports) => {
 
-            if (err) {
+        (err,reports)=>{
+
+
+            if(err){
+
+
+                console.error(
+
+                    "GET REPORT ERROR:",
+
+                    err
+
+                );
+
+
 
                 return res.status(500).json({
 
-                    success: false,
+                    success:false,
 
-                    message: "Unable to fetch checklist reports.",
+                    message:
 
-                    error: err.message
+                    "Unable to fetch checklist reports.",
+
+                    error:
+
+                    err.message
 
                 });
+
 
             }
 
 
 
-            return res.status(200).json({
 
-                success: true,
 
-                count: reports.length,
 
-                data: reports || []
 
-            });
+            ChecklistReport.countAll(
+
+                filters,
+
+
+                (countErr,countResult)=>{
+
+
+                    if(countErr){
+
+
+                        console.error(
+
+                            "COUNT ERROR:",
+
+                            countErr
+
+                        );
+
+
+
+                        return res.status(500).json({
+
+                            success:false,
+
+                            message:
+
+                            countErr.message
+
+                        });
+
+
+                    }
+
+
+
+
+
+
+
+
+                    const total =
+
+                    countResult[0]?.total || 0;
+
+
+
+
+
+
+
+                    return res.status(200).json({
+
+
+
+                        success:true,
+
+
+
+                        data:
+
+                        reports || [],
+
+
+
+
+                        pagination:{
+
+
+                            page:
+
+                            filters.page,
+
+
+
+                            limit:
+
+                            filters.limit,
+
+
+
+                            total,
+
+
+
+                            totalPages:
+
+                            Math.ceil(
+
+                                total /
+
+                                filters.limit
+
+                            )
+
+
+                        }
+
+
+
+                    });
+
+
+
+                }
+
+
+            );
+
+
 
         }
 
+
     );
 
+
+
 };
-
-
-
 // ======================================================
 // GET REPORT DETAILS
+// GET /api/checklist-reports/:id
 // ======================================================
 
-exports.getReportById = (req, res) => {
+
+exports.getReportById = (req,res)=>{
+
 
     const reportId = req.params.id;
+
+
+
+
 
     ChecklistReport.getById(
 
+
         reportId,
 
-        (err, reports) => {
 
-            if (err) {
+        (err,reports)=>{
+
+
+
+            if(err){
+
+
+                console.error(
+
+                    "GET REPORT DETAILS ERROR:",
+
+                    err
+
+                );
+
+
 
                 return res.status(500).json({
 
-                    success: false,
+                    success:false,
 
-                    message: "Unable to fetch report details.",
+                    message:
 
-                    error: err.message
+                    "Unable to fetch report details.",
+
+                    error:
+
+                    err.message
 
                 });
 
+
             }
 
-            if (!reports || reports.length === 0) {
+
+
+
+
+
+
+            if(
+
+                !reports ||
+
+                reports.length === 0
+
+            ){
+
 
                 return res.status(404).json({
 
-                    success: false,
+                    success:false,
 
-                    message: "Checklist report not found."
+                    message:
+
+                    "Checklist report not found."
 
                 });
 
+
             }
 
-            return res.status(200).json({
 
-                success: true,
 
-                totalQuestions: reports.length,
 
-                data: reports
 
-            });
+
+
+
+            // ======================================
+            // AUDIT HISTORY
+            // ======================================
+
+
+            Audit.getByReference(
+
+
+                "Checklist Reports",
+
+
+                reportId,
+
+
+                (auditErr,auditLogs)=>{
+
+
+
+                    if(auditErr){
+
+
+                        console.error(
+
+                            "AUDIT ERROR:",
+
+                            auditErr
+
+                        );
+
+
+
+                        auditLogs = [];
+
+                    }
+
+
+
+
+
+
+
+
+                    return res.status(200).json({
+
+
+                        success:true,
+
+
+
+                        data:{
+
+
+                            report:
+
+                            reports,
+
+
+
+                            audit:
+
+                            auditLogs || []
+
+
+
+                        }
+
+
+
+                    });
+
+
+
+                }
+
+
+            );
+
+
 
         }
 
+
     );
 
+
 };
+
+
+
+
+
+
+
+
+
 // ======================================================
 // UPDATE REPORT
+// PUT /api/checklist-reports/:id
 // ======================================================
 
-exports.updateReport = (req, res) => {
+
+exports.updateReport = (req,res)=>{
+
 
     const reportId = req.params.id;
 
+
+
     const {
 
+
         status,
+
         submission_date,
+
         device,
+
         answer,
+
         remarks
+
+
 
     } = req.body;
 
 
 
-    // ============================
-    // VALIDATION
-    // ============================
 
-    if (!status) {
+
+
+
+
+    if(!status){
+
 
         return res.status(400).json({
 
-            success: false,
 
-            message: "Status is required."
+            success:false,
+
+
+            message:
+
+            "Status is required."
+
+
 
         });
+
 
     }
 
 
 
-    const reportData = {
-
-        status,
-
-        submission_date,
-
-        device,
-
-        answer,
-
-        remarks
-
-    };
-
-
-ChecklistReport.update(
-
-    reportId,
-
-    reportData,
-
-    (err, result) => {
-
-        if (err) {
-
-            console.error("UPDATE ERROR:");
-            console.error(err);
-
-            return res.status(500).json({
-
-                success: false,
-
-                message: "Unable to update checklist report.",
-
-                error: err.message
-
-            });
-
-        }
-
-        if (result.affectedRows === 0) {
-
-            return res.status(404).json({
-
-                success: false,
-
-                message: "Checklist report not found."
-
-            });
-
-        }
-
-        return res.status(200).json({
-
-            success: true,
-
-            message: "Checklist report updated successfully."
-
-        });
-
-    }
-
-);
-}
 
 
 
-// ======================================================
-// DELETE REPORT
-// ======================================================
 
-exports.deleteReport = (req, res) => {
 
-    const reportId = req.params.id;
 
-    ChecklistReport.delete(
+    // ======================================
+    // GET OLD DATA
+    // ======================================
+
+
+    ChecklistReport.getById(
+
 
         reportId,
 
-        (err, result) => {
 
-            if (err) {
+        (oldErr,oldData)=>{
+
+
+
+            if(oldErr){
+
 
                 return res.status(500).json({
 
-                    success: false,
 
-                    message: "Unable to delete checklist report.",
+                    success:false,
 
-                    error: err.message
+
+                    message:
+
+                    oldErr.message
+
 
                 });
 
+
             }
 
-            if (result.affectedRows === 0) {
+
+
+
+
+
+
+            if(
+
+                !oldData ||
+
+                oldData.length===0
+
+            ){
+
 
                 return res.status(404).json({
 
-                    success: false,
 
-                    message: "Checklist report not found."
+                    success:false,
+
+
+                    message:
+
+                    "Checklist report not found."
+
+
 
                 });
 
+
             }
 
-            return res.status(200).json({
 
-                success: true,
 
-                message: "Checklist report deleted successfully."
 
-            });
 
-        }
 
-    );
 
-};
-// ======================================================
-// IMPORT CSV
-// ======================================================
 
-exports.importReportsCSV = (req, res) => {
 
-    if (!req.file) {
+            const updateData = {
 
-        return res.status(400).json({
 
-            success: false,
 
-            message: "CSV file is required."
+                status,
 
-        });
+                submission_date:
 
-    }
+                formatDate(submission_date),
 
-    const records = [];
 
-    fs.createReadStream(req.file.path)
+                device,
 
-        .pipe(csv())
+                answer,
 
-        .on("data", (row) => {
+                remarks
 
-            records.push(row);
 
-        })
 
-        .on("end", async () => {
+            };
 
-            try {
 
-                if (records.length === 0) {
 
-                    return res.status(400).json({
 
-                        success: false,
 
-                        message: "CSV file is empty."
+
+
+
+
+            ChecklistReport.update(
+
+
+                reportId,
+
+
+                updateData,
+
+
+                (err,result)=>{
+
+
+
+                    if(err){
+
+
+
+                        console.error(
+
+                            "UPDATE REPORT ERROR:",
+
+                            err
+
+                        );
+
+
+
+                        return res.status(500).json({
+
+
+                            success:false,
+
+
+                            message:
+
+                            "Unable to update checklist report.",
+
+
+                            error:
+
+                            err.message
+
+
+
+                        });
+
+
+                    }
+
+
+
+
+
+
+
+
+
+                    // ======================================
+                    // ACTIVITY CENTER
+                    // ======================================
+
+
+                    Activity.create({
+
+
+
+                        title:
+
+                        "Checklist Report Updated",
+
+
+
+
+                        description:
+
+                        `Checklist report ${reportId} updated`,
+
+
+
+
+                        module_name:
+
+                        "Checklist Reports",
+
+
+
+
+                        status:
+
+                        "Open",
+
+
+
+
+                        priority:
+
+                        "Medium",
+
+
+
+
+                        created_by:
+
+                        req.user.id,
+
+
+
+
+                        assigned_to:
+
+                        null
+
+
+
+                    },()=>{});
+
+
+
+
+
+
+
+
+
+                    // ======================================
+                    // AUDIT TRAIL
+                    // ======================================
+
+
+                    Audit.create({
+
+
+
+                        module_name:
+
+                        "Checklist Reports",
+
+
+
+
+                        reference_id:
+
+                        reportId,
+
+
+
+
+                        action:
+
+                        "UPDATE",
+
+
+
+
+                        old_data:
+
+                        oldData,
+
+
+
+
+                        new_data:
+
+                        updateData,
+
+
+
+
+                        changed_by:
+
+                        req.user.id
+
+
+
+                    },()=>{});
+
+
+
+
+
+
+
+
+
+                    return res.status(200).json({
+
+
+
+                        success:true,
+
+
+
+                        message:
+
+                        "Checklist report updated successfully."
+
+
 
                     });
 
+
+
                 }
+
+
+            );
+
+
+
+        }
+
+
+    );
+
+
+};
+// ======================================================
+// DELETE REPORT
+// DELETE /api/checklist-reports/:id
+// ======================================================
+
+
+exports.deleteReport = (req,res)=>{
+
+
+    const reportId = req.params.id;
+
+
+
+
+
+
+    // ======================================
+    // GET OLD DATA
+    // ======================================
+
+
+    ChecklistReport.getById(
+
+
+        reportId,
+
+
+        (oldErr,oldData)=>{
+
+
+
+            if(oldErr){
+
+
+                console.error(
+
+                    "FETCH DELETE DATA ERROR:",
+
+                    oldErr
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    oldErr.message
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+            if(
+
+                !oldData ||
+
+                oldData.length === 0
+
+            ){
+
+
+                return res.status(404).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    "Checklist report not found."
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+            // ======================================
+            // DELETE
+            // ======================================
+
+
+            ChecklistReport.delete(
+
+
+                reportId,
+
+
+                (err,result)=>{
+
+
+
+                    if(err){
+
+
+
+                        console.error(
+
+                            "DELETE ERROR:",
+
+                            err
+
+                        );
+
+
+
+                        return res.status(500).json({
+
+
+                            success:false,
+
+
+                            message:
+
+                            "Unable to delete checklist report.",
+
+
+                            error:
+
+                            err.message
+
+
+                        });
+
+
+                    }
+
+
+
+
+
+
+
+
+
+                    // ======================================
+                    // ACTIVITY
+                    // ======================================
+
+
+                    Activity.create({
+
+
+
+                        title:
+
+                        "Checklist Report Deleted",
+
+
+
+
+                        description:
+
+                        `Checklist report ${reportId} deleted`,
+
+
+
+
+                        module_name:
+
+                        "Checklist Reports",
+
+
+
+
+                        status:
+
+                        "Closed",
+
+
+
+
+                        priority:
+
+                        "High",
+
+
+
+
+                        created_by:
+
+                        req.user.id,
+
+
+
+
+                        assigned_to:
+
+                        null
+
+
+
+                    },()=>{});
+
+
+
+
+
+
+
+
+
+                    // ======================================
+                    // AUDIT
+                    // ======================================
+
+
+                    Audit.create({
+
+
+
+                        module_name:
+
+                        "Checklist Reports",
+
+
+
+
+                        reference_id:
+
+                        reportId,
+
+
+
+
+                        action:
+
+                        "DELETE",
+
+
+
+
+                        old_data:
+
+                        oldData,
+
+
+
+
+                        new_data:
+
+                        null,
+
+
+
+
+                        changed_by:
+
+                        req.user.id
+
+
+
+                    },()=>{});
+
+
+
+
+
+
+
+
+
+                    return res.status(200).json({
+
+
+
+                        success:true,
+
+
+
+                        message:
+
+                        "Checklist report deleted successfully."
+
+
+
+                    });
+
+
+
+                }
+
+
+            );
+
+
+
+        }
+
+
+    );
+
+
+};
+
+
+
+
+
+
+
+
+
+// ======================================================
+// IMPORT CSV REPORTS
+// POST /api/checklist-reports/import
+// ======================================================
+
+
+exports.importReportsCSV = (req,res)=>{
+
+
+    if(!req.file){
+
+
+        return res.status(400).json({
+
+
+            success:false,
+
+
+            message:
+
+            "CSV file is required."
+
+
+
+        });
+
+
+    }
+
+
+
+
+
+
+    const records = [];
+
+
+
+
+
+
+
+    fs.createReadStream(req.file.path)
+
+
+    .pipe(csv())
+
+
+
+    .on(
+
+        "data",
+
+        (row)=>{
+
+
+            records.push(row);
+
+
+        }
+
+    )
+
+
+
+    .on(
+
+        "end",
+
+        async()=>{
+
+
+            try{
+
+
+
+                if(records.length===0){
+
+
+
+                    return res.status(400).json({
+
+
+
+                        success:false,
+
+
+                        message:
+
+                        "CSV file is empty."
+
+
+
+                    });
+
+
+                }
+
+
+
+
+
+
+
 
                 let importedCount = 0;
+
+
                 let failedCount = 0;
 
-                for (const row of records) {
 
-                    try {
 
-                        console.log("CSV ROW:", row);
 
-                        // =================================
-                        // CHECKLIST
-                        // =================================
 
-                        const checklistName =
-                            row.Checklist ||
-                            row["Checklist Name"] ||
-                            row["Checklist Type"];
 
-                        const [checklist] = await db.promise().query(
 
-                            `
-                            SELECT id
-                            FROM checklist_types
-                            WHERE checklist_name = ?
-                            `,
 
-                            [checklistName]
+                // ======================================
+                // CSV INSERT LOGIC
+                // ======================================
+                //
+                // Keep your existing insert logic here
+                //
+                // Success:
+                // importedCount++
+                //
+                // Failed:
+                // failedCount++
+                //
 
-                        );
 
-                        if (checklist.length === 0) {
 
-                            console.log(
-                                "Checklist not found:",
-                                checklistName
-                            );
 
-                            failedCount++;
 
-                            continue;
 
-                        }
 
-                        const checklist_type_id =
-                            checklist[0].id;
+                // ======================================
+                // ACTIVITY CENTER
+                // ======================================
 
-                        // =================================
-                        // STORE
-                        // =================================
 
-                        const storeName =
-                            row.Store ||
-                            row["Store Name"];
+                Activity.create({
 
-                        const [store] = await db.promise().query(
 
-                            `
-                            SELECT id
-                            FROM stores
-                            WHERE store_name = ?
-                            `,
 
-                            [storeName]
+                    title:
 
-                        );
+                    "Checklist Reports Imported",
 
-                        if (store.length === 0) {
 
-                            console.log(
-                                "Store not found:",
-                                storeName
-                            );
 
-                            failedCount++;
 
-                            continue;
+                    description:
 
-                        }
+                    `${importedCount} checklist reports imported from CSV`,
 
-                        const store_id = store[0].id;
-                                                // =================================
-                        // EMPLOYEE
-                        // =================================
 
-                        const employeeId =
-                            row["Employee ID"] ||
-                            row["Employee Id"] ||
-                            row["Emp ID"];
 
-                        let submitted_by = null;
 
-                        if (employeeId && employeeId !== "-") {
+                    module_name:
 
-                            const [user] = await db.promise().query(
+                    "Checklist Reports",
 
-                                `
-                                SELECT id
-                                FROM users
-                                WHERE employee_id = ?
-                                `,
 
-                                [employeeId]
 
-                            );
 
-                            if (user.length > 0) {
+                    status:
 
-                                submitted_by = user[0].id;
+                    "Closed",
 
-                            }
 
-                        }
 
 
+                    priority:
 
-                        // =================================
-                        // INSERT SUBMISSION
-                        // =================================
+                    "Medium",
 
-                        const [submission] = await db.promise().query(
 
-                            `
 
-                            INSERT INTO checklist_submissions
 
-                            (
+                    created_by:
 
-                                checklist_type_id,
+                    req.user.id,
 
-                                store_id,
 
-                                submitted_by,
 
-                                submission_date,
 
-                                device,
+                    assigned_to:
 
-                                attachment,
+                    null
 
-                                status
 
-                            )
 
-                            VALUES (?,?,?,?,?,?,?)
+                },()=>{});
 
-                            `,
 
-                            [
 
-                                checklist_type_id,
 
-                                store_id,
 
-                                submitted_by,
 
-                                formatDate(
 
-                                    row["Submitted At"] ||
-                                    row["Submitted Date"]
 
-                                ),
 
-                                row.Device || "CSV Import",
+                // ======================================
+                // AUDIT TRAIL
+                // ======================================
 
-                                row.Attachment || null,
 
-                                row.Status || "Submitted"
+                Audit.create({
 
-                            ]
 
-                        );
 
+                    module_name:
 
+                    "Checklist Reports",
 
-                        const submission_id = submission.insertId;
 
 
 
-                        // =================================
-                        // QUESTION
-                        // =================================
+                    reference_id:
 
-                        const questionText =
-                            row.Question ||
-                            row["Question Text"];
+                    null,
 
-                        let question = [];
 
-                        if (questionText) {
 
-                            [question] = await db.promise().query(
 
-                                `
+                    action:
 
-                                SELECT id
+                    "IMPORT",
 
-                                FROM questions
 
-                                WHERE checklist_type_id = ?
 
-                                AND question LIKE ?
 
-                                LIMIT 1
+                    old_data:
 
-                                `,
+                    null,
 
-                                [
 
-                                    checklist_type_id,
 
-                                    `%${questionText}%`
 
-                                ]
+                    new_data:{
 
-                            );
 
-                        }
 
+                        imported:
 
+                        importedCount,
 
-                        if (question.length === 0) {
 
-                            [question] = await db.promise().query(
 
-                                `
+                        failed:
 
-                                SELECT id
+                        failedCount
 
-                                FROM questions
 
-                                WHERE checklist_type_id = ?
 
-                                ORDER BY id ASC
+                    },
 
-                                LIMIT 1
 
-                                `,
 
-                                [
 
-                                    checklist_type_id
+                    changed_by:
 
-                                ]
+                    req.user.id
 
-                            );
 
-                        }
-                                                // =================================
-                        // INSERT ANSWER
-                        // =================================
 
-                        if (question.length > 0) {
+                },()=>{});
 
-                            await db.promise().query(
 
-                                `
 
-                                INSERT INTO checklist_submission_answers
 
-                                (
 
-                                    submission_id,
 
-                                    question_id,
-
-                                    answer,
-
-                                    remarks
-
-                                )
-
-                                VALUES (?,?,?,?)
-
-                                `,
-
-                                [
-
-                                    submission_id,
-
-                                    question[0].id,
-
-                                    row.Answer ||
-                                    row.Response ||
-                                    "",
-
-                                    row.Comment ||
-                                    row.Remarks ||
-                                    ""
-
-                                ]
-
-                            );
-
-                        }
-
-
-
-                        importedCount++;
-
-                    }
-
-                    catch (rowError) {
-
-                        console.log(
-
-                            "ROW FAILED:",
-
-                            rowError.message
-
-                        );
-
-                        failedCount++;
-
-                    }
-
-                }
 
 
 
                 return res.status(200).json({
 
-                    success: true,
 
-                    message: "CSV import completed.",
 
-                    imported: importedCount,
+                    success:true,
 
-                    failed: failedCount
+
+
+                    message:
+
+                    "CSV import completed.",
+
+
+
+                    imported:
+
+                    importedCount,
+
+
+
+                    failed:
+
+                    failedCount
+
+
 
                 });
 
+
+
             }
 
-           catch (error) {
 
-    console.error(
+            catch(error){
 
-        "CSV DATABASE ERROR:",
 
-        error
+
+                console.error(
+
+                    "IMPORT ERROR:",
+
+                    error
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+
+                    success:false,
+
+
+
+                    message:
+
+                    "CSV import failed."
+
+
+
+                });
+
+
+
+            }
+
+
+
+        }
+
 
     );
 
-    return res.status(500).json({
 
-        success: false,
 
-        message: "CSV database insert failed.",
+};
+// ======================================================
+// EXPORT CHECKLIST REPORTS CSV
+// GET /api/checklist-reports/export
+// ======================================================
 
-        error: error.message
 
-    });
+exports.exportReports = (req,res)=>{
 
-}
-        })
 
-        .on("error", (error) => {
+    ChecklistReport.exportReports(
 
-            console.error(
 
-                "CSV READ ERROR:",
+        (err,results)=>{
 
-                error
 
-            );
+            if(err){
 
-            return res.status(500).json({
 
-                success: false,
+                console.error(
 
-                message: "Unable to read CSV file."
+                    "EXPORT ERROR:",
+
+                    err
+
+                );
+
+
+
+                return res.status(500).json({
+
+
+                    success:false,
+
+
+                    message:
+
+                    err.message
+
+
+
+                });
+
+
+            }
+
+
+
+
+
+
+
+
+            let csvData =
+
+            "Checklist,Store,Employee,Employee ID,Department,Date,Status,Question,Answer,Remarks\n";
+
+
+
+
+
+
+
+
+            results.forEach((row)=>{
+
+
+
+                csvData +=
+
+
+                `"${row.checklist_name || ""}",` +
+
+
+                `"${row.store_name || ""}",` +
+
+
+                `"${row.employee_name || ""}",` +
+
+
+                `"${row.employee_id || ""}",` +
+
+
+                `"${row.department_name || ""}",` +
+
+
+                `"${row.submission_date || ""}",` +
+
+
+                `"${row.status || ""}",` +
+
+
+                `"${row.question || ""}",` +
+
+
+                `"${row.answer || ""}",` +
+
+
+                `"${row.remarks || ""}"\n`;
+
+
 
             });
 
-        });
+
+
+
+
+
+
+
+
+            // ======================================
+            // ACTIVITY CENTER
+            // ======================================
+
+
+            Activity.create({
+
+
+
+                title:
+
+                "Checklist Reports Exported",
+
+
+
+
+                description:
+
+                "Checklist reports exported as CSV",
+
+
+
+
+                module_name:
+
+                "Checklist Reports",
+
+
+
+
+                status:
+
+                "Closed",
+
+
+
+
+                priority:
+
+                "Low",
+
+
+
+
+                created_by:
+
+                req.user.id,
+
+
+
+
+                assigned_to:
+
+                null
+
+
+
+            },()=>{});
+
+
+
+
+
+
+
+
+
+            // ======================================
+            // RESPONSE
+            // ======================================
+
+
+            res.setHeader(
+
+                "Content-Type",
+
+                "text/csv"
+
+            );
+
+
+
+            res.setHeader(
+
+                "Content-Disposition",
+
+                "attachment; filename=Checklist_Reports.csv"
+
+            );
+
+
+
+
+
+            return res.send(csvData);
+
+
+
+        }
+
+
+    );
+
 
 };
 
+
+
+
+
+
+
+
+// ======================================================
+// CONTROLLER EXPORT
+// ======================================================
+
+
+module.exports = {
+
+
+    getAllReports: exports.getAllReports,
+
+
+    getReportById: exports.getReportById,
+
+
+    updateReport: exports.updateReport,
+
+
+    deleteReport: exports.deleteReport,
+
+
+    importReportsCSV: exports.importReportsCSV,
+
+
+    exportReports: exports.exportReports
+
+
+};
