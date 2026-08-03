@@ -1,0 +1,267 @@
+/* =====================================================
+   PAGE TOOLBAR
+===================================================== */
+
+.page-toolbar{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:20px;
+
+    margin-bottom:25px;
+
+    flex-wrap:wrap;
+
+}
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+.toolbar-search{
+
+    position:relative;
+
+    flex:1;
+
+    min-width:320px;
+
+}
+
+.toolbar-search input{
+
+    width:100%;
+
+    height:46px;
+
+    padding:0 15px 0 48px;
+
+    border:1px solid #d9d9d9;
+
+    border-radius:8px;
+
+    outline:none;
+
+    font-size:14px;
+
+    background:#fff;
+
+    transition:.25s;
+
+    box-sizing:border-box;
+
+}
+
+.toolbar-search input:focus{
+
+    border-color:#356d84;
+
+    box-shadow:0 0 0 3px rgba(53,109,132,.15);
+
+}
+
+.toolbar-search-icon{
+
+    position:absolute;
+
+    left:16px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#888;
+
+    font-size:15px;
+
+    pointer-events:none;
+
+}
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+.toolbar-buttons{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    flex-wrap:wrap;
+
+}
+
+/* =====================================================
+   COMMON BUTTON
+===================================================== */
+
+.toolbar-btn{
+
+    height:44px;
+
+    padding:0 18px;
+
+    border:none;
+
+    border-radius:8px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    color:#fff;
+
+    cursor:pointer;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    transition:.25s;
+
+    white-space:nowrap;
+
+}
+
+.toolbar-btn:hover{
+
+    transform:translateY(-2px);
+
+}
+
+/* =====================================================
+   ADD
+===================================================== */
+
+.add-btn{
+
+    background:#356d84;
+
+}
+
+.add-btn:hover{
+
+    background:#2b5a6d;
+
+}
+
+/* =====================================================
+   EXPORT
+===================================================== */
+
+.export-btn{
+
+    background:#28a745;
+
+}
+
+.export-btn:hover{
+
+    background:#218838;
+
+}
+
+/* =====================================================
+   BULK
+===================================================== */
+
+.bulk-btn{
+
+    background:#6c757d;
+
+}
+
+.bulk-btn:hover{
+
+    background:#5a6268;
+
+}
+
+/* =====================================================
+   DELETE ALL
+===================================================== */
+
+.delete-btn{
+
+    background:#dc3545;
+
+}
+
+.delete-btn:hover{
+
+    background:#bb2d3b;
+
+}
+
+/* =====================================================
+   CUSTOM BUTTONS
+===================================================== */
+
+.toolbar-buttons>*{
+
+    display:flex;
+
+    align-items:center;
+
+}
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width:992px){
+
+.page-toolbar{
+
+    flex-direction:column;
+
+    align-items:stretch;
+
+}
+
+.toolbar-search{
+
+    width:100%;
+
+}
+
+.toolbar-buttons{
+
+    width:100%;
+
+    justify-content:flex-start;
+
+}
+
+}
+
+@media (max-width:600px){
+
+.toolbar-buttons{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:10px;
+
+}
+
+.toolbar-btn{
+
+    width:100%;
+
+}
+
+}

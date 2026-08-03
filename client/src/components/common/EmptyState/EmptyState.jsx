@@ -5,7 +5,7 @@ import "../../../styles/common/EmptyState.css";
 
 function EmptyState({
 
-    icon,
+    icon = <FaInbox />,
 
     title = "No Data Found",
 
@@ -23,13 +23,21 @@ function EmptyState({
 
             <div className="empty-state-icon">
 
-                {icon || <FaInbox />}
+                {icon}
 
             </div>
 
-            <h3>{title}</h3>
+            <h3 className="empty-state-title">
 
-            <p>{description}</p>
+                {title}
+
+            </h3>
+
+            <p className="empty-state-description">
+
+                {description}
+
+            </p>
 
             {action && (
 

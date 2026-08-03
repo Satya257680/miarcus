@@ -3,21 +3,37 @@ import React from "react";
 import "../../../styles/common/PageHeader.css";
 
 function PageHeader({
-    title,
-    subtitle,
-    actions
+
+    title = "",
+
+    subtitle = "",
+
+    actions = null,
+
+    className = "",
+
 }) {
 
     return (
 
-        <div className="page-header">
+        <div className={`page-header ${className}`}>
 
             <div className="page-header-left">
 
-                <h1>{title}</h1>
+                <h1 className="page-title">
+
+                    {title}
+
+                </h1>
 
                 {subtitle && (
-                    <p>{subtitle}</p>
+
+                    <p className="page-subtitle">
+
+                        {subtitle}
+
+                    </p>
+
                 )}
 
             </div>

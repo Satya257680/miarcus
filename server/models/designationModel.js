@@ -265,40 +265,54 @@ const updateDesignation = (
     );
 
 };
-
 // ==========================================================
 // DELETE DESIGNATION
 // ==========================================================
 
-const deleteDesignation = (
-
-    id,
-
-    callback
-
-) => {
-
-    const sql = `
-
-        DELETE
-
-        FROM designations
-
-        WHERE id = ?
-
-    `;
+const deleteDesignation = (id, callback) => {
 
     db.query(
 
-        sql,
+        `
+        UPDATE users
+        SET designation_id = NULL
+        WHERE designation_id = ?
+        `,
+        [id],
 
-        [
+        (err) => {
 
-            id
+            if (err) return callback(err);
 
-        ],
+            db.query(
 
-        callback
+                `
+                DELETE FROM designation_users
+                WHERE designation_id = ?
+                `,
+                [id],
+
+                (err) => {
+
+                    if (err) return callback(err);
+
+                    db.query(
+
+                        `
+                        DELETE FROM designations
+                        WHERE id = ?
+                        `,
+                        [id],
+
+                        callback
+
+                    );
+
+                }
+
+            );
+
+        }
 
     );
 
@@ -452,8 +466,220 @@ const getAssignedUsers = (
 };
 
 // ==========================================================
-// EXPORT MODEL FUNCTIONS
+// EXPORT DESIGNATIONS
 // ==========================================================
+
+const exportDesignations = (callback) => {
+
+    const sql = `
+
+        SELECT
+
+            d.id,
+
+            dep.department_name,
+
+            d.designation_name,
+
+            d.description,
+
+            d.status,
+
+            d.created_at
+
+        FROM designations d
+
+        INNER JOIN departments dep
+            ON d.department_id = dep.id
+
+        ORDER BY d.designation_name ASC
+
+    `;
+
+    db.query(sql, callback);
+
+};
+
+// ==========================================================
+// DELETE ALL DESIGNATIONS
+// ==========================================================
+
+const deleteAllDesignations = (callback) => {
+
+    db.query(
+
+        `
+        UPDATE users
+        SET designation_id = NULL
+        `,
+
+        (err) => {
+
+            if (err) return callback(err);
+
+            db.query(
+
+                `
+                DELETE FROM designation_users
+                `,
+
+                (err) => {
+
+                    if (err) return callback(err);
+
+                    db.query(
+
+                        `
+                        DELETE FROM designations
+                        `,
+
+                        callback
+
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
+};
+
+// ==========================================================
+// CHECK DUPLICATE DESIGNATION EXCLUDING CURRENT
+// ==========================================================
+
+const checkDuplicateForUpdate = (
+
+    id,
+
+    designation_name,
+
+    department_id,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        SELECT id
+
+        FROM designations
+
+        WHERE designation_name = ?
+
+        AND department_id = ?
+
+        AND id <> ?
+
+        LIMIT 1
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            designation_name,
+
+            department_id,
+
+            id
+
+        ],
+
+        callback
+
+    );
+
+};
+
+// ==========================================================
+// BULK INSERT DESIGNATIONS
+// ==========================================================
+
+const bulkInsertDesignations = (
+
+    designations,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        INSERT INTO designations
+
+        (
+
+            department_id,
+
+            designation_name,
+
+            description,
+
+            status
+
+        )
+
+        VALUES ?
+
+    `;
+
+    const values = designations.map(
+
+        (item) => [
+
+            item.department_id,
+
+            item.designation_name,
+
+            item.description || "",
+
+            item.status || "Active"
+
+        ]
+
+    );
+
+    db.query(
+
+        sql,
+
+        [
+
+            values
+
+        ],
+
+        callback
+
+    );
+
+};
+// ==========================================================
+// GET DEPARTMENT BY NAME
+// ==========================================================
+
+const getDepartmentByName = (departmentName, callback) => {
+
+    const sql = `
+        SELECT id
+        FROM departments
+        WHERE TRIM(department_name) = TRIM(?)
+        LIMIT 1
+    `;
+
+    db.query(sql, [departmentName], callback);
+
+};
+
+// Module Exports
 
 module.exports = {
 
@@ -463,16 +689,26 @@ module.exports = {
 
     checkDesignationExists,
 
+    checkDuplicateForUpdate,
+
     createDesignation,
 
     updateDesignation,
 
     deleteDesignation,
 
+    deleteAllDesignations,
+
+    exportDesignations,
+
+    bulkInsertDesignations,
+
     assignUsers,
 
     removeAssignedUsers,
 
-    getAssignedUsers
+    getAssignedUsers,
+
+    getDepartmentByName
 
 };

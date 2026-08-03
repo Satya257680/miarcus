@@ -4,7 +4,7 @@ import "../../../styles/common/StatusBadge.css";
 
 function StatusBadge({
 
-    status = "default",
+    status = "Default",
 
     children,
 
@@ -12,11 +12,15 @@ function StatusBadge({
 
 }) {
 
-    const badgeClass = `status-badge status-${status.toLowerCase()} ${className}`;
+    const badgeStatus = String(status)
+        .toLowerCase()
+        .replace(/\s+/g, "-");
 
     return (
 
-        <span className={badgeClass}>
+        <span
+            className={`status-badge status-${badgeStatus} ${className}`}
+        >
 
             {children || status}
 

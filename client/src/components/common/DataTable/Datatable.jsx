@@ -2,8 +2,8 @@ import React from "react";
 
 import "../../../styles/common/DataTable.css";
 
-import Loading from "../Loading/Loading";
-import EmptyState from "../EmptyState/EmptyState";
+import Loading from "../Loading";
+import EmptyState from "../EmptyState";
 
 function DataTable({
 
@@ -21,17 +21,27 @@ function DataTable({
 
 }) {
 
+    // ==========================================
+    // Loading
+    // ==========================================
+
     if (loading) {
 
         return (
 
-            <Loading text="Loading data..." />
+            <Loading
+                text="Loading data..."
+            />
 
         );
 
     }
 
-    if (!data.length) {
+    // ==========================================
+    // Empty
+    // ==========================================
+
+    if (!data || data.length === 0) {
 
         return (
 
@@ -43,6 +53,10 @@ function DataTable({
         );
 
     }
+
+    // ==========================================
+    // Table
+    // ==========================================
 
     return (
 
@@ -56,10 +70,14 @@ function DataTable({
 
                         {columns.map((column) => (
 
-                            <th key={column.key}>
-
-                                {column.title}
-
+                            <th
+                                key={column.key}
+                                style={{
+                                    width: column.width || "auto",
+                                    textAlign: column.align || "left",
+                                }}
+                            >
+                                {column.title || column.label || column.name}
                             </th>
 
                         ))}
@@ -76,11 +94,16 @@ function DataTable({
 
                             {columns.map((column) => (
 
-                                <td key={column.key}>
+                                <td
+                                    key={column.key}
+                                    style={{
+                                        textAlign: column.align || "left",
+                                    }}
+                                >
 
                                     {column.render
                                         ? column.render(row)
-                                        : row[column.key]}
+                                        : row[column.key] ?? "-"}
 
                                 </td>
 

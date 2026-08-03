@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { FaArrowRight } from "react-icons/fa";
 
 function SettingsCard({
     title,
@@ -11,20 +12,43 @@ function SettingsCard({
     const navigate = useNavigate();
 
     return (
+
         <div
             className="settings-card"
             onClick={() => navigate(path)}
         >
+
             <div className="settings-card-icon">
+
                 <Icon />
+
             </div>
 
-            <div className="settings-card-content">
-                <h3>{title}</h3>
-                <p>{description}</p>
-            </div>
+            <h3 className="settings-card-title">
+
+                {title}
+
+            </h3>
+
+            <p className="settings-card-description">
+
+                {description}
+
+            </p>
+
+            <button
+                className="settings-card-arrow"
+                type="button"
+            >
+
+                <FaArrowRight />
+
+            </button>
+
         </div>
+
     );
+
 }
 
 export default SettingsCard;

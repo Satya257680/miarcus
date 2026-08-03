@@ -1,6 +1,6 @@
-/* ==========================================
+/* =====================================================
    EMPTY STATE
-========================================== */
+===================================================== */
 
 .empty-state{
 
@@ -14,9 +14,19 @@
 
     text-align:center;
 
-    padding:50px 20px;
+    padding:60px 20px;
+
+    background:#fff;
+
+    border-radius:12px;
+
+    min-height:280px;
 
 }
+
+/* =====================================================
+   ICON
+===================================================== */
 
 .empty-state-icon{
 
@@ -30,19 +40,23 @@
 
     justify-content:center;
 
+    background:#eef5f8;
+
     border-radius:50%;
 
-    background:#eef4f6;
+    color:#356d84;
 
-    color:#3f6b78;
-
-    font-size:32px;
+    font-size:34px;
 
     margin-bottom:20px;
 
 }
 
-.empty-state h3{
+/* =====================================================
+   TITLE
+===================================================== */
+
+.empty-state-title{
 
     margin:0;
 
@@ -50,17 +64,21 @@
 
     font-weight:600;
 
-    color:#23404A;
+    color:#2d3748;
 
 }
 
-.empty-state p{
+/* =====================================================
+   DESCRIPTION
+===================================================== */
+
+.empty-state-description{
 
     margin:12px 0 24px;
 
-    max-width:420px;
+    max-width:450px;
 
-    color:#667085;
+    color:#6b7280;
 
     font-size:15px;
 
@@ -68,26 +86,54 @@
 
 }
 
+/* =====================================================
+   ACTION
+===================================================== */
+
 .empty-state-action{
 
     display:flex;
 
     justify-content:center;
 
+    gap:10px;
+
+    flex-wrap:wrap;
+
 }
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
 
 @media(max-width:768px){
 
-    .empty-state{
+.empty-state{
 
-        padding:40px 16px;
+    padding:40px 15px;
 
-    }
+}
 
-    .empty-state h3{
+.empty-state-icon{
 
-        font-size:20px;
+    width:70px;
 
-    }
+    height:70px;
+
+    font-size:28px;
+
+}
+
+.empty-state-title{
+
+    font-size:20px;
+
+}
+
+.empty-state-description{
+
+    font-size:14px;
+
+}
 
 }

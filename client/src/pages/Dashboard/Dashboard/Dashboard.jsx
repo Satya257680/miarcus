@@ -26,10 +26,9 @@ import {
 } from "react-icons/fa";
 
 import { Navigate, useNavigate } from "react-router-dom";
-
-import { PageHeader } from "../../../components/common/PageHeader";
-import { SearchBar } from "../../../components/common/SearchBar";
-import { Card } from "../../../components/common/Card";
+import PageHeader from "../../../components/common/PageHeader";
+import SearchBar from "../../../components/common/SearchBar";
+import Card from "../../../components/common/Card";
 import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
 import RecentActivity from "../components/RecentActivity";

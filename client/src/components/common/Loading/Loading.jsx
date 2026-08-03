@@ -10,19 +10,27 @@ function Loading({
 
     fullScreen = false,
 
+    size = "medium",
+
     className = "",
 
 }) {
 
     const loadingContent = (
 
-        <div className={`loading loading-${type} ${className}`}>
+        <div
+            className={`loading loading-${type} loading-${size} ${className}`}
+        >
 
             <div className="loading-spinner"></div>
 
             {text && (
 
-                <p>{text}</p>
+                <p className="loading-text">
+
+                    {text}
+
+                </p>
 
             )}
 

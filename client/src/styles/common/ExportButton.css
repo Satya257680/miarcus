@@ -1,0 +1,53 @@
+/* ==========================================
+   EXPORT BUTTON
+========================================== */
+
+.export-button{
+
+    min-width:120px;
+
+    height:44px;
+
+    padding:0 20px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#28a745;
+
+    color:#fff;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.export-button:hover:not(:disabled){
+
+    background:#218838;
+
+}
+
+.export-button:disabled{
+
+    background:#b8c2cc;
+
+    color:#fff;
+
+    cursor:not-allowed;
+
+}

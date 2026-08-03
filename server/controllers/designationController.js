@@ -242,8 +242,7 @@ exports.createDesignation = (req, res) => {
 
     );
 
-};
-// ======================================================
+};// ======================================================
 // UPDATE DESIGNATION
 // ======================================================
 
@@ -295,125 +294,168 @@ exports.updateDesignation = (req, res) => {
 
     users = users || [];
 
-    // ======================================
-    // UPDATE DESIGNATION
-    // ======================================
+   // ======================================
+// CHECK DUPLICATE DESIGNATION
+// ======================================
 
-    designationModel.updateDesignation(
+designationModel.checkDuplicateForUpdate(
 
-        id,
+    id,
 
-        {
+    designation_name,
 
-            department_id,
+    department_id,
 
-            designation_name,
+    (err, result) => {
 
-            description,
+        if (err) {
 
-            status
+            console.error(err);
 
-        },
+            return res.status(500).json({
 
-        (err) => {
+                success: false,
 
-            if (err) {
+                message: "Database Error"
 
-                console.error(err);
+            });
 
-                return res.status(500).json({
+        }
 
-                    success: false,
+        if (result.length > 0) {
 
-                    message: "Failed to update designation"
+            return res.status(409).json({
 
-                });
+                success: false,
 
-            }
+                message: "Designation already exists in this department."
 
+            });
+
+        }
             // ======================================
-            // REMOVE OLD USER MAPPING
+            // UPDATE DESIGNATION
             // ======================================
 
-            designationModel.removeAssignedUsers(
+            designationModel.updateDesignation(
 
                 id,
 
-                (removeErr) => {
+                {
 
-                    if (removeErr) {
+                    department_id,
 
-                        console.error(removeErr);
+                    designation_name,
+
+                    description,
+
+                    status
+
+                },
+
+                (err) => {
+
+                    if (err) {
+
+                        console.error(err);
 
                         return res.status(500).json({
 
                             success: false,
 
-                            message: "Failed to remove assigned employees"
+                            message: "Failed to update designation"
 
                         });
 
                     }
 
                     // ======================================
-                    // ASSIGN NEW USERS
+                    // REMOVE OLD USER MAPPING
                     // ======================================
 
-                    designationModel.assignUsers(
+                    designationModel.removeAssignedUsers(
 
                         id,
 
-                        users,
+                        (removeErr) => {
 
-                        (assignErr) => {
+                            if (removeErr) {
 
-                            if (assignErr) {
-
-                                console.error(assignErr);
+                                console.error(removeErr);
 
                                 return res.status(500).json({
 
                                     success: false,
 
-                                    message: "Failed to assign employees"
+                                    message: "Failed to remove assigned employees"
 
                                 });
 
                             }
 
                             // ======================================
-                            // LOG ACTIVITY
+                            // ASSIGN NEW USERS
                             // ======================================
 
-                            logActivity({
+                            designationModel.assignUsers(
 
-                                activity_type: "Designation",
+                                id,
 
-                                reference_id: id,
+                                users,
 
-                                title: "Designation Updated",
+                                (assignErr) => {
 
-                                description: `${designation_name} designation was updated`,
+                                    if (assignErr) {
 
-                                module_name: "Designations",
+                                        console.error(assignErr);
 
-                                status: "Open",
+                                        return res.status(500).json({
 
-                                priority: "Medium",
+                                            success: false,
 
-                                created_by: req.user.id,
+                                            message: "Failed to assign employees"
 
-                                assigned_to: null
+                                        });
 
-                            });
+                                    }
 
-                            return res.status(200).json({
+                                    // ======================================
+                                    // LOG ACTIVITY
+                                    // ======================================
 
-                                success: true,
+                                    logActivity({
 
-                                message: "Designation updated successfully"
+                                        activity_type: "Designation",
 
-                            });
+                                        reference_id: id,
+
+                                        title: "Designation Updated",
+
+                                        description: `${designation_name} designation was updated`,
+
+                                        module_name: "Designations",
+
+                                        status: "Open",
+
+                                        priority: "Medium",
+
+                                        created_by: req.user.id,
+
+                                        assigned_to: null
+
+                                    });
+
+                                    return res.status(200).json({
+
+                                        success: true,
+
+                                        message: "Designation updated successfully"
+
+                                    });
+
+                                }
+
+                            );
 
                         }
 
@@ -428,6 +470,7 @@ exports.updateDesignation = (req, res) => {
     );
 
 };
+
 // ======================================================
 // DELETE DESIGNATION
 // ======================================================
@@ -475,90 +518,140 @@ exports.deleteDesignation = (req, res) => {
             const designation = results[0];
 
             // ======================================
-            // REMOVE ASSIGNED USERS
-            // ======================================
+// DELETE DESIGNATION
+// ======================================
 
-            designationModel.removeAssignedUsers(
+designationModel.deleteDesignation(
+
+    id,
+
+    (deleteErr) => {
+
+        if (deleteErr) {
+
+            console.error(deleteErr);
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: "Failed to delete designation"
+
+            });
+
+        }
+
+        // ======================================
+        // LOG ACTIVITY
+        // ======================================
+
+        logActivity({
+
+            activity_type: "Designation",
+
+            reference_id: id,
+
+            title: "Designation Deleted",
+
+            description: `${designation.designation_name} designation was deleted`,
+
+            module_name: "Designations",
+
+            status: "Closed",
+
+            priority: "High",
+
+            created_by: req.user.id,
+
+            assigned_to: null
+
+        });
+
+        return res.status(200).json({
+
+            success: true,
+
+            message: "Designation deleted successfully"
+
+        });
+
+    }
+
+);
+        }
+    );
+};
+// ======================================================
+// GET DESIGNATION BY ID
+// ======================================================
+
+exports.getDesignationById = (req, res) => {
+
+    const { id } = req.params;
+
+    designationModel.getDesignationById(
+
+        id,
+
+        (err, results) => {
+
+            if (err) {
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to fetch designation"
+
+                });
+
+            }
+
+            if (results.length === 0) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message: "Designation not found"
+
+                });
+
+            }
+
+            const designation = results[0];
+
+            designationModel.getAssignedUsers(
 
                 id,
 
-                (removeErr) => {
+                (err, users) => {
 
-                    if (removeErr) {
-
-                        console.error(removeErr);
+                    if (err) {
 
                         return res.status(500).json({
 
                             success: false,
 
-                            message: "Failed to remove assigned employees"
+                            message: "Failed to fetch assigned users"
 
                         });
 
                     }
 
-                    // ======================================
-                    // DELETE DESIGNATION
-                    // ======================================
+                    designation.users = users.map(
 
-                    designationModel.deleteDesignation(
-
-                        id,
-
-                        (deleteErr) => {
-
-                            if (deleteErr) {
-
-                                console.error(deleteErr);
-
-                                return res.status(500).json({
-
-                                    success: false,
-
-                                    message: "Failed to delete designation"
-
-                                });
-
-                            }
-
-                            // ======================================
-                            // LOG ACTIVITY
-                            // ======================================
-
-                            logActivity({
-
-                                activity_type: "Designation",
-
-                                reference_id: id,
-
-                                title: "Designation Deleted",
-
-                                description: `${designation.designation_name} designation was deleted`,
-
-                                module_name: "Designations",
-
-                                status: "Closed",
-
-                                priority: "High",
-
-                                created_by: req.user.id,
-
-                                assigned_to: null
-
-                            });
-
-                            return res.status(200).json({
-
-                                success: true,
-
-                                message: "Designation deleted successfully"
-
-                            });
-
-                        }
+                        u => u.user_id
 
                     );
+
+                    return res.status(200).json({
+
+                        success: true,
+
+                        data: designation
+
+                    });
 
                 }
 
@@ -569,13 +662,393 @@ exports.deleteDesignation = (req, res) => {
     );
 
 };
+
 // ======================================================
-// EXPORT CONTROLLER FUNCTIONS
+// GET ASSIGNED USERS
 // ======================================================
-exports.getAllDesignations = exports.getAllDesignations;
 
-exports.createDesignation = exports.createDesignation;
+exports.getAssignedUsers = (req, res) => {
 
-exports.updateDesignation = exports.updateDesignation;
+    const { id } = req.params;
 
-exports.deleteDesignation = exports.deleteDesignation;
+    designationModel.getAssignedUsers(
+
+        id,
+
+        (err, results) => {
+
+            if (err) {
+
+                console.error(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to fetch assigned employees."
+
+                });
+
+            }
+
+            return res.status(200).json({
+
+                success: true,
+
+                users: results.map(
+
+                    (row) => row.user_id
+
+                )
+
+            });
+
+        }
+
+    );
+
+};
+
+// ======================================================
+// EXPORT DESIGNATIONS
+// ======================================================
+
+exports.exportDesignations = (req, res) => {
+designationModel.exportDesignations(
+
+        (err, results) => {
+
+            if (err) {
+
+                console.error(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to export designations."
+
+                });
+
+            }
+
+            return res.status(200).json({
+
+                success: true,
+
+                data: results
+
+            });
+
+        }
+
+    );
+
+};
+// ======================================================
+// DELETE ALL DESIGNATIONS
+// ======================================================
+
+exports.deleteAllDesignations = (req, res) => {
+
+    designationModel.deleteAllDesignations(
+
+        (err) => {
+
+            if (err) {
+
+                console.error(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to delete all designations.",
+
+                    error: err.message
+
+                });
+
+            }
+
+            logActivity({
+
+                activity_type: "Designation",
+
+                reference_id: 0,
+
+                title: "Delete All Designations",
+
+                description: "All designations were deleted.",
+
+                module_name: "Designations",
+
+                status: "Closed",
+
+                priority: "High",
+
+                created_by: req.user.id,
+
+                assigned_to: null
+
+            });
+
+            return res.status(200).json({
+
+                success: true,
+
+                message: "All designations deleted successfully."
+
+            });
+
+        }
+
+    );
+
+};
+
+
+// ======================================================
+// BULK UPLOAD DESIGNATIONS
+// ======================================================
+
+exports.bulkUploadDesignations = async (req, res) => {
+
+    try {
+
+        if (!req.file) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Please upload an Excel or CSV file."
+            });
+
+        }
+
+        const XLSX = require("xlsx");
+        const fs = require("fs");
+
+        const workbook = XLSX.readFile(req.file.path);
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+       // ======================================
+// Get Department ID from Department Name
+// ======================================
+
+
+        console.log("Excel Data:", rows);
+
+        fs.unlinkSync(req.file.path);
+
+        if (rows.length === 0) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Excel file is empty."
+            });
+
+        }
+
+        const newRows = [];
+
+        let skipped = 0;
+
+       for (const row of rows) {
+
+    let department_id =
+        row.department_id ??
+        row.Department_ID ??
+        row["Department ID"];
+
+    if (!department_id && row.department_name) {
+
+        const department = await new Promise((resolve, reject) => {
+
+            designationModel.getDepartmentByName(
+
+                row.department_name.trim(),
+
+                (err, result) => {
+
+                    if (err) return reject(err);
+
+                    resolve(result);
+
+                }
+
+            );
+
+        });
+
+        if (department.length > 0) {
+            department_id = department[0].id;
+        }
+
+    }
+            const designation_name =
+                (
+                    row.designation_name ??
+                    row.Designation ??
+                    row["Designation Name"]
+                )?.trim();
+
+            const description =
+                row.description ??
+                row.Description ??
+                "";
+
+            const status =
+                row.status ??
+                row.Status ??
+                "Active";
+
+            if (!department_id || !designation_name) {
+
+                skipped++;
+                continue;
+
+            }
+
+            const exists = await new Promise((resolve, reject) => {
+
+                designationModel.checkDesignationExists(
+
+                    designation_name,
+
+                    department_id,
+
+                    (err, result) => {
+
+                        if (err) return reject(err);
+
+                        resolve(result);
+
+                    }
+
+                );
+
+            });
+
+            if (exists.length > 0) {
+
+                skipped++;
+                continue;
+
+            }
+
+            newRows.push({
+
+                department_id,
+
+                designation_name,
+
+                description,
+
+                status
+
+            });
+
+        }
+
+        if (newRows.length === 0) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "No valid new designations found."
+
+            });
+
+        }
+
+        designationModel.bulkInsertDesignations(
+
+            newRows,
+
+            (err) => {
+
+                if (err) {
+
+                    console.error(err);
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message: "Bulk upload failed."
+
+                    });
+
+                }
+
+                logActivity({
+
+                    activity_type: "Designation",
+
+                    reference_id: 0,
+
+                    title: "Bulk Upload",
+
+                    description: `${newRows.length} designations uploaded`,
+
+                    module_name: "Designations",
+
+                    status: "Closed",
+
+                    priority: "Medium",
+
+                    created_by: req.user.id,
+
+                    assigned_to: null
+
+                });
+
+                return res.status(200).json({
+
+                    success: true,
+
+                    message: `${newRows.length} designation(s) uploaded successfully. ${skipped} row(s) skipped.`
+
+                });
+
+            }
+
+        );
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: err.message
+
+        });
+
+    }
+
+};
+// ======================================================
+// DOWNLOAD SAMPLE FILE
+// ======================================================
+
+exports.downloadSampleFile = (req, res) => {
+
+    const path = require("path");
+
+    const filePath = path.join(
+        __dirname,
+        "../sample-files/designation_sample.xlsx"
+    );
+
+    return res.download(filePath);
+
+};

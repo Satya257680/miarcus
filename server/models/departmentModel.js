@@ -218,35 +218,49 @@ const updateDepartment = (
 // DELETE DEPARTMENT
 // ==========================================================
 
-const deleteDepartment = (
-
-    id,
-
-    callback
-
-) => {
-
-    const sql = `
-
-        DELETE
-
-        FROM departments
-
-        WHERE id = ?
-
-    `;
+const deleteDepartment = (id, callback) => {
 
     db.query(
 
-        sql,
+        `
+        UPDATE users
+        SET department_id = NULL
+        WHERE department_id = ?
+        `,
+        [id],
 
-        [
+        (err) => {
 
-            id
+            if (err) return callback(err);
 
-        ],
+            db.query(
 
-        callback
+                `
+                DELETE FROM department_users
+                WHERE department_id = ?
+                `,
+                [id],
+
+                (err) => {
+
+                    if (err) return callback(err);
+
+                    db.query(
+
+                        `
+                        DELETE FROM departments
+                        WHERE id = ?
+                        `,
+                        [id],
+                        callback
+
+                    );
+
+                }
+
+            );
+
+        }
 
     );
 
@@ -400,6 +414,148 @@ const getAssignedUsers = (
 };
 
 // ==========================================================
+// EXPORT DEPARTMENTS
+// ==========================================================
+
+const exportDepartments = (callback) => {
+
+    const sql = `
+
+        SELECT
+
+            id,
+
+            department_name,
+
+            description,
+
+            status,
+
+            created_at
+
+        FROM departments
+
+        ORDER BY department_name ASC
+
+    `;
+
+    db.query(
+
+        sql,
+
+        callback
+
+    );
+
+};
+
+// ==========================================================
+// DELETE ALL DEPARTMENTS
+// ==========================================================
+
+const deleteAllDepartments = (callback) => {
+
+    db.query(
+
+        `
+        UPDATE users
+        SET department_id = NULL
+        `,
+
+        (err) => {
+
+            if (err) return callback(err);
+
+            db.query(
+
+                `
+                DELETE FROM department_users
+                `,
+
+                (err) => {
+
+                    if (err) return callback(err);
+
+                    db.query(
+
+                        `
+                        DELETE FROM departments
+                        `,
+                        callback
+
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
+};
+
+// ==========================================================
+// BULK INSERT DEPARTMENTS
+// ==========================================================
+
+const bulkInsertDepartments = (
+
+    departments,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        INSERT INTO departments
+
+        (
+
+            department_name,
+
+            description,
+
+            status
+
+        )
+
+        VALUES ?
+
+    `;
+
+    const values = departments.map(
+
+        (item) => [
+
+            item.department_name,
+
+            item.description || "",
+
+            item.status || "Active"
+
+        ]
+
+    );
+
+    db.query(
+
+        sql,
+
+        [
+
+            values
+
+        ],
+
+        callback
+
+    );
+
+};
+
+// ==========================================================
 // EXPORT MODEL FUNCTIONS
 // ==========================================================
 
@@ -416,6 +572,12 @@ module.exports = {
     updateDepartment,
 
     deleteDepartment,
+
+    deleteAllDepartments,
+
+    exportDepartments,
+
+    bulkInsertDepartments,
 
     // ======================================
     // Employee Assignment

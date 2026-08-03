@@ -2,7 +2,6 @@ const express = require("express");
 
 const router = express.Router();
 
-
 // ======================================================
 // MIDDLEWARE
 // ======================================================
@@ -11,27 +10,17 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
-
+const upload = require("../middleware/upload");
 
 // ======================================================
 // CONTROLLER
 // ======================================================
 
-const departmentController = require("../controllers/departmentController");
-
-
-
+const designationController = require("../controllers/designationController");
 
 // ======================================================
-// BASE URL
-// /api/departments
-// ======================================================
-
-
-
-// ======================================================
-// GET ALL DEPARTMENTS
-// GET /api/departments
+// GET ALL DESIGNATIONS
+// GET /api/designations
 // Permission : View
 // ======================================================
 
@@ -43,23 +32,118 @@ router.get(
 
     permissionMiddleware(
 
-        "Departments",
+        "Designations",
 
         "View"
 
     ),
 
-    departmentController.getDepartments
+    designationController.getAllDesignations
 
 );
 
+// ======================================================
+// EXPORT DESIGNATIONS
+// GET /api/designations/export
+// Permission : View
+// ======================================================
 
+router.get(
 
+    "/export",
 
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Designations",
+
+        "View"
+
+    ),
+
+    designationController.exportDesignations
+
+);
+
+// ======================================================
+// DOWNLOAD SAMPLE FILE
+// GET /api/designations/sample
+// Permission : View
+// ======================================================
+
+router.get(
+
+    "/sample",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Designations",
+
+        "View"
+
+    ),
+
+    designationController.downloadSampleFile
+
+);
+
+// ======================================================
+// BULK UPLOAD DESIGNATIONS
+// POST /api/designations/bulk-upload
+// Permission : Add
+// ======================================================
+
+router.post(
+
+    "/bulk-upload",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Designations",
+
+        "Add"
+
+    ),
+
+    upload.single("file"),
+
+    designationController.bulkUploadDesignations
+
+);
+
+// ======================================================
+// DELETE ALL DESIGNATIONS
+// DELETE /api/designations/delete-all
+// Permission : Full
+// IMPORTANT: MUST COME BEFORE /:id
+// ======================================================
+
+router.delete(
+
+    "/delete-all",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Designations",
+
+        "Full"
+
+    ),
+
+    designationController.deleteAllDesignations
+
+);
 
 // ======================================================
 // GET ASSIGNED USERS
-// GET /api/departments/:id/users
+// GET /api/designations/:id/users
 // Permission : View
 // ======================================================
 
@@ -71,23 +155,43 @@ router.get(
 
     permissionMiddleware(
 
-        "Departments",
+        "Designations",
 
         "View"
 
     ),
 
-    departmentController.getAssignedUsers
+    designationController.getAssignedUsers
 
 );
 
+// ======================================================
+// GET DESIGNATION BY ID
+// GET /api/designations/:id
+// Permission : View
+// ======================================================
 
+router.get(
 
+    "/:id",
 
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Designations",
+
+        "View"
+
+    ),
+
+    designationController.getDesignationById
+
+);
 
 // ======================================================
-// CREATE DEPARTMENT
-// POST /api/departments
+// CREATE DESIGNATION
+// POST /api/designations
 // Permission : Add
 // ======================================================
 
@@ -99,23 +203,19 @@ router.post(
 
     permissionMiddleware(
 
-        "Departments",
+        "Designations",
 
         "Add"
 
     ),
 
-    departmentController.createDepartment
+    designationController.createDesignation
 
 );
 
-
-
-
-
 // ======================================================
-// UPDATE DEPARTMENT
-// PUT /api/departments/:id
+// UPDATE DESIGNATION
+// PUT /api/designations/:id
 // Permission : Edit
 // ======================================================
 
@@ -127,23 +227,19 @@ router.put(
 
     permissionMiddleware(
 
-        "Departments",
+        "Designations",
 
         "Edit"
 
     ),
 
-    departmentController.updateDepartment
+    designationController.updateDesignation
 
 );
 
-
-
-
-
 // ======================================================
-// DELETE DEPARTMENT
-// DELETE /api/departments/:id
+// DELETE DESIGNATION
+// DELETE /api/designations/:id
 // Permission : Full
 // ======================================================
 
@@ -155,19 +251,15 @@ router.delete(
 
     permissionMiddleware(
 
-        "Departments",
+        "Designations",
 
         "Full"
 
     ),
 
-    departmentController.deleteDepartment
+    designationController.deleteDesignation
 
 );
-
-
-
-
 
 // ======================================================
 // EXPORT ROUTER

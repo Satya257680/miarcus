@@ -24,7 +24,11 @@ function Pagination({
 
     const pages = [];
 
-    for (let i = 1; i <= totalPages; i++) {
+    const start = Math.max(1, currentPage - 2);
+
+    const end = Math.min(totalPages, currentPage + 2);
+
+    for (let i = start; i <= end; i++) {
 
         pages.push(i);
 
@@ -34,64 +38,135 @@ function Pagination({
 
         <div className={`pagination ${className}`}>
 
+            {/* Left */}
+
             <div className="pagination-left">
 
                 <span>
 
-                    Total Records: <strong>{totalRecords}</strong>
+                    Total Records :
+                    <strong> {totalRecords}</strong>
 
                 </span>
 
             </div>
 
+            {/* Center */}
+
             <div className="pagination-center">
 
                 <button
                     type="button"
-                    onClick={() => onPageChange(currentPage - 1)}
+                    className="page-btn"
                     disabled={currentPage === 1}
+                    onClick={() =>
+                        onPageChange(currentPage - 1)
+                    }
                 >
                     Previous
                 </button>
+
+                {start > 1 && (
+
+                    <>
+                        <button
+                            className="page-btn"
+                            onClick={() =>
+                                onPageChange(1)
+                            }
+                        >
+                            1
+                        </button>
+
+                        {start > 2 && (
+
+                            <span className="page-dots">
+
+                                ...
+
+                            </span>
+
+                        )}
+
+                    </>
+
+                )}
 
                 {pages.map((page) => (
 
                     <button
                         key={page}
                         type="button"
-                        className={
+                        className={`page-btn ${
                             page === currentPage
                                 ? "active"
                                 : ""
+                        }`}
+                        onClick={() =>
+                            onPageChange(page)
                         }
-                        onClick={() => onPageChange(page)}
                     >
                         {page}
                     </button>
 
                 ))}
 
+                {end < totalPages && (
+
+                    <>
+                        {end < totalPages - 1 && (
+
+                            <span className="page-dots">
+
+                                ...
+
+                            </span>
+
+                        )}
+
+                        <button
+                            className="page-btn"
+                            onClick={() =>
+                                onPageChange(totalPages)
+                            }
+                        >
+                            {totalPages}
+                        </button>
+
+                    </>
+
+                )}
+
                 <button
                     type="button"
-                    onClick={() => onPageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    className="page-btn"
+                    disabled={
+                        currentPage === totalPages
+                    }
+                    onClick={() =>
+                        onPageChange(currentPage + 1)
+                    }
                 >
                     Next
                 </button>
 
             </div>
 
+            {/* Right */}
+
             <div className="pagination-right">
 
                 <label>
 
-                    Rows:
+                    Rows :
 
                     <select
                         value={pageSize}
                         onChange={(e) =>
                             onPageSizeChange(
-                                Number(e.target.value)
+                                Number(
+                                    e.target.value
+                                )
                             )
                         }
                     >

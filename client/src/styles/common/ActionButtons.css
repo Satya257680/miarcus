@@ -1,0 +1,127 @@
+/* ==========================================
+   ACTION BUTTONS
+========================================== */
+
+.action-buttons{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex-wrap:nowrap;
+
+}
+
+/* ==========================================
+   COMMON
+========================================== */
+
+.action-buttons button{
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    height:36px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:6px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+/* ==========================================
+   VIEW
+========================================== */
+
+.view-btn{
+
+    width:38px;
+
+    background:#17a2b8;
+
+    color:#fff;
+
+}
+
+.view-btn:hover{
+
+    background:#138496;
+
+}
+
+/* ==========================================
+   EDIT
+========================================== */
+
+.edit-btn{
+
+    width:80px;
+
+    background:#f39c12;
+
+    color:#fff;
+
+}
+
+.edit-btn:hover{
+
+    background:#d68910;
+
+}
+
+/* ==========================================
+   DISABLE
+========================================== */
+
+.disable-btn{
+
+    width:90px;
+
+    background:#6c757d;
+
+    color:#fff;
+
+}
+
+.disable-btn:hover{
+
+    background:#5a6268;
+
+}
+
+/* ==========================================
+   DELETE
+========================================== */
+
+.delete-btn{
+
+    width:38px;
+
+    background:#dc3545;
+
+    color:#fff;
+
+}
+
+.delete-btn:hover{
+
+    background:#bb2d3b;
+
+}

@@ -1,6 +1,6 @@
-/* ==========================================
+/* =====================================================
    INPUT GROUP
-========================================== */
+===================================================== */
 
 .input-group{
 
@@ -14,9 +14,9 @@
 
 }
 
-/* ==========================================
+/* =====================================================
    LABEL
-========================================== */
+===================================================== */
 
 .input-label{
 
@@ -24,21 +24,21 @@
 
     font-weight:600;
 
-    color:#344054;
+    color:#374151;
 
 }
 
 .required{
 
-    color:#dc2626;
+    color:#dc3545;
 
     margin-left:4px;
 
 }
 
-/* ==========================================
-   INPUT
-========================================== */
+/* =====================================================
+   INPUT WRAPPER
+===================================================== */
 
 .input-wrapper{
 
@@ -46,15 +46,11 @@
 
     align-items:center;
 
-    gap:10px;
+    background:#fff;
 
-    background:#ffffff;
-
-    border:1px solid #d0d5dd;
+    border:1px solid #d1d5db;
 
     border-radius:8px;
-
-    padding:0 14px;
 
     transition:.25s;
 
@@ -62,9 +58,9 @@
 
 .input-wrapper:focus-within{
 
-    border-color:#3f6b78;
+    border-color:#356d84;
 
-    box-shadow:0 0 0 3px rgba(63,107,120,.15);
+    box-shadow:0 0 0 3px rgba(53,109,132,.15);
 
 }
 
@@ -80,25 +76,23 @@
 
     background:transparent;
 
+    padding:0 14px;
+
     font-size:14px;
 
-    color:#344054;
+    color:#374151;
 
 }
 
 .input-wrapper input::placeholder{
 
-    color:#98a2b3;
+    color:#9ca3af;
 
 }
 
-.input-wrapper input:disabled{
-
-    cursor:not-allowed;
-
-    opacity:.6;
-
-}
+/* =====================================================
+   ICONS
+===================================================== */
 
 .input-icon{
 
@@ -106,25 +100,33 @@
 
     align-items:center;
 
-    color:#667085;
+    justify-content:center;
+
+    color:#6b7280;
+
+    padding:0 12px;
 
 }
 
-/* ==========================================
+.input-icon.left{
+
+    padding-right:0;
+
+}
+
+.input-icon.right{
+
+    padding-left:0;
+
+}
+
+/* =====================================================
    ERROR
-========================================== */
+===================================================== */
 
 .input-error{
 
-    border-color:#dc2626;
-
-}
-
-.input-error:focus-within{
-
-    border-color:#dc2626;
-
-    box-shadow:0 0 0 3px rgba(220,38,38,.15);
+    border-color:#dc3545;
 
 }
 
@@ -132,26 +134,24 @@
 
     font-size:12px;
 
-    color:#667085;
+    color:#6b7280;
 
 }
 
 .input-message.error{
 
-    color:#dc2626;
+    color:#dc3545;
 
 }
 
-/* ==========================================
-   RESPONSIVE
-========================================== */
+/* =====================================================
+   DISABLED
+===================================================== */
 
-@media(max-width:768px){
+.input-wrapper input:disabled{
 
-    .input-wrapper input{
+    background:#f5f5f5;
 
-        font-size:13px;
-
-    }
+    cursor:not-allowed;
 
 }

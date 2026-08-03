@@ -18,19 +18,44 @@ function Button({
 
     loading = false,
 
+    fullWidth = false,
+
+    title = "",
+
     onClick,
 
     className = "",
 
 }) {
 
+    const buttonClass = `
+        btn
+        btn-${variant}
+        btn-${size}
+        ${fullWidth ? "btn-full" : ""}
+        ${className}
+    `.trim();
+
+    const handleClick = (e) => {
+
+        if (loading || disabled) return;
+
+        if (onClick) {
+
+            onClick(e);
+
+        }
+
+    };
+
     return (
 
         <button
             type={type}
+            title={title}
             disabled={disabled || loading}
-            onClick={onClick}
-            className={`btn btn-${variant} btn-${size} ${className}`}
+            onClick={handleClick}
+            className={buttonClass}
         >
 
             {loading ? (
@@ -40,13 +65,23 @@ function Button({
             ) : (
 
                 <>
+
                     {icon && (
+
                         <span className="btn-icon">
+
                             {icon}
+
                         </span>
+
                     )}
 
-                    <span>{children}</span>
+                    <span className="btn-text">
+
+                        {children}
+
+                    </span>
+
                 </>
 
             )}

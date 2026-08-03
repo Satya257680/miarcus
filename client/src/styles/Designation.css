@@ -1,0 +1,255 @@
+/* ==========================================
+   DESIGNATION PAGE
+========================================== */
+
+.designation-page{
+    width:100%;
+    min-height:100vh;
+    padding:24px;
+    background:#edf3f5;
+    box-sizing:border-box;
+}
+
+/* ==========================================
+   CARD
+========================================== */
+
+.designation-page .card{
+    width:100%;
+    background:#fff;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+
+.designation-page .card-header{
+    padding:18px 24px;
+    border-bottom:1px solid #ececec;
+}
+
+.designation-page .card-title{
+    margin:0;
+    font-size:20px;
+    font-weight:700;
+    color:#1f2937;
+}
+
+.designation-page .card-body{
+    padding:18px;
+}
+
+/* ==========================================
+   TABLE
+========================================== */
+
+.designation-page .data-table-wrapper{
+    width:100%;
+    overflow-x:auto;
+}
+
+.designation-page table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:auto;
+}
+
+.designation-page thead tr{
+    background:#3f6b78;
+}
+
+.designation-page thead th{
+    padding:16px 18px;
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    white-space:nowrap;
+    text-align:left;
+}
+
+.designation-page tbody tr{
+    border-bottom:1px solid #ececec;
+    transition:.25s;
+}
+
+.designation-page tbody tr:hover{
+    background:#f8fbfc;
+}
+
+.designation-page tbody td{
+    padding:18px;
+    font-size:14px;
+    color:#374151;
+    vertical-align:middle;
+}
+
+/* ==========================================
+   COLUMN ALIGNMENT
+========================================== */
+
+.designation-page th:nth-child(1),
+.designation-page td:nth-child(1){
+    width:70px;
+}
+
+
+
+.designation-page th:nth-child(5),
+.designation-page td:nth-child(5){
+    text-align:center;
+    width:120px;
+}
+
+.designation-page th:nth-child(6),
+.designation-page td:nth-child(6){
+    text-align:center;
+    width:140px;
+}
+
+.designation-page th:nth-child(7),
+.designation-page td:nth-child(7){
+    text-align:center;
+    width:180px;
+}
+
+/* ==========================================
+   DESCRIPTION COLUMN
+========================================== */
+
+.designation-page th:nth-child(4),
+.designation-page td:nth-child(4){
+    width:40px;
+    min-width:10px;
+    max-width:90px;
+}
+
+.designation-page td:nth-child(4){
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+/* ==========================================
+   STATUS BADGE
+========================================== */
+
+.status{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:90px;
+    height:30px;
+    border-radius:30px;
+    font-size:13px;
+    font-weight:600;
+}
+
+.status.active{
+    background:#28b463;
+    color:#fff;
+}
+
+.status.inactive{
+    background:#e74c3c;
+    color:#fff;
+}
+
+/* ==========================================
+   ACTION BUTTONS
+========================================== */
+
+.action-buttons{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+}
+
+.action-buttons button{
+    border:none;
+    outline:none;
+    cursor:pointer;
+    transition:.25s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    font-size:13px;
+    font-weight:600;
+    border-radius:6px;
+    white-space:nowrap;
+}
+
+.edit-btn{
+    min-width:78px;
+    height:34px;
+    background:#f39c12;
+    color:#fff;
+}
+
+.edit-btn:hover{
+    background:#d68910;
+}
+
+.delete-btn{
+    width:58px;
+    height:34px;
+    background:#3498db;
+    color:#fff;
+}
+
+.delete-btn:hover{
+    background:#2e86c1;
+}
+
+/* ==========================================
+   LOADING
+========================================== */
+
+.loading{
+    text-align:center;
+    padding:40px;
+    color:#666;
+    font-size:15px;
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media(max-width:1200px){
+
+    .designation-page .data-table-wrapper{
+        overflow-x:auto;
+    }
+
+    .designation-page table{
+        min-width:1100px;
+    }
+
+}
+
+@media(max-width:768px){
+
+    .designation-page{
+        padding:16px;
+    }
+
+    .designation-page .card-body{
+        padding:12px;
+    }
+
+    .designation-page thead th,
+    .designation-page tbody td{
+        padding:12px;
+        font-size:13px;
+    }
+
+}
+
+@media(max-width:576px){
+
+    .designation-page{
+        padding:10px;
+    }
+
+}

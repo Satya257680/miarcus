@@ -4,9 +4,9 @@ import "../../../styles/common/Input.css";
 
 function Input({
 
-    label,
+    label = "",
 
-    name,
+    name = "",
 
     type = "text",
 
@@ -20,6 +20,8 @@ function Input({
 
     disabled = false,
 
+    readOnly = false,
+
     error = "",
 
     helperText = "",
@@ -27,6 +29,10 @@ function Input({
     leftIcon = null,
 
     rightIcon = null,
+
+    maxLength,
+
+    autoComplete = "off",
 
     className = "",
 
@@ -38,13 +44,20 @@ function Input({
 
             {label && (
 
-                <label className="input-label" htmlFor={name}>
+                <label
+                    htmlFor={name}
+                    className="input-label"
+                >
 
                     {label}
 
                     {required && (
 
-                        <span className="required">*</span>
+                        <span className="required">
+
+                            *
+
+                        </span>
 
                     )}
 
@@ -52,11 +65,15 @@ function Input({
 
             )}
 
-            <div className={`input-wrapper ${error ? "input-error" : ""}`}>
+            <div
+                className={`input-wrapper ${
+                    error ? "input-error" : ""
+                }`}
+            >
 
                 {leftIcon && (
 
-                    <span className="input-icon">
+                    <span className="input-icon left">
 
                         {leftIcon}
 
@@ -72,11 +89,14 @@ function Input({
                     placeholder={placeholder}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={disabled}
+                    readOnly={readOnly}
+                    maxLength={maxLength}
+                    autoComplete={autoComplete}
                 />
 
                 {rightIcon && (
 
-                    <span className="input-icon">
+                    <span className="input-icon right">
 
                         {rightIcon}
 

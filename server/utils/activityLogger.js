@@ -98,14 +98,14 @@ const logActivity = (activity, callback = () => {}) => {
             if (activity.assigned_to) {
 
                 const notificationSql = `
-                    INSERT INTO activity_notifications
-                    (
-                        activity_id,
-                        user_id,
-                        message
-                    )
-                    VALUES (?, ?, ?)
-                `;
+INSERT INTO activity_notifications (
+    activity_id,
+    user_id,
+    notification
+)
+VALUES (?, ?, ?)
+
+`;
 
                 db.query(
 

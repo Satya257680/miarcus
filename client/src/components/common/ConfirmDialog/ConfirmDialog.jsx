@@ -2,11 +2,21 @@ import React from "react";
 
 import "../../../styles/common/ConfirmDialog.css";
 
-import Button from "../Button/Button";
+import Button from "../Button";
 
 function ConfirmDialog({
 
+    // ==========================================
+    // OPEN
+    // ==========================================
+
     open = false,
+
+    isOpen = false,
+
+    // ==========================================
+    // CONTENT
+    // ==========================================
 
     title = "Confirm Action",
 
@@ -16,9 +26,25 @@ function ConfirmDialog({
 
     cancelText = "Cancel",
 
+    // ==========================================
+    // BUTTON STYLE
+    // ==========================================
+
     confirmVariant = "danger",
 
+    confirmType,
+
+    // ==========================================
+    // STATE
+    // ==========================================
+
     loading = false,
+
+    closeOnOverlay = true,
+
+    // ==========================================
+    // EVENTS
+    // ==========================================
 
     onConfirm,
 
@@ -26,11 +52,37 @@ function ConfirmDialog({
 
 }) {
 
-    if (!open) return null;
+    const visible = open || isOpen;
+
+    const buttonVariant = confirmType || confirmVariant;
+
+    if (!visible) return null;
+
+    const handleOverlayClick = (e) => {
+
+        if (
+
+            closeOnOverlay &&
+
+            e.target.classList.contains("confirm-overlay")
+
+        ) {
+
+            onCancel?.();
+
+        }
+
+    };
 
     return (
 
-        <div className="confirm-overlay">
+        <div
+
+            className="confirm-overlay"
+
+            onClick={handleOverlayClick}
+
+        >
 
             <div className="confirm-dialog">
 
@@ -49,19 +101,31 @@ function ConfirmDialog({
                 <div className="confirm-footer">
 
                     <Button
+
                         variant="secondary"
+
                         onClick={onCancel}
+
                         disabled={loading}
+
                     >
+
                         {cancelText}
+
                     </Button>
 
                     <Button
-                        variant={confirmVariant}
+
+                        variant={buttonVariant}
+
                         onClick={onConfirm}
+
                         loading={loading}
+
                     >
+
                         {confirmText}
+
                     </Button>
 
                 </div>

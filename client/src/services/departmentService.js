@@ -2,92 +2,198 @@ import axios from "axios";
 
 const API = "http://localhost:5000/api/departments";
 
-// ==============================
-// Axios Config
-// ==============================
+// ======================================================
+// AUTH CONFIG
+// ======================================================
 
 const authConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
+
+    headers: {
+
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+
+    }
+
 });
 
-// ==============================
-// Get All Departments
-// ==============================
+// ======================================================
+// MULTIPART CONFIG
+// ======================================================
+
+const uploadConfig = () => ({
+
+    headers: {
+
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+
+        "Content-Type": "multipart/form-data"
+
+    }
+
+});
+
+// ======================================================
+// GET ALL DEPARTMENTS
+// ======================================================
 
 export const getDepartments = async () => {
-  const response = await axios.get(
-    API,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.get(
+
+        API,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };
 
-// ==============================
-// Get Department By ID
-// ==============================
+// ======================================================
+// GET DEPARTMENT BY ID
+// ======================================================
 
 export const getDepartmentById = async (id) => {
-  const response = await axios.get(
-    `${API}/${id}`,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.get(
+
+        `${API}/${id}`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };
 
-// ==============================
-// Create Department
-// ==============================
+// ======================================================
+// CREATE DEPARTMENT
+// ======================================================
 
 export const createDepartment = async (data) => {
-  const response = await axios.post(
-    API,
-    data,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.post(
+
+        API,
+
+        data,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };
 
-// ==============================
-// Update Department
-// ==============================
+// ======================================================
+// UPDATE DEPARTMENT
+// ======================================================
 
 export const updateDepartment = async (id, data) => {
-  const response = await axios.put(
-    `${API}/${id}`,
-    data,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.put(
+
+        `${API}/${id}`,
+
+        data,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };
 
-// ==============================
-// Delete Department
-// ==============================
+// ======================================================
+// DELETE DEPARTMENT
+// ======================================================
 
 export const deleteDepartment = async (id) => {
-  const response = await axios.delete(
-    `${API}/${id}`,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.delete(
+
+        `${API}/${id}`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
 };
 
-// ==============================
-// Delete All Departments
-// ==============================
+// ======================================================
+// DELETE ALL DEPARTMENTS
+// ======================================================
 
 export const deleteAllDepartments = async () => {
-  const response = await axios.delete(
-    `${API}/delete-all`,
-    authConfig()
-  );
 
-  return response.data;
+    const response = await axios.delete(
+
+        `${API}/delete-all`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
+};
+
+// ======================================================
+// EXPORT DEPARTMENTS
+// ======================================================
+
+export const exportDepartments = async () => {
+
+    const response = await axios.get(
+
+        `${API}/export`,
+
+        authConfig()
+
+    );
+
+    return response.data;
+
+};
+
+// ======================================================
+// BULK UPLOAD DEPARTMENTS
+// ======================================================
+
+export const bulkUploadDepartments = async (formData) => {
+
+    const response = await axios.post(
+
+        `${API}/bulk-upload`,
+
+        formData,
+
+        uploadConfig()
+
+    );
+
+    return response.data;
+
+};
+
+// ======================================================
+// DOWNLOAD SAMPLE FILE
+// ======================================================
+
+export const downloadDepartmentSample = () => {
+
+    window.open(
+
+        `${API}/sample`,
+
+        "_blank"
+
+    );
+
 };

@@ -1,6 +1,6 @@
-/* ==========================================
+/* =====================================================
    PAGINATION
-========================================== */
+===================================================== */
 
 .pagination{
 
@@ -12,27 +12,41 @@
 
     gap:20px;
 
+    flex-wrap:wrap;
+
     margin-top:20px;
 
-    flex-wrap:wrap;
+    padding:16px 20px;
+
+    background:#fff;
+
+    border-radius:10px;
+
+    box-shadow:0 2px 8px rgba(0,0,0,.05);
 
 }
 
-/* ==========================================
+/* =====================================================
    LEFT
-========================================== */
+===================================================== */
 
 .pagination-left{
 
     font-size:14px;
 
-    color:#667085;
+    color:#555;
 
 }
 
-/* ==========================================
+.pagination-left strong{
+
+    color:#356d84;
+
+}
+
+/* =====================================================
    CENTER
-========================================== */
+===================================================== */
 
 .pagination-center{
 
@@ -46,13 +60,15 @@
 
 }
 
-.pagination-center button{
+.page-btn{
 
-    min-width:36px;
+    min-width:38px;
 
-    height:36px;
+    height:38px;
 
-    border:1px solid #d0d5dd;
+    padding:0 12px;
+
+    border:1px solid #d7d7d7;
 
     background:#fff;
 
@@ -60,27 +76,33 @@
 
     cursor:pointer;
 
-    transition:.2s;
+    transition:.25s;
+
+    font-size:14px;
 
 }
 
-.pagination-center button:hover:not(:disabled){
+.page-btn:hover:not(:disabled){
 
-    background:#eef4f6;
-
-}
-
-.pagination-center button.active{
-
-    background:#3f6b78;
+    background:#356d84;
 
     color:#fff;
 
-    border-color:#3f6b78;
+    border-color:#356d84;
 
 }
 
-.pagination-center button:disabled{
+.page-btn.active{
+
+    background:#356d84;
+
+    color:#fff;
+
+    border-color:#356d84;
+
+}
+
+.page-btn:disabled{
 
     opacity:.5;
 
@@ -88,17 +110,23 @@
 
 }
 
-/* ==========================================
+.page-dots{
+
+    padding:0 4px;
+
+    color:#777;
+
+}
+
+/* =====================================================
    RIGHT
-========================================== */
+===================================================== */
 
 .pagination-right{
 
     display:flex;
 
     align-items:center;
-
-    gap:8px;
 
 }
 
@@ -112,34 +140,44 @@
 
     font-size:14px;
 
-    color:#667085;
+    color:#444;
 
 }
 
 .pagination-right select{
 
-    padding:6px 10px;
+    width:70px;
 
-    border:1px solid #d0d5dd;
+    height:38px;
+
+    border:1px solid #d7d7d7;
 
     border-radius:8px;
+
+    padding:0 10px;
 
     outline:none;
 
 }
 
-/* ==========================================
+/* =====================================================
    RESPONSIVE
-========================================== */
+===================================================== */
 
 @media(max-width:768px){
 
-    .pagination{
+.pagination{
 
-        flex-direction:column;
+    flex-direction:column;
 
-        align-items:flex-start;
+    align-items:flex-start;
 
-    }
+}
+
+.pagination-center{
+
+    justify-content:center;
+
+}
 
 }

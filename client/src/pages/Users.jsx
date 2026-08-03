@@ -386,24 +386,22 @@ return (
 
         </div>
 
-     {/* Toolbar */}
+  {/* Toolbar */}
 
 <div className="users-toolbar">
 
-  <div className="search-box">
+ <div className="users-search-box">
 
-    <FaSearch className="search-icon" />
+    <FaSearch className="users-search-icon" />
 
     <input
-      type="text"
-      placeholder="Search by name, ID, email..."
-      value={search}
-      onChange={(e) =>
-        setSearch(e.target.value)
-      }
+        type="text"
+        placeholder="Search by name, ID, email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
     />
 
-  </div>
+</div>
 
   {/* Add User */}
 
@@ -465,58 +463,86 @@ return (
 
 </div>
 
-        {/* Filters */}
+       {/* ============================
+    Filters
+============================ */}
 
-        <div className="users-filters">
+<div className="users-filters">
 
-          <select
-            value={departmentFilter}
-            onChange={(e) =>
-              setDepartmentFilter(
-                e.target.value
-              )
-            }
-          >
+  {/* Department Filter */}
 
-            <option>All Departments</option>
-
-           {departments.map((dept) => (
-
-  <option
-    key={dept.id}
-    value={dept.department_name}
+  <select
+    value={departmentFilter}
+    onChange={(e) =>
+      setDepartmentFilter(e.target.value)
+    }
   >
-    {dept.department_name}
-  </option>
-
-))}
-          </select>
-
-          <select
-  value={reportsFilter}
-  onChange={(e) => setReportsFilter(e.target.value)}
->
-  <option value="">All Reports</option>
-
-  {reportsTo.map((manager) => (
-    <option
-      key={manager.id}
-      value={manager.manager_name}
-    >
-      {manager.manager_name}
+    <option value="">
+      All Departments
     </option>
-  ))}
-</select>
 
-        </div>
+    {departments.map((dept) => (
 
-      </div>
+      <option
+        key={dept.id}
+        value={dept.department_name}
+      >
+        {dept.department_name}
+      </option>
 
-      {/* ============================
-          TABLE COMES IN PART-2
-      ============================ */}
-      {/* ============================
-      Users Table
+    ))}
+
+  </select>
+
+  {/* Reports To Filter */}
+
+  <select
+    value={reportsFilter}
+    onChange={(e) =>
+      setReportsFilter(e.target.value)
+    }
+  >
+    <option value="">
+      All Reports
+    </option>
+
+    {reportsTo.map((manager) => (
+
+      <option
+        key={manager.id}
+        value={manager.manager_name}
+      >
+        {manager.manager_name}
+      </option>
+
+    ))}
+
+  </select>
+
+  {/* Clear Filters */}
+
+  <button
+    type="button"
+    className="clear-filter-btn"
+    onClick={() => {
+
+      setSearch("");
+
+      setDepartmentFilter("");
+
+      setReportsFilter("");
+
+    }}
+  >
+    Clear Filters
+  </button>
+
+</div>
+
+</div>
+
+{/* ============================
+    Users Table
 ============================ */}
 
 <div className="users-table-wrapper">

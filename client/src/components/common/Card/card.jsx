@@ -4,15 +4,19 @@ import "../../../styles/common/Card.css";
 
 function Card({
 
-    title,
+    title = "",
 
-    subtitle,
+    subtitle = "",
 
-    actions,
+    actions = null,
 
     children,
 
     className = "",
+
+    bodyClassName = "",
+
+    noPadding = false,
 
 }) {
 
@@ -28,13 +32,21 @@ function Card({
 
                         {title && (
 
-                            <h3>{title}</h3>
+                            <h3 className="card-title">
+
+                                {title}
+
+                            </h3>
 
                         )}
 
                         {subtitle && (
 
-                            <p>{subtitle}</p>
+                            <p className="card-subtitle">
+
+                                {subtitle}
+
+                            </p>
 
                         )}
 
@@ -54,7 +66,11 @@ function Card({
 
             )}
 
-            <div className="card-body">
+            <div
+                className={`card-body ${bodyClassName} ${
+                    noPadding ? "card-no-padding" : ""
+                }`}
+            >
 
                 {children}
 
