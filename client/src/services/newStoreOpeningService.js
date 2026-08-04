@@ -1,13 +1,10 @@
 import axios from "axios";
 
-
 // ======================================================
 // BASE URL
 // ======================================================
 
 const BASE_URL = "http://localhost:5000/api";
-
-
 
 // ======================================================
 // AUTH CONFIG
@@ -17,16 +14,11 @@ const authConfig = () => ({
 
     headers: {
 
-        Authorization:
-        `Bearer ${localStorage.getItem("token")}`
+        Authorization: `Bearer ${localStorage.getItem("token")}`
 
     }
 
 });
-
-
-
-
 
 // ======================================================
 // GET ALL
@@ -34,7 +26,6 @@ const authConfig = () => ({
 // ======================================================
 
 export const getNewStoreOpenings = (params) => {
-
 
     return axios.get(
 
@@ -50,21 +41,13 @@ export const getNewStoreOpenings = (params) => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // GET BY ID
 // ======================================================
 
 export const getNewStoreOpening = (id) => {
-
 
     return axios.get(
 
@@ -74,21 +57,13 @@ export const getNewStoreOpening = (id) => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // CREATE
 // ======================================================
 
 export const createNewStoreOpening = (formData) => {
-
 
     return axios.post(
 
@@ -100,11 +75,9 @@ export const createNewStoreOpening = (formData) => {
 
             headers: {
 
-                Authorization:
-                `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
 
-                "Content-Type":
-                "multipart/form-data"
+                "Content-Type": "multipart/form-data"
 
             }
 
@@ -112,14 +85,7 @@ export const createNewStoreOpening = (formData) => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // UPDATE
@@ -133,7 +99,6 @@ export const updateNewStoreOpening = (
 
 ) => {
 
-
     return axios.put(
 
         `${BASE_URL}/new-store-openings/${id}`,
@@ -144,11 +109,9 @@ export const updateNewStoreOpening = (
 
             headers: {
 
-                Authorization:
-                `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
 
-                "Content-Type":
-                "multipart/form-data"
+                "Content-Type": "multipart/form-data"
 
             }
 
@@ -156,21 +119,13 @@ export const updateNewStoreOpening = (
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // DELETE
 // ======================================================
 
 export const deleteNewStoreOpening = (id) => {
-
 
     return axios.delete(
 
@@ -180,21 +135,13 @@ export const deleteNewStoreOpening = (id) => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // DELETE ALL
 // ======================================================
 
 export const deleteAllNewStoreOpenings = () => {
-
 
     return axios.delete(
 
@@ -204,36 +151,13 @@ export const deleteAllNewStoreOpenings = () => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // BULK IMPORT
 // ======================================================
 
-export const bulkUploadNewStoreOpenings = (file) => {
-
-
-    const formData = new FormData();
-
-
-    formData.append(
-
-        "file",
-
-        file
-
-    );
-
-
-
-
+export const bulkUploadNewStoreOpenings = (formData) => {
 
     return axios.post(
 
@@ -245,11 +169,9 @@ export const bulkUploadNewStoreOpenings = (file) => {
 
             headers: {
 
-                Authorization:
-                `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
 
-                "Content-Type":
-                "multipart/form-data"
+                "Content-Type": "multipart/form-data"
 
             }
 
@@ -257,21 +179,13 @@ export const bulkUploadNewStoreOpenings = (file) => {
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // EXPORT CSV
 // ======================================================
 
 export const exportNewStoreOpenings = (params) => {
-
 
     return axios.get(
 
@@ -283,13 +197,10 @@ export const exportNewStoreOpenings = (params) => {
 
             params,
 
-            responseType:
-
-            "blob"
+            responseType: "blob"
 
         }
 
     );
-
 
 };

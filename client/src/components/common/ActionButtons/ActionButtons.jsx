@@ -1,101 +1,106 @@
 import {
-  FaEdit,
-  FaTrash,
-  FaBan,
-  FaEye,
+    FaEdit,
+    FaTrash,
+    FaBan,
+    FaEye
 } from "react-icons/fa";
 
 import "../../../styles/common/ActionButtons.css";
 
 function ActionButtons({
 
-  // ==========================================
-  // View
-  // ==========================================
+    // ==========================================
+    // VIEW
+    // ==========================================
 
-  showView = false,
-  onView,
+    showView = false,
+    onView,
 
-  // ==========================================
-  // Edit
-  // ==========================================
+    // ==========================================
+    // EDIT
+    // ==========================================
 
-  showEdit = false,
-  onEdit,
+    showEdit = false,
+    onEdit,
 
-  // ==========================================
-  // Delete
-  // ==========================================
+    // ==========================================
+    // DELETE
+    // ==========================================
 
-  showDelete = false,
-  onDelete,
+    showDelete = false,
+    onDelete,
 
-  // ==========================================
-  // Disable
-  // ==========================================
+    // ==========================================
+    // DISABLE
+    // ==========================================
 
-  showDisable = false,
-  onDisable,
+    showDisable = false,
+    onDisable
 
 }) {
 
-  return (
+    return (
 
-    <div className="action-buttons">
+        <div className="action-buttons">
 
-      {showView && (
+            {showView && (
 
-        <button
-          type="button"
-          className="view-btn"
-          onClick={onView}
-        >
-          <FaEye />
-        </button>
+                <button
+                    type="button"
+                    className="view-btn"
+                    onClick={onView}
+                    title="View"
+                >
+                    <FaEye />
+                </button>
 
-      )}
+            )}
 
-      {showEdit && (
+            {showEdit && (
 
-        <button
-          type="button"
-          className="edit-btn"
-          onClick={onEdit}
-        >
-          <FaEdit />
-          Edit
-        </button>
+                <button
+                    type="button"
+                    className="edit-btn"
+                    onClick={onEdit}
+                    title="Edit"
+                >
+                    <FaEdit />
+                    <span>Edit</span>
+                </button>
 
-      )}
+            )}
 
-      {showDisable && (
+            {showDisable && (
 
-        <button
-          type="button"
-          className="disable-btn"
-          onClick={onDisable}
-        >
-          <FaBan />
-          Disable
-        </button>
+                <button
+                    type="button"
+                    className="disable-btn"
+                    onClick={onDisable}
+                    title="Disable"
+                >
+                    <FaBan />
+                    <span>Disable</span>
+                </button>
 
-      )}
+            )}
 
-      {showDelete && (
+            {showDelete && (
 
-        <button
-          type="button"
-          className="delete-btn"
-          onClick={onDelete}
-        >
-          <FaTrash />
-        </button>
+                <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={onDelete}
+                    title="Delete"
+                >
+                    <FaTrash />
+                    <span>Delete</span>
+                </button>
 
-      )}
+            )}
 
-    </div>
+        </div>
 
-  );
+    );
 
 }
 

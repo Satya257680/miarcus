@@ -38,7 +38,7 @@ function DataTable({
     }
 
     // ==========================================
-    // Empty
+    // Empty State
     // ==========================================
 
     if (!data || data.length === 0) {
@@ -60,9 +60,27 @@ function DataTable({
 
     return (
 
-        <div className={`data-table-wrapper ${className}`}>
+        <div
+            className={`data-table-wrapper ${className}`}
+            style={{
+                width: "100%",
+                maxWidth: "100%",
+                overflowX: "auto",
+                overflowY: "auto",
+            }}
+        >
 
-            <table className="data-table">
+            <table
+                className="data-table"
+                style={{
+                    minWidth: `${columns.length * 170}px`,
+                    tableLayout: "fixed",
+                }}
+            >
+
+                {/* ========================================== */}
+                {/* HEADER */}
+                {/* ========================================== */}
 
                 <thead>
 
@@ -73,11 +91,21 @@ function DataTable({
                             <th
                                 key={column.key}
                                 style={{
-                                    width: column.width || "auto",
+                                    width: column.width || "170px",
+                                    minWidth: column.width || "170px",
                                     textAlign: column.align || "left",
+                                    position: "sticky",
+                                    top: 0,
+                                    zIndex: 10,
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
                                 }}
                             >
-                                {column.title || column.label || column.name}
+
+                                {column.title ||
+                                    column.label ||
+                                    column.name}
+
                             </th>
 
                         ))}
@@ -85,6 +113,10 @@ function DataTable({
                     </tr>
 
                 </thead>
+
+                {/* ========================================== */}
+                {/* BODY */}
+                {/* ========================================== */}
 
                 <tbody>
 
@@ -97,7 +129,12 @@ function DataTable({
                                 <td
                                     key={column.key}
                                     style={{
+                                        width: column.width || "170px",
+                                        minWidth: column.width || "170px",
                                         textAlign: column.align || "left",
+                                        verticalAlign: "top",
+                                        whiteSpace: "normal",
+                                        wordBreak: "break-word",
                                     }}
                                 >
 

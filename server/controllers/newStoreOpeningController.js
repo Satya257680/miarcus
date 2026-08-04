@@ -6,7 +6,7 @@ const { Parser } = require("json2csv");
 
 const XLSX = require("xlsx");
 
-const logActivity = require("../utils/activityLogger");
+const { logActivity } = require("../utils/activityLogger");
 
 
 
@@ -453,6 +453,12 @@ exports.createNewStoreOpening = (req,res)=>{
 
         };
 
+        console.log("========== CREATE ==========");
+console.log("req.body =", req.body);
+console.log("data =", data);
+console.log("req.file =", req.file);
+console.log("============================");
+
 
 
 
@@ -725,216 +731,143 @@ if(
 // ACTIVITY + TIMELINE
 // ======================================================
 
-exports.updateNewStoreOpening = (req,res)=>{
+exports.updateNewStoreOpening = (req, res) => {
 
+    const id = req.params.id;
 
-    const id =
-    req.params.id;
+    // ==========================================
+    // DATE FORMATTER
+    // ==========================================
 
+    const formatDate = (value) => {
 
+        if (!value) return null;
 
-    const data = {
+        const date = new Date(value);
 
+        if (isNaN(date.getTime())) return null;
 
-        ...req.body,
-
-
-
-        attachment:
-
-        req.file
-
-        ?
-
-        req.file.path.replace(/\\/g,"/")
-
-        :
-
-        req.body.attachment,
-
-
-
-        updated_by:
-
-        req.user.id
-
-
+        return date.toISOString().split("T")[0];
 
     };
 
+    const data = {
 
+        ...req.body,
 
+        possession_date_loi: formatDate(req.body.possession_date_loi),
 
+        possession_date_broker: formatDate(req.body.possession_date_broker),
 
+        actual_possession_date: formatDate(req.body.actual_possession_date),
+
+        approval_deadline: formatDate(req.body.approval_deadline),
+
+        gst_deadline: formatDate(req.body.gst_deadline),
+
+        hr_hiring_deadline: formatDate(req.body.hr_hiring_deadline),
+
+        team_training_deadline: formatDate(req.body.team_training_deadline),
+
+        visit_by_nso_team_deadline: formatDate(req.body.visit_by_nso_team_deadline),
+
+        plan_of_stock_deadline: formatDate(req.body.plan_of_stock_deadline),
+
+        plan_of_collaterals_deadline: formatDate(req.body.plan_of_collaterals_deadline),
+
+        on_field_training_deadline: formatDate(req.body.on_field_training_deadline),
+
+        dispatch_stock_deadline: formatDate(req.body.dispatch_stock_deadline),
+
+        nso_handover_deadline: formatDate(req.body.nso_handover_deadline),
+
+        vm_handover_deadline: formatDate(req.body.vm_handover_deadline),
+
+        scanning_deadline: formatDate(req.body.scanning_deadline),
+
+        billing_start_date: formatDate(req.body.billing_start_date),
+
+        attachment: req.file
+            ? req.file.path.replace(/\\/g, "/")
+            : req.body.attachment,
+
+        updated_by: req.user.id
+
+    };
 
     NewStoreOpening.update(
 
-
         id,
-
 
         data,
 
+        async (err, result) => {
 
-
-        async(err,result)=>{
-
-
-
-            if(err){
-
+            if (err) {
 
                 return res.status(500).json({
 
+                    success: false,
 
-                    success:false,
-
-
-                    message:
-                    err.message
-
+                    message: err.message
 
                 });
 
-
             }
 
-
-
-
-
-
-
-            if(result.affectedRows===0){
-
+            if (result.affectedRows === 0) {
 
                 return res.status(404).json({
 
+                    success: false,
 
-                    success:false,
-
-
-                    message:
-                    "Record not found"
-
+                    message: "Record not found"
 
                 });
 
+            }
+
+            try {
+
+                await logActivity({
+
+                    activity_type: "UPDATE",
+
+                    reference_id: id,
+
+                    title: "New Store Opening Updated",
+
+                    description: `New Store Opening #${id} updated`,
+
+                    module_name: "New Store Opening",
+
+                    status: "Open",
+
+                    priority: "Medium",
+
+                    created_by: req.user.id
+
+                });
+
+            } catch (activityError) {
+
+                console.error("Activity Log Error:", activityError);
 
             }
 
-
-
-
-
-
-
-
-            // ==================================================
-            // ACTIVITY CENTER
-            // ==================================================
-
-
-            await logActivity({
-
-
-
-                activity_type:
-
-                "UPDATE",
-
-
-
-                reference_id:
-
-                id,
-
-
-
-                title:
-
-                "New Store Opening Updated",
-
-
-
-                description:
-
-                `New Store Opening #${id} updated`,
-
-
-
-                module_name:
-
-                "New Store Opening",
-
-
-
-                status:
-
-                "Open",
-
-
-
-                priority:
-
-                "Medium",
-
-
-
-                created_by:
-
-                req.user.id
-
-
-
-            });
-
-
-
-
-
-
-
-
-
             return res.json({
 
+                success: true,
 
-
-                success:true,
-
-
-
-                message:
-
-                "New Store Opening Updated Successfully"
-
-
+                message: "New Store Opening Updated Successfully"
 
             });
-
-
-
 
         }
 
-
-
     );
 
-
-
 };
-
-
-
-
-
-
-
-
-
-
 
 // ======================================================
 // DELETE NEW STORE OPENING
@@ -1105,303 +1038,247 @@ exports.deleteNewStoreOpening = (req,res)=>{
 };
 // ======================================================
 // BULK IMPORT NEW STORE OPENINGS
-// EXCEL UPLOAD
+// CSV / EXCEL UPLOAD
 // ======================================================
 
-exports.bulkUploadNewStoreOpenings = (req,res)=>{
+exports.bulkUploadNewStoreOpenings = (req, res) => {
 
+    try {
 
-    try{
-
-
-        if(!req.file){
-
+        if (!req.file) {
 
             return res.status(400).json({
 
+                success: false,
 
-                success:false,
-
-
-                message:
-                "Please upload Excel file"
-
+                message: "Please upload a CSV, XLSX or XLS file"
 
             });
 
-
         }
 
+        const workbook = XLSX.readFile(req.file.path);
 
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
+        const rows = XLSX.utils.sheet_to_json(sheet);
 
-
-
-        const workbook =
-
-        XLSX.readFile(
-
-            req.file.path
-
-        );
-
-
-
-
-
-        const sheet =
-
-        workbook.Sheets[
-
-            workbook.SheetNames[0]
-
-        ];
-
-
-
-
-
-
-        const rows =
-
-        XLSX.utils.sheet_to_json(sheet);
-
-
-
-
-
-
-
-
-        if(rows.length===0){
-
+        if (rows.length === 0) {
 
             return res.status(400).json({
 
+                success: false,
 
-                success:false,
-
-
-                message:
-                "Excel file is empty"
-
+                message: "Uploaded file is empty"
 
             });
 
-
         }
 
+        // ==========================================
+// DATE FORMATTER
+// ==========================================
 
+const formatDate = (value) => {
 
+    if (!value) return null;
 
+    const date = new Date(value);
 
+    if (isNaN(date.getTime())) return null;
 
-        const records = rows.map(row=>({
+    return date.toISOString().split("T")[0];
 
+};
 
-            location:
-            row["Location"],
+        const records = rows.map((row) => ({
 
+    location: row.location,
 
+    city: row.city,
 
-            city:
-            row["City"],
+    sb_area: row.sb_area,
 
+    carpet_area: row.carpet_area,
 
+    cam: row.cam,
 
-            sb_area:
-            row["SB Area"],
+    mg: row.mg,
 
+    electricity_kva: row.electricity_kva,
 
+    revenue_share: row.revenue_share,
 
-            carpet_area:
-            row["Carpet Area"],
+    escalation: row.escalation,
 
+    expected_sale: row.expected_sale,
 
+    possession_date_loi: formatDate(row.possession_date_loi),
 
-            broker_name:
-            row["Broker Name"],
+    possession_date_broker: formatDate(row.possession_date_broker),
 
+    broker_name: row.broker_name,
 
+    operation_head_assigned: row.operation_head_assigned,
 
-            operation_head_assigned:
-            row["Operation Head"],
+    asm_assigned: row.asm_assigned,
 
+    deal_days: row.deal_days,
 
+    actual_possession_date: formatDate(row.actual_possession_date),
 
-            asm_assigned:
-            row["ASM"],
+    remarks: row.remarks,
 
+    attachment: row.attachment,
 
+    delay_loi_vs_broker: row.delay_loi_vs_broker,
 
-            remarks:
-            row["Remarks"],
+    possession_delay: row.possession_delay,
 
+   received_by_nso: formatDate(row.received_by_nso),
 
+layout_by_nso: formatDate(row.layout_by_nso),
 
-            created_by:
-            req.user.id,
+revised_layout_by_nso: formatDate(row.revised_layout_by_nso),
 
+    approval_deadline: formatDate(row.approval_deadline),
 
+    approver_name: row.approver_name,
 
-            updated_by:
-            req.user.id
+    construction_vendor: row.construction_vendor,
 
+    project_taken_by: row.project_taken_by,
 
+    visit_by_op_team: formatDate(row.visit_by_op_team),
 
-        }));
+    gst_deadline: formatDate(row.gst_deadline),
 
+    hr_hiring_deadline: formatDate(row.hr_hiring_deadline),
 
+    team_training_deadline: formatDate(row.team_training_deadline),
 
+    visit_by_nso_team_deadline: formatDate(row.visit_by_nso_team_deadline),
 
+    plan_of_stock_deadline: formatDate(row.plan_of_stock_deadline),
 
+    plan_of_collaterals_deadline: formatDate(row.plan_of_collaterals_deadline),
 
+    on_field_training_deadline: formatDate(row.on_field_training_deadline),
 
+    dispatch_stock_deadline: formatDate(row.dispatch_stock_deadline),
 
-        NewStoreOpening.bulkCreate(
+    nso_handover_deadline: formatDate(row.nso_handover_deadline),
 
+    vm_handover_deadline: formatDate(row.vm_handover_deadline),
 
-            records,
+    scanning_deadline: formatDate(row.scanning_deadline),
 
+    billing_start_date: formatDate(row.billing_start_date),
 
-            async(err,result)=>{
+    status: row.status,
 
+    created_by: req.user.id,
 
+    updated_by: req.user.id
 
-                if(err){
+}));
+     let imported = 0;
 
+const insertNext = (index) => {
 
-                    return res.status(500).json({
+    if (index >= records.length) {
 
+        (async () => {
 
-                        success:false,
-
-
-                        message:
-                        err.message
-
-
-                    });
-
-
-                }
-
-
-
-
-
-
-
+            try {
 
                 await logActivity({
 
+                    activity_type: "IMPORT",
 
+                    reference_id: 0,
 
-                    activity_type:
+                    title: "New Store Opening Bulk Import",
 
-                    "IMPORT",
+                    description: `${imported} New Store Openings imported`,
 
+                    module_name: "New Store Opening",
 
+                    status: "Open",
 
-                    reference_id:
+                    priority: "Medium",
 
-                    null,
+                    created_by: req.user.id,
 
-
-
-                    title:
-
-                    "New Store Opening Bulk Import",
-
-
-
-                    description:
-
-                    `${records.length} New Store Openings imported`,
-
-
-
-                    module_name:
-
-                    "New Store Opening",
-
-
-
-                    status:
-
-                    "Open",
-
-
-
-                    priority:
-
-                    "Medium",
-
-
-
-                    created_by:
-
-                    req.user.id
-
-
+                    assigned_to: null
 
                 });
 
+            } catch (activityError) {
 
-
-
-
-
-
-                return res.json({
-
-
-                    success:true,
-
-
-                    message:
-
-                    "Bulk Upload Completed Successfully"
-
-
-
-                });
-
-
+                console.error("Activity Log Error:", activityError);
 
             }
 
+            return res.json({
 
+                success: true,
 
-        );
+                message: "Bulk Upload Completed Successfully",
 
+                imported
 
+            });
 
-    }
+        })();
 
-
-    catch(error){
-
-
-
-        return res.status(500).json({
-
-
-            success:false,
-
-
-            message:
-            error.message
-
-
-
-        });
-
-
+        return;
 
     }
 
+    NewStoreOpening.create(
 
+        records[index],
+
+        (err) => {
+
+            if (err) {
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: err.message
+
+                });
+
+            }
+
+            imported++;
+
+            insertNext(index + 1);
+
+        }
+
+    );
+
+};
+
+insertNext(0);
+
+} catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+
+        success: false,
+
+        message: error.message
+
+    });
+
+}
 
 };
 // ======================================================
@@ -1409,64 +1286,72 @@ exports.bulkUploadNewStoreOpenings = (req,res)=>{
 // ACTIVITY CENTER
 // ======================================================
 
-exports.deleteAllNewStoreOpenings = (req,res)=>{
-
+exports.deleteAllNewStoreOpenings = (req, res) => {
 
     NewStoreOpening.deleteAll(
 
-        async(err,result)=>{
+        async (err, result) => {
 
-
-            if(err){
+            if (err) {
 
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:err.message
+                    message: err.message
 
                 });
 
             }
 
+            try {
 
+                await logActivity({
 
-            await logActivity({
+                    activity_type: "DELETE ALL",
 
-                activity_type:"DELETE ALL",
+                    // reference_id cannot be NULL
+                    reference_id: 0,
 
-                reference_id:null,
+                    title: "All New Store Openings Deleted",
 
-                title:"All New Store Openings Deleted",
+                    description: "All New Store Opening records deleted",
 
-                description:"All New Store Opening records deleted",
+                    module_name: "New Store Opening",
 
-                module_name:"New Store Opening",
+                    status: "Closed",
 
-                status:"Closed",
+                    priority: "High",
 
-                priority:"High",
+                    created_by: req.user.id,
 
-                created_by:req.user.id
+                    assigned_to: null
 
-            });
+                });
 
+            } catch (activityError) {
 
+                console.error(
+
+                    "Activity Log Error:",
+
+                    activityError
+
+                );
+
+                // Continue even if activity logging fails
+            }
 
             return res.json({
 
-                success:true,
+                success: true,
 
-                message:
-                "All New Store Openings Deleted Successfully"
+                message: "All New Store Openings Deleted Successfully"
 
             });
-
-
 
         }
 
     );
-
 
 };

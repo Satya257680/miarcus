@@ -4,132 +4,162 @@ const db = require("../config/db");
 // LOG ACTIVITY
 // ======================================================
 
-const logActivity = (activity, callback = () => {}) => {
+const logActivity = (activity) => {
 
-    const sql = `
-        INSERT INTO activities
-        (
-            activity_type,
-            reference_id,
-            title,
-            description,
-            module_name,
-            status,
-            priority,
-            created_by,
-            assigned_to
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    return new Promise((resolve, reject) => {
 
-    db.query(
+        const sql = `
+            INSERT INTO activities
+            (
+                activity_type,
+                reference_id,
+                title,
+                description,
+                module_name,
+                status,
+                priority,
+                created_by,
+                assigned_to
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
-        sql,
+        db.query(
 
-        [
+            sql,
 
-            activity.activity_type,
+            [
 
-            activity.reference_id,
+                activity.activity_type,
 
-            activity.title,
+                activity.reference_id,
 
-            activity.description,
+                activity.title,
 
-            activity.module_name,
+                activity.description,
 
-            activity.status || "Open",
+                activity.module_name,
 
-            activity.priority || "Medium",
+                activity.status || "Open",
 
-            activity.created_by,
+                activity.priority || "Medium",
 
-            activity.assigned_to
+                activity.created_by,
 
-        ],
+                activity.assigned_to || null
 
-        (err, result) => {
+            ],
 
-            if (err) {
+            (err, result) => {
 
-                return callback(err);
+                if (err) {
 
-            }
+                    return reject(err);
 
-            const activityId = result.insertId;
+                }
 
-            // ==========================================
-            // CREATE TIMELINE ENTRY
-            // ==========================================
+                const activityId = result.insertId;
 
-            const timelineSql = `
-                INSERT INTO activity_timeline
-                (
-                    activity_id,
-                    event_type,
-                    event_description,
-                    created_by
-                )
-                VALUES (?, ?, ?, ?)
-            `;
+                // ==========================================
+                // CREATE TIMELINE ENTRY
+                // ==========================================
 
-            db.query(
-
-                timelineSql,
-
-                [
-
-                    activityId,
-
-                    activity.title,
-
-                    activity.description,
-
-                    activity.created_by
-
-                ]
-
-            );
-
-            // ==========================================
-            // CREATE NOTIFICATION
-            // ==========================================
-
-            if (activity.assigned_to) {
-
-                const notificationSql = `
-INSERT INTO activity_notifications (
-    activity_id,
-    user_id,
-    notification
-)
-VALUES (?, ?, ?)
-
-`;
+                const timelineSql = `
+                    INSERT INTO activity_timeline
+                    (
+                        activity_id,
+                        event_type,
+                        event_description,
+                        created_by
+                    )
+                    VALUES (?, ?, ?, ?)
+                `;
 
                 db.query(
 
-                    notificationSql,
+                    timelineSql,
 
                     [
 
                         activityId,
 
-                        activity.assigned_to,
+                        activity.title,
 
-                        activity.description
+                        activity.description,
 
-                    ]
+                        activity.created_by
+
+                    ],
+
+                    (timelineErr) => {
+
+                        if (timelineErr) {
+
+                            console.error(
+                                "Timeline Error:",
+                                timelineErr
+                            );
+
+                        }
+
+                    }
 
                 );
 
+                // ==========================================
+                // CREATE NOTIFICATION
+                // ==========================================
+
+                if (activity.assigned_to) {
+
+                    const notificationSql = `
+                        INSERT INTO activity_notifications
+                        (
+                            activity_id,
+                            user_id,
+                            notification
+                        )
+                        VALUES (?, ?, ?)
+                    `;
+
+                    db.query(
+
+                        notificationSql,
+
+                        [
+
+                            activityId,
+
+                            activity.assigned_to,
+
+                            activity.description
+
+                        ],
+
+                        (notificationErr) => {
+
+                            if (notificationErr) {
+
+                                console.error(
+                                    "Notification Error:",
+                                    notificationErr
+                                );
+
+                            }
+
+                        }
+
+                    );
+
+                }
+
+                resolve(result);
+
             }
 
-            callback(null, result);
+        );
 
-        }
-
-    );
+    });
 
 };
 

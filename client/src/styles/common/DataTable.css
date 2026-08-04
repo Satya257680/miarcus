@@ -8,13 +8,22 @@
 
     overflow-x:auto;
 
+    overflow-y:hidden;
+
     background:#fff;
+
+    border:1px solid #dfe7eb;
 
     border-radius:12px;
 
     box-shadow:0 2px 10px rgba(0,0,0,.05);
 
+    scrollbar-width:thin;
+
+    scrollbar-color:#9eb4be #f3f5f7;
+
 }
+
 
 /* =====================================================
    TABLE
@@ -22,25 +31,32 @@
 
 .data-table{
 
-    width:100%;
+    width:max-content;
 
-    border-collapse:collapse;
+    min-width:100%;
 
-    min-width:900px;
+    border-collapse:separate;
+
+    border-spacing:0;
+
+    table-layout:auto;
 
 }
+
 
 /* =====================================================
-   TABLE HEADER
+   HEADER
 ===================================================== */
 
-.data-table thead{
+.data-table thead th{
+
+    position:sticky;
+
+    top:0;
+
+    z-index:20;
 
     background:#356d84;
-
-}
-
-.data-table thead th{
 
     color:#fff;
 
@@ -50,69 +66,158 @@
 
     text-align:left;
 
-    padding:15px 18px;
+    padding:14px 16px;
+
+    border-right:1px solid rgba(255,255,255,.15);
+
+    border-bottom:1px solid #2d5d70;
 
     white-space:nowrap;
 
 }
 
+.data-table thead th:first-child{
+
+    border-top-left-radius:12px;
+
+}
+
+.data-table thead th:last-child{
+
+    border-top-right-radius:12px;
+
+    border-right:none;
+
+}
+
+
 /* =====================================================
-   TABLE BODY
+   BODY
 ===================================================== */
-
-.data-table tbody tr{
-
-    border-bottom:1px solid #edf0f5;
-
-    transition:.25s;
-
-}
-
-.data-table tbody tr:hover{
-
-    background:#f8fbfc;
-
-}
 
 .data-table tbody td{
 
-    padding:15px 18px;
+    padding:14px 16px;
 
     font-size:14px;
 
     color:#444;
 
+    border-bottom:1px solid #edf2f5;
+
+    border-right:1px solid #edf2f5;
+
+    background:#fff;
+
+    white-space:nowrap;
+
     vertical-align:middle;
 
 }
 
+.data-table tbody td:last-child{
+
+    border-right:none;
+
+}
+
+
 /* =====================================================
-   LAST ROW
+   ROWS
 ===================================================== */
 
-.data-table tbody tr:last-child{
+.data-table tbody tr:nth-child(even) td{
+
+    background:#fafcfd;
+
+}
+
+.data-table tbody tr:hover td{
+
+    background:#eef8fb;
+
+}
+
+.data-table tbody tr:last-child td{
 
     border-bottom:none;
 
 }
 
+
 /* =====================================================
-   TEXT ALIGNMENT
+   WRAPPING CELLS
 ===================================================== */
 
-.data-table td.center,
-.data-table th.center{
+.wrap-text{
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    line-height:1.5;
+
+    max-width:250px;
+
+}
+
+.remarks-cell{
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    max-width:250px;
+
+}
+
+.attachment-cell{
+
+    white-space:nowrap;
+
+}
+
+
+/* =====================================================
+   ACTIONS
+===================================================== */
+
+.data-table th:last-child,
+
+.data-table td:last-child{
+
+    min-width:220px;
+
+    width:220px;
 
     text-align:center;
 
 }
 
-.data-table td.right,
-.data-table th.right{
+.data-table .action-buttons{
 
-    text-align:right;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:10px;
+
+    flex-wrap:nowrap;
+
+    white-space:nowrap;
 
 }
+
+.data-table .action-buttons button{
+
+    min-width:90px;
+
+    height:36px;
+
+}
+
 
 /* =====================================================
    LINKS
@@ -134,27 +239,26 @@
 
 }
 
+
 /* =====================================================
    SCROLLBAR
 ===================================================== */
 
 .data-table-wrapper::-webkit-scrollbar{
 
-    height:8px;
+    height:10px;
 
 }
 
 .data-table-wrapper::-webkit-scrollbar-track{
 
-    background:#f1f1f1;
-
-    border-radius:20px;
+    background:#f3f5f7;
 
 }
 
 .data-table-wrapper::-webkit-scrollbar-thumb{
 
-    background:#b5b5b5;
+    background:#9eb4be;
 
     border-radius:20px;
 
@@ -162,9 +266,10 @@
 
 .data-table-wrapper::-webkit-scrollbar-thumb:hover{
 
-    background:#8f8f8f;
+    background:#6d8d9a;
 
 }
+
 
 /* =====================================================
    RESPONSIVE
@@ -172,29 +277,28 @@
 
 @media(max-width:992px){
 
-.data-table{
+    .data-table th,
 
-    min-width:750px;
+    .data-table td{
 
-}
+        padding:12px;
+
+        font-size:13px;
+
+    }
 
 }
 
 @media(max-width:768px){
 
-.data-table{
+    .data-table th,
 
-    min-width:650px;
+    .data-table td{
 
-}
+        padding:10px;
 
-.data-table thead th,
-.data-table tbody td{
+        font-size:12px;
 
-    padding:12px;
-
-    font-size:13px;
-
-}
+    }
 
 }

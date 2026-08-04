@@ -129,9 +129,16 @@ const initialState = {
     // OTHER
 
     remarks:"",
+attachment:"",
 
-    attachment:""
-
+// NSO DETAILS
+layout_by_nso:"",
+revised_layout_by_nso:"",
+approval_deadline:"",
+received_by_nso:"",
+delay_loi_vs_broker:"",
+possession_delay:"",
+status:"Planning"
 
 };
 
@@ -182,43 +189,55 @@ function AddNewStoreOpeningModal({
 // LOAD EDIT DATA
 // ======================================================
 
-useEffect(()=>{
+useEffect(() => {
 
+    const formatDate = (value) => {
 
-    if(editData){
+        if (!value) return "";
 
+        return value.split("T")[0];
+
+    };
+
+    if (editData) {
 
         setForm({
 
             ...initialState,
 
-            ...editData
+            ...editData,
+
+            possession_date_loi: formatDate(editData.possession_date_loi),
+            possession_date_broker: formatDate(editData.possession_date_broker),
+            actual_possession_date: formatDate(editData.actual_possession_date),
+
+            visit_by_op_team: formatDate(editData.visit_by_op_team),
+            gst_deadline: formatDate(editData.gst_deadline),
+            hr_hiring_deadline: formatDate(editData.hr_hiring_deadline),
+            team_training_deadline: formatDate(editData.team_training_deadline),
+            visit_by_nso_team_deadline: formatDate(editData.visit_by_nso_team_deadline),
+            plan_of_stock_deadline: formatDate(editData.plan_of_stock_deadline),
+            plan_of_collaterals_deadline: formatDate(editData.plan_of_collaterals_deadline),
+            on_field_training_deadline: formatDate(editData.on_field_training_deadline),
+            dispatch_stock_deadline: formatDate(editData.dispatch_stock_deadline),
+            nso_handover_deadline: formatDate(editData.nso_handover_deadline),
+            vm_handover_deadline: formatDate(editData.vm_handover_deadline),
+            scanning_deadline: formatDate(editData.scanning_deadline),
+            billing_start_date: formatDate(editData.billing_start_date)
 
         });
+        console.log("EDIT DATA", editData);
+console.log("ATTACHMENT =", editData?.attachment);
 
-
-    }
-
-    else{
-
+    } else {
 
         setForm(initialState);
 
-
         setFile(null);
-
 
     }
 
-
-},[editData,isOpen]);
-
-
-
-
-
-
-
+}, [editData, isOpen]);
 
 // ======================================================
 // HANDLE INPUT CHANGE
@@ -1377,7 +1396,79 @@ onChange={handleChange}
 
 
 
+<div className="form-group">
+    <label>Layout By NSO</label>
+    <input
+        type="date"
+        name="layout_by_nso"
+        value={form.layout_by_nso}
+        onChange={handleChange}
+    />
+</div>
 
+<div className="form-group">
+    <label>Revised Layout By NSO</label>
+    <input
+        type="date"
+        name="revised_layout_by_nso"
+        value={form.revised_layout_by_nso}
+        onChange={handleChange}
+    />
+</div>
+
+<div className="form-group">
+    <label>Approval Deadline</label>
+    <input
+        type="date"
+        name="approval_deadline"
+        value={form.approval_deadline}
+        onChange={handleChange}
+    />
+</div>
+
+<div className="form-group">
+    <label>Received By NSO</label>
+    <input
+        type="date"
+        name="received_by_nso"
+        value={form.received_by_nso}
+        onChange={handleChange}
+    />
+</div>
+
+<div className="form-group">
+    <label>Delay LOI vs Broker</label>
+    <input
+        type="number"
+        name="delay_loi_vs_broker"
+        value={form.delay_loi_vs_broker}
+        onChange={handleChange}
+    />
+</div>
+
+<div className="form-group">
+    <label>Possession Delay</label>
+    <input
+        type="number"
+        name="possession_delay"
+        value={form.possession_delay}
+        onChange={handleChange}
+    />
+</div>
+
+<div className="form-group">
+    <label>Status</label>
+    <select
+        name="status"
+        value={form.status}
+        onChange={handleChange}
+    >
+        <option value="Planning">Planning</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Delayed">Delayed</option>
+    </select>
+</div>
 
 
 
@@ -1427,47 +1518,41 @@ placeholder="Enter remarks"
 
 <div className="form-group full-width">
 
+    <label>Attachment</label>
 
-<label>
+    <input
+        type="file"
+        onChange={handleFileChange}
+    />
 
-Attachment
+    {form.attachment && (
 
-</label>
+        <div
+            style={{
+                marginTop: "10px"
+            }}
+        >
 
+            <strong>Existing File :</strong>
 
+            <a
+                href={`http://localhost:5000/${form.attachment}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                    marginLeft: "10px",
+                    color: "#0d6efd",
+                    textDecoration: "underline"
+                }}
+            >
+                View Attachment
+            </a>
 
-<input
+        </div>
 
-type="file"
-
-onChange={handleFileChange}
-
-/>
-
-
-
-{
-
-editData?.attachment &&
-
-(
-
-<small>
-
-Existing File Available
-
-</small>
-
-)
-
-}
-
-
+    )}
 
 </div>
-
-
-
 
 
 </div>

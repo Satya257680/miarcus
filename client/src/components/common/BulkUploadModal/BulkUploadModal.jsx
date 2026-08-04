@@ -87,81 +87,82 @@ function BulkUploadModal({
   };
 
   // ==========================================
-  // Upload File
-  // ==========================================
+// Upload File
+// ==========================================
 
-  const handleUpload = async () => {
+const handleUpload = async () => {
 
     if (!file) {
 
-      alert("Please select a CSV or Excel file.");
+        alert("Please select a CSV or Excel file.");
 
-      return;
+        return;
 
     }
 
     try {
 
-      setLoading(true);
+        setLoading(true);
 
-      const formData = new FormData();
+        const formData = new FormData();
 
-      formData.append("file", file);
+        formData.append("file", file);
 
-      const res = await uploadFunction(formData);
+        const response = await uploadFunction(formData);
 
-      if (res.success) {
+        const result = response.data || response;
 
-        alert(
+        if (result.success) {
 
-          res.message ||
+            alert(
 
-          "Upload completed successfully."
+                result.message ||
 
-        );
+                "Upload completed successfully."
 
-        setFile(null);
+            );
 
-        onSuccess?.();
+            setFile(null);
 
-        onClose();
+            onSuccess?.();
 
-      } else {
+            onClose();
 
-        alert(
+        } else {
 
-          res.message ||
+            alert(
 
-          "Upload failed."
+                result.message ||
 
-        );
+                "Upload failed."
 
-      }
+            );
+
+        }
 
     } catch (err) {
 
-      console.error(err);
+        console.error(err);
 
-      alert(
+        alert(
 
-        err.response?.data?.message ||
+            err.response?.data?.message ||
 
-        err.message ||
+            err.message ||
 
-        "Upload failed."
+            "Upload failed."
 
-      );
+        );
 
     } finally {
 
-      setLoading(false);
+        setLoading(false);
 
     }
 
-  };
+};
 
-  return (
-
+return (
     <div className="bulk-modal-overlay">
 
       <div className="bulk-modal">
