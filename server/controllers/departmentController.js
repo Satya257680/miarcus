@@ -755,7 +755,9 @@ exports.exportDepartments = (req, res) => {
 
     );
 
-};// ======================================================
+};
+
+// ======================================================
 // BULK UPLOAD DEPARTMENTS
 // ======================================================
 
@@ -820,11 +822,19 @@ exports.bulkUploadDepartments = async (req, res) => {
             status:
                 row.status ||
                 row.Status ||
-                "Active"
+                "Active",
+
+            employee_id:
+                row.employee_id ||
+                row.Employee_ID ||
+                row["Employee ID"] ||
+                ""
 
         }));
 
+        // ======================================
         // Remove Empty Rows
+        // ======================================
 
         const validDepartments = departments.filter(
 
@@ -847,32 +857,20 @@ exports.bulkUploadDepartments = async (req, res) => {
         }
 
         // ======================================
-        // Insert Into Database
+        // INSERT DEPARTMENTS ONE BY ONE
         // ======================================
 
-        Department.bulkInsertDepartments(
+        let currentIndex = 0;
 
-            validDepartments,
+        const processDepartment = () => {
 
-            (err) => {
+            // -----------------------------
+            // Finished
+            // -----------------------------
+
+            if (currentIndex >= validDepartments.length) {
 
                 fs.unlinkSync(req.file.path);
-
-                if (err) {
-
-                    console.error(err);
-
-                    return res.status(500).json({
-
-                        success: false,
-
-                        message: "Bulk upload failed.",
-
-                        error: err.message
-
-                    });
-
-                }
 
                 logActivity({
 
@@ -908,11 +906,359 @@ exports.bulkUploadDepartments = async (req, res) => {
 
             }
 
-        );
+            const department = validDepartments[currentIndex];
+
+            // -----------------------------
+            // CHECK IF DEPARTMENT EXISTS
+            // -----------------------------
+
+            Department.checkDepartmentExists(
+
+                department.department_name,
+
+                (err, existing) => {
+
+                    if (err) {
+
+                        fs.unlinkSync(req.file.path);
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message: err.message
+
+                        });
+
+                    }
+
+                    if (existing.length === 0) {
+
+    // ======================================
+    // CREATE NEW DEPARTMENT
+    // ======================================
+
+    Department.createDepartment(
+
+        {
+
+            department_name:
+                department.department_name,
+
+            description:
+                department.description,
+
+            status:
+                department.status
+
+        },
+
+        (err, result) => {
+
+            if (err) {
+
+                fs.unlinkSync(req.file.path);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: err.message
+
+                });
+
+            }
+
+            const departmentId = result.insertId;
+
+            // ======================================
+            // NO EMPLOYEE PROVIDED
+            // ======================================
+
+            if (!department.employee_id) {
+
+                currentIndex++;
+
+                return processDepartment();
+
+            }
+
+            console.log("Employee ID from Excel:", department.employee_id);
+            
+
+          // ======================================
+// FIND USER BY EMPLOYEE ID
+// ======================================
+
+console.log("=================================");
+console.log("Department:", department.department_name);
+console.log("Employee ID From Excel:", department.employee_id);
+
+Department.getUserByEmployeeId(
+
+    department.employee_id,
+
+    (err, users) => {
+
+        console.log("Users Found:", users);
+
+        if (err) {
+
+            console.error("Lookup Error:", err);
+
+            fs.unlinkSync(req.file.path);
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: err.message
+
+            });
+
+        }
+
+        // Employee ID not found
+
+        if (users.length === 0) {
+
+            console.log("No user found for Employee ID:", department.employee_id);
+
+            currentIndex++;
+
+            return processDepartment();
+
+        }
+
+        console.log("Assigning User ID:", users[0].id);
+
+        
+
+                    // ======================================
+                    // ASSIGN USER TO DEPARTMENT
+                    // ======================================
+
+                    Department.assignUsers(
+
+                        departmentId,
+
+                        [
+
+                            users[0].id
+
+                        ],
+
+                        (err) => {
+
+                            if (err) {
+
+                                fs.unlinkSync(req.file.path);
+
+                                return res.status(500).json({
+
+                                    success: false,
+
+                                    message: err.message
+
+                                });
+
+                            }
+
+                            currentIndex++;
+
+                            processDepartment();
+
+                        }
+
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
+}
+                    // ======================================
+                    // UPDATE EXISTING DEPARTMENT
+                    // ======================================
+
+                    else {
+
+                        const departmentId = existing[0].id;
+
+                        Department.updateDepartment(
+
+                            departmentId,
+
+                            {
+
+                                department_name:
+                                    department.department_name,
+
+                                description:
+                                    department.description,
+
+                                status:
+                                    department.status
+
+                            },
+
+                            (err) => {
+
+                                if (err) {
+
+                                    fs.unlinkSync(req.file.path);
+
+                                    return res.status(500).json({
+
+                                        success: false,
+
+                                        message: err.message
+
+                                    });
+
+                                }
+
+                                // ----------------------------------
+                                // No Employee ID in Excel
+                                // ----------------------------------
+
+                                if (!department.employee_id) {
+
+                                    currentIndex++;
+
+                                    return processDepartment();
+
+                                }
+
+                                // ----------------------------------
+                                // Find User
+                                // ----------------------------------
+
+                                Department.getUserByEmployeeId(
+
+                                    department.employee_id,
+
+                                    (err, users) => {
+
+                                        if (err) {
+
+                                            fs.unlinkSync(req.file.path);
+
+                                            return res.status(500).json({
+
+                                                success: false,
+
+                                                message: err.message
+
+                                            });
+
+                                        }
+
+                                        if (users.length === 0) {
+
+                                            currentIndex++;
+
+                                            return processDepartment();
+
+                                        }
+
+                                        // ----------------------------------
+                                        // Remove Previous Mapping
+                                        // ----------------------------------
+
+                                        Department.removeAssignedUsers(
+
+                                            departmentId,
+
+                                            (err) => {
+
+                                                if (err) {
+
+                                                    fs.unlinkSync(req.file.path);
+
+                                                    return res.status(500).json({
+
+                                                        success: false,
+
+                                                        message: err.message
+
+                                                    });
+
+                                                }
+
+                                                // ----------------------------------
+                                                // Assign New Employee
+                                                // ----------------------------------
+
+                                                Department.assignUsers(
+
+                                                    departmentId,
+
+                                                    [
+
+                                                        users[0].id
+
+                                                    ],
+
+                                                    (err) => {
+
+                                                        if (err) {
+
+                                                            fs.unlinkSync(req.file.path);
+
+                                                            return res.status(500).json({
+
+                                                                success: false,
+
+                                                                message: err.message
+
+                                                            });
+
+                                                        }
+
+                                                        currentIndex++;
+
+                                                        processDepartment();
+
+                                                    }
+
+                                                );
+
+                                            }
+
+                                        );
+
+                                    }
+
+                                );
+
+                            }
+
+                        );
+
+                    }
+
+                }
+
+            );
+
+        };
+
+        processDepartment();
 
     } catch (err) {
 
         console.error(err);
+
+        if (req.file && fs.existsSync(req.file.path)) {
+
+            fs.unlinkSync(req.file.path);
+
+        }
 
         return res.status(500).json({
 
@@ -926,7 +1272,8 @@ exports.bulkUploadDepartments = async (req, res) => {
 
     }
 
-};// ======================================================
+};
+// ======================================================
 // DELETE ALL DEPARTMENTS
 // ======================================================
 

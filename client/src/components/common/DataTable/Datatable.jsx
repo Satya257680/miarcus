@@ -64,17 +64,16 @@ function DataTable({
             className={`data-table-wrapper ${className}`}
             style={{
                 width: "100%",
-                maxWidth: "100%",
                 overflowX: "auto",
-                overflowY: "auto",
             }}
         >
 
             <table
                 className="data-table"
                 style={{
-                    minWidth: `${columns.length * 170}px`,
-                    tableLayout: "fixed",
+                    width: "100%",
+                    minWidth: "100%",
+                    tableLayout: "auto",
                 }}
             >
 
@@ -91,8 +90,7 @@ function DataTable({
                             <th
                                 key={column.key}
                                 style={{
-                                    width: column.width || "170px",
-                                    minWidth: column.width || "170px",
+                                    width: column.width || "auto",
                                     textAlign: column.align || "left",
                                     position: "sticky",
                                     top: 0,
@@ -129,10 +127,9 @@ function DataTable({
                                 <td
                                     key={column.key}
                                     style={{
-                                        width: column.width || "170px",
-                                        minWidth: column.width || "170px",
+                                        width: column.width || "auto",
                                         textAlign: column.align || "left",
-                                        verticalAlign: "top",
+                                        verticalAlign: "middle",
                                         whiteSpace: "normal",
                                         wordBreak: "break-word",
                                     }}

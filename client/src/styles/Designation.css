@@ -91,113 +91,113 @@
     width:70px;
 }
 
-
-
 .designation-page th:nth-child(5),
 .designation-page td:nth-child(5){
-    text-align:center;
     width:120px;
+    text-align:center;
 }
 
 .designation-page th:nth-child(6),
 .designation-page td:nth-child(6){
-    text-align:center;
     width:140px;
+    text-align:center;
 }
 
 .designation-page th:nth-child(7),
 .designation-page td:nth-child(7){
-    text-align:center;
     width:180px;
+    text-align:center;
 }
 
 /* ==========================================
-   DESCRIPTION COLUMN
+   DESCRIPTION
 ========================================== */
 
 .designation-page th:nth-child(4),
 .designation-page td:nth-child(4){
-    width:40px;
-    min-width:10px;
-    max-width:90px;
+    min-width:180px;
+    max-width:280px;
 }
 
 .designation-page td:nth-child(4){
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    white-space:normal;
+    word-break:break-word;
+    line-height:1.5;
 }
 
 /* ==========================================
    STATUS BADGE
 ========================================== */
 
-.status{
+.designation-page .status{
     display:inline-flex;
     align-items:center;
     justify-content:center;
     min-width:90px;
-    height:30px;
-    border-radius:30px;
+    height:32px;
+    padding:0 16px;
+    border-radius:999px;
     font-size:13px;
     font-weight:600;
-}
-
-.status.active{
-    background:#28b463;
     color:#fff;
 }
 
-.status.inactive{
-    background:#e74c3c;
-    color:#fff;
+.designation-page .status.active{
+    background:#22c55e !important;
+    color:#fff !important;
+}
+
+.designation-page .status.inactive{
+    background:#ef4444 !important;
+    color:#fff !important;
 }
 
 /* ==========================================
    ACTION BUTTONS
 ========================================== */
 
-.action-buttons{
+.designation-page .action-buttons{
     display:flex;
     justify-content:center;
     align-items:center;
     gap:10px;
+    flex-wrap:nowrap;
 }
 
-.action-buttons button{
-    border:none;
-    outline:none;
-    cursor:pointer;
-    transition:.25s;
-    display:flex;
+.designation-page .action-buttons button{
+    display:inline-flex;
     align-items:center;
     justify-content:center;
     gap:6px;
+    border:none;
+    outline:none;
+    cursor:pointer;
+    border-radius:6px;
     font-size:13px;
     font-weight:600;
-    border-radius:6px;
+    transition:.25s;
     white-space:nowrap;
 }
 
-.edit-btn{
-    min-width:78px;
-    height:34px;
+.designation-page .edit-btn{
+    min-width:82px;
+    height:36px;
     background:#f39c12;
     color:#fff;
 }
 
-.edit-btn:hover{
+.designation-page .edit-btn:hover{
     background:#d68910;
 }
 
-.delete-btn{
-    width:58px;
-    height:34px;
+.designation-page .delete-btn{
+    min-width:82px;
+    height:36px;
     background:#3498db;
     color:#fff;
 }
 
-.delete-btn:hover{
+.designation-page .delete-btn:hover{
     background:#2e86c1;
 }
 
@@ -205,7 +205,7 @@
    LOADING
 ========================================== */
 
-.loading{
+.designation-page .loading{
     text-align:center;
     padding:40px;
     color:#666;
@@ -216,7 +216,7 @@
    RESPONSIVE
 ========================================== */
 
-@media(max-width:1200px){
+@media (max-width:1200px){
 
     .designation-page .data-table-wrapper{
         overflow-x:auto;
@@ -228,7 +228,7 @@
 
 }
 
-@media(max-width:768px){
+@media (max-width:768px){
 
     .designation-page{
         padding:16px;
@@ -246,7 +246,7 @@
 
 }
 
-@media(max-width:576px){
+@media (max-width:576px){
 
     .designation-page{
         padding:10px;

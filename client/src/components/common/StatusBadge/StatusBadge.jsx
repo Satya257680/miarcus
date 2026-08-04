@@ -13,6 +13,7 @@ function StatusBadge({
 }) {
 
     const badgeStatus = String(status)
+        .trim()
         .toLowerCase()
         .replace(/\s+/g, "-");
 
@@ -21,9 +22,7 @@ function StatusBadge({
         <span
             className={`status-badge status-${badgeStatus} ${className}`}
         >
-
             {children || status}
-
         </span>
 
     );

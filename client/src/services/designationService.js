@@ -7,20 +7,27 @@ const API = "http://localhost:5000/api/designations";
 // ======================================================
 
 const authConfig = () => ({
+
     headers: {
+
         Authorization: `Bearer ${localStorage.getItem("token")}`
+
     }
+
 });
 
 // ======================================================
-// MULTIPART CONFIG
+// UPLOAD CONFIG
 // ======================================================
 
 const uploadConfig = () => ({
+
     headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-        "Content-Type": "multipart/form-data"
+
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+
     }
+
 });
 
 // ======================================================
@@ -28,22 +35,17 @@ const uploadConfig = () => ({
 // ======================================================
 
 export const getDesignations = async () => {
-    try {
 
-        const response = await axios.get(
-            API,
-            authConfig()
-        );
+    const response = await axios.get(
 
-        return response.data;
+        API,
 
-    } catch (error) {
+        authConfig()
 
-        console.error("Get Designations Error:", error);
+    );
 
-        throw error;
+    return response.data;
 
-    }
 };
 
 // ======================================================
@@ -51,22 +53,17 @@ export const getDesignations = async () => {
 // ======================================================
 
 export const getDesignationById = async (id) => {
-    try {
 
-        const response = await axios.get(
-            `${API}/${id}`,
-            authConfig()
-        );
+    const response = await axios.get(
 
-        return response.data;
+        `${API}/${id}`,
 
-    } catch (error) {
+        authConfig()
 
-        console.error("Get Designation Error:", error);
+    );
 
-        throw error;
+    return response.data;
 
-    }
 };
 
 // ======================================================
@@ -74,23 +71,19 @@ export const getDesignationById = async (id) => {
 // ======================================================
 
 export const createDesignation = async (designation) => {
-    try {
 
-        const response = await axios.post(
-            API,
-            designation,
-            authConfig()
-        );
+    const response = await axios.post(
 
-        return response.data;
+        API,
 
-    } catch (error) {
+        designation,
 
-        console.error("Create Designation Error:", error);
+        authConfig()
 
-        throw error;
+    );
 
-    }
+    return response.data;
+
 };
 
 // ======================================================
@@ -98,23 +91,19 @@ export const createDesignation = async (designation) => {
 // ======================================================
 
 export const updateDesignation = async (id, designation) => {
-    try {
 
-        const response = await axios.put(
-            `${API}/${id}`,
-            designation,
-            authConfig()
-        );
+    const response = await axios.put(
 
-        return response.data;
+        `${API}/${id}`,
 
-    } catch (error) {
+        designation,
 
-        console.error("Update Designation Error:", error);
+        authConfig()
 
-        throw error;
+    );
 
-    }
+    return response.data;
+
 };
 
 // ======================================================
@@ -122,22 +111,17 @@ export const updateDesignation = async (id, designation) => {
 // ======================================================
 
 export const deleteDesignation = async (id) => {
-    try {
 
-        const response = await axios.delete(
-            `${API}/${id}`,
-            authConfig()
-        );
+    const response = await axios.delete(
 
-        return response.data;
+        `${API}/${id}`,
 
-    } catch (error) {
+        authConfig()
 
-        console.error("Delete Designation Error:", error);
+    );
 
-        throw error;
+    return response.data;
 
-    }
 };
 
 // ======================================================
@@ -145,22 +129,17 @@ export const deleteDesignation = async (id) => {
 // ======================================================
 
 export const deleteAllDesignations = async () => {
-    try {
 
-        const response = await axios.delete(
-            `${API}/delete-all`,
-            authConfig()
-        );
+    const response = await axios.delete(
 
-        return response.data;
+        `${API}/delete-all`,
 
-    } catch (error) {
+        authConfig()
 
-        console.error("Delete All Designations Error:", error);
+    );
 
-        throw error;
+    return response.data;
 
-    }
 };
 
 // ======================================================
@@ -168,46 +147,41 @@ export const deleteAllDesignations = async () => {
 // ======================================================
 
 export const exportDesignations = async () => {
-    try {
 
-        const response = await axios.get(
-            `${API}/export`,
-            authConfig()
-        );
+    const response = await axios.get(
 
-        return response.data;
+        `${API}/export`,
 
-    } catch (error) {
+        authConfig()
 
-        console.error("Export Designations Error:", error);
+    );
 
-        throw error;
+    return response.data;
 
-    }
 };
 
 // ======================================================
 // BULK UPLOAD DESIGNATIONS
 // ======================================================
 
-export const bulkUploadDesignations = async (formData) => {
-    try {
+export const bulkUploadDesignations = async (file) => {
 
-        const response = await axios.post(
-            `${API}/bulk-upload`,
-            formData,
-            uploadConfig()
-        );
+    const formData = new FormData();
 
-        return response.data;
+    formData.append("file", file);
 
-    } catch (error) {
+    const response = await axios.post(
 
-        console.error("Bulk Upload Designations Error:", error);
+        `${API}/bulk-upload`,
 
-        throw error;
+        formData,
 
-    }
+        uploadConfig()
+
+    );
+
+    return response.data;
+
 };
 
 // ======================================================
@@ -217,8 +191,11 @@ export const bulkUploadDesignations = async (formData) => {
 export const downloadDesignationSample = () => {
 
     window.open(
+
         `${API}/sample`,
+
         "_blank"
+
     );
 
 };

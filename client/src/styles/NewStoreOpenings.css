@@ -18,6 +18,7 @@
     color: #3f6b78;
     text-decoration: none;
     font-weight: 500;
+    transition: .2s;
 }
 
 .table-link:hover {
@@ -44,83 +45,18 @@
 }
 
 /* ======================================================
-   ACTION BUTTONS
-====================================================== */
-
-.action-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-}
-
-.action-buttons button {
-    min-width: 90px;
-}
-
-.action-buttons .edit-btn,
-.action-buttons .delete-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px 18px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.action-buttons .edit-btn {
-    background: #f5a623;
-    color: #fff;
-}
-
-.action-buttons .delete-btn {
-    background: #3498db;
-    color: #fff;
-}
-
-.action-buttons .edit-btn:hover {
-    background: #e89611;
-}
-
-.action-buttons .delete-btn:hover {
-    background: #2b86c5;
-}
-
-/* ======================================================
-   SMALL BADGES
-====================================================== */
-
-.nso-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #e8f3f6;
-    color: #3f6b78;
-}
-
-/* ======================================================
-   LONG TEXT CELLS
+   WRAP TEXT
 ====================================================== */
 
 .wrap-text {
     max-width: 250px;
     white-space: normal;
-    word-wrap: break-word;
-    line-height: 1.4;
+    word-break: break-word;
+    line-height: 1.5;
 }
 
 /* ======================================================
-   DATE CELLS
+   DATE CELL
 ====================================================== */
 
 .date-cell {
@@ -128,7 +64,7 @@
 }
 
 /* ======================================================
-   NUMBER CELLS
+   NUMBER CELL
 ====================================================== */
 
 .number-cell {
@@ -137,51 +73,186 @@
 }
 
 /* ======================================================
+   BADGES
+====================================================== */
+
+.nso-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #e8f3f6;
+    color: #3f6b78;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ======================================================
+   ACTION BUTTONS
+====================================================== */
+
+.action-buttons {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-wrap: nowrap;
+
+    gap: 10px;
+
+    white-space: nowrap;
+
+    min-width: 220px;
+
+}
+
+.action-buttons .edit-btn,
+.action-buttons .delete-btn {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    min-width: 90px;
+
+    height: 36px;
+
+    padding: 0 18px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    transition: .25s;
+
+}
+
+.action-buttons .edit-btn {
+
+    background: #f5a623;
+
+    color: #fff;
+
+}
+
+.action-buttons .edit-btn:hover {
+
+    background: #e28e08;
+
+}
+
+.action-buttons .delete-btn {
+
+    background: #3498db;
+
+    color: #fff;
+
+}
+
+.action-buttons .delete-btn:hover {
+
+    background: #2a80b9;
+
+}
+
+/* ======================================================
+   LAST COLUMN (ACTIONS)
+====================================================== */
+
+.data-table th:last-child,
+.data-table td:last-child {
+
+    min-width: 240px;
+
+    width: 240px;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+}
+
+/* ======================================================
    RESPONSIVE
 ====================================================== */
 
-@media (max-width: 1200px) {
+@media (max-width:1200px) {
 
     .new-store-page {
-        padding: 16px;
+
+        padding:16px;
+
     }
 
 }
 
-@media (max-width: 992px) {
+@media (max-width:992px) {
 
     .remarks-cell,
     .wrap-text {
-        max-width: 180px;
+
+        max-width:220px;
+
     }
 
 }
 
-@media (max-width: 768px) {
+@media (max-width:768px) {
 
     .new-store-page {
-        padding: 12px;
+
+        padding:12px;
+
     }
 
     .remarks-cell,
     .wrap-text {
-        max-width: 150px;
+
+        max-width:180px;
+
     }
 
     .action-buttons {
-        gap: 6px;
+
+        gap:6px;
+
+        min-width:190px;
+
     }
 
-    .action-buttons button {
-        min-width: 75px;
+    .action-buttons .edit-btn,
+    .action-buttons .delete-btn {
+
+        min-width:100px;
+
+        height:34px;
+
+        font-size:12px;
+
     }
 
 }
 
-@media (max-width: 576px) {
+@media (max-width:576px) {
 
     .new-store-page {
-        padding: 10px;
+
+        padding:10px;
+
     }
 
 }

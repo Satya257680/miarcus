@@ -806,6 +806,8 @@ const columns = [
 {
     key: "actions",
     title: "Actions",
+    width: "240px",
+    align: "center",
     render: (row) => (
         <div className="action-buttons">
             <button

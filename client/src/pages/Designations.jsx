@@ -813,20 +813,29 @@ const columns = [
     render: (row) => row.assigned_users ?? 0
   },
 
-  {
+ {
     key: "actions",
     title: "Actions",
     align: "center",
+    width: "220px",
     render: (row) => (
-      <ActionButtons
-        showEdit={canEdit}
-        showDelete={canDelete}
-        onEdit={() => handleEdit(row)}
-        onDelete={() => handleDelete(row.id)}
-      />
+        <div
+            style={{
+                width: "220px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center"
+            }}
+        >
+            <ActionButtons
+                showEdit={canEdit}
+                showDelete={canDelete}
+                onEdit={() => handleEdit(row)}
+                onDelete={() => handleDelete(row.id)}
+            />
+        </div>
     )
-  }
-
+}
 ];
   // =====================================================
   // JSX

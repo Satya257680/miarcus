@@ -17,27 +17,9 @@ function DepartmentModal({
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    loadUsers();
-
-    if (department) {
-      setDepartmentName(department.department_name || "");
-      setDescription(department.description || "");
-      setStatus(department.status || "Active");
-
-      // If your API returns assigned users
-      setSelectedUsers(department.users || []);
-    } else {
-      setDepartmentName("");
-      setDescription("");
-      setStatus("Active");
-      setSelectedUsers([]);
-    }
-
-    setSearch("");
-  }, [department, isOpen]);
+  // =====================================================
+  // LOAD USERS
+  // =====================================================
 
   const loadUsers = async () => {
     try {
@@ -48,25 +30,109 @@ function DepartmentModal({
     }
   };
 
+  // =====================================================
+  // LOAD DEPARTMENT DATA
+  // =====================================================
+
+  useEffect(() => {
+
+    if (!isOpen) return;
+
+    loadUsers();
+
+    if (department) {
+
+      console.log("Department Data:", department);
+
+      setDepartmentName(
+        department.department_name || ""
+      );
+
+      setDescription(
+        department.description || ""
+      );
+
+      setStatus(
+        department.status || "Active"
+      );
+
+      // -----------------------------------------
+      // Normalize assigned users
+      // -----------------------------------------
+
+      let assigned = [];
+
+      if (Array.isArray(department.users)) {
+
+        assigned = department.users.map(user =>
+          typeof user === "object"
+            ? user.id
+            : user
+        );
+
+      } else if (Array.isArray(department.assignedUsers)) {
+
+        assigned = department.assignedUsers.map(user =>
+          typeof user === "object"
+            ? user.id
+            : user
+        );
+
+      } else if (Array.isArray(department.userIds)) {
+
+        assigned = department.userIds;
+
+      }
+
+      setSelectedUsers(assigned);
+
+    } else {
+
+      setDepartmentName("");
+      setDescription("");
+      setStatus("Active");
+      setSelectedUsers([]);
+
+    }
+
+    setSearch("");
+
+  }, [department, isOpen]);
+
+  // =====================================================
+  // SAVE
+  // =====================================================
+
   const handleSubmit = (e) => {
+
     e.preventDefault();
 
     if (!departmentName.trim()) {
+
       alert("Department Name is required");
+
       return;
+
     }
 
     onSave({
+
       department_name: departmentName,
+
       description,
+
       status,
+
       users: selectedUsers,
+
     });
+
   };
 
   if (!isOpen) return null;
 
   return (
+
     <div className="modal-overlay">
 
       <div className="department-modal">
@@ -74,9 +140,13 @@ function DepartmentModal({
         {/* Header */}
 
         <div className="modal-header">
+
           <h2>
-            {department ? "Edit Department" : "Add Department"}
+            {department
+              ? "Edit Department"
+              : "Add Department"}
           </h2>
+
         </div>
 
         {/* Form */}
@@ -86,6 +156,7 @@ function DepartmentModal({
           {/* Department Name */}
 
           <div className="form-group">
+
             <label>Department Name</label>
 
             <input
@@ -96,11 +167,13 @@ function DepartmentModal({
               }
               placeholder="Enter Department Name"
             />
+
           </div>
 
           {/* Description */}
 
           <div className="form-group">
+
             <label>Description</label>
 
             <textarea
@@ -111,11 +184,13 @@ function DepartmentModal({
               }
               placeholder="Enter Description"
             />
+
           </div>
 
           {/* Status */}
 
           <div className="form-group">
+
             <label>Status</label>
 
             <select
@@ -127,9 +202,10 @@ function DepartmentModal({
               <option>Active</option>
               <option>Inactive</option>
             </select>
+
           </div>
 
-          {/* Employees */}
+          {/* Employee List */}
 
           <EmployeeList
             users={users}
@@ -165,7 +241,9 @@ function DepartmentModal({
       </div>
 
     </div>
+
   );
+
 }
 
 export default DepartmentModal;

@@ -454,271 +454,177 @@ exports.createRule = (req,res)=>{
 // ACTIVITY + AUDIT
 // ======================================================
 
-exports.bulkUploadRules = (req,res)=>{
+exports.bulkUploadRules = (req, res) => {
 
-
-    if(!req.file){
-
+    if (!req.file) {
 
         return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:
-            "Please upload an Excel file."
+            message: "Please upload a CSV, XLSX or XLS file."
 
         });
 
-
     }
 
+    try {
 
+        const workbook = XLSX.readFile(req.file.path);
 
-    try{
-
-
-        const workbook = XLSX.readFile(
-
-            req.file.path
-
-        );
-
-
-
-        const sheet = workbook.Sheets[
-
-            workbook.SheetNames[0]
-
-        ];
-
-
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         const rows = XLSX.utils.sheet_to_json(sheet);
 
+        const db = require("../config/db");
 
+        db.query(
 
+            "SELECT id, department_name FROM departments",
 
-        const rules = rows.map(row=>({
+            (err, departments) => {
 
-
-            trigger_column:
-
-            row["Trigger Column"],
-
-
-
-            department_ids:
-
-            String(
-
-                row["Department IDs"]
-
-            )
-
-            .split(",")
-
-            .map(
-
-                id=>Number(
-
-                    id.trim()
-
-                )
-
-            )
-
-
-        }));
-
-
-
-
-
-        NSORule.bulkCreateRules(
-
-
-            rules,
-
-
-            req.user.id,
-
-
-
-            (err)=>{
-
-
-                if(err){
-
+                if (err) {
 
                     console.error(err);
 
-
                     return res.status(500).json({
 
-                        success:false,
+                        success: false,
 
-                        message:err.message
+                        message: err.message
 
                     });
 
-
                 }
 
+                const departmentMap = {};
 
+                departments.forEach((dept) => {
 
-
-                // ======================================
-                // ACTIVITY
-                // ======================================
-
-
-                Activity.create({
-
-
-                    title:
-
-                    "NSO Rules Bulk Uploaded",
-
-
-
-                    description:
-
-                    `${rules.length} NSO Rules uploaded`,
-
-
-
-                    module_name:
-
-                    "NSO Rules",
-
-
-
-                    status:
-
-                    "Open",
-
-
-
-                    priority:
-
-                    "Medium",
-
-
-
-                    created_by:
-
-                    req.user.id,
-
-
-
-                    assigned_to:
-
-                    null
-
-
-
-                },()=>{});
-
-
-
-
-
-
-                // ======================================
-                // AUDIT
-                // ======================================
-
-
-                Audit.create({
-
-
-                    module_name:
-
-                    "NSO Rules",
-
-
-
-                    reference_id:
-
-                    null,
-
-
-
-                    action:
-
-                    "BULK_UPLOAD",
-
-
-
-                    old_data:
-
-                    null,
-
-
-
-                    new_data:
-
-                    rules,
-
-
-
-                    changed_by:
-
-                    req.user.id
-
-
-
-                },()=>{});
-
-
-
-
-
-
-
-                res.status(200).json({
-
-
-                    success:true,
-
-
-                    message:
-
-                    "Rules uploaded successfully."
-
-
+                    departmentMap[
+                        dept.department_name.trim().toLowerCase()
+                    ] = dept.id;
 
                 });
 
+                const rules = rows.map((row) => {
 
+                    const departmentNames = String(
+
+                        row["Departments"] || ""
+
+                    )
+
+                        .split(",")
+
+                        .map(name => name.trim())
+
+                        .filter(name => name !== "");
+
+                    const department_ids = departmentNames
+
+                        .map(name => departmentMap[name.toLowerCase()])
+
+                        .filter(Boolean);
+
+                    return {
+
+                        trigger_column: row["Trigger Column"],
+
+                        department_ids
+
+                    };
+
+                });
+
+                NSORule.bulkCreateRules(
+
+                    rules,
+
+                    req.user.id,
+
+                    (err) => {
+
+                        if (err) {
+
+                            console.error(err);
+
+                            return res.status(500).json({
+
+                                success: false,
+
+                                message: err.message
+
+                            });
+
+                        }
+
+                        Activity.create({
+
+                            title: "NSO Rules Bulk Uploaded",
+
+                            description: `${rules.length} NSO Rules uploaded`,
+
+                            module_name: "NSO Rules",
+
+                            status: "Open",
+
+                            priority: "Medium",
+
+                            created_by: req.user.id,
+
+                            assigned_to: null
+
+                        }, () => {});
+
+                        Audit.create({
+
+                            module_name: "NSO Rules",
+
+                            reference_id: null,
+
+                            action: "BULK_UPLOAD",
+
+                            old_data: null,
+
+                            new_data: rules,
+
+                            changed_by: req.user.id
+
+                        }, () => {});
+
+                        res.status(200).json({
+
+                            success: true,
+
+                            message: "Rules uploaded successfully."
+
+                        });
+
+                    }
+
+                );
 
             }
 
-
         );
-
-
 
     }
 
-    catch(err){
-
+    catch (err) {
 
         console.error(err);
 
+        return res.status(500).json({
 
-        res.status(500).json({
+            success: false,
 
-            success:false,
-
-            message:
-            "Invalid Excel file."
+            message: "Invalid CSV/XLS/XLSX file."
 
         });
 
-
     }
-
 
 };
 // ======================================================

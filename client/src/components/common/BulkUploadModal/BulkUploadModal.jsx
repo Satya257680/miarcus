@@ -94,7 +94,7 @@ const handleUpload = async () => {
 
     if (!file) {
 
-        alert("Please select a CSV or Excel file.");
+        alert("Please select a CSV, XLSX or XLS file.");
 
         return;
 
@@ -104,13 +104,8 @@ const handleUpload = async () => {
 
         setLoading(true);
 
-        const formData = new FormData();
-
-        formData.append("file", file);
-
-        const response = await uploadFunction(formData);
-
-        const result = response.data || response;
+        // Pass only the File object
+        const result = await uploadFunction(file);
 
         if (result.success) {
 
@@ -161,7 +156,6 @@ const handleUpload = async () => {
     }
 
 };
-
 return (
     <div className="bulk-modal-overlay">
 

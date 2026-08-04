@@ -162,6 +162,47 @@ const createDepartment = (
 
 };
 
+
+// ==========================================================
+// GET USER BY EMPLOYEE ID
+// ==========================================================
+
+const getUserByEmployeeId = (
+
+    employeeId,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        SELECT id
+
+        FROM users
+
+        WHERE employee_id = ?
+
+        LIMIT 1
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            employeeId
+
+        ],
+
+        callback
+
+    );
+
+};
+
 // ==========================================================
 // UPDATE DEPARTMENT
 // ==========================================================
@@ -579,9 +620,7 @@ module.exports = {
 
     bulkInsertDepartments,
 
-    // ======================================
-    // Employee Assignment
-    // ======================================
+    getUserByEmployeeId,
 
     assignUsers,
 

@@ -17,16 +17,14 @@ const authConfig = () => ({
 });
 
 // ======================================================
-// MULTIPART CONFIG
+// UPLOAD CONFIG
 // ======================================================
 
 const uploadConfig = () => ({
 
     headers: {
 
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-
-        "Content-Type": "multipart/form-data"
+        Authorization: `Bearer ${localStorage.getItem("token")}`
 
     }
 
@@ -166,7 +164,11 @@ export const exportDepartments = async () => {
 // BULK UPLOAD DEPARTMENTS
 // ======================================================
 
-export const bulkUploadDepartments = async (formData) => {
+export const bulkUploadDepartments = async (file) => {
+
+    const formData = new FormData();
+
+    formData.append("file", file);
 
     const response = await axios.post(
 

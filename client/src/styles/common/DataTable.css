@@ -2,302 +2,308 @@
    DATA TABLE WRAPPER
 ===================================================== */
 
-.data-table-wrapper{
+.data-table-wrapper {
 
-    width:100%;
+    width: 100%;
 
-    overflow-x:auto;
+    max-width: 100%;
 
-    overflow-y:hidden;
+    overflow-x: auto;
 
-    background:#fff;
+    overflow-y: hidden;
 
-    border:1px solid #dfe7eb;
+    background: #fff;
 
-    border-radius:12px;
+    border: 1px solid #dfe7eb;
 
-    box-shadow:0 2px 10px rgba(0,0,0,.05);
+    border-radius: 12px;
 
-    scrollbar-width:thin;
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
 
-    scrollbar-color:#9eb4be #f3f5f7;
+    scrollbar-width: thin;
+
+    scrollbar-color: #9eb4be #f3f5f7;
 
 }
-
 
 /* =====================================================
    TABLE
 ===================================================== */
 
-.data-table{
+.data-table {
 
-    width:max-content;
+    width: 100%;
 
-    min-width:100%;
+    min-width: 100%;
 
-    border-collapse:separate;
+    border-collapse: separate;
 
-    border-spacing:0;
+    border-spacing: 0;
 
-    table-layout:auto;
+    table-layout: auto;
 
 }
-
 
 /* =====================================================
    HEADER
 ===================================================== */
 
-.data-table thead th{
+.data-table thead th {
 
-    position:sticky;
+    position: sticky;
 
-    top:0;
+    top: 0;
 
-    z-index:20;
+    z-index: 20;
 
-    background:#356d84;
+    background: #356d84;
 
-    color:#fff;
+    color: #fff;
 
-    font-size:14px;
+    font-size: 14px;
 
-    font-weight:600;
+    font-weight: 600;
 
-    text-align:left;
+    text-align: left;
 
-    padding:14px 16px;
+    padding: 14px 16px;
 
-    border-right:1px solid rgba(255,255,255,.15);
+    border-right: 1px solid rgba(255,255,255,.15);
 
-    border-bottom:1px solid #2d5d70;
+    border-bottom: 1px solid #2d5d70;
 
-    white-space:nowrap;
-
-}
-
-.data-table thead th:first-child{
-
-    border-top-left-radius:12px;
+    white-space: nowrap;
 
 }
 
-.data-table thead th:last-child{
+.data-table thead th:first-child {
 
-    border-top-right-radius:12px;
-
-    border-right:none;
+    border-top-left-radius: 12px;
 
 }
 
+.data-table thead th:last-child {
+
+    border-top-right-radius: 12px;
+
+    border-right: none;
+
+}
 
 /* =====================================================
    BODY
 ===================================================== */
 
-.data-table tbody td{
+.data-table tbody td {
 
-    padding:14px 16px;
+    padding: 14px 16px;
 
-    font-size:14px;
+    font-size: 14px;
 
-    color:#444;
+    color: #444;
 
-    border-bottom:1px solid #edf2f5;
+    background: #fff;
 
-    border-right:1px solid #edf2f5;
+    border-bottom: 1px solid #edf2f5;
 
-    background:#fff;
+    border-right: 1px solid #edf2f5;
 
-    white-space:nowrap;
+    vertical-align: middle;
 
-    vertical-align:middle;
-
-}
-
-.data-table tbody td:last-child{
-
-    border-right:none;
+    word-break: break-word;
 
 }
 
+.data-table tbody td:last-child {
+
+    border-right: none;
+
+}
 
 /* =====================================================
-   ROWS
+   ROW EFFECT
 ===================================================== */
 
-.data-table tbody tr:nth-child(even) td{
+.data-table tbody tr:nth-child(even) td {
 
-    background:#fafcfd;
-
-}
-
-.data-table tbody tr:hover td{
-
-    background:#eef8fb;
+    background: #fafcfd;
 
 }
 
-.data-table tbody tr:last-child td{
+.data-table tbody tr:hover td {
 
-    border-bottom:none;
+    background: #eef8fb;
 
 }
 
+.data-table tbody tr:last-child td {
+
+    border-bottom: none;
+
+}
 
 /* =====================================================
-   WRAPPING CELLS
+   WRAP TEXT
 ===================================================== */
 
-.wrap-text{
+.wrap-text {
 
-    white-space:normal;
+    white-space: normal;
 
-    word-break:break-word;
+    word-break: break-word;
 
-    line-height:1.5;
+    line-height: 1.5;
 
-    max-width:250px;
-
-}
-
-.remarks-cell{
-
-    white-space:normal;
-
-    word-break:break-word;
-
-    max-width:250px;
+    max-width: 260px;
 
 }
 
-.attachment-cell{
+.remarks-cell {
 
-    white-space:nowrap;
+    white-space: normal;
+
+    word-break: break-word;
+
+    line-height: 1.5;
+
+    max-width: 260px;
 
 }
 
+.attachment-cell {
+
+    white-space: nowrap;
+
+}
 
 /* =====================================================
    ACTIONS
 ===================================================== */
 
 .data-table th:last-child,
-
 .data-table td:last-child{
 
-    min-width:220px;
+    min-width:260px;
 
-    width:220px;
+    width:260px;
 
-    text-align:center;
+    white-space: nowrap;
 
-}
-
-.data-table .action-buttons{
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    gap:10px;
-
-    flex-wrap:nowrap;
-
-    white-space:nowrap;
+    text-align: center;
 
 }
 
-.data-table .action-buttons button{
+.data-table .action-buttons {
 
-    min-width:90px;
+    display: flex;
 
-    height:36px;
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 8px;
+
+    flex-wrap: nowrap;
 
 }
 
+.data-table .action-buttons button {
+
+    min-width: 82px;
+
+    height: 36px;
+
+}
 
 /* =====================================================
    LINKS
 ===================================================== */
 
-.data-table a{
+.data-table a {
 
-    color:#356d84;
+    color: #356d84;
 
-    text-decoration:none;
+    text-decoration: none;
 
-    font-weight:600;
-
-}
-
-.data-table a:hover{
-
-    text-decoration:underline;
+    font-weight: 600;
 
 }
 
+.data-table a:hover {
+
+    text-decoration: underline;
+
+}
 
 /* =====================================================
    SCROLLBAR
 ===================================================== */
 
-.data-table-wrapper::-webkit-scrollbar{
+.data-table-wrapper::-webkit-scrollbar {
 
-    height:10px;
-
-}
-
-.data-table-wrapper::-webkit-scrollbar-track{
-
-    background:#f3f5f7;
+    height: 10px;
 
 }
 
-.data-table-wrapper::-webkit-scrollbar-thumb{
+.data-table-wrapper::-webkit-scrollbar-track {
 
-    background:#9eb4be;
-
-    border-radius:20px;
+    background: #f3f5f7;
 
 }
 
-.data-table-wrapper::-webkit-scrollbar-thumb:hover{
+.data-table-wrapper::-webkit-scrollbar-thumb {
 
-    background:#6d8d9a;
+    background: #9eb4be;
+
+    border-radius: 20px;
 
 }
 
+.data-table-wrapper::-webkit-scrollbar-thumb:hover {
+
+    background: #6d8d9a;
+
+}
 
 /* =====================================================
    RESPONSIVE
 ===================================================== */
 
-@media(max-width:992px){
+@media (max-width:992px) {
+
+    .data-table {
+
+        min-width: 900px;
+
+    }
 
     .data-table th,
 
-    .data-table td{
+    .data-table td {
 
-        padding:12px;
+        padding: 12px;
 
-        font-size:13px;
+        font-size: 13px;
 
     }
 
 }
 
-@media(max-width:768px){
+@media (max-width:768px) {
+
+    .data-table {
+
+        min-width: 700px;
+
+    }
 
     .data-table th,
 
-    .data-table td{
+    .data-table td {
 
-        padding:10px;
+        padding: 10px;
 
-        font-size:12px;
+        font-size: 12px;
 
     }
 

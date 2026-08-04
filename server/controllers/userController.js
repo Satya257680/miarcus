@@ -641,8 +641,12 @@ const bulkUploadUsers = async (req, res) => {
                     }
 
                 );
+                console.log("Inserted User:", addResult);
 
                 const userId = addResult.insertId;
+console.log("New User ID:", userId);
+console.log("Department From Excel:", user.department);
+console.log("Designation From Excel:", user.designation);
 
                 // ======================================================
                 // CREATE ACTIVATION TOKEN

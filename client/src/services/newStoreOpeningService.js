@@ -71,17 +71,7 @@ export const createNewStoreOpening = (formData) => {
 
         formData,
 
-        {
-
-            headers: {
-
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-
-                "Content-Type": "multipart/form-data"
-
-            }
-
-        }
+        authConfig()
 
     );
 
@@ -105,17 +95,7 @@ export const updateNewStoreOpening = (
 
         formData,
 
-        {
-
-            headers: {
-
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-
-                "Content-Type": "multipart/form-data"
-
-            }
-
-        }
+        authConfig()
 
     );
 
@@ -157,27 +137,23 @@ export const deleteAllNewStoreOpenings = () => {
 // BULK IMPORT
 // ======================================================
 
-export const bulkUploadNewStoreOpenings = (formData) => {
+export const bulkUploadNewStoreOpenings = async (file) => {
 
-    return axios.post(
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    const response = await axios.post(
 
         `${BASE_URL}/new-store-openings/bulk-upload`,
 
         formData,
 
-        {
-
-            headers: {
-
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-
-                "Content-Type": "multipart/form-data"
-
-            }
-
-        }
+        authConfig()
 
     );
+
+    return response.data;
 
 };
 

@@ -1,1432 +1,366 @@
-/* =====================================================
-   CHECKLIST REPORTS PAGE
-===================================================== */
+/* ==========================================================
+   PAGE
+========================================================== */
 
-.reports-page{
-    padding:25px;
-    background:#edf3f5;
-    min-height:calc(100vh - 72px);
+.checklist-reports-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-/* =====================================================
-   HEADER
-===================================================== */
 
-.reports-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:20px;
-    margin-bottom:20px;
+/* ==========================================================
+   FILTERS
+========================================================== */
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
 }
 
-.reports-header h2{
-    margin:0;
-    color:#24424d;
-    font-size:28px;
-    font-weight:700;
+.filter-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
 }
 
-.reports-subtitle{
-    margin-top:6px;
-    color:#667b82;
-    font-size:14px;
+.filter-group input,
+.filter-group select {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 14px;
+    color: #1f2937;
 }
 
-.reports-subtitle strong{
-    color:#2b5664;
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: #2563eb;
 }
 
-.reports-header-actions{
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
 
-/* =====================================================
-   NOTE
-===================================================== */
-
-.report-note{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    background:#fff8dc;
-    border-left:5px solid #f1c40f;
-    padding:16px 20px;
-    border-radius:10px;
-    margin-bottom:25px;
-    color:#6b5800;
-    font-size:14px;
-}
-
-.report-note svg{
-    font-size:18px;
-    color:#f39c12;
-}
-
-/* =====================================================
-   FILTER CARD
-===================================================== */
-
-.reports-filter-card{
-    background:#ffffff;
-    border-radius:14px;
-    padding:22px;
-    box-shadow:0 4px 12px rgba(0,0,0,.08);
-    margin-bottom:25px;
-}
-
-/* =====================================================
-   FILTER GRID
-===================================================== */
-
-.filter-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:20px;
-}
-
-.filter-item{
-    display:flex;
-    flex-direction:column;
-}
-
-.filter-item label{
-    margin-bottom:8px;
-    font-size:14px;
-    font-weight:600;
-    color:#24424d;
-}
-
-/* =====================================================
-   INPUTS
-===================================================== */
-
-.filter-item input,
-.filter-item select{
-    height:46px;
-    border:1px solid #d5dee3;
-    border-radius:8px;
-    padding:0 14px;
-    font-size:14px;
-    outline:none;
-    background:#fff;
-    transition:.3s;
-}
-
-.filter-item input:focus,
-.filter-item select:focus{
-    border-color:#4f9fb5;
-    box-shadow:0 0 0 3px rgba(79,159,181,.18);
-}
-
-/* =====================================================
-   SEARCH BOX
-===================================================== */
-
-.search-box{
-    display:flex;
-    align-items:center;
-    height:46px;
-    border:1px solid #d5dee3;
-    border-radius:8px;
-    overflow:hidden;
-    background:#fff;
-}
-
-.search-box svg{
-    width:50px;
-    text-align:center;
-    color:#4f9fb5;
-    font-size:16px;
-}
-
-.search-box input{
-    flex:1;
-    height:100%;
-    border:none;
-    outline:none;
-    background:transparent;
-    font-size:14px;
-    padding-right:12px;
-}
-
-/* =====================================================
-   BUTTON ROW
-===================================================== */
-
-.button-row{
-    margin-top:25px;
-    display:flex;
-    align-items:center;
-    gap:12px;
-    flex-wrap:wrap;
-}
-
-/* =====================================================
-   BUTTONS
-===================================================== */
-
-.export-btn,
-.import-btn,
-.clear-btn{
-    height:44px;
-    border:none;
-    border-radius:8px;
-    padding:0 18px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    cursor:pointer;
-    color:#fff;
-    font-size:14px;
-    font-weight:600;
-    transition:.25s;
-}
-
-.export-btn{
-    background:#2e8b57;
-}
-
-.export-btn:hover{
-    background:#256f46;
-}
-
-.import-btn{
-    background:#0d8fd1;
-}
-
-.import-btn:hover{
-    background:#0876ad;
-}
-
-.clear-btn{
-    background:#dc3545;
-}
-
-.clear-btn:hover{
-    background:#b52a37;
-}
-
-/* =====================================================
-   ROWS
-===================================================== */
-
-.rows-box{
-    margin-left:auto;
-    display:flex;
-    align-items:center;
-    gap:10px;
-}
-
-.rows-box span{
-    color:#24424d;
-    font-weight:600;
-}
-
-.rows-box select{
-    width:90px;
-    height:42px;
-    border:1px solid #d5dee3;
-    border-radius:8px;
-    padding:0 10px;
-    background:#fff;
-    outline:none;
-}
-
-.rows-box select:focus{
-    border-color:#4f9fb5;
-}
-/* =====================================================
-   REPORT TABLE
-===================================================== */
-
-.report-table{
-    width:100%;
-    background:#ffffff;
-    border-radius:14px;
-    overflow:auto;
-    box-shadow:0 4px 12px rgba(0,0,0,.08);
-}
-
-.report-table table{
-    width:max-content;
-    min-width:2200px;
-    border-collapse:collapse;
-}
-
-.report-table thead{
-    background:#b7d7df;
-    position:sticky;
-    top:0;
-    z-index:10;
-}
-
-.report-table thead th{
-    padding:15px;
-    text-align:left;
-    color:#24424d;
-    font-size:14px;
-    font-weight:600;
-    white-space:nowrap;
-    border-bottom:2px solid #98b9c2;
-}
-
-.report-table tbody td{
-    padding:14px;
-    color:#444;
-    font-size:14px;
-    vertical-align:middle;
-    border-bottom:1px solid #ececec;
-}
-
-.report-table tbody tr:nth-child(even){
-    background:#fafcfd;
-}
-
-.report-table tbody tr:hover{
-    background:#eef7f9;
-    transition:.25s;
-}
-
-/* =====================================================
-   QUESTION / COMMENT
-===================================================== */
-
-.question-cell{
-    min-width:260px;
-    max-width:260px;
-    white-space:normal;
-    word-break:break-word;
-    line-height:1.6;
-    color:#24424d;
-    font-weight:500;
-}
-
-.comment-cell{
-    min-width:220px;
-    max-width:220px;
-    white-space:normal;
-    word-break:break-word;
-    color:#666;
-}
-
-.answer-cell{
-    font-weight:600;
-}
-
-/* =====================================================
+/* ==========================================================
    STATUS BADGES
-===================================================== */
+========================================================== */
 
-.status-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-width:90px;
-    padding:6px 14px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:600;
-    text-transform:capitalize;
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
 }
 
-.status-badge.completed{
-    background:#d4edda;
-    color:#155724;
+.status-badge.completed {
+    background: #22c55e;
 }
 
-.status-badge.pending{
-    background:#fff3cd;
-    color:#856404;
+.status-badge.pending {
+    background: #f59e0b;
 }
 
-.status-badge.failed{
-    background:#f8d7da;
-    color:#721c24;
+.status-badge.failed {
+    background: #ef4444;
 }
 
-.status-badge.in-progress{
-    background:#d1ecf1;
-    color:#0c5460;
+
+/* ==========================================================
+   TABLE
+========================================================== */
+
+.question-cell {
+    min-width: 260px;
+    white-space: normal;
+    line-height: 1.6;
+    color: #1f2937;
+    font-weight: 500;
 }
 
-/* =====================================================
-   ANSWER BADGES
-===================================================== */
-
-.answer-yes,
-.answer-no,
-.answer-na{
-    display:inline-block;
-    padding:6px 12px;
-    border-radius:18px;
-    font-size:13px;
-    font-weight:600;
+.remarks-cell {
+    min-width: 220px;
+    white-space: normal;
+    line-height: 1.6;
+    color: #1f2937;
+    font-weight: 500;
 }
 
-.answer-yes{
-    background:#d4edda;
-    color:#155724;
+.device-cell {
+    min-width: 280px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.5;
+    color: #374151;
+    font-size: 13px;
 }
 
-.answer-no{
-    background:#f8d7da;
-    color:#721c24;
+/* Dark table text */
+
+.data-table tbody td,
+.data-table td,
+table tbody td,
+tbody td {
+    color: #1f2937 !important;
+    font-size: 14px;
+    font-weight: 500;
+    vertical-align: top;
 }
 
-.answer-na{
-    background:#fff3cd;
-    color:#856404;
+
+/* ==========================================================
+   LINKS
+========================================================== */
+
+.table-link,
+.map-link {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
 }
 
-/* =====================================================
-   ATTACHMENT & MAP LINKS
-===================================================== */
-
-.report-table a{
-    color:#0d6efd;
-    text-decoration:none;
-    font-weight:600;
+.table-link:hover,
+.map-link:hover {
+    text-decoration: underline;
 }
 
-.report-table a:hover{
-    text-decoration:underline;
+
+/* ==========================================================
+   ACTION BUTTONS
+========================================================== */
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
 }
-
-.map-link{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    color:#0077cc;
-    font-weight:600;
-}
-/* ===============================
-   ACTION COLUMN
-================================ */
-
-.action-column{
-    min-width:200px;
-    text-align:center;
-}
-
-/* ==========================================
-   ACTION COLUMN
-========================================== */
-
-.action-column{
-    text-align:center;
-    vertical-align:middle;
-    width:190px;
-}
-
-.action-buttons{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:8px;
-    flex-wrap:nowrap;
-}
-
-/* ==========================================
-   COMMON BUTTON
-========================================== */
 
 .view-btn,
 .edit-btn,
-.delete-btn{
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:6px;
-    font-size:13px;
-    font-weight:600;
-    color:#fff;
-    height:36px;
-    transition:.25s;
+.delete-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    min-width: 72px;
+    height: 36px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    transition: .2s;
 }
 
-/* ==========================================
-   VIEW
-========================================== */
-
-.view-btn{
-    width:38px;
-    background:#2196f3;
+.view-btn {
+    background: #2196f3;
 }
 
-.view-btn:hover{
-    background:#1976d2;
+.edit-btn {
+    background: #f59e0b;
 }
 
-/* ==========================================
-   EDIT
-========================================== */
-
-.edit-btn{
-    background:#f39c12;
-    padding:0 12px;
-    min-width:74px;
+.delete-btn {
+    background: #ef4444;
 }
 
-.edit-btn:hover{
-    background:#e67e22;
+.view-btn:hover {
+    background: #1976d2;
 }
 
-/* ==========================================
-   DELETE
-========================================== */
-
-.delete-btn{
-    width:38px;
-    background:#e53935;
+.edit-btn:hover {
+    background: #d97706;
 }
 
-.delete-btn:hover{
-    background:#c62828;
+.delete-btn:hover {
+    background: #dc2626;
 }
 
-.edit-btn span{
-    line-height:1;
-}
-/* =====================================================
-   EMPTY RECORDS
-===================================================== */
 
-.no-records{
-    padding:40px;
-    text-align:center;
-    color:#777;
-    font-size:16px;
-    font-weight:600;
-}
+/* ==========================================================
+   MODAL
+========================================================== */
 
-/* =====================================================
-   TABLE SCROLLBAR
-===================================================== */
-
-.report-table::-webkit-scrollbar{
-    height:10px;
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
 }
 
-.report-table::-webkit-scrollbar-track{
-    background:#edf3f5;
+.report-modal {
+    width: 850px;
+    max-width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
 }
 
-.report-table::-webkit-scrollbar-thumb{
-    background:#b7d7df;
-    border-radius:10px;
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 22px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.report-table::-webkit-scrollbar-thumb:hover{
-    background:#93b8c2;
-}
-/* ===========================
-   TABLE HEADER
-=========================== */
-
-.report-table thead{
-    background:#456f7d;
+.modal-header h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
 }
 
-.report-table thead th{
-    background:#456f7d;
-    color:#fff;
-    font-size:15px;
-    font-weight:700;
-    text-align:center;
-    vertical-align:middle;
-    padding:18px 15px;
-    border:none;
-    white-space:nowrap;
+.close-btn {
+    border: none;
+    background: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #6b7280;
 }
 
-.report-table thead th:first-child{
-    border-top-left-radius:12px;
+.modal-body {
+    padding: 25px;
 }
 
-.report-table thead th:last-child{
-    border-top-right-radius:12px;
-}
-/* =====================================================
-   REPORT FOOTER
-===================================================== */
 
-.reports-footer{
-    margin-top:20px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    flex-wrap:wrap;
+/* ==========================================================
+   DETAILS
+========================================================== */
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
 }
 
-.pagination-info{
-    font-size:14px;
-    color:#5b6b71;
+.detail-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #111827;
 }
 
-.pagination-info strong{
-    color:#24424d;
-    margin:0 3px;
+.detail-grid p {
+    margin: 0;
+    color: #374151;
 }
 
-/* =====================================================
-   PAGINATION
-===================================================== */
 
-.pagination{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex-wrap:wrap;
+/* ==========================================================
+   QUESTION
+========================================================== */
+
+.question-section {
+    margin-top: 25px;
 }
 
-.pagination button{
-    min-width:42px;
-    height:40px;
-    padding:0 14px;
-    border:none;
-    border-radius:8px;
-    background:#4f9fb5;
-    color:#fff;
-    cursor:pointer;
-    font-size:14px;
-    font-weight:600;
-    transition:.25s;
+.question-section h4 {
+    margin: 18px 0 8px;
+    color: #111827;
 }
 
-.pagination button:hover:not(:disabled){
-    background:#397f92;
-    transform:translateY(-2px);
+.question-section p {
+    margin: 0;
+    line-height: 1.7;
+    color: #374151;
 }
 
-.pagination button:disabled{
-    background:#cfd8dc;
-    color:#888;
-    cursor:not-allowed;
+
+/* ==========================================================
+   MAP
+========================================================== */
+
+.map-section {
+    margin-top: 25px;
 }
 
-.active-page{
-    background:#24424d !important;
-    color:#fff;
-}
 
-/* =====================================================
-   MODAL OVERLAY
-===================================================== */
-
-.modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.55);
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    z-index:9999;
-    animation:fadeOverlay .25s ease;
-}
-
-@keyframes fadeOverlay{
-    from{
-        opacity:0;
-    }
-    to{
-        opacity:1;
-    }
-}
-
-/* =====================================================
-   REPORT MODAL
-===================================================== */
-
-.report-modal{
-    width:92%;
-    max-width:1000px;
-    background:#fff;
-    border-radius:14px;
-    overflow:hidden;
-    box-shadow:0 15px 35px rgba(0,0,0,.25);
-    animation:popup .25s ease;
-}
-
-@keyframes popup{
-    from{
-        opacity:0;
-        transform:scale(.95);
-    }
-    to{
-        opacity:1;
-        transform:scale(1);
-    }
-}
-
-/* =====================================================
-   MODAL HEADER
-===================================================== */
-
-.modal-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:18px 24px;
-    background:#b7d7df;
-}
-
-.modal-header h3{
-    margin:0;
-    color:#24424d;
-    font-size:22px;
-    font-weight:700;
-}
-
-.close-btn{
-    width:40px;
-    height:40px;
-    border:none;
-    border-radius:50%;
-    background:#fff;
-    color:#24424d;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    transition:.25s;
-}
-
-.close-btn:hover{
-    background:#ececec;
-    transform:rotate(90deg);
-}
-
-/* =====================================================
-   MODAL BODY
-===================================================== */
-
-.modal-body{
-    padding:25px;
-    max-height:75vh;
-    overflow-y:auto;
-}
-
-.modal-body hr{
-    border:none;
-    border-top:1px solid #e5e5e5;
-    margin:25px 0;
-}
-
-/* =====================================================
-   DETAIL GRID
-===================================================== */
-
-.detail-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:18px;
-}
-
-.detail-grid div{
-    background:#f8fbfc;
-    border:1px solid #dfecef;
-    border-radius:10px;
-    padding:16px;
-}
-
-.detail-grid strong{
-    display:block;
-    margin-bottom:8px;
-    color:#24424d;
-    font-size:14px;
-}
-
-.detail-grid p{
-    margin:0;
-    color:#555;
-    line-height:1.6;
-    word-break:break-word;
-}
-
-/* =====================================================
-   QUESTION SECTION
-===================================================== */
-
-.question-section{
-    margin-top:20px;
-}
-
-.question-section h4{
-    margin:18px 0 10px;
-    color:#24424d;
-    font-size:16px;
-    font-weight:600;
-}
-
-.question-section p{
-    margin:0;
-    padding:14px 18px;
-    background:#f8fbfc;
-    border:1px solid #dbe8ec;
-    border-left:5px solid #4f9fb5;
-    border-radius:10px;
-    color:#555;
-    line-height:1.7;
-    white-space:pre-wrap;
-    word-break:break-word;
-}
-
-/* =====================================================
-   MAP SECTION
-===================================================== */
-
-.map-section{
-    margin-top:25px;
-    padding-top:20px;
-    border-top:1px solid #ececec;
-}
-
-.map-section a{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:10px 18px;
-    background:#0d6efd;
-    color:#fff;
-    border-radius:8px;
-    text-decoration:none;
-    transition:.25s;
-}
-
-.map-section a:hover{
-    background:#0a58ca;
-}
-
-.map-section p{
-    margin:0;
-    color:#777;
-    font-style:italic;
-}
-
-/* =====================================================
-   MODAL SCROLLBAR
-===================================================== */
-
-.modal-body::-webkit-scrollbar{
-    width:8px;
-}
-
-.modal-body::-webkit-scrollbar-track{
-    background:#edf3f5;
-}
-
-.modal-body::-webkit-scrollbar-thumb{
-    background:#b7d7df;
-    border-radius:10px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover{
-    background:#96bcc6;
-}
-/* =====================================================
-   IMPORT MODAL
-===================================================== */
-
-.import-modal{
-    max-width:600px;
-}
-
-.import-modal .modal-body{
-    display:flex;
-    flex-direction:column;
-    gap:20px;
-}
-
-.import-modal p{
-    margin:0;
-    color:#555;
-    line-height:1.6;
-}
-
-.import-modal input[type="file"]{
-    width:100%;
-    padding:12px;
-    border:2px dashed #b7d7df;
-    border-radius:10px;
-    background:#f8fbfc;
-    cursor:pointer;
-    transition:.3s;
-}
-
-.import-modal input[type="file"]:hover{
-    border-color:#4f9fb5;
-    background:#f3fbfd;
-}
-
-.import-modal input[type="file"]::file-selector-button{
-    border:none;
-    background:#4f9fb5;
-    color:#fff;
-    padding:8px 16px;
-    border-radius:6px;
-    cursor:pointer;
-    margin-right:12px;
-    transition:.25s;
-}
-
-.import-modal input[type="file"]::file-selector-button:hover{
-    background:#397f92;
-}
-/* ==========================
-   EDIT MODAL
-========================== */
-
-.modal-actions{
-
-    display:flex;
-
-    justify-content:flex-end;
-
-    gap:12px;
-
-    margin-top:25px;
-
-}
-
-.modal-body textarea{
-
-    width:100%;
-
-    border:1px solid #d5dee3;
-
-    border-radius:8px;
-
-    padding:12px;
-
-    resize:vertical;
-
-    outline:none;
-
-    font-size:14px;
-
-    font-family:inherit;
-
-}
-
-.modal-body textarea:focus{
-
-    border-color:#4f9fb5;
-
-}
-
-/* =====================================================
+/* ==========================================================
    MODAL ACTIONS
-===================================================== */
+========================================================== */
 
-.modal-actions{
-    display:flex;
-    justify-content:flex-end;
-    gap:12px;
-    margin-top:10px;
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 30px;
 }
 
 .cancel-btn,
-.upload-btn{
-    min-width:120px;
-    height:44px;
-    border:none;
-    border-radius:8px;
-    font-size:14px;
-    font-weight:600;
-    cursor:pointer;
-    transition:.25s;
+.upload-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
 }
 
-.cancel-btn{
-    background:#6c757d;
-    color:#fff;
+.cancel-btn {
+    background: #6b7280;
 }
 
-.cancel-btn:hover{
-    background:#565e64;
+.upload-btn {
+    background: #2563eb;
 }
 
-.upload-btn{
-    background:#28a745;
-    color:#fff;
+.cancel-btn:hover {
+    background: #4b5563;
 }
 
-.upload-btn:hover:not(:disabled){
-    background:#218838;
+.upload-btn:hover {
+    background: #1d4ed8;
 }
 
-.upload-btn:disabled{
-    background:#cfd8dc;
-    color:#888;
-    cursor:not-allowed;
+
+/* ==========================================================
+   LOADING / NO PERMISSION
+========================================================== */
+
+.reports-loading,
+.no-permission {
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 18px;
+    color: #6b7280;
 }
 
-/* =====================================================
-   RESPONSIVE (1200px)
-===================================================== */
 
-@media (max-width:1200px){
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
 
-    .filter-grid{
-        grid-template-columns:repeat(2,1fr);
+@media (max-width: 768px) {
+
+    .detail-grid {
+        grid-template-columns: 1fr;
     }
 
-    .report-table{
-        overflow-x:auto;
+    .action-buttons {
+        flex-direction: column;
     }
 
-    .report-table table{
-        min-width:1900px;
+    .report-modal {
+        width: 95%;
     }
 
-}
-
-/* =====================================================
-   RESPONSIVE (992px)
-===================================================== */
-
-@media (max-width:992px){
-
-    .reports-header{
-        flex-direction:column;
-        align-items:flex-start;
+    .filter-group {
+        min-width: 100%;
     }
-
-    .reports-header-actions{
-        width:100%;
-        justify-content:flex-start;
-        flex-wrap:wrap;
-    }
-
-    .button-row{
-        justify-content:flex-start;
-    }
-
-    .rows-box{
-        margin-left:0;
-    }
-
-    .filter-grid{
-        grid-template-columns:1fr;
-    }
-
-    .detail-grid{
-        grid-template-columns:1fr;
-    }
-
-    .reports-footer{
-        flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .modal-actions{
-        width:100%;
-        justify-content:flex-start;
-    }
-
-}
-
-/* =====================================================
-   RESPONSIVE (768px)
-===================================================== */
-
-@media (max-width:768px){
-
-    .reports-page{
-        padding:16px;
-    }
-
-    .reports-header h2{
-        font-size:24px;
-    }
-
-    .report-note{
-        flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .button-row{
-        flex-direction:column;
-        align-items:stretch;
-    }
-
-    .button-row button{
-        width:100%;
-        justify-content:center;
-    }
-
-    .rows-box{
-        width:100%;
-        justify-content:space-between;
-    }
-
-    .rows-box select{
-        width:120px;
-    }
-
-    .pagination{
-        justify-content:center;
-    }
-
-    .report-modal{
-        width:96%;
-        max-height:90vh;
-    }
-
-    .modal-header{
-        padding:16px 20px;
-    }
-
-    .modal-header h3{
-        font-size:18px;
-    }
-
-    .modal-body{
-        padding:18px;
-    }
-
-}
-
-/* =====================================================
-   RESPONSIVE (576px)
-===================================================== */
-
-@media (max-width:576px){
-
-    .reports-page{
-        padding:12px;
-    }
-
-    .reports-header h2{
-        font-size:20px;
-    }
-
-    .filter-item input,
-    .filter-item select{
-        height:42px;
-        font-size:13px;
-    }
-
-    .search-box{
-        height:42px;
-    }
-
-    .search-box input{
-        font-size:13px;
-    }
-
-    .report-table table{
-        min-width:1600px;
-    }
-
-    .report-table th,
-    .report-table td{
-        padding:10px;
-        font-size:13px;
-    }
-
-    .action-buttons{
-        flex-direction:column;
-        gap:6px;
-    }
-
-    .view-btn,
-    .delete-btn{
-        width:36px;
-        height:36px;
-    }
-
-    .edit-btn{
-        min-width:80px;
-        height:36px;
-        font-size:12px;
-    }
-
-    .status-badge{
-        min-width:70px;
-        font-size:11px;
-    }
-
-    .detail-grid div{
-        padding:12px;
-    }
-
-    .question-section p{
-        padding:10px;
-        font-size:13px;
-    }
-
-    .modal-actions{
-        flex-direction:column;
-    }
-
-    .cancel-btn,
-    .upload-btn{
-        width:100%;
-    }
-
-}
-/* =====================================================
-   LOADING
-===================================================== */
-
-.reports-loading{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:400px;
-    font-size:22px;
-    font-weight:600;
-    color:#4f9fb5;
-}
-
-/* =====================================================
-   UTILITIES
-===================================================== */
-
-.text-center{
-    text-align:center;
-}
-
-.text-right{
-    text-align:right;
-}
-
-.text-left{
-    text-align:left;
-}
-
-.fw-bold{
-    font-weight:700;
-}
-
-.fw-semibold{
-    font-weight:600;
-}
-
-.fw-normal{
-    font-weight:400;
-}
-
-.mt-5{
-    margin-top:5px;
-}
-
-.mt-10{
-    margin-top:10px;
-}
-
-.mt-15{
-    margin-top:15px;
-}
-
-.mt-20{
-    margin-top:20px;
-}
-
-.mt-25{
-    margin-top:25px;
-}
-
-.mb-5{
-    margin-bottom:5px;
-}
-
-.mb-10{
-    margin-bottom:10px;
-}
-
-.mb-15{
-    margin-bottom:15px;
-}
-
-.mb-20{
-    margin-bottom:20px;
-}
-
-.mb-25{
-    margin-bottom:25px;
-}
-
-/* =====================================================
-   CARD EFFECT
-===================================================== */
-
-.reports-filter-card,
-.report-table,
-.report-modal{
-    transition:.3s ease;
-}
-
-.reports-filter-card:hover,
-.report-table:hover{
-    box-shadow:0 8px 24px rgba(0,0,0,.10);
-}
-
-/* =====================================================
-   BUTTON EFFECTS
-===================================================== */
-
-.export-btn,
-.import-btn,
-.clear-btn,
-.view-btn,
-.edit-btn,
-.delete-btn,
-.cancel-btn,
-.upload-btn,
-.pagination button{
-    transition:all .25s ease;
-}
-
-.export-btn:hover,
-.import-btn:hover,
-.clear-btn:hover,
-.view-btn:hover,
-.edit-btn:hover,
-.delete-btn:hover,
-.cancel-btn:hover,
-.upload-btn:hover:not(:disabled){
-    transform:translateY(-2px);
-}
-
-/* =====================================================
-   FORM ELEMENTS
-===================================================== */
-
-input,
-select,
-button{
-    font-family:inherit;
-}
-
-button:focus,
-input:focus,
-select:focus{
-    outline:none;
-}
-
-/* =====================================================
-   SCROLLBAR
-===================================================== */
-
-::-webkit-scrollbar{
-    width:10px;
-    height:10px;
-}
-
-::-webkit-scrollbar-track{
-    background:#edf3f5;
-}
-
-::-webkit-scrollbar-thumb{
-    background:#b7d7df;
-    border-radius:10px;
-}
-
-::-webkit-scrollbar-thumb:hover{
-    background:#8db3be;
-}
-
-/* =====================================================
-   PRINT
-===================================================== */
-
-@media print{
-
-    body{
-        background:#fff;
-    }
-
-    .reports-header-actions,
-    .button-row,
-    .pagination,
-    .action-buttons,
-    .close-btn,
-    .modal-actions{
-        display:none !important;
-    }
-
-    .reports-page{
-        padding:0;
-        background:#fff;
-    }
-
-    .report-table{
-        box-shadow:none;
-        border:1px solid #ddd;
-    }
-
-    .report-table table{
-        min-width:100%;
-    }
-
-    .report-table th,
-    .report-table td{
-        border:1px solid #ddd;
-    }
-
-}
-
-/* =====================================================
-   SELECTION
-===================================================== */
-
-::selection{
-    background:#4f9fb5;
-    color:#ffffff;
-}
-
-/* =====================================================
-   SMOOTH SCROLL
-===================================================== */
-
-html{
-    scroll-behavior:smooth;
-}
-
-/* =====================================================
-   IMAGE
-===================================================== */
-
-img{
-    max-width:100%;
-    display:block;
-}
-
-/* =====================================================
-   LINK RESET
-===================================================== */
-
-a{
-    transition:.25s;
-}
-
-a:hover{
-    opacity:.9;
-}
-
-/* =====================================================
-   FINAL
-===================================================== */
-
-*{
-    box-sizing:border-box;
-}
-
-body{
-    margin:0;
-    padding:0;
-    font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
-    background:#edf3f5;
-    color:#333;
 }
