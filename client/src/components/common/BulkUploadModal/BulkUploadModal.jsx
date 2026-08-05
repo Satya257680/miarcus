@@ -1,303 +1,525 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  FaFileExcel,
-  FaUpload,
-  FaDownload,
+    FaCloudUploadAlt,
+    FaFileExcel,
+    FaFileCsv,
+    FaUpload,
+    FaDownload,
+    FaTimes
 } from "react-icons/fa";
 
 import "../../../styles/common/BulkUploadModal.css";
 
 function BulkUploadModal({
 
-  isOpen,
+    isOpen,
 
-  onClose,
+    onClose,
 
-  onSuccess,
+    onSuccess,
 
-  uploadFunction,
+    uploadFunction,
 
-  title = "Bulk Upload",
+    title = "Bulk Upload",
 
-  acceptedFile = ".csv,.xlsx,.xls",
+    acceptedFile = ".csv,.xlsx,.xls",
 
-  sampleFile,
+    sampleFile = null,
+
+    maxFileSize = 10 * 1024 * 1024 // 10 MB
 
 }) {
 
-  const [file, setFile] = useState(null);
+    // ======================================================
+    // STATES
+    // ======================================================
 
-  const [loading, setLoading] = useState(false);
+    const [file, setFile] = useState(null);
 
-  // ==========================================
-  // Reset Modal
-  // ==========================================
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+    const [dragging, setDragging] = useState(false);
 
-    if (!isOpen) {
+    const inputRef = useRef(null);
 
-      setFile(null);
+    // ======================================================
+    // RESET
+    // ======================================================
 
-      setLoading(false);
+    useEffect(() => {
 
-    }
-
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  // ==========================================
-  // Handle File Selection
-  // ==========================================
-
-  const handleFileChange = (e) => {
-
-    const selectedFile = e.target.files[0];
-
-    if (!selectedFile) return;
-
-    const extension = selectedFile.name
-      .split(".")
-      .pop()
-      .toLowerCase();
-
-    const allowedExtensions = [
-
-      "csv",
-
-      "xlsx",
-
-      "xls",
-
-    ];
-
-    if (!allowedExtensions.includes(extension)) {
-
-      alert("Please select a CSV or Excel file.");
-
-      e.target.value = "";
-
-      return;
-
-    }
-
-    setFile(selectedFile);
-
-  };
-
-  // ==========================================
-// Upload File
-// ==========================================
-
-const handleUpload = async () => {
-
-    if (!file) {
-
-        alert("Please select a CSV, XLSX or XLS file.");
-
-        return;
-
-    }
-
-    try {
-
-        setLoading(true);
-
-        // Pass only the File object
-        const result = await uploadFunction(file);
-
-        if (result.success) {
-
-            alert(
-
-                result.message ||
-
-                "Upload completed successfully."
-
-            );
+        if (!isOpen) {
 
             setFile(null);
 
-            onSuccess?.();
+            setLoading(false);
 
-            onClose();
+            setDragging(false);
 
-        } else {
+        }
+
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    // ======================================================
+    // VALIDATE FILE
+    // ======================================================
+
+    const validateFile = (selectedFile) => {
+
+        if (!selectedFile) return false;
+
+        const extension = selectedFile.name
+
+            .split(".")
+
+            .pop()
+
+            .toLowerCase();
+
+        const allowed = [
+
+            "csv",
+
+            "xlsx",
+
+            "xls"
+
+        ];
+
+        if (!allowed.includes(extension)) {
 
             alert(
 
-                result.message ||
+                "Only CSV, XLSX and XLS files are allowed."
+
+            );
+
+            return false;
+
+        }
+
+        if (selectedFile.size > maxFileSize) {
+
+            alert(
+
+                "Maximum file size is 10 MB."
+
+            );
+
+            return false;
+
+        }
+
+        return true;
+
+    };
+
+    // ======================================================
+    // FILE CHANGE
+    // ======================================================
+
+    const handleFileChange = (e) => {
+
+        const selected = e.target.files[0];
+
+        if (!validateFile(selected)) {
+
+            e.target.value = "";
+
+            return;
+
+        }
+
+        setFile(selected);
+
+    };
+
+    // ======================================================
+    // DROP
+    // ======================================================
+
+    const handleDrop = (e) => {
+
+        e.preventDefault();
+
+        setDragging(false);
+
+        const dropped = e.dataTransfer.files[0];
+
+        if (!validateFile(dropped)) return;
+
+        setFile(dropped);
+
+    };
+
+    const handleDragOver = (e) => {
+
+        e.preventDefault();
+
+        setDragging(true);
+
+    };
+
+    const handleDragLeave = () => {
+
+        setDragging(false);
+
+    };
+        // ======================================================
+    // UPLOAD
+    // ======================================================
+
+    const handleUpload = async () => {
+
+        if (!file) {
+
+            alert("Please select a file.");
+
+            return;
+
+        }
+
+        try {
+
+            setLoading(true);
+
+            // Pass File only.
+            // Each page creates its own FormData.
+
+            const result = await uploadFunction(file);
+
+            if (result?.success) {
+
+                alert(
+
+                    result.message ||
+
+                    "Bulk upload completed successfully."
+
+                );
+
+                setFile(null);
+
+                inputRef.current.value = "";
+
+                if (onSuccess) {
+
+                    await onSuccess();
+
+                }
+
+                onClose();
+
+            } else {
+
+                alert(
+
+                    result?.message ||
+
+                    "Upload failed."
+
+                );
+
+            }
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                err.message ||
 
                 "Upload failed."
 
             );
 
+        } finally {
+
+            setLoading(false);
+
         }
 
-    } catch (err) {
+    };
 
-        console.error(err);
+    // ======================================================
+    // REMOVE FILE
+    // ======================================================
 
-        alert(
+    const removeFile = () => {
 
-            err.response?.data?.message ||
+        setFile(null);
 
-            err.message ||
+        if (inputRef.current) {
 
-            "Upload failed."
+            inputRef.current.value = "";
 
-        );
+        }
 
-    } finally {
+    };
 
-        setLoading(false);
+    // ======================================================
+    // RETURN
+    // ======================================================
 
-    }
+    return (
 
-};
-return (
-    <div className="bulk-modal-overlay">
+        <div className="bulk-modal-overlay">
 
-      <div className="bulk-modal">
+            <div className="bulk-modal">
 
-        {/* ======================================
-            Header
-        ====================================== */}
+                {/* =====================================
+                    HEADER
+                ===================================== */}
 
-        <div className="bulk-header">
+                <div className="bulk-header">
 
-          <h2>{title}</h2>
+                    <h2>{title}</h2>
+
+                    <button
+
+                        className="bulk-close"
+
+                        onClick={onClose}
+
+                        disabled={loading}
+
+                    >
+
+                        <FaTimes />
+
+                    </button>
+
+                </div>
+
+                {/* =====================================
+                    BODY
+                ===================================== */}
+
+                <div className="bulk-body">
+
+                    <div
+
+                        className={`bulk-dropzone ${dragging ? "dragging" : ""}`}
+
+                        onDrop={handleDrop}
+
+                        onDragOver={handleDragOver}
+
+                        onDragLeave={handleDragLeave}
+
+                    >
+
+                        <FaCloudUploadAlt className="bulk-upload-icon" />
+
+                        <h3>
+
+                            Drag & Drop your file here
+
+                        </h3>
+
+                        <p>
+
+                            or click below to browse
+
+                        </p>
+
+                        <input
+
+                            ref={inputRef}
+
+                            type="file"
+
+                            accept={acceptedFile}
+
+                            hidden
+
+                            onChange={handleFileChange}
+
+                        />
+
+                        <button
+
+                            type="button"
+
+                            className="browse-btn"
+
+                            onClick={() =>
+
+                                inputRef.current.click()
+
+                            }
+
+                        >
+
+                            Browse File
+
+                        </button>
+
+                        <small>
+
+                            Supported:
+
+                            CSV, XLSX, XLS
+
+                        </small>
+
+                    </div>
+
+                    {
+
+                        file && (
+
+                            <div className="selected-file">
+
+                                {
+
+                                    file.name.endsWith(".csv")
+
+                                        ?
+
+                                        <FaFileCsv />
+
+                                        :
+
+                                        <FaFileExcel />
+
+                                }
+
+                                <div className="selected-file-info">
+
+                                    <strong>
+
+                                        {file.name}
+
+                                    </strong>
+
+                                    <span>
+
+                                        {(file.size / 1024).toFixed(2)} KB
+
+                                    </span>
+
+                                </div>
+
+                                <button
+
+                                    className="remove-file-btn"
+
+                                    onClick={removeFile}
+
+                                    disabled={loading}
+
+                                >
+
+                                    <FaTimes />
+
+                                </button>
+
+                            </div>
+
+                        )
+
+                    }
+                                        {/* =====================================
+                        SAMPLE FILE
+                    ===================================== */}
+
+                    {
+
+                        sampleFile && (
+
+                            <div className="bulk-sample">
+
+                                <a
+
+                                    href={sampleFile}
+
+                                    download
+
+                                    className="sample-btn"
+
+                                >
+
+                                    <FaDownload />
+
+                                    Download Sample File
+
+                                </a>
+
+                            </div>
+
+                        )
+
+                    }
+
+                </div>
+
+                {/* =====================================
+                    FOOTER
+                ===================================== */}
+
+                <div className="bulk-footer">
+
+                    <button
+
+                        type="button"
+
+                        className="cancel-btn"
+
+                        disabled={loading}
+
+                        onClick={() => {
+
+                            removeFile();
+
+                            onClose();
+
+                        }}
+
+                    >
+
+                        Cancel
+
+                    </button>
+
+                    <button
+
+                        type="button"
+
+                        className="upload-btn"
+
+                        disabled={loading || !file}
+
+                        onClick={handleUpload}
+
+                    >
+
+                        <FaUpload />
+
+                        {
+
+                            loading
+
+                                ? "Uploading..."
+
+                                : "Upload"
+
+                        }
+
+                    </button>
+
+                </div>
+
+            </div>
 
         </div>
 
-        {/* ======================================
-            Body
-        ====================================== */}
-
-        <div className="bulk-body">
-
-          <label className="bulk-upload-box">
-
-            <FaFileExcel className="excel-icon" />
-
-            <p>
-
-              {
-
-                file
-
-                  ? file.name
-
-                  : "Choose CSV or Excel File"
-
-              }
-
-            </p>
-
-            <small>
-
-              Supported formats:
-
-              CSV, XLSX, XLS
-
-            </small>
-
-            <input
-
-              type="file"
-
-              accept={acceptedFile}
-
-              onChange={handleFileChange}
-
-            />
-
-          </label>
-
-          {sampleFile && (
-
-            <a
-
-              href={sampleFile}
-
-              download
-
-              className="sample-btn"
-
-            >
-
-              <FaDownload />
-
-              Download Sample
-
-            </a>
-
-          )}
-
-        </div>
-
-        {/* ======================================
-            Footer
-        ====================================== */}
-
-        <div className="bulk-footer">
-
-          <button
-
-            type="button"
-
-            className="cancel-btn"
-
-            disabled={loading}
-
-            onClick={() => {
-
-              setFile(null);
-
-              onClose();
-
-            }}
-
-          >
-
-            Cancel
-
-          </button>
-
-          <button
-
-            type="button"
-
-            className="upload-btn"
-
-            disabled={loading}
-
-            onClick={handleUpload}
-
-          >
-
-            <FaUpload />
-
-            {
-
-              loading
-
-                ? "Uploading..."
-
-                : "Upload"
-
-            }
-
-          </button>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  );
+    );
 
 }
 

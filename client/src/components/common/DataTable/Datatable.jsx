@@ -27,13 +27,7 @@ function DataTable({
 
     if (loading) {
 
-        return (
-
-            <Loading
-                text="Loading data..."
-            />
-
-        );
+        return <Loading text="Loading data..." />;
 
     }
 
@@ -60,61 +54,49 @@ function DataTable({
 
     return (
 
-        <div
-            className={`data-table-wrapper ${className}`}
-            style={{
-                width: "100%",
-                overflowX: "auto",
-            }}
-        >
+        <div className={`data-table-wrapper ${className}`}>
 
-            <table
-                className="data-table"
-                style={{
-                    width: "100%",
-                    minWidth: "100%",
-                    tableLayout: "auto",
-                }}
-            >
+            <table className="data-table">
 
-                {/* ========================================== */}
-                {/* HEADER */}
-                {/* ========================================== */}
+                {/* ==========================================
+                    HEADER
+                ========================================== */}
 
                 <thead>
 
                     <tr>
 
-                        {columns.map((column) => (
+                        {columns.map((column) => {
 
-                            <th
-                                key={column.key}
-                                style={{
-                                    width: column.width || "auto",
-                                    textAlign: column.align || "left",
-                                    position: "sticky",
-                                    top: 0,
-                                    zIndex: 10,
-                                    whiteSpace: "normal",
-                                    wordBreak: "break-word",
-                                }}
-                            >
+                            const style = {
+                                width: column.width || column.minWidth || "160px",
+                                minWidth: column.minWidth || column.width || "160px",
+                                maxWidth: column.maxWidth || column.width || undefined,
+                                textAlign: column.align || "left"
+                            };
 
-                                {column.title ||
-                                    column.label ||
-                                    column.name}
+                            return (
 
-                            </th>
+                                <th
+                                    key={column.key}
+                                    style={style}
+                                >
+                                    {column.title ||
+                                        column.label ||
+                                        column.name}
+                                </th>
 
-                        ))}
+                            );
+
+                        })}
 
                     </tr>
 
                 </thead>
 
-                {/* ========================================== */}
-                {/* BODY */}
-                {/* ========================================== */}
+                {/* ==========================================
+                    BODY
+                ========================================== */}
 
                 <tbody>
 
@@ -122,26 +104,30 @@ function DataTable({
 
                         <tr key={row.id || rowIndex}>
 
-                            {columns.map((column) => (
+                            {columns.map((column) => {
 
-                                <td
-                                    key={column.key}
-                                    style={{
-                                        width: column.width || "auto",
-                                        textAlign: column.align || "left",
-                                        verticalAlign: "middle",
-                                        whiteSpace: "normal",
-                                        wordBreak: "break-word",
-                                    }}
-                                >
+                                const style = {
+                                    width: column.width || column.minWidth || "160px",
+                                    minWidth: column.minWidth || column.width || "160px",
+                                    maxWidth: column.maxWidth || column.width || undefined,
+                                    textAlign: column.align || "left",
+                                    verticalAlign: "middle"
+                                };
 
-                                    {column.render
-                                        ? column.render(row)
-                                        : row[column.key] ?? "-"}
+                                return (
 
-                                </td>
+                                    <td
+                                        key={column.key}
+                                        style={style}
+                                    >
+                                        {column.render
+                                            ? column.render(row)
+                                            : row[column.key] ?? "-"}
+                                    </td>
 
-                            ))}
+                                );
+
+                            })}
 
                         </tr>
 

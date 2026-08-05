@@ -19,12 +19,9 @@ ChecklistReport.getAll = (
 
 ) => {
 
-
     let sql = `
 
-
         SELECT
-
 
             cs.id,
 
@@ -42,20 +39,23 @@ ChecklistReport.getAll = (
 
             cs.created_at,
 
-
             ct.checklist_name,
 
-
             s.store_name,
-
 
             u.name AS employee_name,
 
             u.employee_id,
 
+            GROUP_CONCAT(
 
-            d.department_name,
+                DISTINCT d.department_name
 
+                ORDER BY d.department_name
+
+                SEPARATOR ', '
+
+            ) AS department_name,
 
             q.id AS question_id,
 
@@ -63,11 +63,9 @@ ChecklistReport.getAll = (
 
             q.sequence_no,
 
-
             csa.answer,
 
             csa.remarks,
-
 
             (
 
@@ -77,62 +75,43 @@ ChecklistReport.getAll = (
 
                 WHERE csa2.submission_id = cs.id
 
-
             ) AS total_questions
 
-
-
         FROM checklist_submissions cs
-
-
 
         LEFT JOIN checklist_types ct
 
             ON ct.id = cs.checklist_type_id
 
-
-
         LEFT JOIN stores s
 
             ON s.id = cs.store_id
-
-
 
         LEFT JOIN users u
 
             ON u.id = cs.submitted_by
 
-
-
-        LEFT JOIN departments d
-
-            ON d.id = u.department_id
-
-
-
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
-
-
 
         LEFT JOIN questions q
 
             ON q.id = csa.question_id
 
+        LEFT JOIN question_departments qd
 
+            ON qd.question_id = q.id
+
+        LEFT JOIN departments d
+
+            ON d.id = qd.department_id
 
         WHERE 1=1
 
-
-
     `;
 
-
-
     const values = [];
-
-
 
 
 
@@ -372,52 +351,74 @@ ChecklistReport.getAll = (
 
 
     // ==========================================
-    // ORDER
-    // ==========================================
+// GROUP BY + ORDER + PAGINATION
+// ==========================================
 
+sql += `
 
-    sql += `
+    GROUP BY
 
+        cs.id,
 
-        ORDER BY
+        cs.submission_date,
 
+        cs.status,
+
+        cs.latitude,
+
+        cs.longitude,
+
+        cs.device,
+
+        cs.attachment,
+
+        cs.created_at,
+
+        ct.checklist_name,
+
+        s.store_name,
+
+        u.name,
+
+        u.employee_id,
+
+        q.id,
+
+        q.question,
+
+        q.sequence_no,
+
+        csa.answer,
+
+        csa.remarks
+
+    ORDER BY
 
         cs.created_at DESC,
 
-
         q.sequence_no ASC
 
+    LIMIT ? OFFSET ?
 
+`;
 
-        LIMIT ? OFFSET ?
+values.push(
 
+    limit,
 
-    `;
+    offset
 
+);
 
+db.query(
 
-    values.push(
+    sql,
 
-        limit,
+    values,
 
-        offset
+    callback
 
-    );
-
-
-
-
-
-
-    db.query(
-
-        sql,
-
-        values,
-
-        callback
-
-    );
+);
 
 
 };
@@ -425,7 +426,6 @@ ChecklistReport.getAll = (
 // GET REPORT BY ID
 // WITH ANSWERS
 // ======================================================
-
 
 ChecklistReport.getById = (
 
@@ -435,12 +435,9 @@ ChecklistReport.getById = (
 
 ) => {
 
-
     const sql = `
 
-
         SELECT
-
 
             cs.id,
 
@@ -458,20 +455,23 @@ ChecklistReport.getById = (
 
             cs.created_at,
 
-
             ct.checklist_name,
 
-
             s.store_name,
-
 
             u.name AS employee_name,
 
             u.employee_id,
 
+            GROUP_CONCAT(
 
-            d.department_name,
+                DISTINCT d.department_name
 
+                ORDER BY d.department_name
+
+                SEPARATOR ', '
+
+            ) AS department_name,
 
             q.id AS question_id,
 
@@ -479,68 +479,87 @@ ChecklistReport.getById = (
 
             q.sequence_no,
 
-
             csa.id AS answer_id,
 
             csa.answer,
 
             csa.remarks
 
-
-
         FROM checklist_submissions cs
-
-
 
         LEFT JOIN checklist_types ct
 
             ON ct.id = cs.checklist_type_id
 
-
-
         LEFT JOIN stores s
 
             ON s.id = cs.store_id
-
-
 
         LEFT JOIN users u
 
             ON u.id = cs.submitted_by
 
-
-
-        LEFT JOIN departments d
-
-            ON d.id = u.department_id
-
-
-
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
-
-
 
         LEFT JOIN questions q
 
             ON q.id = csa.question_id
 
+        LEFT JOIN question_departments qd
 
+            ON qd.question_id = q.id
+
+        LEFT JOIN departments d
+
+            ON d.id = qd.department_id
 
         WHERE cs.id = ?
 
+        GROUP BY
 
+            cs.id,
+
+            cs.submission_date,
+
+            cs.status,
+
+            cs.latitude,
+
+            cs.longitude,
+
+            cs.device,
+
+            cs.attachment,
+
+            cs.created_at,
+
+            ct.checklist_name,
+
+            s.store_name,
+
+            u.name,
+
+            u.employee_id,
+
+            q.id,
+
+            q.question,
+
+            q.sequence_no,
+
+            csa.id,
+
+            csa.answer,
+
+            csa.remarks
 
         ORDER BY
 
-        q.sequence_no ASC
-
-
+            q.sequence_no ASC
 
     `;
-
-
 
     db.query(
 
@@ -552,13 +571,7 @@ ChecklistReport.getById = (
 
     );
 
-
 };
-
-
-
-
-
 
 
 // ======================================================
@@ -1037,28 +1050,20 @@ ChecklistReport.countAll = (
             ON s.id = cs.store_id
 
 
+LEFT JOIN users u
+    ON u.id = cs.submitted_by
 
-        LEFT JOIN users u
+LEFT JOIN checklist_submission_answers csa
+    ON csa.submission_id = cs.id
 
-            ON u.id = cs.submitted_by
+LEFT JOIN questions q
+    ON q.id = csa.question_id
 
+LEFT JOIN question_departments qd
+    ON qd.question_id = q.id
 
-
-        LEFT JOIN departments d
-
-            ON d.id = u.department_id
-
-
-
-        LEFT JOIN checklist_submission_answers csa
-
-            ON csa.submission_id = cs.id
-
-
-
-        LEFT JOIN questions q
-
-            ON q.id = csa.question_id
+LEFT JOIN departments d
+    ON d.id = qd.department_id
 
 
 
@@ -1232,95 +1237,101 @@ ChecklistReport.exportReports = (
 
     callback
 
-)=>{
-
+) => {
 
     const sql = `
 
-
         SELECT
-
 
             cs.id,
 
-
             ct.checklist_name,
-
 
             s.store_name,
 
-
             u.name AS employee_name,
-
 
             u.employee_id,
 
+            GROUP_CONCAT(
 
-            d.department_name,
+                DISTINCT d.department_name
 
+                ORDER BY d.department_name
+
+                SEPARATOR ', '
+
+            ) AS department_name,
 
             cs.submission_date,
 
-
             cs.status,
-
 
             q.question,
 
-
             csa.answer,
-
 
             csa.remarks
 
-
-
         FROM checklist_submissions cs
-
-
 
         LEFT JOIN checklist_types ct
 
             ON ct.id = cs.checklist_type_id
 
-
-
         LEFT JOIN stores s
 
             ON s.id = cs.store_id
-
-
 
         LEFT JOIN users u
 
             ON u.id = cs.submitted_by
 
-
-
-        LEFT JOIN departments d
-
-            ON d.id = u.department_id
-
-
-
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
-
-
 
         LEFT JOIN questions q
 
             ON q.id = csa.question_id
 
+       LEFT JOIN question_departments qd
+    ON qd.question_id = q.id
+        LEFT JOIN departments d
 
+            ON d.id = qd.department_id
 
-        ORDER BY cs.created_at DESC
+        GROUP BY
 
+            cs.id,
+
+            ct.checklist_name,
+
+            s.store_name,
+
+            u.name,
+
+            u.employee_id,
+
+            cs.submission_date,
+
+            cs.status,
+
+            q.id,
+
+            q.question,
+
+            csa.answer,
+
+            csa.remarks
+
+        ORDER BY
+
+            cs.created_at DESC,
+
+            q.sequence_no ASC
 
     `;
-
-
 
     db.query(
 
@@ -1330,6 +1341,6 @@ ChecklistReport.exportReports = (
 
     );
 
-
 };
+
 module.exports = ChecklistReport;

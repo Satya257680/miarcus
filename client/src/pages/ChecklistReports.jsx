@@ -22,6 +22,8 @@ import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import {
     FaEye,
+    FaEdit,
+    FaTrash,
     FaMapMarkerAlt
 } from "react-icons/fa";
 
@@ -125,10 +127,10 @@ function ChecklistReports() {
     });
 
     // ======================================================
-    // IMPORT
-    // ======================================================
+// BULK UPLOAD MODAL
+// ======================================================
 
-    const [importFile, setImportFile] = useState(null);
+const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     // ======================================================
     // RBAC
@@ -612,64 +614,70 @@ function ChecklistReports() {
     };
 
     // ======================================================
-    // BULK IMPORT
-    // ======================================================
+// BULK UPLOAD CHECKLIST REPORT
+// ======================================================
 
-    const handleBulkUpload = async (formData) => {
+const uploadChecklistReport = async (file) => {
 
-        try {
+    if (!canAdd) {
 
-            const res = await axios.post(
+        return {
 
-                `${API}/checklist-reports/import`,
+            success: false,
 
-                formData,
+            message: "You don't have permission."
 
-                {
+        };
 
-                    headers: {
+    }
 
-                        "Content-Type":
+    const formData = new FormData();
 
-                            "multipart/form-data"
+    formData.append("file", file);
 
-                    }
+    const token = localStorage.getItem("token");
+
+    try {
+
+        const response = await axios.post(
+
+            `${API}/checklist-reports/bulk-upload`,
+
+            formData,
+
+            {
+
+                headers: {
+
+                    Authorization: `Bearer ${token}`
 
                 }
 
-            );
+            }
 
-            alert(
+        );
 
-                res.data.message ||
+        return response.data;
 
-                "Import completed."
+    } catch (err) {
 
-            );
+        console.error(err);
 
-            loadData();
+        return {
 
-            return res;
+            success: false,
 
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
+            message:
 
                 err.response?.data?.message ||
 
-                "CSV upload failed."
+                "Bulk upload failed."
 
-            );
+        };
 
-            throw err;
+    }
 
-        }
-
-    };
-
+};
     // ======================================================
     // CLEAR FILTERS
     // ======================================================
@@ -1015,40 +1023,48 @@ function ChecklistReports() {
             )
         },
 
-        // ==================================================
-        // ATTACHMENT & DEVICE
-        // ==================================================
+       // ==================================================
+// ATTACHMENT & DEVICE
+// ==================================================
 
-        {
-            key: "attachment",
-            title: "Attachment",
-            render: (row) => (
+{
+    key: "attachment",
+    title: "Attachment",
+    minWidth: "120px",
+    align: "center",
 
-                row.attachment ? (
+    render: (row) => (
 
-                    <a
-                        href={`http://localhost:5000/${row.attachment}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="table-link"
-                    >
-                        View
-                    </a>
+        row.attachment ? (
 
-                ) : (
+            <a
+                href={`http://localhost:5000/${row.attachment}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="table-link"
+            >
+                View
+            </a>
 
-                    "-"
+        ) : (
 
-                )
+            "-"
 
-            )
-        },
+        )
 
-        {
-            key: "device",
-            title: "Device",
-            render: (row) => row.device || "-"
-        },
+    )
+},
+
+{
+    key: "device",
+    title: "Device",
+    minWidth: "220px",   // Reduce width
+    render: (row) => (
+        <div className="device-cell">
+            {row.device || "-"}
+        </div>
+    )
+},
 
         // ==================================================
         // LOCATION
@@ -1093,63 +1109,61 @@ function ChecklistReports() {
             )
         },
 
-        // ==================================================
-        // ACTIONS
-        // ==================================================
+      {
+    key: "actions",
+    title: "Actions",
+    minWidth: "360px",
+    width: "360px",
+    align: "center",
 
-        {
-            key: "actions",
-            title: "Actions",
-            width: "260px",
-            align: "center",
+    render: (row) => (
 
-            render: (row) => (
+        <div className="action-buttons">
 
-                <div className="action-buttons">
+            {canView && (
 
-                    {canView && (
+                <button
+                    type="button"
+                    className="view-btn"
+                    onClick={() => handleView(row.id)}
+                >
+                    <FaEye />
+                    <span>View</span>
+                </button>
 
-                        <button
-                            className="view-btn"
-                            onClick={() => handleView(row.id)}
-                        >
-                            <FaEye /> View
-                        </button>
+            )}
 
-                    )}
+            {canEdit && (
 
-                    {canEdit && (
+                <button
+                    type="button"
+                    className="edit-btn"
+                    onClick={() => handleEdit(row)}
+                >
+                    <FaEdit />
+                    <span>Edit</span>
+                </button>
 
-                        <button
-                            className="edit-btn"
-                            onClick={() => handleEdit(row)}
-                        >
-                            <i className="fas fa-edit"></i>
+            )}
 
-                            {" "}Edit
-                        </button>
+            {canDelete && (
 
-                    )}
+                <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={() => handleDelete(row.id)}
+                >
+                    <FaTrash />
+                    <span>Delete</span>
+                </button>
 
-                    {canDelete && (
+            )}
 
-                        <button
-                            className="delete-btn"
-                            onClick={() => handleDelete(row.id)}
-                        >
-                            <i className="fas fa-trash"></i>
+        </div>
 
-                            {" "}Delete
-                        </button>
+    )
 
-                    )}
-
-                </div>
-
-            )
-
-        }
-
+}
     ];
         return (
 
@@ -1167,27 +1181,29 @@ function ChecklistReports() {
             {/* ======================================================
                 PAGE TOOLBAR
             ====================================================== */}
+<PageToolbar
 
-            <PageToolbar
+    search={search}
 
-                search={search}
+    setSearch={setSearch}
 
-                setSearch={setSearch}
+    placeholder="Search Checklist Reports..."
 
-                placeholder="Search Checklist Reports..."
+    showAdd={false}
 
-                showAdd={false}
+    showExport={canView}
 
-                showExport={canView}
+    onExport={handleExport}
 
-                onExport={handleExport}
+    showBulkUpload={canAdd}
 
-                showBulk={canAdd}
+    bulkUploadText="Bulk Upload"
 
-                onBulk={() => setShowBulkModal(true)}
+    onBulkUpload={() => setShowBulkUpload(true)}
 
-            />
+    showDeleteAll={false}
 
+/>
             {/* ======================================================
                 FILTER BAR
             ====================================================== */}
@@ -1367,22 +1383,32 @@ function ChecklistReports() {
                 />
 
             </Card>
-                        {/* ======================================================
-                BULK UPLOAD MODAL
-            ====================================================== */}
+            
+ {/* ======================================================
+    BULK UPLOAD MODAL
+====================================================== */}
 
-            <BulkUploadModal
-                isOpen={showBulkModal}
-                onClose={() => {
-                    setShowBulkModal(false);
-                    setImportFile(null);
-                }}
-                title="Import Checklist Reports"
-                uploadFunction={handleBulkUpload}
-                onSuccess={loadData}
-                acceptedFile=".csv,.xlsx,.xls"
-                sampleFile="/api/checklist-reports/sample"
-            />
+<BulkUploadModal
+
+    isOpen={showBulkUpload}
+
+    onClose={() => setShowBulkUpload(false)}
+
+ onSuccess={async () => {
+
+    await loadData();
+
+}}
+
+    uploadFunction={uploadChecklistReport}
+
+    title="Bulk Upload Checklist Reports"
+
+    acceptedFile=".csv,.xlsx,.xls"
+
+    sampleFile="/samples/checklist-report-sample.xlsx"
+
+/>
 
             {/* ======================================================
                 DELETE CONFIRMATION

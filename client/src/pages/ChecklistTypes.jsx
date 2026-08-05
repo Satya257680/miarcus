@@ -1,708 +1,1115 @@
-import { useEffect, useState } from "react";
-import {
-  FaSearch,
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaUpload,
-  FaDownload,
-} from "react-icons/fa";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
-import "../styles/ChecklistTypes.css";
+// ======================================================
+// COMMON COMPONENTS
+// ======================================================
+
+import PageHeader from "../components/common/PageHeader";
+import PageToolbar from "../components/common/PageToolbar";
+import FilterBar from "../components/common/FilterBar";
+import Card from "../components/common/Card";
+import DataTable from "../components/common/DataTable";
+import Pagination from "../components/common/Pagination";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import BulkUploadModal from "../components/common/BulkUploadModal";
+
+// ======================================================
+// MODALS
+// ======================================================
 
 import AddChecklistTypeModal from "../components/AddChecklistTypeModal";
 
+// ======================================================
+// ICONS
+// ======================================================
+
 import {
-  getChecklistTypes,
-  createChecklistType,
-  updateChecklistType,
-  deleteChecklistType,
-  deleteAllChecklistTypes,
-  exportChecklistTypes,
-  importChecklistTypes,
-} from "../services/checklistTypeService";
+    FaEdit,
+    FaTrash,
+    FaUpload
+} from "react-icons/fa";
+
+// ======================================================
+// STYLE
+// ======================================================
+
+import "../styles/ChecklistTypes.css";
+
+// ======================================================
+// API
+// ======================================================
+
+const API = "http://localhost:5000/api";
+
+// ======================================================
+// COMPONENT
+// ======================================================
 
 function ChecklistTypes() {
 
-  // ==========================
-  // States
-  // ==========================
+    // ======================================================
+    // STATES
+    // ======================================================
 
-  const [checklists, setChecklists] = useState([]);
-  const [filteredChecklists, setFilteredChecklists] = useState([]);
+    const [checklists, setChecklists] = useState([]);
 
-  const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
+    // ======================================================
+    // SEARCH
+    // ======================================================
 
-  const [showModal, setShowModal] = useState(false);
+    const [search, setSearch] = useState("");
 
-  const [editingChecklist, setEditingChecklist] = useState(null);
+    // ======================================================
+    // FILTERS
+    // ======================================================
 
-  const [currentPage, setCurrentPage] = useState(1);
+    const [statusFilter, setStatusFilter] = useState("");
 
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [departmentFilter, setDepartmentFilter] = useState("");
 
- // ==========================
-// RBAC
-// ==========================
+    // ======================================================
+    // PAGINATION
+    // ======================================================
 
-const user = JSON.parse(
-  localStorage.getItem("user") || "{}"
-);
+    const [currentPage, setCurrentPage] = useState(1);
 
-const permissions = JSON.parse(
-  localStorage.getItem("permissions") || "{}"
-);
+    const [pageSize] = useState(10);
 
-// Administrator always gets Full Access
-const isAdmin =
-  user.administrator === true ||
-  user.administrator === 1;
+    const [totalRecords, setTotalRecords] = useState(0);
 
-const checklistPermission = isAdmin
-  ? "Full"
-  : permissions["Checklist Types"] || "None";
+    const [totalPages, setTotalPages] = useState(1);
 
-const canView =
-  ["View", "Add", "Edit", "Full"].includes(
-    checklistPermission
-  );
+    // ======================================================
+    // MODALS
+    // ======================================================
 
-const canAdd =
-  ["Add", "Edit", "Full"].includes(
-    checklistPermission
-  );
+    const [showModal, setShowModal] = useState(false);
 
-const canEdit =
-  ["Edit", "Full"].includes(
-    checklistPermission
-  );
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-const canDelete =
-  checklistPermission === "Full";
+    // ======================================================
+    // SELECTED DATA
+    // ======================================================
 
-  // ==========================
-  // Load Data
-  // ==========================
+    const [selectedChecklist, setSelectedChecklist] = useState(null);
 
-  const fetchChecklistTypes = async () => {
+    const [deleteId, setDeleteId] = useState(null);
+
+    // ======================================================
+// BULK UPLOAD MODAL
+// ======================================================
+
+const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+    // ======================================================
+    // RBAC
+    // ======================================================
+
+    const user = JSON.parse(
+        localStorage.getItem("user") || "{}"
+    );
+
+    const permissions = JSON.parse(
+        localStorage.getItem("permissions") || "{}"
+    );
+
+    const isAdmin =
+        user.administrator === true ||
+        user.administrator === 1;
+
+    const permission = isAdmin
+        ? "Full"
+        : permissions["Checklist Types"] || "None";
+
+    const canView = [
+        "View",
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canAdd = [
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canEdit = [
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canDelete =
+        permission === "Full";
+
+    // ======================================================
+    // LOAD CHECKLIST TYPES
+    // ======================================================
+
+    const loadChecklistTypes = async () => {
+
+        try {
+
+            setLoading(true);
+
+            const res = await axios.get(
+                `${API}/checklist-types`
+            );
+
+            const data = res.data.data || res.data || [];
+
+            setChecklists(data);
+
+            setTotalRecords(data.length);
+
+            setTotalPages(
+                Math.ceil(data.length / pageSize) || 1
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Failed to load Checklist Types."
+            );
+
+            setChecklists([]);
+
+        } finally {
+
+            setLoading(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // LOAD
+    // ======================================================
+
+    useEffect(() => {
+
+        if (!canView) {
+
+            setLoading(false);
+
+            return;
+
+        }
+
+        loadChecklistTypes();
+
+    }, [canView]);
+        // ======================================================
+    // ADD
+    // ======================================================
+
+    const handleAdd = () => {
+
+        if (!canAdd) return;
+
+        setSelectedChecklist(null);
+
+        setShowModal(true);
+
+    };
+
+    // ======================================================
+    // EDIT
+    // ======================================================
+
+    const handleEdit = (row) => {
+
+        if (!canEdit) return;
+
+        setSelectedChecklist(row);
+
+        setShowModal(true);
+
+    };
+
+    // ======================================================
+    // DELETE
+    // ======================================================
+
+    const handleDelete = (id) => {
+
+        if (!canDelete) return;
+
+        setDeleteId(id);
+
+        setShowDeleteDialog(true);
+
+    };
+
+    const confirmDelete = async () => {
+
+        try {
+
+            await axios.delete(
+                `${API}/checklist-types/${deleteId}`
+            );
+
+            alert("Checklist Type deleted successfully.");
+
+            loadChecklistTypes();
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Delete failed."
+            );
+
+        } finally {
+
+            setDeleteId(null);
+
+            setShowDeleteDialog(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // DELETE ALL
+    // ======================================================
+
+    const handleDeleteAll = async () => {
+
+        if (!canDelete) return;
+
+        if (!window.confirm("Delete all Checklist Types?")) return;
+
+        try {
+
+            await axios.delete(
+                `${API}/checklist-types/delete-all`
+            );
+
+            alert("All Checklist Types deleted successfully.");
+
+            loadChecklistTypes();
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Delete failed."
+            );
+
+        }
+
+    };
+
+    // ======================================================
+    // EXPORT
+    // ======================================================
+
+    const handleExport = async () => {
+
+        try {
+
+            const response = await axios.get(
+                `${API}/checklist-types/export`,
+                {
+                    responseType: "blob"
+                }
+            );
+
+            const url = window.URL.createObjectURL(
+                new Blob([response.data])
+            );
+
+            const link = document.createElement("a");
+
+            link.href = url;
+
+            link.download = "ChecklistTypes.xlsx";
+
+            link.click();
+
+            window.URL.revokeObjectURL(url);
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert("Export failed.");
+
+        }
+
+    };
+// ======================================================
+// BULK UPLOAD CHECKLIST TYPES
+// ======================================================
+
+const uploadChecklistTypes = async (file) => {
+
+    if (!canAdd) {
+
+        return {
+
+            success: false,
+
+            message: "You don't have permission."
+
+        };
+
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    const token = localStorage.getItem("token");
 
     try {
 
-      setLoading(true);
+        const response = await axios.post(
 
-      const res = await getChecklistTypes();
+            `${API}/checklist-types/bulk-upload`,
 
-      if (res.success) {
+            formData,
 
-        setChecklists(res.data);
-        setFilteredChecklists(res.data);
+            {
 
-      } else {
+                headers: {
 
-        setChecklists([]);
-        setFilteredChecklists([]);
+                    Authorization: `Bearer ${token}`
 
-      }
+                }
+
+            }
+
+        );
+
+        return response.data;
 
     } catch (err) {
 
-      console.error(err);
+        console.error(err);
 
-      alert(
-        err.response?.data?.message ||
-        "Unable to load Checklist Types"
-      );
+        return {
 
-    } finally {
+            success: false,
 
-      setLoading(false);
+            message:
 
-    }
+                err.response?.data?.message ||
 
-  };
-useEffect(() => {
+                "Bulk upload failed."
 
-  if (!canView) {
-
-    setLoading(false);
-
-    return;
-
-  }
-
-  fetchChecklistTypes();
-
-}, [canView]);
-
-  // ==========================
-  // Search
-  // ==========================
-
-  useEffect(() => {
-
-    const keyword = search.toLowerCase();
-
-    const filtered = checklists.filter((item) => {
-
-      return (
-
-        item.checklist_name?.toLowerCase().includes(keyword) ||
-
-        item.departments?.toLowerCase().includes(keyword)
-
-      );
-
-    });
-
-    setFilteredChecklists(filtered);
-
-    setCurrentPage(1);
-
-  }, [search, checklists]);
-
-  // ==========================
-  // Add
-  // ==========================
-
-  const handleAddChecklist = () => {
-
-  if (!canAdd) return;
-
-  setEditingChecklist(null);
-
-  setShowModal(true);
-
-};
-  // ==========================
-  // Edit
-  // ==========================
-
- const handleEdit = (item) => {
-
-  if (!canEdit) return;
-
-  setEditingChecklist(item);
-
-  setShowModal(true);
-
-};
-
-  // ==========================
-// Delete
-// ==========================
-
-const handleDelete = async (id) => {
-
-  if (!canDelete) {
-
-    alert("You don't have permission to delete checklist types.");
-
-    return;
-
-  }
-
-  if (!window.confirm("Delete this Checklist Type?")) return;
-
-  try {
-
-    const res = await deleteChecklistType(id);
-
-    if (res.success) {
-
-      fetchChecklistTypes();
+        };
 
     }
 
-  } catch (err) {
-
-    console.error(err);
-
-    alert(err.response?.data?.message || err.message);
-
-  }
-
 };
-
 // ==========================
-// Delete All
-// ==========================
-
-const handleDeleteAll = async () => {
-
-  if (!canDelete) {
-
-    alert("You don't have permission to delete all checklist types.");
-
-    return;
-
-  }
-
-  if (!window.confirm("Delete ALL Checklist Types?")) return;
-
-  try {
-
-    const res = await deleteAllChecklistTypes();
-
-    if (res.success) {
-
-      fetchChecklistTypes();
-
-    }
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(err.response?.data?.message || err.message);
-
-  }
-
-};// ==========================
-// Export
-// ==========================
-
-const handleExport = async () => {
-
-  if (!canView) {
-
-    alert("You don't have permission to export checklist types.");
-
-    return;
-
-  }
-
-  try {
-
-    const response = await exportChecklistTypes();
-
-    const url = window.URL.createObjectURL(
-      new Blob([response.data])
-    );
-
-    const link = document.createElement("a");
-
-    link.href = url;
-
-    link.download = "ChecklistTypes.xlsx";
-
-    link.click();
-
-    window.URL.revokeObjectURL(url);
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert("Export failed");
-
-  }
-
-};
-
-// ==========================
-// Import
-// ==========================
-
-const handleImport = async (e) => {
-
-  if (!canAdd) {
-
-    alert("You don't have permission to import checklist types.");
-
-    return;
-
-  }
-
-  const file = e.target.files[0];
-
-  if (!file) return;
-
-  try {
-
-    const res = await importChecklistTypes(file);
-
-    if (res.success) {
-
-      fetchChecklistTypes();
-
-    }
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(err.response?.data?.message || err.message);
-
-  }
-
-};
-
-// ==========================
-// Save
+// SAVE
 // ==========================
 
 const handleSave = async (data) => {
 
-  if (editingChecklist) {
+    try {
 
-    if (!canEdit) {
+        if (selectedChecklist) {
 
-      alert("You don't have permission to edit checklist types.");
+            await axios.put(
 
-      return;
+                `${API}/checklist-types/${selectedChecklist.id}`,
+
+                data
+
+            );
+
+        } else {
+
+            await axios.post(
+
+                `${API}/checklist-types`,
+
+                data
+
+            );
+
+        }
+
+        alert(
+
+            selectedChecklist
+
+                ? "Checklist updated successfully."
+
+                : "Checklist created successfully."
+
+        );
+
+        setShowModal(false);
+
+        setSelectedChecklist(null);
+
+        await loadChecklistTypes();
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Save failed."
+
+        );
 
     }
 
-  } else {
+};  // ======================================================
+    // SUCCESS
+    // ======================================================
 
-    if (!canAdd) {
+    const handleSuccess = () => {
 
-      alert("You don't have permission to add checklist types.");
+        setShowModal(false);
 
-      return;
+        setSelectedChecklist(null);
+
+        loadChecklistTypes();
+
+    };
+        // ======================================================
+    // CLEAR FILTERS
+    // ======================================================
+
+    const handleClearFilters = () => {
+
+        setSearch("");
+
+        setStatusFilter("");
+
+        setDepartmentFilter("");
+
+        setCurrentPage(1);
+
+    };
+
+    // ======================================================
+    // FILTER CHECKLIST TYPES
+    // ======================================================
+
+    const filteredChecklists = useMemo(() => {
+
+        return checklists.filter((item) => {
+
+            const matchesSearch =
+
+                !search ||
+
+                item.checklist_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.departments
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesStatus =
+
+                !statusFilter ||
+
+                item.status === statusFilter;
+
+            const matchesDepartment =
+
+                !departmentFilter ||
+
+                item.departments
+                    ?.split(",")
+                    .map((d) => d.trim())
+                    .includes(departmentFilter);
+
+            return (
+
+                matchesSearch &&
+
+                matchesStatus &&
+
+                matchesDepartment
+
+            );
+
+        });
+
+    }, [
+
+        checklists,
+
+        search,
+
+        statusFilter,
+
+        departmentFilter
+
+    ]);
+
+    // ======================================================
+    // FILTER DROPDOWNS
+    // ======================================================
+
+    const departments = useMemo(() => (
+
+        [
+
+            ...new Set(
+
+                checklists.flatMap(item =>
+
+                    item.departments
+
+                        ? item.departments
+                              .split(",")
+                              .map(d => d.trim())
+
+                        : []
+
+                )
+
+            )
+
+        ]
+
+    ), [checklists]);
+
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    const totalFilteredRecords =
+
+        filteredChecklists.length;
+
+    const calculatedTotalPages =
+
+        Math.max(
+
+            1,
+
+            Math.ceil(
+
+                totalFilteredRecords /
+
+                pageSize
+
+            )
+
+        );
+
+    const currentChecklistTypes =
+
+        filteredChecklists.slice(
+
+            (currentPage - 1) * pageSize,
+
+            currentPage * pageSize
+
+        );
+
+    useEffect(() => {
+
+        setCurrentPage(1);
+
+    }, [
+
+        search,
+
+        statusFilter,
+
+        departmentFilter
+
+    ]);
+
+    // ======================================================
+    // STATUS
+    // ======================================================
+
+    const getStatusClass = (status) => {
+
+        switch (
+
+            (status || "").toLowerCase()
+
+        ) {
+
+            case "active":
+
+                return "active";
+
+            case "inactive":
+
+                return "inactive";
+
+            default:
+
+                return "inactive";
+
+        }
+
+    };
+
+    // ======================================================
+    // ACCESS DENIED
+    // ======================================================
+
+    if (!canView) {
+
+        return (
+
+            <div className="no-permission">
+
+                <h2>
+
+                    Access Denied
+
+                </h2>
+
+                <p>
+
+                    You don't have permission to
+                    view Checklist Types.
+
+                </p>
+
+            </div>
+
+        );
 
     }
 
-  }
+    // ======================================================
+    // LOADING
+    // ======================================================
 
-  try {
+    if (loading) {
 
-    let res;
+        return (
 
-    if (editingChecklist) {
+            <div className="questions-loading">
 
-      res = await updateChecklistType(
-        editingChecklist.id,
-        data
-      );
+                Loading Checklist Types...
 
-    } else {
+            </div>
 
-      res = await createChecklistType(data);
-
-    }
-
-    if (res.success) {
-
-      setShowModal(false);
-
-      setEditingChecklist(null);
-
-      fetchChecklistTypes();
+        );
 
     }
 
-  
-  } catch (err) {
-
-    console.error(err);
-
-    alert(err.response?.data?.message || err.message);
-
-  }
-
-};
-  // ==========================
-  // Pagination
-  // ==========================
-
-  const indexOfLastRow = currentPage * rowsPerPage;
-
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-
-  const currentChecklistTypes = filteredChecklists.slice(
-    indexOfFirstRow,
-    indexOfLastRow
-  );
-
-  const totalPages = Math.ceil(
-    filteredChecklists.length / rowsPerPage
-  );
- return (
-  <div className="checklist-page">
-
-    {/* ================= Header ================= */}
-
-    <div className="checklist-header">
-
-      <h2>Checklist Types</h2>
-
-      <div className="checklist-actions">
-
-        {canAdd && (
-
-          <button
-            className="add-btn"
-            onClick={handleAddChecklist}
-          >
-            <FaPlus />
-            Add Checklist
-          </button>
-
-        )}
-
-        {canView && (
-
-          <button
-            className="export-btn"
-            onClick={handleExport}
-          >
-            <FaDownload />
-            Export
-          </button>
-
-        )}
-
-        {canAdd && (
-
-          <label className="import-btn">
-
-            <FaUpload />
-            Import
-
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              hidden
-              onChange={handleImport}
-            />
-
-          </label>
-
-        )}
-
-        {canDelete && (
-
-          <button
-            className="delete-all-btn"
-            onClick={handleDeleteAll}
-          >
-            <FaTrash />
-            Delete All
-          </button>
-
-        )}
-
-      </div>
-
-    </div>
-
-    {/* ================= Search ================= */}
-
-    <div className="checklist-search">
-
-      <FaSearch />
-
-      <input
-        type="text"
-        placeholder="Search Checklist..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
-    </div>
-
-    {/* ================= Table ================= */}
-
-    <div className="checklist-table-container">
-
-      <table className="checklist-table">
-
-        <thead>
-
-          <tr>
-
-            <th>#</th>
-
-            <th>Checklist Name</th>
-
-            <th>Departments Allowed</th>
-
-            <th>Allow Past Submission</th>
-
-            <th>Cutoff Time</th>
-
-            <th>Status</th>
-
-            <th>Actions</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {loading ? (
-
-            <tr>
-
-              <td colSpan="7" className="text-center">
-                Loading...
-              </td>
-
-            </tr>
-
-          ) : currentChecklistTypes.length === 0 ? (
-
-            <tr>
-
-              <td colSpan="7" className="text-center">
-                No Checklist Types Found
-              </td>
-
-            </tr>
-
-          ) : (
-
-            currentChecklistTypes.map((item, index) => (
-
-              <tr key={item.id}>
-
-                <td>{indexOfFirstRow + index + 1}</td>
-
-                <td>{item.checklist_name}</td>
-
-                <td>{item.departments || "-"}</td>
-
-                <td>
-                  {item.allow_past_submission ? "Yes" : "No"}
-                </td>
-
-                <td>{item.cutoff_time || "-"}</td>
-
-                <td>
-
-                  <span
+    // ======================================================
+    // TABLE COLUMNS
+    // ======================================================
+
+    const columns = [
+
+        // ==================================================
+        // CHECKLIST NAME
+        // ==================================================
+
+        {
+            key: "checklist_name",
+            title: "Checklist Name",
+            render: (row) => row.checklist_name || "-"
+        },
+
+        // ==================================================
+        // DEPARTMENTS
+        // ==================================================
+
+        {
+            key: "departments",
+            title: "Departments Allowed",
+            render: (row) => (
+                <div className="department-cell">
+                    {row.departments || "-"}
+                </div>
+            )
+        },
+
+        // ==================================================
+        // ALLOW PAST SUBMISSION
+        // ==================================================
+
+        {
+            key: "allow_past_submission",
+            title: "Allow Past Submission",
+            align: "center",
+
+            render: (row) => (
+
+                <span
                     className={
-                      item.status === "Active"
-                        ? "status active"
-                        : "status inactive"
+                        row.allow_past_submission
+                            ? "required-badge yes"
+                            : "required-badge no"
                     }
-                  >
-                    {item.status}
-                  </span>
+                >
+                    {row.allow_past_submission
+                        ? "Yes"
+                        : "No"}
+                </span>
 
-                </td>
+            )
 
-                <td>
+        },
+                // ==================================================
+        // CUTOFF TIME
+        // ==================================================
 
-                  <div className="action-buttons">
+        {
+            key: "cutoff_time",
+            title: "Cutoff Time",
+            align: "center",
+
+            render: (row) =>
+
+                row.cutoff_time || "-"
+
+        },
+
+        // ==================================================
+        // STATUS
+        // ==================================================
+
+        {
+            key: "status",
+            title: "Status",
+            align: "center",
+
+            render: (row) => (
+
+                <span
+                    className={`status-badge ${getStatusClass(
+                        row.status
+                    )}`}
+                >
+                    {row.status || "-"}
+                </span>
+
+            )
+
+        },
+
+        // ==================================================
+        // ACTIONS
+        // ==================================================
+
+        {
+            key: "actions",
+            title: "Actions",
+            width: "280px",
+            minWidth: "280px",
+            align: "center",
+
+            render: (row) => (
+
+                <div className="action-buttons">
 
                     {canEdit && (
 
-                      <button
-                        className="edit-btn"
-                        onClick={() => handleEdit(item)}
-                        title="Edit"
-                      >
-                        Edit <FaEdit />
-                      </button>
+                        <button
+                            className="edit-btn"
+                            onClick={() =>
+                                handleEdit(row)
+                            }
+                        >
+                            <FaEdit />
+                        </button>
 
                     )}
 
                     {canDelete && (
 
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
+                        <button
+                            className="delete-btn"
+                            onClick={() =>
+                                handleDelete(row.id)
+                            }
+                        >
+                            <FaTrash />
+                        </button>
 
                     )}
 
-                  </div>
+                </div>
 
-                </td>
+            )
 
-              </tr>
+        }
 
-            ))
+    ];
 
-          )}
+    // ======================================================
+    // RETURN
+    // ======================================================
 
-        </tbody>
+    return (
 
-      </table>
+        <div className="checklist-page">
 
-    </div>
+            {/* ======================================================
+                PAGE HEADER
+            ====================================================== */}
 
-    {/* ================= Pagination ================= */}
+            <PageHeader
+                title="Checklist Types"
+                subtitle="Manage Checklist Types."
+            />
+<PageToolbar
 
-    <div className="pagination">
+    search={search}
 
-      <div className="rows-per-page">
+    setSearch={setSearch}
 
-        <span>Rows Per Page :</span>
+    placeholder="Search Checklist Types..."
 
-        <select
-          value={rowsPerPage}
-          onChange={(e) => {
-            setRowsPerPage(Number(e.target.value));
-            setCurrentPage(1);
-          }}
-        >
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={25}>25</option>
-          <option value={50}>50</option>
-        </select>
+    showAdd={canAdd}
 
-      </div>
+    addText="Add Checklist"
 
-      <div className="page-buttons">
+    onAdd={handleAdd}
 
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(currentPage - 1)}
-        >
-          Previous
-        </button>
+    showExport={canView}
 
-        <span>
+    onExport={handleExport}
 
-          Page {currentPage} of {totalPages || 1}
+    showBulkUpload={canAdd}
 
-        </span>
+    bulkUploadText="Bulk Upload"
 
-        <button
-          disabled={
-            currentPage === totalPages ||
-            totalPages === 0
-          }
-          onClick={() => setCurrentPage(currentPage + 1)}
-        >
-          Next
-        </button>
+    onBulkUpload={() => setShowBulkUpload(true)}
 
-      </div>
+    showDeleteAll={canDelete}
 
-    </div>
+    onDeleteAll={handleDeleteAll}
 
-    {/* ================= Modal ================= */}
+/>
+            {/* ======================================================
+                FILTER BAR
+            ====================================================== */}
 
-    {(canAdd || canEdit) && showModal && (
+            <FilterBar
+                onClear={handleClearFilters}
+            >
+                              {/* ==========================================
+                    STATUS
+                ========================================== */}
 
-      <AddChecklistTypeModal
-        checklist={editingChecklist}
+                <div className="filter-group">
+
+                    <label>Status</label>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(e) =>
+                            setStatusFilter(e.target.value)
+                        }
+                    >
+
+                        <option value="">
+                            All Status
+                        </option>
+
+                        <option value="Active">
+                            Active
+                        </option>
+
+                        <option value="Inactive">
+                            Inactive
+                        </option>
+
+                    </select>
+
+                </div>
+
+                {/* ==========================================
+                    DEPARTMENT
+                ========================================== */}
+
+                <div className="filter-group">
+
+                    <label>Department</label>
+
+                    <select
+                        value={departmentFilter}
+                        onChange={(e) =>
+                            setDepartmentFilter(
+                                e.target.value
+                            )
+                        }
+                    >
+
+                        <option value="">
+                            All Departments
+                        </option>
+
+                        {departments.map((dept) => (
+
+                            <option
+                                key={dept}
+                                value={dept}
+                            >
+                                {dept}
+                            </option>
+
+                        ))}
+
+                    </select>
+
+                </div>
+
+            </FilterBar>
+
+            {/* ======================================================
+                CARD
+            ====================================================== */}
+
+            <Card
+                title="Checklist Types List"
+            >
+
+                <DataTable
+
+                    columns={columns}
+
+                    data={currentChecklistTypes}
+
+                    loading={loading}
+
+                    emptyTitle="No Checklist Types Found"
+
+                    emptyDescription="There are no Checklist Types available."
+
+                />
+
+                <Pagination
+
+                    currentPage={currentPage}
+
+                    totalPages={calculatedTotalPages}
+
+                    totalRecords={totalFilteredRecords}
+
+                    pageSize={pageSize}
+
+                    onPageChange={setCurrentPage}
+
+                    onPageSizeChange={() => {
+
+                        // Fixed page size (10)
+
+                        setCurrentPage(1);
+
+                    }}
+
+                />
+
+            </Card>
+                        {/* ======================================================
+                ADD / EDIT CHECKLIST TYPE MODAL
+            ====================================================== */}
+
+          {(canAdd || canEdit) && showModal && (
+
+    <AddChecklistTypeModal
+
+        checklist={selectedChecklist}
+
         onSave={handleSave}
+
         onClose={() => {
 
-          setShowModal(false);
+            setShowModal(false);
 
-          setEditingChecklist(null);
+            setSelectedChecklist(null);
 
         }}
-      />
 
-    )}
+    />
 
-  </div>
-);
+)}
+{/* ======================================================
+    BULK UPLOAD MODAL
+====================================================== */}
+
+<BulkUploadModal
+
+    isOpen={showBulkUpload}
+
+    onClose={() => setShowBulkUpload(false)}
+
+    onSuccess={async () => {
+
+        await loadChecklistTypes();
+
+    }}
+
+    uploadFunction={uploadChecklistTypes}
+
+    title="Bulk Upload Checklist Types"
+
+    acceptedFile=".csv,.xlsx,.xls"
+
+    sampleFile="/samples/checklist-types-sample.xlsx"
+
+/>
+
+            {/* ======================================================
+                DELETE CONFIRMATION
+            ====================================================== */}
+
+            <ConfirmDialog
+
+                open={showDeleteDialog}
+
+                title="Delete Checklist Type"
+
+                message="Are you sure you want to delete this Checklist Type?"
+
+                confirmText="Delete"
+
+                cancelText="Cancel"
+
+                confirmVariant="danger"
+
+                onConfirm={confirmDelete}
+
+                onCancel={() => {
+
+                    setDeleteId(null);
+
+                    setShowDeleteDialog(false);
+
+                }}
+
+            />
+
+        </div>
+
+    );
 
 }
 
 export default ChecklistTypes;
+
+
+
+           
+            

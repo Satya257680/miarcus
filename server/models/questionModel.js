@@ -1,16 +1,24 @@
 const db = require("../config/db");
-
 // ==========================================================
 // GET ALL QUESTIONS
+// FILTER + SEARCH
 // ==========================================================
 
-const getAllQuestions = (callback) => {
+const getAllQuestions = (
 
-    const sql = `
+    filters,
+
+    callback
+
+) => {
+
+    let sql = `
 
         SELECT
 
             q.id,
+
+            q.checklist_type_id,
 
             ct.checklist_name,
 
@@ -38,7 +46,17 @@ const getAllQuestions = (callback) => {
 
                 SEPARATOR ', '
 
-            ) AS departments
+            ) AS departments,
+
+            GROUP_CONCAT(
+
+                DISTINCT d.id
+
+                ORDER BY d.id
+
+                SEPARATOR ','
+
+            ) AS department_ids
 
         FROM questions q
 
@@ -54,9 +72,109 @@ const getAllQuestions = (callback) => {
 
             ON d.id = qd.department_id
 
+        WHERE 1 = 1
+
+    `;
+
+    const values = [];
+
+    // ==========================================
+    // CHECKLIST TYPE FILTER
+    // ==========================================
+
+    if (filters.checklist_type_id) {
+
+        sql += `
+
+            AND q.checklist_type_id = ?
+
+        `;
+
+        values.push(
+
+            filters.checklist_type_id
+
+        );
+
+    }
+
+    // ==========================================
+    // DEPARTMENT FILTER
+    // ==========================================
+
+    if (filters.department_id) {
+
+        sql += `
+
+            AND q.id IN (
+
+                SELECT question_id
+
+                FROM question_departments
+
+                WHERE department_id = ?
+
+            )
+
+        `;
+
+        values.push(
+
+            filters.department_id
+
+        );
+
+    }
+
+    // ==========================================
+    // SEARCH
+    // ==========================================
+
+    if (filters.search) {
+
+        sql += `
+
+            AND (
+
+                q.question LIKE ?
+
+                OR ct.checklist_name LIKE ?
+
+                OR d.department_name LIKE ?
+
+                OR q.answer_type LIKE ?
+
+            )
+
+        `;
+
+        const keyword = `%${filters.search}%`;
+
+        values.push(
+
+            keyword,
+
+            keyword,
+
+            keyword,
+
+            keyword
+
+        );
+
+    }
+
+    // ==========================================
+    // GROUP BY
+    // ==========================================
+
+    sql += `
+
         GROUP BY
 
             q.id,
+
+            q.checklist_type_id,
 
             ct.checklist_name,
 
@@ -76,7 +194,9 @@ const getAllQuestions = (callback) => {
 
             q.created_at
 
-        ORDER BY q.created_at DESC
+        ORDER BY
+
+            q.created_at DESC
 
     `;
 
@@ -84,7 +204,33 @@ const getAllQuestions = (callback) => {
 
         sql,
 
-        callback
+        values,
+
+        (err, rows) => {
+
+            if (err) return callback(err);
+
+            rows.forEach((row) => {
+
+                row.department_ids = row.department_ids
+
+                    ? row.department_ids
+                          .split(",")
+                          .map(Number)
+
+                    : [];
+
+            });
+
+            callback(
+
+                null,
+
+                rows
+
+            );
+
+        }
 
     );
 
@@ -523,6 +669,87 @@ const deleteAllQuestions = (
     );
 
 };
+
+// ==========================================================
+// BULK CREATE QUESTIONS
+// ==========================================================
+
+const bulkCreateQuestions = (
+
+    questions,
+
+    callback
+
+) => {
+
+    if (!questions || questions.length === 0) {
+
+        return callback(null);
+
+    }
+
+    const values = questions.map((q) => [
+
+        q.checklist_type_id,
+
+        q.question,
+
+        q.sequence_no || null,
+
+        q.answer_type,
+
+        q.sla_value || null,
+
+        q.sla_unit || null,
+
+        q.answer_required ? 1 : 0,
+
+        q.status || "Active"
+
+    ]);
+
+    const sql = `
+
+        INSERT INTO questions
+        (
+
+            checklist_type_id,
+
+            question,
+
+            sequence_no,
+
+            answer_type,
+
+            sla_value,
+
+            sla_unit,
+
+            answer_required,
+
+            status
+
+        )
+
+        VALUES ?
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            values
+
+        ],
+
+        callback
+
+    );
+
+};
 // ==========================================================
 // EXPORT MODEL FUNCTIONS
 // ==========================================================
@@ -536,6 +763,8 @@ module.exports = {
     getQuestionById,
 
     createQuestion,
+
+    bulkCreateQuestions,
 
     saveDepartments,
 

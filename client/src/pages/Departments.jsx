@@ -545,85 +545,55 @@ currentPage * pageSize
 
 const columns = [
 
-{
+    {
+        key: "id",
+        title: "ID",
+    },
 
-key: "id",
+    {
+        key: "department_name",
+        title: "Department",
+    },
 
-title: "ID",
+    {
+        key: "description",
+        title: "Description",
+        render: (row) => row.description || "-",
+    },
 
-},
+    {
+        key: "status",
+        title: "Status",
+        render: (row) => (
+            <StatusBadge
+                status={row.status}
+            />
+        ),
+    },
 
-{
+    {
+        key: "actions",
+        title: "Actions",
+        width: "220px",
+        minWidth: "220px",
+        align: "center",
 
-key: "department_name",
+        render: (row) => (
 
-title: "Department",
+            <ActionButtons
+                showEdit={canEdit}
+                onEdit={() => handleEdit(row)}
+                showDelete={canDelete}
+                onDelete={() => handleDelete(row.id)}
+            />
 
-},
+        ),
+    },
 
-{
 
-key: "description",
+];
 
-title: "Description",
-
-render: (row) =>
-
-row.description || "-",
-
-},
-
-{
-
-key: "status",
-
-title: "Status",
-
-render: (row) => (
-
-<StatusBadge
-
-status={row.status}
-
-/>
-
-),
-
-},
-
-{
-
-key: "actions",
-
-title: "Actions",
-
-render: (row) => (
-
-<ActionButtons
-
-showEdit={canEdit}
-
-onEdit={() =>
-
-handleEdit(row)
-
-}
-
-showDelete={canDelete}
-
-onDelete={() =>
-
-handleDelete(row.id)
-
-}
-
-/>
-
-),
-
-},
-
-];return (
+return (
 
   <div className="departments-page">
 

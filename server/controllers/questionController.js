@@ -2,6 +2,12 @@ const Question = require("../models/questionModel");
 
 const { logActivity } = require("../utils/activityLogger");
 
+const db = require("../config/db");
+
+const XLSX = require("xlsx");
+const csv = require("csv-parser");
+const { Readable } = require("stream");
+const path = require("path");
 // ======================================================
 // GET QUESTIONS
 // If checklist_type_id is passed,
@@ -11,7 +17,15 @@ const { logActivity } = require("../utils/activityLogger");
 
 exports.getQuestions = (req, res) => {
 
-    const { checklist_type_id } = req.query;
+    const {
+
+    checklist_type_id,
+
+    department_id,
+
+    search
+
+} = req.query;
 
     // ======================================
     // CHECKLIST SUBMISSION
@@ -57,37 +71,41 @@ exports.getQuestions = (req, res) => {
     // QUESTIONS PAGE
     // ======================================
 
-    Question.getAllQuestions(
+    
 
-        (err, rows) => {
+        Question.getAllQuestions(
 
-            if (err) {
+    req.query,
 
-                console.error(err);
+    (err, rows) => {
 
-                return res.status(500).json({
+        if (err) {
 
-                    success: false,
+            console.error(err);
 
-                    message: err.message
+            return res.status(500).json({
 
-                });
+                success: false,
 
-            }
-
-            return res.status(200).json({
-
-                success: true,
-
-                count: rows.length,
-
-                data: rows
+                message: err.message
 
             });
 
         }
 
-    );
+        return res.status(200).json({
+
+            success: true,
+
+            count: rows.length,
+
+            data: rows
+
+        });
+
+    }
+
+);
 
 };
 // ======================================================
@@ -130,27 +148,25 @@ exports.getQuestionById = (req, res) => {
 
             }
 
-            const question = rows[0];
+          const question = rows[0];
 
-            question.departments =
+question.department_ids =
 
-                question.department_ids
+    question.department_ids
 
-                    ? question.department_ids
+        ? question.department_ids
+              .split(",")
+              .map(Number)
 
-                          .split(",")
+        : [];
 
-                          .map(Number)
+return res.status(200).json({
 
-                    : [];
+    success: true,
 
-            return res.status(200).json({
+    data: question
 
-                success: true,
-
-                data: question
-
-            });
+});
 
         }
 
@@ -667,6 +683,9 @@ exports.deleteQuestion = (req, res) => {
     );
 
 };
+
+
+
 // ======================================================
 // DELETE ALL QUESTIONS
 // ======================================================
@@ -731,6 +750,272 @@ exports.deleteAllQuestions = (req, res) => {
 
 };
 // ======================================================
+// BULK UPLOAD QUESTIONS
+// ======================================================
+
+exports.bulkUploadQuestions = async (req, res) => {
+
+    console.log("========================================");
+    console.log("BULK UPLOAD QUESTIONS");
+    console.log("========================================");
+
+    console.log("Content-Type:", req.headers["content-type"]);
+
+    console.log("req.file:", req.file);
+
+    console.log("req.body:", req.body);
+
+    try {
+
+        if (!req.file) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Please upload a file."
+
+            });
+
+        }
+
+        const extension = path
+            .extname(req.file.originalname)
+            .toLowerCase();
+
+        let rows = [];
+
+        // =====================================
+        // CSV
+        // =====================================
+
+        if (extension === ".csv") {
+
+            rows = await new Promise((resolve, reject) => {
+
+                const result = [];
+
+                Readable.from(req.file.buffer)
+                    .pipe(csv())
+                    .on("data", (row) => result.push(row))
+                    .on("end", () => resolve(result))
+                    .on("error", reject);
+
+            });
+
+        }
+
+        // =====================================
+        // EXCEL
+        // =====================================
+
+        else {
+
+            const workbook = XLSX.read(req.file.buffer, {
+
+                type: "buffer"
+
+            });
+
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+            rows = XLSX.utils.sheet_to_json(sheet);
+
+        }
+
+        console.log("Rows Found:", rows.length);
+
+        console.log("First Row:", rows[0]);
+
+        if (!rows.length) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "No data found."
+
+            });
+
+        }
+
+        for (const row of rows) {
+
+            // =====================================
+            // CHECKLIST TYPE
+            // =====================================
+
+            const [checklists] = await db.promise().query(
+
+                `SELECT id
+                 FROM checklist_types
+                 WHERE checklist_name = ?`,
+
+                [row["Checklist Type"]]
+
+            );
+
+            if (!checklists.length) {
+
+                console.log(
+                    "Checklist Type Not Found:",
+                    row["Checklist Type"]
+                );
+
+                continue;
+
+            }
+
+            const checklistTypeId = checklists[0].id;
+
+            // =====================================
+            // SLA
+            // =====================================
+
+            let slaValue = null;
+
+            let slaUnit = null;
+
+            if (row["SLA"]) {
+
+                const sla = String(row["SLA"])
+                    .trim()
+                    .split(" ");
+
+                slaValue = sla[0];
+
+                slaUnit = sla.slice(1).join(" ");
+
+            }
+
+            // =====================================
+            // INSERT QUESTION
+            // =====================================
+
+            const [questionResult] = await db.promise().query(
+
+                `INSERT INTO questions
+                (
+                    checklist_type_id,
+                    question,
+                    sequence_no,
+                    answer_type,
+                    sla_value,
+                    sla_unit,
+                    answer_required,
+                    status
+                )
+                VALUES
+                (
+                    ?,?,?,?,?,?,?,?
+                )`,
+
+                [
+
+                    checklistTypeId,
+
+                    row["Question"],
+
+                    row["Sequence"],
+
+                    row["Answer Type"],
+
+                    slaValue,
+
+                    slaUnit,
+
+                    String(row["Answer Required"]).toLowerCase() === "yes"
+                        ? 1
+                        : 0,
+
+                    row["Status"] || "Active"
+
+                ]
+
+            );
+
+            const questionId = questionResult.insertId;
+
+            // =====================================
+            // DEPARTMENTS
+            // =====================================
+
+            if (row["Departments"]) {
+
+                const departments = row["Departments"]
+                    .split(",")
+                    .map((d) => d.trim());
+
+                for (const departmentName of departments) {
+
+                    const [department] = await db.promise().query(
+
+                        `SELECT id
+                         FROM departments
+                         WHERE department_name = ?`,
+
+                        [departmentName]
+
+                    );
+
+                    if (department.length) {
+
+                        await db.promise().query(
+
+                            `INSERT INTO question_departments
+                            (
+                                question_id,
+                                department_id
+                            )
+                            VALUES
+                            (
+                                ?,?
+                            )`,
+
+                            [
+
+                                questionId,
+
+                                department[0].id
+
+                            ]
+
+                        );
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        return res.status(201).json({
+
+            success: true,
+
+            message: "Questions uploaded successfully."
+
+        });
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: err.message
+
+        });
+
+    }
+
+};
+// ======================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ======================================================
 
@@ -745,3 +1030,6 @@ exports.updateQuestion = exports.updateQuestion;
 exports.deleteQuestion = exports.deleteQuestion;
 
 exports.deleteAllQuestions = exports.deleteAllQuestions;
+
+exports.bulkUploadQuestions =
+    exports.bulkUploadQuestions;

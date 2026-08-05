@@ -4,7 +4,6 @@ const multer = require("multer");
 
 const router = express.Router();
 
-
 // ======================================================
 // MIDDLEWARE
 // ======================================================
@@ -12,8 +11,6 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
-
-
 
 // ======================================================
 // MULTER CONFIGURATION
@@ -25,25 +22,16 @@ const upload = multer({
 
 });
 
-
-
 // ======================================================
 // CONTROLLER
 // ======================================================
 
 const checklistTypeController = require("../controllers/checklistTypeController");
 
-
-
-
 // ======================================================
 // BASE URL
 // /api/checklist-types
 // ======================================================
-
-
-
-
 
 // ======================================================
 // GET ALL CHECKLIST TYPES
@@ -69,12 +57,6 @@ router.get(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // EXPORT CHECKLIST TYPES
 // GET /api/checklist-types/export
@@ -98,12 +80,6 @@ router.get(
     checklistTypeController.exportChecklistTypes
 
 );
-
-
-
-
-
-
 
 // ======================================================
 // CREATE CHECKLIST TYPE
@@ -129,21 +105,16 @@ router.post(
 
 );
 
-
-
-
-
-
-
 // ======================================================
-// IMPORT CHECKLIST TYPES
-// POST /api/checklist-types/import
+// BULK UPLOAD CHECKLIST TYPES
+// POST /api/checklist-types/bulk-upload
 // Permission : Add
+// Supports CSV, XLSX and XLS
 // ======================================================
 
 router.post(
 
-    "/import",
+    "/bulk-upload",
 
     authMiddleware,
 
@@ -157,15 +128,9 @@ router.post(
 
     upload.single("file"),
 
-    checklistTypeController.importChecklistTypes
+    checklistTypeController.bulkUploadChecklistTypes
 
 );
-
-
-
-
-
-
 
 // ======================================================
 // DELETE ALL CHECKLIST TYPES
@@ -191,12 +156,6 @@ router.delete(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // GET CHECKLIST TYPE BY ID
 // GET /api/checklist-types/:id
@@ -220,12 +179,6 @@ router.get(
     checklistTypeController.getChecklistTypeById
 
 );
-
-
-
-
-
-
 
 // ======================================================
 // UPDATE CHECKLIST TYPE
@@ -251,12 +204,6 @@ router.put(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // DELETE CHECKLIST TYPE
 // DELETE /api/checklist-types/:id
@@ -280,12 +227,6 @@ router.delete(
     checklistTypeController.deleteChecklistType
 
 );
-
-
-
-
-
-
 
 // ======================================================
 // EXPORT ROUTER

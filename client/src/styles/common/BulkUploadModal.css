@@ -1,245 +1,518 @@
-/* =====================================================
-   BULK MODAL OVERLAY
-===================================================== */
+/* ==========================================================
+   OVERLAY
+========================================================== */
 
-.bulk-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    animation: fadeIn 0.25s ease;
+.bulk-modal-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:9999;
+
+    padding:20px;
+
 }
 
-/* =====================================================
+/* ==========================================================
    MODAL
-===================================================== */
+========================================================== */
 
-.bulk-modal {
-    width: 520px;
-    max-width: 95%;
-    background: #ffffff;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
-    animation: slideDown .25s ease;
+.bulk-modal{
+
+    width:560px;
+
+    max-width:100%;
+
+    background:#fff;
+
+    border-radius:14px;
+
+    overflow:hidden;
+
+    box-shadow:0 20px 50px rgba(0,0,0,.18);
+
+    animation:bulkPopup .25s ease;
+
 }
 
-/* =====================================================
+@keyframes bulkPopup{
+
+    from{
+
+        opacity:0;
+
+        transform:translateY(25px);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateY(0);
+
+    }
+
+}
+
+/* ==========================================================
    HEADER
-===================================================== */
+========================================================== */
 
-.bulk-header {
-    padding: 18px 24px;
-    background: #b7d7df;
-    border-bottom: 1px solid #dce8ec;
+.bulk-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:18px 24px;
+
+    border-bottom:1px solid #e5e7eb;
+
+    background:#f9fafb;
+
 }
 
-.bulk-header h2 {
-    margin: 0;
-    font-size: 22px;
-    color: #23404c;
-    font-weight: 700;
+.bulk-header h2{
+
+    margin:0;
+
+    font-size:22px;
+
+    color:#111827;
+
+    font-weight:700;
+
 }
 
-/* =====================================================
+.bulk-close{
+
+    width:38px;
+
+    height:38px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#eef2f7;
+
+    color:#6b7280;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.bulk-close:hover{
+
+    background:#dbe4ef;
+
+}
+
+/* ==========================================================
    BODY
-===================================================== */
+========================================================== */
 
-.bulk-body {
-    padding: 30px;
+.bulk-body{
+
+    padding:25px;
+
 }
 
-/* =====================================================
-   UPLOAD BOX
-===================================================== */
+/* ==========================================================
+   DROPZONE
+========================================================== */
 
-.bulk-upload-box {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
-    padding: 35px;
-    border: 2px dashed #8eb8c4;
-    border-radius: 12px;
-    background: #f8fbfc;
-    cursor: pointer;
-    transition: all .25s ease;
+.bulk-dropzone{
+
+    border:2px dashed #cbd5e1;
+
+    border-radius:12px;
+
+    padding:40px 20px;
+
+    text-align:center;
+
+    transition:.25s;
+
+    background:#f8fafc;
+
 }
 
-.bulk-upload-box:hover {
-    background: #eef7fa;
-    border-color: #356d84;
-    transform: translateY(-2px);
+.bulk-dropzone.dragging{
+
+    border-color:#2563eb;
+
+    background:#eff6ff;
+
 }
 
-.bulk-upload-box input {
-    display: none;
+.bulk-upload-icon{
+
+    font-size:58px;
+
+    color:#2563eb;
+
+    margin-bottom:15px;
+
 }
 
-.excel-icon {
-    font-size: 58px;
-    color: #2e7d32;
+.bulk-dropzone h3{
+
+    margin:0;
+
+    color:#1f2937;
+
+    font-size:20px;
+
 }
 
-.bulk-upload-box p {
-    margin: 0;
-    font-size: 15px;
-    color: #555;
-    font-weight: 500;
-    text-align: center;
-    word-break: break-word;
+.bulk-dropzone p{
+
+    margin:12px 0;
+
+    color:#6b7280;
+
 }
 
-/* =====================================================
-   SAMPLE BUTTON
-===================================================== */
+.bulk-dropzone small{
 
-.sample-btn {
-    margin-top: 22px;
-    width: 100%;
-    height: 45px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    background: #28a745;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    transition: all .25s ease;
+    display:block;
+
+    margin-top:12px;
+
+    color:#9ca3af;
+
+}
+/* ==========================================================
+   BROWSE BUTTON
+========================================================== */
+
+.browse-btn{
+
+    margin-top:20px;
+
+    padding:12px 24px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#2563eb;
+
+    color:#fff;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+
 }
 
-.sample-btn:hover {
-    background: #218838;
-    transform: translateY(-1px);
+.browse-btn:hover{
+
+    background:#1d4ed8;
+
 }
 
-/* =====================================================
+/* ==========================================================
+   SELECTED FILE
+========================================================== */
+
+.selected-file{
+
+    margin-top:22px;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:16px;
+
+    padding:16px 18px;
+
+    border:1px solid #dbeafe;
+
+    border-radius:10px;
+
+    background:#f8fbff;
+
+}
+
+.selected-file svg{
+
+    font-size:36px;
+
+    color:#16a34a;
+
+    flex-shrink:0;
+
+}
+
+.selected-file-info{
+
+    flex:1;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:4px;
+
+}
+
+.selected-file-info strong{
+
+    color:#111827;
+
+    font-size:15px;
+
+    word-break:break-word;
+
+}
+
+.selected-file-info span{
+
+    color:#6b7280;
+
+    font-size:13px;
+
+}
+
+.remove-file-btn{
+
+    width:36px;
+
+    height:36px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#fee2e2;
+
+    color:#dc2626;
+
+    cursor:pointer;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    transition:.25s;
+
+}
+
+.remove-file-btn:hover{
+
+    background:#fecaca;
+
+}
+
+/* ==========================================================
+   SAMPLE FILE
+========================================================== */
+
+.bulk-sample{
+
+    margin-top:22px;
+
+    text-align:center;
+
+}
+
+.sample-btn{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    padding:10px 18px;
+
+    border-radius:8px;
+
+    background:#eff6ff;
+
+    color:#2563eb;
+
+    text-decoration:none;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+.sample-btn:hover{
+
+    background:#dbeafe;
+
+}
+
+/* ==========================================================
    FOOTER
-===================================================== */
+========================================================== */
 
-.bulk-footer {
-    padding: 18px 24px;
-    border-top: 1px solid #eeeeee;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+.bulk-footer{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:12px;
+
+    padding:18px 24px;
+
+    border-top:1px solid #e5e7eb;
+
+    background:#fafafa;
+
 }
-
-/* =====================================================
-   BUTTONS
-===================================================== */
 
 .cancel-btn,
-.upload-btn {
-    min-width: 120px;
-    height: 42px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .25s ease;
+
+.upload-btn{
+
+    min-width:120px;
+
+    height:44px;
+
+    border:none;
+
+    border-radius:8px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+
 }
 
-.cancel-btn {
-    background: #6c757d;
-    color: #fff;
+.cancel-btn{
+
+    background:#6b7280;
+
+    color:#fff;
+
 }
 
-.cancel-btn:hover {
-    background: #5b636a;
+.cancel-btn:hover{
+
+    background:#4b5563;
+
 }
 
-.upload-btn {
-    background: #356d84;
-    color: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
+.upload-btn{
+
+    background:#2563eb;
+
+    color:#fff;
+
 }
 
-.upload-btn:hover:not(:disabled) {
-    background: #2b5a6d;
+.upload-btn:hover{
+
+    background:#1d4ed8;
+
 }
 
-.upload-btn:disabled {
-    opacity: .6;
-    cursor: not-allowed;
+.upload-btn:disabled,
+
+.cancel-btn:disabled{
+
+    opacity:.6;
+
+    cursor:not-allowed;
+
 }
 
-/* =====================================================
-   FILE NAME
-===================================================== */
-
-.bulk-file-name {
-    margin-top: 12px;
-    font-size: 14px;
-    color: #23404c;
-    font-weight: 600;
-    text-align: center;
-}
-
-/* =====================================================
-   ANIMATIONS
-===================================================== */
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes slideDown {
-    from {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-/* =====================================================
+/* ==========================================================
    RESPONSIVE
-===================================================== */
+========================================================== */
 
-@media (max-width: 600px) {
+@media (max-width:768px){
 
-    .bulk-modal {
-        width: 95%;
+    .bulk-modal{
+
+        width:100%;
+
+        margin:15px;
+
     }
 
-    .bulk-body {
-        padding: 20px;
+    .bulk-header h2{
+
+        font-size:18px;
+
     }
 
-    .bulk-upload-box {
-        padding: 24px;
+    .bulk-dropzone{
+
+        padding:28px 15px;
+
     }
 
-    .excel-icon {
-        font-size: 46px;
+    .bulk-upload-icon{
+
+        font-size:46px;
+
     }
 
-    .bulk-footer {
-        flex-direction: column;
+    .selected-file{
+
+        flex-wrap:wrap;
+
+    }
+
+    .remove-file-btn{
+
+        margin-left:auto;
+
+    }
+
+    .bulk-footer{
+
+        flex-direction:column;
+
     }
 
     .cancel-btn,
-    .upload-btn,
-    .sample-btn {
-        width: 100%;
+
+    .upload-btn{
+
+        width:100%;
+
     }
+
 }

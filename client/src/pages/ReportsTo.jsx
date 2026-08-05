@@ -1,463 +1,973 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import {
-  FaPlus,
-  FaSearch,
-  FaEdit,
-  FaTrash,
-  FaUpload,
-} from "react-icons/fa";
+
+// ======================================================
+// COMMON COMPONENTS
+// ======================================================
+
+import PageHeader from "../components/common/PageHeader";
+import PageToolbar from "../components/common/PageToolbar";
+import FilterBar from "../components/common/FilterBar";
+import Card from "../components/common/Card";
+import DataTable from "../components/common/DataTable";
+import Pagination from "../components/common/Pagination";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+
+// ======================================================
+// MODALS
+// ======================================================
+
 import AddReportModal from "../components/AddReportModal";
+import BulkUploadModal from "../components/BulkUploadModal";
+
+// ======================================================
+// ICONS
+// ======================================================
+
+import {
+    FaEdit,
+    FaTrash
+} from "react-icons/fa";
+
+// ======================================================
+// STYLE
+// ======================================================
+
 import "../styles/ReportsTo.css";
 
+// ======================================================
+// API
+// ======================================================
+
+const API = "http://localhost:5000/api";
+
+// ======================================================
+// COMPONENT
+// ======================================================
+
 function ReportsTo() {
-  const [reports, setReports] = useState([]);
-  const [search, setSearch] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [loading, setLoading] = useState(false);
+    // ======================================================
+    // STATES
+    // ======================================================
 
- // Bulk Upload
-const [showBulkModal, setShowBulkModal] = useState(false);
-const [selectedFile, setSelectedFile] = useState(null);
-const [uploading, setUploading] = useState(false);
+    const [reports, setReports] = useState([]);
 
-// ==========================
-// RBAC
-// ==========================
+    const [loading, setLoading] = useState(true);
 
-const user = JSON.parse(
-  localStorage.getItem("user") || "{}"
-);
+    // ======================================================
+    // SEARCH
+    // ======================================================
 
-const permissions = JSON.parse(
-  localStorage.getItem("permissions") || "{}"
-);
+    const [search, setSearch] = useState("");
 
-// Administrator always gets Full Access
-const isAdmin =
-  user.administrator === true ||
-  user.administrator === 1;
+    // ======================================================
+    // FILTERS
+    // ======================================================
 
-const reportsPermission = isAdmin
-  ? "Full"
-  : permissions["Reports To"] || "None";
+    const [departmentFilter, setDepartmentFilter] = useState("");
 
-const canView =
-  ["View", "Add", "Edit", "Full"].includes(
-    reportsPermission
-  );
+    const [statusFilter, setStatusFilter] = useState("");
 
-const canAdd =
-  ["Add", "Edit", "Full"].includes(
-    reportsPermission
-  );
+    // ======================================================
+    // PAGINATION
+    // ======================================================
 
-const canEdit =
-  ["Edit", "Full"].includes(
-    reportsPermission
-  );
+    const [currentPage, setCurrentPage] = useState(1);
 
-const canDelete =
-  reportsPermission === "Full";
+    const [pageSize] = useState(10);
 
- useEffect(() => {
+    const [totalRecords, setTotalRecords] = useState(0);
 
-  if (!canView) {
-    return;
-  }
+    const [totalPages, setTotalPages] = useState(1);
 
-  loadReports();
+    // ======================================================
+    // MODALS
+    // ======================================================
 
-}, [canView]);
- // ===============================
-// Load Managers
-// ===============================
-const loadReports = async () => {
+    const [showModal, setShowModal] = useState(false);
 
-  try {
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
-    setLoading(true);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    const res = await axios.get(
-      "http://localhost:5000/api/reports"
+    // ======================================================
+    // SELECTED DATA
+    // ======================================================
+
+    const [selectedManager, setSelectedManager] = useState(null);
+
+    const [deleteId, setDeleteId] = useState(null);
+
+    // ======================================================
+    // RBAC
+    // ======================================================
+
+    const user = JSON.parse(
+        localStorage.getItem("user") || "{}"
     );
 
-    setReports(res.data.reports || []);
+    const permissions = JSON.parse(
+        localStorage.getItem("permissions") || "{}"
+    );
 
-  } catch (err) {
+    const isAdmin =
+        user.administrator === true ||
+        user.administrator === 1;
 
-    console.log(err);
+    const permission = isAdmin
+        ? "Full"
+        : permissions["Reports To"] || "None";
 
-  } finally {
+    const canView = [
+        "View",
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
 
-    setLoading(false);
+    const canAdd = [
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
 
-  }
+    const canEdit = [
+        "Edit",
+        "Full"
+    ].includes(permission);
 
-};
-  // ===============================
-  // Bulk Upload
-  // ===============================
- const handleBulkUpload = async () => {
+    const canDelete =
+        permission === "Full";
 
-  if (!canAdd) {
+    // ======================================================
+    // LOAD REPORTS
+    // ======================================================
 
-    alert("You don't have permission to bulk upload managers.");
+    const loadReports = async () => {
 
-    return;
+        try {
 
-  }
+            setLoading(true);
 
-  if (!selectedFile) {
+            const res = await axios.get(
+                `${API}/reports`
+            );
 
-    alert("Please select a CSV or Excel file.");
+            const data =
+                res.data.reports ||
+                res.data.data ||
+                [];
 
-    return;
+            setReports(data);
 
-  }
+            setTotalRecords(data.length);
 
-  const formData = new FormData();
+            setTotalPages(
+                Math.ceil(
+                    data.length / pageSize
+                ) || 1
+            );
 
-  formData.append("file", selectedFile);
+        } catch (err) {
 
-  try {
+            console.error(err);
 
-    setUploading(true);
+            alert(
+                err.response?.data?.message ||
+                "Failed to load Reports."
+            );
 
-    const res = await axios.post(
-      "http://localhost:5000/api/reports/bulk-upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
+            setReports([]);
+
+        } finally {
+
+            setLoading(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // LOAD
+    // ======================================================
+
+    useEffect(() => {
+
+        if (!canView) {
+
+            setLoading(false);
+
+            return;
+
+        }
+
+        loadReports();
+
+    }, [canView]);
+        // ======================================================
+    // ADD
+    // ======================================================
+
+    const handleAdd = () => {
+
+        if (!canAdd) return;
+
+        setSelectedManager(null);
+
+        setShowModal(true);
+
+    };
+
+    // ======================================================
+    // EDIT
+    // ======================================================
+
+    const handleEdit = (row) => {
+
+        if (!canEdit) return;
+
+        setSelectedManager(row);
+
+        setShowModal(true);
+
+    };
+
+    // ======================================================
+    // DELETE
+    // ======================================================
+
+    const handleDelete = (id) => {
+
+        if (!canDelete) return;
+
+        setDeleteId(id);
+
+        setShowDeleteDialog(true);
+
+    };
+
+    const confirmDelete = async () => {
+
+        try {
+
+            await axios.delete(
+                `${API}/reports/${deleteId}`
+            );
+
+            alert("Manager deleted successfully.");
+
+            loadReports();
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Delete failed."
+            );
+
+        } finally {
+
+            setDeleteId(null);
+
+            setShowDeleteDialog(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // BULK UPLOAD
+    // ======================================================
+
+    const handleBulkSuccess = () => {
+
+        setShowBulkModal(false);
+
+        loadReports();
+
+    };
+
+    // ======================================================
+    // EXPORT
+    // ======================================================
+
+    const handleExport = async () => {
+
+        try {
+
+            const response = await axios.get(
+
+                `${API}/reports/export`,
+
+                {
+                    responseType: "blob"
+                }
+
+            );
+
+            const blob = new Blob(
+
+                [response.data]
+
+            );
+
+            const url =
+                window.URL.createObjectURL(blob);
+
+            const link =
+                document.createElement("a");
+
+            link.href = url;
+
+            link.download = "ReportsTo.xlsx";
+
+            link.click();
+
+            window.URL.revokeObjectURL(url);
+
+        } catch (err) {
+
+            console.error(err);
+
+            alert("Export failed.");
+
+        }
+
+    };
+
+    // ======================================================
+    // SUCCESS
+    // ======================================================
+
+    const handleSuccess = () => {
+
+        setShowModal(false);
+
+        setSelectedManager(null);
+
+        loadReports();
+
+    };
+
+    // ======================================================
+    // CLEAR FILTERS
+    // ======================================================
+
+    const handleClearFilters = () => {
+
+        setSearch("");
+
+        setDepartmentFilter("");
+
+        setStatusFilter("");
+
+        setCurrentPage(1);
+
+    };
+        // ======================================================
+    // FILTER REPORTS
+    // ======================================================
+
+    const filteredReports = useMemo(() => {
+
+        return reports.filter((item) => {
+
+            const matchesSearch =
+
+                !search ||
+
+                item.manager_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.department
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.designation
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesDepartment =
+
+                !departmentFilter ||
+
+                item.department === departmentFilter;
+
+            const matchesStatus =
+
+                !statusFilter ||
+
+                item.status === statusFilter;
+
+            return (
+
+                matchesSearch &&
+
+                matchesDepartment &&
+
+                matchesStatus
+
+            );
+
+        });
+
+    }, [
+
+        reports,
+
+        search,
+
+        departmentFilter,
+
+        statusFilter
+
+    ]);
+
+    // ======================================================
+    // FILTER DROPDOWNS
+    // ======================================================
+
+    const departments = useMemo(() => (
+
+        [
+
+            ...new Set(
+
+                reports
+
+                    .map(r => r.department)
+
+                    .filter(Boolean)
+
+            )
+
+        ]
+
+    ), [reports]);
+
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    const totalFilteredRecords =
+
+        filteredReports.length;
+
+    const calculatedTotalPages =
+
+        Math.max(
+
+            1,
+
+            Math.ceil(
+
+                totalFilteredRecords /
+
+                pageSize
+
+            )
+
+        );
+
+    const currentReports =
+
+        filteredReports.slice(
+
+            (currentPage - 1) * pageSize,
+
+            currentPage * pageSize
+
+        );
+
+    useEffect(() => {
+
+        setCurrentPage(1);
+
+    }, [
+
+        search,
+
+        departmentFilter,
+
+        statusFilter
+
+    ]);
+
+    // ======================================================
+    // STATUS
+    // ======================================================
+
+    const getStatusClass = (status) => {
+
+        switch (
+
+            (status || "").toLowerCase()
+
+        ) {
+
+            case "active":
+
+                return "active";
+
+            case "inactive":
+
+                return "inactive";
+
+            default:
+
+                return "inactive";
+
+        }
+
+    };
+
+    // ======================================================
+    // ACCESS DENIED
+    // ======================================================
+
+    if (!canView) {
+
+        return (
+
+            <div className="no-permission">
+
+                <h2>
+
+                    Access Denied
+
+                </h2>
+
+                <p>
+
+                    You don't have permission to
+                    view Reports To.
+
+                </p>
+
+            </div>
+
+        );
+
+    }
+
+    // ======================================================
+    // LOADING
+    // ======================================================
+
+    if (loading) {
+
+        return (
+
+            <div className="reports-loading">
+
+                Loading Managers...
+
+            </div>
+
+        );
+
+    }
+
+    // ======================================================
+    // TABLE COLUMNS
+    // ======================================================
+
+    const columns = [
+
+        // ==================================================
+        // MANAGER NAME
+        // ==================================================
+
+        {
+            key: "manager_name",
+            title: "Manager Name",
+
+            render: (row) =>
+
+                row.manager_name || "-"
+
         },
-      }
-    );
 
-    alert(res.data.message);
+        // ==================================================
+        // DEPARTMENT
+        // ==================================================
 
-    setSelectedFile(null);
+        {
+            key: "department",
+            title: "Department",
 
-    setShowBulkModal(false);
+            render: (row) =>
 
-    loadReports();
+                row.department || "-"
 
-  } catch (err) {
+        },
 
-    console.log(err);
+        // ==================================================
+        // DESIGNATION
+        // ==================================================
 
-    alert("Bulk upload failed.");
+        {
+            key: "designation",
+            title: "Designation",
 
-  } finally {
+            render: (row) =>
 
-    setUploading(false);
+                row.designation || "-"
 
-  }
+        },
 
-};
-  // ===============================
-  // Delete Manager
-  // ===============================
- const handleDelete = async (id) => {
+        // ==================================================
+        // STATUS
+        // ==================================================
 
-  if (!canDelete) {
+        {
+            key: "status",
+            title: "Status",
+            align: "center",
 
-    alert("You don't have permission to delete managers.");
+            render: (row) => (
 
-    return;
+                <span
+                    className={`status-badge ${getStatusClass(
+                        row.status
+                    )}`}
+                >
+                    {row.status || "-"}
+                </span>
 
-  }
+            )
 
-  if (!window.confirm("Delete this manager?")) return;
+        },
 
-  try {
+        // ==================================================
+        // ACTIONS
+        // ==================================================
 
-    await axios.delete(
-      `http://localhost:5000/api/reports/${id}`
-    );
+        {
+            key: "actions",
+            title: "Actions",
+            width: "280px",
+            minWidth: "280px",
+            align: "center",
 
-    alert("Manager deleted successfully.");
+            render: (row) => (
 
-    loadReports();
+                <div className="action-buttons">
 
-  } catch (err) {
+                    {canEdit && (
 
-    console.log(err);
+                        <button
+                            className="edit-btn"
+                            onClick={() =>
+                                handleEdit(row)
+                            }
+                        >
+                            <FaEdit />
+                        </button>
 
-    alert("Delete failed.");
+                    )}
 
-  }
+                    {canDelete && (
 
-};
-// ===============================
-// Add Manager
-// ===============================
+                        <button
+                            className="delete-btn"
+                            onClick={() =>
+                                handleDelete(row.id)
+                            }
+                        >
+                            <FaTrash />
+                        </button>
 
-const handleAdd = () => {
+                    )}
 
-  if (!canAdd) return;
+                </div>
 
-  setEditData(null);
+            )
 
-  setShowModal(true);
+        }
 
-};
-  // ===============================
-  // Edit Manager
-  // ===============================
-  const handleEdit = (manager) => {
+    ];
+        // ======================================================
+    // RETURN
+    // ======================================================
 
-  if (!canEdit) return;
+    return (
 
-  setEditData(manager);
+        <div className="reports-page">
 
-  setShowModal(true);
+            {/* ======================================================
+                PAGE HEADER
+            ====================================================== */}
 
-};
-  const filteredReports = reports.filter((item) =>
-    item.manager_name.toLowerCase().includes(search.toLowerCase())
-  );
+            <PageHeader
+                title="Reports To"
+                subtitle="Manage Reporting Managers."
+            />
 
- return (
-  <div className="reports-page">
+            {/* ======================================================
+                PAGE TOOLBAR
+            ====================================================== */}
 
-    <div className="reports-header">
+            <PageToolbar
 
-      <h2>Reports To</h2>
+                search={search}
 
-      <div className="report-actions">
+                setSearch={setSearch}
 
-        {canAdd && (
-          <button
-  className="bulk-btn"
-  onClick={() => {
+                placeholder="Search Manager..."
 
-    if (!canAdd) return;
+                showAdd={canAdd}
 
-    setShowBulkModal(true);
+                addText="Add Manager"
 
-  }}
->
-            <FaUpload />
-            Bulk Add
-          </button>
-        )}
+                onAdd={handleAdd}
 
-        {canAdd && (
-          <button
-  className="add-report-btn"
-  onClick={handleAdd}
->
-  <FaPlus />
-  Add Manager
-</button>
-        )}
+                showBulkUpload={canAdd}
 
-      </div>
+                bulkUploadText="Bulk Add"
 
-    </div>
+                onBulkUpload={() =>
+                    setShowBulkModal(true)
+                }
 
-    {/* ==========================
-        Search
-    ========================== */}
+                showExport={canView}
 
-    <div className="reports-search">
+                onExport={handleExport}
 
-      <FaSearch />
+            />
 
-      <input
-        type="text"
-        placeholder="Search Manager..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+            {/* ======================================================
+                FILTER BAR
+            ====================================================== */}
 
-    </div>
+            <FilterBar
+                onClear={handleClearFilters}
+            >
 
-    {/* ==========================
-        Table
-    ========================== */}
+                {/* ==========================================
+                    DEPARTMENT
+                ========================================== */}
 
-    <table className="reports-table">
+                <div className="filter-group">
 
-      <thead>
+                    <label>Department</label>
 
-        <tr>
+                    <select
+                        value={departmentFilter}
+                        onChange={(e) =>
+                            setDepartmentFilter(
+                                e.target.value
+                            )
+                        }
+                    >
 
-          <th>Manager Name</th>
+                        <option value="">
+                            All Departments
+                        </option>
 
-          <th>Department</th>
+                        {departments.map((dept) => (
 
-          <th>Designation</th>
+                            <option
+                                key={dept}
+                                value={dept}
+                            >
+                                {dept}
+                            </option>
 
-          <th>Status</th>
+                        ))}
 
-          <th width="150">Actions</th>
+                    </select>
 
-        </tr>
+                </div>
 
-      </thead>
+                {/* ==========================================
+                    STATUS
+                ========================================== */}
 
-     <tbody>
+                <div className="filter-group">
 
-  {loading ? (
+                    <label>Status</label>
 
-    <tr>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) =>
+                            setStatusFilter(
+                                e.target.value
+                            )
+                        }
+                    >
 
-      <td colSpan="5" align="center">
-        Loading...
-      </td>
+                        <option value="">
+                            All Status
+                        </option>
 
-    </tr>
+                        <option value="Active">
+                            Active
+                        </option>
 
-  ) : filteredReports.length === 0 ? (
+                        <option value="Inactive">
+                            Inactive
+                        </option>
 
-    <tr>
+                    </select>
 
-      <td colSpan="5" align="center">
-        No Managers Found
-      </td>
+                </div>
 
-    </tr>
+            </FilterBar>
+                        {/* ======================================================
+                CARD
+            ====================================================== */}
 
-  ) : (
+            <Card
+                title="Reports To List"
+            >
 
-    filteredReports.map((manager) => (
+                <DataTable
 
-      <tr key={manager.id}>
+                    columns={columns}
 
-        <td>{manager.manager_name}</td>
+                    data={currentReports}
 
-        <td>{manager.department}</td>
+                    loading={loading}
 
-        <td>{manager.designation}</td>
+                    emptyTitle="No Managers Found"
 
-        <td>
+                    emptyDescription="There are no reporting managers available."
 
-          <span
-            className={
-              manager.status?.toLowerCase() === "active"
-                ? "status active"
-                : "status inactive"
-            }
-          >
-            {manager.status}
-          </span>
+                />
 
-        </td>
+                <Pagination
 
-        <td>
+                    currentPage={currentPage}
 
-          <div className="action-buttons">
+                    totalPages={calculatedTotalPages}
 
-            {canEdit && (
+                    totalRecords={totalFilteredRecords}
 
-              <button
-                className="edit-btn"
-                onClick={() => handleEdit(manager)}
-              >
-                Edit <FaEdit />
-              </button>
+                    pageSize={pageSize}
+
+                    onPageChange={setCurrentPage}
+
+                    onPageSizeChange={() => {
+
+                        // Fixed page size (10)
+
+                        setCurrentPage(1);
+
+                    }}
+
+                />
+
+            </Card>
+                        {/* ======================================================
+                BULK UPLOAD MODAL
+            ====================================================== */}
+
+            {canAdd && showBulkModal && (
+
+                <BulkUploadModal
+
+                    isOpen={showBulkModal}
+
+                    onClose={() =>
+                        setShowBulkModal(false)
+                    }
+
+                    onSuccess={handleBulkSuccess}
+
+                    uploadFunction={async (formData) => {
+
+                        return axios.post(
+
+                            `${API}/reports/bulk-upload`,
+
+                            formData,
+
+                            {
+
+                                headers: {
+
+                                    "Content-Type":
+                                        "multipart/form-data"
+
+                                }
+
+                            }
+
+                        );
+
+                    }}
+
+                    title="Bulk Upload Managers"
+
+                    acceptedFile=".csv,.xlsx,.xls"
+
+                />
 
             )}
 
-            {canDelete && (
+            {/* ======================================================
+                ADD / EDIT MANAGER MODAL
+            ====================================================== */}
 
-              <button
-                className="delete-btn"
-                onClick={() => handleDelete(manager.id)}
-              >
-                <FaTrash />
-              </button>
+            {(canAdd || canEdit) && showModal && (
+
+                <AddReportModal
+
+                    editData={selectedManager}
+
+                    closeModal={() => {
+
+                        setShowModal(false);
+
+                        setSelectedManager(null);
+
+                    }}
+
+                    refresh={handleSuccess}
+
+                />
 
             )}
 
-          </div>
+            {/* ======================================================
+                DELETE CONFIRMATION
+            ====================================================== */}
 
-        </td>
+            <ConfirmDialog
 
-      </tr>
+                open={showDeleteDialog}
 
-    ))
+                title="Delete Manager"
 
-  )}
+                message="Are you sure you want to delete this manager?"
 
-</tbody>
-    </table>
+                confirmText="Delete"
 
-    {/* ==========================
-        Bulk Upload Modal
-    ========================== */}
+                cancelText="Cancel"
 
-    {canAdd && showBulkModal && (
+                confirmVariant="danger"
 
-      <div className="modal-overlay">
+                onConfirm={confirmDelete}
 
-        <div className="bulk-modal">
+                onCancel={() => {
 
-          <h2>Bulk Add Managers</h2>
+                    setDeleteId(null);
 
-          <p>
-            Upload a CSV or Excel file to create managers.
-          </p>
+                    setShowDeleteDialog(false);
 
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={(e) =>
-              setSelectedFile(e.target.files[0])
-            }
-          />
+                }}
 
-          <div className="bulk-buttons">
-
-            <button
-              onClick={() => {
-                setShowBulkModal(false);
-                setSelectedFile(null);
-              }}
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={handleBulkUpload}
-              disabled={uploading}
-            >
-              {uploading
-                ? "Uploading..."
-                : "Upload Managers"}
-            </button>
-
-          </div>
+            />
 
         </div>
 
-      </div>
+    );
 
-    )}
-
-    {/* ==========================
-        Add / Edit Modal
-    ========================== */}
-
-    {(canAdd || canEdit) && showModal && (
-
-      <AddReportModal
-        editData={editData}
-        closeModal={() => {
-          setShowModal(false);
-          setEditData(null);
-        }}
-        refresh={loadReports}
-      />
-
-    )}
-
-  </div>
-);
 }
 
 export default ReportsTo;

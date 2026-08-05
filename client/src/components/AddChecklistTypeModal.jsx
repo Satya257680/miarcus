@@ -121,25 +121,13 @@ function AddChecklistTypeModal({
       checklist.status || "Active"
     );
 
-    if (checklist.departments) {
+   setSelectedDepartments(
+    checklist.department_ids || []
+);
 
-      setSelectedDepartments(
-        Array.isArray(checklist.departments)
-          ? checklist.departments
-          : []
-      );
-
-    }
-
-    if (checklist.users) {
-
-      setSelectedUsers(
-        Array.isArray(checklist.users)
-          ? checklist.users
-          : []
-      );
-
-    }
+setSelectedUsers(
+    checklist.user_ids || []
+);
 
   }, [checklist]);
 

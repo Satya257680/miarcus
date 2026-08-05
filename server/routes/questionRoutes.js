@@ -1,41 +1,27 @@
 const express = require("express");
-
 const router = express.Router();
 
-
-// ======================================================
-// MIDDLEWARE
-// ======================================================
+const multer = require("multer");
 
 const authMiddleware = require("../middleware/authMiddleware");
-
 const permissionMiddleware = require("../middleware/permissionMiddleware");
-
-
-
-// ======================================================
-// CONTROLLER
-// ======================================================
 
 const questionController = require("../controllers/questionController");
 
+// ==========================================
+// MULTER CONFIGURATION
+// ==========================================
 
+const upload = multer({
 
+    storage: multer.memoryStorage()
 
-// ======================================================
-// BASE URL
-// /api/questions
-// ======================================================
+});
 
-
-
-
-
-// ======================================================
-// GET QUESTIONS
+// ==========================================
+// GET ALL QUESTIONS
 // GET /api/questions
-// Permission : View
-// ======================================================
+// ==========================================
 
 router.get(
 
@@ -43,29 +29,33 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Questions",
-
-        "View"
-
-    ),
+    permissionMiddleware("Questions", "View"),
 
     questionController.getQuestions
 
 );
 
+// ==========================================
+// GET QUESTION BY ID
+// GET /api/questions/:id
+// ==========================================
 
+router.get(
 
+    "/:id",
 
+    authMiddleware,
 
+    permissionMiddleware("Questions", "View"),
 
+    questionController.getQuestionById
 
-// ======================================================
+);
+
+// ==========================================
 // CREATE QUESTION
 // POST /api/questions
-// Permission : Add
-// ======================================================
+// ==========================================
 
 router.post(
 
@@ -73,89 +63,36 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Questions",
-
-        "Add"
-
-    ),
+    permissionMiddleware("Questions", "Add"),
 
     questionController.createQuestion
 
 );
 
+// ==========================================
+// BULK UPLOAD QUESTIONS
+// POST /api/questions/bulk-upload
+// Supports .xlsx, .xls, .csv
+// ==========================================
 
+router.post(
 
-
-
-
-
-// ======================================================
-// DELETE ALL QUESTIONS
-// DELETE /api/questions/delete-all
-// Permission : Full
-// ======================================================
-
-router.delete(
-
-    "/delete-all",
+    "/bulk-upload",
 
     authMiddleware,
 
-    permissionMiddleware(
+    permissionMiddleware("Questions", "Add"),
 
-        "Questions",
+    upload.single("file"),
 
-        "Full"
-
-    ),
-
-    questionController.deleteAllQuestions
+    questionController.bulkUploadQuestions
 
 );
 
-
-
-
-
-
-
-// ======================================================
-// GET QUESTION BY ID
-// GET /api/questions/:id
-// Permission : View
-// ======================================================
-
-router.get(
-
-    "/:id",
-
-    authMiddleware,
-
-    permissionMiddleware(
-
-        "Questions",
-
-        "View"
-
-    ),
-
-    questionController.getQuestionById
-
-);
-
-
-
-
-
-
-
-// ======================================================
+// ==========================================
 // UPDATE QUESTION
 // PUT /api/questions/:id
-// Permission : Edit
-// ======================================================
+// ==========================================
 
 router.put(
 
@@ -163,29 +100,34 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Questions",
-
-        "Edit"
-
-    ),
+    permissionMiddleware("Questions", "Edit"),
 
     questionController.updateQuestion
 
 );
 
+// ==========================================
+// DELETE ALL QUESTIONS
+// DELETE /api/questions/delete-all
+// IMPORTANT: Must come BEFORE /:id
+// ==========================================
 
+router.delete(
 
+    "/delete-all",
 
+    authMiddleware,
 
+    permissionMiddleware("Questions", "Full"),
 
+    questionController.deleteAllQuestions
 
-// ======================================================
-// DELETE QUESTION
+);
+
+// ==========================================
+// DELETE SINGLE QUESTION
 // DELETE /api/questions/:id
-// Permission : Full
-// ======================================================
+// ==========================================
 
 router.delete(
 
@@ -193,26 +135,14 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Questions",
-
-        "Full"
-
-    ),
+    permissionMiddleware("Questions", "Full"),
 
     questionController.deleteQuestion
 
 );
 
-
-
-
-
-
-
-// ======================================================
+// ==========================================
 // EXPORT ROUTER
-// ======================================================
+// ==========================================
 
 module.exports = router;

@@ -447,6 +447,25 @@ return (
 
   )}
 
+   {/* Clear Filters */}
+
+  <button
+    type="button"
+    className="clear-filter-btn"
+    onClick={() => {
+
+      setSearch("");
+
+      setDepartmentFilter("");
+
+      setReportsFilter("");
+
+    }}
+  >
+    Clear Filters
+  </button>
+
+
   {/* Delete All */}
 
   {canDelete && (
@@ -519,24 +538,7 @@ return (
 
   </select>
 
-  {/* Clear Filters */}
-
-  <button
-    type="button"
-    className="clear-filter-btn"
-    onClick={() => {
-
-      setSearch("");
-
-      setDepartmentFilter("");
-
-      setReportsFilter("");
-
-    }}
-  >
-    Clear Filters
-  </button>
-
+ 
 </div>
 
 </div>

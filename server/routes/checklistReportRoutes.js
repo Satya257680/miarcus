@@ -2,27 +2,25 @@ const express = require("express");
 
 const router = express.Router();
 
+const multer = require("multer");
 
 // ======================================================
 // MIDDLEWARE
 // ======================================================
 
-const upload = require(
-    "../middleware/upload"
-);
+const authMiddleware = require("../middleware/authMiddleware");
 
+const permissionMiddleware = require("../middleware/permissionMiddleware");
 
-const authMiddleware = require(
-    "../middleware/authMiddleware"
-);
+// ======================================================
+// MULTER CONFIGURATION
+// ======================================================
 
+const upload = multer({
 
-const permissionMiddleware = require(
-    "../middleware/permissionMiddleware"
-);
+    storage: multer.memoryStorage()
 
-
-
+});
 
 // ======================================================
 // CONTROLLER
@@ -38,34 +36,21 @@ const {
 
     deleteReport,
 
-    importReportsCSV,
+    bulkUploadChecklistReports,
 
     exportReports
 
-
-} = require(
-    "../controllers/checklistReportController"
-);
-
-
-
+} = require("../controllers/checklistReportController");
 
 // ======================================================
 // BASE URL
 // /api/checklist-reports
 // ======================================================
 
-
-
-
-
 // ======================================================
 // GET ALL REPORTS
 // GET /api/checklist-reports
-// Permission : View
-// Search + Pagination
 // ======================================================
-
 
 router.get(
 
@@ -85,19 +70,10 @@ router.get(
 
 );
 
-
-
-
-
-
-
 // ======================================================
-// EXPORT REPORTS CSV
+// EXPORT REPORTS
 // GET /api/checklist-reports/export
-// Permission : View
-// IMPORTANT: BEFORE /:id
 // ======================================================
-
 
 router.get(
 
@@ -117,22 +93,14 @@ router.get(
 
 );
 
-
-
-
-
-
-
 // ======================================================
-// IMPORT CSV REPORTS
-// POST /api/checklist-reports/import
-// Permission : Add
+// BULK UPLOAD REPORTS
+// POST /api/checklist-reports/bulk-upload
 // ======================================================
-
 
 router.post(
 
-    "/import",
+    "/bulk-upload",
 
     authMiddleware,
 
@@ -146,54 +114,14 @@ router.post(
 
     upload.single("file"),
 
-
-    (req,res,next)=>{
-
-
-        if(!req.file){
-
-
-            return res.status(400).json({
-
-
-                success:false,
-
-
-                message:
-
-                "Please upload CSV file."
-
-
-            });
-
-
-        }
-
-
-
-        next();
-
-
-    },
-
-
-    importReportsCSV
+    bulkUploadChecklistReports
 
 );
 
-
-
-
-
-
-
-
 // ======================================================
-// GET REPORT DETAILS
+// GET REPORT BY ID
 // GET /api/checklist-reports/:id
-// Permission : View
 // ======================================================
-
 
 router.get(
 
@@ -213,18 +141,10 @@ router.get(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // UPDATE REPORT
 // PUT /api/checklist-reports/:id
-// Permission : Edit
 // ======================================================
-
 
 router.put(
 
@@ -244,19 +164,10 @@ router.put(
 
 );
 
-
-
-
-
-
-
-
 // ======================================================
 // DELETE REPORT
 // DELETE /api/checklist-reports/:id
-// Permission : Full
 // ======================================================
-
 
 router.delete(
 
@@ -276,15 +187,8 @@ router.delete(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // EXPORT ROUTER
 // ======================================================
-
 
 module.exports = router;

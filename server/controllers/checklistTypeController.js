@@ -4,6 +4,11 @@ const db = require("../config/db");
 
 const { logActivity } = require("../utils/activityLogger");
 
+const XLSX = require("xlsx");
+const csv = require("csv-parser");
+const { Readable } = require("stream");
+const path = require("path");
+
 // ======================================================
 // GET ALL CHECKLIST TYPES
 // ======================================================
@@ -914,10 +919,11 @@ exports.exportChecklistTypes = (req, res) => {
 };
 
 // ======================================================
-// IMPORT CHECKLIST TYPES
+// BULK UPLOAD CHECKLIST TYPES
+// CSV + XLSX + XLS
 // ======================================================
 
-exports.importChecklistTypes = async (req, res) => {
+exports.bulkUploadChecklistTypes = async (req, res) => {
 
     try {
 
@@ -927,33 +933,73 @@ exports.importChecklistTypes = async (req, res) => {
 
                 success: false,
 
-                message: "Please upload an Excel file."
+                message: "Please upload a CSV or Excel file."
 
             });
 
         }
 
-        const workbook = new ExcelJS.Workbook();
+        const extension = path
+            .extname(req.file.originalname)
+            .toLowerCase();
+
+        let rows = [];
 
         // ======================================
-        // LOAD EXCEL FROM MEMORY BUFFER
+        // CSV
         // ======================================
 
-        await workbook.xlsx.load(
+        if (extension === ".csv") {
 
-            req.file.buffer
+            rows = await new Promise((resolve, reject) => {
 
-        );
+                const result = [];
 
-        const worksheet = workbook.getWorksheet(1);
+                Readable.from(req.file.buffer)
 
-        if (!worksheet) {
+                    .pipe(csv())
+
+                    .on("data", row => result.push(row))
+
+                    .on("end", () => resolve(result))
+
+                    .on("error", reject);
+
+            });
+
+        }
+
+        // ======================================
+        // XLS / XLSX
+        // ======================================
+
+        else {
+
+            const workbook = XLSX.read(
+
+                req.file.buffer,
+
+                {
+
+                    type: "buffer"
+
+                }
+
+            );
+
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+            rows = XLSX.utils.sheet_to_json(sheet);
+
+        }
+
+        if (!rows.length) {
 
             return res.status(400).json({
 
                 success: false,
 
-                message: "Worksheet not found."
+                message: "No data found."
 
             });
 
@@ -961,37 +1007,13 @@ exports.importChecklistTypes = async (req, res) => {
 
         let imported = 0;
 
-        for (
-
-            let i = 2;
-
-            i <= worksheet.rowCount;
-
-            i++
-
-        ) {
-
-            const row = worksheet.getRow(i);
+        for (const row of rows) {
 
             const checklist_name =
 
-                row.getCell(1).text.trim();
+                row["Checklist Name"] ||
 
-            const allow_past_submission =
-
-                row.getCell(3).text.trim().toLowerCase() === "yes"
-
-                    ? 1
-
-                    : 0;
-
-            const cutoff_time =
-
-                row.getCell(4).text.trim() || null;
-
-            const status =
-
-                row.getCell(5).text.trim() || "Active";
+                row.checklist_name;
 
             if (!checklist_name) {
 
@@ -999,7 +1021,43 @@ exports.importChecklistTypes = async (req, res) => {
 
             }
 
-            await new Promise(
+            const allow_past_submission =
+
+                String(
+
+                    row["Allow Past Submission"] ||
+
+                    row.allow_past_submission ||
+
+                    ""
+
+                ).toLowerCase() === "yes"
+
+                    ? 1
+
+                    : 0;
+
+            const cutoff_time =
+
+                row["Cutoff Time"] ||
+
+                row.cutoff_time ||
+
+                null;
+
+            const status =
+
+                row.Status ||
+
+                row.status ||
+
+                "Active";
+
+            // ======================================
+            // INSERT CHECKLIST TYPE
+            // ======================================
+
+            const result = await new Promise(
 
                 (resolve, reject) => {
 
@@ -1036,7 +1094,7 @@ exports.importChecklistTypes = async (req, res) => {
 
                         ],
 
-                        (err) => {
+                        (err, result) => {
 
                             if (err) {
 
@@ -1044,9 +1102,7 @@ exports.importChecklistTypes = async (req, res) => {
 
                             }
 
-                            imported++;
-
-                            resolve();
+                            resolve(result);
 
                         }
 
@@ -1056,11 +1112,136 @@ exports.importChecklistTypes = async (req, res) => {
 
             );
 
-        }
+            const checklistTypeId = result.insertId;
 
-        // ======================================
-        // LOG ACTIVITY
-        // ======================================
+            imported++;
+
+            // ======================================
+            // SAVE DEPARTMENTS
+            // ======================================
+
+            const departments =
+
+                row.Departments ||
+
+                row.departments ||
+
+                "";
+
+            if (departments) {
+
+                const departmentNames =
+
+                    departments
+
+                        .split(",")
+
+                        .map(
+
+                            d => d.trim()
+
+                        );
+
+                for (const departmentName of departmentNames) {
+
+                    const department = await new Promise(
+
+                        (resolve) => {
+
+                            db.query(
+
+                                `
+
+                                SELECT id
+
+                                FROM departments
+
+                                WHERE department_name = ?
+
+                                `,
+
+                                [
+
+                                    departmentName
+
+                                ],
+
+                                (err, rows) => {
+
+                                    if (
+
+                                        err ||
+
+                                        rows.length === 0
+
+                                    ) {
+
+                                        return resolve(null);
+
+                                    }
+
+                                    resolve(rows[0]);
+
+                                }
+
+                            );
+
+                        }
+
+                    );
+
+                    if (department) {
+
+                        await new Promise(
+
+                            (resolve, reject) => {
+
+                                db.query(
+
+                                    `
+
+                                  INSERT INTO checklist_type_departments
+(
+    checklist_type_id,
+    department_id
+)
+VALUES (?, ?)
+
+                                    `,
+
+                                    [
+
+                                        checklistTypeId,
+
+                                        department.id
+
+                                    ],
+
+                                    (err) => {
+
+                                        if (err) {
+
+                                            return reject(err);
+
+                                        }
+
+                                        resolve();
+
+                                    }
+
+                                );
+
+                            }
+
+                        );
+
+                    }
+
+                }
+
+            }
+
+        }
 
         logActivity({
 
@@ -1088,11 +1269,13 @@ exports.importChecklistTypes = async (req, res) => {
 
             success: true,
 
-            message: `${imported} Checklist Types imported successfully.`
+            message: `${imported} Checklist Types uploaded successfully.`
 
         });
 
-    } catch (err) {
+    }
+
+    catch (err) {
 
         console.error(err);
 
@@ -1107,6 +1290,7 @@ exports.importChecklistTypes = async (req, res) => {
     }
 
 };
+
 // ======================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ======================================================
@@ -1125,4 +1309,4 @@ exports.deleteAllChecklistTypes = exports.deleteAllChecklistTypes;
 
 exports.exportChecklistTypes = exports.exportChecklistTypes;
 
-exports.importChecklistTypes = exports.importChecklistTypes;
+exports.bulkUploadChecklistTypes = exports.bulkUploadChecklistTypes;

@@ -1,577 +1,1183 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  FaSearch,
-  FaPlus,
-  FaTrash,
-  FaFileExport,
-  FaEdit,
-} from "react-icons/fa";
+import axios from "axios";
 
-import "../styles/Questions.css";
+// ======================================================
+// COMMON COMPONENTS
+// ======================================================
+
+import PageHeader from "../components/common/PageHeader";
+import PageToolbar from "../components/common/PageToolbar";
+import FilterBar from "../components/common/FilterBar";
+import Card from "../components/common/Card";
+import DataTable from "../components/common/DataTable";
+import Pagination from "../components/common/Pagination";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import BulkUploadModal from "../components/common/BulkUploadModal";
+
+
+// ======================================================
+// MODALS
+// ======================================================
 
 import AddQuestionModal from "../components/AddQuestionModal";
 
+// ======================================================
+// ICONS
+// ======================================================
+
 import {
-  getQuestions,
-  deleteQuestion,
-  deleteAllQuestions,
-} from "../services/questionService";
+    FaEdit,
+    FaUpload,
+    FaTrash
+} from "react-icons/fa";
+
+// ======================================================
+// STYLE
+// ======================================================
+
+import "../styles/Questions.css";
+
+// ======================================================
+// API
+// ======================================================
+
+const API = "http://localhost:5000/api";
+
+// ======================================================
+// COMPONENT
+// ======================================================
 
 function Questions() {
-  const [questions, setQuestions] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+    // ======================================================
+    // STATES
+    // ======================================================
 
-  const [search, setSearch] = useState("");
+    const [questions, setQuestions] = useState([]);
 
-  const [typeFilter, setTypeFilter] = useState("");
+    const [loading, setLoading] = useState(true);
 
-  const [departmentFilter, setDepartmentFilter] = useState("");
+    // ======================================================
+    // SEARCH
+    // ======================================================
 
-  const [showModal, setShowModal] = useState(false);
+    const [search, setSearch] = useState("");
 
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
+    // ======================================================
+    // FILTERS
+    // ======================================================
 
- // ==========================
-// RBAC
-// ==========================
+    const [typeFilter, setTypeFilter] = useState("");
 
-const user = JSON.parse(
-  localStorage.getItem("user") || "{}"
-);
+    const [departmentFilter, setDepartmentFilter] = useState("");
 
-const permissions = JSON.parse(
-  localStorage.getItem("permissions") || "{}"
-);
+    // ======================================================
+    // PAGINATION
+    // ======================================================
 
-// Administrator always gets Full Access
-const isAdmin =
-  user.administrator === true ||
-  user.administrator === 1;
+    const [currentPage, setCurrentPage] = useState(1);
 
-const questionPermission = isAdmin
-  ? "Full"
-  : permissions["Questions"] || "None";
+    const [pageSize] = useState(10);
 
-const canView =
-  ["View", "Add", "Edit", "Full"].includes(
-    questionPermission
-  );
+    const [totalRecords, setTotalRecords] = useState(0);
 
-const canAdd =
-  ["Add", "Edit", "Full"].includes(
-    questionPermission
-  );
+    const [totalPages, setTotalPages] = useState(1);
 
-const canEdit =
-  ["Edit", "Full"].includes(
-    questionPermission
-  );
+    // ======================================================
+    // MODALS
+    // ======================================================
 
-const canDelete =
-  questionPermission === "Full";
+    const [showModal, setShowModal] = useState(false);
 
-  // ===============================
-  // Load Questions
-  // ===============================
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const loadQuestions = async () => {
+    // ======================================================
+    // SELECTED DATA
+    // ======================================================
+
+    const [selectedQuestion, setSelectedQuestion] = useState(null);
+
+    const [deleteId, setDeleteId] = useState(null);
+
+    const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+    // ======================================================
+    // RBAC
+    // ======================================================
+
+    const user = JSON.parse(
+        localStorage.getItem("user") || "{}"
+    );
+
+    const permissions = JSON.parse(
+        localStorage.getItem("permissions") || "{}"
+    );
+
+    const isAdmin =
+        user.administrator === true ||
+        user.administrator === 1;
+
+    const permission = isAdmin
+        ? "Full"
+        : permissions["Questions"] || "None";
+
+    const canView = [
+        "View",
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canAdd = [
+        "Add",
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canEdit = [
+        "Edit",
+        "Full"
+    ].includes(permission);
+
+    const canDelete =
+        permission === "Full";
+            // ======================================================
+    // LOAD QUESTIONS
+    // ======================================================
+
+    const loadQuestions = async () => {
+
+        try {
+
+            setLoading(true);
+
+            const res = await axios.get(
+                `${API}/questions`
+            );
+
+            const data = res.data.data || res.data || [];
+
+            setQuestions(data);
+
+            setTotalRecords(data.length);
+
+            setTotalPages(
+                Math.ceil(data.length / pageSize) || 1
+            );
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Failed to load Questions."
+            );
+
+            setQuestions([]);
+
+        }
+        finally {
+
+            setLoading(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // LOAD
+    // ======================================================
+
+    useEffect(() => {
+
+        if (!canView) {
+
+            setLoading(false);
+
+            return;
+
+        }
+
+        loadQuestions();
+
+    }, [canView]);
+
+    // ======================================================
+    // ADD
+    // ======================================================
+
+    const handleAdd = () => {
+
+        if (!canAdd) return;
+
+        setSelectedQuestion(null);
+
+        setShowModal(true);
+
+    };
+
+    // ======================================================
+// EDIT
+// ======================================================
+
+const handleEdit = async (row) => {
+
+    if (!canEdit) return;
+
     try {
-      setLoading(true);
 
-      const res = await getQuestions();
+        const res = await axios.get(
+            `${API}/questions/${row.id}`
+        );
 
-      setQuestions(res.data || []);
+        setSelectedQuestion(
+            res.data.data
+        );
+
+        setShowModal(true);
+
     } catch (err) {
-      console.error(err);
-      alert("Failed to load questions.");
-    } finally {
-      setLoading(false);
+
+        console.error(err);
+
+        alert(
+            err.response?.data?.message ||
+            "Failed to load question."
+        );
+
     }
-  };
-
- useEffect(() => {
-
-  if (!canView) {
-
-    setLoading(false);
-
-    return;
-
-  }
-
-  loadQuestions();
-
-}, [canView]);
-
-  // ===============================
-  // Delete Question
-  // ===============================
-
- const handleDelete = async (id) => {
-
-  if (!canDelete) {
-
-    alert("You don't have permission to delete questions.");
-
-    return;
-
-  }
-
-  if (!window.confirm("Delete this question?")) return;
-
-  try {
-
-    await deleteQuestion(id);
-
-    alert("Question deleted successfully.");
-
-    loadQuestions();
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert("Delete failed.");
-
-  }
 
 };
 
-  // ===============================
-  // Delete All
-  // ===============================
+    // ======================================================
+    // DELETE
+    // ======================================================
 
- const handleDeleteAll = async () => {
+    const handleDelete = (id) => {
 
-  if (!canDelete) {
+        if (!canDelete) return;
 
-    alert("You don't have permission to delete all questions.");
+        setDeleteId(id);
 
-    return;
+        setShowDeleteDialog(true);
 
-  }
+    };
 
-  if (!window.confirm("Delete ALL Questions?")) return;
+    const confirmDelete = async () => {
 
-  try {
+        try {
 
-    await deleteAllQuestions();
+            await axios.delete(
 
-    alert("All questions deleted successfully.");
+                `${API}/questions/${deleteId}`
 
-    loadQuestions();
+            );
 
-  } catch (err) {
+            alert("Question deleted successfully.");
 
-    console.error(err);
+            loadQuestions();
 
-    alert("Delete failed.");
+        }
+        catch (err) {
 
-  }
+            console.error(err);
 
-};
-  // ===============================
-  // Edit
-  // ===============================
+            alert(
 
-  const handleEdit = (row) => {
+                err.response?.data?.message ||
 
-  if (!canEdit) return;
+                "Delete failed."
 
-  setSelectedQuestion(row);
+            );
 
-  setShowModal(true);
+        }
+        finally {
 
-};
+            setDeleteId(null);
 
-  // ===============================
-  // Add
-  // ===============================
+            setShowDeleteDialog(false);
 
- const handleAdd = () => {
+        }
 
-  if (!canAdd) return;
+    };
 
-  setSelectedQuestion(null);
+   // ======================================================
+// DELETE ALL
+// ======================================================
 
-  setShowModal(true);
+const handleDeleteAll = async () => {
 
-};
-// ===============================
-// Export Questions CSV
-// ===============================
+    if (!canDelete) return;
 
-const handleExport = () => {
+    if (!window.confirm("Delete all questions?")) return;
 
-  if (!canView) {
+    try {
 
-    alert("You don't have permission to export questions.");
+        await axios.delete(
+            `${API}/questions/delete-all`
+        );
 
-    return;
+        alert("All Questions deleted successfully.");
 
-  }
+        loadQuestions();
 
-  if (filteredQuestions.length === 0) {
+    } catch (err) {
 
-    alert("No question data available.");
+        console.error(err);
 
-    return;
+        alert(
+            err.response?.data?.message ||
+            "Delete failed."
+        );
 
-  }
-
-  const headers = [
-    "Checklist Type",
-    "Question",
-    "Sequence",
-    "Answer Type",
-    "SLA",
-    "Departments",
-    "Answer Required",
-    "Status",
-  ];
-
-  const rows = filteredQuestions.map((q) => [
-
-    q.checklist_name,
-
-    q.question,
-
-    q.sequence_no,
-
-    q.answer_type,
-
-    q.sla_value
-      ? `${q.sla_value} ${q.sla_unit}`
-      : "",
-
-    q.departments,
-
-    q.answer_required ? "Yes" : "No",
-
-    q.status,
-
-  ]);
-
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
-  ].join("\n");
-
-  const blob = new Blob(
-    [csvContent],
-    {
-      type: "text/csv;charset=utf-8;",
     }
-  );
 
-  const link = document.createElement("a");
-
-  const url = URL.createObjectURL(blob);
-
-link.href = url;
-
-link.download = "questions.csv";
-
-link.click();
-
-// Clean up after the download starts
-setTimeout(() => {
-  URL.revokeObjectURL(url);
-}, 100);
 };
-  // ===============================
-  // Filters
-  // ===============================
 
-  const filteredQuestions = useMemo(() => {
-    return questions.filter((q) => {
-      const matchesSearch =
-        q.question?.toLowerCase().includes(search.toLowerCase()) ||
-        q.checklist_name?.toLowerCase().includes(search.toLowerCase());
+    // ======================================================
+    // EXPORT CSV
+    // ======================================================
 
-      const matchesType =
-        !typeFilter || q.checklist_name === typeFilter;
+    const handleExport = () => {
 
-      const matchesDepartment =
-        !departmentFilter ||
-        q.departments?.includes(departmentFilter);
+        if (!questions.length) {
 
-      return (
-        matchesSearch &&
-        matchesType &&
-        matchesDepartment
-      );
-    });
-  }, [
-    questions,
-    search,
-    typeFilter,
-    departmentFilter,
-  ]);
+            alert("No data available.");
 
-  const checklistTypes = [
-    ...new Set(
-      questions.map((q) => q.checklist_name)
-    ),
-  ];
+            return;
 
-  const departments = [
-    ...new Set(
-      questions
-        .flatMap((q) =>
-          q.departments
-            ? q.departments.split(", ")
-            : []
-        )
-    ),
-  ];
+        }
 
-  return (
-  <div className="questions-page">
+        const rows = filteredQuestions.map((q) => ({
 
-    <div className="page-header">
-      <h2>Checklist Questions</h2>
-    </div>
+            "Checklist Type": q.checklist_name,
 
-    <div className="toolbar">
+            Question: q.question,
 
-      <div className="search-box">
+            Sequence: q.sequence_no,
 
-        <FaSearch />
+            "Answer Type": q.answer_type,
 
-        <input
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+            SLA: q.sla_value
+                ? `${q.sla_value} ${q.sla_unit}`
+                : "",
+
+            Departments: q.departments,
+
+            "Answer Required":
+                q.answer_required
+                    ? "Yes"
+                    : "No",
+
+            Status: q.status
+
+        }));
+
+        const csv = [
+
+            Object.keys(rows[0]).join(","),
+
+            ...rows.map((row) =>
+
+                Object.values(row)
+
+                    .map((item) => `"${item}"`)
+
+                    .join(",")
+
+            )
+
+        ].join("\n");
+
+        const blob = new Blob(
+
+            [csv],
+
+            {
+
+                type:
+                    "text/csv;charset=utf-8;"
+
+            }
+
+        );
+
+        const url =
+            window.URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+
+        link.download = "Questions.csv";
+
+        link.click();
+
+        window.URL.revokeObjectURL(url);
+
+    };
+
+    // ======================================================
+    // SUCCESS
+    // ======================================================
+
+    const handleSuccess = () => {
+
+        setShowModal(false);
+
+        setSelectedQuestion(null);
+
+        loadQuestions();
+
+    };
+
+    // ======================================================
+    // CLEAR FILTERS
+    // ======================================================
+
+    const handleClearFilters = () => {
+
+        setSearch("");
+
+        setTypeFilter("");
+
+        setDepartmentFilter("");
+
+        setCurrentPage(1);
+
+    };
+
+    // ======================================================
+// BULK UPLOAD QUESTIONS
+// ======================================================
+
+const uploadQuestions = async (file) => {
+
+    if (!canAdd) {
+
+        return {
+
+            success: false,
+
+            message: "You don't have permission."
+
+        };
+
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    const token = localStorage.getItem("token");
+
+    try {
+
+        const response = await axios.post(
+
+            `${API}/questions/bulk-upload`,
+
+            formData,
+
+            {
+
+                headers: {
+
+                    Authorization: `Bearer ${token}`
+
+                }
+
+            }
+
+        );
+
+        return response.data;
+
+    } catch (err) {
+
+        console.error(err);
+
+        return {
+
+            success: false,
+
+            message:
+
+                err.response?.data?.message ||
+
+                "Bulk upload failed."
+
+        };
+
+    }
+
+};
+        // ======================================================
+    // FILTER QUESTIONS
+    // ======================================================
+
+    const filteredQuestions = useMemo(() => {
+
+        return questions.filter((q) => {
+
+            const matchesSearch =
+
+                !search ||
+
+                q.question
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                q.checklist_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesType =
+
+                !typeFilter ||
+
+                q.checklist_name === typeFilter;
+
+            const matchesDepartment =
+
+                !departmentFilter ||
+
+                q.departments
+                    ?.split(",")
+                    .map(d => d.trim())
+                    .includes(departmentFilter);
+
+            return (
+
+                matchesSearch &&
+
+                matchesType &&
+
+                matchesDepartment
+
+            );
+
+        });
+
+    }, [
+
+        questions,
+
+        search,
+
+        typeFilter,
+
+        departmentFilter
+
+    ]);
+
+    // ======================================================
+    // FILTER DROPDOWNS
+    // ======================================================
+
+    const checklistTypes = useMemo(() => (
+
+        [
+
+            ...new Set(
+
+                questions
+
+                    .map(q => q.checklist_name)
+
+                    .filter(Boolean)
+
+            )
+
+        ]
+
+    ), [questions]);
+
+    const departments = useMemo(() => (
+
+        [
+
+            ...new Set(
+
+                questions.flatMap(q =>
+
+                    q.departments
+
+                        ? q.departments
+
+                              .split(",")
+
+                              .map(d => d.trim())
+
+                        : []
+
+                )
+
+            )
+
+        ]
+
+    ), [questions]);
+
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    const totalFilteredRecords =
+
+        filteredQuestions.length;
+
+    const calculatedTotalPages =
+
+        Math.max(
+
+            1,
+
+            Math.ceil(
+
+                totalFilteredRecords /
+
+                pageSize
+
+            )
+
+        );
+
+    const currentQuestions =
+
+        filteredQuestions.slice(
+
+            (currentPage - 1) * pageSize,
+
+            currentPage * pageSize
+
+        );
+
+    useEffect(() => {
+
+        setCurrentPage(1);
+
+    }, [
+
+        search,
+
+        typeFilter,
+
+        departmentFilter
+
+    ]);
+
+    // ======================================================
+    // STATUS
+    // ======================================================
+
+    const getStatusClass = (status) => {
+
+        switch (
+
+            (status || "").toLowerCase()
+
+        ) {
+
+            case "active":
+
+                return "active";
+
+            case "inactive":
+
+                return "inactive";
+
+            default:
+
+                return "inactive";
+
+        }
+
+    };
+
+    // ======================================================
+    // ACCESS DENIED
+    // ======================================================
+
+    if (!canView) {
+
+        return (
+
+            <div className="no-permission">
+
+                <h2>
+
+                    Access Denied
+
+                </h2>
+
+                <p>
+
+                    You don't have permission to
+                    view Questions.
+
+                </p>
+
+            </div>
+
+        );
+
+    }
+
+    // ======================================================
+    // LOADING
+    // ======================================================
+
+    if (loading) {
+
+        return (
+
+            <div className="questions-loading">
+
+                Loading Questions...
+
+            </div>
+
+        );
+
+    }
+
+    // ======================================================
+    // TABLE COLUMNS
+    // ======================================================
+        const columns = [
+
+        // ==================================================
+        // CHECKLIST TYPE
+        // ==================================================
+
+        {
+            key: "checklist_name",
+            title: "Checklist Type",
+            render: (row) => row.checklist_name || "-"
+        },
+
+        // ==================================================
+        // QUESTION
+        // ==================================================
+
+        {
+            key: "question",
+            title: "Question",
+            render: (row) => (
+                <div className="question-cell">
+                    {row.question || "-"}
+                </div>
+            )
+        },
+
+        // ==================================================
+        // SEQUENCE
+        // ==================================================
+
+        {
+            key: "sequence_no",
+            title: "Seq",
+            align: "center",
+            render: (row) => row.sequence_no || "-"
+        },
+
+        // ==================================================
+        // ANSWER TYPE
+        // ==================================================
+
+        {
+            key: "answer_type",
+            title: "Answer Type",
+            render: (row) => row.answer_type || "-"
+        },
+
+        // ==================================================
+        // SLA
+        // ==================================================
+
+        {
+            key: "sla",
+            title: "SLA",
+            render: (row) =>
+
+                row.sla_value
+
+                    ? `${row.sla_value} ${row.sla_unit}`
+
+                    : "-"
+
+        },
+
+        // ==================================================
+        // DEPARTMENTS
+        // ==================================================
+
+        {
+            key: "departments",
+            title: "Departments",
+            render: (row) => (
+
+                <div className="department-cell">
+
+                    {row.departments || "-"}
+
+                </div>
+
+            )
+        },
+
+        // ==================================================
+        // ANSWER REQUIRED
+        // ==================================================
+
+        {
+            key: "answer_required",
+            title: "Answer Required",
+            align: "center",
+
+            render: (row) => (
+
+                <span
+                    className={
+                        row.answer_required
+                            ? "required-badge yes"
+                            : "required-badge no"
+                    }
+                >
+                    {row.answer_required ? "Yes" : "No"}
+                </span>
+
+            )
+
+        },
+
+        // ==================================================
+        // STATUS
+        // ==================================================
+
+        {
+            key: "status",
+            title: "Status",
+            align: "center",
+
+            render: (row) => (
+
+                <span
+                    className={`status-badge ${getStatusClass(
+                        row.status
+                    )}`}
+                >
+                    {row.status || "-"}
+                </span>
+
+            )
+
+        },
+
+        // ==================================================
+        // ACTIONS
+        // ==================================================
+
+        {
+            key: "actions",
+            title: "Actions",
+            width: "280px",
+            minWidth:"280px",
+            align: "center",
+
+            render: (row) => (
+
+                <div className="action-buttons">
+
+                    {canEdit && (
+
+                        <button
+                            className="edit-btn"
+                            onClick={() =>
+                                handleEdit(row)
+                            }
+                        >
+                            <FaEdit />
+                        </button>
+
+                    )}
+
+                    {canDelete && (
+
+                        <button
+                            className="delete-btn"
+                            onClick={() =>
+                                handleDelete(row.id)
+                            }
+                        >
+                            <FaTrash />
+                        </button>
+
+                    )}
+
+                </div>
+
+            )
+
+        }
+
+    ];
+    return (
+
+    <div className="questions-page">
+
+        {/* ======================================================
+            PAGE HEADER
+        ====================================================== */}
+
+        <PageHeader
+            title="Checklist Questions"
+            subtitle="Manage Checklist Questions."
         />
 
-      </div>
+        {/* ======================================================
+    PAGE TOOLBAR
+====================================================== */}
 
-      <select
-        value={typeFilter}
-        onChange={(e) => setTypeFilter(e.target.value)}
-      >
-        <option value="">
-          All Checklist Types
-        </option>
+<PageToolbar
 
-        {checklistTypes.map((type) => (
-          <option key={type} value={type}>
-            {type}
-          </option>
-        ))}
-      </select>
+    search={search}
 
-      <select
-        value={departmentFilter}
-        onChange={(e) => setDepartmentFilter(e.target.value)}
-      >
-        <option value="">
-          All Departments
-        </option>
+    setSearch={setSearch}
 
-        {departments.map((dept) => (
-          <option key={dept} value={dept}>
-            {dept}
-          </option>
-        ))}
-      </select>
+    placeholder="Search Questions..."
 
-      {canAdd && (
+    showAdd={canAdd}
 
-        <button
-          className="add-btn"
-          onClick={handleAdd}
+    addText="Add Question"
+
+    onAdd={handleAdd}
+
+    showExport={canView}
+
+    onExport={handleExport}
+
+    showBulkUpload={canAdd}
+
+    bulkUploadText="Bulk Upload"
+
+    onBulkUpload={() => setShowBulkUpload(true)}
+
+    showDeleteAll={canDelete}
+
+    onDeleteAll={handleDeleteAll}
+
+/>
+
+        {/* ======================================================
+            FILTER BAR
+        ====================================================== */}
+
+        <FilterBar
+            onClear={handleClearFilters}
         >
-          <FaPlus />
-          Add Question
-        </button>
 
-      )}
+            {/* ==========================================
+                CHECKLIST TYPE
+            ========================================== */}
 
-    {canView && (
+            <div className="filter-group">
 
-  <button
-    className="export-btn"
-    onClick={handleExport}
-  >
-    <FaFileExport />
-    Export
-  </button>
+                <label>Checklist Type</label>
 
-)}
-
-      {canDelete && (
-
-        <button
-          className="delete-btn"
-          onClick={handleDeleteAll}
-        >
-          <FaTrash />
-          Delete All
-        </button>
-
-      )}
-
-    </div>
-
-    {/* ===============================
-        Questions Table
-    =============================== */}
-
-    <div className="table-container">
-
-      <table className="questions-table">
-
-        <thead>
-
-          <tr>
-
-            <th>Checklist Type</th>
-
-            <th>Question</th>
-
-            <th>Seq</th>
-
-            <th>Answer Type</th>
-
-            <th>SLA</th>
-
-            <th>Departments</th>
-
-            <th>Answer Required</th>
-
-            <th>Status</th>
-
-            <th width="140">Actions</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {loading ? (
-
-            <tr>
-
-              <td colSpan="9" style={{ textAlign: "center" }}>
-                Loading...
-              </td>
-
-            </tr>
-
-          ) : filteredQuestions.length === 0 ? (
-
-            <tr>
-
-              <td colSpan="9" style={{ textAlign: "center" }}>
-                No Questions Found
-              </td>
-
-            </tr>
-
-          ) : (
-
-            filteredQuestions.map((row) => (
-
-              <tr key={row.id}>
-
-                <td>{row.checklist_name}</td>
-
-                <td>{row.question}</td>
-
-                <td>{row.sequence_no}</td>
-
-                <td>{row.answer_type}</td>
-
-                <td>
-                  {row.sla_value
-                    ? `${row.sla_value} ${row.sla_unit}`
-                    : "-"}
-                </td>
-
-                <td>{row.departments || "-"}</td>
-
-                <td>
-                  {row.answer_required ? "Yes" : "No"}
-                </td>
-
-                <td>
-
-                  <span
-                    className={
-                      row.status?.toLowerCase() === "active"
-                        ? "status active"
-                        : "status inactive"
+                <select
+                    value={typeFilter}
+                    onChange={(e) =>
+                        setTypeFilter(e.target.value)
                     }
-                  >
-                    {row.status}
-                  </span>
+                >
 
-                </td>
+                    <option value="">
+                        All Checklist Types
+                    </option>
 
-              <td>
-  <div className="action-buttons">
+                    {checklistTypes.map((type) => (
 
-    {canEdit && (
-      <button
-        className="edit-btn"
-        onClick={() => handleEdit(question)}
-      >
-        <FaEdit />
-      </button>
-    )}
+                        <option
+                            key={type}
+                            value={type}
+                        >
+                            {type}
+                        </option>
 
-    {canDelete && (
-      <button
-        className="delete-btn"
-        onClick={() => handleDelete(question.id)}
-      >
-        <FaTrash />
-      </button>
-    )}
+                    ))}
 
-  </div>
-</td>
+                </select>
 
-              </tr>
+            </div>
 
-            ))
+            {/* ==========================================
+                DEPARTMENT
+            ========================================== */}
 
-          )}
+            <div className="filter-group">
 
-        </tbody>
+                <label>Department</label>
 
-      </table>
+                <select
+                    value={departmentFilter}
+                    onChange={(e) =>
+                        setDepartmentFilter(e.target.value)
+                    }
+                >
+
+                    <option value="">
+                        All Departments
+                    </option>
+
+                    {departments.map((dept) => (
+
+                        <option
+                            key={dept}
+                            value={dept}
+                        >
+                            {dept}
+                        </option>
+
+                    ))}
+
+                </select>
+
+            </div>
+
+        </FilterBar>
+                {/* ======================================================
+            CARD
+        ====================================================== */}
+
+        <Card
+            title="Questions List"
+        >
+
+            <DataTable
+
+                columns={columns}
+
+                data={currentQuestions}
+
+                loading={loading}
+
+                emptyTitle="No Questions Found"
+
+                emptyDescription="There are no Questions available."
+
+            />
+
+            <Pagination
+
+                currentPage={currentPage}
+
+                totalPages={calculatedTotalPages}
+
+                totalRecords={totalFilteredRecords}
+
+                pageSize={pageSize}
+
+                onPageChange={setCurrentPage}
+
+                onPageSizeChange={() => {
+
+                    // Fixed page size (10)
+
+                    setCurrentPage(1);
+
+                }}
+
+            />
+
+        </Card>
+                {/* ======================================================
+            ADD / EDIT QUESTION MODAL
+        ====================================================== */}
+
+        {(canAdd || canEdit) && showModal && (
+
+            <AddQuestionModal
+
+                question={selectedQuestion}
+
+                onClose={() => {
+
+                    setShowModal(false);
+
+                    setSelectedQuestion(null);
+
+                }}
+
+                onSuccess={handleSuccess}
+
+            />
+
+        )}
+{/* ======================================================
+    BULK UPLOAD MODAL
+====================================================== */}
+
+<BulkUploadModal
+
+    isOpen={showBulkUpload}
+
+    onClose={() => setShowBulkUpload(false)}
+
+    onSuccess={async () => {
+
+        await loadQuestions();
+
+    }}
+
+    uploadFunction={uploadQuestions}
+
+    title="Bulk Upload Questions"
+
+    acceptedFile=".csv,.xlsx,.xls"
+
+    sampleFile="/samples/questions-sample.xlsx"
+
+/>
+
+        {/* ======================================================
+            DELETE CONFIRMATION
+        ====================================================== */}
+
+        <ConfirmDialog
+
+            open={showDeleteDialog}
+
+            title="Delete Question"
+
+            message="Are you sure you want to delete this Question?"
+
+            confirmText="Delete"
+
+            cancelText="Cancel"
+
+            confirmVariant="danger"
+
+            onConfirm={confirmDelete}
+
+            onCancel={() => {
+
+                setDeleteId(null);
+
+                setShowDeleteDialog(false);
+
+            }}
+
+        />
 
     </div>
 
-    {/* ===============================
-        Add / Edit Modal
-    =============================== */}
-
-    {(canAdd || canEdit) && showModal && (
-
-      <AddQuestionModal
-        question={selectedQuestion}
-        onClose={() => {
-          setShowModal(false);
-          setSelectedQuestion(null);
-        }}
-        onSuccess={() => {
-          setShowModal(false);
-          setSelectedQuestion(null);
-          loadQuestions();
-        }}
-      />
-
-    )}
-
-  </div>
 );
+
 }
 
 export default Questions;

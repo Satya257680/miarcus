@@ -30,7 +30,29 @@ const getAllChecklistTypes = (callback) => {
 
                 SEPARATOR ', '
 
-            ) AS departments
+            ) AS departments,
+
+            GROUP_CONCAT(
+
+                DISTINCT d.id
+
+                ORDER BY d.id
+
+                SEPARATOR ','
+
+            ) AS department_ids,
+
+            (
+
+                SELECT
+
+                    GROUP_CONCAT(user_id)
+
+                FROM checklist_type_users
+
+                WHERE checklist_type_id = ct.id
+
+            ) AS user_ids
 
         FROM checklist_types ct
 
@@ -60,13 +82,29 @@ const getAllChecklistTypes = (callback) => {
 
     `;
 
-    db.query(
+    db.query(sql, (err, rows) => {
 
-        sql,
+        if (err) return callback(err);
 
-        callback
+        rows.forEach((item) => {
 
-    );
+            item.department_ids = item.department_ids
+                ? item.department_ids
+                      .split(",")
+                      .map(Number)
+                : [];
+
+            item.user_ids = item.user_ids
+                ? item.user_ids
+                      .split(",")
+                      .map(Number)
+                : [];
+
+        });
+
+        callback(null, rows);
+
+    });
 
 };
 // ==========================================================
@@ -123,13 +161,33 @@ const getChecklistTypeById = (
 
         sql,
 
-        [
+        [id],
 
-            id
+        (err, rows) => {
 
-        ],
+            if (err) return callback(err);
 
-        callback
+            if (rows.length) {
+
+                rows[0].department_ids =
+                    rows[0].department_ids
+                        ? rows[0].department_ids
+                              .split(",")
+                              .map(Number)
+                        : [];
+
+                rows[0].user_ids =
+                    rows[0].user_ids
+                        ? rows[0].user_ids
+                              .split(",")
+                              .map(Number)
+                        : [];
+
+            }
+
+            callback(null, rows);
+
+        }
 
     );
 

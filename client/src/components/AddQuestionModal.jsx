@@ -13,149 +13,320 @@ function AddQuestionModal({
   onClose,
   onSuccess,
 }) {
-  const isEdit = !!question;
+const isEdit = !!question;
 
-  const [checklistTypes, setChecklistTypes] = useState([]);
-  const [departments, setDepartments] = useState([]);
+const [checklistTypes, setChecklistTypes] = useState([]);
+const [departments, setDepartments] = useState([]);
 
-  const [formData, setFormData] = useState({
-    checklist_type_id: "",
-    question: "",
-    sequence_no: "",
-    answer_type: "Text",
-    sla_value: "",
-    sla_unit: "Hours",
-    answer_required: false,
-    status: "Active",
-    departments: [],
-  });
+const [selectedDepartments, setSelectedDepartments] = useState([]);
 
-  // ==========================
-  // Load Dropdown Data
-  // ==========================
+const [formData, setFormData] = useState({
 
-  useEffect(() => {
-    loadChecklistTypes();
-    loadDepartments();
-  }, []);
+  checklist_type_id: "",
 
-  const loadChecklistTypes = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:5000/api/checklist-types"
-      );
+  question: "",
 
-      setChecklistTypes(res.data.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  sequence_no: "",
 
-  const loadDepartments = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:5000/api/departments"
-      );
+  answer_type: "Text",
 
-      setDepartments(res.data.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  sla_value: "",
 
-  // ==========================
-  // Edit Mode
-  // ==========================
+  sla_unit: "Hours",
 
-  useEffect(() => {
-    if (question) {
-      setFormData({
-        checklist_type_id: question.checklist_type_id || "",
-        question: question.question || "",
-        sequence_no: question.sequence_no || "",
-        answer_type: question.answer_type || "Text",
-        sla_value: question.sla_value || "",
-        sla_unit: question.sla_unit || "Hours",
-        answer_required:
-          question.answer_required === 1 ||
-          question.answer_required === true,
-        status: question.status || "Active",
-        departments: question.departments || [],
-      });
-    }
-  }, [question]);
+  answer_required: false,
 
-  // ==========================
-  // Handle Change
-  // ==========================
+  status: "Active",
 
-  const handleChange = (e) => {
-    const { name, value, checked, type } = e.target;
+  departments: [],
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
-    }));
-  };
+});
 
-  // ==========================
-  // Department Multi Select
-  // ==========================
+// ==========================
+// Load Dropdown Data
+// ==========================
 
-  const handleDepartmentChange = (e) => {
-    const values = Array.from(
-      e.target.selectedOptions,
-      (option) => Number(option.value)
+useEffect(() => {
+
+  loadChecklistTypes();
+
+  loadDepartments();
+
+}, []);
+
+const loadChecklistTypes = async () => {
+
+  try {
+
+    const res = await axios.get(
+      "http://localhost:5000/api/checklist-types"
     );
 
+    setChecklistTypes(res.data.data || []);
+
+  } catch (err) {
+
+    console.error(err);
+
+  }
+
+};
+
+const loadDepartments = async () => {
+
+  try {
+
+    const res = await axios.get(
+      "http://localhost:5000/api/departments"
+    );
+
+    setDepartments(res.data.data || []);
+
+  } catch (err) {
+
+    console.error(err);
+
+  }
+
+};
+
+// ==========================
+// Edit Mode
+// ==========================
+
+
+useEffect(() => {
+
+  if (!question) return;
+
+  const departmentIds = Array.isArray(question.department_ids)
+
+    ? question.department_ids
+
+    : [];
+
+  setSelectedDepartments(departmentIds);
+
+  setFormData({
+
+    checklist_type_id:
+      question.checklist_type_id || "",
+
+    question:
+      question.question || "",
+
+    sequence_no:
+      question.sequence_no || "",
+
+    answer_type:
+      question.answer_type || "Text",
+
+    sla_value:
+      question.sla_value || "",
+
+    sla_unit:
+      question.sla_unit || "Hours",
+
+    answer_required:
+      question.answer_required === 1 ||
+      question.answer_required === true,
+
+    status:
+      question.status || "Active",
+
+    departments:
+      departmentIds,
+
+  });
+
+}, [question]);
+
+// ==========================
+// Handle Change
+// ==========================
+
+const handleChange = (e) => {
+
+  const {
+
+    name,
+
+    value,
+
+    checked,
+
+    type
+
+  } = e.target;
+
+  setFormData((prev) => ({
+
+    ...prev,
+
+    [name]:
+
+      type === "checkbox"
+
+        ? checked
+
+        : value,
+
+  }));
+
+};
+
+// ==========================
+// Department Checkbox
+// ==========================
+
+const toggleDepartment = (id) => {
+
+  const updated = selectedDepartments.includes(id)
+
+    ? selectedDepartments.filter(
+        (item) => item !== id
+      )
+
+    : [
+
+        ...selectedDepartments,
+
+        id,
+
+      ];
+
+  setSelectedDepartments(updated);
+
+  setFormData((prev) => ({
+
+    ...prev,
+
+    departments: updated,
+
+  }));
+
+};
+
+const selectAllDepartments = () => {
+
+  if (
+
+    selectedDepartments.length ===
+
+    departments.length
+
+  ) {
+
+    setSelectedDepartments([]);
+
     setFormData((prev) => ({
+
       ...prev,
-      departments: values,
+
+      departments: [],
+
     }));
+
+  } else {
+
+    const allDepartments = departments.map(
+      (dept) => dept.id
+    );
+
+    setSelectedDepartments(allDepartments);
+
+    setFormData((prev) => ({
+
+      ...prev,
+
+      departments: allDepartments,
+
+    }));
+
+  }
+
+};
+
+// ==========================
+// Save Question
+// ==========================
+
+const handleSubmit = async (e) => {
+
+  e.preventDefault();
+
+  if (!formData.checklist_type_id) {
+
+    return alert(
+      "Please select Checklist Type."
+    );
+
+  }
+
+  if (!formData.question.trim()) {
+
+    return alert(
+      "Please enter Question."
+    );
+
+  }
+
+  if (!formData.answer_type) {
+
+    return alert(
+      "Please select Answer Type."
+    );
+
+  }
+
+  const payload = {
+
+    ...formData,
+
+    departments: selectedDepartments,
+
   };
-    // ==========================
-  // Save Question
-  // ==========================
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  try {
 
-    if (!formData.checklist_type_id) {
-      return alert("Please select Checklist Type.");
-    }
+    if (isEdit) {
 
-    if (!formData.question.trim()) {
-      return alert("Please enter Question.");
-    }
-
-    if (!formData.answer_type) {
-      return alert("Please select Answer Type.");
-    }
-
-    try {
-      if (isEdit) {
-        await updateQuestion(question.id, formData);
-      } else {
-        await createQuestion(formData);
-      }
-
-      alert(
-        isEdit
-          ? "Question updated successfully."
-          : "Question added successfully."
+      await updateQuestion(
+        question.id,
+        payload
       );
 
-      onSuccess();
+    } else {
 
-    } catch (err) {
-      console.error(err);
-      alert("Unable to save question.");
+      await createQuestion(
+        payload
+      );
+
     }
-  };
 
+    alert(
+
+      isEdit
+
+        ? "Question updated successfully."
+
+        : "Question added successfully."
+
+    );
+
+    onSuccess();
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      "Unable to save question."
+    );
+
+  }
+
+};
   return (
     <div className="modal-overlay">
 
@@ -282,24 +453,58 @@ function AddQuestionModal({
 
             {/* Departments */}
 
-            <div className="form-group">
-              <label>Departments</label>
+<div className="form-group">
 
-              <select
-                multiple
-                value={formData.departments}
-                onChange={handleDepartmentChange}
-              >
-                {departments.map((dept) => (
-                  <option
-                    key={dept.id}
-                    value={dept.id}
-                  >
-                    {dept.department_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <div className="section-header">
+
+    <label>Departments</label>
+
+    <button
+      type="button"
+      className="select-all-btn"
+      onClick={selectAllDepartments}
+    >
+      {selectedDepartments.length ===
+      departments.length
+        ? "Unselect All"
+        : "Select All"}
+    </button>
+
+  </div>
+
+  <div className="checkbox-list">
+
+    {departments.length === 0 ? (
+
+      <p>No Departments Found</p>
+
+    ) : (
+
+      departments.map((dept) => (
+
+        <label key={dept.id}>
+
+          <input
+            type="checkbox"
+            checked={selectedDepartments.includes(
+              dept.id
+            )}
+            onChange={() =>
+              toggleDepartment(dept.id)
+            }
+          />
+
+          {dept.department_name}
+
+        </label>
+
+      ))
+
+    )}
+
+  </div>
+
+</div>
 
             {/* Answer Required */}
 

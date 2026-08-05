@@ -2,17 +2,13 @@ const ChecklistReport = require(
     "../models/checklistReportModel"
 );
 
-
 const csv = require(
     "csv-parser"
 );
 
-
-const fs = require(
-    "fs"
+const { Readable } = require(
+    "stream"
 );
-
-
 
 // ======================================================
 // ACTIVITY CENTER
@@ -22,8 +18,6 @@ const Activity = require(
     "../models/activityModel"
 );
 
-
-
 // ======================================================
 // AUDIT TRAIL
 // ======================================================
@@ -32,28 +26,19 @@ const Audit = require(
     "../models/auditModel"
 );
 
-
-
-
-
 // ======================================================
 // DATE FORMAT HELPER
 // ======================================================
 
-const formatDate = (dateValue)=>{
+const formatDate = (dateValue) => {
 
-
-    if(!dateValue){
-
+    if (!dateValue) {
 
         return null;
 
-
     }
 
-
-
-    if(
+    if (
 
         typeof dateValue === "string"
 
@@ -61,25 +46,15 @@ const formatDate = (dateValue)=>{
 
         dateValue.includes("T")
 
-    ){
-
+    ) {
 
         return dateValue.split("T")[0];
 
-
     }
-
-
 
     return dateValue;
 
-
 };
-
-
-
-
-
 
 
 // ======================================================
@@ -1209,356 +1184,237 @@ exports.deleteReport = (req,res)=>{
 
 // ======================================================
 // IMPORT CSV REPORTS
-// POST /api/checklist-reports/import
+// POST /api/checklist-reports/bulk-upload
 // ======================================================
 
+exports.bulkUploadChecklistReports = (req, res) => {
 
-exports.importReportsCSV = (req,res)=>{
-
-
-    if(!req.file){
-
+    if (!req.file) {
 
         return res.status(400).json({
 
+            success: false,
 
-            success:false,
-
-
-            message:
-
-            "CSV file is required."
-
-
+            message: "CSV file is required."
 
         });
 
-
     }
-
-
-
-
-
 
     const records = [];
 
+    Readable.from(req.file.buffer)
 
+        .pipe(csv())
 
+        .on(
 
+            "data",
 
+            (row) => {
 
-
-    fs.createReadStream(req.file.path)
-
-
-    .pipe(csv())
-
-
-
-    .on(
-
-        "data",
-
-        (row)=>{
-
-
-            records.push(row);
-
-
-        }
-
-    )
-
-
-
-    .on(
-
-        "end",
-
-        async()=>{
-
-
-            try{
-
-
-
-                if(records.length===0){
-
-
-
-                    return res.status(400).json({
-
-
-
-                        success:false,
-
-
-                        message:
-
-                        "CSV file is empty."
-
-
-
-                    });
-
-
-                }
-
-
-
-
-
-
-
-
-                let importedCount = 0;
-
-
-                let failedCount = 0;
-
-
-
-
-
-
-
-
-                // ======================================
-                // CSV INSERT LOGIC
-                // ======================================
-                //
-                // Keep your existing insert logic here
-                //
-                // Success:
-                // importedCount++
-                //
-                // Failed:
-                // failedCount++
-                //
-
-
-
-
-
-
-
-                // ======================================
-                // ACTIVITY CENTER
-                // ======================================
-
-
-                Activity.create({
-
-
-
-                    title:
-
-                    "Checklist Reports Imported",
-
-
-
-
-                    description:
-
-                    `${importedCount} checklist reports imported from CSV`,
-
-
-
-
-                    module_name:
-
-                    "Checklist Reports",
-
-
-
-
-                    status:
-
-                    "Closed",
-
-
-
-
-                    priority:
-
-                    "Medium",
-
-
-
-
-                    created_by:
-
-                    req.user.id,
-
-
-
-
-                    assigned_to:
-
-                    null
-
-
-
-                },()=>{});
-
-
-
-
-
-
-
-
-
-                // ======================================
-                // AUDIT TRAIL
-                // ======================================
-
-
-                Audit.create({
-
-
-
-                    module_name:
-
-                    "Checklist Reports",
-
-
-
-
-                    reference_id:
-
-                    null,
-
-
-
-
-                    action:
-
-                    "IMPORT",
-
-
-
-
-                    old_data:
-
-                    null,
-
-
-
-
-                    new_data:{
-
-
-
-                        imported:
-
-                        importedCount,
-
-
-
-                        failed:
-
-                        failedCount
-
-
-
-                    },
-
-
-
-
-                    changed_by:
-
-                    req.user.id
-
-
-
-                },()=>{});
-
-
-
-
-
-
-
-
-
-                return res.status(200).json({
-
-
-
-                    success:true,
-
-
-
-                    message:
-
-                    "CSV import completed.",
-
-
-
-                    imported:
-
-                    importedCount,
-
-
-
-                    failed:
-
-                    failedCount
-
-
-
-                });
-
-
+                records.push(row);
 
             }
 
+        )
 
-            catch(error){
+        .on(
 
+            "end",
 
+            async () => {
+
+                try {
+
+                    if (records.length === 0) {
+
+                        return res.status(400).json({
+
+                            success: false,
+
+                            message: "CSV file is empty."
+
+                        });
+
+                    }
+
+                    let importedCount = 0;
+
+                    let failedCount = 0;
+
+                    // ======================================
+                    // CSV INSERT LOGIC
+                    // ======================================
+                    //
+                    // Keep your existing insert logic here
+                    //
+                    // Success:
+                    // importedCount++
+                    //
+                    // Failed:
+                    // failedCount++
+                    //
+
+                    // ======================================
+                    // ACTIVITY CENTER
+                    // ======================================
+
+                    Activity.create(
+
+                        {
+
+                            title:
+
+                                "Checklist Reports Imported",
+
+                            description:
+
+                                `${importedCount} checklist reports imported from CSV`,
+
+                            module_name:
+
+                                "Checklist Reports",
+
+                            status:
+
+                                "Closed",
+
+                            priority:
+
+                                "Medium",
+
+                            created_by:
+
+                                req.user.id,
+
+                            assigned_to:
+
+                                null
+
+                        },
+
+                        () => {}
+
+                    );
+
+                    // ======================================
+                    // AUDIT TRAIL
+                    // ======================================
+
+                    Audit.create(
+
+                        {
+
+                            module_name:
+
+                                "Checklist Reports",
+
+                            reference_id:
+
+                                null,
+
+                            action:
+
+                                "IMPORT",
+
+                            old_data:
+
+                                null,
+
+                            new_data: {
+
+                                imported:
+
+                                    importedCount,
+
+                                failed:
+
+                                    failedCount
+
+                            },
+
+                            changed_by:
+
+                                req.user.id
+
+                        },
+
+                        () => {}
+
+                    );
+
+                    return res.status(200).json({
+
+                        success: true,
+
+                        message: "CSV import completed.",
+
+                        imported:
+
+                            importedCount,
+
+                        failed:
+
+                            failedCount
+
+                    });
+
+                }
+
+                catch (error) {
+
+                    console.error(
+
+                        "IMPORT ERROR:",
+
+                        error
+
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+
+                            error.message
+
+                    });
+
+                }
+
+            }
+
+        )
+
+        .on(
+
+            "error",
+
+            (error) => {
 
                 console.error(
 
-                    "IMPORT ERROR:",
+                    "CSV PARSE ERROR:",
 
                     error
 
                 );
 
-
-
                 return res.status(500).json({
 
-
-
-                    success:false,
-
-
+                    success: false,
 
                     message:
 
-                    "CSV import failed."
-
-
+                        error.message
 
                 });
 
-
-
             }
 
-
-
-        }
-
-
-    );
-
-
+        );
 
 };
 // ======================================================
@@ -1792,23 +1648,17 @@ exports.exportReports = (req,res)=>{
 
 module.exports = {
 
-
     getAllReports: exports.getAllReports,
-
 
     getReportById: exports.getReportById,
 
-
     updateReport: exports.updateReport,
-
 
     deleteReport: exports.deleteReport,
 
-
-    importReportsCSV: exports.importReportsCSV,
-
+    bulkUploadChecklistReports:
+        exports.bulkUploadChecklistReports,
 
     exportReports: exports.exportReports
-
 
 };

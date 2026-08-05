@@ -11,181 +11,95 @@ const ActionPoint = {};
 // FILTER + SEARCH + PAGINATION
 // ======================================================
 
-
-ActionPoint.getAll = (filters, callback)=>{
-
+ActionPoint.getAll = (filters, callback) => {
 
     let sql = `
 
+        SELECT
 
-    SELECT
+            cs.id,
 
+            cs.submission_date AS date,
 
-        cs.id,
+            s.store_name,
 
+            s.city,
 
-        cs.submission_date AS date,
+            s.state,
 
+            ct.checklist_name,
 
-        s.store_name,
+            q.question,
 
+            GROUP_CONCAT(
 
-        s.city,
+                DISTINCT d.department_name
 
+                ORDER BY d.department_name
 
-        s.state,
+                SEPARATOR ', '
 
+            ) AS department_name,
 
-        ct.checklist_name,
+            csa.answer,
 
+          MAX(csa.remarks) AS comment,
 
-        q.question,
+            cs.attachment,
 
+            CASE
+                WHEN csa.answer IS NULL
+                OR csa.answer = ''
+                THEN 'Pending'
+                ELSE 'No Action Taken'
+            END AS status,
 
-        d.department_name,
+            CASE
+                WHEN csa.answer IS NOT NULL
+                THEN '6d 23h Remaining'
+                ELSE '-'
+            END AS sla_status,
 
+            'Open' AS next_action,
 
-        csa.answer,
+COALESCE(
+    MAX(NULLIF(csa.action_remarks, '')),
+    '-'
+) AS remarks,
 
+'No Action Taken by System Auto' AS history,
+            u.name AS employee_name,
 
-        csa.remarks AS comment,
+            u.employee_id
 
+        FROM checklist_submissions cs
 
-        cs.attachment,
+        LEFT JOIN checklist_submission_answers csa
+            ON csa.submission_id = cs.id
 
+        LEFT JOIN questions q
+            ON q.id = csa.question_id
 
+        LEFT JOIN checklist_types ct
+            ON ct.id = cs.checklist_type_id
 
-        CASE
+        LEFT JOIN stores s
+            ON s.id = cs.store_id
 
-            WHEN csa.answer IS NULL
+        LEFT JOIN users u
+            ON u.id = cs.submitted_by
 
-            OR csa.answer=''
+        LEFT JOIN question_departments qd
+            ON qd.question_id = q.id
 
-            THEN 'Pending'
+        LEFT JOIN departments d
+            ON d.id = qd.department_id
 
-
-            ELSE 'No Action Taken'
-
-
-        END AS status,
-
-
-
-
-        CASE
-
-            WHEN csa.answer IS NOT NULL
-
-            THEN '6d 23h Remaining'
-
-
-            ELSE '-'
-
-
-        END AS sla_status,
-
-
-
-
-        'Open' AS next_action,
-
-
-
-
-        CASE
-
-            WHEN csa.action_remarks IS NULL
-
-            OR csa.action_remarks=''
-
-
-            THEN '-'
-
-
-            ELSE csa.action_remarks
-
-
-        END AS remarks,
-
-
-
-
-        'No Action Taken by System Auto'
-
-        AS history,
-
-
-
-
-        u.name AS employee_name,
-
-
-        u.employee_id
-
-
-
-
-    FROM checklist_submissions cs
-
-
-
-
-    LEFT JOIN checklist_submission_answers csa
-
-    ON csa.submission_id = cs.id
-
-
-
-
-    LEFT JOIN questions q
-
-    ON q.id = csa.question_id
-
-
-
-
-    LEFT JOIN checklist_types ct
-
-    ON ct.id = cs.checklist_type_id
-
-
-
-
-    LEFT JOIN stores s
-
-    ON s.id = cs.store_id
-
-
-
-
-    LEFT JOIN users u
-
-    ON u.id = cs.submitted_by
-
-
-
-
-    LEFT JOIN departments d
-
-    ON d.id = u.department_id
-
-
-
-
-    WHERE 1=1
-
-
+        WHERE 1 = 1
 
     `;
 
-
-
-
     const values = [];
-
-
-
-
 
 
 
@@ -471,6 +385,32 @@ ActionPoint.getAll = (filters, callback)=>{
 
     sql += `
 
+    GROUP BY
+
+    cs.id,
+
+    cs.submission_date,
+
+    s.store_name,
+
+    s.city,
+
+    s.state,
+
+    ct.checklist_name,
+
+    q.id,
+
+    q.question,
+
+    csa.answer,
+
+
+
+    u.name,
+
+    u.employee_id
+
 
     ORDER BY cs.id DESC
 
@@ -516,67 +456,40 @@ ActionPoint.getAll = (filters, callback)=>{
 // COUNT ACTION POINTS
 // ======================================================
 
-
-ActionPoint.count = (filters, callback)=>{
-
+ActionPoint.count = (filters, callback) => {
 
     let sql = `
 
+        SELECT COUNT(DISTINCT CONCAT(cs.id,'-',q.id)) AS total
 
-    SELECT COUNT(*) AS total
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_submission_answers csa
+            ON csa.submission_id = cs.id
 
-    FROM checklist_submissions cs
+        LEFT JOIN questions q
+            ON q.id = csa.question_id
 
+        LEFT JOIN checklist_types ct
+            ON ct.id = cs.checklist_type_id
 
+        LEFT JOIN stores s
+            ON s.id = cs.store_id
 
-    LEFT JOIN checklist_submission_answers csa
+        LEFT JOIN users u
+            ON u.id = cs.submitted_by
 
-    ON csa.submission_id = cs.id
+        LEFT JOIN question_departments qd
+            ON qd.question_id = q.id
 
+        LEFT JOIN departments d
+            ON d.id = qd.department_id
 
-
-    LEFT JOIN questions q
-
-    ON q.id = csa.question_id
-
-
-
-    LEFT JOIN checklist_types ct
-
-    ON ct.id = cs.checklist_type_id
-
-
-
-    LEFT JOIN stores s
-
-    ON s.id = cs.store_id
-
-
-
-    LEFT JOIN users u
-
-    ON u.id = cs.submitted_by
-
-
-
-    LEFT JOIN departments d
-
-    ON d.id = u.department_id
-
-
-
-    WHERE 1=1
-
+        WHERE 1 = 1
 
     `;
 
-
-
     const values = [];
-
-
-
 
 
     // ======================================
@@ -1173,12 +1086,10 @@ ActionPoint.takeAction = (
 
 
 
-
 // ======================================================
 // EXPORT ACTION POINTS
 // CSV DATA
 // ======================================================
-
 
 ActionPoint.exportActionPoints = (
 
@@ -1186,151 +1097,115 @@ ActionPoint.exportActionPoints = (
 
     callback
 
-)=>{
-
-
+) => {
 
     let sql = `
 
+        SELECT
 
-    SELECT
+            cs.id,
 
+            cs.submission_date AS date,
 
-        cs.id,
+            s.store_name,
 
+            s.city,
 
-        cs.submission_date AS date,
+            s.state,
 
+            ct.checklist_name,
 
-        s.store_name,
+            q.question,
 
+            GROUP_CONCAT(
 
-        s.city,
+                DISTINCT d.department_name
 
+                ORDER BY d.department_name
 
-        s.state,
+                SEPARATOR ', '
 
+            ) AS department_name,
 
-        ct.checklist_name,
+            csa.answer,
 
+            csa.remarks,
 
-        q.question,
+            u.name AS employee_name,
 
+            u.employee_id
 
-        d.department_name,
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_submission_answers csa
 
-        csa.answer,
+            ON csa.submission_id = cs.id
 
+        LEFT JOIN questions q
 
-        csa.remarks,
+            ON q.id = csa.question_id
 
+        LEFT JOIN checklist_types ct
 
-        u.name AS employee_name,
+            ON ct.id = cs.checklist_type_id
 
+        LEFT JOIN stores s
 
-        u.employee_id
+            ON s.id = cs.store_id
 
+        LEFT JOIN users u
 
+            ON u.id = cs.submitted_by
 
-    FROM checklist_submissions cs
+        LEFT JOIN question_departments qd
 
+            ON qd.question_id = q.id
 
+        LEFT JOIN departments d
 
-    LEFT JOIN checklist_submission_answers csa
+            ON d.id = qd.department_id
 
-    ON csa.submission_id = cs.id
-
-
-
-    LEFT JOIN questions q
-
-    ON q.id = csa.question_id
-
-
-
-    LEFT JOIN checklist_types ct
-
-    ON ct.id = cs.checklist_type_id
-
-
-
-    LEFT JOIN stores s
-
-    ON s.id = cs.store_id
-
-
-
-    LEFT JOIN users u
-
-    ON u.id = cs.submitted_by
-
-
-
-    LEFT JOIN departments d
-
-    ON d.id = u.department_id
-
-
-
-    WHERE 1=1
-
-
+        WHERE 1 = 1
 
     `;
 
-
-
-
     const values = [];
 
+    // ======================================
+    // SEARCH
+    // ======================================
 
-
-
-
-
-
-    if(filters.search){
-
-
+    if (filters.search) {
 
         sql += `
 
+            AND (
 
-        AND
+                s.store_name LIKE ?
 
-        (
+                OR s.city LIKE ?
 
-            s.store_name LIKE ?
+                OR s.state LIKE ?
 
-            OR s.city LIKE ?
+                OR ct.checklist_name LIKE ?
 
-            OR s.state LIKE ?
+                OR q.question LIKE ?
 
-            OR ct.checklist_name LIKE ?
+                OR d.department_name LIKE ?
 
-            OR q.question LIKE ?
+                OR csa.answer LIKE ?
 
-            OR csa.answer LIKE ?
+                OR csa.remarks LIKE ?
 
-            OR csa.remarks LIKE ?
-
-        )
-
+            )
 
         `;
 
-
-
-        const keyword =
-
-        `%${filters.search}%`;
-
-
+        const keyword = `%${filters.search}%`;
 
         values.push(
 
-
+            keyword,
 
             keyword,
 
@@ -1346,54 +1221,58 @@ ActionPoint.exportActionPoints = (
 
             keyword
 
-
-
         );
-
-
 
     }
 
-
-
-
-
-
-
+    // ======================================
+    // GROUP BY + ORDER
+    // ======================================
 
     sql += `
 
+        GROUP BY
 
-    ORDER BY cs.id DESC
+            cs.id,
 
+            cs.submission_date,
+
+            s.store_name,
+
+            s.city,
+
+            s.state,
+
+            ct.checklist_name,
+
+            q.id,
+
+            q.question,
+
+            csa.answer,
+
+
+            u.name,
+
+            u.employee_id
+
+        ORDER BY
+
+            cs.id DESC
 
     `;
 
-
-
-
-
-
-
     db.query(
-
 
         sql,
 
-
         values,
-
 
         callback
 
-
     );
 
-
-
 };
-
-
 
 
 
