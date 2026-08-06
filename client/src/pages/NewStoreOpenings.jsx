@@ -18,7 +18,7 @@ import BulkUploadModal from "../components/common/BulkUploadModal";
 // MODAL
 // ======================================================
 
-import AddNewStoreOpeningModal from "../components/AddNewStoreOpeningModal";
+import AddNewStoreOpeningModal from "../components/NewStoreOpening/AddNewStoreOpeningModal";
 
 // ======================================================
 // SERVICES

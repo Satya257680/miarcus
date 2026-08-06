@@ -2,7 +2,6 @@ const db = require("../config/db");
 
 const NewStoreOpening = {};
 
-
 // ======================================================
 // GET ALL NEW STORE OPENINGS
 // SEARCH + PAGINATION
@@ -10,12 +9,11 @@ const NewStoreOpening = {};
 
 NewStoreOpening.getAll = (
 
-    filters,
+    filters = {},
 
     callback
 
 ) => {
-
 
     let sql = `
 
@@ -25,22 +23,21 @@ NewStoreOpening.getAll = (
 
         FROM new_store_openings nso
 
-        WHERE 1=1
+        WHERE 1 = 1
 
     `;
 
-
-
     const values = [];
-
-
 
     // ==================================================
     // SEARCH
     // ==================================================
 
-    if(filters.search){
+    if (
 
+        filters.search?.trim()
+
+    ) {
 
         sql += `
 
@@ -62,32 +59,25 @@ NewStoreOpening.getAll = (
 
         `;
 
-
-        const key = `%${filters.search}%`;
-
+        const keyword = `%${filters.search.trim()}%`;
 
         values.push(
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key
+            keyword
 
         );
 
-
     }
-
-
-
-
 
     // ==================================================
     // ORDER + PAGINATION
@@ -101,19 +91,13 @@ NewStoreOpening.getAll = (
 
     `;
 
-
-
     values.push(
 
-        filters.offset,
+        Number(filters.offset) || 0,
 
-        filters.limit
+        Number(filters.limit) || 10
 
     );
-
-
-
-
 
     db.query(
 
@@ -125,16 +109,7 @@ NewStoreOpening.getAll = (
 
     );
 
-
 };
-
-
-
-
-
-
-
-
 
 // ======================================================
 // COUNT NEW STORE OPENINGS
@@ -142,12 +117,11 @@ NewStoreOpening.getAll = (
 
 NewStoreOpening.count = (
 
-    filters,
+    filters = {},
 
     callback
 
 ) => {
-
 
     let sql = `
 
@@ -157,18 +131,21 @@ NewStoreOpening.count = (
 
         FROM new_store_openings nso
 
-        WHERE 1=1
+        WHERE 1 = 1
 
     `;
 
+    const values = [];
 
+    // ==================================================
+    // SEARCH
+    // ==================================================
 
-    const values=[];
+    if (
 
+        filters.search?.trim()
 
-
-    if(filters.search){
-
+    ) {
 
         sql += `
 
@@ -190,32 +167,25 @@ NewStoreOpening.count = (
 
         `;
 
-
-
-        const key = `%${filters.search}%`;
-
-
+        const keyword = `%${filters.search.trim()}%`;
 
         values.push(
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key,
+            keyword,
 
-            key
+            keyword
 
         );
 
-
     }
-
-
 
     db.query(
 
@@ -227,14 +197,7 @@ NewStoreOpening.count = (
 
     );
 
-
 };
-
-
-
-
-
-
 
 
 
@@ -250,7 +213,6 @@ NewStoreOpening.getById = (
 
 ) => {
 
-
     const sql = `
 
         SELECT
@@ -263,8 +225,6 @@ NewStoreOpening.getById = (
 
     `;
 
-
-
     db.query(
 
         sql,
@@ -275,20 +235,61 @@ NewStoreOpening.getById = (
 
         ],
 
-        callback
+        (
+
+            err,
+
+            rows
+
+        ) => {
+
+            if (
+
+                err
+
+            ) {
+
+                return callback(
+
+                    err
+
+                );
+
+            }
+
+            if (
+
+                !rows ||
+
+                rows.length === 0
+
+            ) {
+
+                return callback(
+
+                    new Error(
+
+                        "Project not found."
+
+                    )
+
+                );
+
+            }
+
+            callback(
+
+                null,
+
+                rows
+
+            );
+
+        }
 
     );
 
-
 };
-
-
-
-
-
-
-
-
 
 // ======================================================
 // CREATE NEW STORE OPENING
@@ -301,8 +302,6 @@ NewStoreOpening.create = (
     callback
 
 ) => {
-
-
 
     const sql = `
 
@@ -330,11 +329,9 @@ NewStoreOpening.create = (
 
             expected_sale,
 
-
             possession_date_loi,
 
             possession_date_broker,
-
 
             broker_name,
 
@@ -342,23 +339,19 @@ NewStoreOpening.create = (
 
             asm_assigned,
 
-
             deal_days,
 
             actual_possession_date,
 
-
             remarks,
 
             attachment,
-
 
             delay_loi_vs_broker,
 
             possession_delay,
 
             received_by_nso,
-
 
             layout_by_nso,
 
@@ -398,16 +391,13 @@ NewStoreOpening.create = (
 
             billing_start_date,
 
-
             status,
-
 
             created_by,
 
             updated_by
 
         )
-
 
         VALUES
 
@@ -426,9 +416,6 @@ NewStoreOpening.create = (
         )
 
     `;
-
-
-
 
     db.query(
 
@@ -456,11 +443,9 @@ NewStoreOpening.create = (
 
             data.expected_sale,
 
-
             data.possession_date_loi,
 
             data.possession_date_broker,
-
 
             data.broker_name,
 
@@ -468,23 +453,19 @@ NewStoreOpening.create = (
 
             data.asm_assigned,
 
-
             data.deal_days,
 
             data.actual_possession_date,
 
-
             data.remarks,
 
             data.attachment,
-
 
             data.delay_loi_vs_broker,
 
             data.possession_delay,
 
             data.received_by_nso,
-
 
             data.layout_by_nso,
 
@@ -524,21 +505,17 @@ NewStoreOpening.create = (
 
             data.billing_start_date,
 
-
-            data.status || "Planning",
-
+            data.status ?? "Planning",
 
             data.created_by,
 
             data.updated_by
-
 
         ],
 
         callback
 
     );
-
 
 };
 // ======================================================
@@ -555,13 +532,11 @@ NewStoreOpening.update = (
 
 ) => {
 
-
     const sql = `
 
         UPDATE new_store_openings
 
         SET
-
 
             location=?,
 
@@ -583,11 +558,9 @@ NewStoreOpening.update = (
 
             expected_sale=?,
 
-
             possession_date_loi=?,
 
             possession_date_broker=?,
-
 
             broker_name=?,
 
@@ -595,23 +568,19 @@ NewStoreOpening.update = (
 
             asm_assigned=?,
 
-
             deal_days=?,
 
             actual_possession_date=?,
 
-
             remarks=?,
 
             attachment=?,
-
 
             delay_loi_vs_broker=?,
 
             possession_delay=?,
 
             received_by_nso=?,
-
 
             layout_by_nso=?,
 
@@ -651,26 +620,19 @@ NewStoreOpening.update = (
 
             billing_start_date=?,
 
-
             status=?,
 
-
             updated_by=?
-
 
         WHERE id=?
 
     `;
-
-
-
 
     db.query(
 
         sql,
 
         [
-
 
             data.location,
 
@@ -692,11 +654,9 @@ NewStoreOpening.update = (
 
             data.expected_sale,
 
-
             data.possession_date_loi,
 
             data.possession_date_broker,
-
 
             data.broker_name,
 
@@ -704,23 +664,19 @@ NewStoreOpening.update = (
 
             data.asm_assigned,
 
-
             data.deal_days,
 
             data.actual_possession_date,
 
-
             data.remarks,
 
             data.attachment,
-
 
             data.delay_loi_vs_broker,
 
             data.possession_delay,
 
             data.received_by_nso,
-
 
             data.layout_by_nso,
 
@@ -760,30 +716,67 @@ NewStoreOpening.update = (
 
             data.billing_start_date,
 
-
             data.status,
-
 
             data.updated_by,
 
-
             id
-
 
         ],
 
-        callback
+        (
+
+            err,
+
+            result
+
+        ) => {
+
+            if (
+
+                err
+
+            ) {
+
+                return callback(
+
+                    err
+
+                );
+
+            }
+
+            if (
+
+                result.affectedRows === 0
+
+            ) {
+
+                return callback(
+
+                    new Error(
+
+                        "Project not found."
+
+                    )
+
+                );
+
+            }
+
+            callback(
+
+                null,
+
+                result
+
+            );
+
+        }
 
     );
 
-
 };
-
-
-
-
-
-
 
 
 // ======================================================
@@ -798,14 +791,13 @@ NewStoreOpening.delete = (
 
 ) => {
 
-
     db.query(
 
         `
 
         DELETE FROM new_store_openings
 
-        WHERE id=?
+        WHERE id = ?
 
         `,
 
@@ -815,18 +807,59 @@ NewStoreOpening.delete = (
 
         ],
 
-        callback
+        (
+
+            err,
+
+            result
+
+        ) => {
+
+            if (
+
+                err
+
+            ) {
+
+                return callback(
+
+                    err
+
+                );
+
+            }
+
+            if (
+
+                result.affectedRows === 0
+
+            ) {
+
+                return callback(
+
+                    new Error(
+
+                        "Project not found."
+
+                    )
+
+                );
+
+            }
+
+            callback(
+
+                null,
+
+                result
+
+            );
+
+        }
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // DELETE ALL NEW STORE OPENINGS
@@ -838,7 +871,6 @@ NewStoreOpening.deleteAll = (
 
 ) => {
 
-
     db.query(
 
         `
@@ -851,15 +883,7 @@ NewStoreOpening.deleteAll = (
 
     );
 
-
 };
-
-
-
-
-
-
-
 
 // ======================================================
 // EXPORT NEW STORE OPENINGS
@@ -871,85 +895,9 @@ NewStoreOpening.getForExport = (
 
 ) => {
 
-
     const sql = `
-
 
         SELECT
-
-
-            location,
-
-            city,
-
-            sb_area,
-
-            broker_name,
-
-            operation_head_assigned,
-
-            asm_assigned,
-
-            status,
-
-            possession_date_loi,
-
-            possession_date_broker,
-
-            expected_sale,
-
-            remarks
-
-
-        FROM new_store_openings
-
-
-        ORDER BY id DESC
-
-
-    `;
-
-
-
-    db.query(
-
-        sql,
-
-        callback
-
-    );
-
-
-};
-
-
-
-
-
-
-
-
-
-// ======================================================
-// IMPORT BULK INSERT
-// ======================================================
-
-NewStoreOpening.bulkCreate = (
-
-    records,
-
-    callback
-
-) => {
-
-
-    const sql = `
-
-
-        INSERT INTO new_store_openings
-
-
-        (
 
             location,
 
@@ -967,49 +915,280 @@ NewStoreOpening.bulkCreate = (
 
             status,
 
+            possession_date_loi,
+
+            possession_date_broker,
+
+            actual_possession_date,
+
+            expected_sale,
+
+            deal_days,
+
+            delay_loi_vs_broker,
+
+            possession_delay,
+
+            billing_start_date,
+
+            remarks,
+
+            created_at,
+
+            updated_at
+
+        FROM new_store_openings
+
+        ORDER BY id DESC
+
+    `;
+
+    db.query(
+
+        sql,
+
+        callback
+
+    );
+
+};
+
+
+// ======================================================
+// IMPORT BULK INSERT
+// ======================================================
+
+NewStoreOpening.bulkCreate = (
+
+    records,
+
+    callback
+
+) => {
+
+    if (
+
+        !Array.isArray(
+
+            records
+
+        ) ||
+
+        records.length === 0
+
+    ) {
+
+        return callback(
+
+            new Error(
+
+                "No records found for bulk import."
+
+            )
+
+        );
+
+    }
+
+    const sql = `
+
+        INSERT INTO new_store_openings
+
+        (
+
+            location,
+
+            city,
+
+            sb_area,
+
+            carpet_area,
+
+            cam,
+
+            mg,
+
+            electricity_kva,
+
+            revenue_share,
+
+            escalation,
+
+            expected_sale,
+
+            possession_date_loi,
+
+            possession_date_broker,
+
+            broker_name,
+
+            operation_head_assigned,
+
+            asm_assigned,
+
+            deal_days,
+
+            actual_possession_date,
+
+            remarks,
+
+            attachment,
+
+            delay_loi_vs_broker,
+
+            possession_delay,
+
+            received_by_nso,
+
+            layout_by_nso,
+
+            revised_layout_by_nso,
+
+            approval_deadline,
+
+            approver_name,
+
+            construction_vendor,
+
+            project_taken_by,
+
+            visit_by_op_team,
+
+            gst_deadline,
+
+            hr_hiring_deadline,
+
+            team_training_deadline,
+
+            visit_by_nso_team_deadline,
+
+            plan_of_stock_deadline,
+
+            plan_of_collaterals_deadline,
+
+            on_field_training_deadline,
+
+            dispatch_stock_deadline,
+
+            nso_handover_deadline,
+
+            vm_handover_deadline,
+
+            scanning_deadline,
+
+            billing_start_date,
+
+            status,
+
             created_by,
 
             updated_by
 
-
         )
-
 
         VALUES ?
 
-
     `;
 
+    const values = records.map(
 
+        (
 
-    const values = records.map(item => [
+            item
 
+        ) => [
 
-        item.location,
+            item.location,
 
-        item.city,
+            item.city,
 
-        item.sb_area,
+            item.sb_area,
 
-        item.carpet_area,
+            item.carpet_area,
 
-        item.broker_name,
+            item.cam,
 
-        item.operation_head_assigned,
+            item.mg,
 
-        item.asm_assigned,
+            item.electricity_kva,
 
-        item.status || "Planning",
+            item.revenue_share,
 
-        item.created_by,
+            item.escalation,
 
-        item.updated_by
+            item.expected_sale,
 
+            item.possession_date_loi,
 
-    ]);
+            item.possession_date_broker,
 
+            item.broker_name,
 
+            item.operation_head_assigned,
 
+            item.asm_assigned,
+
+            item.deal_days,
+
+            item.actual_possession_date,
+
+            item.remarks,
+
+            item.attachment,
+
+            item.delay_loi_vs_broker,
+
+            item.possession_delay,
+
+            item.received_by_nso,
+
+            item.layout_by_nso,
+
+            item.revised_layout_by_nso,
+
+            item.approval_deadline,
+
+            item.approver_name,
+
+            item.construction_vendor,
+
+            item.project_taken_by,
+
+            item.visit_by_op_team,
+
+            item.gst_deadline,
+
+            item.hr_hiring_deadline,
+
+            item.team_training_deadline,
+
+            item.visit_by_nso_team_deadline,
+
+            item.plan_of_stock_deadline,
+
+            item.plan_of_collaterals_deadline,
+
+            item.on_field_training_deadline,
+
+            item.dispatch_stock_deadline,
+
+            item.nso_handover_deadline,
+
+            item.vm_handover_deadline,
+
+            item.scanning_deadline,
+
+            item.billing_start_date,
+
+            item.status ?? "Planning",
+
+            item.created_by,
+
+            item.updated_by
+
+        ]
+
+    );
 
     db.query(
 
@@ -1025,15 +1204,7 @@ NewStoreOpening.bulkCreate = (
 
     );
 
-
 };
-
-
-
-
-
-
-
 
 // ======================================================
 // GET CREATED STORE FOR NSO TRACKING
@@ -1047,12 +1218,9 @@ NewStoreOpening.getNSOTrackingData = (
 
 ) => {
 
-
     const sql = `
 
-
         SELECT
-
 
             nso.id,
 
@@ -1061,7 +1229,6 @@ NewStoreOpening.getNSOTrackingData = (
             nso.city,
 
             nso.status,
-
 
             nso.layout_by_nso,
 
@@ -1073,16 +1240,11 @@ NewStoreOpening.getNSOTrackingData = (
 
             nso.nso_handover_deadline
 
-
         FROM new_store_openings nso
 
-
-        WHERE nso.id=?
-
+        WHERE nso.id = ?
 
     `;
-
-
 
     db.query(
 
@@ -1094,18 +1256,64 @@ NewStoreOpening.getNSOTrackingData = (
 
         ],
 
-        callback
+        (
+
+            err,
+
+            rows
+
+        ) => {
+
+            if (
+
+                err
+
+            ) {
+
+                return callback(
+
+                    err
+
+                );
+
+            }
+
+            if (
+
+                !rows ||
+
+                rows.length === 0
+
+            ) {
+
+                return callback(
+
+                    new Error(
+
+                        "Project not found."
+
+                    )
+
+                );
+
+            }
+
+            callback(
+
+                null,
+
+                rows
+
+            );
+
+        }
 
     );
 
-
 };
 
-
-
-
-
-
-
+// ======================================================
+// MODULE EXPORTS
+// ======================================================
 
 module.exports = NewStoreOpening;
