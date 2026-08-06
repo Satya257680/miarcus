@@ -2,7 +2,6 @@ const express = require("express");
 
 const router = express.Router();
 
-
 // ======================================================
 // MIDDLEWARE
 // ======================================================
@@ -12,8 +11,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 const upload = require("../middleware/upload");
-
-
 
 // ======================================================
 // CONTROLLER
@@ -35,24 +32,47 @@ const {
 
     exportRules
 
-
 } = require("../controllers/nsoRuleController");
 
+// ======================================================
+// PARAM VALIDATION
+// ======================================================
 
+router.param("id", (req, res, next, id) => {
 
+    const ruleId = Number(id);
+
+    if (
+
+        Number.isNaN(ruleId) ||
+
+        ruleId <= 0
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Rule ID."
+
+        });
+
+    }
+
+    req.params.id = ruleId;
+
+    next();
+
+});
 
 // ======================================================
 // BASE URL
 // /api/nso-rules
 // ======================================================
 
-
-
-
-
 // ======================================================
 // GET ALL RULES
-// SEARCH + PAGINATION
 // GET /api/nso-rules
 // Permission : View
 // ======================================================
@@ -75,16 +95,10 @@ router.get(
 
 );
 
-
-
-
-
-
 // ======================================================
-// EXPORT RULES CSV
+// EXPORT CSV
 // GET /api/nso-rules/export
 // Permission : View
-// IMPORTANT: BEFORE /:id
 // ======================================================
 
 router.get(
@@ -104,11 +118,6 @@ router.get(
     exportRules
 
 );
-
-
-
-
-
 
 // ======================================================
 // CREATE RULE
@@ -134,16 +143,10 @@ router.post(
 
 );
 
-
-
-
-
-
 // ======================================================
-// BULK UPLOAD RULES
+// BULK UPLOAD
 // POST /api/nso-rules/bulk-upload
 // Permission : Add
-// IMPORTANT: BEFORE /:id
 // ======================================================
 
 router.post(
@@ -165,11 +168,6 @@ router.post(
     bulkUploadRules
 
 );
-
-
-
-
-
 
 // ======================================================
 // UPDATE RULE
@@ -195,16 +193,10 @@ router.put(
 
 );
 
-
-
-
-
-
 // ======================================================
 // DELETE ALL RULES
 // DELETE /api/nso-rules/delete-all
 // Permission : Full
-// IMPORTANT: BEFORE /:id
 // ======================================================
 
 router.delete(
@@ -225,13 +217,8 @@ router.delete(
 
 );
 
-
-
-
-
-
 // ======================================================
-// DELETE SINGLE RULE
+// DELETE RULE
 // DELETE /api/nso-rules/:id
 // Permission : Full
 // ======================================================
@@ -253,11 +240,6 @@ router.delete(
     deleteRule
 
 );
-
-
-
-
-
 
 // ======================================================
 // EXPORT ROUTER

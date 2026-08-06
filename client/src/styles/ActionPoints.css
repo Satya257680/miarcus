@@ -62,9 +62,11 @@
 
 .question-cell{
 
-    min-width:260px;
+    min-width:280px;
 
     white-space:normal;
+
+    word-break:break-word;
 
     line-height:1.6;
 
@@ -79,6 +81,8 @@
     min-width:220px;
 
     white-space:normal;
+
+    word-break:break-word;
 
     line-height:1.6;
 
@@ -95,9 +99,6 @@
     font-weight:600;
 
 }
-
-
-/* Make table text dark */
 
 .data-table tbody td,
 .data-table td,
@@ -126,6 +127,8 @@ table tbody td{
 
     justify-content:center;
 
+    min-width:95px;
+
     padding:6px 14px;
 
     border-radius:20px;
@@ -136,11 +139,9 @@ table tbody td{
 
     color:#fff;
 
-    min-width:90px;
-
 }
 
-.status-badge.opened{
+.status-badge.open{
 
     background:#2563eb;
 
@@ -158,9 +159,54 @@ table tbody td{
 
 }
 
-.status-badge.no-action-taken{
 
-    background:#6b7280;
+/* ==========================================================
+   PRIORITY
+========================================================== */
+
+.priority-badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    min-width:90px;
+
+    padding:6px 14px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#fff;
+
+}
+
+.priority-badge.low{
+
+    background:#22c55e;
+
+}
+
+.priority-badge.medium{
+
+    background:#f59e0b;
+
+}
+
+.priority-badge.high{
+
+    background:#ef4444;
+
+}
+
+.priority-badge.critical{
+
+    background:#991b1b;
 
 }
 
@@ -187,26 +233,44 @@ table tbody td{
 
 
 /* ==========================================================
-   NEXT ACTION
+   BUTTONS
 ========================================================== */
 
-.open-btn{
+.open-btn,
+.edit-btn,
+.delete-btn{
 
-    background:#2563eb;
+    display:inline-flex;
 
-    color:#fff;
+    align-items:center;
+
+    justify-content:center;
+
+    gap:6px;
+
+    min-width:100px;
+
+    height:36px;
 
     border:none;
-
-    padding:8px 14px;
 
     border-radius:6px;
 
     cursor:pointer;
 
+    color:#fff;
+
     font-size:13px;
 
     font-weight:600;
+
+    transition:0.2s ease;
+
+}
+
+.open-btn{
+
+    background:#2563eb;
 
 }
 
@@ -216,43 +280,54 @@ table tbody td{
 
 }
 
+.edit-btn{
+
+    background:#f59e0b;
+
+}
+
+.edit-btn:hover{
+
+    background:#d97706;
+
+}
+
+.delete-btn{
+
+    background:#ef4444;
+
+}
+
+.delete-btn:hover{
+
+    background:#dc2626;
+
+}
+
+
 /* ==========================================================
    ACTION BUTTONS
 ========================================================== */
 
 .action-buttons{
+
     display:flex;
+
     flex-wrap:wrap;
+
     justify-content:center;
+
     align-items:center;
+
     gap:10px;
-    width:220px;
+
+    min-width:280px;
+
     margin:0 auto;
+
 }
 
-.view-btn,
-.edit-btn,
-.delete-btn{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
 
-    width:90px;
-    height:36px;
-
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-
-    color:#fff;
-    font-size:13px;
-    font-weight:600;
-}
-
-.delete-btn{
-    margin:0 auto;
-}
 /* ==========================================================
    MODAL
 ========================================================== */
@@ -337,6 +412,20 @@ table tbody td{
 
 }
 
+.report-modal .filter-group{
+
+    margin-bottom:18px;
+
+}
+
+.report-modal textarea{
+
+    resize:vertical;
+
+    min-height:100px;
+
+}
+
 
 /* ==========================================================
    MODAL ACTIONS
@@ -397,6 +486,19 @@ table tbody td{
 
 
 /* ==========================================================
+   COMPLETED LABEL
+========================================================== */
+
+.action-buttons span{
+
+    color:#16a34a;
+
+    font-weight:600;
+
+}
+
+
+/* ==========================================================
    LOADING / NO PERMISSION
 ========================================================== */
 
@@ -429,6 +531,20 @@ table tbody td{
     .action-buttons{
 
         flex-direction:column;
+
+        min-width:100%;
+
+    }
+
+    .question-cell{
+
+        min-width:180px;
+
+    }
+
+    .remarks-cell{
+
+        min-width:180px;
 
     }
 

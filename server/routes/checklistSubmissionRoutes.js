@@ -2,7 +2,6 @@ const express = require("express");
 
 const router = express.Router();
 
-
 // ======================================================
 // MIDDLEWARE
 // ======================================================
@@ -11,18 +10,13 @@ const authMiddleware = require(
     "../middleware/authMiddleware"
 );
 
-
 const permissionMiddleware = require(
     "../middleware/permissionMiddleware"
 );
 
-
 const upload = require(
     "../middleware/upload"
 );
-
-
-
 
 // ======================================================
 // CONTROLLER
@@ -40,24 +34,14 @@ const {
 
     exportSubmissions
 
-
 } = require(
     "../controllers/checklistSubmissionController"
 );
-
-
-
-
 
 // ======================================================
 // BASE URL
 // /api/checklist-submissions
 // ======================================================
-
-
-
-
-
 
 // ======================================================
 // CREATE CHECKLIST SUBMISSION
@@ -85,12 +69,6 @@ router.post(
 
 );
 
-
-
-
-
-
-
 // ======================================================
 // GET ALL SUBMISSIONS
 // SEARCH + PAGINATION
@@ -116,18 +94,11 @@ router.get(
 
 );
 
-
-
-
-
-
-
-
 // ======================================================
 // EXPORT SUBMISSIONS
 // GET /api/checklist-submissions/export
 // Permission : View
-// IMPORTANT BEFORE /:id
+// IMPORTANT: KEEP BEFORE /:id
 // ======================================================
 
 router.get(
@@ -147,13 +118,6 @@ router.get(
     exportSubmissions
 
 );
-
-
-
-
-
-
-
 
 // ======================================================
 // GET SINGLE SUBMISSION
@@ -179,15 +143,8 @@ router.get(
 
 );
 
-
-
-
-
-
-
-
 // ======================================================
-// UPDATE STATUS
+// UPDATE SUBMISSION STATUS
 // PUT /api/checklist-submissions/:id/status
 // Permission : Edit
 // ======================================================
@@ -209,13 +166,6 @@ router.put(
     updateStatus
 
 );
-
-
-
-
-
-
-
 
 // ======================================================
 // EXPORT ROUTER

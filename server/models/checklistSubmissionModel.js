@@ -9,8 +9,7 @@ const ChecklistSubmission = {};
 // CREATE REQUIRED TABLES
 // ======================================================
 
-ChecklistSubmission.createTables = (callback)=>{
-
+ChecklistSubmission.createTables = (callback) => {
 
     const submissionTable = `
 
@@ -20,43 +19,44 @@ ChecklistSubmission.createTables = (callback)=>{
 
         id INT AUTO_INCREMENT PRIMARY KEY,
 
-
         checklist_type_id INT NOT NULL,
-
 
         store_id INT NOT NULL,
 
-
         submitted_by INT NULL,
-
 
         submission_date DATE NOT NULL,
 
-
         latitude DECIMAL(10,7) NULL,
-
 
         longitude DECIMAL(10,7) NULL,
 
-
         device VARCHAR(255) NULL,
 
-
         attachment VARCHAR(500) NULL,
-
 
         status VARCHAR(50)
         DEFAULT 'Submitted',
 
+        inspection_score DECIMAL(5,2)
+        DEFAULT 0,
+
+        nso_status ENUM(
+            'Open',
+            'Closed'
+        )
+        DEFAULT 'Closed',
+
+        processed_at TIMESTAMP NULL,
+
+        processed_by INT NULL,
 
         created_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
 
-
         updated_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP
-
 
     )
 
@@ -65,8 +65,8 @@ ChecklistSubmission.createTables = (callback)=>{
 
 
 
-    const answersTable = `
 
+    const answersTable = `
 
     CREATE TABLE IF NOT EXISTS checklist_submission_answers
 
@@ -74,29 +74,22 @@ ChecklistSubmission.createTables = (callback)=>{
 
         id INT AUTO_INCREMENT PRIMARY KEY,
 
-
         submission_id INT NOT NULL,
-
 
         question_id INT NOT NULL,
 
-
         answer TEXT NULL,
-
 
         remarks TEXT NULL,
 
-
         created_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
-
 
         FOREIGN KEY(submission_id)
 
         REFERENCES checklist_submissions(id)
 
         ON DELETE CASCADE
-
 
     )
 
@@ -110,16 +103,13 @@ ChecklistSubmission.createTables = (callback)=>{
 
         submissionTable,
 
-        (err)=>{
+        (err) => {
 
-
-            if(err){
+            if (err) {
 
                 return callback(err);
 
             }
-
-
 
             db.query(
 
@@ -129,13 +119,12 @@ ChecklistSubmission.createTables = (callback)=>{
 
             );
 
-
         }
 
     );
 
-
 };
+
 // ======================================================
 // CREATE SUBMISSION WITH ANSWERS
 // ======================================================
@@ -148,99 +137,93 @@ ChecklistSubmission.create = (
 
     callback
 
-)=>{
+) => {
 
+    db.beginTransaction((transactionError) => {
 
-    db.beginTransaction((transactionError)=>{
-
-
-        if(transactionError){
+        if (transactionError) {
 
             return callback(transactionError);
 
         }
 
-
-
-
         // ======================================
         // INSERT SUBMISSION
         // ======================================
 
-
         const submissionSql = `
 
+            INSERT INTO checklist_submissions
 
-        INSERT INTO checklist_submissions
+            (
 
-        (
+                checklist_type_id,
 
-            checklist_type_id,
+                store_id,
 
-            store_id,
+                submitted_by,
 
-            submitted_by,
+                submission_date,
 
-            submission_date,
+                latitude,
 
-            latitude,
+                longitude,
 
-            longitude,
+                device,
 
-            device,
+                attachment,
 
-            attachment,
+                status,
 
-            status
+                inspection_score,
 
-        )
+                nso_status,
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                processed_at,
 
+                processed_by
+
+            )
+
+            VALUES
+
+            (
+
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+
+            )
 
         `;
 
-
-
-
-
         const submissionValues = [
-
 
             submission.checklist_type_id,
 
-
             submission.store_id,
-
 
             submission.submitted_by || null,
 
-
             submission.submission_date,
-
 
             submission.latitude || null,
 
-
             submission.longitude || null,
-
 
             submission.device || null,
 
-
             submission.attachment || null,
 
+            submission.status || "Submitted",
 
-            submission.status || "Submitted"
+            0,
 
+            "Closed",
+
+            null,
+
+            null
 
         ];
-
-
-
-
-
-
 
         db.query(
 
@@ -248,255 +231,170 @@ ChecklistSubmission.create = (
 
             submissionValues,
 
+            (submissionError, result) => {
 
-            (submissionError,result)=>{
+                if (submissionError) {
 
-
-                if(submissionError){
-
-
-                    return db.rollback(()=>{
-
+                    return db.rollback(() => {
 
                         callback(submissionError);
 
-
                     });
-
 
                 }
 
-
-
-
-
-
-
-                const submissionId =
-
-                result.insertId;
-
-
-
-
-
-
+                const submissionId = result.insertId;
 
                 // ======================================
                 // NO ANSWERS
                 // ======================================
 
-
-                if(
+                if (
 
                     !answers ||
 
                     answers.length === 0
 
-                ){
+                ) {
 
+                    return db.commit((commitError) => {
 
+                        if (commitError) {
 
-                    return db.commit((commitError)=>{
-
-
-                        if(commitError){
-
-
-                            return db.rollback(()=>{
-
+                            return db.rollback(() => {
 
                                 callback(commitError);
 
-
                             });
-
 
                         }
 
+                        callback(
 
+                            null,
 
+                            {
 
-                        callback(null,{
+                                submissionId
 
-                            submissionId
+                            }
 
-                        });
-
-
+                        );
 
                     });
 
-
-
                 }
 
-
-
-
-
-
-
-
                 // ======================================
-                // ANSWERS INSERT
+                // PREPARE ANSWERS
                 // ======================================
 
+                const answerValues = answers.map(
 
-                const answerValues =
+                    (item) => [
 
-                answers.map((item)=>[
+                        submissionId,
 
+                        item.question_id,
 
-                    submissionId,
+                        item.answer !== undefined &&
 
+                        item.answer !== null
 
-                    item.question_id,
+                            ? String(item.answer)
 
+                            : "",
 
-                    item.answer !== undefined &&
+                        item.remarks || ""
 
-                    item.answer !== null
+                    ]
 
-                    ?
+                );
 
-                    String(item.answer)
-
-                    :
-
-                    "",
-
-
-
-                    item.remarks || ""
-
-
-                ]);
-
-
-
-
-
-
+                // ======================================
+                // INSERT ANSWERS
+                // ======================================
 
                 const answerSql = `
 
+                    INSERT INTO checklist_submission_answers
 
-                INSERT INTO checklist_submission_answers
+                    (
 
-                (
+                        submission_id,
 
-                    submission_id,
+                        question_id,
 
-                    question_id,
+                        answer,
 
-                    answer,
+                        remarks
 
-                    remarks
+                    )
 
-                )
-
-                VALUES ?
-
+                    VALUES ?
 
                 `;
-
-
-
-
-
-
 
                 db.query(
 
                     answerSql,
 
-                    [answerValues],
+                    [
 
+                        answerValues
 
-                    (answerError)=>{
+                    ],
 
+                    (answerError) => {
 
-                        if(answerError){
+                        if (answerError) {
 
-
-                            return db.rollback(()=>{
-
+                            return db.rollback(() => {
 
                                 callback(answerError);
 
-
                             });
-
 
                         }
 
+                        db.commit((commitError) => {
 
+                            if (commitError) {
 
-
-
-
-
-                        db.commit((commitError)=>{
-
-
-                            if(commitError){
-
-
-                                return db.rollback(()=>{
-
+                                return db.rollback(() => {
 
                                     callback(commitError);
 
-
                                 });
-
 
                             }
 
+                            callback(
 
+                                null,
 
+                                {
 
+                                    submissionId
 
+                                }
 
-                            callback(null,{
-
-
-                                submissionId
-
-
-                            });
-
-
-
-
+                            );
 
                         });
 
-
-
-
                     }
-
 
                 );
 
-
-
-
             }
-
 
         );
 
-
-
-
     });
 
-
-
 };
+
 // ======================================================
 // GET ALL SUBMISSIONS
 // SEARCH + PAGINATION
@@ -508,104 +406,111 @@ ChecklistSubmission.getAll = (
 
     callback
 
-)=>{
-
+) => {
 
     let sql = `
 
+        SELECT
 
-    SELECT
+            cs.id,
 
+            cs.checklist_type_id,
 
-        cs.*,
+            cs.store_id,
 
+            cs.submitted_by,
 
-        ct.type_name AS checklist_type_name,
+            cs.submission_date,
 
+            cs.latitude,
 
-        s.store_name,
+            cs.longitude,
 
+            cs.device,
 
-        u.name AS submitted_by_name
+            cs.attachment,
 
+            cs.status,
 
+            cs.inspection_score,
 
-    FROM checklist_submissions cs
+            cs.nso_status,
 
+            cs.processed_at,
 
+            cs.processed_by,
 
-    LEFT JOIN checklist_types ct
+            cs.created_at,
 
-        ON cs.checklist_type_id = ct.id
+            cs.updated_at,
 
+            ct.type_name AS checklist_type_name,
 
+            s.store_name,
 
-    LEFT JOIN stores s
+            u.name AS submitted_by_name,
 
-        ON cs.store_id = s.id
+            pu.name AS processed_by_name
 
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_types ct
 
-    LEFT JOIN users u
+            ON cs.checklist_type_id = ct.id
 
-        ON cs.submitted_by = u.id
+        LEFT JOIN stores s
 
+            ON cs.store_id = s.id
 
+        LEFT JOIN users u
 
-    WHERE 1=1
+            ON cs.submitted_by = u.id
 
+        LEFT JOIN users pu
+
+            ON cs.processed_by = pu.id
+
+        WHERE 1=1
 
     `;
 
-
-
     const params = [];
-
-
-
 
     // ======================================
     // SEARCH
     // ======================================
 
-
-    if(filters.search){
-
-
+    if (filters.search) {
 
         sql += `
 
+            AND
 
-        AND
+            (
 
-        (
+                s.store_name LIKE ?
 
-            s.store_name LIKE ?
+                OR ct.type_name LIKE ?
 
+                OR cs.status LIKE ?
 
-            OR ct.type_name LIKE ?
+                OR cs.nso_status LIKE ?
 
+                OR u.name LIKE ?
 
-            OR cs.status LIKE ?
+                OR pu.name LIKE ?
 
-
-            OR u.name LIKE ?
-
-
-        )
-
+            )
 
         `;
 
-
-
-        const search =
-
-        `%${filters.search}%`;
-
-
+        const search = `%${filters.search}%`;
 
         params.push(
+
+            search,
+
+            search,
 
             search,
 
@@ -617,98 +522,57 @@ ChecklistSubmission.getAll = (
 
         );
 
-
-
     }
-
-
-
-
 
     // ======================================
     // ORDER
     // ======================================
 
-
     sql += `
 
-
-    ORDER BY cs.created_at DESC
-
+        ORDER BY cs.created_at DESC
 
     `;
-
-
-
-
-
-
 
     // ======================================
     // PAGINATION
     // ======================================
 
-
-    if(
+    if (
 
         filters.page &&
 
         filters.limit
 
-    ){
-
-
+    ) {
 
         const offset =
 
+            (
 
-        (
+                Number(filters.page) - 1
 
-            Number(filters.page) - 1
+            ) *
 
-        )
-
-        *
-
-        Number(filters.limit);
-
-
-
-
+            Number(filters.limit);
 
         sql += `
 
+            LIMIT ?
 
-        LIMIT ?
-
-        OFFSET ?
-
+            OFFSET ?
 
         `;
 
-
-
-
         params.push(
-
 
             Number(filters.limit),
 
-
             offset
-
 
         );
 
-
-
     }
-
-
-
-
-
-
 
     db.query(
 
@@ -720,10 +584,7 @@ ChecklistSubmission.getAll = (
 
     );
 
-
-
 };
-
 
 
 
@@ -741,91 +602,73 @@ ChecklistSubmission.countAll = (
 
     callback
 
-)=>{
-
+) => {
 
     let sql = `
 
+        SELECT
 
-    SELECT
+            COUNT(*) AS total
 
-        COUNT(*) AS total
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_types ct
 
+            ON cs.checklist_type_id = ct.id
 
-    FROM checklist_submissions cs
+        LEFT JOIN stores s
 
+            ON cs.store_id = s.id
 
+        LEFT JOIN users u
 
-    LEFT JOIN checklist_types ct
+            ON cs.submitted_by = u.id
 
-        ON cs.checklist_type_id = ct.id
+        LEFT JOIN users pu
 
+            ON cs.processed_by = pu.id
 
-
-    LEFT JOIN stores s
-
-        ON cs.store_id = s.id
-
-
-
-    LEFT JOIN users u
-
-        ON cs.submitted_by = u.id
-
-
-
-    WHERE 1=1
-
-
+        WHERE 1=1
 
     `;
 
-
-
     const params = [];
 
+    // ======================================
+    // SEARCH
+    // ======================================
 
-
-
-
-    if(filters.search){
-
-
+    if (filters.search) {
 
         sql += `
 
+            AND
 
-        AND
+            (
 
-        (
+                s.store_name LIKE ?
 
-            s.store_name LIKE ?
+                OR ct.type_name LIKE ?
 
+                OR cs.status LIKE ?
 
-            OR ct.type_name LIKE ?
+                OR cs.nso_status LIKE ?
 
+                OR u.name LIKE ?
 
-            OR cs.status LIKE ?
+                OR pu.name LIKE ?
 
-
-            OR u.name LIKE ?
-
-
-        )
-
+            )
 
         `;
 
-
-
-        const search =
-
-        `%${filters.search}%`;
-
-
+        const search = `%${filters.search}%`;
 
         params.push(
+
+            search,
+
+            search,
 
             search,
 
@@ -837,13 +680,7 @@ ChecklistSubmission.countAll = (
 
         );
 
-
-
     }
-
-
-
-
 
     db.query(
 
@@ -855,9 +692,8 @@ ChecklistSubmission.countAll = (
 
     );
 
-
-
 };
+
 // ======================================================
 // GET SINGLE SUBMISSION
 // ======================================================
@@ -868,75 +704,89 @@ ChecklistSubmission.getById = (
 
     callback
 
-)=>{
-
+) => {
 
     const sql = `
 
+        SELECT
 
-    SELECT
+            cs.id,
 
+            cs.checklist_type_id,
 
-        cs.*,
+            cs.store_id,
 
+            cs.submitted_by,
 
-        ct.type_name AS checklist_type_name,
+            cs.submission_date,
 
+            cs.latitude,
 
-        s.store_name,
+            cs.longitude,
 
+            cs.device,
 
-        u.name AS submitted_by_name
+            cs.attachment,
 
+            cs.status,
 
+            cs.inspection_score,
 
-    FROM checklist_submissions cs
+            cs.nso_status,
 
+            cs.processed_at,
 
+            cs.processed_by,
 
-    LEFT JOIN checklist_types ct
+            cs.created_at,
 
-        ON cs.checklist_type_id = ct.id
+            cs.updated_at,
 
+            ct.type_name AS checklist_type_name,
 
+            s.store_name,
 
-    LEFT JOIN stores s
+            u.name AS submitted_by_name,
 
-        ON cs.store_id = s.id
+            pu.name AS processed_by_name
 
+        FROM checklist_submissions cs
 
+        LEFT JOIN checklist_types ct
 
-    LEFT JOIN users u
+            ON cs.checklist_type_id = ct.id
 
-        ON cs.submitted_by = u.id
+        LEFT JOIN stores s
 
+            ON cs.store_id = s.id
 
+        LEFT JOIN users u
 
-    WHERE cs.id = ?
+            ON cs.submitted_by = u.id
 
+        LEFT JOIN users pu
 
+            ON cs.processed_by = pu.id
+
+        WHERE cs.id = ?
 
     `;
-
-
 
     db.query(
 
         sql,
 
-        [id],
+        [
+
+            id
+
+        ],
 
         callback
 
     );
 
-
 };
-
-
-
-
-
 
 // ======================================================
 // GET SUBMISSION ANSWERS
@@ -948,63 +798,47 @@ ChecklistSubmission.getAnswers = (
 
     callback
 
-)=>{
-
+) => {
 
     const sql = `
 
+        SELECT
 
-    SELECT
+            csa.*,
 
+            q.question,
 
-        csa.*,
+            q.sequence_no,
 
+            q.department_id
 
-        q.question
+        FROM checklist_submission_answers csa
 
+        LEFT JOIN questions q
 
+            ON csa.question_id = q.id
 
-    FROM checklist_submission_answers csa
+        WHERE csa.submission_id = ?
 
-
-
-    LEFT JOIN questions q
-
-        ON csa.question_id = q.id
-
-
-
-    WHERE csa.submission_id = ?
-
-
-
-    ORDER BY csa.id ASC
-
-
+        ORDER BY q.sequence_no ASC
 
     `;
-
-
 
     db.query(
 
         sql,
 
-        [submissionId],
+        [
+
+            submissionId
+
+        ],
 
         callback
 
     );
 
-
 };
-
-
-
-
-
-
-
 
 // ======================================================
 // UPDATE SUBMISSION STATUS
@@ -1018,25 +852,19 @@ ChecklistSubmission.updateStatus = (
 
     callback
 
-)=>{
-
+) => {
 
     const sql = `
 
+        UPDATE checklist_submissions
 
-    UPDATE checklist_submissions
+        SET
 
+            status = ?
 
-    SET status = ?
-
-
-    WHERE id = ?
-
-
+        WHERE id = ?
 
     `;
-
-
 
     db.query(
 
@@ -1054,12 +882,65 @@ ChecklistSubmission.updateStatus = (
 
     );
 
-
 };
 
+// ======================================================
+// UPDATE INSPECTION RESULT
+// ======================================================
 
+ChecklistSubmission.updateInspectionResult = (
 
+    submissionId,
 
+    inspectionScore,
+
+    nsoStatus,
+
+    processedBy,
+
+    callback
+
+) => {
+
+    const sql = `
+
+        UPDATE checklist_submissions
+
+        SET
+
+            inspection_score = ?,
+
+            nso_status = ?,
+
+            processed_at = NOW(),
+
+            processed_by = ?
+
+        WHERE id = ?
+
+    `;
+
+    db.query(
+
+        sql,
+
+        [
+
+            inspectionScore,
+
+            nsoStatus,
+
+            processedBy,
+
+            submissionId
+
+        ],
+
+        callback
+
+    );
+
+};
 
 
 
@@ -1071,66 +952,55 @@ ChecklistSubmission.exportData = (
 
     callback
 
-)=>{
-
+) => {
 
     const sql = `
 
+        SELECT
 
-    SELECT
+            cs.id,
 
+            ct.type_name AS checklist_type,
 
-        cs.id,
+            s.store_name,
 
+            u.name AS submitted_by,
 
-        ct.type_name AS checklist_type,
+            cs.submission_date,
 
+            cs.status,
 
-        s.store_name,
+            cs.inspection_score,
 
+            cs.nso_status,
 
-        u.name AS submitted_by,
+            cs.processed_at,
 
+            pu.name AS processed_by,
 
-        cs.submission_date,
+            cs.created_at
 
+        FROM checklist_submissions cs
 
-        cs.status,
+        LEFT JOIN checklist_types ct
 
+            ON cs.checklist_type_id = ct.id
 
-        cs.created_at
+        LEFT JOIN stores s
 
+            ON cs.store_id = s.id
 
+        LEFT JOIN users u
 
-    FROM checklist_submissions cs
+            ON cs.submitted_by = u.id
 
+        LEFT JOIN users pu
 
+            ON cs.processed_by = pu.id
 
-    LEFT JOIN checklist_types ct
-
-        ON cs.checklist_type_id = ct.id
-
-
-
-    LEFT JOIN stores s
-
-        ON cs.store_id = s.id
-
-
-
-    LEFT JOIN users u
-
-        ON cs.submitted_by = u.id
-
-
-
-    ORDER BY cs.created_at DESC
-
-
+        ORDER BY cs.created_at DESC
 
     `;
-
-
 
     db.query(
 
@@ -1140,14 +1010,7 @@ ChecklistSubmission.exportData = (
 
     );
 
-
 };
-
-
-
-
-
-
 
 // ======================================================
 // EXPORT MODEL

@@ -1,7 +1,7 @@
 const ChecklistSubmission = require(
     "../models/checklistSubmissionModel"
 );
-
+const inspectionService = require("../services/inspectionService");
 
 // ======================================================
 // ACTIVITY + AUDIT
@@ -23,11 +23,9 @@ const Audit = require(
 // POST /api/checklist-submissions
 // ======================================================
 
-exports.createSubmission = (req,res)=>{
+exports.createSubmission = async (req, res) => {
 
-
-    try{
-
+    try {
 
         const {
 
@@ -45,14 +43,9 @@ exports.createSubmission = (req,res)=>{
 
         } = req.body;
 
-
-
         let answers = [];
 
-
-
-        try{
-
+        try {
 
             answers = JSON.parse(
 
@@ -60,420 +53,321 @@ exports.createSubmission = (req,res)=>{
 
             );
 
-
         }
 
-        catch(error){
-
+        catch (error) {
 
             answers = [];
 
-
         }
-
-
-
-
 
         const attachment =
 
-        req.file
+            req.file
 
-        ?
+                ? req.file.path
 
-        req.file.path
-
-        :
-
-        null;
-
-
-
-
+                : null;
 
         const finalDevice =
 
+            device ||
 
-        device ||
+            req.headers["user-agent"] ||
 
-        req.headers["user-agent"] ||
-
-        "Unknown Device";
-
-
-
-
-
+            "Unknown Device";
 
         // ======================================
         // VALIDATION
         // ======================================
 
-
-        if(!checklist_type_id){
-
+        if (!checklist_type_id) {
 
             return res.status(400).json({
 
-                success:false,
+                success: false,
 
-                message:
-                "Checklist Type is required."
+                message: "Checklist Type is required."
 
             });
 
-
         }
 
-
-
-
-
-        if(!store_id){
-
+        if (!store_id) {
 
             return res.status(400).json({
 
-                success:false,
+                success: false,
 
-                message:
-                "Store is required."
+                message: "Store is required."
 
             });
 
-
         }
 
-
-
-
-
-
-        if(!submission_date){
-
+        if (!submission_date) {
 
             return res.status(400).json({
 
-                success:false,
+                success: false,
 
-                message:
-                "Submission date is required."
+                message: "Submission date is required."
 
             });
 
-
         }
 
+        const validAnswers = answers.filter(
 
+            (item) =>
 
+                item &&
 
-
-
-
-        const validAnswers =
-
-        answers.filter(
-
-            item =>
-
-            item &&
-
-            item.question_id
+                item.question_id
 
         );
 
-
-
-
-
-
-        if(validAnswers.length===0){
-
+        if (validAnswers.length === 0) {
 
             return res.status(400).json({
 
-                success:false,
+                success: false,
 
-                message:
-                "Checklist answers required."
+                message: "Checklist answers required."
 
             });
 
-
         }
-
-
-
-
-
 
         const submissionData = {
 
-
             checklist_type_id,
-
 
             store_id,
 
-
-
-            submitted_by:
-
-            req.user.id,
-
-
+            submitted_by: req.user.id,
 
             submission_date,
 
+            latitude: latitude || null,
 
+            longitude: longitude || null,
 
-            latitude:
-
-            latitude || null,
-
-
-
-            longitude:
-
-            longitude || null,
-
-
-
-            device:
-
-            finalDevice,
-
-
+            device: finalDevice,
 
             attachment,
 
-
-
-            status:
-
-            "Submitted"
-
+            status: "Submitted"
 
         };
 
-
-
-
-
-
-
         ChecklistSubmission.create(
-
 
             submissionData,
 
-
             validAnswers,
 
+            async (err, result) => {
 
-
-            (err,result)=>{
-
-
-
-                if(err){
-
+                if (err) {
 
                     console.error(err);
 
-
-
                     return res.status(500).json({
 
-                        success:false,
+                        success: false,
 
-                        message:
-                        "Checklist submission failed."
+                        message: "Checklist submission failed."
 
                     });
 
-
                 }
-
-
-
-
-
-
 
                 const submissionId =
 
-                result.submissionId;
+                    result.submissionId;
 
+                // ======================================
+                // RUN INSPECTION
+                // ======================================
 
+                let inspectionResult = {
 
+                    score: 0,
 
+                    nso_status: "Closed"
 
+                };
+
+                try {
+
+                    inspectionResult =
+
+                        await inspectionService.runInspection(
+
+                            submissionId,
+
+                            req.user.id
+
+                        );
+
+                }
+
+                catch (inspectionError) {
+
+                    console.error(
+
+                        "Inspection Error:",
+
+                        inspectionError
+
+                    );
+
+                }
+
+                // ======================================
+                // UPDATE INSPECTION RESULT
+                // ======================================
+
+                ChecklistSubmission.updateInspectionResult(
+
+                    submissionId,
+
+                    inspectionResult.score || 0,
+
+                    inspectionResult.nso_status || "Closed",
+
+                    req.user.id,
+
+                    (updateError) => {
+
+                        if (updateError) {
+
+                            console.error(
+
+                                updateError
+
+                            );
+
+                        }
+
+                    }
+
+                );
 
                 // ======================================
                 // ACTIVITY CENTER
                 // ======================================
 
-
                 Activity.create({
-
 
                     title:
 
-                    "Checklist Submitted",
-
-
+                        "Checklist Submitted",
 
                     description:
 
-                    `Checklist submitted for store ${store_id}`,
-
-
+                        `Checklist submitted for store ${store_id}`,
 
                     module_name:
 
-                    "Checklist Submission",
-
-
+                        "Checklist Submission",
 
                     status:
 
-                    "Open",
-
-
+                        "Open",
 
                     priority:
 
-                    "Medium",
-
-
+                        "Medium",
 
                     created_by:
 
-                    req.user.id,
-
-
+                        req.user.id,
 
                     assigned_to:
 
-                    null
+                        null
 
-
-
-                },()=>{});
-
-
-
-
-
-
-
+                }, () => {});
 
                 // ======================================
                 // AUDIT TRAIL
                 // ======================================
 
-
                 Audit.create({
-
 
                     module_name:
 
-                    "Checklist Submission",
-
-
+                        "Checklist Submission",
 
                     reference_id:
 
-                    submissionId,
-
-
+                        submissionId,
 
                     action:
 
-                    "CREATE",
-
-
+                        "CREATE",
 
                     old_data:
 
-                    null,
+                        null,
 
+                    new_data: {
 
+                        ...submissionData,
 
-                    new_data:
+                        inspection: inspectionResult
 
-                    submissionData,
-
-
+                    },
 
                     changed_by:
 
-                    req.user.id
+                        req.user.id
 
-
-
-                },()=>{});
-
-
-
-
-
-
-
+                }, () => {});
 
                 return res.status(201).json({
 
-                    success:true,
+                    success: true,
 
                     message:
-                    "Checklist submitted successfully.",
 
+                        "Checklist submitted successfully.",
 
-                    data:{
-
+                    data: {
 
                         submission_id:
 
-                        submissionId
+                            submissionId,
 
+                        inspection:
+
+                            inspectionResult
 
                     }
 
-
                 });
-
-
 
             }
 
-
         );
-
-
 
     }
 
-
-    catch(error){
-
+    catch (error) {
 
         console.error(error);
 
+        return res.status(500).json({
 
+            success: false,
 
-        res.status(500).json({
-
-            success:false,
-
-            message:
-            "Internal Server Error"
+            message: "Internal Server Error"
 
         });
 
-
     }
-
 
 };
 // ======================================================
@@ -482,49 +376,31 @@ exports.createSubmission = (req,res)=>{
 // GET /api/checklist-submissions
 // ======================================================
 
-
-exports.getAllSubmissions = (req,res)=>{
-
+exports.getAllSubmissions = (req, res) => {
 
     const filters = {
 
-
         search:
 
-        req.query.search || "",
-
-
+            req.query.search || "",
 
         page:
 
-        Number(req.query.page) || 1,
-
-
+            Number(req.query.page) || 1,
 
         limit:
 
-        Number(req.query.limit) || 10
-
-
+            Number(req.query.limit) || 10
 
     };
 
-
-
-
-
     ChecklistSubmission.getAll(
-
 
         filters,
 
+        (err, results) => {
 
-        (err,results)=>{
-
-
-
-            if(err){
-
+            if (err) {
 
                 console.error(
 
@@ -534,36 +410,23 @@ exports.getAllSubmissions = (req,res)=>{
 
                 );
 
-
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    err.message
+                    message: err.message
 
                 });
 
-
             }
-
-
-
-
 
             ChecklistSubmission.countAll(
 
-
                 filters,
 
+                (countErr, countResult) => {
 
-                (countErr,countResult)=>{
-
-
-
-                    if(countErr){
-
+                    if (countErr) {
 
                         console.error(
 
@@ -573,93 +436,59 @@ exports.getAllSubmissions = (req,res)=>{
 
                         );
 
-
-
                         return res.status(500).json({
 
-                            success:false,
+                            success: false,
 
-                            message:
-                            countErr.message
+                            message: countErr.message
 
                         });
 
-
                     }
-
-
-
-
 
                     const total =
 
-                    countResult[0].total;
-
-
-
-
+                        countResult[0].total;
 
                     return res.status(200).json({
 
+                        success: true,
 
-                        success:true,
+                        data: results,
 
-
-
-                        data:results,
-
-
-
-                        pagination:{
-
+                        pagination: {
 
                             page:
 
-                            filters.page,
-
-
+                                filters.page,
 
                             limit:
 
-                            filters.limit,
-
-
+                                filters.limit,
 
                             total,
 
-
-
                             totalPages:
 
-                            Math.ceil(
+                                Math.ceil(
 
-                                total /
+                                    total /
 
-                                filters.limit
+                                    filters.limit
 
-                            )
-
+                                )
 
                         }
 
-
-
                     });
-
-
 
                 }
 
-
             );
-
-
 
         }
 
-
     );
-
 
 };
 // ======================================================
@@ -667,28 +496,17 @@ exports.getAllSubmissions = (req,res)=>{
 // GET /api/checklist-submissions/:id
 // ======================================================
 
-
-exports.getSubmissionById = (req,res)=>{
-
+exports.getSubmissionById = (req, res) => {
 
     const id = req.params.id;
 
-
-
-
-
     ChecklistSubmission.getById(
-
 
         id,
 
+        (err, submission) => {
 
-        (err,submission)=>{
-
-
-
-            if(err){
-
+            if (err) {
 
                 console.error(
 
@@ -698,65 +516,43 @@ exports.getSubmissionById = (req,res)=>{
 
                 );
 
-
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    err.message
+                    message: err.message
 
                 });
 
-
             }
 
-
-
-
-
-
-
-            if(
+            if (
 
                 !submission ||
 
                 submission.length === 0
 
-            ){
-
+            ) {
 
                 return res.status(404).json({
 
-                    success:false,
+                    success: false,
 
                     message:
-                    "Checklist submission not found."
+
+                        "Checklist submission not found."
 
                 });
 
-
             }
-
-
-
-
-
-
 
             ChecklistSubmission.getAnswers(
 
-
                 id,
 
+                (answerErr, answers) => {
 
-                (answerErr,answers)=>{
-
-
-
-                    if(answerErr){
-
+                    if (answerErr) {
 
                         console.error(
 
@@ -766,66 +562,65 @@ exports.getSubmissionById = (req,res)=>{
 
                         );
 
-
-
                         return res.status(500).json({
 
-                            success:false,
+                            success: false,
 
                             message:
-                            answerErr.message
+
+                                answerErr.message
 
                         });
 
-
                     }
 
+                    const data = {
 
+                        ...submission[0],
 
+                        answers,
 
+                        inspection: {
 
+                            score:
 
+                                submission[0].inspection_score,
 
-                    return res.status(200).json({
+                            nso_status:
 
+                                submission[0].nso_status,
 
-                        success:true,
+                            processed_at:
 
+                                submission[0].processed_at,
 
+                            processed_by:
 
-                        data:{
+                                submission[0].processed_by,
 
+                            processed_by_name:
 
-                            ...submission[0],
-
-
-
-                            answers
-
-
+                                submission[0].processed_by_name
 
                         }
 
+                    };
 
+                    return res.status(200).json({
+
+                        success: true,
+
+                        data
 
                     });
 
-
-
                 }
-
 
             );
 
-
-
-
         }
 
-
     );
-
-
 
 };
 // ======================================================
@@ -833,13 +628,9 @@ exports.getSubmissionById = (req,res)=>{
 // PUT /api/checklist-submissions/:id/status
 // ======================================================
 
-
-exports.updateStatus = (req,res)=>{
-
+exports.updateStatus = (req, res) => {
 
     const id = req.params.id;
-
-
 
     const {
 
@@ -847,317 +638,230 @@ exports.updateStatus = (req,res)=>{
 
     } = req.body;
 
+    // ======================================
+    // VALIDATION
+    // ======================================
 
-
-
-
-    if(!status){
-
+    if (!status) {
 
         return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:
-            "Status is required."
+            message: "Status is required."
 
         });
 
+    }
+
+    const validStatus = [
+
+        "Submitted",
+
+        "In Progress",
+
+        "Completed",
+
+        "Rejected",
+
+        "Closed"
+
+    ];
+
+    if (
+
+        !validStatus.includes(status)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid status."
+
+        });
 
     }
 
-
-
-
-
-
+    // ======================================
+    // GET OLD DATA
+    // ======================================
 
     ChecklistSubmission.getById(
 
-
         id,
 
+        (oldErr, oldData) => {
 
-        (oldErr,oldData)=>{
-
-
-
-            if(oldErr){
-
+            if (oldErr) {
 
                 console.error(oldErr);
 
-
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    oldErr.message
+                    message: oldErr.message
 
                 });
 
-
             }
 
-
-
-
-
-
-
-            if(
+            if (
 
                 !oldData ||
 
-                oldData.length===0
+                oldData.length === 0
 
-            ){
-
+            ) {
 
                 return res.status(404).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    "Submission not found."
+                    message: "Submission not found."
 
                 });
 
-
             }
 
-
-
-
-
-
-
+            // ======================================
+            // UPDATE STATUS
+            // ======================================
 
             ChecklistSubmission.updateStatus(
 
-
                 id,
-
 
                 status,
 
+                (err) => {
 
-                (err)=>{
-
-
-
-                    if(err){
-
+                    if (err) {
 
                         console.error(err);
 
-
-
                         return res.status(500).json({
 
-                            success:false,
+                            success: false,
 
-                            message:
-                            err.message
+                            message: err.message
 
                         });
 
-
                     }
-
-
-
-
-
-
 
                     // ======================================
                     // ACTIVITY CENTER
                     // ======================================
 
-
                     Activity.create({
-
-
 
                         title:
 
-                        "Checklist Status Updated",
-
-
-
+                            "Checklist Status Updated",
 
                         description:
 
-                        `Checklist submission ${id} status changed to ${status}`,
-
-
-
+                            `Checklist submission ${id} status changed to ${status}`,
 
                         module_name:
 
-                        "Checklist Submission",
-
-
-
+                            "Checklist Submission",
 
                         status:
 
-                        "Open",
-
-
-
+                            "Open",
 
                         priority:
 
-                        "Medium",
-
-
-
+                            "Medium",
 
                         created_by:
 
-                        req.user.id,
-
-
-
+                            req.user.id,
 
                         assigned_to:
 
-                        null
+                            null
 
-
-
-
-                    },()=>{});
-
-
-
-
-
-
-
-
+                    }, () => {});
 
                     // ======================================
                     // AUDIT TRAIL
                     // ======================================
 
-
                     Audit.create({
-
-
 
                         module_name:
 
-                        "Checklist Submission",
-
-
-
+                            "Checklist Submission",
 
                         reference_id:
 
-                        id,
-
-
-
+                            id,
 
                         action:
 
-                        "UPDATE_STATUS",
-
-
-
+                            "UPDATE_STATUS",
 
                         old_data:
 
-                        oldData[0],
+                            oldData[0],
 
+                        new_data: {
 
+                            status,
 
+                            inspection_score:
 
-                        new_data:
+                                oldData[0].inspection_score,
 
-                        {
+                            nso_status:
 
-                            status
+                                oldData[0].nso_status
 
                         },
 
-
-
-
                         changed_by:
 
-                        req.user.id
+                            req.user.id
 
-
-
-
-                    },()=>{});
-
-
-
-
-
-
-
-
+                    }, () => {});
 
                     return res.status(200).json({
 
-
-                        success:true,
-
-
+                        success: true,
 
                         message:
 
-                        "Checklist status updated successfully."
-
-
+                            "Checklist status updated successfully."
 
                     });
 
-
-
-
-
                 }
-
 
             );
 
-
-
         }
-
 
     );
 
-
-
 };
+
 // ======================================================
 // EXPORT CHECKLIST SUBMISSIONS
 // GET /api/checklist-submissions/export
 // ======================================================
 
-
-exports.exportSubmissions = (req,res)=>{
-
+exports.exportSubmissions = (req, res) => {
 
     ChecklistSubmission.exportData(
 
+        (err, results) => {
 
-        (err,results)=>{
-
-
-
-            if(err){
-
+            if (err) {
 
                 console.error(
 
@@ -1167,65 +871,139 @@ exports.exportSubmissions = (req,res)=>{
 
                 );
 
-
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    err.message
+                    message: err.message
 
                 });
 
-
             }
-
-
-
-
-
-
 
             let csv =
 
-            "ID,Checklist Type,Store,Submitted By,Submission Date,Status,Created At\n";
+                "ID," +
 
+                "Checklist Type," +
 
+                "Store," +
 
+                "Submitted By," +
 
+                "Submission Date," +
 
+                "Status," +
 
+                "Inspection Score," +
 
-            results.forEach((item)=>{
+                "NSO Status," +
 
+                "Processed At," +
+
+                "Processed By," +
+
+                "Created At\n";
+
+            results.forEach((item) => {
 
                 csv +=
 
-                `"${item.id}",`+
+                    `"${item.id}",` +
 
-                `"${item.checklist_type}",`+
+                    `"${item.checklist_type}",` +
 
-                `"${item.store_name}",`+
+                    `"${item.store_name}",` +
 
-                `"${item.submitted_by}",`+
+                    `"${item.submitted_by}",` +
 
-                `"${item.submission_date}",`+
+                    `"${item.submission_date}",` +
 
-                `"${item.status}",`+
+                    `"${item.status}",` +
 
-                `"${item.created_at}"\n`;
+                    `"${item.inspection_score}",` +
 
+                    `"${item.nso_status}",` +
 
+                    `"${item.processed_at || ""}",` +
+
+                    `"${item.processed_by || ""}",` +
+
+                    `"${item.created_at}"\n`;
 
             });
 
+            // ======================================
+            // ACTIVITY CENTER
+            // ======================================
 
+            Activity.create({
 
+                title:
 
+                    "Checklist Submissions Exported",
 
+                description:
 
+                    "Checklist submissions exported as CSV",
 
+                module_name:
+
+                    "Checklist Submission",
+
+                status:
+
+                    "Closed",
+
+                priority:
+
+                    "Low",
+
+                created_by:
+
+                    req.user.id,
+
+                assigned_to:
+
+                    null
+
+            }, () => {});
+
+            // ======================================
+            // AUDIT TRAIL
+            // ======================================
+
+            Audit.create({
+
+                module_name:
+
+                    "Checklist Submission",
+
+                reference_id:
+
+                    null,
+
+                action:
+
+                    "EXPORT",
+
+                old_data:
+
+                    null,
+
+                new_data: {
+
+                    total_records:
+
+                        results.length
+
+                },
+
+                changed_by:
+
+                    req.user.id
+
+            }, () => {});
 
             res.setHeader(
 
@@ -1235,8 +1013,6 @@ exports.exportSubmissions = (req,res)=>{
 
             );
 
-
-
             res.setHeader(
 
                 "Content-Disposition",
@@ -1245,30 +1021,17 @@ exports.exportSubmissions = (req,res)=>{
 
             );
 
-
-
-
-
             return res.status(200).send(csv);
-
-
 
         }
 
-
     );
 
-
 };
-
-
-
-
 
 // ======================================================
 // CONTROLLER EXPORT
 // ======================================================
-
 
 module.exports.createSubmission = exports.createSubmission;
 

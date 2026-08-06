@@ -14,7 +14,6 @@ const getAllRules = (
 
 ) => {
 
-
     let sql = `
 
         SELECT
@@ -22,6 +21,18 @@ const getAllRules = (
             nr.id,
 
             nr.trigger_column,
+
+            nr.expected_answer,
+
+            nr.priority,
+
+            nr.sla_days,
+
+            nr.create_action_point,
+
+            nr.mandatory,
+
+            nr.is_active,
 
             nr.created_by,
 
@@ -35,35 +46,27 @@ const getAllRules = (
 
             ) AS departments
 
-
         FROM nso_rules nr
-
 
         LEFT JOIN nso_rule_departments nrd
 
             ON nr.id = nrd.rule_id
 
-
         LEFT JOIN departments d
 
             ON nrd.department_id = d.id
-
 
         WHERE 1=1
 
     `;
 
-
     const params = [];
-
-
 
     // ==============================
     // SEARCH
     // ==============================
 
-    if(filters.search){
-
+    if (filters.search) {
 
         sql += `
 
@@ -77,9 +80,7 @@ const getAllRules = (
 
         `;
 
-
         const search = `%${filters.search}%`;
-
 
         params.push(
 
@@ -89,10 +90,7 @@ const getAllRules = (
 
         );
 
-
     }
-
-
 
     sql += `
 
@@ -102,26 +100,17 @@ const getAllRules = (
 
     `;
 
-
-
     // ==============================
     // PAGINATION
     // ==============================
 
-    if(filters.page && filters.limit){
-
+    if (filters.page && filters.limit) {
 
         const page = Number(filters.page);
 
         const limit = Number(filters.limit);
 
-        const offset = (
-
-            page - 1
-
-        ) * limit;
-
-
+        const offset = (page - 1) * limit;
 
         sql += `
 
@@ -131,7 +120,6 @@ const getAllRules = (
 
         `;
 
-
         params.push(
 
             limit,
@@ -140,10 +128,7 @@ const getAllRules = (
 
         );
 
-
     }
-
-
 
     db.query(
 
@@ -155,9 +140,7 @@ const getAllRules = (
 
     );
 
-
 };
-
 
 
 
@@ -262,9 +245,7 @@ const getRuleById = (
 
 ) => {
 
-
     const sql = `
-
 
         SELECT
 
@@ -272,6 +253,17 @@ const getRuleById = (
 
             nr.trigger_column,
 
+            nr.expected_answer,
+
+            nr.priority,
+
+            nr.sla_days,
+
+            nr.create_action_point,
+
+            nr.mandatory,
+
+            nr.is_active,
 
             GROUP_CONCAT(
 
@@ -281,28 +273,21 @@ const getRuleById = (
 
             ) AS departments
 
-
         FROM nso_rules nr
-
 
         LEFT JOIN nso_rule_departments nrd
 
             ON nr.id = nrd.rule_id
 
-
         LEFT JOIN departments d
 
             ON nrd.department_id = d.id
 
-
         WHERE nr.id = ?
-
 
         GROUP BY nr.id
 
-
     `;
-
 
     db.query(
 
@@ -318,7 +303,6 @@ const getRuleById = (
 
     );
 
-
 };
 // ======================================================
 // CREATE RULE + DEPARTMENTS
@@ -333,17 +317,13 @@ const createRuleWithDepartments = (
 
 ) => {
 
+    db.beginTransaction((err) => {
 
-    db.beginTransaction((err)=>{
-
-
-        if(err){
+        if (err) {
 
             return callback(err);
 
         }
-
-
 
         const createRuleSql = `
 
@@ -353,15 +333,25 @@ const createRuleWithDepartments = (
 
                 trigger_column,
 
+                expected_answer,
+
+                priority,
+
+                sla_days,
+
+                create_action_point,
+
+                mandatory,
+
+                is_active,
+
                 created_by
 
             )
 
-            VALUES (?,?)
+            VALUES (?,?,?,?,?,?,?,?)
 
         `;
-
-
 
         db.query(
 
@@ -371,16 +361,27 @@ const createRuleWithDepartments = (
 
                 rule.trigger_column,
 
+                rule.expected_answer || "No",
+
+                rule.priority || "Medium",
+
+                rule.sla_days || 3,
+
+                rule.create_action_point ?? 1,
+
+                rule.mandatory ?? 1,
+
+                rule.is_active ?? 1,
+
                 rule.created_by
 
             ],
 
-            (err,result)=>{
+            (err, result) => {
 
+                if (err) {
 
-                if(err){
-
-                    return db.rollback(()=>{
+                    return db.rollback(() => {
 
                         callback(err);
 
@@ -388,27 +389,21 @@ const createRuleWithDepartments = (
 
                 }
 
-
-
                 const ruleId = result.insertId;
 
-
-
-                if(
+                if (
 
                     !rule.departments ||
 
                     rule.departments.length === 0
 
-                ){
+                ) {
 
+                    return db.commit((err) => {
 
-                    return db.commit((err)=>{
+                        if (err) {
 
-
-                        if(err){
-
-                            return db.rollback(()=>{
+                            return db.rollback(() => {
 
                                 callback(err);
 
@@ -416,21 +411,15 @@ const createRuleWithDepartments = (
 
                         }
 
-
-                        callback(null,result);
-
+                        callback(null, result);
 
                     });
 
-
                 }
-
-
-
 
                 const values = rule.departments.map(
 
-                    departmentId => [
+                    (departmentId) => [
 
                         ruleId,
 
@@ -439,8 +428,6 @@ const createRuleWithDepartments = (
                     ]
 
                 );
-
-
 
                 const departmentSql = `
 
@@ -458,8 +445,6 @@ const createRuleWithDepartments = (
 
                 `;
 
-
-
                 db.query(
 
                     departmentSql,
@@ -470,12 +455,11 @@ const createRuleWithDepartments = (
 
                     ],
 
-                    (err)=>{
+                    (err) => {
 
+                        if (err) {
 
-                        if(err){
-
-                            return db.rollback(()=>{
+                            return db.rollback(() => {
 
                                 callback(err);
 
@@ -483,22 +467,17 @@ const createRuleWithDepartments = (
 
                         }
 
+                        db.commit((err) => {
 
+                            if (err) {
 
-                        db.commit((err)=>{
-
-
-                            if(err){
-
-                                return db.rollback(()=>{
+                                return db.rollback(() => {
 
                                     callback(err);
 
                                 });
 
                             }
-
-
 
                             callback(
 
@@ -508,25 +487,19 @@ const createRuleWithDepartments = (
 
                             );
 
-
                         });
-
 
                     }
 
                 );
 
-
             }
 
         );
 
-
     });
 
-
 };
-
 
 
 
@@ -545,20 +518,13 @@ const bulkCreateRules = (
 
 ) => {
 
-
     const connection = db;
 
+    const insertRules = async () => {
 
+        try {
 
-    const insertRules = async()=>{
-
-
-        try{
-
-
-            for(const rule of rules){
-
-
+            for (const rule of rules) {
 
                 const insertRuleSql = `
 
@@ -568,20 +534,29 @@ const bulkCreateRules = (
 
                         trigger_column,
 
+                        expected_answer,
+
+                        priority,
+
+                        sla_days,
+
+                        create_action_point,
+
+                        mandatory,
+
+                        is_active,
+
                         created_by
 
                     )
 
-                    VALUES (?,?)
+                    VALUES (?,?,?,?,?,?,?,?)
 
                 `;
 
-
-
                 const result = await new Promise(
 
-                    (resolve,reject)=>{
-
+                    (resolve, reject) => {
 
                         connection.query(
 
@@ -591,64 +566,63 @@ const bulkCreateRules = (
 
                                 rule.trigger_column,
 
+                                rule.expected_answer || "No",
+
+                                rule.priority || "Medium",
+
+                                rule.sla_days || 3,
+
+                                rule.create_action_point ?? 1,
+
+                                rule.mandatory ?? 1,
+
+                                rule.is_active ?? 1,
+
                                 createdBy
 
                             ],
 
-                            (err,res)=>{
+                            (err, res) => {
 
-
-                                if(err){
+                                if (err) {
 
                                     reject(err);
 
                                 }
 
-                                else{
+                                else {
 
                                     resolve(res);
 
                                 }
 
-
                             }
 
                         );
-
 
                     }
 
                 );
 
-
-
                 const ruleId = result.insertId;
 
-
-
-                if(
+                if (
 
                     rule.department_ids &&
 
                     rule.department_ids.length > 0
 
-                ){
+                ) {
 
+                    for (
 
+                        const departmentId of rule.department_ids
 
-                    for(
-
-                        const departmentId 
-
-                        of rule.department_ids
-
-                    ){
-
+                    ) {
 
                         await new Promise(
 
-                            (resolve,reject)=>{
-
+                            (resolve, reject) => {
 
                                 connection.query(
 
@@ -676,67 +650,50 @@ const bulkCreateRules = (
 
                                     ],
 
-                                    (err)=>{
+                                    (err) => {
 
-
-                                        if(err){
+                                        if (err) {
 
                                             reject(err);
 
                                         }
 
-                                        else{
+                                        else {
 
                                             resolve();
 
                                         }
 
-
                                     }
 
                                 );
-
 
                             }
 
                         );
 
-
                     }
-
 
                 }
 
-
-
             }
-
-
 
             callback(null);
 
-
-
         }
 
-        catch(err){
-
+        catch (err) {
 
             callback(err);
 
-
         }
-
-
 
     };
 
-
-
     insertRules();
 
-
 };
+
 // ======================================================
 // UPDATE RULE + DEPARTMENTS
 // TRANSACTION
@@ -748,23 +705,31 @@ const updateRuleWithDepartments = (
 
     triggerColumn,
 
+    expectedAnswer,
+
+    priority,
+
+    slaDays,
+
+    createActionPoint,
+
+    mandatory,
+
+    isActive,
+
     departments,
 
     callback
 
 ) => {
 
+    db.beginTransaction((err) => {
 
-    db.beginTransaction((err)=>{
-
-
-        if(err){
+        if (err) {
 
             return callback(err);
 
         }
-
-
 
         // ==============================
         // UPDATE RULE
@@ -778,7 +743,19 @@ const updateRuleWithDepartments = (
 
             SET
 
-                trigger_column = ?
+                trigger_column = ?,
+
+                expected_answer = ?,
+
+                priority = ?,
+
+                sla_days = ?,
+
+                create_action_point = ?,
+
+                mandatory = ?,
+
+                is_active = ?
 
             WHERE id = ?
 
@@ -788,24 +765,33 @@ const updateRuleWithDepartments = (
 
                 triggerColumn,
 
+                expectedAnswer,
+
+                priority,
+
+                slaDays,
+
+                createActionPoint,
+
+                mandatory,
+
+                isActive,
+
                 id
 
             ],
 
-            (err)=>{
+            (err) => {
 
+                if (err) {
 
-                if(err){
-
-                    return db.rollback(()=>{
+                    return db.rollback(() => {
 
                         callback(err);
 
                     });
 
                 }
-
-
 
                 // ==============================
                 // REMOVE OLD DEPARTMENTS
@@ -827,12 +813,11 @@ const updateRuleWithDepartments = (
 
                     ],
 
-                    (err)=>{
+                    (err) => {
 
+                        if (err) {
 
-                        if(err){
-
-                            return db.rollback(()=>{
+                            return db.rollback(() => {
 
                                 callback(err);
 
@@ -840,27 +825,23 @@ const updateRuleWithDepartments = (
 
                         }
 
-
-
                         // ==============================
                         // INSERT NEW DEPARTMENTS
                         // ==============================
 
-                        if(
+                        if (
 
                             !departments ||
 
                             departments.length === 0
 
-                        ){
+                        ) {
 
+                            return db.commit((err) => {
 
-                            return db.commit((err)=>{
+                                if (err) {
 
-
-                                if(err){
-
-                                    return db.rollback(()=>{
+                                    return db.rollback(() => {
 
                                         callback(err);
 
@@ -868,21 +849,15 @@ const updateRuleWithDepartments = (
 
                                 }
 
-
                                 callback(null);
-
 
                             });
 
-
                         }
-
-
-
 
                         const values = departments.map(
 
-                            departmentId => [
+                            (departmentId) => [
 
                                 id,
 
@@ -891,8 +866,6 @@ const updateRuleWithDepartments = (
                             ]
 
                         );
-
-
 
                         db.query(
 
@@ -918,12 +891,11 @@ const updateRuleWithDepartments = (
 
                             ],
 
-                            (err)=>{
+                            (err) => {
 
+                                if (err) {
 
-                                if(err){
-
-                                    return db.rollback(()=>{
+                                    return db.rollback(() => {
 
                                         callback(err);
 
@@ -931,14 +903,11 @@ const updateRuleWithDepartments = (
 
                                 }
 
+                                db.commit((err) => {
 
+                                    if (err) {
 
-                                db.commit((err)=>{
-
-
-                                    if(err){
-
-                                        return db.rollback(()=>{
+                                        return db.rollback(() => {
 
                                             callback(err);
 
@@ -946,41 +915,25 @@ const updateRuleWithDepartments = (
 
                                     }
 
-
-
                                     callback(null);
 
-
-
                                 });
-
-
 
                             }
 
                         );
 
-
-
                     }
 
                 );
-
-
 
             }
 
         );
 
-
-
     });
 
-
 };
-
-
-
 
 
 // ======================================================
@@ -1232,14 +1185,23 @@ const exportRules = (
 
 ) => {
 
-
     const sql = `
-
 
         SELECT
 
             nr.trigger_column,
 
+            nr.expected_answer,
+
+            nr.priority,
+
+            nr.sla_days,
+
+            nr.create_action_point,
+
+            nr.mandatory,
+
+            nr.is_active,
 
             GROUP_CONCAT(
 
@@ -1251,29 +1213,21 @@ const exportRules = (
 
             ) AS departments
 
-
         FROM nso_rules nr
-
 
         LEFT JOIN nso_rule_departments nrd
 
             ON nr.id = nrd.rule_id
 
-
         LEFT JOIN departments d
 
             ON nrd.department_id = d.id
 
-
         GROUP BY nr.id
-
 
         ORDER BY nr.created_at DESC
 
-
     `;
-
-
 
     db.query(
 
@@ -1283,10 +1237,7 @@ const exportRules = (
 
     );
 
-
 };
-
-
 
 
 

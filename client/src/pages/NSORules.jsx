@@ -453,67 +453,157 @@ const handleBulkUpload = async (file) => {
         setCurrentPage(1);
 
     };
-        // ======================================================
-    // TABLE COLUMNS
-    // ======================================================
 
-    const columns = [
+// ======================================================
+// TABLE COLUMNS
+// ======================================================
 
-        {
-            key: "id",
-            title: "ID",
-            width: "90px",
-        },
+const columns = [
 
-        {
-            key: "trigger_column",
-            title: "Trigger Column",
-            width: "350px",
-            render: (row) => (
-                <div className="wrap-text">
-                    {row.trigger_column || "-"}
-                </div>
-            ),
-        },
+    {
+        key: "id",
+        title: "ID",
+        width: "80px",
+        align: "center",
+    },
 
-       {
-    key: "departments",
-    title: "Departments",
-    width: "300px",
-    render: (row) => (
-        <div className="wrap-text">
-            {row.departments || "-"}
-        </div>
-    ),
-},
+    {
+        key: "trigger_column",
+        title: "Trigger Column",
+        width: "320px",
+        render: (row) => (
+            <div className="wrap-text">
+                {row.trigger_column || "-"}
+            </div>
+        ),
+    },
 
-    
+    {
+        key: "expected_answer",
+        title: "Expected",
+        width: "130px",
+        align: "center",
+        render: (row) => (
+            <span className={`answer-badge ${String(row.expected_answer).toLowerCase()}`}>
+                {row.expected_answer || "-"}
+            </span>
+        ),
+    },
 
-        {
-            key: "actions",
-            title: "Actions",
-            width: "220px",
-            align: "center",
+    {
+        key: "priority",
+        title: "Priority",
+        width: "130px",
+        align: "center",
+        render: (row) => (
+            <span className={`priority-badge ${String(row.priority).toLowerCase()}`}>
+                {row.priority || "-"}
+            </span>
+        ),
+    },
 
-            render: (row) => (
+    {
+        key: "sla_days",
+        title: "SLA",
+        width: "90px",
+        align: "center",
+        render: (row) => (
+            <span>
+                {row.sla_days ?? "-"} Days
+            </span>
+        ),
+    },
 
-                <ActionButtons
+    {
+        key: "mandatory",
+        title: "Mandatory",
+        width: "120px",
+        align: "center",
+        render: (row) => (
+            <span
+                className={
+                    row.mandatory
+                        ? "yes-badge"
+                        : "no-badge"
+                }
+            >
+                {row.mandatory ? "Yes" : "No"}
+            </span>
+        ),
+    },
 
-                    showEdit={canEdit}
+    {
+        key: "create_action_point",
+        title: "Action Point",
+        width: "140px",
+        align: "center",
+        render: (row) => (
+            <span
+                className={
+                    row.create_action_point
+                        ? "yes-badge"
+                        : "no-badge"
+                }
+            >
+                {row.create_action_point ? "Yes" : "No"}
+            </span>
+        ),
+    },
 
-                    showDelete={canDelete}
+    {
+        key: "is_active",
+        title: "Status",
+        width: "120px",
+        align: "center",
+        render: (row) => (
+            <span
+                className={
+                    row.is_active
+                        ? "status-active"
+                        : "status-inactive"
+                }
+            >
+                {row.is_active ? "Active" : "Inactive"}
+            </span>
+        ),
+    },
 
-                    onEdit={() => handleEdit(row)}
+    {
+        key: "departments",
+        title: "Departments",
+        width: "260px",
+        render: (row) => (
+            <div className="wrap-text">
+                {row.departments || "-"}
+            </div>
+        ),
+    },
 
-                    onDelete={() => handleDelete(row.id)}
+    {
+        key: "actions",
+        title: "Actions",
+        width: "250px",
+        align: "center",
 
-                />
+        render: (row) => (
 
-            ),
+            <ActionButtons
 
-        },
+                showEdit={canEdit}
 
-    ];
+                showDelete={canDelete}
+
+                onEdit={() => handleEdit(row)}
+
+                onDelete={() => handleDelete(row.id)}
+
+            />
+
+        ),
+
+    },
+
+];
         return (
 
         <div className="nso-rules-page">

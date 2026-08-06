@@ -152,158 +152,285 @@ exports.getRules = (req,res)=>{
 // ACTIVITY + AUDIT
 // ======================================================
 
-exports.createRule = (req,res)=>{
+exports.createRule = (req, res) => {
 
-
-    const {
+    let {
 
         trigger_column,
+
+        expected_answer,
+
+        priority,
+
+        sla_days,
+
+        create_action_point,
+
+        mandatory,
+
+        is_active,
 
         departments
 
     } = req.body;
 
+    // ======================================
+    // NORMALIZE DATA TYPES
+    // ======================================
 
+    sla_days = Number(sla_days);
 
-    if(!trigger_column){
+    create_action_point = Number(create_action_point);
 
+    mandatory = Number(mandatory);
+
+    is_active = Number(is_active);
+
+    // ======================================
+    // VALIDATION
+    // ======================================
+
+    if (!trigger_column) {
 
         return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:
-            "Trigger Column is required."
+            message: "Trigger Column is required."
 
         });
 
-
     }
 
-
-
-    if(
+    if (
 
         !departments ||
 
+        !Array.isArray(departments) ||
+
         departments.length === 0
 
-    ){
-
+    ) {
 
         return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:
-            "Select at least one department."
+            message: "Select at least one department."
 
         });
 
+    }
+
+    const validAnswers = [
+
+        "Yes",
+
+        "No",
+
+        "NA"
+
+    ];
+
+    if (
+
+        !expected_answer ||
+
+        !validAnswers.includes(expected_answer)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Expected Answer."
+
+        });
 
     }
 
+    const validPriorities = [
 
+        "Low",
 
+        "Medium",
+
+        "High",
+
+        "Critical"
+
+    ];
+
+    if (
+
+        !priority ||
+
+        !validPriorities.includes(priority)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Priority."
+
+        });
+
+    }
+
+    const sla = sla_days;
+
+    if (
+
+        Number.isNaN(sla) ||
+
+        sla < 1 ||
+
+        sla > 365
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "SLA Days must be between 1 and 365."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(create_action_point)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Create Action Point value."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(mandatory)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Mandatory value."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(is_active)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Status value."
+
+        });
+
+    }
+
+    // ======================================
+    // CHECK DUPLICATE
+    // ======================================
 
     NSORule.checkDuplicateTriggerColumn(
 
-
         trigger_column,
 
+        (err, rows) => {
 
-        (err,rows)=>{
-
-
-            if(err){
-
+            if (err) {
 
                 console.error(err);
 
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:err.message
+                    message: err.message
 
                 });
 
-
             }
 
-
-
-
-            if(rows.length > 0){
-
+            if (rows.length > 0) {
 
                 return res.status(400).json({
 
-                    success:false,
+                    success: false,
 
-                    message:
-                    "Trigger Column already exists."
+                    message: "Trigger Column already exists."
 
                 });
 
-
             }
 
-
-
+            // ======================================
+            // CREATE RULE
+            // ======================================
 
             NSORule.createRuleWithDepartments(
 
-
                 {
-
 
                     trigger_column,
 
+                    expected_answer,
+
+                    priority,
+
+                    sla_days: sla,
+
+                    create_action_point,
+
+                    mandatory,
+
+                    is_active,
 
                     departments,
 
-
-                    created_by:
-
-                    req.user.id
-
+                    created_by: req.user.id
 
                 },
 
+                (err, result) => {
 
-
-                (err,result)=>{
-
-
-                    if(err){
-
+                    if (err) {
 
                         console.error(err);
 
-
                         return res.status(500).json({
 
-                            success:false,
+                            success: false,
 
-                            message:err.message
+                            message: err.message
 
                         });
 
-
                     }
 
-
-
-
-                    const ruleId =
-
-                    result.insertId;
-
-
-
-
+                    const ruleId = result.insertId;
 
                     // ======================================
                     // ACTIVITY CENTER
@@ -311,55 +438,21 @@ exports.createRule = (req,res)=>{
 
                     Activity.create({
 
+                        title: "NSO Rule Created",
 
-                        title:
+                        description: `${trigger_column} rule created`,
 
-                        "NSO Rule Created",
+                        module_name: "NSO Rules",
 
+                        status: "Open",
 
+                        priority: priority,
 
-                        description:
+                        created_by: req.user.id,
 
-                        `${trigger_column} rule created`,
+                        assigned_to: null
 
-
-
-                        module_name:
-
-                        "NSO Rules",
-
-
-
-                        status:
-
-                        "Open",
-
-
-
-                        priority:
-
-                        "Medium",
-
-
-
-                        created_by:
-
-                        req.user.id,
-
-
-
-                        assigned_to:
-
-                        null
-
-
-
-                    },()=>{});
-
-
-
-
-
+                    }, () => {});
 
                     // ======================================
                     // AUDIT TRAIL
@@ -367,86 +460,57 @@ exports.createRule = (req,res)=>{
 
                     Audit.create({
 
+                        module_name: "NSO Rules",
 
-                        module_name:
+                        reference_id: ruleId,
 
-                        "NSO Rules",
+                        action: "CREATE",
 
+                        old_data: null,
 
-
-                        reference_id:
-
-                        ruleId,
-
-
-
-                        action:
-
-                        "CREATE",
-
-
-
-                        old_data:
-
-                        null,
-
-
-
-                        new_data:{
-
+                        new_data: {
 
                             trigger_column,
 
+                            expected_answer,
+
+                            priority,
+
+                            sla_days: sla,
+
+                            create_action_point,
+
+                            mandatory,
+
+                            is_active,
 
                             departments
 
-
                         },
 
+                        changed_by: req.user.id
 
+                    }, () => {});
 
-                        changed_by:
-
-                        req.user.id
-
-
-
-                    },()=>{});
-
-
-
-
-
-
+                    // ======================================
+                    // RESPONSE
+                    // ======================================
 
                     res.status(201).json({
 
+                        success: true,
 
-                        success:true,
-
-
-                        message:
-
-                        "Rule created successfully."
-
-
+                        message: "Rule created successfully."
 
                     });
 
-
-
                 }
-
 
             );
 
-
-
         }
 
-
     );
-
 
 };
 // ======================================================
@@ -498,15 +562,25 @@ exports.bulkUploadRules = (req, res) => {
 
                 }
 
+                // ======================================
+                // DEPARTMENT MAP
+                // ======================================
+
                 const departmentMap = {};
 
                 departments.forEach((dept) => {
 
                     departmentMap[
-                        dept.department_name.trim().toLowerCase()
+                        dept.department_name
+                            .trim()
+                            .toLowerCase()
                     ] = dept.id;
 
                 });
+
+                // ======================================
+                // PREPARE RULES
+                // ======================================
 
                 const rules = rows.map((row) => {
 
@@ -524,19 +598,99 @@ exports.bulkUploadRules = (req, res) => {
 
                     const department_ids = departmentNames
 
-                        .map(name => departmentMap[name.toLowerCase()])
+                        .map(name =>
+
+                            departmentMap[
+                                name.toLowerCase()
+                            ]
+
+                        )
 
                         .filter(Boolean);
 
                     return {
 
-                        trigger_column: row["Trigger Column"],
+                        trigger_column:
+
+                            String(
+                                row["Trigger Column"] || ""
+                            ).trim(),
+
+                        expected_answer:
+
+                            String(
+                                row["Expected Answer"] || "No"
+                            ).trim(),
+
+                        priority:
+
+                            String(
+                                row["Priority"] || "Medium"
+                            ).trim(),
+
+                        sla_days:
+
+                            Number(
+                                row["SLA Days"]
+                            ) || 3,
+
+                        create_action_point:
+
+                            String(
+
+                                row["Create Action Point"] || ""
+
+                            )
+
+                                .trim()
+
+                                .toLowerCase() === "no"
+
+                                ? 0
+
+                                : 1,
+
+                        mandatory:
+
+                            String(
+
+                                row["Mandatory"] || ""
+
+                            )
+
+                                .trim()
+
+                                .toLowerCase() === "no"
+
+                                ? 0
+
+                                : 1,
+
+                        is_active:
+
+                            String(
+
+                                row["Status"] || ""
+
+                            )
+
+                                .trim()
+
+                                .toLowerCase() === "inactive"
+
+                                ? 0
+
+                                : 1,
 
                         department_ids
 
                     };
 
                 });
+
+                // ======================================
+                // SAVE RULES
+                // ======================================
 
                 NSORule.bulkCreateRules(
 
@@ -560,39 +714,77 @@ exports.bulkUploadRules = (req, res) => {
 
                         }
 
+                        // ======================================
+                        // ACTIVITY CENTER
+                        // ======================================
+
                         Activity.create({
 
-                            title: "NSO Rules Bulk Uploaded",
+                            title:
 
-                            description: `${rules.length} NSO Rules uploaded`,
+                                "NSO Rules Bulk Uploaded",
 
-                            module_name: "NSO Rules",
+                            description:
 
-                            status: "Open",
+                                `${rules.length} NSO Rules uploaded`,
 
-                            priority: "Medium",
+                            module_name:
 
-                            created_by: req.user.id,
+                                "NSO Rules",
 
-                            assigned_to: null
+                            status:
+
+                                "Open",
+
+                            priority:
+
+                                "Medium",
+
+                            created_by:
+
+                                req.user.id,
+
+                            assigned_to:
+
+                                null
 
                         }, () => {});
+
+                        // ======================================
+                        // AUDIT TRAIL
+                        // ======================================
 
                         Audit.create({
 
-                            module_name: "NSO Rules",
+                            module_name:
 
-                            reference_id: null,
+                                "NSO Rules",
 
-                            action: "BULK_UPLOAD",
+                            reference_id:
 
-                            old_data: null,
+                                null,
 
-                            new_data: rules,
+                            action:
 
-                            changed_by: req.user.id
+                                "BULK_UPLOAD",
+
+                            old_data:
+
+                                null,
+
+                            new_data:
+
+                                rules,
+
+                            changed_by:
+
+                                req.user.id
 
                         }, () => {});
+
+                        // ======================================
+                        // RESPONSE
+                        // ======================================
 
                         res.status(200).json({
 
@@ -972,206 +1164,450 @@ exports.deleteAllRules = (req,res)=>{
 // ACTIVITY + AUDIT
 // ======================================================
 
-exports.updateRule = (req,res)=>{
+exports.updateRule = (req, res) => {
 
     const id = req.params.id;
 
-    const {
+    let {
+
         trigger_column,
+
+        expected_answer,
+
+        priority,
+
+        sla_days,
+
+        create_action_point,
+
+        mandatory,
+
+        is_active,
+
         departments
+
     } = req.body;
 
+    // ======================================
+    // NORMALIZE DATA TYPES
+    // ======================================
 
-    if(!trigger_column){
+    sla_days = Number(sla_days);
+
+    create_action_point = Number(create_action_point);
+
+    mandatory = Number(mandatory);
+
+    is_active = Number(is_active);
+
+    // ======================================
+    // VALIDATION
+    // ======================================
+
+    if (!trigger_column) {
 
         return res.status(400).json({
 
-            success:false,
-            message:"Trigger Column is required."
+            success: false,
+
+            message: "Trigger Column is required."
 
         });
 
     }
 
+    if (
 
-    if(!departments || departments.length === 0){
+        !departments ||
+
+        !Array.isArray(departments) ||
+
+        departments.length === 0
+
+    ) {
 
         return res.status(400).json({
 
-            success:false,
-            message:"Select at least one department."
+            success: false,
+
+            message: "Select at least one department."
 
         });
 
     }
 
+    const validAnswers = [
 
+        "Yes",
 
-    NSORule.getRuleById(
+        "No",
+
+        "NA"
+
+    ];
+
+    if (
+
+        !expected_answer ||
+
+        !validAnswers.includes(expected_answer)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Expected Answer."
+
+        });
+
+    }
+
+    const validPriorities = [
+
+        "Low",
+
+        "Medium",
+
+        "High",
+
+        "Critical"
+
+    ];
+
+    if (
+
+        !priority ||
+
+        !validPriorities.includes(priority)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Priority."
+
+        });
+
+    }
+
+    const sla = sla_days;
+
+    if (
+
+        Number.isNaN(sla) ||
+
+        sla < 1 ||
+
+        sla > 365
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "SLA Days must be between 1 and 365."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(create_action_point)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Create Action Point value."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(mandatory)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Mandatory value."
+
+        });
+
+    }
+
+    if (
+
+        ![0, 1].includes(is_active)
+
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: "Invalid Status value."
+
+        });
+
+    }
+
+    // ======================================
+    // CHECK DUPLICATE
+    // ======================================
+
+    NSORule.checkDuplicateForUpdate(
 
         id,
 
-        (oldErr,oldData)=>{
+        trigger_column,
 
+        (duplicateErr, duplicateRows) => {
 
-            if(oldErr){
+            if (duplicateErr) {
+
+                console.error(duplicateErr);
 
                 return res.status(500).json({
 
-                    success:false,
-                    message:oldErr.message
+                    success: false,
+
+                    message: duplicateErr.message
 
                 });
 
             }
 
+            if (duplicateRows.length > 0) {
 
+                return res.status(400).json({
 
-            NSORule.updateRuleWithDepartments(
+                    success: false,
+
+                    message: "Trigger Column already exists."
+
+                });
+
+            }
+
+            // ======================================
+            // GET OLD DATA
+            // ======================================
+
+            NSORule.getRuleById(
 
                 id,
 
-                trigger_column,
+                (oldErr, oldData) => {
 
-                departments,
+                    if (oldErr) {
 
-                (err)=>{
-
-
-                    if(err){
-
-                        console.error(err);
+                        console.error(oldErr);
 
                         return res.status(500).json({
 
-                            success:false,
-                            message:err.message
+                            success: false,
+
+                            message: oldErr.message
 
                         });
 
                     }
 
+                    // ======================================
+                    // UPDATE RULE
+                    // ======================================
 
+                    NSORule.updateRuleWithDepartments(
 
-                    Activity.create({
+                        id,
 
-                        title:"NSO Rule Updated",
+                        trigger_column,
 
-                        description:
-                        `${trigger_column} rule updated`,
+                        expected_answer,
 
-                        module_name:"NSO Rules",
+                        priority,
 
-                        status:"Open",
+                        sla,
 
-                        priority:"Medium",
+                        create_action_point,
 
-                        created_by:req.user.id,
+                        mandatory,
 
-                        assigned_to:null
+                        is_active,
 
+                        departments,
 
-                    },()=>{});
+                        (err) => {
 
+                            if (err) {
 
+                                console.error(err);
 
+                                return res.status(500).json({
 
-                    Audit.create({
+                                    success: false,
 
-                        module_name:"NSO Rules",
+                                    message: err.message
 
-                        reference_id:id,
+                                });
 
-                        action:"UPDATE",
+                            }
 
-                        old_data:oldData[0],
+                            // ======================================
+                            // ACTIVITY CENTER
+                            // ======================================
 
-                        new_data:{
-                            trigger_column,
-                            departments
-                        },
+                            Activity.create({
 
-                        changed_by:req.user.id
+                                title: "NSO Rule Updated",
 
+                                description: `${trigger_column} rule updated`,
 
-                    },()=>{});
+                                module_name: "NSO Rules",
 
+                                status: "Open",
 
+                                priority: priority,
 
+                                created_by: req.user.id,
 
+                                assigned_to: null
 
-                    res.status(200).json({
+                            }, () => {});
 
-                        success:true,
+                            // ======================================
+                            // AUDIT TRAIL
+                            // ======================================
 
-                        message:
-                        "Rule updated successfully."
+                            Audit.create({
 
-                    });
+                                module_name: "NSO Rules",
 
+                                reference_id: id,
+
+                                action: "UPDATE",
+
+                                old_data: oldData[0],
+
+                                new_data: {
+
+                                    trigger_column,
+
+                                    expected_answer,
+
+                                    priority,
+
+                                    sla_days: sla,
+
+                                    create_action_point,
+
+                                    mandatory,
+
+                                    is_active,
+
+                                    departments
+
+                                },
+
+                                changed_by: req.user.id
+
+                            }, () => {});
+
+                            // ======================================
+                            // RESPONSE
+                            // ======================================
+
+                            res.status(200).json({
+
+                                success: true,
+
+                                message: "Rule updated successfully."
+
+                            });
+
+                        }
+
+                    );
 
                 }
 
-
             );
-
 
         }
 
-
     );
-
 
 };
 // ======================================================
 // EXPORT RULES (CSV)
 // ======================================================
 
-exports.exportRules = (req,res)=>{
-
+exports.exportRules = (req, res) => {
 
     NSORule.exportRules(
 
-        (err,results)=>{
+        (err, results) => {
 
-
-            if(err){
-
+            if (err) {
 
                 console.error(err);
 
-
                 return res.status(500).json({
 
-                    success:false,
+                    success: false,
 
-                    message:err.message
+                    message: err.message
 
                 });
 
-
             }
 
-
+            // ======================================
+            // CSV HEADER
+            // ======================================
 
             let csv =
 
-            "Trigger Column,Departments\n";
+                "Trigger Column,Expected Answer,Priority,SLA Days,Create Action Point,Mandatory,Status,Departments\n";
 
+            // ======================================
+            // CSV DATA
+            // ======================================
 
-
-            results.forEach((rule)=>{
-
+            results.forEach((rule) => {
 
                 csv +=
 
-                `"${rule.trigger_column}","${rule.departments}"\n`;
+                    `"${rule.trigger_column}",` +
 
+                    `"${rule.expected_answer}",` +
+
+                    `"${rule.priority}",` +
+
+                    `"${rule.sla_days}",` +
+
+                    `"${rule.create_action_point ? "Yes" : "No"}",` +
+
+                    `"${rule.mandatory ? "Yes" : "No"}",` +
+
+                    `"${rule.is_active ? "Active" : "Inactive"}",` +
+
+                    `"${rule.departments || ""}"\n`;
 
             });
-
-
-
 
             // ======================================
             // ACTIVITY CENTER
@@ -1179,56 +1615,39 @@ exports.exportRules = (req,res)=>{
 
             Activity.create({
 
-
                 title:
 
-                "NSO Rules Exported",
-
-
+                    "NSO Rules Exported",
 
                 description:
 
-                "NSO Rules exported as CSV",
-
-
+                    "NSO Rules exported as CSV",
 
                 module_name:
 
-                "NSO Rules",
-
-
+                    "NSO Rules",
 
                 status:
 
-                "Closed",
-
-
+                    "Closed",
 
                 priority:
 
-                "Low",
-
-
+                    "Low",
 
                 created_by:
 
-                req.user.id,
-
-
+                    req.user.id,
 
                 assigned_to:
 
-                null
+                    null
 
+            }, () => {});
 
-
-            },()=>{});
-
-
-
-
-
-
+            // ======================================
+            // DOWNLOAD
+            // ======================================
 
             res.setHeader(
 
@@ -1238,8 +1657,6 @@ exports.exportRules = (req,res)=>{
 
             );
 
-
-
             res.setHeader(
 
                 "Content-Disposition",
@@ -1248,15 +1665,10 @@ exports.exportRules = (req,res)=>{
 
             );
 
-
-
             res.status(200).send(csv);
-
-
 
         }
 
     );
-
 
 };

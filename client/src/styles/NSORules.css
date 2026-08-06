@@ -2,17 +2,17 @@
    NSO RULES PAGE
 ====================================================== */
 
-.nso-rules-page {
+.nso-rules-page{
 
-    width: 100%;
+    width:100%;
 
-    min-height: 100vh;
+    min-height:100vh;
 
-    padding: 20px;
+    padding:20px;
 
-    background: #edf3f5;
+    background:#edf3f5;
 
-    box-sizing: border-box;
+    box-sizing:border-box;
 
 }
 
@@ -20,13 +20,13 @@
    CARD
 ====================================================== */
 
-.nso-rules-page .card {
+.nso-rules-page .card{
 
-    width: 100%;
+    width:100%;
 
-    border-radius: 16px;
+    border-radius:16px;
 
-    overflow: hidden;
+    overflow:hidden;
 
 }
 
@@ -34,35 +34,67 @@
    DATA TABLE
 ====================================================== */
 
-.nso-rules-page .data-table-wrapper {
+.nso-rules-page .data-table-wrapper{
 
-    width: 100%;
+    width:100%;
 
-    max-width: 100%;
+    overflow-x:auto;
 
-    overflow-x: auto;
-
-    overflow-y: hidden;
+    overflow-y:hidden;
 
 }
 
-.nso-rules-page .data-table {
+.nso-rules-page .data-table{
 
-    width: 100%;
+    width:100%;
 
-    min-width: 1100px;
-
-}
-
-.nso-rules-page .data-table thead th {
-
-    white-space: nowrap;
+    min-width:1450px;
 
 }
 
-.nso-rules-page .data-table tbody td {
+.nso-rules-page .data-table thead th{
 
-    vertical-align: middle;
+    white-space:nowrap;
+
+    text-align:center;
+
+}
+
+.nso-rules-page .data-table tbody td{
+
+    vertical-align:middle;
+
+    text-align:center;
+
+}
+
+/* ======================================================
+   TEXT
+====================================================== */
+
+.wrap-text{
+
+    max-width:300px;
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    line-height:1.5;
+
+    text-align:left;
+
+}
+
+.rule-description{
+
+    max-width:340px;
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    line-height:1.5;
 
 }
 
@@ -70,51 +102,19 @@
    TABLE LINK
 ====================================================== */
 
-.table-link {
+.table-link{
 
-    color: #3f6b78;
+    color:#3f6b78;
 
-    text-decoration: none;
+    font-weight:600;
 
-    font-weight: 600;
-
-}
-
-.table-link:hover {
-
-    text-decoration: underline;
+    text-decoration:none;
 
 }
 
-/* ======================================================
-   WRAP TEXT
-====================================================== */
+.table-link:hover{
 
-.wrap-text {
-
-    max-width: 320px;
-
-    white-space: normal;
-
-    word-break: break-word;
-
-    line-height: 1.5;
-
-}
-
-/* ======================================================
-   RULE DESCRIPTION
-====================================================== */
-
-.rule-description {
-
-    max-width: 360px;
-
-    white-space: normal;
-
-    word-break: break-word;
-
-    line-height: 1.5;
+    text-decoration:underline;
 
 }
 
@@ -122,27 +122,165 @@
    DEPARTMENT BADGE
 ====================================================== */
 
-.department-badge {
+.department-badge{
 
-    display: inline-flex;
+    display:inline-flex;
 
-    align-items: center;
+    align-items:center;
 
-    justify-content: center;
+    justify-content:center;
 
-    padding: 5px 12px;
+    padding:5px 12px;
 
-    border-radius: 20px;
+    border-radius:20px;
 
-    background: #e8f3f6;
+    background:#e8f3f6;
 
-    color: #356d84;
+    color:#356d84;
 
-    font-size: 12px;
+    font-size:12px;
 
-    font-weight: 600;
+    font-weight:600;
 
-    margin: 2px;
+    margin:2px;
+
+}
+
+/* ======================================================
+   STATUS BADGES
+====================================================== */
+
+.status-active,
+
+.status-inactive,
+
+.priority-badge,
+
+.answer-badge,
+
+.yes-badge,
+
+.no-badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:5px 12px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    white-space:nowrap;
+
+}
+
+/* ======================================================
+   STATUS
+====================================================== */
+
+.status-active{
+
+    background:#e8f5e9;
+
+    color:#2e7d32;
+
+}
+
+.status-inactive{
+
+    background:#ffebee;
+
+    color:#c62828;
+
+}
+
+/* ======================================================
+   PRIORITY
+====================================================== */
+
+.priority-badge.low{
+
+    background:#e8f5e9;
+
+    color:#2e7d32;
+
+}
+
+.priority-badge.medium{
+
+    background:#fff8e1;
+
+    color:#ef6c00;
+
+}
+
+.priority-badge.high{
+
+    background:#ffe0b2;
+
+    color:#ef6c00;
+
+}
+
+.priority-badge.critical{
+
+    background:#ffebee;
+
+    color:#d32f2f;
+
+}
+
+/* ======================================================
+   EXPECTED ANSWER
+====================================================== */
+
+.answer-badge.yes{
+
+    background:#e8f5e9;
+
+    color:#2e7d32;
+
+}
+
+.answer-badge.no{
+
+    background:#ffebee;
+
+    color:#c62828;
+
+}
+
+.answer-badge.na{
+
+    background:#eceff1;
+
+    color:#546e7a;
+
+}
+
+/* ======================================================
+   YES / NO
+====================================================== */
+
+.yes-badge{
+
+    background:#e8f5e9;
+
+    color:#2e7d32;
+
+}
+
+.no-badge{
+
+    background:#ffebee;
+
+    color:#c62828;
 
 }
 
@@ -150,43 +288,41 @@
    ACTION BUTTONS
 ====================================================== */
 
-.action-buttons {
+.action-buttons{
 
-    display: flex;
+    display:flex;
 
-    justify-content: center;
+    justify-content:center;
 
-    align-items: center;
+    align-items:center;
 
-    gap: 8px;
+    gap:8px;
 
-    flex-wrap: nowrap;
+    min-width:170px;
 
-    white-space: nowrap;
-
-    min-width: 170px;
+    white-space:nowrap;
 
 }
 
 /* ======================================================
-   DATE CELL
+   DATE
 ====================================================== */
 
-.date-cell {
+.date-cell{
 
-    white-space: nowrap;
+    white-space:nowrap;
 
 }
 
 /* ======================================================
-   NUMBER CELL
+   NUMBER
 ====================================================== */
 
-.number-cell {
+.number-cell{
 
-    text-align: right;
+    text-align:right;
 
-    white-space: nowrap;
+    white-space:nowrap;
 
 }
 
@@ -194,11 +330,11 @@
    PAGINATION
 ====================================================== */
 
-.nso-rules-page .pagination-container {
+.nso-rules-page .pagination-container{
 
-    margin-top: 20px;
+    margin-top:20px;
 
-    width: 100%;
+    width:100%;
 
 }
 
@@ -206,9 +342,33 @@
    EMPTY STATE
 ====================================================== */
 
-.nso-rules-page .empty-state {
+.nso-rules-page .empty-state{
 
-    padding: 60px 20px;
+    padding:60px 20px;
+
+}
+
+/* ======================================================
+   SCROLLBAR
+====================================================== */
+
+.data-table-wrapper::-webkit-scrollbar{
+
+    height:8px;
+
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb{
+
+    background:#c3c3c3;
+
+    border-radius:10px;
+
+}
+
+.data-table-wrapper::-webkit-scrollbar-track{
+
+    background:#f2f2f2;
 
 }
 
@@ -216,89 +376,87 @@
    RESPONSIVE
 ====================================================== */
 
-@media (max-width:1200px) {
+@media(max-width:1400px){
 
-    .nso-rules-page {
+    .nso-rules-page .data-table{
 
-        padding: 16px;
-
-    }
-
-    .nso-rules-page .data-table {
-
-        min-width: 950px;
+        min-width:1350px;
 
     }
 
 }
 
-@media (max-width:992px) {
+@media(max-width:1200px){
 
-    .wrap-text {
+    .nso-rules-page{
 
-        max-width: 240px;
-
-    }
-
-    .rule-description {
-
-        max-width: 260px;
+        padding:16px;
 
     }
 
-    .nso-rules-page .data-table {
+    .wrap-text{
 
-        min-width: 850px;
+        max-width:260px;
 
     }
 
 }
 
-@media (max-width:768px) {
+@media(max-width:992px){
 
-    .nso-rules-page {
+    .wrap-text{
 
-        padding: 12px;
-
-    }
-
-    .wrap-text {
-
-        max-width: 180px;
+        max-width:220px;
 
     }
 
-    .rule-description {
+    .rule-description{
 
-        max-width: 200px;
-
-    }
-
-    .action-buttons {
-
-        gap: 6px;
+        max-width:240px;
 
     }
 
-    .nso-rules-page .data-table {
+    .nso-rules-page .data-table{
 
-        min-width: 750px;
+        min-width:1200px;
 
     }
 
 }
 
-@media (max-width:576px) {
+@media(max-width:768px){
 
-    .nso-rules-page {
+    .nso-rules-page{
 
-        padding: 10px;
+        padding:12px;
 
     }
 
-    .nso-rules-page .data-table {
+    .wrap-text{
 
-        min-width: 650px;
+        max-width:180px;
+
+    }
+
+    .action-buttons{
+
+        gap:6px;
+
+    }
+
+}
+
+@media(max-width:576px){
+
+    .nso-rules-page{
+
+        padding:10px;
+
+    }
+
+    .nso-rules-page .data-table{
+
+        min-width:1100px;
 
     }
 

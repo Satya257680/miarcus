@@ -41,6 +41,18 @@ function AddRuleModal({
 
     trigger_column: "",
 
+    expected_answer: "No",
+
+    priority: "Medium",
+
+    sla_days: 3,
+
+    create_action_point: 1,
+
+    mandatory: 1,
+
+    is_active: 1,
+
     departments: [],
 
   });
@@ -89,6 +101,18 @@ function AddRuleModal({
 
         trigger_column: "",
 
+        expected_answer: "No",
+
+        priority: "Medium",
+
+        sla_days: 3,
+
+        create_action_point: 1,
+
+        mandatory: 1,
+
+        is_active: 1,
+
         departments: [],
 
       });
@@ -122,10 +146,28 @@ function AddRuleModal({
     setForm({
 
       trigger_column:
-
         editData.trigger_column || "",
 
-      departments: selectedDepartmentIds,
+      expected_answer:
+        editData.expected_answer || "No",
+
+      priority:
+        editData.priority || "Medium",
+
+      sla_days:
+        editData.sla_days || 3,
+
+      create_action_point:
+        editData.create_action_point ?? 1,
+
+      mandatory:
+        editData.mandatory ?? 1,
+
+      is_active:
+        editData.is_active ?? 1,
+
+      departments:
+        selectedDepartmentIds,
 
     });
 
@@ -180,24 +222,35 @@ function AddRuleModal({
     }
 
   };
-    // ==========================================
+
+  // ==========================================
   // Handle Input Change
   // ==========================================
 
   const handleChange = (e) => {
 
-    const { name, value } = e.target;
+  const { name, value } = e.target;
 
-    setForm((prev) => ({
+  let newValue = value;
 
-      ...prev,
+  if (
+    name === "sla_days" ||
+    name === "create_action_point" ||
+    name === "mandatory" ||
+    name === "is_active"
+  ) {
+    newValue = Number(value);
+  }
 
-      [name]: value,
+  setForm((prev) => ({
 
-    }));
+    ...prev,
 
-  };
+    [name]: newValue,
 
+  }));
+
+};
   // ==========================================
   // Toggle Department
   // ==========================================
@@ -262,18 +315,25 @@ function AddRuleModal({
 
       setSaving(true);
 
-      const payload = {
+     const payload = {
 
-        trigger_column:
+    trigger_column: form.trigger_column,
 
-          form.trigger_column,
+    expected_answer: form.expected_answer,
 
-        departments:
+    priority: form.priority,
 
-          form.departments,
+    sla_days: form.sla_days,
 
-      };
+    create_action_point: form.create_action_point,
 
+    mandatory: form.mandatory,
+
+    is_active: form.is_active,
+
+    departments: form.departments,
+
+};
       if (editData) {
 
         await updateRule(
@@ -312,12 +372,23 @@ function AddRuleModal({
 
       setForm({
 
-        trigger_column: "",
+    trigger_column: "",
 
-        departments: [],
+    expected_answer: "No",
 
-      });
+    priority: "Medium",
 
+    sla_days: 3,
+
+    create_action_point: 1,
+
+    mandatory: 1,
+
+    is_active: 1,
+
+    departments: [],
+
+});
       setDepartmentSearch("");
 
     } catch (err) {
@@ -394,215 +465,399 @@ function AddRuleModal({
 
           <form onSubmit={handleSubmit}>
 
-            {/* ================= Trigger Column ================= */}
+           {/* ================= Trigger Column ================= */}
 
-            <div className="form-group">
+<div className="form-group">
 
-              <label>
+  <label>
 
-                Trigger Column
+    Trigger Column
 
-              </label>
+  </label>
 
-              <select
+  <select
 
-                name="trigger_column"
+    name="trigger_column"
 
-                value={form.trigger_column}
+    value={form.trigger_column}
 
-                onChange={handleChange}
+    onChange={handleChange}
 
-                required
+    required
 
-              >
+  >
 
-                <option value="">
+    <option value="">
 
-                  Select Trigger Column
+      Select Trigger Column
 
-                </option>
+    </option>
 
-                {questions.map((question) => (
+    {questions.map((question) => (
 
-                  <option
+      <option
 
-                    key={question.id}
+        key={question.id}
 
-                    value={question.question}
+        value={question.question}
 
-                  >
+      >
 
-                    {question.question}
+        {question.question}
 
-                  </option>
+      </option>
 
-                ))}
+    ))}
 
-              </select>
+  </select>
 
-            </div>
+</div>
 
-            {/* ================= Departments ================= */}
+{/* ================= Expected Answer ================= */}
 
-            <div className="form-group">
+<div className="form-group">
 
-              <label>
+  <label>
 
-                Assigned Departments
+    Expected Answer
 
-              </label>
+  </label>
 
-              <input
+  <select
 
-                type="text"
+    name="expected_answer"
 
-                className="department-search"
+    value={form.expected_answer}
 
-                placeholder="Search departments..."
+    onChange={handleChange}
 
-                value={departmentSearch}
+  >
 
-                onChange={(e) =>
+    <option value="Yes">Yes</option>
 
-                  setDepartmentSearch(
+    <option value="No">No</option>
 
-                    e.target.value
+    <option value="NA">NA</option>
 
-                  )
+  </select>
 
-                }
+</div>
 
-              />
+{/* ================= Priority ================= */}
 
-                            <div className="department-box">
+<div className="form-group">
 
-                {filteredDepartments.length > 0 ? (
+  <label>
 
-                  filteredDepartments.map((department) => (
+    Priority
 
-                    <label
+  </label>
 
-                      key={department.id}
+  <select
 
-                      htmlFor={`department-${department.id}`}
+    name="priority"
 
-                      className="department-row"
+    value={form.priority}
 
-                    >
+    onChange={handleChange}
 
-                      <input
+  >
 
-                        id={`department-${department.id}`}
+    <option value="Low">Low</option>
 
-                        type="checkbox"
+    <option value="Medium">Medium</option>
 
-                        checked={form.departments.includes(
+    <option value="High">High</option>
 
-                          department.id
+    <option value="Critical">Critical</option>
 
-                        )}
+  </select>
 
-                        onChange={() =>
+</div>
 
-                          toggleDepartment(
+{/* ================= SLA Days ================= */}
 
-                            department.id
+<div className="form-group">
 
-                          )
+  <label>
 
-                        }
+    SLA Days
 
-                      />
+  </label>
 
-                      <span>
+  <input
 
-                        {department.department_name}
+    type="number"
 
-                      </span>
+    name="sla_days"
 
-                    </label>
+    min="1"
 
-                  ))
+    value={form.sla_days}
 
-                ) : (
+    onChange={handleChange}
 
-                  <div className="no-department">
+  />
 
-                    No departments found.
+</div>
 
-                  </div>
+{/* ================= Create Action Point ================= */}
 
-                )}
+<div className="form-group">
 
-              </div>
+  <label>
 
-            </div>
+    Create Action Point
 
-            {/* ================= Buttons ================= */}
+  </label>
 
-            <div className="modal-actions">
+  <select
 
-              <button
+    name="create_action_point"
 
-                type="submit"
+    value={form.create_action_point}
 
-                className="save-btn"
+    onChange={handleChange}
 
-                disabled={saving}
+  >
 
-              >
+    <option value={1}>Yes</option>
 
-                {saving
+    <option value={0}>No</option>
 
-                  ? "Saving..."
+  </select>
 
-                  : editData
+</div>
 
-                  ? "Update Rule"
+{/* ================= Mandatory ================= */}
 
-                  : "Create Rule"}
+<div className="form-group">
 
-              </button>
+  <label>
 
-              <button
+    Mandatory
 
-                type="button"
+  </label>
 
-                className="cancel-btn"
+  <select
 
-                onClick={() => {
+    name="mandatory"
 
-                  setForm({
+    value={form.mandatory}
 
-                    trigger_column: "",
+    onChange={handleChange}
 
-                    departments: [],
+  >
 
-                  });
+    <option value={1}>Yes</option>
 
-                  setDepartmentSearch("");
+    <option value={0}>No</option>
 
-                  onClose();
+  </select>
 
-                }}
+</div>
 
-              >
+{/* ================= Status ================= */}
 
-                Cancel
+<div className="form-group">
 
-              </button>
+  <label>
 
-            </div>
+    Status
 
-          </form>
+  </label>
 
-        )}
+  <select
+
+    name="is_active"
+
+    value={form.is_active}
+
+    onChange={handleChange}
+
+  >
+
+    <option value={1}>Active</option>
+
+    <option value={0}>Inactive</option>
+
+  </select>
+
+</div>
+
+{/* ================= Departments ================= */}
+
+<div className="form-group full-width">
+
+  <label>
+
+    Assigned Departments
+
+  </label>
+
+  <input
+
+    type="text"
+
+    className="department-search"
+
+    placeholder="Search departments..."
+
+    value={departmentSearch}
+
+    onChange={(e) =>
+
+      setDepartmentSearch(
+
+        e.target.value
+
+      )
+
+    }
+
+  />
+
+  <div className="department-box">
+
+    {filteredDepartments.length > 0 ? (
+
+      filteredDepartments.map((department) => (
+
+        <label
+
+          key={department.id}
+
+          htmlFor={`department-${department.id}`}
+
+          className="department-row"
+
+        >
+
+          <input
+
+            id={`department-${department.id}`}
+
+            type="checkbox"
+
+            checked={form.departments.includes(
+
+              department.id
+
+            )}
+
+            onChange={() =>
+
+              toggleDepartment(
+
+                department.id
+
+              )
+
+            }
+
+          />
+
+          <span>
+
+            {department.department_name}
+
+          </span>
+
+        </label>
+
+      ))
+
+    ) : (
+
+      <div className="no-department">
+
+        No departments found.
 
       </div>
 
-    </div>
+    )}
 
-  );
+  </div>
+
+</div>
+
+{/* ================= Buttons ================= */}
+
+<div className="modal-actions">
+
+  <button
+
+    type="submit"
+
+    className="save-btn"
+
+    disabled={saving}
+
+  >
+
+    {saving
+
+      ? "Saving..."
+
+      : editData
+
+      ? "Update Rule"
+
+      : "Create Rule"}
+
+  </button>
+
+  <button
+
+    type="button"
+
+    className="cancel-btn"
+
+    onClick={() => {
+
+      setForm({
+
+        trigger_column: "",
+
+        expected_answer: "No",
+
+        priority: "Medium",
+
+        sla_days: 3,
+
+        create_action_point: 1,
+
+        mandatory: 1,
+
+        is_active: 1,
+
+        departments: [],
+
+      });
+
+      setDepartmentSearch("");
+
+      onClose();
+
+    }}
+
+  >
+
+    Cancel
+
+  </button>
+
+</div>
+
+</form>
+
+)}
+
+</div>
+
+</div>
+
+);
 
 }
 

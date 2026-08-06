@@ -24,11 +24,11 @@ import CreatePointModal from "../components/CreatePointModal";
 // ======================================================
 
 import {
-    FaEye,
+
     FaEdit,
-    FaTrash,
-    FaFileCsv,
-    FaPlus
+
+    FaTrash
+
 } from "react-icons/fa";
 
 // ======================================================
@@ -79,6 +79,8 @@ function ActionPoints() {
 
     const [status, setStatus] = useState("");
 
+    const [priority, setPriority] = useState("");
+
     const [checklistType, setChecklistType] = useState("");
 
     const [startDate, setStartDate] = useState("");
@@ -127,13 +129,17 @@ function ActionPoints() {
 
         question: "",
 
-        answer: "",
-
-        comment: "",
-
         department_name: "",
 
-        sla: ""
+        assigned_to: "",
+
+        priority: "Medium",
+
+        sla_days: 0,
+
+        remarks: "",
+
+        status: "Open"
 
     });
 
@@ -144,8 +150,6 @@ function ActionPoints() {
     const [actionTaken, setActionTaken] = useState("");
 
     const [remarks, setRemarks] = useState("");
-
-    const [completionDate, setCompletionDate] = useState("");
 
     // ======================================================
     // RBAC
@@ -169,646 +173,781 @@ function ActionPoints() {
 
         user.administrator === 1;
 
-    const permission = isAdmin
+    const permission =
 
-        ? "Full"
+        isAdmin
 
-        : permissions["Action Points"] || "None";
+            ? "Full"
 
-    const canView = [
+            : permissions["Action Points"] || "None";
 
-        "View",
+    const canView =
 
-        "Add",
+        [
 
-        "Edit",
+            "View",
 
-        "Full"
+            "Add",
 
-    ].includes(permission);
+            "Edit",
 
-    const canAdd = [
+            "Full"
 
-        "Add",
+        ].includes(permission);
 
-        "Edit",
+    const canAdd =
 
-        "Full"
+        [
 
-    ].includes(permission);
+            "Add",
 
-    const canEdit = [
+            "Edit",
 
-        "Edit",
+            "Full"
 
-        "Full"
+        ].includes(permission);
 
-    ].includes(permission);
+    const canEdit =
+
+        [
+
+            "Edit",
+
+            "Full"
+
+        ].includes(permission);
 
     const canDelete =
 
         permission === "Full";
             // ======================================================
-    // LOAD ACTION POINTS
-    // ======================================================
+// LOAD ACTION POINTS
+// ======================================================
 
-    const fetchActionPoints = async () => {
+const fetchActionPoints = async () => {
 
-        try {
+    try {
 
-            setLoading(true);
+        setLoading(true);
 
-            const res = await axios.get(
+        const res = await axios.get(
 
-                `${API}/api/action-points`,
+            `${API}/api/action-points`,
 
-                {
-                    params: {
+            {
 
-                        page: currentPage,
+                params: {
 
-                        limit: pageSize,
+                    page: currentPage,
 
-                        search,
+                    limit: pageSize,
 
-                        store_id: store,
+                    search,
 
-                        department_id: department,
+                    store_id: store,
 
-                        status,
+                    department_id: department,
 
-                        checklist_type_id: checklistType,
+                    checklist_type_id: checklistType,
 
-                        start_date: startDate,
+                    priority,
 
-                        end_date: endDate
+                    status,
 
-                    }
+                    start_date: startDate,
+
+                    end_date: endDate
 
                 }
 
-            );
-
-            const result = res.data || {};
-
-            setActionPoints(result.data || []);
-
-            setTotalRecords(result.total || 0);
-
-            setTotalPages(
-
-                Math.ceil(
-
-                    (result.total || 0) / pageSize
-
-                ) || 1
-
-            );
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to load Action Points."
-
-            );
-
-            setActionPoints([]);
-
-        }
-        finally {
-
-            setLoading(false);
-
-        }
-
-    };
-
-    // ======================================================
-    // LOAD FILTERS
-    // ======================================================
-
-    const fetchFilters = async () => {
-
-        try {
-
-            const [
-
-                storeRes,
-
-                deptRes,
-
-                checklistRes
-
-            ] = await Promise.all([
-
-                axios.get(`${API}/api/stores`),
-
-                axios.get(`${API}/api/departments`),
-
-                axios.get(`${API}/api/checklist-types`)
-
-            ]);
-
-            setStores(
-
-                storeRes.data.data || []
-
-            );
-
-            setDepartments(
-
-                deptRes.data.data || []
-
-            );
-
-            setChecklists(
-
-                checklistRes.data.data || []
-
-            );
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-        }
-
-    };
-
-    // ======================================================
-    // LOAD DATA
-    // ======================================================
-
-    useEffect(() => {
-
-        if (!canView) {
-
-            setLoading(false);
-
-            return;
-
-        }
-
-        fetchFilters();
-
-    }, [canView]);
-
-    useEffect(() => {
-
-        if (!canView) return;
-
-        fetchActionPoints();
-
-    }, [
-
-        canView,
-
-        currentPage,
-
-        pageSize,
-
-        search,
-
-        store,
-
-        department,
-
-        status,
-
-        checklistType,
-
-        startDate,
-
-        endDate
-
-    ]);
-
-    // ======================================================
-    // UPDATE ACTION POINT
-    // ======================================================
-
-    const updateActionPoint = async () => {
-
-        try {
-
-            await axios.put(
-
-                `${API}/api/action-points/${editData.id}`,
-
-                {
-
-                    answer: editData.answer,
-
-                    remarks: editData.comment,
-
-                    status: "No Action Taken"
-
-                }
-
-            );
-
-            alert(
-
-                "Action Point updated successfully."
-
-            );
-
-            setShowEditModal(false);
-
-            fetchActionPoints();
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to update Action Point."
-
-            );
-
-        }
-
-    };
-
-    // ======================================================
-    // DELETE
-    // ======================================================
-
-    const handleDelete = (id) => {
-
-        if (!canDelete) return;
-
-        setDeleteId(id);
-
-        setShowDeleteDialog(true);
-
-    };
-
-    const confirmDelete = async () => {
-
-        try {
-
-            await axios.delete(
-
-                `${API}/api/action-points/${deleteId}`
-
-            );
-
-            alert("Deleted Successfully");
-
-            fetchActionPoints();
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to delete Action Point."
-
-            );
-
-        }
-        finally {
-
-            setDeleteId(null);
-
-            setShowDeleteDialog(false);
-
-        }
-
-    };
-
-    // ======================================================
-    // OPEN TAKE ACTION MODAL
-    // ======================================================
-
-    const handleOpen = (row) => {
-
-        if (!canEdit) return;
-
-        setSelectedAction(row);
-
-        setActionTaken("");
-
-        setRemarks("");
-
-        setCompletionDate("");
-
-        setShowOpenModal(true);
-
-    };
-
-    // ======================================================
-    // SAVE ACTION
-    // ======================================================
-
-    const saveActionPoint = async () => {
-
-        try {
-
-            await axios.put(
-
-                `${API}/api/action-points/${selectedAction.id}/take-action`,
-
-                {
-
-                    action_taken: actionTaken,
-
-                    remarks,
-
-                    completion_date: completionDate
-
-                }
-
-            );
-
-            alert("Action saved successfully.");
-
-            setShowOpenModal(false);
-
-            fetchActionPoints();
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to save Action Point."
-
-            );
-
-        }
-
-    };
-
-    // ======================================================
-    // EXPORT
-    // ======================================================
-
-    const handleExport = () => {
-
-        window.open(
-
-            `${API}/api/action-points/export`,
-
-            "_blank"
+            }
 
         );
 
-    };
+        const result = res.data || {};
 
-    // ======================================================
-    // SUCCESS
-    // ======================================================
+        setActionPoints(
 
-    const handleSuccess = () => {
-
-        setShowCreateModal(false);
-
-        fetchActionPoints();
-
-    };
-
-    // ======================================================
-    // CLEAR FILTERS
-    // ======================================================
-
-    const handleClearFilters = () => {
-
-        setSearch("");
-
-        setStore("");
-
-        setDepartment("");
-
-        setStatus("");
-
-        setChecklistType("");
-
-        setStartDate("");
-
-        setEndDate("");
-
-        setCurrentPage(1);
-
-    };
-        // ======================================================
-    // FILTERED DATA
-    // ======================================================
-
-    const filteredActionPoints = useMemo(() => {
-
-        return actionPoints.filter((item) => {
-
-            const searchMatch =
-
-                !search ||
-
-                item.store_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.question
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.checklist_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.department_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.answer
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase());
-
-            const storeMatch =
-
-                !store ||
-
-                item.store_id == store;
-
-            const departmentMatch =
-
-                !department ||
-
-                item.department_id == department;
-
-            const statusMatch =
-
-                !status ||
-
-                item.status === status;
-
-            const checklistMatch =
-
-                !checklistType ||
-
-                item.checklist_type_id == checklistType;
-
-            const fromMatch =
-
-                !startDate ||
-
-                new Date(item.date) >=
-
-                new Date(startDate);
-
-            const toMatch =
-
-                !endDate ||
-
-                new Date(item.date) <=
-
-                new Date(endDate + "T23:59:59");
-
-            return (
-
-                searchMatch &&
-
-                storeMatch &&
-
-                departmentMatch &&
-
-                statusMatch &&
-
-                checklistMatch &&
-
-                fromMatch &&
-
-                toMatch
-
-            );
-
-        });
-
-    }, [
-
-        actionPoints,
-
-        search,
-
-        store,
-
-        department,
-
-        status,
-
-        checklistType,
-
-        startDate,
-
-        endDate
-
-    ]);
-
-    // ======================================================
-    // PAGINATION
-    // ======================================================
-
-    const currentData = filteredActionPoints;
-
-    useEffect(() => {
-
-        setCurrentPage(1);
-
-    }, [
-
-        search,
-
-        store,
-
-        department,
-
-        status,
-
-        checklistType,
-
-        startDate,
-
-        endDate
-
-    ]);
-
-    // ======================================================
-    // FORMAT DATE
-    // ======================================================
-
-    const formatDate = (value) => {
-
-        if (!value) return "-";
-
-        return new Date(value).toLocaleString(
-
-            "en-GB"
+            result.data || []
 
         );
 
-    };
+        setTotalRecords(
 
-    // ======================================================
-    // ACCESS DENIED
-    // ======================================================
+            result.pagination?.total || 0
+
+        );
+
+        setTotalPages(
+
+            result.pagination?.totalPages || 1
+
+        );
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Unable to load Action Points."
+
+        );
+
+        setActionPoints([]);
+
+    }
+
+    finally {
+
+        setLoading(false);
+
+    }
+
+};
+
+
+
+// ======================================================
+// LOAD FILTERS
+// ======================================================
+
+const fetchFilters = async () => {
+
+    try {
+
+        const [
+
+            storeRes,
+
+            deptRes,
+
+            checklistRes
+
+        ] = await Promise.all([
+
+            axios.get(
+
+                `${API}/api/stores`
+
+            ),
+
+            axios.get(
+
+                `${API}/api/departments`
+
+            ),
+
+            axios.get(
+
+                `${API}/api/checklist-types`
+
+            )
+
+        ]);
+
+
+
+        setStores(
+
+            storeRes.data.data || []
+
+        );
+
+
+
+        setDepartments(
+
+            deptRes.data.data || []
+
+        );
+
+
+
+        setChecklists(
+
+            checklistRes.data.data || []
+
+        );
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+    }
+
+};
+
+
+
+// ======================================================
+// LOAD DATA
+// ======================================================
+
+useEffect(() => {
 
     if (!canView) {
 
-        return (
+        setLoading(false);
 
-            <div className="no-permission">
+        return;
 
-                <h2>Access Denied</h2>
+    }
 
-                <p>
+    fetchFilters();
 
-                    You don't have permission to view
-                    Action Points.
+}, [
 
-                </p>
+    canView
 
-            </div>
+]);
+
+
+
+useEffect(() => {
+
+    if (!canView) {
+
+        return;
+
+    }
+
+    fetchActionPoints();
+
+}, [
+
+    canView,
+
+    currentPage,
+
+    pageSize,
+
+    search,
+
+    store,
+
+    department,
+
+    checklistType,
+
+    priority,
+
+    status,
+
+    startDate,
+
+    endDate
+
+]);
+
+
+
+// ======================================================
+// UPDATE ACTION POINT
+// ======================================================
+
+const updateActionPoint = async () => {
+
+    try {
+
+        await axios.put(
+
+            `${API}/api/action-points/${editData.id}`,
+
+            {
+
+                assigned_to:
+
+                    editData.assigned_to,
+
+                priority:
+
+                    editData.priority,
+
+                sla_days:
+
+                    editData.sla_days,
+
+                remarks:
+
+                    editData.remarks,
+
+                status:
+
+                    editData.status
+
+            }
+
+        );
+
+
+
+        alert(
+
+            "Action Point updated successfully."
+
+        );
+
+
+
+        setShowEditModal(false);
+
+
+
+        fetchActionPoints();
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Unable to update Action Point."
 
         );
 
     }
 
+};
     // ======================================================
-    // LOADING
-    // ======================================================
+// DELETE
+// ======================================================
 
-    if (loading) {
+const handleDelete = (id) => {
 
-        return (
+    if (!canDelete) return;
 
-            <div className="action-loading">
+    setDeleteId(id);
 
-                Loading Action Points...
+    setShowDeleteDialog(true);
 
-            </div>
+};
+
+const confirmDelete = async () => {
+
+    try {
+
+        await axios.delete(
+
+            `${API}/api/action-points/${deleteId}`
+
+        );
+
+        alert(
+
+            "Action Point deleted successfully."
+
+        );
+
+        fetchActionPoints();
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Unable to delete Action Point."
 
         );
 
     }
+
+    finally {
+
+        setDeleteId(null);
+
+        setShowDeleteDialog(false);
+
+    }
+
+};
+
+
+
+// ======================================================
+// OPEN TAKE ACTION MODAL
+// ======================================================
+
+const handleOpen = (row) => {
+
+    if (!canEdit) return;
+
+    setSelectedAction(row);
+
+    setActionTaken("");
+
+    setRemarks("");
+
+    setShowOpenModal(true);
+
+};
+
+
+
+// ======================================================
+// SAVE ACTION
+// ======================================================
+
+const saveActionPoint = async () => {
+
+    try {
+
+        await axios.put(
+
+            `${API}/api/action-points/${selectedAction.id}/take-action`,
+
+            {
+
+                action_taken: actionTaken,
+
+                remarks
+
+            }
+
+        );
+
+        alert(
+
+            "Action completed successfully."
+
+        );
+
+        setShowOpenModal(false);
+
+        fetchActionPoints();
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        alert(
+
+            err.response?.data?.message ||
+
+            "Unable to complete Action Point."
+
+        );
+
+    }
+
+};
+
+
+
+// ======================================================
+// EXPORT
+// ======================================================
+
+const handleExport = () => {
+
+    window.open(
+
+        `${API}/api/action-points/export`,
+
+        "_blank"
+
+    );
+
+};
+
+
+
+// ======================================================
+// SUCCESS
+// ======================================================
+
+const handleSuccess = () => {
+
+    setShowCreateModal(false);
+
+    fetchActionPoints();
+
+};
+
+
+
+// ======================================================
+// CLEAR FILTERS
+// ======================================================
+
+const handleClearFilters = () => {
+
+    setSearch("");
+
+    setStore("");
+
+    setDepartment("");
+
+    setStatus("");
+
+    setPriority("");
+
+    setChecklistType("");
+
+    setStartDate("");
+
+    setEndDate("");
+
+    setCurrentPage(1);
+
+};
+
+
+
+// ======================================================
+// FILTERED DATA
+// ======================================================
+
+const filteredActionPoints = useMemo(() => {
+
+    return actionPoints.filter((item) => {
+
+        const searchMatch =
+
+            !search ||
+
+            item.store_name
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.question
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.checklist_name
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.department_name
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.priority
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.status
+                ?.toLowerCase()
+                .includes(search.toLowerCase());
+
+
+
+        const storeMatch =
+
+            !store ||
+
+            item.store_id == store;
+
+
+
+        const departmentMatch =
+
+            !department ||
+
+            item.department_id == department;
+
+
+
+        const statusMatch =
+
+            !status ||
+
+            item.status === status;
+
+
+
+        const priorityMatch =
+
+            !priority ||
+
+            item.priority === priority;
+
+
+
+        const checklistMatch =
+
+            !checklistType ||
+
+            item.checklist_type_id == checklistType;
+
+
+
+        const fromMatch =
+
+            !startDate ||
+
+            new Date(item.submission_date || item.date) >=
+
+            new Date(startDate);
+
+
+
+        const toMatch =
+
+            !endDate ||
+
+            new Date(item.submission_date || item.date) <=
+
+            new Date(endDate + "T23:59:59");
+
+
+
+        return (
+
+            searchMatch &&
+
+            storeMatch &&
+
+            departmentMatch &&
+
+            statusMatch &&
+
+            priorityMatch &&
+
+            checklistMatch &&
+
+            fromMatch &&
+
+            toMatch
+
+        );
+
+    });
+
+}, [
+
+    actionPoints,
+
+    search,
+
+    store,
+
+    department,
+
+    status,
+
+    priority,
+
+    checklistType,
+
+    startDate,
+
+    endDate
+
+]);
+// ======================================================
+// PAGINATION
+// ======================================================
+
+const currentData = filteredActionPoints;
+
+useEffect(() => {
+
+    setCurrentPage(1);
+
+}, [
+
+    search,
+
+    store,
+
+    department,
+
+    status,
+
+    priority,
+
+    checklistType,
+
+    startDate,
+
+    endDate
+
+]);
+
+
+
+// ======================================================
+// FORMAT DATE
+// ======================================================
+
+const formatDate = (value) => {
+
+    if (!value) return "-";
+
+    return new Date(value).toLocaleString(
+
+        "en-GB"
+
+    );
+
+};
+
+
+
+// ======================================================
+// ACCESS DENIED
+// ======================================================
+
+if (!canView) {
+
+    return (
+
+        <div className="no-permission">
+
+            <h2>Access Denied</h2>
+
+            <p>
+
+                You don't have permission to view
+                Action Points.
+
+            </p>
+
+        </div>
+
+    );
+
+}
+
+
+
+// ======================================================
+// LOADING
+// ======================================================
+
+if (loading) {
+
+    return (
+
+        <div className="action-loading">
+
+            Loading Action Points...
+
+        </div>
+
+    );
+
+}
 
     // ======================================================
     // TABLE COLUMNS
@@ -869,194 +1008,330 @@ function ActionPoints() {
             render: (row) => row.department_name || "-"
         },
 
-        {
-            key: "answer",
-            title: "Answer",
-            render: (row) => row.answer || "-"
-        },
+        // ==================================================
+// PRIORITY
+// ==================================================
 
-        {
-            key: "comment",
-            title: "Comment",
-            render: (row) => (
-                <div className="remarks-cell">
-                    {row.comment || "-"}
-                </div>
+{
+    key: "priority",
+
+    title: "Priority",
+
+    render: (row) => (
+
+        <span
+            className={`priority-badge ${(
+                row.priority || "medium"
             )
-        },
+                .toLowerCase()}`}
+        >
 
-        // ==================================================
-        // ATTACHMENT
-        // ==================================================
+            {row.priority || "-"}
 
-        {
-            key: "attachment",
-            title: "Attachment",
-            render: (row) => (
+        </span>
 
-                row.attachment ? (
+    )
 
-                    <a
-                        href={`${API}/${row.attachment.replace(/\\/g, "/")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="table-link"
-                    >
-                        View
-                    </a>
+},
 
-                ) : (
+// ==================================================
+// ASSIGNED TO
+// ==================================================
 
-                    "-"
+{
+    key: "assigned_to",
 
-                )
+    title: "Assigned To",
 
+    render: (row) => (
+
+        <div className="remarks-cell">
+
+            {row.assigned_to_name ||
+
+             row.assigned_to ||
+
+             "-"}
+
+        </div>
+
+    )
+
+},
+
+       // ==================================================
+// ATTACHMENT
+// ==================================================
+
+{
+    key: "attachment",
+
+    title: "Attachment",
+
+    render: (row) => (
+
+        row.attachment ? (
+
+            <a
+                href={`${API}/${row.attachment.replace(/\\/g, "/")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="table-link"
+            >
+                View
+            </a>
+
+        ) : (
+
+            "-"
+
+        )
+
+    )
+
+},
+
+
+
+// ==================================================
+// STATUS
+// ==================================================
+
+{
+    key: "status",
+
+    title: "Status",
+
+    render: (row) => (
+
+        <span
+            className={`status-badge ${(
+                row.status || ""
             )
-        },
+                .toLowerCase()
+                .replace(/\s+/g, "-")}`}
+        >
 
-        // ==================================================
-        // STATUS
-        // ==================================================
+            {row.status || "-"}
 
-        {
-            key: "status",
-            title: "Status",
-            render: (row) => (
-                <span
-                    className={`status-badge ${(
-                        row.status || ""
-                    )
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}`}
+        </span>
+
+    )
+
+},
+
+
+
+// ==================================================
+// SLA DAYS
+// ==================================================
+
+{
+    key: "sla_days",
+
+    title: "SLA Days",
+
+    render: (row) => (
+
+        <span className="sla-cell">
+
+            {row.sla_days != null
+
+                ? `${row.sla_days} Days`
+
+                : "-"}
+
+        </span>
+
+    )
+
+},
+
+
+
+// ==================================================
+// NEXT ACTION
+// ==================================================
+
+{
+    key: "next_action",
+
+    title: "Next Action",
+
+    render: (row) => (
+
+        row.status !== "Closed" ? (
+
+            <button
+                className="open-btn"
+                onClick={() => handleOpen(row)}
+            >
+
+                Take Action
+
+            </button>
+
+        ) : (
+
+            <span>
+
+                Completed
+
+            </span>
+
+        )
+
+    )
+
+},
+
+
+
+// ==================================================
+// REMARKS
+// ==================================================
+
+{
+    key: "remarks",
+
+    title: "Remarks",
+
+    render: (row) => (
+
+        <div className="remarks-cell">
+
+            {row.remarks || "-"}
+
+        </div>
+
+    )
+
+},
+
+
+
+// ==================================================
+// HISTORY
+// ==================================================
+
+{
+    key: "history",
+
+    title: "History",
+
+    render: (row) => (
+
+        row.completed_at
+
+            ? `Closed on ${formatDate(row.completed_at)}`
+
+            : "Open"
+
+    )
+
+},
+       // ==================================================
+// ACTIONS
+// ==================================================
+
+{
+    key: "actions",
+
+    title: "Actions",
+
+    width: "260px",
+
+    align: "center",
+
+    render: (row) => (
+
+        <div className="action-buttons">
+
+            {canEdit && (
+
+                <button
+                    className="edit-btn"
+                    onClick={() => {
+
+                        setEditData({
+
+                            id: row.id,
+
+                            question: row.question,
+
+                            department_name:
+                                row.department_name,
+
+                            assigned_to:
+                                row.assigned_to || "",
+
+                            priority:
+                                row.priority || "Medium",
+
+                            sla_days:
+                                row.sla_days || 0,
+
+                            remarks:
+                                row.remarks || "",
+
+                            status:
+                                row.status || "Open"
+
+                        });
+
+                        setShowEditModal(true);
+
+                    }}
                 >
-                    {row.status || "-"}
-                </span>
-            )
-        },
 
-        {
-            key: "sla_status",
-            title: "SLA",
-            render: (row) => (
-                <span className="sla-cell">
-                    {row.sla_status || "-"}
-                </span>
-            )
-        },
+                    <FaEdit />
 
-        {
-            key: "next_action",
-            title: "Next Action",
-            render: (row) => (
+                    {" "}Edit
 
-                row.next_action ? (
+                </button>
 
-                    <button
-                        className="open-btn"
-                        onClick={() => handleOpen(row)}
-                    >
-                        {row.next_action}
-                    </button>
+            )}
 
-                ) : (
 
-                    "-"
 
-                )
+            {row.status !== "Closed" && canEdit && (
 
-            )
-        },
+                <button
+                    className="open-btn"
+                    onClick={() => handleOpen(row)}
+                >
 
-        {
-            key: "remarks",
-            title: "Remarks",
-            render: (row) => (
-                <div className="remarks-cell">
-                    {row.remarks || "-"}
-                </div>
-            )
-        },
+                    Take Action
 
-        // ==================================================
-        // HISTORY
-        // ==================================================
+                </button>
 
-        {
-            key: "history",
-            title: "History",
-            render: (row) =>
-                row.history ||
-                row.created_by ||
-                "-"
-        },
+            )}
 
-        // ==================================================
-        // ACTIONS
-        // ==================================================
 
-        {
-            key: "actions",
-            title: "Actions",
-            width: "260px",
-            align: "center",
 
-            render: (row) => (
+            {canDelete && (
 
-                <div className="action-buttons">
+                <button
+                    className="delete-btn"
+                    onClick={() => handleDelete(row.id)}
+                >
 
-                    {canEdit && (
+                    <FaTrash />
 
-                        <button
-                            className="edit-btn"
-                            onClick={() => {
+                    {" "}Delete
 
-                                setEditData({
+                </button>
 
-                                    id: row.id,
+            )}
 
-                                    question: row.question,
+        </div>
 
-                                    department_name: row.department_name,
+    )
 
-                                    answer: row.answer || "",
+}
 
-                                    comment: row.comment || "",
+];
 
-                                    sla: row.sla || ""
-
-                                });
-
-                                setShowEditModal(true);
-
-                            }}
-                        >
-                            <FaEdit />
-
-                            {" "}Edit
-                        </button>
-
-                    )}
-
-                    {canDelete && (
-
-                        <button
-                            className="delete-btn"
-                            onClick={() => handleDelete(row.id)}
-                        >
-                            <FaTrash />
-
-                            {" "}Delete
-                        </button>
-
-                    )}
-
-                </div>
-
-            )
-
-        }
-
-    ];
 return (
 
     <div className="action-points-page">
@@ -1189,8 +1464,8 @@ return (
                         All Status
                     </option>
 
-                    <option value="Opened">
-                        Opened
+                    <option value="Open">
+                        Open
                     </option>
 
                     <option value="In Progress">
@@ -1201,448 +1476,648 @@ return (
                         Closed
                     </option>
 
-                    <option value="No Action Taken">
-                        No Action Taken
-                    </option>
-
                 </select>
 
             </div>
 
             {/* ==========================================
-                CHECKLIST
+                PRIORITY
             ========================================== */}
 
             <div className="filter-group">
 
-                <label>Checklist Type</label>
+                <label>Priority</label>
 
                 <select
-                    value={checklistType}
+                    value={priority}
                     onChange={(e) =>
-                        setChecklistType(e.target.value)
+                        setPriority(e.target.value)
                     }
                 >
 
                     <option value="">
-                        All Checklist Types
+                        All Priority
                     </option>
 
-                    {checklists.map((item) => (
+                    <option value="Low">
+                        Low
+                    </option>
 
-                        <option
-                            key={item.id}
-                            value={item.id}
-                        >
-                            {item.checklist_name}
-                        </option>
+                    <option value="Medium">
+                        Medium
+                    </option>
 
-                    ))}
+                    <option value="High">
+                        High
+                    </option>
+
+                    <option value="Critical">
+                        Critical
+                    </option>
 
                 </select>
 
             </div>
+           {/* ==========================================
+    CHECKLIST
+========================================== */}
 
-            {/* ==========================================
-                START DATE
-            ========================================== */}
+<div className="filter-group">
 
-            <div className="filter-group">
+    <label>Checklist Type</label>
 
-                <label>From Date</label>
+    <select
+        value={checklistType}
+        onChange={(e) =>
+            setChecklistType(e.target.value)
+        }
+    >
 
-                <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) =>
-                        setStartDate(e.target.value)
-                    }
-                />
+        <option value="">
+            All Checklist Types
+        </option>
+
+        {checklists.map((item) => (
+
+            <option
+                key={item.id}
+                value={item.id}
+            >
+                {item.checklist_name}
+            </option>
+
+        ))}
+
+    </select>
+
+</div>
+
+{/* ==========================================
+    START DATE
+========================================== */}
+
+<div className="filter-group">
+
+    <label>From Date</label>
+
+    <input
+        type="date"
+        value={startDate}
+        onChange={(e) =>
+            setStartDate(e.target.value)
+        }
+    />
+
+</div>
+
+{/* ==========================================
+    END DATE
+========================================== */}
+
+<div className="filter-group">
+
+    <label>To Date</label>
+
+    <input
+        type="date"
+        value={endDate}
+        onChange={(e) =>
+            setEndDate(e.target.value)
+        }
+    />
+
+</div>
+
+</FilterBar>
+
+{/* ======================================================
+    CARD
+====================================================== */}
+
+<Card title="Action Point List">
+
+    <DataTable
+
+        columns={columns}
+
+        data={currentData}
+
+        loading={loading}
+
+        emptyTitle="No Action Points Found"
+
+        emptyDescription="There are no Action Points available."
+
+    />
+
+    <Pagination
+
+        currentPage={currentPage}
+
+        totalPages={totalPages}
+
+        totalRecords={totalRecords}
+
+        pageSize={pageSize}
+
+        onPageChange={setCurrentPage}
+
+        showPageSize={false}
+
+    />
+
+</Card>
+                {/* ======================================================
+    CREATE ACTION POINT MODAL
+====================================================== */}
+
+{canAdd && (
+
+    <CreatePointModal
+
+        isOpen={showCreateModal}
+
+        onClose={() => setShowCreateModal(false)}
+
+        onSuccess={handleSuccess}
+
+    />
+
+)}
+
+
+
+{/* ======================================================
+    DELETE CONFIRMATION
+====================================================== */}
+
+<ConfirmDialog
+
+    open={showDeleteDialog}
+
+    title="Delete Action Point"
+
+    message="Are you sure you want to delete this Action Point?"
+
+    confirmText="Delete"
+
+    cancelText="Cancel"
+
+    confirmVariant="danger"
+
+    onConfirm={confirmDelete}
+
+    onCancel={() => {
+
+        setDeleteId(null);
+
+        setShowDeleteDialog(false);
+
+    }}
+
+/>
+
+
+
+{/* ======================================================
+    EDIT ACTION POINT MODAL
+====================================================== */}
+
+{showEditModal && (
+
+    <div className="modal-overlay">
+
+        <div className="report-modal">
+
+            <div className="modal-header">
+
+                <h3>Edit Action Point</h3>
+
+                <button
+
+                    className="close-btn"
+
+                    onClick={() => setShowEditModal(false)}
+
+                >
+
+                    ×
+
+                </button>
 
             </div>
 
-            {/* ==========================================
-                END DATE
-            ========================================== */}
 
-            <div className="filter-group">
 
-                <label>To Date</label>
+            <div className="modal-body">
 
-                <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) =>
-                        setEndDate(e.target.value)
-                    }
-                />
+                <div className="filter-group">
 
-            </div>
+                    <label>Question</label>
 
-        </FilterBar>
-                {/* ======================================================
-            CARD
-        ====================================================== */}
+                    <input
 
-        <Card
-            title="Action Point List"
-        >
+                        type="text"
 
-            <DataTable
+                        value={editData.question}
 
-                columns={columns}
+                        readOnly
 
-                data={currentData}
+                    />
 
-                loading={loading}
+                </div>
 
-                emptyTitle="No Action Points Found"
+                <br />
 
-                emptyDescription="There are no Action Points available."
 
-            />
 
-            <Pagination
+                <div className="filter-group">
 
-                currentPage={currentPage}
+                    <label>Department</label>
 
-                totalPages={totalPages}
+                    <input
 
-                totalRecords={totalRecords}
+                        type="text"
 
-                pageSize={pageSize}
+                        value={editData.department_name}
 
-                onPageChange={setCurrentPage}
+                        readOnly
 
-                onPageSizeChange={(size) => {
+                    />
 
-                    // Fixed page size (10)
-                    // Keep API compatible
+                </div>
 
-                    setCurrentPage(1);
+                <br />
 
-                }}
 
-            />
 
-        </Card>
-                {/* ======================================================
-            CREATE ACTION POINT MODAL
-        ====================================================== */}
+                <div className="filter-group">
 
-        {canAdd && (
+                    <label>Assigned To</label>
 
-            <CreatePointModal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                onSuccess={handleSuccess}
-            />
+                    <input
 
-        )}
+                        type="text"
 
-        {/* ======================================================
-            DELETE CONFIRMATION
-        ====================================================== */}
+                        value={editData.assigned_to}
 
-        <ConfirmDialog
-            open={showDeleteDialog}
-            title="Delete Action Point"
-            message="Are you sure you want to delete this Action Point?"
-            confirmText="Delete"
-            cancelText="Cancel"
-            confirmVariant="danger"
-            onConfirm={confirmDelete}
-            onCancel={() => {
+                        onChange={(e) =>
 
-                setDeleteId(null);
+                            setEditData({
 
-                setShowDeleteDialog(false);
+                                ...editData,
 
-            }}
-        />
+                                assigned_to: e.target.value
 
-        {/* ======================================================
-            EDIT ACTION POINT MODAL
-        ====================================================== */}
+                            })
 
-        {showEditModal && (
+                        }
 
-            <div className="modal-overlay">
+                    />
 
-                <div className="report-modal">
+                </div>
 
-                    <div className="modal-header">
+                <br />
 
-                        <h3>Edit Action Point</h3>
 
-                        <button
-                            className="close-btn"
-                            onClick={() => setShowEditModal(false)}
-                        >
-                            ×
-                        </button>
 
-                    </div>
+                <div className="filter-group">
 
-                    <div className="modal-body">
+                    <label>Priority</label>
 
-                        <div className="filter-group">
+                    <select
 
-                            <label>Question</label>
+                        value={editData.priority}
 
-                            <input
-                                type="text"
-                                value={editData.question}
-                                readOnly
-                            />
+                        onChange={(e) =>
 
-                        </div>
+                            setEditData({
 
-                        <br />
+                                ...editData,
 
-                        <div className="filter-group">
+                                priority: e.target.value
 
-                            <label>Department</label>
+                            })
 
-                            <input
-                                type="text"
-                                value={editData.department_name}
-                                readOnly
-                            />
+                        }
 
-                        </div>
+                    >
 
-                        <br />
+                        <option value="Low">
 
-                        <div className="filter-group">
+                            Low
 
-                            <label>SLA</label>
+                        </option>
 
-                            <input
-                                type="text"
-                                value={editData.sla}
-                                readOnly
-                            />
+                        <option value="Medium">
 
-                        </div>
+                            Medium
 
-                        <br />
+                        </option>
 
-                        <div className="filter-group">
+                        <option value="High">
 
-                            <label>Answer</label>
+                            High
 
-                            <input
-                                type="text"
-                                value={editData.answer}
-                                onChange={(e) =>
-                                    setEditData({
-                                        ...editData,
-                                        answer: e.target.value
-                                    })
-                                }
-                            />
+                        </option>
 
-                        </div>
+                        <option value="Critical">
 
-                        <br />
+                            Critical
 
-                        <div className="filter-group">
+                        </option>
 
-                            <label>Comment</label>
+                    </select>
 
-                            <textarea
-                                rows={4}
-                                value={editData.comment}
-                                onChange={(e) =>
-                                    setEditData({
-                                        ...editData,
-                                        comment: e.target.value
-                                    })
-                                }
-                            />
+                </div>
 
-                        </div>
+                <br />
 
-                        <div className="modal-actions">
 
-                            <button
-                                className="cancel-btn"
-                                onClick={() => setShowEditModal(false)}
-                            >
-                                Cancel
-                            </button>
 
-                            <button
-                                className="upload-btn"
-                                onClick={updateActionPoint}
-                            >
-                                Update
-                            </button>
+                <div className="filter-group">
 
-                        </div>
+                    <label>SLA Days</label>
 
-                    </div>
+                    <input
+
+                        type="number"
+
+                        value={editData.sla_days}
+
+                        onChange={(e) =>
+
+                            setEditData({
+
+                                ...editData,
+
+                                sla_days: e.target.value
+
+                            })
+
+                        }
+
+                    />
+
+                </div>
+
+                <br />
+
+
+
+                <div className="filter-group">
+
+                    <label>Status</label>
+
+                    <select
+
+                        value={editData.status}
+
+                        onChange={(e) =>
+
+                            setEditData({
+
+                                ...editData,
+
+                                status: e.target.value
+
+                            })
+
+                        }
+
+                    >
+
+                        <option value="Open">
+
+                            Open
+
+                        </option>
+
+                        <option value="In Progress">
+
+                            In Progress
+
+                        </option>
+
+                        <option value="Closed">
+
+                            Closed
+
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <br />
+
+
+
+                <div className="filter-group">
+
+                    <label>Remarks</label>
+
+                    <textarea
+
+                        rows={4}
+
+                        value={editData.remarks}
+
+                        onChange={(e) =>
+
+                            setEditData({
+
+                                ...editData,
+
+                                remarks: e.target.value
+
+                            })
+
+                        }
+
+                    />
+
+                </div>
+
+
+
+                <div className="modal-actions">
+
+                    <button
+
+                        className="cancel-btn"
+
+                        onClick={() =>
+
+                            setShowEditModal(false)
+
+                        }
+
+                    >
+
+                        Cancel
+
+                    </button>
+
+
+
+                    <button
+
+                        className="upload-btn"
+
+                        onClick={updateActionPoint}
+
+                    >
+
+                        Update
+
+                    </button>
 
                 </div>
 
             </div>
 
-        )}
+        </div>
 
-        {/* ======================================================
-            TAKE ACTION MODAL
-        ====================================================== */}
+    </div>
 
-        {showOpenModal && selectedAction && (
+)}
+{/* ======================================================
+    TAKE ACTION MODAL
+====================================================== */}
 
-            <div className="modal-overlay">
+{showOpenModal && selectedAction && (
 
-                <div className="report-modal">
+    <div className="modal-overlay">
 
-                    <div className="modal-header">
+        <div className="report-modal">
 
-                        <h3>Take Action</h3>
+            <div className="modal-header">
 
-                        <button
-                            className="close-btn"
-                            onClick={() => setShowOpenModal(false)}
-                        >
-                            ×
-                        </button>
+                <h3>Take Action</h3>
 
-                    </div>
+                <button
+                    className="close-btn"
+                    onClick={() => setShowOpenModal(false)}
+                >
+                    ×
+                </button>
 
-                    <div className="modal-body">
+            </div>
 
-                        <div className="filter-group">
+            <div className="modal-body">
 
-                            <label>Question</label>
+                <div className="filter-group">
 
-                            <input
-                                type="text"
-                                value={selectedAction.question || ""}
-                                readOnly
-                            />
+                    <label>Question</label>
 
-                        </div>
+                    <input
+                        type="text"
+                        value={selectedAction.question || ""}
+                        readOnly
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <br />
 
-                            <label>Department</label>
+                <div className="filter-group">
 
-                            <input
-                                type="text"
-                                value={selectedAction.department_name || ""}
-                                readOnly
-                            />
+                    <label>Department</label>
 
-                        </div>
+                    <input
+                        type="text"
+                        value={selectedAction.department_name || ""}
+                        readOnly
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <br />
 
-                            <label>Answer</label>
+                <div className="filter-group">
 
-                            <input
-                                type="text"
-                                value={selectedAction.answer || ""}
-                                readOnly
-                            />
+                    <label>Priority</label>
 
-                        </div>
+                    <input
+                        type="text"
+                        value={selectedAction.priority || ""}
+                        readOnly
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <br />
 
-                            <label>Current Status</label>
+                <div className="filter-group">
 
-                            <input
-                                type="text"
-                                value={selectedAction.status || ""}
-                                readOnly
-                            />
+                    <label>Current Status</label>
 
-                        </div>
+                    <input
+                        type="text"
+                        value={selectedAction.status || ""}
+                        readOnly
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <br />
 
-                            <label>Action Taken</label>
+                <div className="filter-group">
 
-                            <textarea
-                                rows={4}
-                                value={actionTaken}
-                                onChange={(e) =>
-                                    setActionTaken(e.target.value)
-                                }
-                            />
+                    <label>Action Taken</label>
 
-                        </div>
+                    <textarea
+                        rows={4}
+                        value={actionTaken}
+                        onChange={(e) =>
+                            setActionTaken(e.target.value)
+                        }
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <br />
 
-                            <label>Remarks</label>
+                <div className="filter-group">
 
-                            <textarea
-                                rows={4}
-                                value={remarks}
-                                onChange={(e) =>
-                                    setRemarks(e.target.value)
-                                }
-                            />
+                    <label>Remarks</label>
 
-                        </div>
+                    <textarea
+                        rows={4}
+                        value={remarks}
+                        onChange={(e) =>
+                            setRemarks(e.target.value)
+                        }
+                    />
 
-                        <br />
+                </div>
 
-                        <div className="filter-group">
+                <div className="modal-actions">
 
-                            <label>Completion Date</label>
+                    <button
+                        className="cancel-btn"
+                        onClick={() => setShowOpenModal(false)}
+                    >
+                        Close
+                    </button>
 
-                            <input
-                                type="date"
-                                value={completionDate}
-                                onChange={(e) =>
-                                    setCompletionDate(e.target.value)
-                                }
-                            />
-
-                        </div>
-
-                        <div className="modal-actions">
-
-                            <button
-                                className="cancel-btn"
-                                onClick={() => setShowOpenModal(false)}
-                            >
-                                Close
-                            </button>
-
-                            <button
-                                className="upload-btn"
-                                onClick={saveActionPoint}
-                            >
-                                Save
-                            </button>
-
-                        </div>
-
-                    </div>
+                    <button
+                        className="upload-btn"
+                        onClick={saveActionPoint}
+                    >
+                        Save
+                    </button>
 
                 </div>
 
             </div>
 
-        )}
+        </div>
 
+    </div>
+
+)}
     </div>
 
 );
