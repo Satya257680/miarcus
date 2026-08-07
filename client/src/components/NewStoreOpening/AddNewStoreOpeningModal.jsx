@@ -22,8 +22,14 @@ import ModalFooter from "./ModalFooter";
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
+
+/* ======================================================
+   API
+====================================================== */
+
 const API =
     "http://localhost:5000/api/new-store-openings";
+
 
 const TOTAL_STEPS = 5;
 
@@ -34,8 +40,9 @@ const TOTAL_STEPS = 5;
 
 const initialForm = {
 
+
     /* ==================================================
-       BASIC
+       BASIC INFORMATION
     ================================================== */
 
     location: "",
@@ -43,6 +50,10 @@ const initialForm = {
     sb_area: "",
     carpet_area: "",
     expected_sale: "",
+
+    approver_name: "",
+    construction_vendor: "",
+    project_taken_by: "",
 
 
     /* ==================================================
@@ -92,10 +103,6 @@ const initialForm = {
     revised_layout_by_nso: "",
     approval_deadline: "",
 
-    approver_name: "",
-    construction_vendor: "",
-    project_taken_by: "",
-
     visit_by_op_team: "",
     gst_deadline: "",
     hr_hiring_deadline: "",
@@ -124,8 +131,13 @@ const initialForm = {
     ================================================== */
 
     status: "Planning"
+
 };
 
+
+/* ======================================================
+   COMPONENT
+====================================================== */
 
 export default function AddNewStoreOpeningModal({
 
@@ -136,11 +148,20 @@ export default function AddNewStoreOpeningModal({
 
 }) {
 
+
+    /* ==================================================
+       CURRENT STEP
+    ================================================== */
+
     const [
         currentStep,
         setCurrentStep
     ] = useState(1);
 
+
+    /* ==================================================
+       LOADING
+    ================================================== */
 
     const [
         loading,
@@ -148,11 +169,19 @@ export default function AddNewStoreOpeningModal({
     ] = useState(false);
 
 
+    /* ==================================================
+       ERRORS
+    ================================================== */
+
     const [
         errors,
         setErrors
     ] = useState({});
 
+
+    /* ==================================================
+       NEW ATTACHMENT
+    ================================================== */
 
     const [
         attachment,
@@ -160,11 +189,29 @@ export default function AddNewStoreOpeningModal({
     ] = useState(null);
 
 
+    /* ==================================================
+       EXISTING ATTACHMENT
+    ================================================== */
+
+    const [
+        existingAttachment,
+        setExistingAttachment
+    ] = useState(null);
+
+
+    /* ==================================================
+       PREVIEW
+    ================================================== */
+
     const [
         preview,
         setPreview
     ] = useState("");
 
+
+    /* ==================================================
+       FORM DATA
+    ================================================== */
 
     const [
         formData,
@@ -182,16 +229,26 @@ export default function AddNewStoreOpeningModal({
             return;
         }
 
+
         setCurrentStep(1);
+
         setErrors({});
 
+
+        /* ==================================================
+           EDIT
+        ================================================== */
 
         if (editData) {
 
             const mergedData = {
+
                 ...initialForm,
+
                 ...editData
+
             };
+
 
             setFormData(
                 calculateDerivedFields(
@@ -199,22 +256,84 @@ export default function AddNewStoreOpeningModal({
                 )
             );
 
+
+            /*
+             * Existing attachment is NOT placed into
+             * the new-file state.
+             *
+             * It is stored separately so the UI can
+             * display/view/remove it correctly.
+             */
+
             setAttachment(null);
+
+
+            setExistingAttachment(
+                editData.attachment ||
+                editData.attachment_url ||
+                editData.file_url ||
+                editData.file ||
+                null
+            );
+
+
             setPreview("");
 
-        } else {
+        }
+
+        else {
 
             setFormData({
                 ...initialForm
             });
 
+
             setAttachment(null);
+
+            setExistingAttachment(null);
+
             setPreview("");
+
         }
 
     }, [
         isOpen,
         editData
+    ]);
+
+
+    /* ======================================================
+       CLEANUP PREVIEW URL
+    ====================================================== */
+
+    useEffect(() => {
+
+        return () => {
+
+            if (preview) {
+
+                try {
+
+                    URL.revokeObjectURL(
+                        preview
+                    );
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        "Preview cleanup failed:",
+                        error
+                    );
+
+                }
+
+            }
+
+        };
+
+    }, [
+        preview
     ]);
 
 
@@ -225,10 +344,12 @@ export default function AddNewStoreOpeningModal({
     const progress = useMemo(() => {
 
         return Math.round(
+
             (
                 currentStep /
                 TOTAL_STEPS
             ) * 100
+
         );
 
     }, [
@@ -249,27 +370,34 @@ export default function AddNewStoreOpeningModal({
             return "";
         }
 
+
         const d =
             new Date(
                 `${date}T00:00:00`
             );
+
 
         if (
             Number.isNaN(
                 d.getTime()
             )
         ) {
+
             return "";
+
         }
+
 
         d.setDate(
             d.getDate() +
             Number(days)
         );
 
+
         return d
             .toISOString()
             .split("T")[0];
+
     };
 
 
@@ -293,39 +421,60 @@ export default function AddNewStoreOpeningModal({
             return "";
         }
 
+
         const startDate =
             new Date(
                 `${start}T00:00:00`
             );
+
 
         const endDate =
             new Date(
                 `${end}T00:00:00`
             );
 
+
         if (
+
             Number.isNaN(
                 startDate.getTime()
-            ) ||
+            )
+
+            ||
+
             Number.isNaN(
                 endDate.getTime()
             )
+
         ) {
+
             return "";
+
         }
 
+
         return Math.round(
+
             (
+
                 endDate.getTime() -
                 startDate.getTime()
-            ) /
+
+            )
+
+            /
+
             (
+
                 1000 *
                 60 *
                 60 *
                 24
+
             )
+
         );
+
     };
 
 
@@ -347,19 +496,28 @@ export default function AddNewStoreOpeningModal({
         ================================================== */
 
         if (
+
             updated.possession_date_loi &&
+
             updated.actual_possession_date
+
         ) {
 
             updated.deal_days =
                 differenceInDays(
+
                     updated.possession_date_loi,
+
                     updated.actual_possession_date
+
                 );
 
-        } else {
+        }
+
+        else {
 
             updated.deal_days = "";
+
         }
 
 
@@ -367,28 +525,31 @@ export default function AddNewStoreOpeningModal({
            DELAY LOI VS BROKER
 
            Broker - LOI
-
-           Example:
-           LOI    01/08
-           Broker 06/08
-
-           Result = 5
         ================================================== */
 
         if (
+
             updated.possession_date_loi &&
+
             updated.possession_date_broker
+
         ) {
 
             updated.delay_loi_vs_broker =
                 differenceInDays(
+
                     updated.possession_date_loi,
+
                     updated.possession_date_broker
+
                 );
 
-        } else {
+        }
+
+        else {
 
             updated.delay_loi_vs_broker = "";
+
         }
 
 
@@ -399,19 +560,28 @@ export default function AddNewStoreOpeningModal({
         ================================================== */
 
         if (
+
             updated.possession_date_loi &&
+
             updated.actual_possession_date
+
         ) {
 
             updated.possession_delay =
                 differenceInDays(
+
                     updated.possession_date_loi,
+
                     updated.actual_possession_date
+
                 );
 
-        } else {
+        }
+
+        else {
 
             updated.possession_delay = "";
+
         }
 
 
@@ -421,21 +591,25 @@ export default function AddNewStoreOpeningModal({
            Priority:
 
            Actual
-           ↓
+              ↓
            Broker
-           ↓
+              ↓
            LOI
         ================================================== */
 
         const possessionDate =
+
             updated.actual_possession_date ||
+
             updated.possession_date_broker ||
+
             updated.possession_date_loi;
 
 
         if (!possessionDate) {
 
             return updated;
+
         }
 
 
@@ -584,6 +758,7 @@ export default function AddNewStoreOpeningModal({
 
 
         return updated;
+
     }
 
 
@@ -602,8 +777,11 @@ export default function AddNewStoreOpeningModal({
         setFormData(prev => {
 
             const updated = {
+
                 ...prev,
+
                 [name]: value
+
             };
 
 
@@ -615,8 +793,11 @@ export default function AddNewStoreOpeningModal({
 
 
         setErrors(prev => ({
+
             ...prev,
+
             [name]: ""
+
         }));
 
     };
@@ -637,28 +818,61 @@ export default function AddNewStoreOpeningModal({
         }
 
 
+        /* ==================================================
+           REMOVE OLD EXISTING ATTACHMENT FROM VIEW
+        ================================================== */
+
+        setExistingAttachment(null);
+
+
+        /* ==================================================
+           STORE NEW FILE
+        ================================================== */
+
         setAttachment(file);
 
 
         setFormData(prev => ({
+
             ...prev,
+
             attachment: file.name
+
         }));
 
 
+        /* ==================================================
+           IMAGE PREVIEW
+        ================================================== */
+
         if (
+
             file.type &&
+
             file.type.includes("image")
+
         ) {
 
             setPreview(
                 URL.createObjectURL(file)
             );
 
-        } else {
+        }
+
+        else {
 
             setPreview("");
+
         }
+
+
+        setErrors(prev => ({
+
+            ...prev,
+
+            attachment: ""
+
+        }));
 
     };
 
@@ -670,12 +884,18 @@ export default function AddNewStoreOpeningModal({
     const removeAttachment = () => {
 
         setAttachment(null);
+
+        setExistingAttachment(null);
+
         setPreview("");
 
 
         setFormData(prev => ({
+
             ...prev,
+
             attachment: ""
+
         }));
 
     };
@@ -691,12 +911,22 @@ export default function AddNewStoreOpeningModal({
 
             setLoading(true);
 
+            setErrors({});
+
+
+            /* ==================================================
+               FINAL FORM DATA
+            ================================================== */
 
             const finalData =
                 calculateDerivedFields(
                     formData
                 );
 
+
+            /* ==================================================
+               FORM DATA
+            ================================================== */
 
             const form =
                 new FormData();
@@ -705,77 +935,145 @@ export default function AddNewStoreOpeningModal({
             Object.keys(finalData).forEach(
                 key => {
 
+                    /*
+                     * Do not append the attachment
+                     * string as a file.
+                     *
+                     * The actual new File object is
+                     * appended separately below.
+                     */
+
+                    if (
+                        key === "attachment"
+                    ) {
+
+                        return;
+
+                    }
+
+
                     form.append(
+
                         key,
+
                         finalData[key] ?? ""
+
                     );
 
                 }
             );
 
 
+            /* ==================================================
+               NEW FILE
+            ================================================== */
+
             if (attachment) {
 
                 form.append(
+
                     "attachment",
+
                     attachment
+
                 );
 
             }
 
+
+            /* ==================================================
+               EDIT
+            ================================================== */
 
             if (editData) {
 
                 await axios.put(
+
                     `${API}/${editData.id}`,
+
                     form,
+
                     {
                         headers: {
                             "Content-Type":
                                 "multipart/form-data"
                         }
                     }
+
                 );
 
-            } else {
+            }
+
+            /* ==================================================
+               CREATE
+            ================================================== */
+
+            else {
 
                 await axios.post(
+
                     API,
+
                     form,
+
                     {
                         headers: {
                             "Content-Type":
                                 "multipart/form-data"
                         }
                     }
+
                 );
 
             }
 
 
+            /* ==================================================
+               SUCCESS
+            ================================================== */
+
             if (onSuccess) {
+
                 onSuccess();
+
             }
 
 
             onClose();
 
         }
+
         catch (error) {
 
             console.error(
+
                 "NEW STORE OPENING SAVE ERROR:",
+
                 error
+
             );
 
 
-            alert(
+            const message =
+
                 error.response?.data?.message ||
+
                 error.response?.data?.error ||
-                "Failed to save New Store Opening"
-            );
+
+                "Failed to save New Store Opening";
+
+
+            setErrors({
+
+                submit: message
+
+            });
+
+
+            alert(message);
 
         }
+
         finally {
 
             setLoading(false);
@@ -790,13 +1088,20 @@ export default function AddNewStoreOpeningModal({
     ====================================================== */
 
     if (!isOpen) {
+
         return null;
+
     }
 
+
+    /* ======================================================
+       RENDER
+    ====================================================== */
 
     return (
 
         <div className="nso-overlay">
+
 
             <div className="nso-modal">
 
@@ -807,7 +1112,9 @@ export default function AddNewStoreOpeningModal({
 
                 <div className="nso-header">
 
+
                     <div className="header-left">
+
 
                         <div className="header-icon">
 
@@ -822,7 +1129,9 @@ export default function AddNewStoreOpeningModal({
 
                                 {
                                     editData
+
                                         ? "Edit New Store Opening"
+
                                         : "Add New Store Opening"
                                 }
 
@@ -830,7 +1139,9 @@ export default function AddNewStoreOpeningModal({
 
 
                             <p>
+
                                 Manage retail expansion projects
+
                             </p>
 
                         </div>
@@ -842,11 +1153,14 @@ export default function AddNewStoreOpeningModal({
                         type="button"
                         className="close-btn"
                         onClick={onClose}
+                        disabled={loading}
+                        aria-label="Close modal"
                     >
 
                         <FaTimes />
 
                     </button>
+
 
                 </div>
 
@@ -856,8 +1170,11 @@ export default function AddNewStoreOpeningModal({
                 ================================================== */}
 
                 <Stepper
+
                     currentStep={currentStep}
+
                     onStepChange={setCurrentStep}
+
                 />
 
 
@@ -875,71 +1192,140 @@ export default function AddNewStoreOpeningModal({
                     <div className="nso-left">
 
 
+                        {/* ==================================================
+                           STEP 1
+                        ================================================== */}
+
                         {
                             currentStep === 1 && (
 
                                 <BasicInformation
+
                                     formData={formData}
-                                    handleChange={handleChange}
+
+                                    handleChange={
+                                        handleChange
+                                    }
+
                                     errors={errors}
+
                                 />
 
                             )
                         }
 
+
+                        {/* ==================================================
+                           STEP 2
+                        ================================================== */}
 
                         {
                             currentStep === 2 && (
 
                                 <FinancialDetails
+
                                     formData={formData}
-                                    handleChange={handleChange}
+
+                                    handleChange={
+                                        handleChange
+                                    }
+
                                     errors={errors}
+
                                 />
 
                             )
                         }
 
+
+                        {/* ==================================================
+                           STEP 3
+                        ================================================== */}
 
                         {
                             currentStep === 3 && (
 
                                 <PossessionDetails
+
                                     formData={formData}
-                                    handleChange={handleChange}
+
+                                    handleChange={
+                                        handleChange
+                                    }
+
                                     errors={errors}
+
                                 />
 
                             )
                         }
 
+
+                        {/* ==================================================
+                           STEP 4
+                        ================================================== */}
 
                         {
                             currentStep === 4 && (
 
                                 <TimelinePreview
+
                                     formData={formData}
-                                    handleChange={handleChange}
+
+                                    handleChange={
+                                        handleChange
+                                    }
+
                                 />
 
                             )
                         }
 
+
+                        {/* ==================================================
+                           STEP 5
+                        ================================================== */}
 
                         {
                             currentStep === 5 && (
 
                                 <ReviewStep
+
                                     formData={formData}
-                                    attachment={attachment}
-                                    preview={preview}
-                                    onFileChange={handleFileChange}
-                                    onRemoveFile={removeAttachment}
-                                    handleChange={handleChange}
+
+                                    attachment={
+                                        attachment
+                                    }
+
+                                    existingAttachment={
+                                        existingAttachment
+                                    }
+
+                                    preview={
+                                        preview
+                                    }
+
+                                    onFileChange={
+                                        handleFileChange
+                                    }
+
+                                    onRemoveFile={
+                                        removeAttachment
+                                    }
+
+                                    handleChange={
+                                        handleChange
+                                    }
+
+                                    errors={
+                                        errors
+                                    }
+
                                 />
 
                             )
                         }
+
 
                     </div>
 
@@ -951,12 +1337,17 @@ export default function AddNewStoreOpeningModal({
                     <div className="nso-right">
 
                         <ProjectSummary
+
                             formData={formData}
+
                             progress={progress}
+
                             currentStep={currentStep}
+
                         />
 
                     </div>
+
 
                 </div>
 
@@ -966,13 +1357,21 @@ export default function AddNewStoreOpeningModal({
                 ================================================== */}
 
                 <ModalFooter
+
                     currentStep={currentStep}
+
                     setCurrentStep={setCurrentStep}
+
                     totalSteps={TOTAL_STEPS}
+
                     onClose={onClose}
+
                     onSubmit={handleSubmit}
+
                     loading={loading}
+
                 />
+
 
             </div>
 

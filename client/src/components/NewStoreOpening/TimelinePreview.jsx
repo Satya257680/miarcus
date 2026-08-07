@@ -4,93 +4,110 @@ import {
     FaProjectDiagram,
     FaCheckCircle,
     FaClock,
-    FaCircle,
-    FaUserTie,
-    FaBuilding,
-    FaUser
+    FaCircle
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
 
+/* ======================================================
+   TIMELINE MILESTONES
+====================================================== */
+
 const milestones = [
 
     {
+        id: 1,
         title: "Layout By NSO",
         field: "layout_by_nso"
     },
 
     {
+        id: 2,
         title: "Revised Layout",
         field: "revised_layout_by_nso"
     },
 
     {
+        id: 3,
         title: "Approval",
         field: "approval_deadline"
     },
 
     {
+        id: 4,
         title: "Visit By OP",
         field: "visit_by_op_team"
     },
 
     {
+        id: 5,
         title: "GST",
         field: "gst_deadline"
     },
 
     {
+        id: 6,
         title: "HR Hiring",
         field: "hr_hiring_deadline"
     },
 
     {
+        id: 7,
         title: "Team Training",
         field: "team_training_deadline"
     },
 
     {
+        id: 8,
         title: "NSO Visit",
         field: "visit_by_nso_team_deadline"
     },
 
     {
+        id: 9,
         title: "Plan Of Stock",
         field: "plan_of_stock_deadline"
     },
 
     {
+        id: 10,
         title: "Collaterals",
         field: "plan_of_collaterals_deadline"
     },
 
     {
+        id: 11,
         title: "Field Training",
         field: "on_field_training_deadline"
     },
 
     {
+        id: 12,
         title: "Dispatch",
         field: "dispatch_stock_deadline"
     },
 
     {
+        id: 13,
         title: "NSO Handover",
         field: "nso_handover_deadline"
     },
 
     {
+        id: 14,
         title: "VM Handover",
         field: "vm_handover_deadline"
     },
 
     {
+        id: 15,
         title: "Scanning",
         field: "scanning_deadline"
     },
 
     {
+        id: 16,
         title: "Billing",
         field: "billing_start_date"
     }
@@ -98,24 +115,32 @@ const milestones = [
 ];
 
 
+/* ======================================================
+   FORMAT DATE
+====================================================== */
+
 const formatDate = (value) => {
 
     if (!value) {
         return "";
     }
 
-    const date =
-        new Date(
-            `${value}T00:00:00`
-        );
+
+    const date = new Date(
+        `${value}T00:00:00`
+    );
+
 
     if (
         Number.isNaN(
             date.getTime()
         )
     ) {
+
         return value;
+
     }
+
 
     return date.toLocaleDateString(
         "en-GB"
@@ -124,19 +149,35 @@ const formatDate = (value) => {
 };
 
 
+/* ======================================================
+   CHECK COMPLETION
+====================================================== */
+
 const isCompleted = (value) => {
 
     if (!value) {
         return false;
     }
 
-    const date =
-        new Date(
-            `${value}T00:00:00`
-        );
 
-    const today =
-        new Date();
+    const date = new Date(
+        `${value}T00:00:00`
+    );
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return false;
+
+    }
+
+
+    const today = new Date();
+
 
     today.setHours(
         0,
@@ -145,14 +186,19 @@ const isCompleted = (value) => {
         0
     );
 
+
     return date <= today;
 
 };
 
 
+/* ======================================================
+   TIMELINE PREVIEW
+====================================================== */
+
 export default function TimelinePreview({
 
-    formData,
+    formData = {},
     handleChange
 
 }) {
@@ -198,13 +244,15 @@ export default function TimelinePreview({
 
                 {
                     milestones.map(
+
                         (
                             item,
                             index
                         ) => {
 
                             const value =
-                                formData[item.field];
+                                formData?.[item.field];
+
 
                             const completed =
                                 isCompleted(value);
@@ -213,44 +261,60 @@ export default function TimelinePreview({
                             return (
 
                                 <div
-                                    key={item.field}
+                                    key={item.id}
                                     className="timeline-item"
                                 >
 
 
-                                    {/* ICON */}
+                                    {/* ==================================================
+                                       ICON
+                                    ================================================== */}
 
                                     <div className="timeline-icon">
 
                                         {
                                             completed
+
                                                 ? (
+
                                                     <FaCheckCircle
                                                         className="completed"
                                                     />
+
                                                 )
+
                                                 : value
+
                                                     ? (
+
                                                         <FaClock
                                                             className="pending"
                                                         />
+
                                                     )
+
                                                     : (
+
                                                         <FaCircle
                                                             className="waiting"
                                                         />
+
                                                     )
                                         }
 
                                     </div>
 
 
-                                    {/* CONTENT */}
+                                    {/* ==================================================
+                                       CONTENT
+                                    ================================================== */}
 
                                     <div className="timeline-content">
 
                                         <h4>
+
                                             {item.title}
+
                                         </h4>
 
 
@@ -267,154 +331,30 @@ export default function TimelinePreview({
                                     </div>
 
 
+                                    {/* ==================================================
+                                       CONNECTING LINE
+                                    ================================================== */}
+
                                     {
-                                        index !==
+                                        index <
                                         milestones.length - 1 && (
 
-                                            <div className="timeline-line" />
+                                            <div
+                                                className="timeline-line"
+                                            />
 
                                         )
                                     }
+
 
                                 </div>
 
                             );
 
                         }
+
                     )
                 }
-
-            </div>
-
-
-            {/* ==================================================
-               PROJECT OWNERSHIP
-            ================================================== */}
-
-            <div
-                style={{
-                    marginTop: "30px",
-                    paddingTop: "24px",
-                    borderTop: "1px solid #e2e8f0"
-                }}
-            >
-
-                <div
-                    style={{
-                        marginBottom: "20px"
-                    }}
-                >
-
-                    <h3
-                        style={{
-                            margin: 0,
-                            color: "#1e293b",
-                            fontSize: "18px"
-                        }}
-                    >
-                        Project Ownership
-                    </h3>
-
-                    <p
-                        style={{
-                            margin: "6px 0 0",
-                            color: "#64748b",
-                            fontSize: "13px"
-                        }}
-                    >
-                        Enter the responsible person or vendor for the project.
-                    </p>
-
-                </div>
-
-
-                <div className="nso-form-grid">
-
-
-                    {/* ==================================================
-                       APPROVER
-                    ================================================== */}
-
-                    <div className="nso-form-group">
-
-                        <label>
-
-                            <FaUserTie />
-
-                            Approver Name
-
-                        </label>
-
-
-                        <input
-                            type="text"
-                            name="approver_name"
-                            value={
-                                formData.approver_name || ""
-                            }
-                            onChange={handleChange}
-                            placeholder="Enter approver name"
-                        />
-
-                    </div>
-
-
-                    {/* ==================================================
-                       CONSTRUCTION VENDOR
-                    ================================================== */}
-
-                    <div className="nso-form-group">
-
-                        <label>
-
-                            <FaBuilding />
-
-                            Construction Vendor
-
-                        </label>
-
-
-                        <input
-                            type="text"
-                            name="construction_vendor"
-                            value={
-                                formData.construction_vendor || ""
-                            }
-                            onChange={handleChange}
-                            placeholder="Enter construction vendor"
-                        />
-
-                    </div>
-
-
-                    {/* ==================================================
-                       PROJECT TAKEN BY
-                    ================================================== */}
-
-                    <div className="nso-form-group full-width">
-
-                        <label>
-
-                            <FaUser />
-
-                            Project Taken By
-
-                        </label>
-
-
-                        <input
-                            type="text"
-                            name="project_taken_by"
-                            value={
-                                formData.project_taken_by || ""
-                            }
-                            onChange={handleChange}
-                            placeholder="Enter responsible person"
-                        />
-
-                    </div>
-
-                </div>
 
             </div>
 

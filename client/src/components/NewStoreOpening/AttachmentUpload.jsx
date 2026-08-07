@@ -7,10 +7,20 @@ import {
     FaFilePdf,
     FaFileImage,
     FaTrash,
-    FaPaperclip
+    FaPaperclip,
+    FaEye
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
+
+
+/* ======================================================
+   API BASE URL
+====================================================== */
+
+const API_BASE_URL =
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000";
 
 
 export default function AttachmentUpload({
@@ -39,6 +49,129 @@ export default function AttachmentUpload({
 
 
     /* ======================================================
+       NORMALIZE ATTACHMENT URL
+    ====================================================== */
+
+    const normalizeAttachmentUrl = (
+        attachmentUrl
+    ) => {
+
+        if (!attachmentUrl) {
+            return "";
+        }
+
+
+        let url =
+            String(attachmentUrl).trim();
+
+
+        if (!url) {
+            return "";
+        }
+
+
+        /* ----------------------------------------------
+           REMOVE OLD BROKEN PREFIX
+           Example:
+           undefineduploads/file.pdf
+        ---------------------------------------------- */
+
+        url =
+            url.replace(
+                /^undefined\/?/i,
+                ""
+            );
+
+
+        url =
+            url.replace(
+                /^null\/?/i,
+                ""
+            );
+
+
+        /* ----------------------------------------------
+           BLOB URL
+        ---------------------------------------------- */
+
+        if (
+            url.startsWith("blob:")
+        ) {
+
+            return url;
+
+        }
+
+
+        /* ----------------------------------------------
+           DATA URL
+        ---------------------------------------------- */
+
+        if (
+            url.startsWith("data:")
+        ) {
+
+            return url;
+
+        }
+
+
+        /* ----------------------------------------------
+           ALREADY FULL URL
+        ---------------------------------------------- */
+
+        if (
+            /^https?:\/\//i.test(url)
+        ) {
+
+            return url;
+
+        }
+
+
+        /* ----------------------------------------------
+           REMOVE DUPLICATE SLASHES
+        ---------------------------------------------- */
+
+        url =
+            url.replace(
+                /^\/+/,
+                ""
+            );
+
+
+        /* ----------------------------------------------
+           ENSURE UPLOADS PATH
+        ---------------------------------------------- */
+
+        if (
+            !url.startsWith("uploads/")
+        ) {
+
+            if (
+                url.includes("uploads/")
+            ) {
+
+                url =
+                    url.substring(
+                        url.indexOf("uploads/")
+                    );
+
+            }
+
+        }
+
+
+        /* ----------------------------------------------
+           FINAL URL
+        ---------------------------------------------- */
+
+        return `${API_BASE_URL}/${url}`;
+
+    };
+
+
+    /* ======================================================
        FILE ICON
     ====================================================== */
 
@@ -62,7 +195,9 @@ export default function AttachmentUpload({
             /\.(jpg|jpeg|png|gif|webp)$/i.test(name)
         ) {
 
-            return <FaFileImage />;
+            return (
+                <FaFileImage />
+            );
 
         }
 
@@ -72,12 +207,16 @@ export default function AttachmentUpload({
             /\.pdf$/i.test(name)
         ) {
 
-            return <FaFilePdf />;
+            return (
+                <FaFilePdf />
+            );
 
         }
 
 
-        return <FaPaperclip />;
+        return (
+            <FaPaperclip />
+        );
 
     };
 
@@ -93,21 +232,40 @@ export default function AttachmentUpload({
         }
 
 
+        /* ----------------------------------------------
+           STRING
+        ---------------------------------------------- */
+
         if (
             typeof existingAttachment === "string"
         ) {
 
-            return existingAttachment
-                .split("/")
-                .pop();
+            const cleanPath =
+                existingAttachment
+                    .split("?")[0]
+                    .split("#")[0];
+
+
+            return (
+                cleanPath
+                    .split("/")
+                    .pop() ||
+                "Existing Attachment"
+            );
 
         }
 
+
+        /* ----------------------------------------------
+           OBJECT
+        ---------------------------------------------- */
 
         return (
             existingAttachment.name ||
             existingAttachment.filename ||
             existingAttachment.originalname ||
+            existingAttachment.file_name ||
+            existingAttachment.fileName ||
             "Existing Attachment"
         );
 
@@ -115,15 +273,19 @@ export default function AttachmentUpload({
 
 
     /* ======================================================
-       EXISTING FILE URL
+       EXISTING FILE RAW URL
     ====================================================== */
 
-    const getExistingFileUrl = () => {
+    const getExistingFileRawUrl = () => {
 
         if (!existingAttachment) {
             return "";
         }
 
+
+        /* ----------------------------------------------
+           STRING
+        ---------------------------------------------- */
 
         if (
             typeof existingAttachment === "string"
@@ -134,29 +296,80 @@ export default function AttachmentUpload({
         }
 
 
+        /* ----------------------------------------------
+           OBJECT
+        ---------------------------------------------- */
+
         return (
             existingAttachment.url ||
             existingAttachment.path ||
             existingAttachment.file_url ||
+            existingAttachment.fileUrl ||
+            existingAttachment.file_path ||
+            existingAttachment.filePath ||
+            existingAttachment.location ||
             ""
         );
 
     };
 
 
+    /* ======================================================
+       EXISTING FILE VALUES
+    ====================================================== */
+
     const existingFileName =
         getExistingFileName();
 
 
-    const existingFileUrl =
-        getExistingFileUrl();
+    const existingFileRawUrl =
+        getExistingFileRawUrl();
 
+
+    const existingFileUrl =
+        normalizeAttachmentUrl(
+            existingFileRawUrl
+        );
+
+
+    /* ======================================================
+       EXISTING IMAGE CHECK
+    ====================================================== */
 
     const existingIsImage =
-        /\.(jpg|jpeg|png|gif|webp)$/i.test(
+        /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(
             existingFileName
         );
 
+
+    /* ======================================================
+       EXISTING FILE VIEW
+    ====================================================== */
+
+    const viewExistingFile = (
+        event
+    ) => {
+
+        event.stopPropagation();
+
+
+        if (!existingFileUrl) {
+            return;
+        }
+
+
+        window.open(
+            existingFileUrl,
+            "_blank",
+            "noopener,noreferrer"
+        );
+
+    };
+
+
+    /* ======================================================
+       RENDER
+    ====================================================== */
 
     return (
 
@@ -182,6 +395,7 @@ export default function AttachmentUpload({
                         Attachment
                     </h2>
 
+
                     <p>
                         Upload lease agreement, drawings or any
                         supporting documents.
@@ -199,6 +413,22 @@ export default function AttachmentUpload({
             <div
                 className="upload-zone"
                 onClick={browseFile}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+
+                    if (
+                        event.key === "Enter" ||
+                        event.key === " "
+                    ) {
+
+                        event.preventDefault();
+
+                        browseFile();
+
+                    }
+
+                }}
             >
 
                 <input
@@ -216,7 +446,7 @@ export default function AttachmentUpload({
 
 
                 <h3>
-                    Drag & Drop File
+                    Drag &amp; Drop File
                 </h3>
 
 
@@ -261,11 +491,13 @@ export default function AttachmentUpload({
                                 <span>
 
                                     {
-                                        (
-                                            file.size /
-                                            1024 /
-                                            1024
-                                        ).toFixed(2)
+                                        file.size
+                                            ? (
+                                                file.size /
+                                                1024 /
+                                                1024
+                                            ).toFixed(2)
+                                            : "0.00"
                                     }
 
                                     {" "}MB
@@ -280,6 +512,8 @@ export default function AttachmentUpload({
                         <button
                             type="button"
                             className="remove-file"
+                            title="Remove attachment"
+                            aria-label="Remove attachment"
                             onClick={(event) => {
 
                                 event.stopPropagation();
@@ -335,21 +569,66 @@ export default function AttachmentUpload({
                         </div>
 
 
-                        <button
-                            type="button"
-                            className="remove-file"
-                            onClick={(event) => {
-
-                                event.stopPropagation();
-
-                                onRemove?.();
-
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "10px"
                             }}
                         >
 
-                            <FaTrash />
+                            {/* ==================================
+                               VIEW EXISTING FILE
+                            ================================== */}
 
-                        </button>
+                            {
+                                existingFileUrl && (
+
+                                    <button
+                                        type="button"
+                                        className="remove-file"
+                                        title="View attachment"
+                                        aria-label="View attachment"
+                                        onClick={
+                                            viewExistingFile
+                                        }
+                                        style={{
+                                            background: "#dbeafe",
+                                            color: "#2563eb"
+                                        }}
+                                    >
+
+                                        <FaEye />
+
+                                    </button>
+
+                                )
+                            }
+
+
+                            {/* ==================================
+                               REMOVE EXISTING FILE
+                            ================================== */}
+
+                            <button
+                                type="button"
+                                className="remove-file"
+                                title="Remove attachment"
+                                aria-label="Remove attachment"
+                                onClick={(event) => {
+
+                                    event.stopPropagation();
+
+                                    onRemove?.();
+
+                                }}
+                            >
+
+                                <FaTrash />
+
+                            </button>
+
+                        </div>
 
                     </div>
 
@@ -393,6 +672,12 @@ export default function AttachmentUpload({
                         <img
                             src={existingFileUrl}
                             alt="Existing attachment"
+                            onError={(event) => {
+
+                                event.currentTarget.style.display =
+                                    "none";
+
+                            }}
                         />
 
                     </div>
@@ -409,7 +694,18 @@ export default function AttachmentUpload({
                 !file &&
                 !existingAttachment && (
 
-                    <div className="attachment-empty">
+                    <div
+                        className="attachment-empty"
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "10px",
+                            marginTop: "20px",
+                            color: "#64748b",
+                            fontSize: "14px"
+                        }}
+                    >
 
                         <FaPaperclip />
 

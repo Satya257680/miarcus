@@ -5,7 +5,9 @@ import {
     FaUserTie,
     FaBuilding,
     FaUsers,
-    FaClipboardCheck
+    FaClipboardCheck,
+    FaUser,
+    FaHardHat
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
@@ -14,7 +16,9 @@ import "../../styles/AddNewStoreOpeningModal.css";
 export default function PossessionDetails({
 
     formData,
+
     errors,
+
     handleChange
 
 }) {
@@ -53,14 +57,14 @@ export default function PossessionDetails({
 
 
             {/* ==================================================
-               FORM
+               POSSESSION & ASSIGNMENT
             ================================================== */}
 
             <div className="nso-form-grid">
 
 
                 {/* ==================================================
-                   LOI
+                   POSSESSION DATE - LOI
                 ================================================== */}
 
                 <div className="nso-form-group">
@@ -85,7 +89,7 @@ export default function PossessionDetails({
 
 
                     {
-                        errors.possession_date_loi && (
+                        errors?.possession_date_loi && (
 
                             <span className="error-text">
 
@@ -265,7 +269,189 @@ export default function PossessionDetails({
 
                 </div>
 
+
             </div>
+
+
+            {/* ==================================================
+               PROJECT OWNERSHIP
+            ================================================== */}
+
+            <div
+                style={{
+                    marginTop: "32px",
+                    paddingTop: "24px",
+                    borderTop: "1px solid #e2e8f0"
+                }}
+            >
+
+                <div
+                    style={{
+                        marginBottom: "20px"
+                    }}
+                >
+
+                    <h3
+                        style={{
+                            margin: 0,
+                            fontSize: "20px",
+                            fontWeight: 700,
+                            color: "#1e293b"
+                        }}
+                    >
+                        Project Ownership
+                    </h3>
+
+
+                    <p
+                        style={{
+                            margin: "5px 0 0",
+                            fontSize: "13px",
+                            color: "#64748b"
+                        }}
+                    >
+                        Enter the responsible person or vendor for the project.
+                    </p>
+
+                </div>
+
+
+                <div className="nso-form-grid">
+
+
+                    {/* ==================================================
+                       APPROVER NAME
+                    ================================================== */}
+
+                    <div className="nso-form-group">
+
+                        <label>
+
+                            <FaUser />
+
+                            Approver Name
+
+                        </label>
+
+
+                        <input
+                            type="text"
+                            name="approver_name"
+                            value={
+                                formData.approver_name || ""
+                            }
+                            onChange={handleChange}
+                            placeholder="Enter approver name"
+                        />
+
+
+                        {
+                            errors?.approver_name && (
+
+                                <span className="error-text">
+
+                                    {
+                                        errors.approver_name
+                                    }
+
+                                </span>
+
+                            )
+                        }
+
+                    </div>
+
+
+                    {/* ==================================================
+                       CONSTRUCTION VENDOR
+                    ================================================== */}
+
+                    <div className="nso-form-group">
+
+                        <label>
+
+                            <FaHardHat />
+
+                            Construction Vendor
+
+                        </label>
+
+
+                        <input
+                            type="text"
+                            name="construction_vendor"
+                            value={
+                                formData.construction_vendor || ""
+                            }
+                            onChange={handleChange}
+                            placeholder="Enter construction vendor"
+                        />
+
+
+                        {
+                            errors?.construction_vendor && (
+
+                                <span className="error-text">
+
+                                    {
+                                        errors.construction_vendor
+                                    }
+
+                                </span>
+
+                            )
+                        }
+
+                    </div>
+
+
+                    {/* ==================================================
+                       PROJECT TAKEN BY
+                    ================================================== */}
+
+                    <div className="nso-form-group full-width">
+
+                        <label>
+
+                            <FaUser />
+
+                            Project Taken By
+
+                        </label>
+
+
+                        <input
+                            type="text"
+                            name="project_taken_by"
+                            value={
+                                formData.project_taken_by || ""
+                            }
+                            onChange={handleChange}
+                            placeholder="Enter responsible person"
+                        />
+
+
+                        {
+                            errors?.project_taken_by && (
+
+                                <span className="error-text">
+
+                                    {
+                                        errors.project_taken_by
+                                    }
+
+                                </span>
+
+                            )
+                        }
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
 
         </div>
 

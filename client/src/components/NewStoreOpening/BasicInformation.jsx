@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
     FaMapMarkerAlt,
     FaCity,
@@ -9,6 +10,7 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
+
 
 export default function BasicInformation({
 
@@ -24,6 +26,11 @@ export default function BasicInformation({
 
         <div className="nso-card">
 
+
+            {/* ==================================================
+               HEADER
+            ================================================== */}
+
             <div className="nso-card-header">
 
                 <div>
@@ -32,27 +39,32 @@ export default function BasicInformation({
 
                 </div>
 
+
                 <div>
 
                     <h2>
-
                         Basic Information
-
                     </h2>
 
                     <p>
-
                         Enter the primary details for the new store.
-
                     </p>
 
                 </div>
 
             </div>
 
+
+            {/* ==================================================
+               FORM
+            ================================================== */}
+
             <div className="nso-form-grid">
 
-                {/* Location */}
+
+                {/* ==================================================
+                   LOCATION
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -64,23 +76,20 @@ export default function BasicInformation({
 
                     </label>
 
+
                     <input
-
                         type="text"
-
                         name="location"
-
-                        value={formData.location || ""}
-
+                        value={
+                            formData.location || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Enter Location"
-
                     />
 
-                    {
 
-                        errors.location && (
+                    {
+                        errors?.location && (
 
                             <span className="error-text">
 
@@ -89,12 +98,14 @@ export default function BasicInformation({
                             </span>
 
                         )
-
                     }
 
                 </div>
 
-                {/* City */}
+
+                {/* ==================================================
+                   CITY
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -106,23 +117,20 @@ export default function BasicInformation({
 
                     </label>
 
+
                     <input
-
                         type="text"
-
                         name="city"
-
-                        value={formData.city || ""}
-
+                        value={
+                            formData.city || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Enter City"
-
                     />
 
-                    {
 
-                        errors.city && (
+                    {
+                        errors?.city && (
 
                             <span className="error-text">
 
@@ -131,12 +139,14 @@ export default function BasicInformation({
                             </span>
 
                         )
-
                     }
 
                 </div>
 
-                {/* SB Area */}
+
+                {/* ==================================================
+                   SB AREA
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -148,23 +158,23 @@ export default function BasicInformation({
 
                     </label>
 
+
                     <input
-
                         type="number"
-
                         name="sb_area"
-
-                        value={formData.sb_area || ""}
-
+                        value={
+                            formData.sb_area || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="SB Area"
-
                     />
 
                 </div>
 
-                {/* Carpet Area */}
+
+                {/* ==================================================
+                   CARPET AREA
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -176,23 +186,23 @@ export default function BasicInformation({
 
                     </label>
 
+
                     <input
-
                         type="number"
-
                         name="carpet_area"
-
-                        value={formData.carpet_area || ""}
-
+                        value={
+                            formData.carpet_area || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Carpet Area"
-
                     />
 
                 </div>
 
-                {/* Expected Sale */}
+
+                {/* ==================================================
+                   EXPECTED SALE
+                ================================================== */}
 
                 <div className="nso-form-group full-width">
 
@@ -204,21 +214,19 @@ export default function BasicInformation({
 
                     </label>
 
+
                     <input
-
                         type="number"
-
                         name="expected_sale"
-
-                        value={formData.expected_sale || ""}
-
+                        value={
+                            formData.expected_sale || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Monthly Expected Sale"
-
                     />
 
                 </div>
+
 
             </div>
 

@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
     FaStore,
     FaChartLine,
@@ -10,35 +11,97 @@ import {
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
+
+/* ======================================================
+   FORMAT CURRENCY
+====================================================== */
+
 const formatCurrency = (value) => {
 
-    if (!value) {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
 
         return "₹0";
 
     }
+
+
+    const numericValue =
+        Number(value);
+
+
+    if (
+        Number.isNaN(numericValue)
+    ) {
+
+        return "₹0";
+
+    }
+
 
     return new Intl.NumberFormat(
 
         "en-IN",
 
         {
-
             style: "currency",
-
             currency: "INR",
-
             maximumFractionDigits: 0
-
         }
 
-    ).format(value);
+    ).format(numericValue);
 
 };
 
+
+/* ======================================================
+   FORMAT DATE
+====================================================== */
+
+const formatDate = (value) => {
+
+    if (!value) {
+        return "--";
+    }
+
+
+    const date =
+        new Date(value);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return value;
+
+    }
+
+
+    return date.toLocaleDateString(
+        "en-IN",
+        {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        }
+    );
+
+};
+
+
+/* ======================================================
+   PROJECT SUMMARY
+====================================================== */
+
 export default function ProjectSummary({
 
-    formData,
+    formData = {},
 
     progress = 0,
 
@@ -46,11 +109,58 @@ export default function ProjectSummary({
 
 }) {
 
-    const status = formData.status || "Planning";
+
+    /* ==================================================
+       SAFE PROGRESS
+    ================================================== */
+
+    const safeProgress =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                Number(progress) || 0
+            )
+        );
+
+
+    /* ==================================================
+       STATUS
+    ================================================== */
+
+    const status =
+        formData?.status ||
+        "Planning";
+
+
+    /* ==================================================
+       VALUES
+    ================================================== */
+
+    const expectedSale =
+        formData?.expected_sale;
+
+
+    const dealDays =
+        formData?.deal_days;
+
+
+    const possessionDate =
+        formData?.actual_possession_date;
+
+
+    const possessionDelay =
+        formData?.possession_delay;
+
 
     return (
 
         <div className="summary-card">
+
+
+            {/* ==================================================
+               HEADER
+            ================================================== */}
 
             <div className="summary-header">
 
@@ -62,6 +172,7 @@ export default function ProjectSummary({
 
                 </h3>
 
+
                 <span className="summary-badge">
 
                     {status}
@@ -70,43 +181,51 @@ export default function ProjectSummary({
 
             </div>
 
+
+            {/* ==================================================
+               PROGRESS
+            ================================================== */}
+
             <div className="summary-progress">
 
                 <div className="summary-progress-top">
 
                     <span>
-
                         Form Completion
-
                     </span>
 
+
                     <strong>
-
-                        {progress}%
-
+                        {safeProgress}%
                     </strong>
 
                 </div>
 
+
                 <div className="summary-progress-bar">
 
                     <div
-
                         className="summary-progress-fill"
-
                         style={{
-
-                            width: `${progress}%`
-
+                            width: `${safeProgress}%`
                         }}
-
                     />
 
                 </div>
 
             </div>
 
+
+            {/* ==================================================
+               SUMMARY GRID
+            ================================================== */}
+
             <div className="summary-grid">
+
+
+                {/* ==================================================
+                   EXPECTED SALE
+                ================================================== */}
 
                 <div className="summary-item">
 
@@ -115,21 +234,16 @@ export default function ProjectSummary({
                     <div>
 
                         <label>
-
                             Expected Sale
-
                         </label>
+
 
                         <strong>
 
                             {
-
                                 formatCurrency(
-
-                                    formData.expected_sale
-
+                                    expectedSale
                                 )
-
                             }
 
                         </strong>
@@ -137,6 +251,11 @@ export default function ProjectSummary({
                     </div>
 
                 </div>
+
+
+                {/* ==================================================
+                   DEAL DAYS
+                ================================================== */}
 
                 <div className="summary-item">
 
@@ -145,19 +264,18 @@ export default function ProjectSummary({
                     <div>
 
                         <label>
-
                             Deal Days
-
                         </label>
+
 
                         <strong>
 
                             {
-
-                                formData.deal_days ||
-
-                                "--"
-
+                                dealDays !== null &&
+                                dealDays !== undefined &&
+                                dealDays !== ""
+                                    ? dealDays
+                                    : "--"
                             }
 
                         </strong>
@@ -165,6 +283,11 @@ export default function ProjectSummary({
                     </div>
 
                 </div>
+
+
+                {/* ==================================================
+                   POSSESSION
+                ================================================== */}
 
                 <div className="summary-item">
 
@@ -173,19 +296,16 @@ export default function ProjectSummary({
                     <div>
 
                         <label>
-
                             Possession
-
                         </label>
+
 
                         <strong>
 
                             {
-
-                                formData.actual_possession_date ||
-
-                                "--"
-
+                                formatDate(
+                                    possessionDate
+                                )
                             }
 
                         </strong>
@@ -194,6 +314,11 @@ export default function ProjectSummary({
 
                 </div>
 
+
+                {/* ==================================================
+                   DELAY
+                ================================================== */}
+
                 <div className="summary-item">
 
                     <FaChartLine />
@@ -201,19 +326,18 @@ export default function ProjectSummary({
                     <div>
 
                         <label>
-
                             Delay
-
                         </label>
+
 
                         <strong>
 
                             {
-
-                                formData.possession_delay ||
-
-                                "0"
-
+                                possessionDelay !== null &&
+                                possessionDelay !== undefined &&
+                                possessionDelay !== ""
+                                    ? possessionDelay
+                                    : "0"
                             }
 
                             {" "}Days
@@ -224,7 +348,13 @@ export default function ProjectSummary({
 
                 </div>
 
+
             </div>
+
+
+            {/* ==================================================
+               FOOTER
+            ================================================== */}
 
             <div className="summary-footer">
 
@@ -237,6 +367,7 @@ export default function ProjectSummary({
                 </span>
 
             </div>
+
 
         </div>
 

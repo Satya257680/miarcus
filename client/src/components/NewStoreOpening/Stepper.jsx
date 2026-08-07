@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
     FaStore,
     FaMoneyBillWave,
@@ -8,6 +9,11 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
+
+
+/* ======================================================
+   STEPS
+====================================================== */
 
 const steps = [
 
@@ -43,71 +49,115 @@ const steps = [
 
 ];
 
+
+/* ======================================================
+   STEPPER
+====================================================== */
+
 export default function Stepper({
 
-    currentStep,
+    currentStep = 1,
 
     onStepChange
 
 }) {
 
+
+    /* ==================================================
+       STEP CHANGE
+    ================================================== */
+
+    const handleStepChange = (stepId) => {
+
+        if (
+            typeof onStepChange !== "function"
+        ) {
+            return;
+        }
+
+
+        if (
+            stepId === currentStep
+        ) {
+            return;
+        }
+
+
+        onStepChange(stepId);
+
+    };
+
+
+    /* ==================================================
+       RENDER
+    ================================================== */
+
     return (
 
-        <div className="nso-stepper">
+        <div
+            className="nso-stepper"
+            role="navigation"
+            aria-label="New Store Opening steps"
+        >
 
             {
-
                 steps.map(
 
                     (
-
                         step,
-
                         index
-
                     ) => (
 
                         <React.Fragment
-
                             key={step.id}
-
                         >
 
-                            <button
 
+                            {/* ==================================================
+                               STEP
+                            ================================================== */}
+
+                            <button
                                 type="button"
 
                                 className={`
-
                                     nso-step
-
                                     ${currentStep === step.id ? "active" : ""}
-
                                     ${currentStep > step.id ? "completed" : ""}
-
                                 `}
 
                                 onClick={() =>
-
-                                    onStepChange(
-
+                                    handleStepChange(
                                         step.id
-
                                     )
-
                                 }
 
+                                aria-current={
+                                    currentStep === step.id
+                                        ? "step"
+                                        : undefined
+                                }
+
+                                aria-label={`
+                                    Step ${step.id}: ${step.title}
+                                `}
                             >
+
+
+                                {/* ==================================================
+                                   STEP ICON
+                                ================================================== */}
 
                                 <div className="nso-step-icon">
 
-                                    {
-
-                                        step.icon
-
-                                    }
+                                    {step.icon}
 
                                 </div>
+
+
+                                {/* ==================================================
+                                   STEP TEXT
+                                ================================================== */}
 
                                 <div className="nso-step-text">
 
@@ -117,46 +167,43 @@ export default function Stepper({
 
                                     </span>
 
+
                                     <strong>
 
-                                        {
-
-                                            step.title
-
-                                        }
+                                        {step.title}
 
                                     </strong>
 
                                 </div>
 
+
                             </button>
 
-                            {
 
+                            {/* ==================================================
+                               STEP LINE
+                            ================================================== */}
+
+                            {
                                 index < steps.length - 1 && (
 
                                     <div
-
                                         className={`
-
                                             nso-step-line
-
                                             ${currentStep > step.id ? "completed" : ""}
-
                                         `}
-
+                                        aria-hidden="true"
                                     />
 
                                 )
-
                             }
+
 
                         </React.Fragment>
 
                     )
 
                 )
-
             }
 
         </div>
