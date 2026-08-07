@@ -593,68 +593,56 @@ exports.exportNewStoreOpeningsCSV = async (
 };
 // ======================================================
 // BULK IMPORT NEW STORE OPENINGS
+// SUPPORTS CSV + XLSX + XLS
 // ======================================================
 
 exports.bulkUploadNewStoreOpenings = async (
-
     req,
-
     res
-
 ) => {
 
     try {
 
-        if (
+        // ==================================================
+        // CHECK FILE
+        // ==================================================
 
-            !req.file
-
-        ) {
+        if (!req.file) {
 
             return res.status(400).json({
 
                 success: false,
 
                 message:
-
                     "Please upload a CSV, XLSX or XLS file."
 
             });
 
         }
 
-        // ==========================================
-        // READ EXCEL
-        // ==========================================
 
-        const workbook =
+        // ==================================================
+        // CHECK FILE EXTENSION
+        // ==================================================
 
-            XLSX.readFile(
+        const fileName =
+            req.file.originalname ||
+            req.file.filename ||
+            "";
 
-                req.file.path
+        const extension =
+            fileName
+                .split(".")
+                .pop()
+                .toLowerCase();
 
-            );
-
-        const sheet =
-
-            workbook.Sheets[
-
-                workbook.SheetNames[0]
-
-            ];
-
-        const rows =
-
-            XLSX.utils.sheet_to_json(
-
-                sheet
-
-            );
 
         if (
-
-            rows.length === 0
-
+            ![
+                "csv",
+                "xlsx",
+                "xls"
+            ].includes(extension)
         ) {
 
             return res.status(400).json({
@@ -662,181 +650,800 @@ exports.bulkUploadNewStoreOpenings = async (
                 success: false,
 
                 message:
+                    "Only CSV, XLSX and XLS files are supported."
 
+            });
+
+        }
+
+
+        // ==================================================
+        // DATE FORMATTER
+        // ==================================================
+        //
+        // Supports:
+        //
+        // XLSX:
+        // Excel serial number
+        // JavaScript Date
+        //
+        // CSV:
+        // DD-MM-YYYY
+        // DD/MM/YYYY
+        // YYYY-MM-DD
+        //
+        // Output:
+        // YYYY-MM-DD
+        //
+        // Suitable for MySQL DATE and
+        // React <input type="date">
+        // ==================================================
+
+        const formatImportDate = (
+            value
+        ) => {
+
+            // ----------------------------------------------
+            // EMPTY
+            // ----------------------------------------------
+
+            if (
+                value === undefined ||
+                value === null ||
+                value === ""
+            ) {
+
+                return null;
+
+            }
+
+
+            // ----------------------------------------------
+            // DATE OBJECT
+            // ----------------------------------------------
+
+            if (
+                value instanceof Date
+            ) {
+
+                if (
+                    isNaN(
+                        value.getTime()
+                    )
+                ) {
+
+                    return null;
+
+                }
+
+                const year =
+                    value.getFullYear();
+
+                const month =
+                    String(
+                        value.getMonth() + 1
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const day =
+                    String(
+                        value.getDate()
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                return `${year}-${month}-${day}`;
+
+            }
+
+
+            // ----------------------------------------------
+            // EXCEL SERIAL DATE
+            // ----------------------------------------------
+
+            if (
+                typeof value === "number" &&
+                Number.isFinite(value)
+            ) {
+
+                /*
+                 * Excel date serial number.
+                 *
+                 * Example:
+                 * 46520
+                 *
+                 * XLSX files can return dates this way.
+                 */
+
+                const excelDate =
+                    new Date(
+                        Date.UTC(
+                            1899,
+                            11,
+                            30
+                        ) +
+                        (
+                            value *
+                            86400000
+                        )
+                    );
+
+
+                if (
+                    !isNaN(
+                        excelDate.getTime()
+                    )
+                ) {
+
+                    const year =
+                        excelDate.getUTCFullYear();
+
+                    const month =
+                        String(
+                            excelDate.getUTCMonth() + 1
+                        ).padStart(
+                            2,
+                            "0"
+                        );
+
+                    const day =
+                        String(
+                            excelDate.getUTCDate()
+                        ).padStart(
+                            2,
+                            "0"
+                        );
+
+                    return `${year}-${month}-${day}`;
+
+                }
+
+            }
+
+
+            // ----------------------------------------------
+            // STRING
+            // ----------------------------------------------
+
+            let dateString =
+                String(value).trim();
+
+
+            if (!dateString) {
+
+                return null;
+
+            }
+
+
+            // ----------------------------------------------
+            // REMOVE TIME
+            // ----------------------------------------------
+
+            if (
+                dateString.includes("T")
+            ) {
+
+                dateString =
+                    dateString.split("T")[0];
+
+            }
+
+            else if (
+                dateString.includes(" ")
+            ) {
+
+                dateString =
+                    dateString.split(" ")[0];
+
+            }
+
+
+            // ----------------------------------------------
+            // DD-MM-YYYY
+            // ----------------------------------------------
+
+            let match =
+                dateString.match(
+                    /^(\d{1,2})-(\d{1,2})-(\d{4})$/
+                );
+
+
+            if (match) {
+
+                const day =
+                    String(
+                        match[1]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const month =
+                    String(
+                        match[2]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const year =
+                    match[3];
+
+
+                return `${year}-${month}-${day}`;
+
+            }
+
+
+            // ----------------------------------------------
+            // DD/MM/YYYY
+            // ----------------------------------------------
+
+            match =
+                dateString.match(
+                    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+                );
+
+
+            if (match) {
+
+                const day =
+                    String(
+                        match[1]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const month =
+                    String(
+                        match[2]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const year =
+                    match[3];
+
+
+                return `${year}-${month}-${day}`;
+
+            }
+
+
+            // ----------------------------------------------
+            // YYYY-MM-DD
+            // ----------------------------------------------
+
+            match =
+                dateString.match(
+                    /^(\d{4})-(\d{1,2})-(\d{1,2})$/
+                );
+
+
+            if (match) {
+
+                const year =
+                    match[1];
+
+                const month =
+                    String(
+                        match[2]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const day =
+                    String(
+                        match[3]
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+
+                return `${year}-${month}-${day}`;
+
+            }
+
+
+            // ----------------------------------------------
+            // FALLBACK
+            // ----------------------------------------------
+
+            const parsedDate =
+                new Date(
+                    dateString
+                );
+
+
+            if (
+                !isNaN(
+                    parsedDate.getTime()
+                )
+            ) {
+
+                const year =
+                    parsedDate.getFullYear();
+
+                const month =
+                    String(
+                        parsedDate.getMonth() + 1
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+                const day =
+                    String(
+                        parsedDate.getDate()
+                    ).padStart(
+                        2,
+                        "0"
+                    );
+
+
+                return `${year}-${month}-${day}`;
+
+            }
+
+
+            // ----------------------------------------------
+            // INVALID
+            // ----------------------------------------------
+
+            return null;
+
+        };
+
+
+        // ==================================================
+        // READ FILE
+        // ==================================================
+        //
+        // XLSX.readFile() supports:
+        //
+        // CSV
+        // XLSX
+        // XLS
+        //
+        // ==================================================
+
+        const workbook =
+            XLSX.readFile(
+                req.file.path,
+                {
+                    cellDates: true
+                }
+            );
+
+
+        // ==================================================
+        // CHECK WORKSHEET
+        // ==================================================
+
+        if (
+            !workbook.SheetNames ||
+            workbook.SheetNames.length === 0
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "The uploaded file does not contain a worksheet."
+
+            });
+
+        }
+
+
+        // ==================================================
+        // FIRST SHEET
+        // ==================================================
+
+        const sheet =
+            workbook.Sheets[
+                workbook.SheetNames[0]
+            ];
+
+
+        if (!sheet) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Unable to read the uploaded file."
+
+            });
+
+        }
+
+
+        // ==================================================
+        // SHEET → JSON
+        // ==================================================
+
+        const rows =
+            XLSX.utils.sheet_to_json(
+                sheet,
+                {
+                    defval: null,
+                    raw: true
+                }
+            );
+
+
+        // ==================================================
+        // EMPTY FILE
+        // ==================================================
+
+        if (
+            !rows ||
+            rows.length === 0
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
                     "Uploaded file is empty."
 
             });
 
         }
 
-       // ==========================================
-// PREPARE DATA
-// ==========================================
 
-const records = rows.map(
+        // ==================================================
+        // NORMALIZE COLUMN NAME
+        // ==================================================
 
-    (
+        const normalizeKey = (
+            key
+        ) => {
 
-        row
+            return String(key)
+                .trim()
+                .toLowerCase()
+                .replace(
+                    /\s+/g,
+                    "_"
+                )
+                .replace(
+                    /[^a-z0-9_]/g,
+                    ""
+                );
 
-    ) => ({
+        };
 
-        location:
 
-            row.location,
+        // ==================================================
+        // NORMALIZE ROWS
+        // ==================================================
 
-        city:
+        const normalizedRows =
+            rows.map(
+                (
+                    originalRow
+                ) => {
 
-            row.city,
+                    const row = {};
 
-        sb_area:
 
-            row.sb_area,
+                    Object.keys(
+                        originalRow
+                    ).forEach(
+                        (
+                            key
+                        ) => {
 
-        carpet_area:
+                            row[
+                                normalizeKey(
+                                    key
+                                )
+                            ] =
+                                originalRow[key];
 
-            row.carpet_area,
+                        }
+                    );
 
-        cam:
 
-            row.cam,
+                    return row;
 
-        mg:
+                }
+            );
 
-            row.mg,
 
-        electricity_kva:
+        // ==================================================
+        // PREPARE RECORDS
+        // ==================================================
 
-            row.electricity_kva,
+        const records =
+            normalizedRows.map(
+                (
+                    row
+                ) => {
 
-        revenue_share:
+                    return {
 
-            row.revenue_share,
+                        // ----------------------------------
+                        // BASIC INFORMATION
+                        // ----------------------------------
 
-        escalation:
+                        location:
+                            row.location ||
+                            null,
 
-            row.escalation,
+                        city:
+                            row.city ||
+                            null,
 
-        expected_sale:
 
-            row.expected_sale,
+                        // ----------------------------------
+                        // AREA
+                        // ----------------------------------
 
-        possession_date_loi:
+                        sb_area:
+                            row.sb_area !== null &&
+                            row.sb_area !== undefined &&
+                            row.sb_area !== ""
+                                ? row.sb_area
+                                : null,
 
-            formatDate(
+                        carpet_area:
+                            row.carpet_area !== null &&
+                            row.carpet_area !== undefined &&
+                            row.carpet_area !== ""
+                                ? row.carpet_area
+                                : null,
 
-                row.possession_date_loi
 
-            ),
+                        // ----------------------------------
+                        // FINANCIAL
+                        // ----------------------------------
 
-        possession_date_broker:
+                        cam:
+                            row.cam !== null &&
+                            row.cam !== undefined &&
+                            row.cam !== ""
+                                ? row.cam
+                                : null,
 
-            formatDate(
+                        mg:
+                            row.mg !== null &&
+                            row.mg !== undefined &&
+                            row.mg !== ""
+                                ? row.mg
+                                : null,
 
-                row.possession_date_broker
+                        electricity_kva:
+                            row.electricity_kva !== null &&
+                            row.electricity_kva !== undefined &&
+                            row.electricity_kva !== ""
+                                ? row.electricity_kva
+                                : null,
 
-            ),
+                        revenue_share:
+                            row.revenue_share !== null &&
+                            row.revenue_share !== undefined &&
+                            row.revenue_share !== ""
+                                ? row.revenue_share
+                                : null,
 
-        broker_name:
+                        escalation:
+                            row.escalation !== null &&
+                            row.escalation !== undefined &&
+                            row.escalation !== ""
+                                ? row.escalation
+                                : null,
 
-            row.broker_name,
+                        expected_sale:
+                            row.expected_sale !== null &&
+                            row.expected_sale !== undefined &&
+                            row.expected_sale !== ""
+                                ? row.expected_sale
+                                : null,
 
-        operation_head_assigned:
 
-            row.operation_head_assigned,
+                        // ----------------------------------
+                        // DATES
+                        // ----------------------------------
 
-        asm_assigned:
+                        possession_date_loi:
+                            formatImportDate(
+                                row.possession_date_loi
+                            ),
 
-            row.asm_assigned,
+                        possession_date_broker:
+                            formatImportDate(
+                                row.possession_date_broker
+                            ),
 
-        actual_possession_date:
+                        actual_possession_date:
+                            formatImportDate(
+                                row.actual_possession_date
+                            ),
 
-            formatDate(
+                        received_by_nso:
+                            formatImportDate(
+                                row.received_by_nso
+                            ),
 
-                row.actual_possession_date
 
-            ),
+                        // ----------------------------------
+                        // PEOPLE / ASSIGNMENTS
+                        // ----------------------------------
 
-        remarks:
+                        broker_name:
+                            row.broker_name ||
+                            null,
 
-            row.remarks,
+                        operation_head_assigned:
+                            row.operation_head_assigned ||
+                            null,
 
-        attachment:
+                        asm_assigned:
+                            row.asm_assigned ||
+                            null,
 
-            row.attachment,
 
-        received_by_nso:
+                        // ----------------------------------
+                        // OTHER INFORMATION
+                        // ----------------------------------
 
-            formatDate(
+                        remarks:
+                            row.remarks ||
+                            null,
 
-                row.received_by_nso
+                        attachment:
+                            row.attachment ||
+                            null,
 
-            ),
+                        approver_name:
+                            row.approver_name ||
+                            null,
 
-        approver_name:
+                        construction_vendor:
+                            row.construction_vendor ||
+                            null,
 
-            row.approver_name,
+                        project_taken_by:
+                            row.project_taken_by ||
+                            null
 
-        construction_vendor:
+                    };
 
-            row.construction_vendor,
+                }
+            );
 
-        project_taken_by:
 
-            row.project_taken_by
+        // ==================================================
+        // AUTHENTICATED USER
+        // ==================================================
 
-    })
+        const userId =
+            req.user &&
+            (
+                req.user.id ||
+                req.user.user_id
+            );
 
-);
-        // ==========================================
+
+        if (!userId) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authenticated user not found."
+
+            });
+
+        }
+
+
+        // ==================================================
+        // DEBUG
+        // ==================================================
+
+        console.log(
+            "=========================================="
+        );
+
+        console.log(
+            "NSO BULK IMPORT"
+        );
+
+        console.log(
+            "File:",
+            fileName
+        );
+
+        console.log(
+            "Type:",
+            extension
+        );
+
+        console.log(
+            "Rows:",
+            records.length
+        );
+
+        console.log(
+            "First Record:",
+            records[0]
+        );
+
+        console.log(
+            "=========================================="
+        );
+
+
+        // ==================================================
         // WORKFLOW
-        // ==========================================
+        // ==================================================
 
         const result =
-
             await workflowService.bulkImportWorkflow(
 
                 records,
 
-                req.user.id
+                userId
 
             );
 
-        // ==========================================
-        // RESPONSE
-        // ==========================================
 
-        return res.json({
+        // ==================================================
+        // RESPONSE
+        // ==================================================
+
+        return res.status(200).json({
 
             success: true,
 
             message:
-
                 "Bulk Upload Completed Successfully.",
 
             imported:
-
-                result.affectedRows ||
-
-                records.length
+                result &&
+                result.affectedRows !== undefined
+                    ? result.affectedRows
+                    : records.length
 
         });
 
     }
 
-    catch (
+    catch (error) {
 
-        error
+        // ==================================================
+        // ERROR
+        // ==================================================
 
-    ) {
+        console.error(
+            "❌ Bulk Upload New Store Openings Error:",
+            error
+        );
+
 
         return res.status(500).json({
 
             success: false,
 
             message:
-
-                error.message
+                error.message ||
+                "Bulk upload failed."
 
         });
 

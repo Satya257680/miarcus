@@ -1,883 +1,1173 @@
 import React, {
+    useCallback,
     useEffect,
+    useMemo,
     useState
 } from "react";
 
 import {
-
     getNSOTracking,
-
     deleteNSOTracking,
-
     deleteAllNSOTracking,
-
     exportNSOTracking,
-
     updateNSOTrackingStatus
-
 } from "../services/nsoTrackingService";
 
 import "../styles/NSOTracking.css";
 
-import AddNSOTrackingModal from "../components/AddNSOTrackingModal";
+import AddNSOTrackingModal
+    from "../components/AddNSOTrackingModal";
 
-import EditNSOTrackingModal from "../components/EditNSOTrackingModal";
+import EditNSOTrackingModal
+    from "../components/EditNSOTrackingModal";
 
 
+// ======================================================
+// COMPONENT
+// ======================================================
 
 function NSOTracking() {
 
-
-    // ======================================================
+    // ==================================================
     // STATES
-    // ======================================================
+    // ==================================================
 
     const [tracking, setTracking] = useState([]);
 
     const [loading, setLoading] = useState(false);
 
-
     const [search, setSearch] = useState("");
-
 
     const [page, setPage] = useState(1);
 
-
     const [limit] = useState(10);
-
 
     const [totalPages, setTotalPages] = useState(1);
 
-    const [showAddModal,setShowAddModal] = useState(false);
+    const [showAddModal, setShowAddModal] =
+        useState(false);
 
-const [showEditModal,setShowEditModal] = useState(false);
+    const [showEditModal, setShowEditModal] =
+        useState(false);
 
-const [selectedTracking,setSelectedTracking] = useState(null);
+    const [selectedTracking, setSelectedTracking] =
+        useState(null);
 
 
-
-
-
-    // ======================================================
+    // ==================================================
     // PERMISSIONS
-    // ======================================================
+    // ==================================================
 
+    const permissions = useMemo(() => {
 
-    const permissions = JSON.parse(
+        try {
 
-        localStorage.getItem("permissions")
+            const storedPermissions =
+                localStorage.getItem("permissions");
 
-    ) || {};
+            if (!storedPermissions) {
+                return {};
+            }
 
+            return JSON.parse(
+                storedPermissions
+            );
+
+        }
+        catch (error) {
+
+            console.error(
+                "Permission Parse Error:",
+                error
+            );
+
+            return {};
+
+        }
+
+    }, []);
 
 
     const nsoPermission =
         permissions["NSO Tracking"] || "None";
 
 
+    // ==================================================
+    // PERMISSION HELPERS
+    // ==================================================
+
+    const canView =
+        nsoPermission !== "None";
+
+    const canAdd =
+        nsoPermission === "Add" ||
+        nsoPermission === "Full";
+
+    const canEdit =
+        nsoPermission === "Edit" ||
+        nsoPermission === "Full";
+
+    const canDelete =
+        nsoPermission === "Full";
 
 
-
-    // ======================================================
+    // ==================================================
     // FETCH DATA
-    // ======================================================
+    // ==================================================
 
-    const fetchTracking = async () => {
+    const fetchTracking = useCallback(
+        async () => {
 
+            if (!canView) {
 
-        try {
+                setTracking([]);
 
-
-            setLoading(true);
-
-
-
-            const response = await getNSOTracking({
-
-                search,
-
-                page,
-
-                limit
-
-            });
-
-
-
-            if(response.data.success){
-
-
-                setTracking(
-
-                    response.data.data
-
-                );
-
-
-                setTotalPages(
-
-                    response.data.totalPages
-
-                );
-
+                return;
 
             }
 
 
+            try {
+
+                setLoading(true);
+
+
+                const response =
+                    await getNSOTracking({
+
+                        search,
+
+                        page,
+
+                        limit
+
+                    });
+
+
+                const responseData =
+                    response?.data;
+
+
+                // ======================================
+                // SUCCESS RESPONSE
+                // ======================================
+
+                if (
+                    responseData?.success
+                ) {
+
+                    setTracking(
+                        Array.isArray(
+                            responseData.data
+                        )
+                            ? responseData.data
+                            : []
+                    );
+
+
+                    setTotalPages(
+                        Number(
+                            responseData.totalPages
+                        ) || 1
+                    );
+
+                }
+
+                // ======================================
+                // FALLBACK RESPONSE
+                // ======================================
+
+                else if (
+                    Array.isArray(
+                        responseData?.data
+                    )
+                ) {
+
+                    setTracking(
+                        responseData.data
+                    );
+
+
+                    setTotalPages(
+                        Number(
+                            responseData.totalPages
+                        ) || 1
+                    );
+
+                }
+
+                else {
+
+                    setTracking([]);
+
+                    setTotalPages(1);
+
+                }
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Fetch NSO Tracking Error:",
+                    error
+                );
+
+                setTracking([]);
+
+                setTotalPages(1);
+
+            }
+
+            finally {
+
+                setLoading(false);
+
+            }
+
+        },
+        [
+            canView,
+            search,
+            page,
+            limit
+        ]
+    );
+
+
+    // ==================================================
+    // INITIAL / FILTER FETCH
+    // ==================================================
+
+    useEffect(() => {
+
+        fetchTracking();
+
+    }, [
+        fetchTracking
+    ]);
+
+
+    // ==================================================
+    // UPDATE STATUS
+    // ==================================================
+
+    const handleStatusChange = async (
+        id,
+        status
+    ) => {
+
+        if (!canEdit) {
+
+            return;
 
         }
 
-        catch(error){
+
+        try {
+
+            setLoading(true);
 
 
-            console.error(
-
-                "Fetch NSO Tracking Error",
-
-                error
-
+            await updateNSOTrackingStatus(
+                id,
+                status
             );
 
 
+            await fetchTracking();
+
         }
 
-        finally{
+        catch (error) {
 
+            console.error(
+                "Status Update Error:",
+                error
+            );
+
+            alert(
+                error?.response?.data?.message ||
+                "Failed to update status."
+            );
+
+        }
+
+        finally {
 
             setLoading(false);
 
-
         }
-
 
     };
 
 
+    // ==================================================
+    // DELETE SINGLE
+    // ==================================================
+
+    const handleDelete = async (
+        id
+    ) => {
+
+        if (!canDelete) {
+
+            return;
+
+        }
 
 
-
-
-
-    useEffect(()=>{
-
-
-        fetchTracking();
-
-
-    },[page,search]);
-
-
-
-
-// ======================================================
-// UPDATE STATUS
-// ======================================================
-
-const handleStatusChange = async(
-
-    id,
-
-    status
-
-)=>{
-
-
-    try{
-
-
-        await updateNSOTrackingStatus(
-
-            id,
-
-            status
-
-        );
-
-
-        fetchTracking();
-
-
-    }
-
-    catch(error){
-
-        console.error(
-
-            "Status Update Error",
-
-            error
-
-        );
-
-    }
-
-
-};
-
-
-
-
-    // ======================================================
-    // DELETE
-    // ======================================================
-
-    const handleDelete = async(id)=>{
-
-
-        if(
-
-            !window.confirm(
-
+        const confirmed =
+            window.confirm(
                 "Delete this NSO Tracking?"
-
-            )
-
-        )
-
-        return;
+            );
 
 
+        if (!confirmed) {
 
-        try{
+            return;
+
+        }
+
+
+        try {
+
+            setLoading(true);
 
 
             await deleteNSOTracking(id);
 
 
-            fetchTracking();
+            // ======================================
+            // IF LAST ITEM ON PAGE WAS DELETED
+            // ======================================
 
+            if (
+                tracking.length === 1 &&
+                page > 1
+            ) {
 
+                setPage(
+                    previousPage =>
+                        previousPage - 1
+                );
+
+            }
+
+            else {
+
+                await fetchTracking();
+
+            }
 
         }
 
-        catch(error){
+        catch (error) {
 
+            console.error(
+                "Delete NSO Tracking Error:",
+                error
+            );
 
-            console.error(error);
-
+            alert(
+                error?.response?.data?.message ||
+                "Failed to delete NSO Tracking."
+            );
 
         }
 
+        finally {
+
+            setLoading(false);
+
+        }
 
     };
 
 
-
-
-
-
-
-    // ======================================================
+    // ==================================================
     // DELETE ALL
-    // ======================================================
+    // ==================================================
 
-    const handleDeleteAll = async()=>{
+    const handleDeleteAll = async () => {
 
+        if (!canDelete) {
 
-        if(
+            return;
 
-            !window.confirm(
-
-                "Delete all NSO Tracking?"
-
-            )
-
-        )
-
-        return;
+        }
 
 
+        const confirmed =
+            window.confirm(
+                "Delete all NSO Tracking records?"
+            );
 
-        try{
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
+
+        try {
+
+            setLoading(true);
 
 
             await deleteAllNSOTracking();
 
 
-            fetchTracking();
+            setPage(1);
 
 
-
-        }
-
-        catch(error){
-
-
-            console.error(error);
-
+            await fetchTracking();
 
         }
 
+        catch (error) {
+
+            console.error(
+                "Delete All NSO Tracking Error:",
+                error
+            );
+
+            alert(
+                error?.response?.data?.message ||
+                "Failed to delete all NSO Tracking records."
+            );
+
+        }
+
+        finally {
+
+            setLoading(false);
+
+        }
 
     };
 
 
-
-
-
-
-
-    // ======================================================
+    // ==================================================
     // EXPORT
-    // ======================================================
+    // ==================================================
 
-    const handleExport = async()=>{
+    const handleExport = async () => {
+
+        if (!canView) {
+
+            return;
+
+        }
 
 
-        try{
+        try {
+
+            setLoading(true);
 
 
             const response =
                 await exportNSOTracking();
 
 
+            const contentType =
+                response?.headers?.[
+                    "content-type"
+                ] ||
+                "text/csv";
+
+
+            const blob =
+                new Blob(
+                    [response.data],
+                    {
+                        type: contentType
+                    }
+                );
+
 
             const url =
                 window.URL.createObjectURL(
-
-                    new Blob(
-
-                        [response.data]
-
-                    )
-
+                    blob
                 );
-
 
 
             const link =
                 document.createElement("a");
 
 
-
-            link.href=url;
+            link.href = url;
 
 
             link.setAttribute(
-
                 "download",
-
                 "NSO_Tracking.csv"
-
             );
 
 
-
-            document.body.appendChild(link);
-
+            document.body.appendChild(
+                link
+            );
 
 
             link.click();
 
 
-
             link.remove();
 
 
+            window.URL.revokeObjectURL(
+                url
+            );
 
         }
 
-        catch(error){
+        catch (error) {
 
+            console.error(
+                "Export NSO Tracking Error:",
+                error
+            );
 
-            console.error(error);
-
+            alert(
+                error?.response?.data?.message ||
+                "Failed to export NSO Tracking."
+            );
 
         }
 
+        finally {
+
+            setLoading(false);
+
+        }
 
     };
 
 
+    // ==================================================
+    // SEARCH CHANGE
+    // ==================================================
+
+    const handleSearchChange = (
+        event
+    ) => {
+
+        setSearch(
+            event.target.value
+        );
+
+        setPage(1);
+
+    };
 
 
+    // ==================================================
+    // ADD MODAL SUCCESS
+    // ==================================================
+
+    const handleAddSuccess = async () => {
+
+        setShowAddModal(false);
+
+        setPage(1);
+
+        await fetchTracking();
+
+    };
 
 
+    // ==================================================
+    // EDIT MODAL CLOSE
+    // ==================================================
 
+    const handleEditClose = () => {
+
+        setShowEditModal(false);
+
+        setSelectedTracking(null);
+
+    };
+
+
+    // ==================================================
+    // EDIT SUCCESS
+    // ==================================================
+
+    const handleEditSuccess = async () => {
+
+        setShowEditModal(false);
+
+        setSelectedTracking(null);
+
+        await fetchTracking();
+
+    };
+
+
+    // ==================================================
+    // PREVIOUS PAGE
+    // ==================================================
+
+    const handlePreviousPage = () => {
+
+        setPage(
+            previousPage =>
+                Math.max(
+                    previousPage - 1,
+                    1
+                )
+        );
+
+    };
+
+
+    // ==================================================
+    // NEXT PAGE
+    // ==================================================
+
+    const handleNextPage = () => {
+
+        setPage(
+            previousPage =>
+                Math.min(
+                    previousPage + 1,
+                    totalPages
+                )
+        );
+
+    };
+
+
+    // ==================================================
+    // NO VIEW PERMISSION
+    // ==================================================
+
+    if (!canView) {
+
+        return (
+
+            <div className="nso-tracking-page">
+
+                <div className="page-header">
+
+                    <h2>
+                        NSO Tracking
+                    </h2>
+
+                </div>
+
+                <div className="table-container">
+
+                    <div
+                        style={{
+                            padding: "30px",
+                            textAlign: "center"
+                        }}
+                    >
+
+                        <h3>
+                            Access Denied
+                        </h3>
+
+                        <p>
+                            You do not have permission
+                            to view NSO Tracking.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        );
+
+    }
+
+
+    // ==================================================
+    // RENDER
+    // ==================================================
 
     return (
 
         <div className="nso-tracking-page">
 
-
-
-            {/* ======================================================
+            {/* ==================================================
                 HEADER
-            ====================================================== */}
-
+            ================================================== */}
 
             <div className="page-header">
 
-
                 <h2>
-
                     NSO Tracking
-
                 </h2>
-
 
 
                 <div className="actions">
 
+                    {/* ==========================================
+                        DELETE ALL
+                    ========================================== */}
 
-                    {
+                    {canDelete && (
 
-                    nsoPermission === "Full" &&
+                        <button
+                            type="button"
+                            onClick={
+                                handleDeleteAll
+                            }
+                            className="delete-all-btn"
+                            disabled={
+                                loading ||
+                                tracking.length === 0
+                            }
+                        >
+                            Delete All
+                        </button>
+
+                    )}
+
+
+                    {/* ==========================================
+                        EXPORT
+                    ========================================== */}
 
                     <button
-
-                        onClick={handleDeleteAll}
-
-                        className="delete-all-btn"
-
-                    >
-
-                        Delete All
-
-                    </button>
-
-                    }
-
-
-
-                    {
-
-                    nsoPermission !== "None" &&
-
-                    <button
-
-                        onClick={handleExport}
-
+                        type="button"
+                        onClick={
+                            handleExport
+                        }
                         className="export-btn"
-
+                        disabled={loading}
                     >
-
                         Export
-
                     </button>
 
-                    }
 
+                    {/* ==========================================
+                        ADD
+                    ========================================== */}
 
+                    {canAdd && (
 
-                    {
+                        <button
+                            type="button"
+                            className="add-btn"
+                            onClick={() =>
+                                setShowAddModal(
+                                    true
+                                )
+                            }
+                            disabled={loading}
+                        >
+                            + Add Tracking
+                        </button>
 
-                    (
-
-                    nsoPermission === "Add" ||
-
-                    nsoPermission === "Full"
-
-                    )
-
-                    &&
-
-                    <button
-
-className="add-btn"
-
-onClick={()=>setShowAddModal(true)}
-
->
-
-+ Add Tracking
-
-</button>
-
-                    }
-
+                    )}
 
                 </div>
 
+            </div>
 
+
+            {/* ==================================================
+                SEARCH
+            ================================================== */}
+
+            <div className="search-container">
+
+                <input
+                    type="text"
+                    placeholder="Search NSO Tracking..."
+                    value={search}
+                    onChange={
+                        handleSearchChange
+                    }
+                    className="search-box"
+                />
 
             </div>
 
 
-
-
-
-
-
-
-
-            {/* ======================================================
-                SEARCH
-            ====================================================== */}
-
-
-            <input
-
-                type="text"
-
-                placeholder="Search NSO Tracking..."
-
-                value={search}
-
-                onChange={(e)=>{
-
-
-                    setSearch(e.target.value);
-
-                    setPage(1);
-
-
-                }}
-
-                className="search-box"
-
-            />
-
-
-
-
-
-
-
-
-
-            {/* ======================================================
+            {/* ==================================================
                 TABLE
-            ====================================================== */}
-
+            ================================================== */}
 
             <div className="table-container">
 
+                {loading ? (
 
-            {
+                    <div
+                        style={{
+                            padding: "30px",
+                            textAlign: "center"
+                        }}
+                    >
 
-            loading ?
+                        <h3>
+                            Loading...
+                        </h3>
 
+                    </div>
 
-            <h3>
+                ) : (
 
-                Loading...
+                    <table>
 
-            </h3>
+                        {/* ======================================
+                            TABLE HEADER
+                        ====================================== */}
 
+                        <thead>
 
-            :
+                            <tr>
 
+                                <th>
+                                    ID
+                                </th>
 
-            <table>
+                                <th>
+                                    New Store Opening
+                                </th>
 
+                                <th>
+                                    Department
+                                </th>
 
-                <thead>
+                                <th>
+                                    Trigger
+                                </th>
 
-                    <tr>
+                                <th>
+                                    Status
+                                </th>
 
-                        <th>ID</th>
+                                <th>
+                                    Due Date
+                                </th>
 
-                        <th>New Store Opening</th>
+                                <th>
+                                    Action
+                                </th>
 
-                        <th>Department</th>
+                            </tr>
 
-                        <th>Trigger</th>
+                        </thead>
 
-                        <th>Status</th>
 
-                        <th>Due Date</th>
+                        {/* ======================================
+                            TABLE BODY
+                        ====================================== */}
 
-                        <th>Action</th>
+                        <tbody>
 
+                            {tracking.length === 0 ? (
 
-                    </tr>
+                                <tr>
 
+                                    <td
+                                        colSpan="7"
+                                        style={{
+                                            textAlign:
+                                                "center"
+                                        }}
+                                    >
+                                        No Data Found
+                                    </td>
 
-                </thead>
+                                </tr>
 
+                            ) : (
 
+                                tracking.map(
+                                    item => (
 
+                                        <tr
+                                            key={
+                                                item.id
+                                            }
+                                        >
 
-                <tbody>
+                                            {/* ==================
+                                                ID
+                                            ================== */}
 
+                                            <td>
+                                                {
+                                                    item.id
+                                                }
+                                            </td>
+
 
-                {
+                                            {/* ==================
+                                                STORE OPENING
+                                            ================== */}
+
+                                            <td>
+                                                {
+                                                    item.new_store_opening_id ??
+                                                    "-"
+                                                }
+                                            </td>
+
 
+                                            {/* ==================
+                                                DEPARTMENT
+                                            ================== */}
 
-                tracking.length === 0 ?
+                                            <td>
+                                                {
+                                                    item.department_id ??
+                                                    "-"
+                                                }
+                                            </td>
 
 
-                <tr>
+                                            {/* ==================
+                                                TRIGGER
+                                            ================== */}
 
-                    <td colSpan="7">
+                                            <td>
+                                                {
+                                                    item.trigger_column ??
+                                                    "-"
+                                                }
+                                            </td>
 
-                        No Data Found
 
-                    </td>
+                                            {/* ==================
+                                                STATUS
+                                            ================== */}
+
+                                            <td>
+
+                                                {canEdit ? (
 
-                </tr>
+                                                    <select
+                                                        value={
+                                                            item.status ||
+                                                            "Pending"
+                                                        }
+                                                        onChange={
+                                                            event =>
+                                                                handleStatusChange(
+                                                                    item.id,
+                                                                    event
+                                                                        .target
+                                                                        .value
+                                                                )
+                                                        }
+                                                        disabled={
+                                                            loading
+                                                        }
+                                                    >
+
+                                                        <option value="Pending">
+                                                            Pending
+                                                        </option>
+
+                                                        <option value="In Progress">
+                                                            In Progress
+                                                        </option>
 
+                                                        <option value="Completed">
+                                                            Completed
+                                                        </option>
 
-                :
+                                                        <option value="Hold">
+                                                            Hold
+                                                        </option>
 
+                                                    </select>
 
-                tracking.map((item)=>(
+                                                ) : (
 
+                                                    <span>
+                                                        {
+                                                            item.status ||
+                                                            "-"
+                                                        }
+                                                    </span>
 
-                    <tr key={item.id}>
+                                                )}
 
+                                            </td>
 
-                        <td>
 
-                            {item.id}
+                                            {/* ==================
+                                                DUE DATE
+                                            ================== */}
 
-                        </td>
+                                            <td>
+                                                {
+                                                    item.due_date ||
+                                                    "-"
+                                                }
+                                            </td>
 
 
+                                            {/* ==================
+                                                ACTIONS
+                                            ================== */}
 
-                        <td>
+                                            <td>
 
-                            {item.new_store_opening_id}
+                                                {/* ================
+                                                    EDIT
+                                                ================ */}
 
-                        </td>
+                                                {canEdit && (
 
+                                                    <button
+                                                        type="button"
+                                                        className="edit-btn"
+                                                        onClick={() => {
 
+                                                            setSelectedTracking(
+                                                                item
+                                                            );
 
-                        <td>
+                                                            setShowEditModal(
+                                                                true
+                                                            );
 
-                            {item.department_id}
+                                                        }}
+                                                        disabled={
+                                                            loading
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </button>
 
-                        </td>
+                                                )}
 
 
+                                                {/* ================
+                                                    DELETE
+                                                ================ */}
 
-                        <td>
+                                                {canDelete && (
 
-                            {item.trigger_column}
+                                                    <button
+                                                        type="button"
+                                                        className="delete-btn"
+                                                        onClick={() =>
+                                                            handleDelete(
+                                                                item.id
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            loading
+                                                        }
+                                                    >
+                                                        Delete
+                                                    </button>
 
-                        </td>
+                                                )}
 
+                                            </td>
 
-<td>
+                                        </tr>
 
-<select
+                                    )
+                                )
 
-value={item.status}
+                            )}
 
-onChange={(e)=>
-handleStatusChange(
-    item.id,
-    e.target.value
-)
-}
+                        </tbody>
 
->
+                    </table>
 
-<option>
-Pending
-</option>
-
-<option>
-In Progress
-</option>
-
-<option>
-Completed
-</option>
-
-<option>
-Hold
-</option>
-
-</select>
-
-</td>
-
-
-                        <td>
-
-                            {item.due_date || "-"}
-
-                        </td>
-
-
-
-
-                        <td>
-
-
-                        {
-
-                        nsoPermission === "Full"
-
-                        &&
-
-
-                        <button
-
-                            className="delete-btn"
-
-                            onClick={()=>handleDelete(item.id)}
-
-                        >
-
-                            Delete
-
-                        </button>
-
-
-                        }
-
-
-
-                        {
-
-                        (
-
-                        nsoPermission === "Edit"
-
-                        ||
-
-                        nsoPermission === "Full"
-
-                        )
-
-                        &&
-
-
-                        <button
-
-className="edit-btn"
-
-onClick={()=>{
-
-setSelectedTracking(item);
-
-setShowEditModal(true);
-
-}}
-
->
-
-Edit
-
-</button>
-
-
-
-
-                        }
-                       
-
-
-                        </td>
-
-
-
-                    </tr>
-
-
-                ))
-
-
-
-                }
-
-
-
-                </tbody>
-
-
-            </table>
-
-
-            }
-
+                )}
 
             </div>
 
 
+            {/* ==================================================
+                MODALS
+            ================================================== */}
 
-{/* ======================================================
-    MODALS
-====================================================== */}
+            {canAdd && (
 
+                <AddNSOTrackingModal
+                    isOpen={
+                        showAddModal
+                    }
+                    onClose={() =>
+                        setShowAddModal(
+                            false
+                        )
+                    }
+                    onSuccess={
+                        handleAddSuccess
+                    }
+                />
 
-<AddNSOTrackingModal
-
-    isOpen={showAddModal}
-
-    onClose={()=>setShowAddModal(false)}
-
-    onSuccess={fetchTracking}
-
-/>
-
-
-
-<EditNSOTrackingModal
-
-    isOpen={showEditModal}
-
-    data={selectedTracking}
-
-onClose={()=>{
-
-    setShowEditModal(false);
-
-    setSelectedTracking(null);
-
-}}
-
-    onSuccess={fetchTracking}
-
-/>
+            )}
 
 
+            {canEdit && (
+
+                <EditNSOTrackingModal
+                    isOpen={
+                        showEditModal
+                    }
+                    data={
+                        selectedTracking
+                    }
+                    onClose={
+                        handleEditClose
+                    }
+                    onSuccess={
+                        handleEditSuccess
+                    }
+                />
+
+            )}
 
 
-
-            {/* ======================================================
+            {/* ==================================================
                 PAGINATION
-            ====================================================== */}
-
-
+            ================================================== */}
 
             <div className="pagination">
 
-
                 <button
-
-                    disabled={page===1}
-
-                    onClick={()=>setPage(page-1)}
-
+                    type="button"
+                    disabled={
+                        page === 1 ||
+                        loading
+                    }
+                    onClick={
+                        handlePreviousPage
+                    }
                 >
-
                     Previous
-
                 </button>
-
-
 
 
                 <span>
-
                     Page {page} of {totalPages}
-
                 </span>
 
 
-
-
-
                 <button
-
-                    disabled={page===totalPages}
-
-                    onClick={()=>setPage(page+1)}
-
+                    type="button"
+                    disabled={
+                        page === totalPages ||
+                        loading
+                    }
+                    onClick={
+                        handleNextPage
+                    }
                 >
-
                     Next
-
                 </button>
 
-
             </div>
-
-
 
         </div>
 
@@ -886,5 +1176,8 @@ onClose={()=>{
 }
 
 
+// ======================================================
+// EXPORT
+// ======================================================
 
 export default NSOTracking;

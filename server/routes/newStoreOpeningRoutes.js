@@ -7,9 +7,7 @@ const router = express.Router();
 // ======================================================
 
 const authMiddleware = require("../middleware/authMiddleware");
-
 const permissionMiddleware = require("../middleware/permissionMiddleware");
-
 const upload = require("../middleware/upload");
 
 // ======================================================
@@ -17,108 +15,72 @@ const upload = require("../middleware/upload");
 // ======================================================
 
 const {
-
     getAllNewStoreOpenings,
-
     getNewStoreOpeningById,
-
     createNewStoreOpening,
-
     updateNewStoreOpening,
-
     deleteNewStoreOpening,
-
     deleteAllNewStoreOpenings,
-
     exportNewStoreOpeningsCSV,
-
     bulkUploadNewStoreOpenings
-
 } = require("../controllers/newStoreOpeningController");
 
 // ======================================================
-// NEW STORE OPENINGS ROUTES
-// Base URL:
-// /api/new-store-openings
-// ======================================================
-
-// ======================================================
-// HEALTH CHECK (OPTIONAL)
+// HEALTH
 // ======================================================
 
 router.get(
-
     "/health",
-
-    (
-
-        req,
-
-        res
-
-    ) => {
-
+    (req, res) => {
         res.json({
-
             success: true,
-
             message: "New Store Opening API is running."
-
         });
-
     }
-
 );
 
 // ======================================================
-// EXPORT CSV
-// IMPORTANT: BEFORE "/:id"
+// EXPORT
 // ======================================================
 
 router.get(
-
     "/export",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "View"
-
     ),
-
     exportNewStoreOpeningsCSV
-
 );
 
 // ======================================================
-// BULK IMPORT
+// BULK UPLOAD
 // ======================================================
 
 router.post(
-
     "/bulk-upload",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "Add"
-
     ),
-
-    upload.single(
-
-        "file"
-
-    ),
-
+    upload.single("file"),
     bulkUploadNewStoreOpenings
+);
 
+// ======================================================
+// DELETE ALL
+// IMPORTANT: BEFORE /:id
+// ======================================================
+
+router.delete(
+    "/delete-all",
+    authMiddleware,
+    permissionMiddleware(
+        "New Store Openings",
+        "Full"
+    ),
+    deleteAllNewStoreOpenings
 );
 
 // ======================================================
@@ -126,43 +88,13 @@ router.post(
 // ======================================================
 
 router.get(
-
     "/",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "View"
-
     ),
-
     getAllNewStoreOpenings
-
-);
-
-// ======================================================
-// GET BY ID
-// ======================================================
-
-router.get(
-
-    "/:id",
-
-    authMiddleware,
-
-    permissionMiddleware(
-
-        "New Store Openings",
-
-        "View"
-
-    ),
-
-    getNewStoreOpeningById
-
 );
 
 // ======================================================
@@ -170,27 +102,28 @@ router.get(
 // ======================================================
 
 router.post(
-
     "/",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "Add"
-
     ),
-
-    upload.single(
-
-        "attachment"
-
-    ),
-
+    upload.single("attachment"),
     createNewStoreOpening
+);
 
+// ======================================================
+// GET BY ID
+// ======================================================
+
+router.get(
+    "/:id",
+    authMiddleware,
+    permissionMiddleware(
+        "New Store Openings",
+        "View"
+    ),
+    getNewStoreOpeningById
 );
 
 // ======================================================
@@ -198,50 +131,14 @@ router.post(
 // ======================================================
 
 router.put(
-
     "/:id",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "Edit"
-
     ),
-
-    upload.single(
-
-        "attachment"
-
-    ),
-
+    upload.single("attachment"),
     updateNewStoreOpening
-
-);
-
-// ======================================================
-// DELETE ALL
-// IMPORTANT: BEFORE "/:id"
-// ======================================================
-
-router.delete(
-
-    "/delete-all",
-
-    authMiddleware,
-
-    permissionMiddleware(
-
-        "New Store Openings",
-
-        "Full"
-
-    ),
-
-    deleteAllNewStoreOpenings
-
 );
 
 // ======================================================
@@ -249,25 +146,17 @@ router.delete(
 // ======================================================
 
 router.delete(
-
     "/:id",
-
     authMiddleware,
-
     permissionMiddleware(
-
         "New Store Openings",
-
         "Full"
-
     ),
-
     deleteNewStoreOpening
-
 );
 
 // ======================================================
-// MODULE EXPORTS
+// EXPORT
 // ======================================================
 
 module.exports = router;

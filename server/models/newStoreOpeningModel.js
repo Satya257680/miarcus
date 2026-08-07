@@ -303,6 +303,10 @@ NewStoreOpening.create = (
 
 ) => {
 
+    // ==================================================
+    // SQL QUERY
+    // ==================================================
+
     const sql = `
 
         INSERT INTO new_store_openings
@@ -403,119 +407,363 @@ NewStoreOpening.create = (
 
         (
 
-            ?,?,?,?,?,?,?,?,?,?,
+            ?,
 
-            ?,?,?,?,?,?,?,?,?,?,
+            ?,
 
-            ?,?,?,?,?,?,?,?,?,?,
+            ?,
 
-            ?,?,?,?,?,?,?,?,?,?,
+            ?,
 
-            ?,?,?,?
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?
 
         )
 
     `;
 
-    db.query(
 
-        sql,
+    // ==================================================
+    // VALUES
+    // ==================================================
 
-        [
+    const values = [
 
-            data.location,
+        // ----------------------------------------------
+        // BASIC DETAILS
+        // ----------------------------------------------
 
-            data.city,
+        data.location ?? null,
 
-            data.sb_area,
+        data.city ?? null,
 
-            data.carpet_area,
+        data.sb_area ?? null,
 
-            data.cam,
+        data.carpet_area ?? null,
 
-            data.mg,
+        // ----------------------------------------------
+        // FINANCIAL DETAILS
+        // ----------------------------------------------
 
-            data.electricity_kva,
+        data.cam ?? null,
 
-            data.revenue_share,
+        data.mg ?? null,
 
-            data.escalation,
+        data.electricity_kva ?? null,
 
-            data.expected_sale,
+        data.revenue_share ?? null,
 
-            data.possession_date_loi,
+        data.escalation ?? null,
 
-            data.possession_date_broker,
+        data.expected_sale ?? null,
 
-            data.broker_name,
+        // ----------------------------------------------
+        // POSSESSION DETAILS
+        // ----------------------------------------------
 
-            data.operation_head_assigned,
+        data.possession_date_loi ?? null,
 
-            data.asm_assigned,
+        data.possession_date_broker ?? null,
 
-            data.deal_days,
+        // ----------------------------------------------
+        // ASSIGNMENT
+        // ----------------------------------------------
 
-            data.actual_possession_date,
+        data.broker_name ?? null,
 
-            data.remarks,
+        data.operation_head_assigned ?? null,
 
-            data.attachment,
+        data.asm_assigned ?? null,
 
-            data.delay_loi_vs_broker,
+        // ----------------------------------------------
+        // DEAL INFORMATION
+        // ----------------------------------------------
 
-            data.possession_delay,
+        data.deal_days ?? null,
 
-            data.received_by_nso,
+        data.actual_possession_date ?? null,
 
-            data.layout_by_nso,
+        data.remarks ?? null,
 
-            data.revised_layout_by_nso,
+        data.attachment ?? null,
 
-            data.approval_deadline,
+        // ----------------------------------------------
+        // DELAY INFORMATION
+        // ----------------------------------------------
 
-            data.approver_name,
+        data.delay_loi_vs_broker ?? null,
 
-            data.construction_vendor,
+        data.possession_delay ?? null,
 
-            data.project_taken_by,
+        // ----------------------------------------------
+        // NSO TIMELINE
+        // ----------------------------------------------
 
-            data.visit_by_op_team,
+        data.received_by_nso ?? null,
 
-            data.gst_deadline,
+        data.layout_by_nso ?? null,
 
-            data.hr_hiring_deadline,
+        data.revised_layout_by_nso ?? null,
 
-            data.team_training_deadline,
+        // ----------------------------------------------
+        // APPROVAL
+        // ----------------------------------------------
 
-            data.visit_by_nso_team_deadline,
+        data.approval_deadline ?? null,
 
-            data.plan_of_stock_deadline,
+        data.approver_name ?? null,
 
-            data.plan_of_collaterals_deadline,
+        // ----------------------------------------------
+        // CONSTRUCTION
+        // ----------------------------------------------
 
-            data.on_field_training_deadline,
+        data.construction_vendor ?? null,
 
-            data.dispatch_stock_deadline,
+        data.project_taken_by ?? null,
 
-            data.nso_handover_deadline,
+        data.visit_by_op_team ?? null,
 
-            data.vm_handover_deadline,
+        // ----------------------------------------------
+        // DEADLINES
+        // ----------------------------------------------
 
-            data.scanning_deadline,
+        data.gst_deadline ?? null,
 
-            data.billing_start_date,
+        data.hr_hiring_deadline ?? null,
 
-            data.status ?? "Planning",
+        data.team_training_deadline ?? null,
 
-            data.created_by,
+        data.visit_by_nso_team_deadline ?? null,
 
-            data.updated_by
+        data.plan_of_stock_deadline ?? null,
 
-        ],
+        data.plan_of_collaterals_deadline ?? null,
 
-        callback
+        data.on_field_training_deadline ?? null,
 
+        data.dispatch_stock_deadline ?? null,
+
+        data.nso_handover_deadline ?? null,
+
+        data.vm_handover_deadline ?? null,
+
+        data.scanning_deadline ?? null,
+
+        data.billing_start_date ?? null,
+
+        // ----------------------------------------------
+        // STATUS
+        // ----------------------------------------------
+
+        data.status ?? "Planning",
+
+        // ----------------------------------------------
+        // AUDIT FIELDS
+        // ----------------------------------------------
+
+        data.created_by ?? null,
+
+        data.updated_by ?? null
+
+    ];
+
+
+    // ==================================================
+    // DEBUG INFORMATION
+    // ==================================================
+
+    console.log(
+        "=============================================="
     );
+
+    console.log(
+        "NEW STORE OPENING - CREATE"
+    );
+
+    console.log(
+        "=============================================="
+    );
+
+    console.log(
+        "created_by:",
+        data.created_by
+    );
+
+    console.log(
+        "updated_by:",
+        data.updated_by
+    );
+
+    console.log(
+        "Total SQL Values:",
+        values.length
+    );
+
+    console.log(
+        "=============================================="
+    );
+
+
+    // ==================================================
+    // EXECUTE QUERY
+    // ==================================================
+db.query(
+    sql,
+    [
+        data.location,
+        data.city,
+        data.sb_area,
+        data.carpet_area,
+        data.cam,
+        data.mg,
+        data.electricity_kva,
+        data.revenue_share,
+        data.escalation,
+        data.expected_sale,
+
+        data.possession_date_loi,
+        data.possession_date_broker,
+        data.broker_name,
+        data.operation_head_assigned,
+        data.asm_assigned,
+        data.deal_days,
+        data.actual_possession_date,
+        data.remarks,
+        data.attachment,
+        data.delay_loi_vs_broker,
+
+        data.possession_delay,
+        data.received_by_nso,
+        data.layout_by_nso,
+        data.revised_layout_by_nso,
+        data.approval_deadline,
+        data.approver_name,
+        data.construction_vendor,
+        data.project_taken_by,
+        data.visit_by_op_team,
+        data.gst_deadline,
+
+        data.hr_hiring_deadline,
+        data.team_training_deadline,
+        data.visit_by_nso_team_deadline,
+        data.plan_of_stock_deadline,
+        data.plan_of_collaterals_deadline,
+        data.on_field_training_deadline,
+        data.dispatch_stock_deadline,
+        data.nso_handover_deadline,
+        data.vm_handover_deadline,
+        data.scanning_deadline,
+
+        data.billing_start_date,
+        data.status ?? "Planning",
+        data.created_by,
+        data.updated_by
+    ],
+    (err, result) => {
+
+        if (err) {
+
+            console.error("========================================");
+            console.error("❌ NEW STORE OPENING CREATE SQL ERROR");
+            console.error("========================================");
+
+            console.error("ERROR MESSAGE:", err.message);
+            console.error("ERROR CODE:", err.code);
+            console.error("SQL STATE:", err.sqlState);
+            console.error("FAILED SQL:", err.sql);
+
+            console.error("========================================");
+
+            return callback(err);
+        }
+
+        console.log("========================================");
+        console.log("✅ NEW STORE OPENING CREATED");
+        console.log("Inserted ID:", result.insertId);
+        console.log("========================================");
+
+        callback(null, result);
+    }
+);
+
+    
 
 };
 // ======================================================
@@ -538,245 +786,179 @@ NewStoreOpening.update = (
 
         SET
 
-            location=?,
+            location = ?,
 
-            city=?,
+            city = ?,
 
-            sb_area=?,
+            sb_area = ?,
 
-            carpet_area=?,
+            carpet_area = ?,
 
-            cam=?,
+            cam = ?,
 
-            mg=?,
+            mg = ?,
 
-            electricity_kva=?,
+            electricity_kva = ?,
 
-            revenue_share=?,
+            revenue_share = ?,
 
-            escalation=?,
+            escalation = ?,
 
-            expected_sale=?,
+            expected_sale = ?,
 
-            possession_date_loi=?,
+            possession_date_loi = ?,
 
-            possession_date_broker=?,
+            possession_date_broker = ?,
 
-            broker_name=?,
+            broker_name = ?,
 
-            operation_head_assigned=?,
+            operation_head_assigned = ?,
 
-            asm_assigned=?,
+            asm_assigned = ?,
 
-            deal_days=?,
+            deal_days = ?,
 
-            actual_possession_date=?,
+            actual_possession_date = ?,
 
-            remarks=?,
+            remarks = ?,
 
-            attachment=?,
+            attachment = ?,
 
-            delay_loi_vs_broker=?,
+            delay_loi_vs_broker = ?,
 
-            possession_delay=?,
+            possession_delay = ?,
 
-            received_by_nso=?,
+            received_by_nso = ?,
 
-            layout_by_nso=?,
+            layout_by_nso = ?,
 
-            revised_layout_by_nso=?,
+            revised_layout_by_nso = ?,
 
-            approval_deadline=?,
+            approval_deadline = ?,
 
-            approver_name=?,
+            approver_name = ?,
 
-            construction_vendor=?,
+            construction_vendor = ?,
 
-            project_taken_by=?,
+            project_taken_by = ?,
 
-            visit_by_op_team=?,
+            visit_by_op_team = ?,
 
-            gst_deadline=?,
+            gst_deadline = ?,
 
-            hr_hiring_deadline=?,
+            hr_hiring_deadline = ?,
 
-            team_training_deadline=?,
+            team_training_deadline = ?,
 
-            visit_by_nso_team_deadline=?,
+            visit_by_nso_team_deadline = ?,
 
-            plan_of_stock_deadline=?,
+            plan_of_stock_deadline = ?,
 
-            plan_of_collaterals_deadline=?,
+            plan_of_collaterals_deadline = ?,
 
-            on_field_training_deadline=?,
+            on_field_training_deadline = ?,
 
-            dispatch_stock_deadline=?,
+            dispatch_stock_deadline = ?,
 
-            nso_handover_deadline=?,
+            nso_handover_deadline = ?,
 
-            vm_handover_deadline=?,
+            vm_handover_deadline = ?,
 
-            scanning_deadline=?,
+            scanning_deadline = ?,
 
-            billing_start_date=?,
+            billing_start_date = ?,
 
-            status=?,
+            status = ?,
 
-            updated_by=?
+            updated_by = ?
 
-        WHERE id=?
+        WHERE id = ?
 
     `;
 
-    db.query(
-
-        sql,
-
-        [
-
-            data.location,
-
-            data.city,
-
-            data.sb_area,
-
-            data.carpet_area,
-
-            data.cam,
-
-            data.mg,
-
-            data.electricity_kva,
-
-            data.revenue_share,
-
-            data.escalation,
-
-            data.expected_sale,
-
-            data.possession_date_loi,
-
-            data.possession_date_broker,
-
-            data.broker_name,
-
-            data.operation_head_assigned,
-
-            data.asm_assigned,
-
-            data.deal_days,
-
-            data.actual_possession_date,
-
-            data.remarks,
-
-            data.attachment,
-
-            data.delay_loi_vs_broker,
-
-            data.possession_delay,
-
-            data.received_by_nso,
-
-            data.layout_by_nso,
-
-            data.revised_layout_by_nso,
-
-            data.approval_deadline,
-
-            data.approver_name,
-
-            data.construction_vendor,
-
-            data.project_taken_by,
-
-            data.visit_by_op_team,
-
-            data.gst_deadline,
-
-            data.hr_hiring_deadline,
-
-            data.team_training_deadline,
-
-            data.visit_by_nso_team_deadline,
-
-            data.plan_of_stock_deadline,
-
-            data.plan_of_collaterals_deadline,
-
-            data.on_field_training_deadline,
-
-            data.dispatch_stock_deadline,
-
-            data.nso_handover_deadline,
-
-            data.vm_handover_deadline,
-
-            data.scanning_deadline,
-
-            data.billing_start_date,
-
-            data.status,
-
-            data.updated_by,
-
-            id
-
-        ],
-
-        (
-
-            err,
-
-            result
-
-        ) => {
-
-            if (
-
-                err
-
-            ) {
-
-                return callback(
-
-                    err
-
-                );
-
-            }
-
-            if (
-
-                result.affectedRows === 0
-
-            ) {
-
-                return callback(
-
-                    new Error(
-
-                        "Project not found."
-
-                    )
-
-                );
-
-            }
-
-            callback(
-
-                null,
-
-                result
-
-            );
-
+   db.query(
+    sql,
+    [
+        data.location,
+        data.city,
+        data.sb_area,
+        data.carpet_area,
+        data.cam,
+        data.mg,
+        data.electricity_kva,
+        data.revenue_share,
+        data.escalation,
+        data.expected_sale,
+
+        data.possession_date_loi,
+        data.possession_date_broker,
+        data.broker_name,
+        data.operation_head_assigned,
+        data.asm_assigned,
+        data.deal_days,
+        data.actual_possession_date,
+        data.remarks,
+        data.attachment,
+        data.delay_loi_vs_broker,
+
+        data.possession_delay,
+        data.received_by_nso,
+        data.layout_by_nso,
+        data.revised_layout_by_nso,
+        data.approval_deadline,
+        data.approver_name,
+        data.construction_vendor,
+        data.project_taken_by,
+        data.visit_by_op_team,
+        data.gst_deadline,
+
+        data.hr_hiring_deadline,
+        data.team_training_deadline,
+        data.visit_by_nso_team_deadline,
+        data.plan_of_stock_deadline,
+        data.plan_of_collaterals_deadline,
+        data.on_field_training_deadline,
+        data.dispatch_stock_deadline,
+        data.nso_handover_deadline,
+        data.vm_handover_deadline,
+        data.scanning_deadline,
+
+        data.billing_start_date,
+        data.status ?? "Planning",
+        data.created_by,
+        data.updated_by
+    ],
+    (err, result) => {
+
+        if (err) {
+
+            console.error("========================================");
+            console.error("❌ NEW STORE OPENING CREATE SQL ERROR");
+            console.error("========================================");
+
+            console.error("ERROR MESSAGE:", err.message);
+            console.error("ERROR CODE:", err.code);
+            console.error("SQL STATE:", err.sqlState);
+            console.error("FAILED SQL:", err.sql);
+
+            console.error("========================================");
+
+            return callback(err);
         }
 
-    );
+        console.log("========================================");
+        console.log("✅ NEW STORE OPENING CREATED");
+        console.log("Inserted ID:", result.insertId);
+        console.log("========================================");
+
+        callback(null, result);
+    }
+);
+        
 
 };
+
+
 
 
 // ======================================================

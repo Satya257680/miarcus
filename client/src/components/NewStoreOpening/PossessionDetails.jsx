@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
     FaCalendarAlt,
     FaUserTie,
@@ -9,12 +10,11 @@ import {
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
+
 export default function PossessionDetails({
 
     formData,
-
     errors,
-
     handleChange
 
 }) {
@@ -22,6 +22,11 @@ export default function PossessionDetails({
     return (
 
         <div className="nso-card">
+
+
+            {/* ==================================================
+               HEADER
+            ================================================== */}
 
             <div className="nso-card-header">
 
@@ -31,27 +36,32 @@ export default function PossessionDetails({
 
                 </div>
 
+
                 <div>
 
                     <h2>
-
                         Possession & Assignment
-
                     </h2>
 
                     <p>
-
                         Define project ownership and possession milestones.
-
                     </p>
 
                 </div>
 
             </div>
 
+
+            {/* ==================================================
+               FORM
+            ================================================== */}
+
             <div className="nso-form-grid">
 
-                {/* LOI Date */}
+
+                {/* ==================================================
+                   LOI
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -63,35 +73,37 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="date"
-
                         name="possession_date_loi"
-
-                        value={formData.possession_date_loi || ""}
-
+                        value={
+                            formData.possession_date_loi || ""
+                        }
                         onChange={handleChange}
-
                     />
 
-                    {
 
+                    {
                         errors.possession_date_loi && (
 
                             <span className="error-text">
 
-                                {errors.possession_date_loi}
+                                {
+                                    errors.possession_date_loi
+                                }
 
                             </span>
 
                         )
-
                     }
 
                 </div>
 
-                {/* Broker Date */}
+
+                {/* ==================================================
+                   BROKER POSSESSION
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -103,21 +115,22 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="date"
-
                         name="possession_date_broker"
-
-                        value={formData.possession_date_broker || ""}
-
+                        value={
+                            formData.possession_date_broker || ""
+                        }
                         onChange={handleChange}
-
                     />
 
                 </div>
 
-                {/* Actual Date */}
+
+                {/* ==================================================
+                   ACTUAL POSSESSION
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -129,21 +142,22 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="date"
-
                         name="actual_possession_date"
-
-                        value={formData.actual_possession_date || ""}
-
+                        value={
+                            formData.actual_possession_date || ""
+                        }
                         onChange={handleChange}
-
                     />
 
                 </div>
 
-                {/* Received By NSO */}
+
+                {/* ==================================================
+                   RECEIVED BY NSO
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -155,21 +169,22 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="date"
-
                         name="received_by_nso"
-
-                        value={formData.received_by_nso || ""}
-
+                        value={
+                            formData.received_by_nso || ""
+                        }
                         onChange={handleChange}
-
                     />
 
                 </div>
 
-                {/* Broker */}
+
+                {/* ==================================================
+                   BROKER
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -181,23 +196,23 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="text"
-
                         name="broker_name"
-
-                        value={formData.broker_name || ""}
-
+                        value={
+                            formData.broker_name || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Broker Name"
-
                     />
 
                 </div>
 
-                {/* Operation Head */}
+
+                {/* ==================================================
+                   OPERATION HEAD
+                ================================================== */}
 
                 <div className="nso-form-group">
 
@@ -209,23 +224,23 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="text"
-
                         name="operation_head_assigned"
-
-                        value={formData.operation_head_assigned || ""}
-
+                        value={
+                            formData.operation_head_assigned || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Operation Head"
-
                     />
 
                 </div>
 
-                {/* ASM */}
+
+                {/* ==================================================
+                   ASM
+                ================================================== */}
 
                 <div className="nso-form-group full-width">
 
@@ -237,18 +252,15 @@ export default function PossessionDetails({
 
                     </label>
 
+
                     <input
-
                         type="text"
-
                         name="asm_assigned"
-
-                        value={formData.asm_assigned || ""}
-
+                        value={
+                            formData.asm_assigned || ""
+                        }
                         onChange={handleChange}
-
                         placeholder="Area Sales Manager"
-
                     />
 
                 </div>

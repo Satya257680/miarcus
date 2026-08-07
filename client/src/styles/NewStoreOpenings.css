@@ -1,258 +1,545 @@
-/* ======================================================
-   NEW STORE OPENINGS PAGE
-====================================================== */
+/* =========================================================
+   NEW STORE OPENINGS
+   ========================================================= */
 
-.new-store-page {
-    padding: 20px;
-    background: #edf3f5;
-    min-height: 100vh;
+.new-store-openings-page {
     width: 100%;
+    min-height: calc(100vh - 72px);
+    padding: 28px 32px 40px;
+    background: #edf4f6;
     box-sizing: border-box;
 }
 
-/* ======================================================
-   TABLE LINK
-====================================================== */
+/* =========================================================
+   PAGE HEADER
+   ========================================================= */
 
-.table-link {
-    color: #3f6b78;
-    text-decoration: none;
-    font-weight: 500;
-    transition: .2s;
+.new-store-openings-page .page-header {
+    margin-bottom: 18px;
 }
 
-.table-link:hover {
-    text-decoration: underline;
+.new-store-openings-page .page-header h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #172033;
 }
 
-/* ======================================================
-   REMARKS CELL
-====================================================== */
-
-.remarks-cell {
-    max-width: 280px;
-    white-space: normal;
-    word-break: break-word;
-    line-height: 1.5;
+.new-store-openings-page .page-header p {
+    margin: 6px 0 0;
+    color: #718096;
+    font-size: 14px;
 }
 
-/* ======================================================
-   ATTACHMENT CELL
-====================================================== */
+/* =========================================================
+   TOOLBAR
+   ========================================================= */
 
-.attachment-cell {
-    white-space: nowrap;
-}
-
-/* ======================================================
-   WRAP TEXT
-====================================================== */
-
-.wrap-text {
-    max-width: 250px;
-    white-space: normal;
-    word-break: break-word;
-    line-height: 1.5;
-}
-
-/* ======================================================
-   DATE CELL
-====================================================== */
-
-.date-cell {
-    white-space: nowrap;
-}
-
-/* ======================================================
-   NUMBER CELL
-====================================================== */
-
-.number-cell {
-    text-align: right;
-    white-space: nowrap;
-}
-
-/* ======================================================
-   BADGES
-====================================================== */
-
-.nso-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: #e8f3f6;
-    color: #3f6b78;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-/* ======================================================
-   ACTION BUTTONS
-====================================================== */
-
-.action-buttons {
-
+.new-store-openings-toolbar {
+    width: 100%;
     display: flex;
-
     align-items: center;
-
-    justify-content: center;
-
-    flex-wrap: nowrap;
-
-    gap: 10px;
-
-    white-space: nowrap;
-
-    min-width: 220px;
-
+    gap: 14px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
 }
 
-.action-buttons .edit-btn,
-.action-buttons .delete-btn {
+.new-store-openings-toolbar .search-wrapper {
+    flex: 1;
+    min-width: 250px;
+}
 
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    min-width: 90px;
-
-    height: 36px;
-
-    padding: 0 18px;
-
-    border: none;
-
+.new-store-openings-toolbar input {
+    width: 100%;
+    height: 46px;
+    padding: 0 16px 0 42px;
+    border: 1px solid #d5dee5;
     border-radius: 8px;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+}
 
-    cursor: pointer;
+.new-store-openings-toolbar input:focus {
+    border-color: #39768d;
+    box-shadow: 0 0 0 3px rgba(57, 118, 141, 0.12);
+}
 
-    font-size: 13px;
-
+.new-store-openings-toolbar button {
+    height: 46px;
+    border: none;
+    border-radius: 7px;
+    padding: 0 18px;
+    font-size: 14px;
     font-weight: 600;
-
-    transition: .25s;
-
-}
-
-.action-buttons .edit-btn {
-
-    background: #f5a623;
-
-    color: #fff;
-
-}
-
-.action-buttons .edit-btn:hover {
-
-    background: #e28e08;
-
-}
-
-.action-buttons .delete-btn {
-
-    background: #3498db;
-
-    color: #fff;
-
-}
-
-.action-buttons .delete-btn:hover {
-
-    background: #2a80b9;
-
-}
-
-/* ======================================================
-   LAST COLUMN (ACTIONS)
-====================================================== */
-
-.data-table th:last-child,
-.data-table td:last-child {
-
-    min-width: 240px;
-
-    width: 240px;
-
-    text-align: center;
-
+    cursor: pointer;
     white-space: nowrap;
-
+    transition: 0.2s ease;
 }
 
-/* ======================================================
+.new-store-openings-toolbar button:hover {
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.nso-btn-add {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.nso-btn-add:hover {
+    background: #15803d;
+}
+
+.nso-btn-export {
+    background: #20a94b;
+    color: #ffffff;
+}
+
+.nso-btn-export:hover {
+    background: #178c3c;
+}
+
+.nso-btn-upload {
+    background: #10bfa0;
+    color: #ffffff;
+}
+
+.nso-btn-upload:hover {
+    background: #0ca88d;
+}
+
+.nso-btn-delete-all {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.nso-btn-delete-all:hover {
+    background: #fecaca;
+}
+
+.nso-clear-filter {
+    margin-left: auto;
+    margin-bottom: 18px;
+    display: block;
+    background: #6c7882;
+    color: #ffffff;
+    border: none;
+    border-radius: 7px;
+    padding: 11px 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.nso-card {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 3px 14px rgba(31, 41, 55, 0.08);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.nso-card-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.nso-card-header h2 {
+    margin: 0;
+    color: #172033;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   TABLE OUTER CONTAINER
+   ========================================================= */
+
+.nso-table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: auto;
+}
+
+/*
+   IMPORTANT:
+   The table must NOT shrink.
+   This prevents columns such as Actual Possession Date,
+   Remarks, Attachment, etc. from disappearing.
+*/
+
+.nso-table-container table {
+    width: max-content;
+    min-width: 2200px;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+}
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.nso-table-container thead th {
+    height: 48px;
+    padding: 0 14px;
+    background: #39758a;
+    color: #ffffff;
+    border-right: 1px solid rgba(255, 255, 255, 0.18);
+    border-bottom: 1px solid #2e6579;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* First column */
+
+.nso-table-container thead th:first-child {
+    padding-left: 18px;
+}
+
+/* =========================================================
+   TABLE BODY
+   ========================================================= */
+
+.nso-table-container tbody td {
+    min-height: 54px;
+    height: 54px;
+    padding: 10px 14px;
+    background: #f5fafc;
+    color: #243447;
+    border-right: 1px solid #e0e7eb;
+    border-bottom: 1px solid #e0e7eb;
+    font-size: 13px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.nso-table-container tbody tr:nth-child(even) td {
+    background: #f9fcfd;
+}
+
+.nso-table-container tbody tr:hover td {
+    background: #eef7fa;
+}
+
+/* =========================================================
+   EMPTY VALUES
+   ========================================================= */
+
+.nso-table-container tbody td:empty::after {
+    content: "-";
+    color: #8b98a5;
+}
+
+/* =========================================================
+   DATE COLUMNS
+   ========================================================= */
+
+.nso-date-cell {
+    white-space: nowrap !important;
+    min-width: 145px;
+}
+
+/* =========================================================
+   TEXT COLUMNS
+   ========================================================= */
+
+.nso-text-cell {
+    min-width: 150px;
+    max-width: 280px;
+}
+
+.nso-remarks-cell {
+    min-width: 180px;
+    max-width: 300px;
+    white-space: normal !important;
+    line-height: 1.4;
+}
+
+.nso-attachment-cell {
+    min-width: 130px;
+}
+
+/* =========================================================
+   DELAY COLUMNS
+   ========================================================= */
+
+.nso-delay-cell {
+    min-width: 130px;
+    text-align: center;
+}
+
+.nso-delay-value {
+    font-weight: 600;
+}
+
+/* =========================================================
+   ACTION COLUMN
+   ========================================================= */
+
+.nso-action-cell {
+    min-width: 130px;
+    text-align: center;
+    white-space: nowrap !important;
+}
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.nso-action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.nso-action-buttons button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+}
+
+.nso-action-buttons button:hover {
+    transform: translateY(-1px);
+}
+
+.nso-edit-btn {
+    background: #e0efff;
+    color: #2563eb;
+}
+
+.nso-edit-btn:hover {
+    background: #bfdbfe;
+}
+
+.nso-delete-btn {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.nso-delete-btn:hover {
+    background: #fecaca;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+.nso-table-container::-webkit-scrollbar {
+    height: 12px;
+}
+
+.nso-table-container::-webkit-scrollbar-track {
+    background: #eef2f4;
+    border-radius: 8px;
+}
+
+.nso-table-container::-webkit-scrollbar-thumb {
+    background: #9bb4be;
+    border-radius: 8px;
+}
+
+.nso-table-container::-webkit-scrollbar-thumb:hover {
+    background: #789ba7;
+}
+
+/* =========================================================
+   PAGINATION
+   ========================================================= */
+
+.nso-pagination-wrapper {
+    width: 100%;
+    min-height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 22px;
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    box-sizing: border-box;
+}
+
+.nso-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.nso-pagination-total {
+    margin-right: 12px;
+    color: #344054;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.nso-pagination button {
+    min-width: 94px;
+    height: 38px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 8px;
+    background: #d5dae0;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.nso-pagination button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.nso-pagination .active-page {
+    min-width: 65px;
+    background: #39758a;
+    color: #ffffff;
+}
+
+.nso-pagination .next-page,
+.nso-pagination .previous-page {
+    min-width: 94px;
+}
+
+/* =========================================================
+   PAGE SIZE
+   ========================================================= */
+
+.nso-page-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    color: #475467;
+    font-size: 14px;
+}
+
+.nso-page-size select {
+    height: 38px;
+    min-width: 66px;
+    padding: 0 10px;
+    border: 1px solid #d0d5dd;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #344054;
+    font-size: 14px;
+    outline: none;
+}
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.nso-loading {
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #39758a;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* =========================================================
+   NO DATA
+   ========================================================= */
+
+.nso-no-data {
+    height: 160px;
+    text-align: center !important;
+    vertical-align: middle !important;
+    color: #667085 !important;
+    font-size: 14px !important;
+}
+
+/* =========================================================
    RESPONSIVE
-====================================================== */
+   ========================================================= */
 
-@media (max-width:1200px) {
+@media (max-width: 1200px) {
 
-    .new-store-page {
+    .new-store-openings-page {
+        padding: 22px 20px 32px;
+    }
 
-        padding:16px;
+    .new-store-openings-toolbar {
+        flex-wrap: wrap;
+    }
 
+    .new-store-openings-toolbar .search-wrapper {
+        flex-basis: 100%;
+    }
+
+    .nso-clear-filter {
+        margin-left: 0;
     }
 
 }
 
-@media (max-width:992px) {
+@media (max-width: 768px) {
 
-    .remarks-cell,
-    .wrap-text {
+    .new-store-openings-page {
+        padding: 16px 12px 25px;
+    }
 
-        max-width:220px;
+    .new-store-openings-toolbar {
+        gap: 8px;
+    }
 
+    .new-store-openings-toolbar button {
+        flex: 1;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .nso-pagination-wrapper {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    .nso-pagination {
+        min-width: max-content;
     }
 
 }
 
-@media (max-width:768px) {
+@media (max-width: 550px) {
 
-    .new-store-page {
-
-        padding:12px;
-
+    .new-store-openings-toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 
-    .remarks-cell,
-    .wrap-text {
-
-        max-width:180px;
-
+    .new-store-openings-toolbar .search-wrapper {
+        grid-column: 1 / -1;
     }
 
-    .action-buttons {
-
-        gap:6px;
-
-        min-width:190px;
-
-    }
-
-    .action-buttons .edit-btn,
-    .action-buttons .delete-btn {
-
-        min-width:100px;
-
-        height:34px;
-
-        font-size:12px;
-
-    }
-
-}
-
-@media (max-width:576px) {
-
-    .new-store-page {
-
-        padding:10px;
-
+    .new-store-openings-toolbar button {
+        width: 100%;
     }
 
 }

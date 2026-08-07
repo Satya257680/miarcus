@@ -8,37 +8,87 @@ const { logActivity } = require("../utils/activityLogger");
 
 
 // ======================================================
+// HELPER
+// GET CURRENT USER ID
+// ======================================================
+
+const getUserId = (req) => {
+
+    return req.user?.id || null;
+
+};
+
+
+// ======================================================
 // GET ALL NSO TRACKING
 // SEARCH + PAGINATION
 // ======================================================
 
 exports.getAllNSOTracking = (req, res) => {
 
-
     try {
 
+        // ==================================================
+        // PAGE
+        // ==================================================
 
-        const page = parseInt(req.query.page) || 1;
+        let page = parseInt(
+            req.query.page,
+            10
+        );
 
-        const limit = parseInt(req.query.limit) || 10;
+        if (
+            !Number.isInteger(page) ||
+            page < 1
+        ) {
+            page = 1;
+        }
 
-        const offset = (page - 1) * limit;
+
+        // ==================================================
+        // LIMIT
+        // ==================================================
+
+        let limit = parseInt(
+            req.query.limit,
+            10
+        );
+
+        if (
+            !Number.isInteger(limit) ||
+            limit < 1
+        ) {
+            limit = 10;
+        }
 
 
+        // ==================================================
+        // OFFSET
+        // ==================================================
+
+        const offset =
+            (page - 1) * limit;
+
+
+        // ==================================================
+        // FILTERS
+        // ==================================================
 
         const filters = {
 
-
-            search: req.query.search || "",
+            search:
+                req.query.search || "",
 
             offset,
 
             limit
 
-
         };
 
 
+        // ==================================================
+        // GET DATA
+        // ==================================================
 
         NSOTracking.getAll(
 
@@ -46,51 +96,67 @@ exports.getAllNSOTracking = (req, res) => {
 
             (err, data) => {
 
+                if (err) {
 
-                if(err){
+                    console.error(
+                        "❌ NSO Tracking Get All Error:",
+                        err
+                    );
 
                     return res.status(500).json({
 
-                        success:false,
+                        success: false,
 
-                        message:err.message
+                        message:
+                            err.message
 
                     });
 
                 }
 
 
-
+                // ==================================================
+                // GET COUNT
+                // ==================================================
 
                 NSOTracking.count(
 
                     filters,
 
-                    (err,count)=>{
+                    (countError, countResult) => {
 
+                        if (countError) {
 
-                        if(err){
+                            console.error(
+                                "❌ NSO Tracking Count Error:",
+                                countError
+                            );
 
                             return res.status(500).json({
 
-                                success:false,
+                                success: false,
 
-                                message:err.message
+                                message:
+                                    countError.message
 
                             });
 
                         }
 
 
+                        const total =
+                            Number(
+                                countResult?.[0]?.total || 0
+                            );
 
 
-                        const total = count[0]?.total || 0;
+                        // ==================================================
+                        // RESPONSE
+                        // ==================================================
 
+                        return res.json({
 
-
-                        res.json({
-
-                            success:true,
+                            success: true,
 
                             page,
 
@@ -98,736 +164,1521 @@ exports.getAllNSOTracking = (req, res) => {
 
                             total,
 
-                            totalPages:Math.ceil(total / limit),
+                            totalPages:
+                                Math.ceil(
+                                    total / limit
+                                ),
 
-                            data
+                            data:
+                                data || []
 
                         });
-
-
 
                     }
 
                 );
 
-
             }
 
         );
 
-
-
     }
 
-    catch(error){
+    catch (error) {
 
+        console.error(
+            "❌ Get All NSO Tracking Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
 
-            success:false,
+            success: false,
 
-            message:error.message
+            message:
+                error.message
 
         });
 
-
     }
 
-
 };
 
 
-
-
-
-
-
 // ======================================================
-// GET BY ID
+// GET NSO TRACKING BY ID
 // ======================================================
 
-exports.getNSOTrackingById = (req,res)=>{
+exports.getNSOTrackingById = (
+    req,
+    res
+) => {
+
+    try {
+
+        const id =
+            req.params.id;
 
 
-    NSOTracking.getById(
+        if (!id) {
 
-        req.params.id,
+            return res.status(400).json({
 
-        (err,result)=>{
+                success: false,
 
-
-            if(err){
-
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-            if(result.length===0){
-
-                return res.status(404).json({
-
-                    success:false,
-
-                    message:"Tracking not found"
-
-                });
-
-            }
-
-
-
-            res.json({
-
-                success:true,
-
-                data:result[0]
+                message:
+                    "Tracking ID is required."
 
             });
 
-
         }
 
-    );
 
+        NSOTracking.getById(
 
-};
+            id,
 
+            (err, result) => {
 
+                if (err) {
 
-
-
-
-
-
-// ======================================================
-// GET BY STORE OPENING
-// ======================================================
-
-exports.getByStoreOpening = (req,res)=>{
-
-
-    NSOTracking.getByStoreOpening(
-
-        req.params.id,
-
-        (err,result)=>{
-
-
-            if(err){
-
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-            res.json({
-
-                success:true,
-
-                data:result
-
-            });
-
-
-        }
-
-    );
-
-
-};
-
-
-
-
-
-
-
-
-// ======================================================
-// CREATE NSO TRACKING
-// ======================================================
-
-exports.createNSOTracking = (req,res)=>{
-
-
-    try{
-
-
-        const data={
-
-
-            ...req.body,
-
-
-            created_by:req.user.id,
-
-            updated_by:req.user.id
-
-
-        };
-
-
-
-
-        NSOTracking.create(
-
-            data,
-
-            async(err,result)=>{
-
-
-                if(err){
+                    console.error(
+                        "❌ Get NSO Tracking By ID Error:",
+                        err
+                    );
 
                     return res.status(500).json({
 
-                        success:false,
+                        success: false,
 
-                        message:err.message
+                        message:
+                            err.message
 
                     });
 
                 }
 
 
+                if (
+                    !result ||
+                    result.length === 0
+                ) {
+
+                    return res.status(404).json({
+
+                        success: false,
+
+                        message:
+                            "Tracking not found."
+
+                    });
+
+                }
 
 
-                // Activity Center
-await logActivity({
+                return res.json({
 
-    activity_type:"CREATE",
+                    success: true,
 
-    reference_id:result.insertId,
-
-    title:"NSO Tracking Created",
-
-    description:
-    "Created NSO Tracking",
-
-    module_name:"NSO Tracking",
-
-    created_by:req.user.id
-
-});
-
-
-await Audit.create({
-
-    module_name:"NSO Tracking",
-
-    reference_id:result.insertId,
-
-    action:"CREATE",
-
-    old_data:null,
-
-    new_data:data,
-
-    changed_by:req.user.id
-
-});
-
-
-
-
-                res.status(201).json({
-
-                    success:true,
-
-                    message:"NSO Tracking Created Successfully",
-
-                    id:result.insertId
+                    data:
+                        result[0]
 
                 });
-
 
             }
 
         );
 
-
-
     }
 
-    catch(error){
+    catch (error) {
 
+        console.error(
+            "❌ Get NSO Tracking By ID Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
 
-            success:false,
+            success: false,
 
-            message:error.message
+            message:
+                error.message
 
         });
 
-
     }
-
 
 };
 
 
+// ======================================================
+// GET TRACKING BY NEW STORE OPENING
+// ======================================================
+
+exports.getByStoreOpening = (
+    req,
+    res
+) => {
+
+    try {
+
+        const id =
+            req.params.id;
 
 
+        if (!id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "New Store Opening ID is required."
+
+            });
+
+        }
 
 
+        NSOTracking.getByStoreOpening(
 
+            id,
+
+            (err, result) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Get Tracking By Store Opening Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                return res.json({
+
+                    success: true,
+
+                    data:
+                        result || []
+
+                });
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Get Tracking By Store Opening Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
+
+};
+
+
+// ======================================================
+// CREATE NSO TRACKING
+// ======================================================
+
+exports.createNSOTracking = (
+    req,
+    res
+) => {
+
+    try {
+
+        const userId =
+            getUserId(req);
+
+
+        // ==================================================
+        // USER VALIDATION
+        // ==================================================
+
+        if (!userId) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "User authentication required."
+
+            });
+
+        }
+
+
+        // ==================================================
+        // REQUEST DATA
+        // ==================================================
+
+        const data = {
+
+            ...req.body,
+
+            created_by:
+                userId,
+
+            updated_by:
+                userId
+
+        };
+
+
+        // ==================================================
+        // CREATE
+        // ==================================================
+
+        NSOTracking.create(
+
+            data,
+
+            async (
+                err,
+                result
+            ) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Create NSO Tracking Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                try {
+
+                    // ==================================================
+                    // ACTIVITY LOG
+                    // ==================================================
+
+                    if (
+                        typeof logActivity ===
+                        "function"
+                    ) {
+
+                        await logActivity({
+
+                            activity_type:
+                                "CREATE",
+
+                            reference_id:
+                                result.insertId,
+
+                            title:
+                                "NSO Tracking Created",
+
+                            description:
+                                "Created NSO Tracking",
+
+                            module_name:
+                                "NSO Tracking",
+
+                            created_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // AUDIT LOG
+                    // ==================================================
+
+                    if (
+                        Audit &&
+                        typeof Audit.create ===
+                        "function"
+                    ) {
+
+                        await Audit.create({
+
+                            module_name:
+                                "NSO Tracking",
+
+                            reference_id:
+                                result.insertId,
+
+                            action:
+                                "CREATE",
+
+                            old_data:
+                                null,
+
+                            new_data:
+                                data,
+
+                            changed_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // RESPONSE
+                    // ==================================================
+
+                    return res.status(201).json({
+
+                        success: true,
+
+                        message:
+                            "NSO Tracking Created Successfully",
+
+                        id:
+                            result.insertId
+
+                    });
+
+                }
+
+                catch (logError) {
+
+                    console.error(
+                        "❌ NSO Tracking Logging Error:",
+                        logError
+                    );
+
+                    return res.status(201).json({
+
+                        success: true,
+
+                        message:
+                            "NSO Tracking Created Successfully",
+
+                        id:
+                            result.insertId,
+
+                        warning:
+                            "Tracking created but logging failed."
+
+                    });
+
+                }
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Create NSO Tracking Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
+
+};
 
 
 // ======================================================
 // UPDATE NSO TRACKING
 // ======================================================
 
-exports.updateNSOTracking=(req,res)=>{
+exports.updateNSOTracking = (
+    req,
+    res
+) => {
+
+    try {
+
+        const userId =
+            getUserId(req);
 
 
-    const data={
+        // ==================================================
+        // USER VALIDATION
+        // ==================================================
 
+        if (!userId) {
 
-        ...req.body,
+            return res.status(401).json({
 
+                success: false,
 
-        updated_by:req.user.id
-
-
-    };
-
-
-
-    NSOTracking.update(
-
-        req.params.id,
-
-        data,
-
-        async(err,result)=>{
-
-
-            if(err){
-
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-
-            if(result.affectedRows===0){
-
-                return res.status(404).json({
-
-                    success:false,
-
-                    message:"Tracking not found"
-
-                });
-
-            }
-
-
-
-
-
-           await logActivity({
-
-    activity_type:"UPDATE",
-
-    reference_id:req.params.id,
-
-    title:"NSO Tracking Updated",
-
-    description:
-    "Updated NSO Tracking",
-
-    module_name:"NSO Tracking",
-
-    created_by:req.user.id
-
-});
-
-
-await Audit.create({
-
-    module_name:"NSO Tracking",
-
-    reference_id:req.params.id,
-
-    action:"UPDATE",
-
-    old_data:null,
-
-    new_data:data,
-
-    changed_by:req.user.id
-
-});
-
-
-
-
-            res.json({
-
-                success:true,
-
-                message:"NSO Tracking Updated Successfully"
+                message:
+                    "User authentication required."
 
             });
 
+        }
 
+
+        const id =
+            req.params.id;
+
+
+        if (!id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Tracking ID is required."
+
+            });
 
         }
 
-    );
 
+        // ==================================================
+        // REQUEST DATA
+        // ==================================================
+
+        const data = {
+
+            ...req.body,
+
+            updated_by:
+                userId
+
+        };
+
+
+        // ==================================================
+        // UPDATE
+        // ==================================================
+
+        NSOTracking.update(
+
+            id,
+
+            data,
+
+            async (
+                err,
+                result
+            ) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Update NSO Tracking Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                // ==================================================
+                // CHECK RECORD
+                // ==================================================
+
+                if (
+                    !result ||
+                    result.affectedRows === 0
+                ) {
+
+                    return res.status(404).json({
+
+                        success: false,
+
+                        message:
+                            "Tracking not found."
+
+                    });
+
+                }
+
+
+                try {
+
+                    // ==================================================
+                    // ACTIVITY LOG
+                    // ==================================================
+
+                    if (
+                        typeof logActivity ===
+                        "function"
+                    ) {
+
+                        await logActivity({
+
+                            activity_type:
+                                "UPDATE",
+
+                            reference_id:
+                                id,
+
+                            title:
+                                "NSO Tracking Updated",
+
+                            description:
+                                "Updated NSO Tracking",
+
+                            module_name:
+                                "NSO Tracking",
+
+                            created_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // AUDIT LOG
+                    // ==================================================
+
+                    if (
+                        Audit &&
+                        typeof Audit.create ===
+                        "function"
+                    ) {
+
+                        await Audit.create({
+
+                            module_name:
+                                "NSO Tracking",
+
+                            reference_id:
+                                id,
+
+                            action:
+                                "UPDATE",
+
+                            old_data:
+                                null,
+
+                            new_data:
+                                data,
+
+                            changed_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // RESPONSE
+                    // ==================================================
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "NSO Tracking Updated Successfully"
+
+                    });
+
+                }
+
+                catch (logError) {
+
+                    console.error(
+                        "❌ NSO Tracking Update Logging Error:",
+                        logError
+                    );
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "NSO Tracking Updated Successfully",
+
+                        warning:
+                            "Tracking updated but logging failed."
+
+                    });
+
+                }
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Update NSO Tracking Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
 
 };
 
 
-
-
-
-
-
-
-
 // ======================================================
-// UPDATE STATUS
+// UPDATE NSO TRACKING STATUS
 // ======================================================
 
-exports.updateStatus=(req,res)=>{
+exports.updateStatus = (
+    req,
+    res
+) => {
+
+    try {
+
+        const userId =
+            getUserId(req);
 
 
-    NSOTracking.updateStatus(
+        // ==================================================
+        // USER VALIDATION
+        // ==================================================
 
-        req.params.id,
+        if (!userId) {
 
-        req.body.status,
+            return res.status(401).json({
 
-        async(err)=>{
+                success: false,
 
-
-            if(err){
-
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-
-await logActivity({
-
-    activity_type:"STATUS UPDATE",
-
-    reference_id:req.params.id,
-
-    title:"NSO Tracking Status Changed",
-
-    description:
-    `Status changed to ${req.body.status}`,
-
-    module_name:"NSO Tracking",
-
-    created_by:req.user.id
-
-});
-
-
-await Audit.create({
-
-    module_name:"NSO Tracking",
-
-    reference_id:req.params.id,
-
-    action:"STATUS UPDATE",
-
-    new_data:{
-        status:req.body.status
-    },
-
-    changed_by:req.user.id
-
-});
-
-
-
-
-
-            res.json({
-
-                success:true,
-
-                message:"Status Updated Successfully"
+                message:
+                    "User authentication required."
 
             });
 
+        }
 
+
+        const id =
+            req.params.id;
+
+
+        const status =
+            req.body.status;
+
+
+        // ==================================================
+        // VALIDATION
+        // ==================================================
+
+        if (!id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Tracking ID is required."
+
+            });
 
         }
 
-    );
 
+        if (
+            !status ||
+            String(status).trim() === ""
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Status is required."
+
+            });
+
+        }
+
+
+        // ==================================================
+        // UPDATE STATUS
+        // ==================================================
+
+        NSOTracking.updateStatus(
+
+            id,
+
+            status,
+
+            userId,
+
+            async (
+                err,
+                result
+            ) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Update NSO Tracking Status Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                // ==================================================
+                // CHECK RECORD
+                // ==================================================
+
+                if (
+                    !result ||
+                    result.affectedRows === 0
+                ) {
+
+                    return res.status(404).json({
+
+                        success: false,
+
+                        message:
+                            "Tracking not found."
+
+                    });
+
+                }
+
+
+                try {
+
+                    // ==================================================
+                    // ACTIVITY LOG
+                    // ==================================================
+
+                    if (
+                        typeof logActivity ===
+                        "function"
+                    ) {
+
+                        await logActivity({
+
+                            activity_type:
+                                "STATUS UPDATE",
+
+                            reference_id:
+                                id,
+
+                            title:
+                                "NSO Tracking Status Changed",
+
+                            description:
+                                `Status changed to ${status}`,
+
+                            module_name:
+                                "NSO Tracking",
+
+                            created_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // AUDIT LOG
+                    // ==================================================
+
+                    if (
+                        Audit &&
+                        typeof Audit.create ===
+                        "function"
+                    ) {
+
+                        await Audit.create({
+
+                            module_name:
+                                "NSO Tracking",
+
+                            reference_id:
+                                id,
+
+                            action:
+                                "STATUS UPDATE",
+
+                            old_data:
+                                null,
+
+                            new_data: {
+
+                                status
+
+                            },
+
+                            changed_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // RESPONSE
+                    // ==================================================
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "Status Updated Successfully"
+
+                    });
+
+                }
+
+                catch (logError) {
+
+                    console.error(
+                        "❌ NSO Tracking Status Logging Error:",
+                        logError
+                    );
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "Status Updated Successfully",
+
+                        warning:
+                            "Status updated but logging failed."
+
+                    });
+
+                }
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Update NSO Tracking Status Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
 
 };
 
 
-
-
-
-
-
-
-
 // ======================================================
-// DELETE
+// DELETE NSO TRACKING
 // ======================================================
 
-exports.deleteNSOTracking=(req,res)=>{
+exports.deleteNSOTracking = (
+    req,
+    res
+) => {
+
+    try {
+
+        const userId =
+            getUserId(req);
 
 
-    NSOTracking.delete(
+        // ==================================================
+        // USER VALIDATION
+        // ==================================================
 
-        req.params.id,
+        if (!userId) {
 
-        async(err)=>{
+            return res.status(401).json({
 
+                success: false,
 
-            if(err){
-
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-
-           await logActivity({
-
-    activity_type:"DELETE",
-
-    reference_id:req.params.id,
-
-    title:"NSO Tracking Deleted",
-
-    description:
-    "Deleted NSO Tracking",
-
-    module_name:"NSO Tracking",
-
-    created_by:req.user.id
-
-});
-
-
-await Audit.create({
-
-    module_name:"NSO Tracking",
-
-    reference_id:req.params.id,
-
-    action:"DELETE",
-
-    changed_by:req.user.id
-
-});
-
-
-
-
-            res.json({
-
-                success:true,
-
-                message:"Deleted Successfully"
+                message:
+                    "User authentication required."
 
             });
 
+        }
 
+
+        const id =
+            req.params.id;
+
+
+        if (!id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Tracking ID is required."
+
+            });
 
         }
 
-    );
 
+        // ==================================================
+        // DELETE
+        // ==================================================
+
+        NSOTracking.delete(
+
+            id,
+
+            async (
+                err,
+                result
+            ) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Delete NSO Tracking Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                // ==================================================
+                // CHECK RECORD
+                // ==================================================
+
+                if (
+                    !result ||
+                    result.affectedRows === 0
+                ) {
+
+                    return res.status(404).json({
+
+                        success: false,
+
+                        message:
+                            "Tracking not found."
+
+                    });
+
+                }
+
+
+                try {
+
+                    // ==================================================
+                    // ACTIVITY LOG
+                    // ==================================================
+
+                    if (
+                        typeof logActivity ===
+                        "function"
+                    ) {
+
+                        await logActivity({
+
+                            activity_type:
+                                "DELETE",
+
+                            reference_id:
+                                id,
+
+                            title:
+                                "NSO Tracking Deleted",
+
+                            description:
+                                "Deleted NSO Tracking",
+
+                            module_name:
+                                "NSO Tracking",
+
+                            created_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // AUDIT LOG
+                    // ==================================================
+
+                    if (
+                        Audit &&
+                        typeof Audit.create ===
+                        "function"
+                    ) {
+
+                        await Audit.create({
+
+                            module_name:
+                                "NSO Tracking",
+
+                            reference_id:
+                                id,
+
+                            action:
+                                "DELETE",
+
+                            old_data:
+                                null,
+
+                            new_data:
+                                null,
+
+                            changed_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // RESPONSE
+                    // ==================================================
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "Deleted Successfully"
+
+                    });
+
+                }
+
+                catch (logError) {
+
+                    console.error(
+                        "❌ NSO Tracking Delete Logging Error:",
+                        logError
+                    );
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "Deleted Successfully",
+
+                        warning:
+                            "Tracking deleted but logging failed."
+
+                    });
+
+                }
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Delete NSO Tracking Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
 
 };
 
 
-
-
-
-
-
-
-
 // ======================================================
-// DELETE ALL
+// DELETE ALL NSO TRACKING
 // ======================================================
 
-exports.deleteAllNSOTracking=(req,res)=>{
+exports.deleteAllNSOTracking = (
+    req,
+    res
+) => {
+
+    try {
+
+        const userId =
+            getUserId(req);
 
 
-    NSOTracking.deleteAll(
+        // ==================================================
+        // USER VALIDATION
+        // ==================================================
 
-        async(err)=>{
+        if (!userId) {
 
+            return res.status(401).json({
 
-            if(err){
+                success: false,
 
-                return res.status(500).json({
-
-                    success:false,
-
-                    message:err.message
-
-                });
-
-            }
-
-
-
-
-           await logActivity({
-
-    activity_type:"DELETE ALL",
-
-    title:"All NSO Tracking Deleted",
-
-    description:
-    "Deleted all NSO Tracking records",
-
-    module_name:"NSO Tracking",
-
-    created_by:req.user.id
-
-});
-
-
-await Audit.create({
-
-    module_name:"NSO Tracking",
-
-    action:"DELETE ALL",
-
-    changed_by:req.user.id
-
-});
-
-
-
-
-            res.json({
-
-                success:true,
-
-                message:"All Tracking Deleted"
+                message:
+                    "User authentication required."
 
             });
 
-
         }
 
-    );
 
+        // ==================================================
+        // DELETE ALL
+        // ==================================================
+
+        NSOTracking.deleteAll(
+
+            async (
+                err,
+                result
+            ) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Delete All NSO Tracking Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
+
+
+                try {
+
+                    // ==================================================
+                    // ACTIVITY LOG
+                    // ==================================================
+
+                    if (
+                        typeof logActivity ===
+                        "function"
+                    ) {
+
+                        await logActivity({
+
+                            activity_type:
+                                "DELETE ALL",
+
+                            title:
+                                "All NSO Tracking Deleted",
+
+                            description:
+                                "Deleted all NSO Tracking records",
+
+                            module_name:
+                                "NSO Tracking",
+
+                            created_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // AUDIT LOG
+                    // ==================================================
+
+                    if (
+                        Audit &&
+                        typeof Audit.create ===
+                        "function"
+                    ) {
+
+                        await Audit.create({
+
+                            module_name:
+                                "NSO Tracking",
+
+                            reference_id:
+                                null,
+
+                            action:
+                                "DELETE ALL",
+
+                            old_data:
+                                null,
+
+                            new_data:
+                                null,
+
+                            changed_by:
+                                userId
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // RESPONSE
+                    // ==================================================
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "All Tracking Deleted",
+
+                        deletedRows:
+                            result?.affectedRows || 0
+
+                    });
+
+                }
+
+                catch (logError) {
+
+                    console.error(
+                        "❌ Delete All NSO Tracking Logging Error:",
+                        logError
+                    );
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "All Tracking Deleted",
+
+                        deletedRows:
+                            result?.affectedRows || 0,
+
+                        warning:
+                            "Records deleted but logging failed."
+
+                    });
+
+                }
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Delete All NSO Tracking Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message
+
+        });
+
+    }
 
 };
 
 
-
-
-
-
-
-
-
 // ======================================================
-// EXPORT CSV
+// EXPORT NSO TRACKING CSV
 // ======================================================
 
-exports.exportNSOTracking=(req,res)=>{
+exports.exportNSOTracking = (
+    req,
+    res
+) => {
+
+    try {
+
+        NSOTracking.export(
+
+            (err, data) => {
+
+                if (err) {
+
+                    console.error(
+                        "❌ Export NSO Tracking Error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            err.message
+
+                    });
+
+                }
 
 
-    NSOTracking.export(
+                // ==================================================
+                // PARSER
+                // ==================================================
 
-        (err,data)=>{
+                const parser =
+                    new Parser();
 
 
-            if(err){
+                const csv =
+                    parser.parse(
+                        data || []
+                    );
 
-                return res.status(500).json({
 
-                    success:false,
+                // ==================================================
+                // HEADERS
+                // ==================================================
 
-                    message:err.message
+                res.header(
+                    "Content-Type",
+                    "text/csv"
+                );
 
-                });
+
+                res.attachment(
+                    "nso_tracking.csv"
+                );
+
+
+                // ==================================================
+                // SEND CSV
+                // ==================================================
+
+                return res.send(
+                    csv
+                );
 
             }
 
+        );
 
+    }
 
+    catch (error) {
 
-            const parser=new Parser();
+        console.error(
+            "❌ Export NSO Tracking Error:",
+            error
+        );
 
+        return res.status(500).json({
 
-            const csv=parser.parse(data);
+            success: false,
 
+            message:
+                error.message
 
+        });
 
-            res.header(
-
-                "Content-Type",
-
-                "text/csv"
-
-            );
-
-
-            res.attachment(
-
-                "nso_tracking.csv"
-
-            );
-
-
-            res.send(csv);
-
-
-
-        }
-
-    );
-
+    }
 
 };
