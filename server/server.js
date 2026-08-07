@@ -1,3 +1,7 @@
+// ======================================================
+// MIARCUS BACKEND SERVER
+// ======================================================
+
 require("dotenv").config();
 
 const express = require("express");
@@ -5,117 +9,153 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
-
+// ======================================================
+// APP
+// ======================================================
 
 const app = express();
-
-
-
-
 
 
 // ======================================================
 // DATABASE
 // ======================================================
 
-
 const db = require("./config/db");
 
+db.connect((err) => {
 
-
-db.connect((err)=>{
-
-
-    if(err){
-
+    if (err) {
 
         console.error(
             "❌ MySQL Connection Failed"
         );
 
-
         console.error(err);
 
+        /*
+         * Do not crash the server immediately here.
+         *
+         * This allows Render to start the HTTP server
+         * and gives us useful logs while the database
+         * configuration is being corrected.
+         */
 
-        process.exit(1);
-
-
+        return;
     }
-
 
 
     console.log(
         "✅ MySQL Connected Successfully"
     );
 
-
 });
 
 
-
-
-
-
-
-
-
 // ======================================================
-// MIDDLEWARE
+// CORS
 // ======================================================
+
+const allowedOrigins = [
+
+    "http://localhost:5173",
+
+    "http://localhost:3000",
+
+    process.env.FRONTEND_URL
+
+].filter(Boolean);
 
 
 app.use(
 
     cors({
 
-        origin:"http://localhost:5173",
+        origin: function (origin, callback) {
 
-        credentials:true
+            // Allow requests without an Origin header
+            // such as Postman/server-to-server requests.
+
+            if (!origin) {
+
+                return callback(null, true);
+
+            }
+
+
+            // Allow configured frontend origins.
+
+            if (
+                allowedOrigins.includes(origin)
+            ) {
+
+                return callback(null, true);
+
+            }
+
+
+            // Allow Render / deployed frontend when
+            // FRONTEND_URL is configured.
+
+            if (
+                process.env.FRONTEND_URL &&
+                origin === process.env.FRONTEND_URL
+            ) {
+
+                return callback(null, true);
+
+            }
+
+
+            console.warn(
+                "⚠️ CORS blocked:",
+                origin
+            );
+
+
+            return callback(
+                new Error("Not allowed by CORS")
+            );
+
+        },
+
+        credentials: true
 
     })
 
 );
 
 
+// ======================================================
+// BODY PARSER
+// ======================================================
 
 app.use(
 
     express.json({
 
-        limit:"20mb"
+        limit: "20mb"
 
     })
 
 );
-
 
 
 app.use(
 
     express.urlencoded({
 
-        extended:true,
+        extended: true,
 
-        limit:"20mb"
+        limit: "20mb"
 
     })
 
 );
 
 
-
-
-
-
-
-
-
-
-
 // ======================================================
-// UPLOAD FOLDER
+// UPLOAD DIRECTORY
 // ======================================================
-
 
 const uploadFolder = path.join(
 
@@ -126,16 +166,22 @@ const uploadFolder = path.join(
 );
 
 
+// ======================================================
+// CREATE UPLOAD DIRECTORY
+// ======================================================
 
-if(!fs.existsSync(uploadFolder)){
-
+if (
+    !fs.existsSync(uploadFolder)
+) {
 
     fs.mkdirSync(
 
         uploadFolder,
 
         {
-            recursive:true
+
+            recursive: true
+
         }
 
     );
@@ -145,38 +191,94 @@ if(!fs.existsSync(uploadFolder)){
         "📂 Upload folder created"
     );
 
-
 }
 
 
-
-
-
-
-
-// Serve uploaded files
-
+// ======================================================
+// SERVE UPLOADED FILES
+// ======================================================
+//
+// Correct URL:
+//
+// http://localhost:5000/uploads/filename.pdf
+//
+// Production:
+//
+// https://your-backend.onrender.com/uploads/filename.pdf
+//
+// ======================================================
 
 app.use(
 
     "/uploads",
 
-    express.static(uploadFolder)
+    express.static(
+
+        uploadFolder,
+
+        {
+
+            fallthrough: true,
+
+            index: false
+
+        }
+
+    )
 
 );
-
-
 
 
 console.log(
-
     "📂 Upload Path:",
-
     uploadFolder
+);
+
+
+// ======================================================
+// BACKWARD COMPATIBILITY FOR OLD ATTACHMENT URLs
+// ======================================================
+//
+// Your screenshot showed:
+//
+// /undefineduploads/filename.pdf
+//
+// This is NOT the correct URL.
+//
+// The correct URL is:
+//
+// /uploads/filename.pdf
+//
+// However, this compatibility route allows old
+// attachment URLs to continue working temporarily.
+//
+// After the frontend is fixed, this can be removed.
+// ======================================================
+
+app.use(
+
+    "/undefineduploads",
+
+    express.static(
+
+        uploadFolder,
+
+        {
+
+            fallthrough: true,
+
+            index: false
+
+        }
+
+    )
 
 );
 
 
+console.log(
+    "📂 Legacy Upload URL Enabled: /undefineduploads"
+);
 
 
 // ======================================================
@@ -184,14 +286,64 @@ console.log(
 // ======================================================
 
 const publicImages = path.join(
+
     __dirname,
-    "public/images"
+
+    "public",
+
+    "images"
+
 );
 
+
+// Create public/images if it does not exist.
+
+if (
+    !fs.existsSync(publicImages)
+) {
+
+    fs.mkdirSync(
+
+        publicImages,
+
+        {
+
+            recursive: true
+
+        }
+
+    );
+
+
+    console.log(
+        "📂 Public images folder created"
+    );
+
+}
+
+
+// Serve public images.
+
 app.use(
+
     "/images",
-    express.static(publicImages)
+
+    express.static(
+
+        publicImages,
+
+        {
+
+            fallthrough: true,
+
+            index: false
+
+        }
+
+    )
+
 );
+
 
 console.log(
     "🖼️ Image Path:",
@@ -199,68 +351,102 @@ console.log(
 );
 
 
-
-
-
-
 // ======================================================
 // HOME API
 // ======================================================
 
+app.get(
 
-app.get("/",(req,res)=>{
+    "/",
 
+    (req, res) => {
 
-    res.json({
+        res.json({
 
-        success:true,
+            success: true,
 
-        message:
-        "🚀 Miarcus Backend Running"
+            message:
+                "🚀 Miarcus Backend Running",
 
-    });
+            environment:
+                process.env.NODE_ENV ||
+                "development"
 
+        });
 
-});
+    }
 
-
-
-
-
-
-// Health Check
-
-
-app.get("/api/health",(req,res)=>{
+);
 
 
-    res.json({
+// ======================================================
+// HEALTH CHECK
+// ======================================================
 
-        success:true,
+app.get(
 
-        server:"running",
+    "/api/health",
 
-        database:"connected"
+    (req, res) => {
 
-    });
+        res.json({
+
+            success: true,
+
+            server: "running",
+
+            database: "checking",
+
+            timestamp:
+                new Date().toISOString()
+
+        });
+
+    }
+
+);
 
 
-});
+// ======================================================
+// UPLOAD TEST
+// ======================================================
+//
+// Open:
+//
+// http://localhost:5000/uploads
+//
+// This confirms the static upload route exists.
+// ======================================================
 
+app.get(
 
+    "/api/upload-test",
 
+    (req, res) => {
 
+        res.json({
 
+            success: true,
 
+            message:
+                "Upload static route is working",
 
+            uploadPath:
+                "/uploads",
 
+            physicalPath:
+                uploadFolder
 
+        });
+
+    }
+
+);
 
 
 // ======================================================
 // ROUTE LOADER
 // ======================================================
-
 
 const loadRoute = (
 
@@ -270,14 +456,13 @@ const loadRoute = (
 
     routeName
 
-)=>{
+) => {
 
+    try {
 
-    try{
-
-
-        const route = require(routeFile);
-
+        const route = require(
+            routeFile
+        );
 
 
         app.use(
@@ -289,7 +474,6 @@ const loadRoute = (
         );
 
 
-
         console.log(
 
             `✅ ${routeName} Loaded`
@@ -297,11 +481,9 @@ const loadRoute = (
         );
 
 
-
     }
 
-    catch(error){
-
+    catch (error) {
 
         console.error(
 
@@ -310,22 +492,18 @@ const loadRoute = (
         );
 
 
-        console.error(error);
+        console.error(
+            error.message
+        );
 
+
+        console.error(
+            error.stack
+        );
 
     }
 
-
 };
-
-
-
-
-
-
-
-
-
 
 
 // ======================================================
@@ -333,183 +511,204 @@ const loadRoute = (
 // ======================================================
 
 
+// ------------------------------------------------------
+// AUTH
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/authRoutes",
+    "./routes/authRoutes",
 
-"/api/auth",
+    "/api/auth",
 
-"Auth Routes"
+    "Auth Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// STORES
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/storeRoutes",
+    "./routes/storeRoutes",
 
-"/api/stores",
+    "/api/stores",
 
-"Store Routes"
+    "Store Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// ACTION POINTS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/actionPointRoutes",
+    "./routes/actionPointRoutes",
 
-"/api/action-points",
+    "/api/action-points",
 
-"Action Point Routes"
+    "Action Point Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// PROFILE
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/profileRoutes",
+    "./routes/profileRoutes",
 
-"/api/profile",
+    "/api/profile",
 
-"Profile Routes"
+    "Profile Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// USERS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/userRoutes",
+    "./routes/userRoutes",
 
-"/api/users",
+    "/api/users",
 
-"User Routes"
+    "User Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// DEPARTMENTS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/departmentRoutes",
+    "./routes/departmentRoutes",
 
-"/api/departments",
+    "/api/departments",
 
-"Department Routes"
+    "Department Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// DESIGNATIONS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/designationRoutes",
+    "./routes/designationRoutes",
 
-"/api/designations",
+    "/api/designations",
 
-"Designation Routes"
+    "Designation Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// CHECKLIST TYPES
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/checklistTypeRoutes",
+    "./routes/checklistTypeRoutes",
 
-"/api/checklist-types",
+    "/api/checklist-types",
 
-"Checklist Type Routes"
+    "Checklist Type Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// QUESTIONS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/questionRoutes",
+    "./routes/questionRoutes",
 
-"/api/questions",
+    "/api/questions",
 
-"Question Routes"
+    "Question Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// REPORTS TO
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/reportsToRoutes",
+    "./routes/reportsToRoutes",
 
-"/api/reports",
+    "/api/reports",
 
-"Reports To Routes"
+    "Reports To Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// CHECKLIST SUBMISSIONS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/checklistSubmissionRoutes",
+    "./routes/checklistSubmissionRoutes",
 
-"/api/checklist-submissions",
+    "/api/checklist-submissions",
 
-"Checklist Submission Routes"
+    "Checklist Submission Routes"
 
 );
 
 
-
-
+// ------------------------------------------------------
+// CHECKLIST REPORTS
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/checklistReportRoutes",
+    "./routes/checklistReportRoutes",
 
-"/api/checklist-reports",
+    "/api/checklist-reports",
 
-"Checklist Report Routes"
+    "Checklist Report Routes"
 
 );
 
 
-
+// ------------------------------------------------------
+// NSO RULES
+// ------------------------------------------------------
 
 loadRoute(
 
-"./routes/nsoRuleRoutes",
+    "./routes/nsoRuleRoutes",
 
-"/api/nso-rules",
+    "/api/nso-rules",
 
-"NSO Rule Routes"
+    "NSO Rule Routes"
 
 );
+
+
+// ------------------------------------------------------
+// NEW STORE OPENING
+// ------------------------------------------------------
 
 loadRoute(
 
@@ -522,6 +721,10 @@ loadRoute(
 );
 
 
+// ------------------------------------------------------
+// DASHBOARD
+// ------------------------------------------------------
+
 loadRoute(
 
     "./routes/dashboardRoutes",
@@ -531,6 +734,11 @@ loadRoute(
     "Dashboard Routes"
 
 );
+
+
+// ------------------------------------------------------
+// ACTIVITY
+// ------------------------------------------------------
 
 loadRoute(
 
@@ -542,6 +750,11 @@ loadRoute(
 
 );
 
+
+// ------------------------------------------------------
+// NSO TRACKING
+// ------------------------------------------------------
+
 loadRoute(
 
     "./routes/nsoTrackingRoutes",
@@ -552,226 +765,199 @@ loadRoute(
 
 );
 
+
 // ======================================================
-// MULTER ERROR HANDLER
+// TEST API
 // ======================================================
 
+app.get(
 
-app.use(
+    "/api/test",
 
-(err,req,res,next)=>{
+    (req, res) => {
 
+        res.json({
 
-    console.error(
-
-        "UPLOAD ERROR:",
-
-        err
-
-    );
-
-
-
-
-
-    if(err.code==="LIMIT_FILE_SIZE"){
-
-
-        return res.status(400).json({
-
-            success:false,
+            success: true,
 
             message:
-            "Maximum file size allowed is 10MB"
+                "API Working"
 
         });
 
-
     }
 
+);
 
 
+// ======================================================
+// MULTER / UPLOAD ERROR HANDLER
+// ======================================================
+
+app.use(
+
+    (err, req, res, next) => {
+
+        console.error(
+            "❌ UPLOAD ERROR:",
+            err
+        );
 
 
+        // File too large.
+
+        if (
+            err.code ===
+            "LIMIT_FILE_SIZE"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Maximum file size allowed is 10MB"
+
+            });
+
+        }
 
 
-    if(err.message){
+        // Multer / custom upload error.
 
-
-        return res.status(400).json({
-
-            success:false,
-
-            message:
+        if (
             err.message
+        ) {
 
-        });
+            return res.status(400).json({
 
+                success: false,
+
+                message:
+                    err.message
+
+            });
+
+        }
+
+
+        next(err);
 
     }
 
-
-
-
-    next(err);
-
-
-
-}
-
 );
 
 
-
-
 // ======================================================
-// TEST API ROUTES
+// 404 HANDLER
 // ======================================================
-
-app.get("/api/test",(req,res)=>{
-
-    res.json({
-
-        success:true,
-
-        message:"API Working"
-
-    });
-
-});
-
-
-
-
-
-
-// ======================================================
-// 404 ERROR
-// ======================================================
-
 
 app.use(
 
-(req,res)=>{
+    (req, res) => {
+
+        console.warn(
+            "⚠️ API Route Not Found:",
+            req.method,
+            req.originalUrl
+        );
 
 
-    res.status(404).json({
+        res.status(404).json({
 
-        success:false,
+            success: false,
 
-        message:
-        "API Route Not Found"
+            message:
+                "API Route Not Found",
 
-    });
+            path:
+                req.originalUrl
 
+        });
 
-}
+    }
 
 );
 
 
-
-
-
-
-
-
-
-
-
-
 // ======================================================
-// GLOBAL ERROR
+// GLOBAL ERROR HANDLER
 // ======================================================
-
 
 app.use(
 
-(err,req,res,next)=>{
+    (err, req, res, next) => {
+
+        console.error(
+            "❌ SERVER ERROR:",
+            err
+        );
 
 
-    console.error(
+        res.status(500).json({
 
-        "SERVER ERROR:",
+            success: false,
 
-        err
+            message:
+                err.message ||
+                "Internal Server Error"
 
-    );
+        });
 
-
-
-
-    res.status(500).json({
-
-        success:false,
-
-        message:
-        err.message ||
-        "Internal Server Error"
-
-    });
-
-
-
-}
+    }
 
 );
-
-
-
-
-
-
-
-
-
 
 
 // ======================================================
 // SERVER START
 // ======================================================
 
-
 const PORT =
-process.env.PORT || 5000;
+    process.env.PORT || 5000;
 
 
+// ======================================================
+// LISTEN
+// ======================================================
 
 app.listen(
 
-PORT,
+    PORT,
 
-()=>{
+    "0.0.0.0",
 
+    () => {
 
-console.log(
-"================================"
-);
-
-
-
-console.log(
-
-`🚀 Server Running : http://localhost:${PORT}`
-
-);
+        console.log(
+            "================================"
+        );
 
 
-
-console.log(
-
-`📂 Upload URL : http://localhost:${PORT}/uploads`
-
-);
+        console.log(
+            "🚀 MIARCUS BACKEND STARTED"
+        );
 
 
-
-console.log(
-"================================"
-);
-
+        console.log(
+            `🚀 Server Running : http://localhost:${PORT}`
+        );
 
 
-}
+        console.log(
+            `📂 Upload URL : http://localhost:${PORT}/uploads`
+        );
+
+
+        console.log(
+            `🖼️ Images URL : http://localhost:${PORT}/images`
+        );
+
+
+        console.log(
+            "================================"
+        );
+
+    }
 
 );

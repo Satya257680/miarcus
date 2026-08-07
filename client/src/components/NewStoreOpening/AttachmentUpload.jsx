@@ -18,17 +18,280 @@ import "../../styles/AddNewStoreOpeningModal.css";
    API BASE URL
 ====================================================== */
 
+const getApiBaseUrl = () => {
+
+    const envUrl =
+        import.meta?.env?.VITE_API_URL;
+
+    if (
+        envUrl &&
+        typeof envUrl === "string" &&
+        envUrl.trim()
+    ) {
+        return envUrl
+            .trim()
+            .replace(/\/+$/, "");
+    }
+
+    return "http://localhost:5000";
+};
+
+
 const API_BASE_URL =
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000";
+    getApiBaseUrl();
+
+
+/* ======================================================
+   NORMALIZE ATTACHMENT URL
+
+   Handles:
+
+   uploads/file.pdf
+   /uploads/file.pdf
+   undefineduploads/file.pdf
+   undefined/uploads/file.pdf
+   nulluploads/file.pdf
+   /undefineduploads/file.pdf
+   full http URL
+   blob URL
+   data URL
+====================================================== */
+
+const normalizeAttachmentUrl = (
+    attachmentUrl
+) => {
+
+    if (
+        attachmentUrl === null ||
+        attachmentUrl === undefined
+    ) {
+        return "";
+    }
+
+
+    let url =
+        String(attachmentUrl)
+            .trim();
+
+
+    if (!url) {
+        return "";
+    }
+
+
+    /* ----------------------------------------------
+       BLOB URL
+    ---------------------------------------------- */
+
+    if (
+        url.startsWith("blob:")
+    ) {
+        return url;
+    }
+
+
+    /* ----------------------------------------------
+       DATA URL
+    ---------------------------------------------- */
+
+    if (
+        url.startsWith("data:")
+    ) {
+        return url;
+    }
+
+
+    /* ----------------------------------------------
+       CLEAN OLD BROKEN PREFIXES
+
+       Examples:
+
+       undefineduploads/file.pdf
+       undefined/uploads/file.pdf
+       nulluploads/file.pdf
+       null/uploads/file.pdf
+       /undefineduploads/file.pdf
+    ---------------------------------------------- */
+
+    url =
+        url.replace(
+            /^\/?(undefined|null)(?:\/)?/i,
+            ""
+        );
+
+
+    /* ----------------------------------------------
+       FULL URL
+
+       Example:
+
+       http://localhost:5000/uploads/file.pdf
+    ---------------------------------------------- */
+
+    if (
+        /^https?:\/\//i.test(url)
+    ) {
+        return url;
+    }
+
+
+    /* ----------------------------------------------
+       REMOVE BACKSLASHES
+
+       Windows-style paths can sometimes arrive as:
+
+       uploads\file.pdf
+    ---------------------------------------------- */
+
+    url =
+        url.replace(
+            /\\/g,
+            "/"
+        );
+
+
+    /* ----------------------------------------------
+       REMOVE QUERY / HASH ONLY FOR PATH PROCESSING
+    ---------------------------------------------- */
+
+    const queryIndex =
+        url.indexOf("?");
+
+    const hashIndex =
+        url.indexOf("#");
+
+    let cleanUrl = url;
+
+    if (queryIndex !== -1) {
+        cleanUrl =
+            cleanUrl.substring(
+                0,
+                queryIndex
+            );
+    }
+
+    if (hashIndex !== -1) {
+        cleanUrl =
+            cleanUrl.substring(
+                0,
+                cleanUrl.indexOf("#")
+            );
+    }
+
+
+    /* ----------------------------------------------
+       REMOVE LEADING SLASHES
+    ---------------------------------------------- */
+
+    cleanUrl =
+        cleanUrl.replace(
+            /^\/+/,
+            ""
+        );
+
+
+    /* ----------------------------------------------
+       REMOVE ANY REMAINING undefined/null PREFIX
+
+       Handles:
+
+       undefineduploads/file.pdf
+       nulluploads/file.pdf
+    ---------------------------------------------- */
+
+    cleanUrl =
+        cleanUrl.replace(
+            /^(undefined|null)/i,
+            ""
+        );
+
+
+    cleanUrl =
+        cleanUrl.replace(
+            /^\/+/,
+            ""
+        );
+
+
+    /* ----------------------------------------------
+       IF "uploads/" EXISTS ANYWHERE,
+       KEEP ONLY FROM uploads/
+
+       Example:
+
+       something/uploads/file.pdf
+
+       becomes:
+
+       uploads/file.pdf
+    ---------------------------------------------- */
+
+    const uploadsIndex =
+        cleanUrl
+            .toLowerCase()
+            .indexOf("uploads/");
+
+
+    if (
+        uploadsIndex !== -1
+    ) {
+
+        cleanUrl =
+            cleanUrl.substring(
+                uploadsIndex
+            );
+
+    }
+
+
+    /* ----------------------------------------------
+       IF PATH DOES NOT CONTAIN uploads/,
+       ASSUME FILE IS INSIDE uploads/
+
+       Example:
+
+       1786094872598-263168914.pdf
+
+       becomes:
+
+       uploads/1786094872598-263168914.pdf
+    ---------------------------------------------- */
+
+    if (
+        !cleanUrl
+            .toLowerCase()
+            .startsWith("uploads/")
+    ) {
+
+        cleanUrl =
+            `uploads/${cleanUrl}`;
+
+    }
+
+
+    /* ----------------------------------------------
+       FINAL URL
+
+       http://localhost:5000/uploads/file.pdf
+    ---------------------------------------------- */
+
+    return (
+        `${API_BASE_URL}/${cleanUrl}`
+    );
+
+};
 
 
 export default function AttachmentUpload({
 
     file,
+
     preview,
+
     existingAttachment,
+
     onFileChange,
+
     onRemove
 
 }) {
@@ -49,135 +312,15 @@ export default function AttachmentUpload({
 
 
     /* ======================================================
-       NORMALIZE ATTACHMENT URL
-    ====================================================== */
-
-    const normalizeAttachmentUrl = (
-        attachmentUrl
-    ) => {
-
-        if (!attachmentUrl) {
-            return "";
-        }
-
-
-        let url =
-            String(attachmentUrl).trim();
-
-
-        if (!url) {
-            return "";
-        }
-
-
-        /* ----------------------------------------------
-           REMOVE OLD BROKEN PREFIX
-           Example:
-           undefineduploads/file.pdf
-        ---------------------------------------------- */
-
-        url =
-            url.replace(
-                /^undefined\/?/i,
-                ""
-            );
-
-
-        url =
-            url.replace(
-                /^null\/?/i,
-                ""
-            );
-
-
-        /* ----------------------------------------------
-           BLOB URL
-        ---------------------------------------------- */
-
-        if (
-            url.startsWith("blob:")
-        ) {
-
-            return url;
-
-        }
-
-
-        /* ----------------------------------------------
-           DATA URL
-        ---------------------------------------------- */
-
-        if (
-            url.startsWith("data:")
-        ) {
-
-            return url;
-
-        }
-
-
-        /* ----------------------------------------------
-           ALREADY FULL URL
-        ---------------------------------------------- */
-
-        if (
-            /^https?:\/\//i.test(url)
-        ) {
-
-            return url;
-
-        }
-
-
-        /* ----------------------------------------------
-           REMOVE DUPLICATE SLASHES
-        ---------------------------------------------- */
-
-        url =
-            url.replace(
-                /^\/+/,
-                ""
-            );
-
-
-        /* ----------------------------------------------
-           ENSURE UPLOADS PATH
-        ---------------------------------------------- */
-
-        if (
-            !url.startsWith("uploads/")
-        ) {
-
-            if (
-                url.includes("uploads/")
-            ) {
-
-                url =
-                    url.substring(
-                        url.indexOf("uploads/")
-                    );
-
-            }
-
-        }
-
-
-        /* ----------------------------------------------
-           FINAL URL
-        ---------------------------------------------- */
-
-        return `${API_BASE_URL}/${url}`;
-
-    };
-
-
-    /* ======================================================
        FILE ICON
     ====================================================== */
 
     const getIcon = (
+
         fileObject = null,
+
         fileName = ""
+
     ) => {
 
         const type =
@@ -191,8 +334,12 @@ export default function AttachmentUpload({
 
 
         if (
+
             type.includes("image") ||
-            /\.(jpg|jpeg|png|gif|webp)$/i.test(name)
+
+            /\.(jpg|jpeg|png|gif|webp)$/i
+                .test(name)
+
         ) {
 
             return (
@@ -203,8 +350,12 @@ export default function AttachmentUpload({
 
 
         if (
+
             type.includes("pdf") ||
-            /\.pdf$/i.test(name)
+
+            /\.pdf$/i
+                .test(name)
+
         ) {
 
             return (
@@ -227,7 +378,9 @@ export default function AttachmentUpload({
 
     const getExistingFileName = () => {
 
-        if (!existingAttachment) {
+        if (
+            !existingAttachment
+        ) {
             return "";
         }
 
@@ -237,7 +390,8 @@ export default function AttachmentUpload({
         ---------------------------------------------- */
 
         if (
-            typeof existingAttachment === "string"
+            typeof existingAttachment ===
+            "string"
         ) {
 
             const cleanPath =
@@ -250,6 +404,7 @@ export default function AttachmentUpload({
                 cleanPath
                     .split("/")
                     .pop() ||
+
                 "Existing Attachment"
             );
 
@@ -261,24 +416,33 @@ export default function AttachmentUpload({
         ---------------------------------------------- */
 
         return (
+
             existingAttachment.name ||
+
             existingAttachment.filename ||
+
             existingAttachment.originalname ||
+
             existingAttachment.file_name ||
+
             existingAttachment.fileName ||
+
             "Existing Attachment"
+
         );
 
     };
 
 
     /* ======================================================
-       EXISTING FILE RAW URL
+       EXISTING FILE RAW VALUE
     ====================================================== */
 
     const getExistingFileRawUrl = () => {
 
-        if (!existingAttachment) {
+        if (
+            !existingAttachment
+        ) {
             return "";
         }
 
@@ -288,7 +452,8 @@ export default function AttachmentUpload({
         ---------------------------------------------- */
 
         if (
-            typeof existingAttachment === "string"
+            typeof existingAttachment ===
+            "string"
         ) {
 
             return existingAttachment;
@@ -298,17 +463,38 @@ export default function AttachmentUpload({
 
         /* ----------------------------------------------
            OBJECT
+
+           Support all common backend names
         ---------------------------------------------- */
 
         return (
+
             existingAttachment.url ||
+
             existingAttachment.path ||
+
             existingAttachment.file_url ||
+
             existingAttachment.fileUrl ||
+
             existingAttachment.file_path ||
+
             existingAttachment.filePath ||
+
             existingAttachment.location ||
+
+            existingAttachment.attachment ||
+
+            existingAttachment.attachment_url ||
+
+            existingAttachment.attachmentUrl ||
+
+            existingAttachment.upload_path ||
+
+            existingAttachment.uploadPath ||
+
             ""
+
         );
 
     };
@@ -337,13 +523,14 @@ export default function AttachmentUpload({
     ====================================================== */
 
     const existingIsImage =
-        /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(
-            existingFileName
-        );
+        /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i
+            .test(
+                existingFileName
+            );
 
 
     /* ======================================================
-       EXISTING FILE VIEW
+       VIEW EXISTING FILE
     ====================================================== */
 
     const viewExistingFile = (
@@ -353,9 +540,23 @@ export default function AttachmentUpload({
         event.stopPropagation();
 
 
-        if (!existingFileUrl) {
+        if (
+            !existingFileUrl
+        ) {
+
+            alert(
+                "Attachment URL is not available."
+            );
+
             return;
+
         }
+
+
+        console.log(
+            "Opening attachment:",
+            existingFileUrl
+        );
 
 
         window.open(
@@ -395,7 +596,6 @@ export default function AttachmentUpload({
                         Attachment
                     </h2>
 
-
                     <p>
                         Upload lease agreement, drawings or any
                         supporting documents.
@@ -418,8 +618,13 @@ export default function AttachmentUpload({
                 onKeyDown={(event) => {
 
                     if (
-                        event.key === "Enter" ||
-                        event.key === " "
+
+                        event.key ===
+                        "Enter" ||
+
+                        event.key ===
+                        " "
+
                     ) {
 
                         event.preventDefault();
@@ -514,7 +719,9 @@ export default function AttachmentUpload({
                             className="remove-file"
                             title="Remove attachment"
                             aria-label="Remove attachment"
-                            onClick={(event) => {
+                            onClick={(
+                                event
+                            ) => {
 
                                 event.stopPropagation();
 
@@ -577,8 +784,9 @@ export default function AttachmentUpload({
                             }}
                         >
 
+
                             {/* ==================================
-                               VIEW EXISTING FILE
+                               VIEW
                             ================================== */}
 
                             {
@@ -593,8 +801,10 @@ export default function AttachmentUpload({
                                             viewExistingFile
                                         }
                                         style={{
-                                            background: "#dbeafe",
-                                            color: "#2563eb"
+                                            background:
+                                                "#dbeafe",
+                                            color:
+                                                "#2563eb"
                                         }}
                                     >
 
@@ -607,7 +817,7 @@ export default function AttachmentUpload({
 
 
                             {/* ==================================
-                               REMOVE EXISTING FILE
+                               REMOVE
                             ================================== */}
 
                             <button
@@ -615,7 +825,9 @@ export default function AttachmentUpload({
                                 className="remove-file"
                                 title="Remove attachment"
                                 aria-label="Remove attachment"
-                                onClick={(event) => {
+                                onClick={(
+                                    event
+                                ) => {
 
                                     event.stopPropagation();
 
@@ -642,7 +854,9 @@ export default function AttachmentUpload({
 
             {
                 preview &&
-                file?.type?.includes("image") && (
+                file?.type?.includes(
+                    "image"
+                ) && (
 
                     <div className="image-preview">
 
@@ -672,7 +886,9 @@ export default function AttachmentUpload({
                         <img
                             src={existingFileUrl}
                             alt="Existing attachment"
-                            onError={(event) => {
+                            onError={(
+                                event
+                            ) => {
 
                                 event.currentTarget.style.display =
                                     "none";
@@ -717,6 +933,7 @@ export default function AttachmentUpload({
 
                 )
             }
+
 
         </div>
 
