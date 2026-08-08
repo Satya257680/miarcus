@@ -17,38 +17,56 @@ const app = express();
 
 
 // ======================================================
+// PROCESS-LEVEL SAFETY NET
+// ======================================================
+//
+// Defense in depth: even with db.js's callback/promise bridge
+// fixed, some future bug (a bad query, a missing table, a typo)
+// could still throw an unhandled error somewhere. Without these
+// handlers, Node's default behavior is to crash the ENTIRE
+// server on any unhandled rejection or exception — exactly what
+// happened when the 'users' table was missing. Log loudly
+// instead of dying, so one bad request can't take down every
+// other user's session.
+// ======================================================
+
+process.on("unhandledRejection", (reason) => {
+
+    console.error("================================");
+    console.error("🛑 UNHANDLED PROMISE REJECTION");
+    console.error("================================");
+    console.error(reason);
+    console.error("================================");
+
+});
+
+process.on("uncaughtException", (err) => {
+
+    console.error("================================");
+    console.error("🛑 UNCAUGHT EXCEPTION");
+    console.error("================================");
+    console.error(err);
+    console.error("================================");
+
+});
+
+
+// ======================================================
 // DATABASE
 // ======================================================
 
 const db = require("./config/db");
 
-db.connect((err) => {
+// ------------------------------------------------------
+// db.js exports { pool, query, execute, getConnection,
+// testDatabaseConnection, connectWithRetry, closePool } —
+// not the pool itself. connectWithRetry() runs the built-in
+// ping + test-query check, and retries with backoff if the
+// handshake gets reset (common on flaky networks / antivirus
+// TLS inspection / a free-tier Aiven service waking up).
+// ------------------------------------------------------
 
-    if (err) {
-
-        console.error(
-            "❌ MySQL Connection Failed"
-        );
-
-        console.error(err);
-
-        /*
-         * Do not crash the server immediately here.
-         *
-         * This allows Render to start the HTTP server
-         * and gives us useful logs while the database
-         * configuration is being corrected.
-         */
-
-        return;
-    }
-
-
-    console.log(
-        "✅ MySQL Connected Successfully"
-    );
-
-});
+db.connectWithRetry();
 
 
 // ======================================================

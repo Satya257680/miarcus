@@ -1,326 +1,536 @@
+// ============================================================
+// MIARCUS - MYSQL DATABASE CONFIGURATION
+// Aiven MySQL + mysql2/promise
+// ============================================================
+
+const mysql = require("mysql2/promise");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
-const mysql = require("mysql2");
-
-// ======================================================
-// DATABASE CONFIGURATION
-// ======================================================
-
-console.log("================================");
-console.log("DATABASE CONFIGURATION");
-console.log("================================");
+// ============================================================
+// ENVIRONMENT VARIABLES
+// ============================================================
 
 const DB_HOST = process.env.DB_HOST;
 const DB_PORT = Number(process.env.DB_PORT || 3306);
-const DB_NAME = process.env.DB_NAME;
 const DB_USER = process.env.DB_USER;
 const DB_PASSWORD = process.env.DB_PASSWORD;
+const DB_NAME = process.env.DB_NAME || "defaultdb";
 
-// Do NOT print the database password
-console.log("DB_HOST :", DB_HOST || "NOT SET");
-console.log("DB_PORT :", DB_PORT);
-console.log("DB_NAME :", DB_NAME || "NOT SET");
-console.log("DB_USER :", DB_USER || "NOT SET");
-
-console.log("================================");
-
-// ======================================================
-// ENVIRONMENT VALIDATION
-// ======================================================
-
-const missingVariables = [];
+// ============================================================
+// VALIDATE ENVIRONMENT
+// ============================================================
 
 if (!DB_HOST) {
-    missingVariables.push("DB_HOST");
-}
-
-if (!DB_NAME) {
-    missingVariables.push("DB_NAME");
+    throw new Error("DB_HOST is missing in .env");
 }
 
 if (!DB_USER) {
-    missingVariables.push("DB_USER");
+    throw new Error("DB_USER is missing in .env");
 }
 
-if (missingVariables.length > 0) {
-    console.error("❌ Missing database environment variables:");
-    console.error(missingVariables.join(", "));
-    console.error("================================");
+if (!DB_PASSWORD) {
+    throw new Error("DB_PASSWORD is missing in .env");
+}
 
-    throw new Error(
-        `Missing database environment variables: ${missingVariables.join(", ")}`
+// ============================================================
+// AIVEN CA CERTIFICATE
+// ============================================================
+
+const CA_CERT_PATH = path.resolve(
+    __dirname,
+    "..",
+    "certs",
+    "ca.pem"
+);
+
+let caCertificate = null;
+
+if (fs.existsSync(CA_CERT_PATH)) {
+    caCertificate = fs.readFileSync(
+        CA_CERT_PATH,
+        "utf8"
     );
+
+    console.log("🔐 Aiven CA certificate loaded:");
+    console.log(CA_CERT_PATH);
+} else {
+    console.warn("");
+    console.warn("⚠️ Aiven CA certificate NOT FOUND");
+    console.warn(CA_CERT_PATH);
+    console.warn("");
 }
 
-// ======================================================
-// DATABASE CONNECTION
-// ======================================================
+// ============================================================
+// DATABASE CONFIGURATION
+// ============================================================
 
-const db = mysql.createConnection({
+const dbConfig = {
     host: DB_HOST,
+
     port: DB_PORT,
+
     user: DB_USER,
+
     password: DB_PASSWORD,
+
     database: DB_NAME,
 
-    // Production-safe connection options
-    connectTimeout: 20000,
+    // --------------------------------------------------------
+    // CONNECTION
+    // --------------------------------------------------------
 
-    charset: "utf8mb4",
+    waitForConnections: true,
 
-    multipleStatements: false
+    connectionLimit: 10,
+
+    maxIdle: 10,
+
+    idleTimeout: 60000,
+
+    queueLimit: 0,
+
+    enableKeepAlive: true,
+
+    keepAliveInitialDelay: 0,
+
+    // --------------------------------------------------------
+    // CONNECTION TIMEOUT
+    // --------------------------------------------------------
+
+    connectTimeout: 30000,
+
+    // --------------------------------------------------------
+    // FORCE IPv4
+    // --------------------------------------------------------
+
+    family: 4,
+
+    // --------------------------------------------------------
+    // SSL / TLS
+    // --------------------------------------------------------
+
+    ssl: caCertificate
+        ? {
+              ca: caCertificate,
+
+              rejectUnauthorized: true,
+
+              minVersion: "TLSv1.2",
+
+              servername: DB_HOST
+          }
+        : {
+              rejectUnauthorized: false,
+
+              minVersion: "TLSv1.2",
+
+              servername: DB_HOST
+          }
+};
+
+// ============================================================
+// DISPLAY CONFIGURATION
+// ============================================================
+
+console.log("");
+console.log("============================================================");
+console.log("              MIARCUS DATABASE CONFIGURATION");
+console.log("============================================================");
+
+console.log("Provider       : Aiven");
+console.log("Host           :", DB_HOST);
+console.log("Port           :", DB_PORT);
+console.log("Database       :", DB_NAME);
+console.log("User           :", DB_USER);
+console.log(
+    "Password       :",
+    DB_PASSWORD ? "********" : "NOT SET"
+);
+
+console.log(
+    "SSL            :",
+    dbConfig.ssl ? "ENABLED" : "DISABLED"
+);
+
+console.log(
+    "SSL Verify     :",
+    dbConfig.ssl?.rejectUnauthorized
+        ? "ENABLED"
+        : "DISABLED"
+);
+
+console.log(
+    "CA Certificate :",
+    caCertificate ? "LOADED" : "NOT LOADED"
+);
+
+console.log("Pool           : 10");
+console.log("Timeout        : 30000");
+console.log("IPv4           : FORCED");
+console.log("TLS            : 1.2+");
+
+console.log("============================================================");
+console.log("");
+
+// ============================================================
+// CREATE MYSQL POOL
+// ============================================================
+
+const pool = mysql.createPool(dbConfig);
+
+// ------------------------------------------------------------
+// POOL-LEVEL ERROR HANDLER
+// ------------------------------------------------------------
+// Without this, an idle connection that gets reset by the
+// network (exactly the ECONNRESET/HANDSHAKE_SSL_ERROR pattern
+// we've been seeing) can crash the whole process with an
+// unhandled 'error' event. The pool itself will transparently
+// open a new connection on the next query, so we just log here.
+// ------------------------------------------------------------
+
+pool.on("error", (err) => {
+
+    console.error("");
+    console.error("⚠️ MYSQL POOL ERROR (non-fatal, pool will reconnect):");
+    console.error("Code    :", err.code);
+    console.error("Message :", err.message);
+    console.error("");
+
 });
 
-// ======================================================
-// CONNECT DATABASE
-// ======================================================
+// ============================================================
+// QUERY (dual-mode: supports both callback-style and
+// async/await usage)
+// ============================================================
+//
+// Much of this codebase's controllers were written for the old
+// callback-style mysql2 API:
+//
+//   db.query(sql, params, (err, result) => { ... })
+//
+// The promise-based mysql2/promise pool has NO callback support
+// at all — pool.query(sql, params) only returns a Promise. If a
+// callback is passed as a 3rd argument, plain promise-based code
+// silently ignores it, the returned Promise is never awaited or
+// caught, and any query error becomes an UNHANDLED PROMISE
+// REJECTION that can crash the entire Node process.
+//
+// To avoid rewriting every controller, this wrapper detects a
+// callback argument and bridges old-style calls onto the
+// promise pool safely, while still supporting:
+//
+//   const rows = await db.query(sql, params);
+//
+// for any newer async/await code.
+// ============================================================
 
-db.connect((err) => {
+function query(sql, params = [], callback) {
 
-    if (err) {
-
-        console.error("================================");
-        console.error("❌ MYSQL CONNECTION FAILED");
-        console.error("================================");
-
-        console.error("Host :", DB_HOST);
-        console.error("Port :", DB_PORT);
-        console.error("Database :", DB_NAME);
-        console.error("User :", DB_USER);
-
-        console.error("Error Code :", err.code);
-        console.error("Error Message :", err.message);
-
-        console.error("================================");
-
-        return;
+    // Support db.query(sql, callback) with no params array
+    if (typeof params === "function") {
+        callback = params;
+        params = [];
     }
 
-    console.log("================================");
-    console.log("✅ MYSQL CONNECTED SUCCESSFULLY");
-    console.log("================================");
+    const resultPromise = pool
+        .query(sql, params)
+        .then(([rows]) => rows);
 
-    console.log("Host :", DB_HOST);
-    console.log("Port :", DB_PORT);
-    console.log("Database :", DB_NAME);
-    console.log("User :", DB_USER);
+    if (typeof callback === "function") {
 
-    console.log("================================");
+        resultPromise
+            .then((rows) => callback(null, rows))
+            .catch((err) => callback(err));
 
-    // ==================================================
-    // VERIFY ACTIVE DATABASE
-    // ==================================================
+        return undefined;
+    }
 
-    db.query(
-        `
-        SELECT
-            DATABASE() AS database_name,
-            @@hostname AS hostname,
-            @@port AS port,
-            USER() AS mysql_user
-        `,
-        (error, result) => {
+    return resultPromise;
+}
 
-            if (error) {
+// ============================================================
+// EXECUTE (same dual-mode support as query)
+// ============================================================
 
-                console.error(
-                    "❌ Database Verification Failed"
-                );
+function execute(sql, params = [], callback) {
 
-                console.error(error);
+    if (typeof params === "function") {
+        callback = params;
+        params = [];
+    }
 
-                return;
-            }
+    const resultPromise = pool
+        .execute(sql, params)
+        .then(([rows]) => rows);
 
-            if (!result || result.length === 0) {
+    if (typeof callback === "function") {
 
-                console.error(
-                    "❌ Database Verification Returned No Data"
-                );
+        resultPromise
+            .then((rows) => callback(null, rows))
+            .catch((err) => callback(err));
 
-                return;
-            }
+        return undefined;
+    }
 
-            console.log("================================");
-            console.log("ACTIVE DATABASE CONNECTION");
-            console.log("================================");
+    return resultPromise;
+}
 
-            console.log(
-                "Database:",
-                result[0].database_name
+// ============================================================
+// GET CONNECTION
+// ============================================================
+
+async function getConnection() {
+    return pool.getConnection();
+}
+
+// ============================================================
+// TEST DATABASE CONNECTION (single attempt)
+// ============================================================
+
+async function testDatabaseConnection() {
+
+    let connection = null;
+
+    try {
+
+        console.log("");
+        console.log(
+            "============================================================"
+        );
+
+        console.log(
+            "             TESTING MYSQL DATABASE CONNECTION"
+        );
+
+        console.log(
+            "============================================================"
+        );
+
+        console.log("Host     :", DB_HOST);
+        console.log("Port     :", DB_PORT);
+        console.log("Database :", DB_NAME);
+        console.log("User     :", DB_USER);
+        console.log(
+            "SSL      :",
+            caCertificate
+                ? "ENABLED + CA"
+                : "ENABLED WITHOUT CA"
+        );
+
+        console.log("");
+
+        connection = await pool.getConnection();
+
+        console.log("🔌 MySQL connection acquired");
+
+        await connection.ping();
+
+        console.log("🏓 MySQL ping successful");
+
+        const [rows] = await connection.query(
+            "SELECT 1 AS test"
+        );
+
+        console.log(
+            "🧪 Test query result:",
+            rows
+        );
+
+        console.log("");
+        console.log("✅ MYSQL CONNECTION SUCCESSFUL");
+        console.log("");
+
+        return true;
+
+    } catch (error) {
+
+        console.log("");
+        console.log(
+            "============================================================"
+        );
+
+        console.error(
+            "❌ MYSQL CONNECTION FAILED"
+        );
+
+        console.log(
+            "============================================================"
+        );
+
+        console.error(
+            "Host      :",
+            DB_HOST
+        );
+
+        console.error(
+            "Port      :",
+            DB_PORT
+        );
+
+        console.error(
+            "Database  :",
+            DB_NAME
+        );
+
+        console.error(
+            "User      :",
+            DB_USER
+        );
+
+        console.error(
+            "Error Code:",
+            error.code
+        );
+
+        console.error(
+            "Errno     :",
+            error.errno
+        );
+
+        console.error(
+            "SQL State :",
+            error.sqlState
+        );
+
+        console.error(
+            "Message   :",
+            error.message
+        );
+
+        console.error("");
+
+        if (error.code === "HANDSHAKE_SSL_ERROR") {
+
+            console.error(
+                "⚠️ SSL/TLS handshake failed."
             );
 
-            console.log(
-                "Hostname:",
-                result[0].hostname
+            console.error(
+                "Check Aiven host/port, CA certificate,",
             );
 
-            console.log(
-                "Port:",
-                result[0].port
+            console.error(
+                "network access and Aiven service status."
             );
-
-            console.log(
-                "User:",
-                result[0].mysql_user
-            );
-
-            console.log("================================");
-
-            // ==================================================
-            // VERIFY NEW STORE OPENINGS TABLE
-            // ==================================================
-
-            db.query(
-                `
-                SHOW TABLES LIKE 'new_store_openings'
-                `,
-                (tableError, tableResult) => {
-
-                    if (tableError) {
-
-                        console.error(
-                            "❌ new_store_openings table verification failed"
-                        );
-
-                        console.error(tableError);
-
-                        return;
-                    }
-
-                    if (
-                        !tableResult ||
-                        tableResult.length === 0
-                    ) {
-
-                        console.warn(
-                            "⚠️ new_store_openings table not found"
-                        );
-
-                        return;
-                    }
-
-                    console.log(
-                        "✅ new_store_openings table exists"
-                    );
-
-                    // ==================================================
-                    // VERIFY created_by
-                    // ==================================================
-
-                    db.query(
-                        `
-                        SHOW COLUMNS
-                        FROM new_store_openings
-                        LIKE 'created_by'
-                        `,
-                        (columnError, columnResult) => {
-
-                            if (columnError) {
-
-                                console.error(
-                                    "❌ created_by verification failed"
-                                );
-
-                                console.error(
-                                    columnError
-                                );
-
-                                return;
-                            }
-
-                            if (
-                                columnResult &&
-                                columnResult.length > 0
-                            ) {
-
-                                console.log(
-                                    "✅ created_by column exists"
-                                );
-
-                            } else {
-
-                                console.warn(
-                                    "⚠️ created_by column NOT found"
-                                );
-
-                            }
-
-                        }
-                    );
-
-                    // ==================================================
-                    // VERIFY updated_by
-                    // ==================================================
-
-                    db.query(
-                        `
-                        SHOW COLUMNS
-                        FROM new_store_openings
-                        LIKE 'updated_by'
-                        `,
-                        (columnError, columnResult) => {
-
-                            if (columnError) {
-
-                                console.error(
-                                    "❌ updated_by verification failed"
-                                );
-
-                                console.error(
-                                    columnError
-                                );
-
-                                return;
-                            }
-
-                            if (
-                                columnResult &&
-                                columnResult.length > 0
-                            ) {
-
-                                console.log(
-                                    "✅ updated_by column exists"
-                                );
-
-                            } else {
-
-                                console.warn(
-                                    "⚠️ updated_by column NOT found"
-                                );
-
-                            }
-
-                        }
-                    );
-
-                }
-            );
-
         }
+
+        console.log(
+            "============================================================"
+        );
+
+        console.log("");
+
+        return false;
+
+    } finally {
+
+        if (connection) {
+            connection.release();
+        }
+    }
+}
+
+// ============================================================
+// TEST DATABASE CONNECTION WITH RETRY + BACKOFF
+// ============================================================
+// Handshake resets caused by a flaky network path, antivirus
+// TLS inspection, or a still-waking-up Aiven free-tier service
+// are often transient. Instead of giving up after one failed
+// attempt at startup, retry a few times with increasing delay
+// before finally logging a hard failure.
+// ============================================================
+
+async function connectWithRetry(
+    maxAttempts = 5,
+    initialDelayMs = 2000
+) {
+
+    let attempt = 0;
+    let delay = initialDelayMs;
+
+    while (attempt < maxAttempts) {
+
+        attempt++;
+
+        console.log(
+            `🔁 MySQL connection attempt ${attempt}/${maxAttempts}...`
+        );
+
+        const success = await testDatabaseConnection();
+
+        if (success) {
+            return true;
+        }
+
+        if (attempt < maxAttempts) {
+
+            console.log(
+                `⏳ Retrying in ${delay / 1000}s...`
+            );
+
+            await new Promise((resolve) => {
+                setTimeout(resolve, delay);
+            });
+
+            // Exponential backoff, capped at 20s
+            delay = Math.min(delay * 2, 20000);
+        }
+    }
+
+    console.error("");
+    console.error(
+        "🛑 MySQL connection failed after all retry attempts."
     );
+    console.error(
+        "Server will keep running so HTTP routes stay up,"
+    );
+    console.error(
+        "but database-dependent routes will fail until this is resolved."
+    );
+    console.error("");
 
-});
+    return false;
+}
 
-// ======================================================
-// CONNECTION ERROR HANDLER
-// ======================================================
+// ============================================================
+// CLOSE POOL
+// ============================================================
 
-db.on("error", (err) => {
+async function closePool() {
 
-    console.error("================================");
-    console.error("❌ MYSQL CONNECTION ERROR");
-    console.error("================================");
+    try {
 
-    console.error("Code :", err.code);
-    console.error("Message :", err.message);
+        console.log(
+            "🔒 Closing MySQL connection pool..."
+        );
 
-    console.error("================================");
+        await pool.end();
 
-});
+        console.log(
+            "✅ MySQL connection pool closed"
+        );
 
-// ======================================================
-// EXPORT
-// ======================================================
+    } catch (error) {
 
-module.exports = db;
+        console.error(
+            "❌ Error closing MySQL pool:",
+            error.message
+        );
+    }
+}
+
+// ============================================================
+// EXPORTS
+// ============================================================
+
+module.exports = {
+    pool,
+    query,
+    execute,
+    getConnection,
+    testDatabaseConnection,
+    connectWithRetry,
+    closePool
+};
