@@ -1537,7 +1537,7 @@ function NewStoreOpenings() {
                 return (
 
                     <a
-                        href={`http://localhost:5000/${attachmentPath}`}
+                        href={`https://miarcus-backend.onrender.com/${attachmentPath}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="table-link"

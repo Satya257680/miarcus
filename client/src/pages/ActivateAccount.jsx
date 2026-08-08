@@ -47,7 +47,7 @@ function ActivateAccount() {
         try {
 
             await axios.get(
-                `http://localhost:5000/api/users/activate/${token}`
+                `https://miarcus-backend.onrender.com/api/users/activate/${token}`
             );
 
             setValidToken(true);
@@ -98,7 +98,7 @@ function ActivateAccount() {
 
             await axios.post(
 
-                "http://localhost:5000/api/users/activate",
+                "https://miarcus-backend.onrender.com/api/users/activate",
 
                 {
 

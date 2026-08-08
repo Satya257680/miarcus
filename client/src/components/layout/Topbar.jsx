@@ -45,7 +45,7 @@ function Topbar({ toggleSidebar }) {
 
       if (savedPhoto) {
         setProfileImage(
-          `http://localhost:5000/uploads/${savedPhoto}`
+          `https://miarcus-backend.onrender.com/uploads/${savedPhoto}`
         );
       }
 
@@ -54,7 +54,7 @@ function Topbar({ toggleSidebar }) {
       try {
 
         const res = await axios.get(
-          `http://localhost:5000/api/profile/user/${userId}`
+          `https://miarcus-backend.onrender.com/api/profile/user/${userId}`
         );
 
         if (res.data.success) {
@@ -76,7 +76,7 @@ function Topbar({ toggleSidebar }) {
             );
 
             setProfileImage(
-              `http://localhost:5000/uploads/${user.profile_photo}`
+              `https://miarcus-backend.onrender.com/uploads/${user.profile_photo}`
             );
 
           }

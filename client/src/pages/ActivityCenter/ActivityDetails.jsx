@@ -713,7 +713,7 @@ const handleDeleteFile = async (fileId) => {
 
                         <a
 
-                            href={`http://localhost:5000/uploads/${file.file_path}`}
+                            href={`https://miarcus-backend.onrender.com/uploads/${file.file_path}`}
 
                             target="_blank"
 

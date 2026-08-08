@@ -41,7 +41,7 @@ import "../styles/Questions.css";
 // API
 // ======================================================
 
-const API = "http://localhost:5000/api";
+const API = "https://miarcus-backend.onrender.com/api";
 
 // ======================================================
 // COMPONENT

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/CreatePointModal.css";
 
-const API = "http://localhost:5000";
+const API = "https://miarcus-backend.onrender.com";
 
 function CreatePointModal({
   isOpen,

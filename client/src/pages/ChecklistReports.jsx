@@ -39,7 +39,7 @@ import "../styles/ChecklistReports.css";
 // API
 // ======================================================
 
-const API = "http://localhost:5000/api";
+const API = "https://miarcus-backend.onrender.com/api";
 
 
 // ======================================================
@@ -1038,7 +1038,7 @@ const uploadChecklistReport = async (file) => {
         row.attachment ? (
 
             <a
-                href={`http://localhost:5000/${row.attachment}`}
+                href={`https://miarcus-backend.onrender.com/${row.attachment}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="table-link"
@@ -1548,7 +1548,7 @@ const uploadChecklistReport = async (file) => {
                                     {selectedReport.attachment ? (
 
                                         <a
-                                            href={`http://localhost:5000/${selectedReport.attachment}`}
+                                            href={`https://miarcus-backend.onrender.com/${selectedReport.attachment}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="table-link"

@@ -59,7 +59,7 @@ const loadChecklistTypes = async () => {
   try {
 
     const res = await axios.get(
-      "http://localhost:5000/api/checklist-types"
+      "https://miarcus-backend.onrender.com/api/checklist-types"
     );
 
     setChecklistTypes(res.data.data || []);
@@ -77,7 +77,7 @@ const loadDepartments = async () => {
   try {
 
     const res = await axios.get(
-      "http://localhost:5000/api/departments"
+      "https://miarcus-backend.onrender.com/api/departments"
     );
 
     setDepartments(res.data.data || []);

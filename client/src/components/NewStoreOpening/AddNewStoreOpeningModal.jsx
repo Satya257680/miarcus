@@ -28,7 +28,7 @@ import "../../styles/AddNewStoreOpeningModal.css";
 ====================================================== */
 
 const API =
-    "http://localhost:5000/api/new-store-openings";
+    "https://miarcus-backend.onrender.com/api/new-store-openings";
 
 
 const TOTAL_STEPS = 5;

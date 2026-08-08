@@ -4,7 +4,7 @@ import axios from "axios";
 import "./login.css";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
+  import.meta.env.VITE_API_URL || "https://miarcus-backend.onrender.com";
 
 function Login() {
   const navigate = useNavigate();

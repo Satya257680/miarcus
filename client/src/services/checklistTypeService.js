@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/checklist-types";
+const API_URL = "https://miarcus-backend.onrender.com/api/checklist-types";
 
 // ========================================
 // Axios Config

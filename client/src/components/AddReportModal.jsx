@@ -33,12 +33,12 @@ function AddReportModal({
     try {
       if (editData) {
         await axios.put(
-          `http://localhost:5000/api/reports/${editData.id}`,
+          `https://miarcus-backend.onrender.com/api/reports/${editData.id}`,
           data
         );
       } else {
         await axios.post(
-          "http://localhost:5000/api/reports",
+          "https://miarcus-backend.onrender.com/api/reports",
           data
         );
       }

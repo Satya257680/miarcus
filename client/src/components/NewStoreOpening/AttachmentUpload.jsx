@@ -33,7 +33,7 @@ const getApiBaseUrl = () => {
             .replace(/\/+$/, "");
     }
 
-    return "http://localhost:5000";
+    return "https://miarcus-backend.onrender.com";
 };
 
 
@@ -125,7 +125,7 @@ const normalizeAttachmentUrl = (
 
        Example:
 
-       http://localhost:5000/uploads/file.pdf
+       https://miarcus-backend.onrender.com/uploads/file.pdf
     ---------------------------------------------- */
 
     if (
@@ -272,7 +272,7 @@ const normalizeAttachmentUrl = (
     /* ----------------------------------------------
        FINAL URL
 
-       http://localhost:5000/uploads/file.pdf
+       https://miarcus-backend.onrender.com/uploads/file.pdf
     ---------------------------------------------- */
 
     return (

@@ -13,7 +13,7 @@ const baseTemplate = ({
 }) => {
 
 const backendUrl =
-    process.env.BACKEND_URL || "http://localhost:5000";
+    process.env.BACKEND_URL || "https://miarcus-backend.onrender.com";
 
 // ======================================================
 // MIARCUS LOGO

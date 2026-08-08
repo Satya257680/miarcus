@@ -90,7 +90,7 @@ const canDelete =
  const fetchUsers = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/users"
+      "https://miarcus-backend.onrender.com/api/users"
     );
 
     console.log("Fetched Users:", res.data.users);
@@ -110,7 +110,7 @@ useEffect(() => {
 const fetchManagers = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/reports"
+      "https://miarcus-backend.onrender.com/api/reports"
     );
 
     setReportsTo(res.data.reports);
@@ -179,7 +179,7 @@ const uploadUsers = async () => {
   try {
 
     const res = await axios.post(
-      "http://localhost:5000/api/users/bulk-upload",
+      "https://miarcus-backend.onrender.com/api/users/bulk-upload",
       formData,
       {
         headers: {
@@ -219,7 +219,7 @@ const deleteAllUsers = async () => {
   try {
 
     await axios.delete(
-      "http://localhost:5000/api/users/delete-all"
+      "https://miarcus-backend.onrender.com/api/users/delete-all"
     );
 
     alert("Users Deleted Successfully");
@@ -247,7 +247,7 @@ const deleteUser = async (id) => {
   try {
 
     const res = await axios.delete(
-      `http://localhost:5000/api/users/${id}`
+      `https://miarcus-backend.onrender.com/api/users/${id}`
     );
 
     alert(res.data.message);
@@ -272,7 +272,7 @@ const disableUser = async (id) => {
   try {
 
     const res = await axios.put(
-      `http://localhost:5000/api/users/disable/${id}`
+      `https://miarcus-backend.onrender.com/api/users/disable/${id}`
     );
 
     alert(res.data.message);
@@ -338,7 +338,7 @@ const filteredUsers = users.filter((user) => {
 const fetchDepartments = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/departments"
+      "https://miarcus-backend.onrender.com/api/departments"
     );
 
     setDepartments(res.data.data);

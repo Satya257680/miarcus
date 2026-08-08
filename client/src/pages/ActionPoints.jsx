@@ -41,7 +41,7 @@ import "../styles/ActionPoints.css";
 // API
 // ======================================================
 
-const API = "http://localhost:5000";
+const API = "https://miarcus-backend.onrender.com";
 
 // ======================================================
 // COMPONENT

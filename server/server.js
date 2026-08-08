@@ -218,7 +218,7 @@ if (
 //
 // Correct URL:
 //
-// http://localhost:5000/uploads/filename.pdf
+// https://miarcus-backend.onrender.com/uploads/filename.pdf
 //
 // Production:
 //
@@ -431,7 +431,7 @@ app.get(
 //
 // Open:
 //
-// http://localhost:5000/uploads
+// https://miarcus-backend.onrender.com/uploads
 //
 // This confirms the static upload route exists.
 // ======================================================

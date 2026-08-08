@@ -148,7 +148,7 @@ whatsappContact,
 
       await axios.put(
 
-        `http://localhost:5000/api/users/${editingUser.id}`,
+        `https://miarcus-backend.onrender.com/api/users/${editingUser.id}`,
 
         payload
 
@@ -160,7 +160,7 @@ whatsappContact,
 
       await axios.post(
 
-        "http://localhost:5000/api/users",
+        "https://miarcus-backend.onrender.com/api/users",
 
         payload
 
@@ -474,7 +474,7 @@ setConfirmWhatsappContact(
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/reports"
+        "https://miarcus-backend.onrender.com/api/reports"
       );
 
       setReportsList(
@@ -510,7 +510,7 @@ setConfirmWhatsappContact(
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/departments"
+        "https://miarcus-backend.onrender.com/api/departments"
       );
 
       setDepartments(
@@ -534,7 +534,7 @@ setConfirmWhatsappContact(
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/designations"
+        "https://miarcus-backend.onrender.com/api/designations"
       );
 
       setDesignations(
@@ -557,7 +557,7 @@ const fetchStores = async () => {
   try {
 
     const res = await axios.get(
-      "http://localhost:5000/api/stores"
+      "https://miarcus-backend.onrender.com/api/stores"
     );
 
     setStores(res.data.data);

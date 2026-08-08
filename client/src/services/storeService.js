@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/stores";
+const API = "https://miarcus-backend.onrender.com/api/stores";
 
 // ==============================
 // Axios Config

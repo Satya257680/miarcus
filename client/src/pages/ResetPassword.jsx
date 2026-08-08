@@ -61,7 +61,7 @@ function ResetPassword() {
 
       const res = await axios.post(
 
-        "http://localhost:5000/api/auth/reset-password",
+        "https://miarcus-backend.onrender.com/api/auth/reset-password",
 
         {
 

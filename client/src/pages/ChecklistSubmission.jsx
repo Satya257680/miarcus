@@ -74,7 +74,7 @@ const canDelete =
   const fetchChecklistTypes = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/checklist-types"
+        "https://miarcus-backend.onrender.com/api/checklist-types"
       );
 
       const data = Array.isArray(response.data)
@@ -90,7 +90,7 @@ const canDelete =
   const fetchStores = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/stores"
+        "https://miarcus-backend.onrender.com/api/stores"
       );
 
       const data = Array.isArray(response.data)
@@ -124,7 +124,7 @@ const canDelete =
       setLoadingQuestions(true);
 
       const response = await axios.get(
-        `http://localhost:5000/api/questions?checklist_type_id=${checklistTypeId}`
+        `https://miarcus-backend.onrender.com/api/questions?checklist_type_id=${checklistTypeId}`
       );
 
       const allQuestions = Array.isArray(response.data)
@@ -640,7 +640,7 @@ JSON.stringify(formattedAnswers)
 
 await axios.post(
 
-"http://localhost:5000/api/checklist-submissions",
+"https://miarcus-backend.onrender.com/api/checklist-submissions",
 
 formData,
 

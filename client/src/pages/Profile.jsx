@@ -35,7 +35,7 @@ function Profile() {
     if (!userId) return;
 
     axios
-      .get(`http://localhost:5000/api/profile/user/${userId}`)
+      .get(`https://miarcus-backend.onrender.com/api/profile/user/${userId}`)
       .then((res) => {
 
         if (res.data.success) {
@@ -164,7 +164,7 @@ console.log("User ID:", userId);
   try {
 
     const response = await axios.post(
-      "http://localhost:5000/api/profile/upload-photo",
+      "https://miarcus-backend.onrender.com/api/profile/upload-photo",
       formData,
       {
         headers: {
@@ -250,7 +250,7 @@ return (
           ) : currentPhoto ? (
 
             <img
-              src={`http://localhost:5000/uploads/${currentPhoto}`}
+              src={`https://miarcus-backend.onrender.com/uploads/${currentPhoto}`}
               alt="Profile"
               className="profile-preview"
             />
