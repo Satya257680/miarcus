@@ -127,9 +127,30 @@ ChecklistSubmission.createTables = (callback) => {
 
 // ======================================================
 // CREATE SUBMISSION WITH ANSWERS
+//
+// FIX (v2 - matches actual config/db.js):
+//
+// "../config/db" exports a WRAPPER OBJECT around a
+// mysql2/promise pool: { pool, query, execute,
+// getConnection, ... }. It has no beginTransaction /
+// commit / rollback of its own — those only exist on an
+// individual connection object.
+//
+// db.getConnection() here is an ASYNC function that
+// returns a Promise<Connection> (see config/db.js) — it
+// does NOT accept a callback. And because the underlying
+// pool is mysql2/promise, connection.beginTransaction(),
+// connection.commit(), connection.rollback(), and
+// connection.query() are all Promise-based as well, not
+// callback-based.
+//
+// This version uses async/await internally, but keeps
+// the same callback(err, result) signature the rest of
+// the codebase (the controller) already expects, so
+// nothing else needs to change.
 // ======================================================
 
-ChecklistSubmission.create = (
+ChecklistSubmission.create = async (
 
     submission,
 
@@ -139,13 +160,13 @@ ChecklistSubmission.create = (
 
 ) => {
 
-    db.beginTransaction((transactionError) => {
+    let connection;
 
-        if (transactionError) {
+    try {
 
-            return callback(transactionError);
+        connection = await db.getConnection();
 
-        }
+        await connection.beginTransaction();
 
         // ======================================
         // INSERT SUBMISSION
@@ -225,173 +246,137 @@ ChecklistSubmission.create = (
 
         ];
 
-        db.query(
+        const [submissionResult] = await connection.query(
 
             submissionSql,
 
-            submissionValues,
+            submissionValues
 
-            (submissionError, result) => {
+        );
 
-                if (submissionError) {
+        const submissionId = submissionResult.insertId;
 
-                    return db.rollback(() => {
+        // ======================================
+        // ANSWERS (if any)
+        // ======================================
 
-                        callback(submissionError);
+        if (
 
-                    });
+            answers &&
 
-                }
+            answers.length > 0
 
-                const submissionId = result.insertId;
+        ) {
 
-                // ======================================
-                // NO ANSWERS
-                // ======================================
+            const answerValues = answers.map(
 
-                if (
+                (item) => [
 
-                    !answers ||
+                    submissionId,
 
-                    answers.length === 0
+                    item.question_id,
 
-                ) {
+                    item.answer !== undefined &&
 
-                    return db.commit((commitError) => {
+                    item.answer !== null
 
-                        if (commitError) {
+                        ? String(item.answer)
 
-                            return db.rollback(() => {
+                        : "",
 
-                                callback(commitError);
+                    item.remarks || ""
 
-                            });
+                ]
 
-                        }
+            );
 
-                        callback(
+            const answerSql = `
 
-                            null,
+                INSERT INTO checklist_submission_answers
 
-                            {
+                (
 
-                                submissionId
+                    submission_id,
 
-                            }
+                    question_id,
 
-                        );
+                    answer,
 
-                    });
+                    remarks
 
-                }
+                )
 
-                // ======================================
-                // PREPARE ANSWERS
-                // ======================================
+                VALUES ?
 
-                const answerValues = answers.map(
+            `;
 
-                    (item) => [
+            await connection.query(
 
-                        submissionId,
+                answerSql,
 
-                        item.question_id,
+                [
 
-                        item.answer !== undefined &&
+                    answerValues
 
-                        item.answer !== null
+                ]
 
-                            ? String(item.answer)
+            );
 
-                            : "",
+        }
 
-                        item.remarks || ""
+        await connection.commit();
 
-                    ]
+        callback(
 
-                );
+            null,
 
-                // ======================================
-                // INSERT ANSWERS
-                // ======================================
+            {
 
-                const answerSql = `
-
-                    INSERT INTO checklist_submission_answers
-
-                    (
-
-                        submission_id,
-
-                        question_id,
-
-                        answer,
-
-                        remarks
-
-                    )
-
-                    VALUES ?
-
-                `;
-
-                db.query(
-
-                    answerSql,
-
-                    [
-
-                        answerValues
-
-                    ],
-
-                    (answerError) => {
-
-                        if (answerError) {
-
-                            return db.rollback(() => {
-
-                                callback(answerError);
-
-                            });
-
-                        }
-
-                        db.commit((commitError) => {
-
-                            if (commitError) {
-
-                                return db.rollback(() => {
-
-                                    callback(commitError);
-
-                                });
-
-                            }
-
-                            callback(
-
-                                null,
-
-                                {
-
-                                    submissionId
-
-                                }
-
-                            );
-
-                        });
-
-                    }
-
-                );
+                submissionId
 
             }
 
         );
 
-    });
+    }
+
+    catch (error) {
+
+        if (connection) {
+
+            try {
+
+                await connection.rollback();
+
+            }
+
+            catch (rollbackError) {
+
+                console.error(
+
+                    "Rollback also failed:",
+
+                    rollbackError
+
+                );
+
+            }
+
+        }
+
+        callback(error);
+
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
+
+        }
+
+    }
 
 };
 
