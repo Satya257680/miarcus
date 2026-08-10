@@ -9,7 +9,7 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 // ======================================================
 // PUBLIC PAGES
 // ======================================================
-import Login from "./pages/login";
+import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyOTP from "./pages/VerifyOTP";
 import ResetPassword from "./pages/ResetPassword";
