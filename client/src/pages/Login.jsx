@@ -571,6 +571,16 @@ function Login() {
           </Link>
 
         </div>
+        <div className="signup-link">
+    <span>Don't have an account?</span>
+
+    <button
+        type="button"
+        onClick={() => navigate("/signup")}
+    >
+        Sign Up
+    </button>
+</div>
 
         {/* ====================================================
             FOOTER

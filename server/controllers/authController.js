@@ -686,10 +686,456 @@ const resetPassword = async (req, res) => {
     );
 
 };
+// ======================================================
+// SIGN UP USER
+// POST : /api/auth/signup
+// ======================================================
+
+const signupUser = async (req, res) => {
+
+    try {
+
+        const {
+            fullName,
+            employeeId,
+            email,
+            password,
+            callContact,
+            whatsappContact,
+            reportsTo,
+            department_id,
+            designation_id,
+            stores,
+            permissions
+        } = req.body;
+
+
+        // ==================================================
+        // VALIDATION
+        // ==================================================
+
+        if (
+            !fullName ||
+            !employeeId ||
+            !email ||
+            !password
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Full Name, Employee ID, Email and Password are required."
+
+            });
+
+        }
+
+
+        if (password.length < 6) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Password must contain at least 6 characters."
+
+            });
+
+        }
+
+
+        const cleanEmail =
+            String(email)
+                .trim()
+                .toLowerCase();
+
+
+        // ==================================================
+        // CHECK EXISTING EMAIL
+        // ==================================================
+
+        const emailSql = `
+            SELECT id
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+        `;
+
+        db.query(
+            emailSql,
+            [cleanEmail],
+            async (emailErr, emailResult) => {
+
+                if (emailErr) {
+
+                    console.error(
+                        "Signup email check error:",
+                        emailErr
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message:
+                            "Database Error"
+
+                    });
+
+                }
+
+
+                if (
+                    emailResult.length > 0
+                ) {
+
+                    return res.status(409).json({
+
+                        success: false,
+
+                        message:
+                            "An account with this email already exists."
+
+                    });
+
+                }
+
+
+                // ==========================================
+                // CHECK EMPLOYEE ID
+                // ==========================================
+
+                const employeeSql = `
+                    SELECT id
+                    FROM users
+                    WHERE employee_id = ?
+                    LIMIT 1
+                `;
+
+                db.query(
+                    employeeSql,
+                    [employeeId.trim()],
+                    async (
+                        employeeErr,
+                        employeeResult
+                    ) => {
+
+                        if (employeeErr) {
+
+                            console.error(
+                                "Signup employee check error:",
+                                employeeErr
+                            );
+
+                            return res.status(500).json({
+
+                                success: false,
+
+                                message:
+                                    "Database Error"
+
+                            });
+
+                        }
+
+
+                        if (
+                            employeeResult.length > 0
+                        ) {
+
+                            return res.status(409).json({
+
+                                success: false,
+
+                                message:
+                                    "This Employee ID is already registered."
+
+                            });
+
+                        }
+
+
+                        // ======================================
+                        // HASH PASSWORD
+                        // ======================================
+
+                        const hashedPassword =
+                            await bcrypt.hash(
+                                password,
+                                10
+                            );
+
+
+                        // ======================================
+                        // CREATE USER
+                        //
+                        // IMPORTANT:
+                        //
+                        // Self-signup users are:
+                        //
+                        // Active
+                        // Activated
+                        // Not Administrator
+                        //
+                        // No email is required.
+                        // ======================================
+
+                        const insertSql = `
+                            INSERT INTO users
+                            (
+                                employee_id,
+                                name,
+                                email,
+                                password,
+                                call_contact,
+                                whatsapp_contact,
+                                reports_to,
+                                department_id,
+                                designation_id,
+                                is_admin,
+                                status,
+                                is_activated
+                            )
+                            VALUES
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Active', 1)
+                        `;
+
+
+                        const reportId =
+                            reportsTo?.id ||
+                            null;
+
+
+                        db.query(
+
+                            insertSql,
+
+                            [
+
+                                employeeId.trim(),
+
+                                fullName.trim(),
+
+                                cleanEmail,
+
+                                hashedPassword,
+
+                                callContact
+                                    ? String(
+                                        callContact
+                                    ).trim()
+                                    : null,
+
+                                whatsappContact
+                                    ? String(
+                                        whatsappContact
+                                    ).trim()
+                                    : null,
+
+                                reportId,
+
+                                department_id ||
+                                    null,
+
+                                designation_id ||
+                                    null
+
+                            ],
+
+                            (
+                                insertErr,
+                                result
+                            ) => {
+
+                                if (insertErr) {
+
+                                    console.error(
+                                        "Signup insert error:",
+                                        insertErr
+                                    );
+
+                                    return res.status(500).json({
+
+                                        success: false,
+
+                                        message:
+                                            "Failed to create account."
+
+                                    });
+
+                                }
+
+
+                                const userId =
+                                    result.insertId;
+
+
+                                // ==================================
+                                // CREATE PERMISSIONS
+                                // ==================================
+
+                                const permissionEntries =
+                                    Object.entries(
+                                        permissions || {}
+                                    )
+                                    .filter(
+                                        ([, permission]) =>
+                                            permission &&
+                                            permission !== "None"
+                                    );
+
+
+                                if (
+                                    permissionEntries.length === 0
+                                ) {
+
+                                    return res.status(201).json({
+
+                                        success: true,
+
+                                        message:
+                                            "Account created successfully.",
+
+                                        userId
+
+                                    });
+
+                                }
+
+
+                                const permissionValues =
+                                    permissionEntries.map(
+                                        (
+                                            [
+                                                moduleName,
+                                                permission
+                                            ]
+                                        ) => [
+
+                                            userId,
+
+                                            moduleName,
+
+                                            permission
+
+                                        ]
+                                    );
+
+
+                                const permissionSql = `
+                                    INSERT INTO user_permissions
+                                    (
+                                        user_id,
+                                        module_name,
+                                        permission
+                                    )
+                                    VALUES ?
+                                `;
+
+
+                                db.query(
+
+                                    permissionSql,
+
+                                    [
+                                        permissionValues
+                                    ],
+
+                                    (
+                                        permissionErr
+                                    ) => {
+
+                                        if (
+                                            permissionErr
+                                        ) {
+
+                                            console.error(
+                                                "Signup permission error:",
+                                                permissionErr
+                                            );
+
+                                            return res.status(500).json({
+
+                                                success: false,
+
+                                                message:
+                                                    "Account created, but permissions could not be saved."
+
+                                            });
+
+                                        }
+
+
+                                        // ==================================
+                                        // EMAIL SERVICE
+                                        //
+                                        // TEMPORARILY DISABLED
+                                        //
+                                        // DO NOT SEND EMAIL.
+                                        // ==================================
+
+                                        console.log(
+                                            "🧪 Signup email skipped for:",
+                                            cleanEmail
+                                        );
+
+
+                                        return res.status(201).json({
+
+                                            success: true,
+
+                                            message:
+                                                "Account created successfully.",
+
+                                            userId
+
+                                        });
+
+                                    }
+
+                                );
+
+                            }
+
+                        );
+
+                    }
+
+                );
+
+            }
+
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Signup error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Unable to create account."
+
+        });
+
+    }
+
+};
 
 module.exports = {
 
     loginUser,
+
+    signupUser,
 
     forgotPassword,
 

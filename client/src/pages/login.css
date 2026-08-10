@@ -725,3 +725,27 @@
     font-size: 13px;
   }
 }
+.signup-link {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+    font-size: 13px;
+    color: #737373;
+}
+
+.signup-link button {
+    border: none;
+    background: transparent;
+    color: #5d46b8;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+}
+
+.signup-link button:hover {
+    color: #46329a;
+    text-decoration: underline;
+}

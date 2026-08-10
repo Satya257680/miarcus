@@ -1,5 +1,7 @@
 const express = require("express");
+
 const router = express.Router();
+
 
 // ======================================================
 // CONTROLLERS
@@ -7,6 +9,7 @@ const router = express.Router();
 
 const {
     loginUser,
+    signupUser,
     forgotPassword,
     verifyOTP,
     resetPassword,
@@ -18,7 +21,21 @@ const {
 // POST : /api/auth/login
 // ======================================================
 
-router.post("/login", loginUser);
+router.post(
+    "/login",
+    loginUser
+);
+
+
+// ======================================================
+// SIGN UP
+// POST : /api/auth/signup
+// ======================================================
+
+router.post(
+    "/signup",
+    signupUser
+);
 
 
 // ======================================================
@@ -26,7 +43,10 @@ router.post("/login", loginUser);
 // POST : /api/auth/forgot-password
 // ======================================================
 
-router.post("/forgot-password", forgotPassword);
+router.post(
+    "/forgot-password",
+    forgotPassword
+);
 
 
 // ======================================================
@@ -34,7 +54,10 @@ router.post("/forgot-password", forgotPassword);
 // POST : /api/auth/verify-otp
 // ======================================================
 
-router.post("/verify-otp", verifyOTP);
+router.post(
+    "/verify-otp",
+    verifyOTP
+);
 
 
 // ======================================================
@@ -42,7 +65,10 @@ router.post("/verify-otp", verifyOTP);
 // POST : /api/auth/reset-password
 // ======================================================
 
-router.post("/reset-password", resetPassword);
+router.post(
+    "/reset-password",
+    resetPassword
+);
 
 
 // ======================================================

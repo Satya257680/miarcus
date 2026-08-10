@@ -57,6 +57,7 @@ import Settings from "./pages/Settings/Settings";
 // ======================================================
 import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
 import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
+import Signup from "./pages/Signup";
 
 function App() {
     return (
@@ -71,6 +72,11 @@ function App() {
                     path="/"
                     element={<Login />}
                 />
+
+                <Route
+    path="/signup"
+    element={<Signup />}
+/>
 
                 <Route
                     path="/forgot-password"
