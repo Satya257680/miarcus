@@ -314,78 +314,76 @@ const processInspection = async (
 // ======================================================
 
 const evaluateRules = (
-
     answers,
-
     rules
-
 ) => {
 
     const matchedRules = [];
 
-    answers.forEach(
+    answers.forEach((answer) => {
 
-        (answer) => {
+        const questionText = String(
+            answer.question || ""
+        ).trim().toLowerCase();
 
-            const rule = rules.find(
+        if (!questionText) {
+            return;
+        }
 
-                (item) =>
+        const rule = rules.find((item) => {
 
-                    item.trigger_column ===
+            const triggerColumn = String(
+                item.trigger_column || ""
+            ).trim().toLowerCase();
 
-                    answer.question
+            return triggerColumn === questionText;
 
-            );
+        });
 
-            if (
+        if (!rule) {
+            return;
+        }
 
-                !rule
+        const submittedAnswer = String(
+            answer.answer ?? ""
+        ).trim();
 
-            ) {
+        const expectedAnswer = String(
+            rule.expected_answer ?? ""
+        ).trim();
 
-                return;
+        if (
+            submittedAnswer.toLowerCase() !==
+            expectedAnswer.toLowerCase()
+        ) {
 
-            }
+            matchedRules.push({
 
-            if (
+                answer_id:
+                    answer.id,
 
-                String(answer.answer).trim() !==
+                question_id:
+                    answer.question_id,
 
-                String(rule.expected_answer).trim()
+                question:
+                    answer.question,
 
-            ) {
+                answer:
+                    answer.answer,
 
-                matchedRules.push({
+                expected_answer:
+                    rule.expected_answer,
 
-                    question_id:
+                remarks:
+                    answer.remarks,
 
-                        answer.question_id,
+                rule
 
-                    question:
-
-                        answer.question,
-
-                    answer:
-
-                        answer.answer,
-
-                    expected_answer:
-
-                        rule.expected_answer,
-
-                    remarks:
-
-                        answer.remarks,
-
-                    rule
-
-                });
-
-            }
+            });
 
         }
 
-    );
+    });
 
     return matchedRules;
 
@@ -396,316 +394,101 @@ const evaluateRules = (
 // ======================================================
 
 const createActionPoints = (
-
     submission,
-
     matchedRules,
-
     userId
-
 ) => {
 
-    return new Promise(
+    return new Promise(async (resolve, reject) => {
 
-        (
+        if (!matchedRules || matchedRules.length === 0) {
+            return resolve([]);
+        }
 
-            resolve,
+        const createdActionPoints = [];
 
-            reject
+        try {
 
-        ) => {
+            for (const item of matchedRules) {
 
-            if (
+                const rule = item.rule;
 
-                matchedRules.length === 0
+                if (Number(rule.create_action_point) !== 1) {
+                    continue;
+                }
 
-            ) {
+                if (!item.answer_id) {
+                    throw new Error(
+                        `Missing checklist submission answer ID for question ${item.question_id}.`
+                    );
+                }
 
-                return resolve();
+                const departmentIds = rule.department_ids
+                    ? String(rule.department_ids)
+                        .split(",")
+                        .map((id) => Number(id))
+                        .filter(Boolean)
+                    : [];
+
+                const actionPointData = {
+                    submission_id: submission.id,
+                    submission_answer_id: item.answer_id,
+                    rule_id: rule.id || null,
+                    store_id: submission.store_id,
+                    department_id: departmentIds[0] || null,
+                    question_id: item.question_id,
+                    assigned_to: null,
+                    priority: rule.priority || "Medium",
+                    sla_value: Number(rule.sla_days) || 0,
+                    status: "Open",
+                    remarks: item.remarks || null,
+                    attachment: null,
+                    created_by: userId || null
+                };
+
+                const result = await new Promise((resolveCreate, rejectCreate) => {
+
+                    ActionPoint.create(
+                        actionPointData,
+                        (err, result) => {
+                            if (err) {
+                                return rejectCreate(err);
+                            }
+                            resolveCreate(result);
+                        }
+                    );
+
+                });
+
+                createdActionPoints.push({
+                    id: result.insertId,
+                    submission_id: submission.id,
+                    submission_answer_id: item.answer_id,
+                    rule_id: rule.id || null,
+                    question_id: item.question_id
+                });
+
+                console.log(
+                    `[Inspection] Action Point #${result.insertId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
+                );
 
             }
 
-            let completed = 0;
+            resolve(createdActionPoints);
 
-            matchedRules.forEach(
+        }
+        catch (error) {
 
-                (
-
-                    item
-
-                ) => {
-
-                    const rule =
-
-                        item.rule;
-
-                    if (
-
-                        Number(
-
-                            rule.create_action_point
-
-                        ) !== 1
-
-                    ) {
-
-                        completed++;
-
-                        if (
-
-                            completed ===
-
-                            matchedRules.length
-
-                        ) {
-
-                            resolve();
-
-                        }
-
-                        return;
-
-                    }
-
-                    const departmentIds =
-
-                        rule.department_ids
-
-                            ? rule.department_ids
-
-                                  .split(",")
-
-                                  .map(Number)
-
-                            : [];
-
-                ActionPoint.create(
-
-    {
-
-        submission_id:
-
-            submission.id,
-
-        store_id:
-
-            submission.store_id,
-
-        department_id:
-
-            departmentIds[0] ||
-
-            null,
-
-        question_id:
-
-            item.question_id,
-
-        answer:
-
-            item.answer,
-
-        remarks:
-
-            item.remarks,
-
-        sla_value:
-
-            rule.sla_days,
-
-        sla_type:
-
-            "Days",
-
-        priority:
-
-            rule.priority,
-
-        created_by:
-
-            userId
-
-    },
-
-    (
-
-        err
-
-    ) => {
-
-        // ======================================
-        // DEBUG
-        // ======================================
-
-        if (
-
-            err
-
-        ) {
-
-            console.log(
-
-                "====================================="
-
+            console.error(
+                "[Inspection] Failed to create Action Point(s):",
+                error
             );
 
-            console.log(
-
-                "ACTION POINT INSERT ERROR"
-
-            );
-
-            console.log(
-
-                err
-
-            );
-
-            console.log(
-
-                "Submission ID:",
-
-                submission.id
-
-            );
-
-            console.log(
-
-                "Store ID:",
-
-                submission.store_id
-
-            );
-
-            console.log(
-
-                "Department ID:",
-
-                departmentIds[0] || null
-
-            );
-
-            console.log(
-
-                "Question ID:",
-
-                item.question_id
-
-            );
-
-            console.log(
-
-                "Answer:",
-
-                item.answer
-
-            );
-
-            console.log(
-
-                "Remarks:",
-
-                item.remarks
-
-            );
-
-            console.log(
-
-                "SLA Value:",
-
-                rule.sla_days
-
-            );
-
-            console.log(
-
-                "Priority:",
-
-                rule.priority
-
-            );
-
-            console.log(
-
-                "Created By:",
-
-                userId
-
-            );
-
-            console.log(
-
-                "====================================="
-
-            );
-
-            return reject(
-
-                err
-
-            );
+            reject(error);
 
         }
 
-        console.log(
-
-            "====================================="
-
-        );
-
-        console.log(
-
-            "ACTION POINT CREATED SUCCESSFULLY"
-
-        );
-
-        console.log(
-
-            "Submission ID:",
-
-            submission.id
-
-        );
-
-        console.log(
-
-            "Question ID:",
-
-            item.question_id
-
-        );
-
-        console.log(
-
-            "====================================="
-
-        );
-
-        completed++;
-
-        if (
-
-            completed ===
-
-            matchedRules.length
-
-        ) {
-
-            resolve();
-
-        }
-
-    }
-
-);
-
-                }
-
-            );
-
-        }
-
-    );
+    });
 
 };
 
@@ -953,15 +736,12 @@ const runInspection = async (
         // CREATE ACTION POINTS
         // ======================================
 
-        await createActionPoints(
-
-            submission,
-
-            matchedRules,
-
-            userId
-
-        );
+        const createdActionPoints =
+            await createActionPoints(
+                submission,
+                matchedRules,
+                userId
+            );
 
         // ======================================
         // UPDATE NSO STATUS
@@ -1024,22 +804,10 @@ const runInspection = async (
                 matchedRules.length,
 
             action_points:
+                createdActionPoints.length,
 
-                matchedRules.filter(
-
-                    (
-
-                        item
-
-                    ) =>
-
-                        Number(
-
-                            item.rule.create_action_point
-
-                        ) === 1
-
-                ).length,
+            created_action_points:
+                createdActionPoints,
 
             nso_status:
 

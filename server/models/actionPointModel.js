@@ -43,7 +43,7 @@ ActionPoint.createTables = (callback) => {
 
         ) DEFAULT 'Medium',
 
-        sla_days INT DEFAULT 0,
+        sla_value INT DEFAULT 0,
 
         status ENUM(
 
@@ -141,7 +141,7 @@ ActionPoint.getAll = (
 
         ap.status,
 
-        ap.comment,
+        ap.remarks AS comment,
 
         ap.attachment,
 
@@ -457,7 +457,8 @@ ActionPoint.getAll = (
         ap.sla_value,
 
         ap.status,
-ap.comment,
+
+        ap.remarks,
 
         ap.attachment,
 
@@ -863,7 +864,7 @@ ActionPoint.getById = (
 
         ap.status,
 
-        ap.comment,
+        ap.remarks AS comment,
 
         ap.attachment,
 
@@ -1047,7 +1048,7 @@ ActionPoint.create = (
 
         data.priority || "Medium",
 
-        Number(data.sla_value) || 0,
+        Number(data.sla_value ?? data.sla_days) || 0,
 
         data.status || "Open",
 
@@ -1119,7 +1120,7 @@ ActionPoint.update = (
 
             data.priority || "Medium",
 
-          Number(data.sla_value) || 0,
+          Number(data.sla_value ?? data.sla_days) || 0,
 
             data.remarks || null,
 
@@ -1629,7 +1630,7 @@ ActionPoint.exportData = (
 
         ap.status,
 
-        ap.comment,
+        ap.remarks AS comment,
 
         ap.completed_at,
 
