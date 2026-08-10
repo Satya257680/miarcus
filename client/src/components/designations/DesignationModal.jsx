@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./DesignationModal.css";
-import EmployeeList from "../departments/EmployeeList";
+import EmployeeList from "../Departments/EmployeeList";
 import { getUsers } from "../../services/userService";
 
 function DesignationModal({

@@ -12,7 +12,7 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Departments.css";
-import DepartmentModal from "../components/departments/DepartmentModal";
+import DepartmentModal from "../components/Departments/DepartmentModal";
 import {
   getDepartments,
   getDepartmentById,
