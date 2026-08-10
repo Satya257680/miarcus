@@ -70,76 +70,146 @@ db.connectWithRetry();
 
 
 // ======================================================
-// CORS
+// CORS CONFIGURATION
 // ======================================================
 
 const allowedOrigins = [
-
+    // Local Vite
     "http://localhost:5173",
 
+    // Local React
     "http://localhost:3000",
 
+    // Production Vercel
+    "https://miarcus.vercel.app",
+
+    // Environment variable
     process.env.FRONTEND_URL
+]
+    .filter(Boolean)
+    .map((origin) =>
+        origin.trim().replace(/\/+$/, "")
+    );
 
-].filter(Boolean);
+// Remove duplicates
+const uniqueAllowedOrigins =
+    [...new Set(allowedOrigins)];
 
+console.log("");
+console.log("==============================================");
+console.log("CORS CONFIGURATION");
+console.log("==============================================");
+
+uniqueAllowedOrigins.forEach((origin) => {
+    console.log("Allowed Origin :", origin);
+});
+
+console.log("==============================================");
+console.log("");
 
 app.use(
-
     cors({
 
         origin: function (origin, callback) {
 
-            // Allow requests without an Origin header
-            // such as Postman/server-to-server requests.
+            // --------------------------------------------------
+            // SERVER-TO-SERVER / POSTMAN
+            // --------------------------------------------------
 
             if (!origin) {
-
                 return callback(null, true);
-
             }
 
+            const normalizedOrigin =
+                origin
+                    .trim()
+                    .replace(/\/+$/, "");
 
-            // Allow configured frontend origins.
+            // --------------------------------------------------
+            // EXACT ORIGIN
+            // --------------------------------------------------
 
             if (
-                allowedOrigins.includes(origin)
+                uniqueAllowedOrigins.includes(
+                    normalizedOrigin
+                )
             ) {
-
                 return callback(null, true);
-
             }
 
-
-            // Allow Render / deployed frontend when
-            // FRONTEND_URL is configured.
+            // --------------------------------------------------
+            // VERCEL PREVIEW DEPLOYMENTS
+            // --------------------------------------------------
+            //
+            // Example:
+            // https://miarcus-git-main-xxxx.vercel.app
+            //
+            // Allow only Vercel deployments belonging to
+            // the Miarcus project naming pattern.
+            // --------------------------------------------------
 
             if (
-                process.env.FRONTEND_URL &&
-                origin === process.env.FRONTEND_URL
+                /^https:\/\/miarcus(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(
+                    normalizedOrigin
+                )
             ) {
-
                 return callback(null, true);
-
             }
 
+            // --------------------------------------------------
+            // BLOCK UNKNOWN ORIGIN
+            // --------------------------------------------------
 
             console.warn(
-                "⚠️ CORS blocked:",
-                origin
+                "⚠️ CORS BLOCKED ORIGIN:",
+                normalizedOrigin
             );
-
 
             return callback(
-                new Error("Not allowed by CORS")
+                new Error(
+                    `CORS blocked origin: ${normalizedOrigin}`
+                )
             );
-
         },
 
-        credentials: true
+        // --------------------------------------------------
+        // HTTP METHODS
+        // --------------------------------------------------
 
+        methods: [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "OPTIONS"
+        ],
+
+        // --------------------------------------------------
+        // HEADERS
+        // --------------------------------------------------
+
+        allowedHeaders: [
+            "Origin",
+            "X-Requested-With",
+            "Content-Type",
+            "Accept",
+            "Authorization"
+        ],
+
+        // --------------------------------------------------
+        // PREFLIGHT
+        // --------------------------------------------------
+
+        optionsSuccessStatus: 204,
+
+        // --------------------------------------------------
+        // JWT IS STORED IN LOCAL STORAGE
+        // SO COOKIES ARE NOT REQUIRED
+        // --------------------------------------------------
+
+        credentials: false
     })
-
 );
 
 
