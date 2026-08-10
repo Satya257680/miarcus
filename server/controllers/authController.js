@@ -1131,6 +1131,190 @@ const signupUser = async (req, res) => {
 
 };
 
+// ======================================================
+// GET SIGNUP PAGE DATA
+// GET : /api/auth/signup-data
+//
+// PUBLIC ROUTE
+// No login token required.
+//
+// Returns everything the Signup page needs in a
+// single call:
+//
+// - reports  -> list of possible "Reports To" managers
+// - departments
+// - designations
+// - stores
+//
+// NOTE:
+// If your table/column names differ from the ones
+// below, update the four SQL strings only — the
+// response shape can stay the same.
+// ======================================================
+
+const getSignupData = (req, res) => {
+
+    // ==================================================
+    // REPORTS TO (managers)
+    // ==================================================
+
+    const reportsSql = `
+        SELECT
+            u.id,
+            u.name AS manager_name,
+            d.department_name AS department
+        FROM users u
+        LEFT JOIN departments d
+            ON u.department_id = d.id
+        WHERE u.status = 'Active'
+        ORDER BY u.name ASC
+    `;
+
+    db.query(reportsSql, (reportsErr, reportsResult) => {
+
+        if (reportsErr) {
+
+            console.error(
+                "Signup data - reports error:",
+                reportsErr
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message: "Failed to load Reports To list."
+
+            });
+
+        }
+
+
+        // ==============================================
+        // DEPARTMENTS
+        // ==============================================
+
+        const departmentsSql = `
+            SELECT
+                id,
+                department_name
+            FROM departments
+            ORDER BY department_name ASC
+        `;
+
+        db.query(departmentsSql, (deptErr, deptResult) => {
+
+            if (deptErr) {
+
+                console.error(
+                    "Signup data - departments error:",
+                    deptErr
+                );
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Failed to load Departments."
+
+                });
+
+            }
+
+
+            // ==========================================
+            // DESIGNATIONS
+            // ==========================================
+
+            const designationsSql = `
+                SELECT
+                    id,
+                    designation_name,
+                    department_id
+                FROM designations
+                ORDER BY designation_name ASC
+            `;
+
+            db.query(designationsSql, (desigErr, desigResult) => {
+
+                if (desigErr) {
+
+                    console.error(
+                        "Signup data - designations error:",
+                        desigErr
+                    );
+
+                    return res.status(500).json({
+
+                        success: false,
+
+                        message: "Failed to load Designations."
+
+                    });
+
+                }
+
+
+                // ======================================
+                // STORES
+                // ======================================
+
+                const storesSql = `
+                    SELECT
+                        id,
+                        store_name
+                    FROM stores
+                    ORDER BY store_name ASC
+                `;
+
+                db.query(storesSql, (storeErr, storeResult) => {
+
+                    if (storeErr) {
+
+                        console.error(
+                            "Signup data - stores error:",
+                            storeErr
+                        );
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message: "Failed to load Stores."
+
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // SEND COMBINED RESPONSE
+                    // ==================================
+
+                    return res.status(200).json({
+
+                        success: true,
+
+                        reports: reportsResult,
+
+                        departments: deptResult,
+
+                        designations: desigResult,
+
+                        stores: storeResult
+
+                    });
+
+                });
+
+            });
+
+        });
+
+    });
+
+};
+
 module.exports = {
 
     loginUser,
@@ -1141,6 +1325,8 @@ module.exports = {
 
     verifyOTP,
 
-    resetPassword
+    resetPassword,
+
+    getSignupData
 
 };
