@@ -1,61 +1,105 @@
 import axios from "axios";
 
 // ======================================================
-// AXIOS DEFAULT CONFIG
+// AXIOS CONFIGURATION
+// ======================================================
+//
+// Vite environment variable:
+//
+// Local development:
+// VITE_API_URL=http://localhost:5000
+//
+// Vercel production:
+// VITE_API_URL=https://miarcus-backend.onrender.com
+//
 // ======================================================
 
-axios.defaults.baseURL = "https://miarcus-backend.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+    console.error(
+        "❌ VITE_API_URL is not configured. " +
+        "Please add VITE_API_URL to your .env file or Vercel Environment Variables."
+    );
+}
 
 // ======================================================
-// SEND JWT TOKEN IN EVERY REQUEST
+// SET AXIOS BASE URL
+// ======================================================
+
+axios.defaults.baseURL = API_URL;
+
+// ======================================================
+// DEFAULT HEADERS
+// ======================================================
+
+axios.defaults.headers.common["Accept"] = "application/json";
+
+// ======================================================
+// SEND JWT TOKEN WITH EVERY REQUEST
 // ======================================================
 
 axios.interceptors.request.use(
-
     (config) => {
 
         const token = localStorage.getItem("token");
 
         if (token) {
 
-            config.headers.Authorization = `Bearer ${token}`;
+            config.headers = config.headers || {};
 
+            config.headers.Authorization = `Bearer ${token}`;
         }
 
         return config;
-
     },
 
     (error) => {
-
         return Promise.reject(error);
-
     }
-
 );
 
 // ======================================================
-// AUTO LOGOUT IF USER IS DEACTIVATED
+// RESPONSE INTERCEPTOR
+// ======================================================
+//
+// Automatically logs the user out when backend returns
+// HTTP 401 Unauthorized.
+//
 // ======================================================
 
 axios.interceptors.response.use(
 
-    (response) => response,
+    // --------------------------------------------------
+    // SUCCESS RESPONSE
+    // --------------------------------------------------
+
+    (response) => {
+        return response;
+    },
+
+    // --------------------------------------------------
+    // ERROR RESPONSE
+    // --------------------------------------------------
 
     (error) => {
 
+        // ==============================================
+        // 401 - UNAUTHORIZED
+        // ==============================================
+
         if (error.response?.status === 401) {
 
-            // Show message received from backend
-            alert(
-
+            const message =
                 error.response?.data?.message ||
+                "Your session has expired. Please login again.";
 
-                "Your session has expired."
+            alert(message);
 
-            );
+            // ------------------------------------------
+            // CLEAR LOCAL STORAGE
+            // ------------------------------------------
 
-            // Clear Local Storage
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             localStorage.removeItem("permissions");
@@ -66,18 +110,29 @@ axios.interceptors.response.use(
             localStorage.removeItem("departmentId");
             localStorage.removeItem("profilePhoto");
 
-            // Clear Session Storage
+            // ------------------------------------------
+            // CLEAR SESSION STORAGE
+            // ------------------------------------------
+
             sessionStorage.clear();
 
-            // Redirect to Login
-            window.location.href = "/";
+            // ------------------------------------------
+            // REDIRECT TO LOGIN
+            // ------------------------------------------
 
+            window.location.href = "/";
         }
 
+        // ------------------------------------------
+        // RETURN ERROR TO CALLING COMPONENT
+        // ------------------------------------------
+
         return Promise.reject(error);
-
     }
-
 );
+
+// ======================================================
+// EXPORT AXIOS
+// ======================================================
 
 export default axios;
