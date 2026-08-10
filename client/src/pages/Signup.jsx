@@ -60,6 +60,41 @@ const permissionTypes = [
 
 
 // ======================================================
+// WIZARD STEPS
+// ======================================================
+
+const steps = [
+
+    {
+        key: "profile",
+        label: "Profile",
+        icon: "🛡️",
+    },
+    {
+        key: "reporting",
+        label: "Reporting",
+        icon: "👥",
+    },
+    {
+        key: "stores",
+        label: "Stores",
+        icon: "🏬",
+    },
+    {
+        key: "access",
+        label: "Access",
+        icon: "🔐",
+    },
+    {
+        key: "review",
+        label: "Review",
+        icon: "✅",
+    },
+
+];
+
+
+// ======================================================
 // SIGNUP
 // ======================================================
 
@@ -67,6 +102,16 @@ function Signup() {
 
     const navigate =
         useNavigate();
+
+
+    // ==================================================
+    // WIZARD
+    // ==================================================
+
+    const [
+        currentStep,
+        setCurrentStep
+    ] = useState(0);
 
 
     // ==================================================
@@ -251,6 +296,40 @@ function Signup() {
                             .toLowerCase()
                     )
 
+        );
+
+
+    // ==================================================
+    // DERIVED / SUMMARY HELPERS
+    // ==================================================
+
+    const selectedDepartment =
+        departments.find(
+            (department) =>
+                String(department.id) ===
+                String(departmentId)
+        );
+
+    const selectedDesignation =
+        designations.find(
+            (designation) =>
+                String(designation.id) ===
+                String(designationId)
+        );
+
+    const grantedModuleCount =
+        Object.values(
+            modulePermissions
+        ).filter(
+            (value) => value !== "None"
+        ).length;
+
+    const progressPercent =
+        Math.round(
+            (
+                (currentStep + 1) /
+                steps.length
+            ) * 100
         );
 
 
@@ -506,10 +585,10 @@ function Signup() {
 
 
     // ==================================================
-    // VALIDATION
+    // STEP VALIDATION
     // ==================================================
 
-    const validateForm =
+    const validateProfileStep =
         () => {
 
             if (
@@ -621,6 +700,87 @@ function Signup() {
         };
 
 
+    const validateCurrentStep =
+        () => {
+
+            if (
+                steps[currentStep].key ===
+                "profile"
+            ) {
+
+                return validateProfileStep();
+
+            }
+
+            return true;
+
+        };
+
+
+    // ==================================================
+    // STEP NAVIGATION
+    // ==================================================
+
+    const goNext =
+        () => {
+
+            if (
+                !validateCurrentStep()
+            ) {
+
+                return;
+
+            }
+
+            setCurrentStep(
+                (current) =>
+                    Math.min(
+                        current + 1,
+                        steps.length - 1
+                    )
+            );
+
+        };
+
+
+    const goBack =
+        () => {
+
+            if (
+                currentStep === 0
+            ) {
+
+                navigate("/");
+
+                return;
+
+            }
+
+            setCurrentStep(
+                (current) =>
+                    Math.max(
+                        current - 1,
+                        0
+                    )
+            );
+
+        };
+
+
+    const goToStep =
+        (index) => {
+
+            if (
+                index <= currentStep
+            ) {
+
+                setCurrentStep(index);
+
+            }
+
+        };
+
+
     // ==================================================
     // SIGNUP
     // ==================================================
@@ -629,8 +789,10 @@ function Signup() {
         async () => {
 
             if (
-                !validateForm()
+                !validateProfileStep()
             ) {
+
+                setCurrentStep(0);
 
                 return;
 
@@ -779,308 +941,273 @@ function Signup() {
 
 
     // ==================================================
-    // JSX
+    // STEP CONTENT RENDERERS
     // ==================================================
 
-    return (
+    const renderProfileStep =
+        () => (
 
-        <div className="signup-page">
+            <section className="wizard-panel">
 
-            <div className="signup-container">
+                <div className="wizard-panel-title">
 
-
-                {/* ======================================
-                    HEADER
-                ====================================== */}
-
-                <div className="signup-header">
-
-                    <div className="signup-logo">
-                        miarcus
+                    <div className="wizard-panel-icon">
+                        🛡️
                     </div>
 
-                    <h1>
-                        Create Your Account
-                    </h1>
+                    <div>
 
-                    <p>
-                        Complete the registration form
-                        to create your miarcus account.
-                    </p>
+                        <h2>
+                            Profile & Sign-in
+                        </h2>
+
+                        <p>
+                            Enter your account information.
+                        </p>
+
+                    </div>
 
                 </div>
 
-                 {/* ====================================================
-            LOGO
-        ==================================================== */}
 
-        <div className="logo-container">
-          <img
-            src="/miarcus.png"
-            alt="Miarcus Logo"
-            className="logo"
-          />
-        </div>
+                <div className="wizard-divider" />
 
 
-                {/* ======================================
-                    PROFILE
-                ====================================== */}
+                <div className="wizard-grid">
 
-                <section className="signup-card">
 
-                    <div className="signup-section-title">
+                    {/* FULL NAME */}
 
-                        <div className="signup-section-icon">
-                            🛡️
-                        </div>
+                    <div className="wizard-field full">
 
-                        <div>
+                        <label>
+                            Full Name
+                            <span>*</span>
+                        </label>
 
-                            <h2>
-                                Profile & Sign-in
-                            </h2>
-
-                            <p>
-                                Enter your account information.
-                            </p>
-
-                        </div>
+                        <input
+                            type="text"
+                            value={fullName}
+                            onChange={(e) =>
+                                setFullName(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="e.g. Priya Sharma"
+                        />
 
                     </div>
 
 
-                    <div className="signup-divider" />
+                    {/* EMPLOYEE ID */}
 
+                    <div className="wizard-field">
 
-                    <div className="signup-grid">
+                        <label>
+                            Employee ID
+                            <span>*</span>
+                        </label>
 
-
-                        {/* FULL NAME */}
-
-                        <div className="signup-field full">
-
-                            <label>
-                                Full Name
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                value={fullName}
-                                onChange={(e) =>
-                                    setFullName(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="e.g. Priya Sharma"
-                            />
-
-                        </div>
-
-
-                        {/* EMPLOYEE ID */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                Employee ID
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                value={employeeId}
-                                onChange={(e) =>
-                                    setEmployeeId(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="e.g. EMP1023"
-                            />
-
-                        </div>
-
-
-                        {/* EMAIL */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                Email
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) =>
-                                    setEmail(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="name@company.com"
-                            />
-
-                        </div>
-
-
-                        {/* CONFIRM EMAIL */}
-
-                        <div className="signup-field full">
-
-                            <label>
-                                Confirm Email
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="email"
-                                value={confirmEmail}
-                                onChange={(e) =>
-                                    setConfirmEmail(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Re-enter email address"
-                            />
-
-                        </div>
-
-
-                        {/* CALL CONTACT */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                Call Contact
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                value={callContact}
-                                onChange={(e) =>
-                                    setCallContact(
-                                        e.target.value
-                                    )
-                                }
-                                maxLength={10}
-                                placeholder="Enter Call Contact"
-                            />
-
-                        </div>
-
-
-                        {/* WHATSAPP */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                WhatsApp Contact
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                value={whatsappContact}
-                                onChange={(e) =>
-                                    setWhatsappContact(
-                                        e.target.value
-                                    )
-                                }
-                                maxLength={10}
-                                placeholder="Enter WhatsApp Contact"
-                            />
-
-                        </div>
-
-
-                        {/* CONFIRM WHATSAPP */}
-
-                        <div className="signup-field full">
-
-                            <label>
-                                Confirm WhatsApp Contact
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                value={
-                                    confirmWhatsappContact
-                                }
-                                onChange={(e) =>
-                                    setConfirmWhatsappContact(
-                                        e.target.value
-                                    )
-                                }
-                                maxLength={10}
-                                placeholder="Re-enter WhatsApp Contact"
-                            />
-
-                        </div>
-
-
-                        {/* PASSWORD */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                Password
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) =>
-                                    setPassword(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Enter password"
-                            />
-
-                        </div>
-
-
-                        {/* CONFIRM PASSWORD */}
-
-                        <div className="signup-field">
-
-                            <label>
-                                Confirm Password
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) =>
-                                    setConfirmPassword(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Re-enter password"
-                            />
-
-                        </div>
+                        <input
+                            type="text"
+                            value={employeeId}
+                            onChange={(e) =>
+                                setEmployeeId(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="e.g. EMP1023"
+                        />
 
                     </div>
 
-                </section>
 
+                    {/* EMAIL */}
+
+                    <div className="wizard-field">
+
+                        <label>
+                            Email
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) =>
+                                setEmail(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="name@company.com"
+                        />
+
+                    </div>
+
+
+                    {/* CONFIRM EMAIL */}
+
+                    <div className="wizard-field full">
+
+                        <label>
+                            Confirm Email
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="email"
+                            value={confirmEmail}
+                            onChange={(e) =>
+                                setConfirmEmail(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="Re-enter email address"
+                        />
+
+                    </div>
+
+
+                    {/* CALL CONTACT */}
+
+                    <div className="wizard-field">
+
+                        <label>
+                            Call Contact
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            value={callContact}
+                            onChange={(e) =>
+                                setCallContact(
+                                    e.target.value
+                                )
+                            }
+                            maxLength={10}
+                            placeholder="Enter Call Contact"
+                        />
+
+                    </div>
+
+
+                    {/* WHATSAPP */}
+
+                    <div className="wizard-field">
+
+                        <label>
+                            WhatsApp Contact
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            value={whatsappContact}
+                            onChange={(e) =>
+                                setWhatsappContact(
+                                    e.target.value
+                                )
+                            }
+                            maxLength={10}
+                            placeholder="Enter WhatsApp Contact"
+                        />
+
+                    </div>
+
+
+                    {/* CONFIRM WHATSAPP */}
+
+                    <div className="wizard-field full">
+
+                        <label>
+                            Confirm WhatsApp Contact
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            value={
+                                confirmWhatsappContact
+                            }
+                            onChange={(e) =>
+                                setConfirmWhatsappContact(
+                                    e.target.value
+                                )
+                            }
+                            maxLength={10}
+                            placeholder="Re-enter WhatsApp Contact"
+                        />
+
+                    </div>
+
+
+                    {/* PASSWORD */}
+
+                    <div className="wizard-field">
+
+                        <label>
+                            Password
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) =>
+                                setPassword(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="Enter password"
+                        />
+
+                    </div>
+
+
+                    {/* CONFIRM PASSWORD */}
+
+                    <div className="wizard-field">
+
+                        <label>
+                            Confirm Password
+                            <span>*</span>
+                        </label>
+
+                        <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) =>
+                                setConfirmPassword(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="Re-enter password"
+                        />
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        );
+
+
+    const renderReportingStep =
+        () => (
+
+            <>
 
                 {/* ======================================
                     REPORTS TO
                 ====================================== */}
 
-                <section className="signup-card">
+                <section className="wizard-panel">
 
-                    <div className="signup-section-title">
+                    <div className="wizard-panel-title">
 
-                        <div className="signup-section-icon">
+                        <div className="wizard-panel-icon">
                             👥
                         </div>
 
@@ -1099,14 +1226,14 @@ function Signup() {
                     </div>
 
 
-                    <div className="signup-divider" />
+                    <div className="wizard-divider" />
 
 
-                    <div className="signup-report-wrapper">
+                    <div className="wizard-report-wrapper">
 
                         <input
                             type="text"
-                            className="signup-select-input"
+                            className="wizard-select-input"
                             placeholder="Select manager..."
                             value={
                                 selectedReport
@@ -1138,7 +1265,7 @@ function Signup() {
 
                         {showReportList && (
 
-                            <div className="signup-report-list">
+                            <div className="wizard-report-list">
 
                                 {reportsList
                                     .filter(
@@ -1158,7 +1285,7 @@ function Signup() {
 
                                             <button
                                                 type="button"
-                                                className="signup-report-item"
+                                                className="wizard-report-item"
                                                 key={
                                                     manager.id
                                                 }
@@ -1209,11 +1336,11 @@ function Signup() {
                     DEPARTMENT
                 ====================================== */}
 
-                <section className="signup-card">
+                <section className="wizard-panel">
 
-                    <div className="signup-section-title">
+                    <div className="wizard-panel-title">
 
-                        <div className="signup-section-icon">
+                        <div className="wizard-panel-icon">
                             🏢
                         </div>
 
@@ -1232,11 +1359,11 @@ function Signup() {
                     </div>
 
 
-                    <div className="signup-divider" />
+                    <div className="wizard-divider" />
 
 
                     <select
-                        className="signup-select"
+                        className="wizard-select"
                         value={departmentId}
                         onChange={(e) => {
 
@@ -1281,11 +1408,11 @@ function Signup() {
                     DESIGNATION
                 ====================================== */}
 
-                <section className="signup-card">
+                <section className="wizard-panel">
 
-                    <div className="signup-section-title">
+                    <div className="wizard-panel-title">
 
-                        <div className="signup-section-icon">
+                        <div className="wizard-panel-icon">
                             💼
                         </div>
 
@@ -1304,11 +1431,11 @@ function Signup() {
                     </div>
 
 
-                    <div className="signup-divider" />
+                    <div className="wizard-divider" />
 
 
                     <select
-                        className="signup-select"
+                        className="wizard-select"
                         value={designationId}
                         onChange={(e) =>
                             setDesignationId(
@@ -1354,214 +1481,167 @@ function Signup() {
 
                 </section>
 
+            </>
 
-                {/* ======================================
-                    STORES
-                ====================================== */}
+        );
 
-                <section className="signup-card">
 
-                    <div className="signup-section-title">
+    const renderStoresStep =
+        () => (
 
-                        <div className="signup-section-icon">
-                            🏬
-                        </div>
+            <section className="wizard-panel">
 
-                        <div>
+                <div className="wizard-panel-title">
 
-                            <h2>
-                                Assigned Stores
-                            </h2>
+                    <div className="wizard-panel-icon">
+                        🏬
+                    </div>
 
-                            <p>
-                                Assign one or more stores.
-                            </p>
+                    <div>
 
-                        </div>
+                        <h2>
+                            Assigned Stores
+                        </h2>
+
+                        <p>
+                            Assign one or more stores.
+                        </p>
 
                     </div>
 
+                </div>
 
-                    <div className="signup-divider" />
 
+                <div className="wizard-divider" />
+
+
+                <input
+                    type="text"
+                    className="wizard-store-search"
+                    placeholder="Filter stores..."
+                    value={storeSearch}
+                    onChange={(e) =>
+                        setStoreSearch(
+                            e.target.value
+                        )
+                    }
+                />
+
+
+                <label className="wizard-checkbox-row">
 
                     <input
-                        type="text"
-                        className="signup-store-search"
-                        placeholder="Filter stores..."
-                        value={storeSearch}
-                        onChange={(e) =>
-                            setStoreSearch(
-                                e.target.value
-                            )
+                        type="checkbox"
+                        checked={
+                            stores.length > 0 &&
+                            selectedStores.length ===
+                                stores.length
+                        }
+                        onChange={
+                            toggleAllStores
                         }
                     />
 
+                    Select All
 
-                    <label className="signup-checkbox-row">
-
-                        <input
-                            type="checkbox"
-                            checked={
-                                stores.length > 0 &&
-                                selectedStores.length ===
-                                    stores.length
-                            }
-                            onChange={
-                                toggleAllStores
-                            }
-                        />
-
-                        Select All
-
-                    </label>
+                </label>
 
 
-                    <div className="signup-store-list">
+                <div className="wizard-store-list">
 
-                        {filteredStores.length > 0
-                            ? filteredStores.map(
-                                (store) => (
+                    {filteredStores.length > 0
+                        ? filteredStores.map(
+                            (store) => (
 
-                                    <label
-                                        key={
-                                            store.id
-                                        }
-                                        className="signup-checkbox-row"
-                                    >
-
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                selectedStores.includes(
-                                                    store.id
-                                                )
-                                            }
-                                            onChange={() =>
-                                                toggleStore(
-                                                    store.id
-                                                )
-                                            }
-                                        />
-
-                                        {
-                                            store.store_name
-                                        }
-
-                                    </label>
-
-                                )
-                            )
-                            : (
-
-                                <div className="signup-empty">
-                                    No Stores Found
-                                </div>
-
-                            )}
-
-                    </div>
-
-                </section>
-
-
-                {/* ======================================
-                    MODULE ACCESS
-                ====================================== */}
-
-                <section className="signup-card">
-
-                    <div className="signup-section-title">
-
-                        <div className="signup-section-icon">
-                            🔐
-                        </div>
-
-                        <div>
-
-                            <h2>
-                                Module Access
-                            </h2>
-
-                            <p>
-                                Choose permission level
-                                for every module.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <div className="signup-divider" />
-
-
-                    <div className="signup-permission-table">
-
-                        <div className="signup-permission-head">
-
-                            <div>
-                                Module
-                            </div>
-
-                            {permissionTypes.map(
-                                (type) => (
-
-                                    <div
-                                        key={type}
-                                    >
-                                        {type}
-                                    </div>
-
-                                )
-                            )}
-
-                        </div>
-
-
-                        {modules.map(
-                            (module) => (
-
-                                <div
-                                    className="signup-permission-row"
-                                    key={module}
+                                <label
+                                    key={
+                                        store.id
+                                    }
+                                    className="wizard-checkbox-row"
                                 >
 
-                                    <div>
-                                        {module}
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={
+                                            selectedStores.includes(
+                                                store.id
+                                            )
+                                        }
+                                        onChange={() =>
+                                            toggleStore(
+                                                store.id
+                                            )
+                                        }
+                                    />
 
-                                    {permissionTypes.map(
-                                        (type) => (
+                                    {
+                                        store.store_name
+                                    }
 
-                                            <div
-                                                key={
-                                                    type
-                                                }
-                                            >
+                                </label>
 
-                                                <input
-                                                    type="radio"
-                                                    name={`permission-${module}`}
-                                                    checked={
-                                                        modulePermissions[
-                                                            module
-                                                        ] ===
-                                                        type
-                                                    }
-                                                    onChange={() =>
-                                                        handlePermissionChange(
-                                                            module,
-                                                            type
-                                                        )
-                                                    }
-                                                />
+                            )
+                        )
+                        : (
 
-                                            </div>
+                            <div className="wizard-empty">
+                                No Stores Found
+                            </div>
 
-                                        )
-                                    )}
+                        )}
 
+                </div>
+
+            </section>
+
+        );
+
+
+    const renderAccessStep =
+        () => (
+
+            <section className="wizard-panel">
+
+                <div className="wizard-panel-title">
+
+                    <div className="wizard-panel-icon">
+                        🔐
+                    </div>
+
+                    <div>
+
+                        <h2>
+                            Module Access
+                        </h2>
+
+                        <p>
+                            Choose permission level
+                            for every module.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div className="wizard-divider" />
+
+
+                <div className="wizard-permission-table">
+
+                    <div className="wizard-permission-head">
+
+                        <div>
+                            Module
+                        </div>
+
+                        {permissionTypes.map(
+                            (type) => (
+
+                                <div
+                                    key={type}
+                                >
+                                    {type}
                                 </div>
 
                             )
@@ -1569,14 +1649,174 @@ function Signup() {
 
                     </div>
 
-                </section>
+
+                    {modules.map(
+                        (module) => (
+
+                            <div
+                                className="wizard-permission-row"
+                                key={module}
+                            >
+
+                                <div>
+                                    {module}
+                                </div>
+
+                                {permissionTypes.map(
+                                    (type) => (
+
+                                        <div
+                                            key={
+                                                type
+                                            }
+                                        >
+
+                                            <input
+                                                type="radio"
+                                                name={`permission-${module}`}
+                                                checked={
+                                                    modulePermissions[
+                                                        module
+                                                    ] ===
+                                                    type
+                                                }
+                                                onChange={() =>
+                                                    handlePermissionChange(
+                                                        module,
+                                                        type
+                                                    )
+                                                }
+                                            />
+
+                                        </div>
+
+                                    )
+                                )}
+
+                            </div>
+
+                        )
+                    )}
+
+                </div>
+
+            </section>
+
+        );
 
 
-                {/* ======================================
-                    TEST MODE NOTICE
-                ====================================== */}
+    const renderReviewStep =
+        () => (
 
-                <div className="signup-test-notice">
+            <section className="wizard-panel">
+
+                <div className="wizard-panel-title">
+
+                    <div className="wizard-panel-icon">
+                        ✅
+                    </div>
+
+                    <div>
+
+                        <h2>
+                            Review & Submit
+                        </h2>
+
+                        <p>
+                            Confirm your details before
+                            creating your account.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div className="wizard-divider" />
+
+
+                <div className="wizard-review-grid">
+
+                    <div className="wizard-review-item">
+                        <span>Full Name</span>
+                        <strong>
+                            {fullName || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Employee ID</span>
+                        <strong>
+                            {employeeId || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Email</span>
+                        <strong>
+                            {email || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Call Contact</span>
+                        <strong>
+                            {callContact || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>WhatsApp Contact</span>
+                        <strong>
+                            {whatsappContact || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Reports To</span>
+                        <strong>
+                            {selectedReport?.name || "--"}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Department</span>
+                        <strong>
+                            {
+                                selectedDepartment?.department_name ||
+                                "--"
+                            }
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Designation</span>
+                        <strong>
+                            {
+                                selectedDesignation?.designation_name ||
+                                "--"
+                            }
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Stores Assigned</span>
+                        <strong>
+                            {selectedStores.length}
+                        </strong>
+                    </div>
+
+                    <div className="wizard-review-item">
+                        <span>Modules Granted</span>
+                        <strong>
+                            {grantedModuleCount} / {modules.length}
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                <div className="wizard-test-notice">
 
                     <strong>
                         Testing Mode
@@ -1590,36 +1830,364 @@ function Signup() {
 
                 </div>
 
+            </section>
+
+        );
+
+
+    const stepRenderers = [
+
+        renderProfileStep,
+        renderReportingStep,
+        renderStoresStep,
+        renderAccessStep,
+        renderReviewStep,
+
+    ];
+
+
+    const isLastStep =
+        currentStep ===
+        steps.length - 1;
+
+
+    // ==================================================
+    // JSX
+    // ==================================================
+
+    return (
+
+        <div className="signup-page">
+
+            <div className="signup-container">
+
+
+                {/* ======================================
+                    HEADER
+                ====================================== */}
+
+                <div className="wizard-header">
+
+                    <div className="wizard-header-left">
+
+                        <div className="wizard-header-icon">
+                            🛡️
+                        </div>
+
+                        <div>
+
+                            <h1>
+                                Create Your Account
+                            </h1>
+
+                            <p>
+                                Complete the registration form
+                                to create your miarcus account.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        className="wizard-header-close"
+                        onClick={() =>
+                            navigate("/")
+                        }
+                        aria-label="Back to login"
+                    >
+                        ✕
+                    </button>
+
+                </div>
+
+
+                {/* ======================================
+                    STEP INDICATOR
+                ====================================== */}
+
+                <div className="wizard-steps">
+
+                    {steps.map(
+                        (step, index) => (
+
+                            <React.Fragment
+                                key={step.key}
+                            >
+
+                                <button
+                                    type="button"
+                                    className={
+                                        "wizard-step" +
+                                        (index === currentStep
+                                            ? " active"
+                                            : "") +
+                                        (index < currentStep
+                                            ? " done"
+                                            : "")
+                                    }
+                                    onClick={() =>
+                                        goToStep(index)
+                                    }
+                                >
+
+                                    <span className="wizard-step-circle">
+
+                                        {index < currentStep
+                                            ? "✓"
+                                            : step.icon}
+
+                                    </span>
+
+                                    <span className="wizard-step-text">
+
+                                        <small>
+                                            Step {index + 1}
+                                        </small>
+
+                                        <strong>
+                                            {step.label}
+                                        </strong>
+
+                                    </span>
+
+                                </button>
+
+
+                                {index < steps.length - 1 && (
+
+                                    <span
+                                        className={
+                                            "wizard-step-line" +
+                                            (index < currentStep
+                                                ? " done"
+                                                : "")
+                                        }
+                                    />
+
+                                )}
+
+                            </React.Fragment>
+
+                        )
+                    )}
+
+                </div>
+
+
+                {/* ======================================
+                    BODY
+                ====================================== */}
+
+                <div className="wizard-body">
+
+
+                    {/* MAIN COLUMN */}
+
+                    <div className="wizard-main">
+
+                        {stepRenderers[currentStep]()}
+
+                    </div>
+
+
+                    {/* SUMMARY SIDEBAR */}
+
+                    <aside className="wizard-summary">
+
+                        <div className="wizard-summary-head">
+
+                            <div className="wizard-summary-icon">
+                                🛡️
+                            </div>
+
+                            <h3>
+                                Registration Summary
+                            </h3>
+
+                            <span className="wizard-summary-badge">
+                                In Progress
+                            </span>
+
+                        </div>
+
+
+                        <div className="wizard-summary-progress-label">
+
+                            <span>
+                                Form Completion
+                            </span>
+
+                            <span>
+                                {progressPercent}%
+                            </span>
+
+                        </div>
+
+
+                        <div className="wizard-progress-track">
+
+                            <div
+                                className="wizard-progress-fill"
+                                style={{
+                                    width: `${progressPercent}%`,
+                                }}
+                            />
+
+                        </div>
+
+
+                        <div className="wizard-summary-list">
+
+                            <div className="wizard-summary-item">
+
+                                <span className="wizard-summary-item-icon">
+                                    👤
+                                </span>
+
+                                <div>
+
+                                    <small>
+                                        Full Name
+                                    </small>
+
+                                    <strong>
+                                        {fullName || "--"}
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <div className="wizard-summary-item">
+
+                                <span className="wizard-summary-item-icon">
+                                    📧
+                                </span>
+
+                                <div>
+
+                                    <small>
+                                        Email
+                                    </small>
+
+                                    <strong>
+                                        {email || "--"}
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <div className="wizard-summary-item">
+
+                                <span className="wizard-summary-item-icon">
+                                    🏢
+                                </span>
+
+                                <div>
+
+                                    <small>
+                                        Department
+                                    </small>
+
+                                    <strong>
+                                        {
+                                            selectedDepartment?.department_name ||
+                                            "--"
+                                        }
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <div className="wizard-summary-item">
+
+                                <span className="wizard-summary-item-icon">
+                                    🏬
+                                </span>
+
+                                <div>
+
+                                    <small>
+                                        Stores Assigned
+                                    </small>
+
+                                    <strong>
+                                        {selectedStores.length}
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="wizard-summary-footer">
+
+                            ✅ Step {currentStep + 1} of {steps.length}
+
+                        </div>
+
+                    </aside>
+
+                </div>
+
 
                 {/* ======================================
                     FOOTER
                 ====================================== */}
 
-                <div className="signup-footer">
+                <div className="wizard-footer">
 
                     <button
                         type="button"
-                        className="signup-cancel-btn"
-                        onClick={() =>
-                            navigate("/")
-                        }
+                        className="wizard-cancel-btn"
+                        onClick={goBack}
                     >
-                        Back to Login
+
+                        {currentStep === 0
+                            ? "✕ Cancel"
+                            : "← Back"}
+
                     </button>
 
 
-                    <button
-                        type="button"
-                        className="signup-submit-btn"
-                        onClick={handleSignup}
-                        disabled={loading}
-                    >
+                    {isLastStep ? (
 
-                        {loading
-                            ? "Creating Account..."
-                            : "Create Account"}
+                        <button
+                            type="button"
+                            className="wizard-submit-btn"
+                            onClick={handleSignup}
+                            disabled={loading}
+                        >
 
-                    </button>
+                            {loading
+                                ? "Creating Account..."
+                                : "Create Account"}
+
+                        </button>
+
+                    ) : (
+
+                        <button
+                            type="button"
+                            className="wizard-next-btn"
+                            onClick={goNext}
+                        >
+
+                            Next →
+
+                        </button>
+
+                    )}
 
                 </div>
 
