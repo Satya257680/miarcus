@@ -16,7 +16,7 @@ import BasicInformation from "./BasicInformation";
 import FinancialDetails from "./FinancialDetails";
 import PossessionDetails from "./PossessionDetails";
 import TimelinePreview from "./TimelinePreview";
-import ReviewStep from "./ReviewStep";
+import ReviewStep from "./reviewStep";
 import ProjectSummary from "./ProjectSummary";
 import ModalFooter from "./ModalFooter";
 

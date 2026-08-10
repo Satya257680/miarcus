@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import "../styles/AddStoreModal.css";
+import "../styles/AddStoremodal.css";
 
 function AddStoreModal({ store, onSave, onClose }) {
   const isEdit = Boolean(store);
