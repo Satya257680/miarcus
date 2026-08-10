@@ -335,33 +335,33 @@ function Signup() {
 
     // ==================================================
     // INITIAL LOAD
+    //
+    // Single call to the PUBLIC signup-data endpoint.
+    // No auth token is required or sent here, since
+    // the person filling this out doesn't have an
+    // account yet.
     // ==================================================
 
     useEffect(() => {
 
-        loadReports();
-
-        fetchDepartments();
-
-        fetchDesignations();
-
-        fetchStores();
+        loadSignupData();
 
     }, []);
 
 
     // ==================================================
-    // LOAD REPORTS
+    // LOAD SIGNUP DATA
+    // GET : /api/auth/signup-data
     // ==================================================
 
-    const loadReports =
+    const loadSignupData =
         async () => {
 
             try {
 
                 const response =
                     await axios.get(
-                        `${API}/api/reports`
+                        `${API}/api/auth/signup-data`
                     );
 
                 setReportsList(
@@ -387,99 +387,21 @@ function Signup() {
 
                 );
 
-            }
-            catch (error) {
-
-                console.error(
-                    "Reports loading failed:",
-                    error
-                );
-
-            }
-
-        };
-
-
-    // ==================================================
-    // LOAD DEPARTMENTS
-    // ==================================================
-
-    const fetchDepartments =
-        async () => {
-
-            try {
-
-                const response =
-                    await axios.get(
-                        `${API}/api/departments`
-                    );
-
                 setDepartments(
-                    response.data?.data ||
+                    response.data
+                        ?.departments ||
                     []
                 );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "Departments loading failed:",
-                    error
-                );
-
-            }
-
-        };
-
-
-    // ==================================================
-    // LOAD DESIGNATIONS
-    // ==================================================
-
-    const fetchDesignations =
-        async () => {
-
-            try {
-
-                const response =
-                    await axios.get(
-                        `${API}/api/designations`
-                    );
 
                 setDesignations(
-                    response.data?.data ||
+                    response.data
+                        ?.designations ||
                     []
                 );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "Designations loading failed:",
-                    error
-                );
-
-            }
-
-        };
-
-
-    // ==================================================
-    // LOAD STORES
-    // ==================================================
-
-    const fetchStores =
-        async () => {
-
-            try {
-
-                const response =
-                    await axios.get(
-                        `${API}/api/stores`
-                    );
 
                 setStores(
-                    response.data?.data ||
+                    response.data
+                        ?.stores ||
                     []
                 );
 
@@ -487,7 +409,7 @@ function Signup() {
             catch (error) {
 
                 console.error(
-                    "Stores loading failed:",
+                    "Signup data loading failed:",
                     error
                 );
 
