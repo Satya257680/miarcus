@@ -810,6 +810,18 @@ function Signup() {
 
                 </div>
 
+                 {/* ====================================================
+            LOGO
+        ==================================================== */}
+
+        <div className="logo-container">
+          <img
+            src="/miarcus.png"
+            alt="Miarcus Logo"
+            className="logo"
+          />
+        </div>
+
 
                 {/* ======================================
                     PROFILE
