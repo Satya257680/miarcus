@@ -7,6 +7,7 @@ const { Parser } = require("json2csv");
 const { logActivity } = require("../utils/activityLogger");
 
 
+
 // ======================================================
 // HELPER
 // GET CURRENT USER ID
@@ -204,6 +205,31 @@ exports.getAllNSOTracking = (req, res) => {
 
 };
 
+
+
+// ======================================================
+// GET NSO PROJECT SUMMARY
+// ======================================================
+
+exports.getProjectSummary = (req, res) => {
+
+    const projectId = Number(req.params.id);
+
+    if (!Number.isInteger(projectId) || projectId < 1) {
+        return res.status(400).json({ success: false, message: "Valid NSO project ID is required." });
+    }
+
+    NSOTracking.getProjectSummary(projectId, (err, result) => {
+        if (err) {
+            console.error("Get NSO Project Summary Error:", err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+        if (!result || result.length === 0) {
+            return res.status(404).json({ success: false, message: "NSO project not found." });
+        }
+        return res.json({ success: true, data: result[0] });
+    });
+};
 
 // ======================================================
 // GET NSO TRACKING BY ID

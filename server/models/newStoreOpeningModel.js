@@ -1495,6 +1495,48 @@ NewStoreOpening.getNSOTrackingData = (
 };
 
 // ======================================================
+// UPDATE PROJECT STATUS ONLY
+// ======================================================
+//
+// Phase 1C: the New Store Opening record is the
+// authoritative source of the business status.  Inspection
+// and workflow services should use this method instead of
+// updating status with ad-hoc SQL in different places.
+// ======================================================
+NewStoreOpening.updateStatus = (
+    id,
+    status,
+    updatedBy,
+    callback
+) => {
+
+    if (typeof updatedBy === "function") {
+        callback = updatedBy;
+        updatedBy = null;
+    }
+
+    const sql = `
+        UPDATE new_store_openings
+        SET
+            status = ?,
+            updated_by = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+
+    db.query(
+        sql,
+        [
+            status,
+            updatedBy ?? null,
+            id
+        ],
+        callback
+    );
+};
+
+
+// ======================================================
 // MODULE EXPORTS
 // ======================================================
 

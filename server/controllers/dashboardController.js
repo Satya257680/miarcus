@@ -190,6 +190,32 @@ const getRecentActivities = (req,res)=>{
 
 
 
+
+// ======================================================
+// GET NSO BUSINESS SUMMARY
+// GET /api/dashboard/nso-summary
+// ======================================================
+
+const getNSOSummary = (req, res) => {
+
+    Dashboard.getNSOSummary((err, results) => {
+
+        if (err) {
+            console.error("NSO SUMMARY ERROR:", err);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch NSO summary.",
+                error: err.message
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: results[0] || {}
+        });
+    });
+};
+
 // ======================================================
 // GET CHECKLIST SUMMARY
 // GET /api/dashboard/checklist-summary
@@ -401,6 +427,7 @@ module.exports = {
 
 
     getChecklistSummary,
+    getNSOSummary,
 
 
     getActionPointSummary

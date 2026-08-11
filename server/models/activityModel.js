@@ -13,8 +13,23 @@ Activity.getAll = (filters, user, callback) => {
         SELECT
             a.*,
             u.name AS created_by_name,
-            au.name AS assigned_to_name
+            au.name AS assigned_to_name,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.location
+                ELSE NULL
+            END AS nso_location,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.city
+                ELSE NULL
+            END AS nso_city,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.status
+                ELSE NULL
+            END AS nso_status
         FROM activities a
+        LEFT JOIN new_store_openings nso
+            ON a.module_name = 'New Store Openings'
+            AND nso.id = a.reference_id
         LEFT JOIN users u
             ON a.created_by = u.id
         LEFT JOIN users au
@@ -97,6 +112,14 @@ Activity.getAll = (filters, user, callback) => {
 
     }
 
+    if (filters.new_store_opening_id) {
+
+        sql += ` AND a.module_name = 'New Store Openings' AND a.reference_id = ? `;
+
+        params.push(filters.new_store_opening_id);
+
+    }
+
     // ======================================================
     // ORDER
     // ======================================================
@@ -135,8 +158,23 @@ Activity.getById = (activityId, user, callback) => {
         SELECT
             a.*,
             u.name AS created_by_name,
-            au.name AS assigned_to_name
+            au.name AS assigned_to_name,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.location
+                ELSE NULL
+            END AS nso_location,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.city
+                ELSE NULL
+            END AS nso_city,
+            CASE
+                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.status
+                ELSE NULL
+            END AS nso_status
         FROM activities a
+        LEFT JOIN new_store_openings nso
+            ON a.module_name = 'New Store Openings'
+            AND nso.id = a.reference_id
         LEFT JOIN users u
             ON a.created_by = u.id
         LEFT JOIN users au
@@ -188,9 +226,16 @@ Activity.getDetails = (activityId, user, callback) => {
 
             d.department_name,
 
-            des.designation_name
+            des.designation_name,
+
+            nso.location AS nso_location,
+            nso.city AS nso_city,
+            nso.status AS nso_status
 
         FROM activities a
+
+        LEFT JOIN new_store_openings nso
+            ON a.module_name = 'New Store Openings' AND nso.id = a.reference_id
 
         LEFT JOIN users creator
             ON creator.id = a.created_by

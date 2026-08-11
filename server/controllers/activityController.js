@@ -11,6 +11,7 @@ exports.getAllActivities = (req, res) => {
         module_name: req.query.module_name || "",
         status: req.query.status || "",
         priority: req.query.priority || "",
+        new_store_opening_id: req.query.new_store_opening_id || "",
         page: req.query.page || 1,
         limit: req.query.limit || 10
     };

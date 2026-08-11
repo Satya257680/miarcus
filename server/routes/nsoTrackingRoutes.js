@@ -18,6 +18,7 @@ const {
     getAllNSOTracking,
     getNSOTrackingById,
     getByStoreOpening,
+    getProjectSummary,
     createNSOTracking,
     updateNSOTracking,
     updateStatus,
@@ -87,6 +88,16 @@ router.get(
 //
 // This MUST remain before /:id
 // ======================================================
+
+router.get(
+    "/store/:id/summary",
+    authMiddleware,
+    permissionMiddleware(
+        "NSO Tracking",
+        "View"
+    ),
+    getProjectSummary
+);
 
 router.get(
     "/store/:id",

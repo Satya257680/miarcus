@@ -11,19 +11,22 @@ NSOTracking.getAll = (filters = {}, callback) => {
 
     let sql = `
         SELECT
-            id,
-            new_store_opening_id,
-            rule_id,
-            department_id,
-            trigger_column,
-            status,
-            due_date,
-            remarks,
-            created_by,
-            updated_by,
-            created_at,
-            updated_at
-        FROM nso_tracking
+            nt.id,
+            nt.new_store_opening_id,
+            nt.rule_id,
+            nt.department_id,
+            nt.trigger_column,
+            nt.status,
+            nso.status AS nso_status,
+            nt.due_date,
+            nt.remarks,
+            nt.created_by,
+            nt.updated_by,
+            nt.created_at,
+            nt.updated_at
+        FROM nso_tracking nt
+        LEFT JOIN new_store_openings nso
+            ON nso.id = nt.new_store_opening_id
         WHERE 1 = 1
     `;
 
@@ -188,6 +191,38 @@ NSOTracking.create = (data = {}, callback) => {
 };
 
 
+
+// ======================================================
+// GET PROJECT SUMMARY
+// ======================================================
+
+NSOTracking.getProjectSummary = (projectId, callback) => {
+
+    const sql = `
+        SELECT
+            nso.id AS new_store_opening_id,
+            nso.location,
+            nso.city,
+            nso.status AS nso_status,
+            COUNT(DISTINCT cs.id) AS checklist_count,
+            COALESCE(AVG(cs.inspection_score), 0) AS average_score,
+            COUNT(DISTINCT CASE WHEN ap.status NOT IN ('Completed', 'Closed') THEN ap.id END) AS open_action_points,
+            COUNT(DISTINCT CASE WHEN ap.due_date IS NOT NULL AND ap.due_date < CURDATE() AND ap.status NOT IN ('Completed', 'Closed') THEN ap.id END) AS overdue_action_points,
+            COUNT(DISTINCT a.id) AS activity_count
+        FROM new_store_openings nso
+        LEFT JOIN checklist_submissions cs
+            ON cs.new_store_opening_id = nso.id
+        LEFT JOIN action_points ap
+            ON ap.new_store_opening_id = nso.id
+        LEFT JOIN activities a
+            ON a.module_name = 'New Store Openings' AND a.reference_id = nso.id
+        WHERE nso.id = ?
+        GROUP BY nso.id, nso.location, nso.city, nso.status
+    `;
+
+    db.query(sql, [projectId], callback);
+};
+
 // ======================================================
 // GET TRACKING BY ID
 // ======================================================
@@ -196,20 +231,23 @@ NSOTracking.getById = (id, callback) => {
 
     const sql = `
         SELECT
-            id,
-            new_store_opening_id,
-            rule_id,
-            department_id,
-            trigger_column,
-            status,
-            due_date,
-            remarks,
-            created_by,
-            updated_by,
-            created_at,
-            updated_at
-        FROM nso_tracking
-        WHERE id = ?
+            nt.id,
+            nt.new_store_opening_id,
+            nt.rule_id,
+            nt.department_id,
+            nt.trigger_column,
+            nt.status,
+            nso.status AS nso_status,
+            nt.due_date,
+            nt.remarks,
+            nt.created_by,
+            nt.updated_by,
+            nt.created_at,
+            nt.updated_at
+        FROM nso_tracking nt
+        LEFT JOIN new_store_openings nso
+            ON nso.id = nt.new_store_opening_id
+        WHERE nt.id = ?
     `;
 
     db.query(

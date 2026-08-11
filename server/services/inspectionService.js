@@ -12,6 +12,8 @@ const Activity = require("../models/activityModel");
 
 const Audit = require("../models/auditModel");
 
+const nsoStatusService = require("./nsoStatusService");
+
 // ======================================================
 // GET SUBMISSION
 // ======================================================
@@ -637,80 +639,35 @@ const saveAudit = (
 // UPDATE NSO STATUS
 // ======================================================
 
-const updateNSOStatus = (
-
-    submissionId,
-
-    matchedRules
-
+const updateNSOStatus = async (
+    submission,
+    matchedRules,
+    userId
 ) => {
 
-    return new Promise(async (resolve, reject) => {
+    if (!submission) {
+        throw new Error("Checklist submission is required for NSO status update.");
+    }
 
-        try {
+    const checklistStatus = matchedRules.length > 0 ? "Open" : "Closed";
 
-            const rows = await new Promise((resolveRows, rejectRows) => {
-                db.query(
-                    `SELECT new_store_opening_id FROM checklist_submissions WHERE id = ? LIMIT 1`,
-                    [submissionId],
-                    (err, result) => err ? rejectRows(err) : resolveRows(result)
-                );
-            });
-
-            const newStoreOpeningId = rows[0]?.new_store_opening_id;
-
-            // Keep the checklist-level result for backward compatibility.
-            const checklistStatus = matchedRules.length > 0 ? "Open" : "Closed";
-
-            await new Promise((resolveUpdate, rejectUpdate) => {
-                db.query(
-                    `UPDATE checklist_submissions SET nso_status = ? WHERE id = ?`,
-                    [checklistStatus, submissionId],
-                    (err) => err ? rejectUpdate(err) : resolveUpdate()
-                );
-            });
-
-            // The NSO project is now the authoritative business record.
-            // A failed inspection puts the project On Hold. A previously
-            // On Hold project can move to Ready For Opening after a clean
-            // inspection; other later statuses are never regressed.
-            if (newStoreOpeningId) {
-                const projectRows = await new Promise((resolveRows, rejectRows) => {
-                    db.query(
-                        `SELECT status FROM new_store_openings WHERE id = ? LIMIT 1`,
-                        [newStoreOpeningId],
-                        (err, result) => err ? rejectRows(err) : resolveRows(result)
-                    );
-                });
-
-                const currentStatus = projectRows[0]?.status;
-
-                if (matchedRules.length > 0) {
-                    await new Promise((resolveUpdate, rejectUpdate) => {
-                        db.query(
-                            `UPDATE new_store_openings SET status = 'On Hold', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                            [newStoreOpeningId],
-                            (err) => err ? rejectUpdate(err) : resolveUpdate()
-                        );
-                    });
-                } else if (currentStatus === "On Hold") {
-                    await new Promise((resolveUpdate, rejectUpdate) => {
-                        db.query(
-                            `UPDATE new_store_openings SET status = 'Ready For Opening', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                            [newStoreOpeningId],
-                            (err) => err ? rejectUpdate(err) : resolveUpdate()
-                        );
-                    });
-                }
-            }
-
-            resolve();
-
-        } catch (error) {
-            reject(error);
-        }
-
+    // Keep the checklist-level result for backward compatibility.
+    await new Promise((resolve, reject) => {
+        db.query(
+            `UPDATE checklist_submissions SET nso_status = ? WHERE id = ?`,
+            [checklistStatus, submission.id],
+            (err) => err ? reject(err) : resolve()
+        );
     });
+
+    // The NSO project is the authoritative business record.  All status
+    // decisions go through one service so controllers, inspections and future
+    // workflows cannot drift apart.
+    return nsoStatusService.applyInspectionResult(
+        submission.new_store_opening_id,
+        matchedRules,
+        userId
+    );
 };
 
 // ======================================================
@@ -774,11 +731,13 @@ const runInspection = async (
         // UPDATE NSO STATUS
         // ======================================
 
-        await updateNSOStatus(
+        const nsoStatusResult = await updateNSOStatus(
 
-            submissionId,
+            submission,
 
-            matchedRules
+            matchedRules,
+
+            userId
 
         );
 
@@ -816,6 +775,10 @@ const runInspection = async (
 
             success: true,
 
+            nso_status: nsoStatusResult?.status || submission.nso_status || (matchedRules.length > 0 ? "Open" : "Closed"),
+
+            nso_status_changed: Boolean(nsoStatusResult?.changed),
+
             submission_id:
 
                 submissionId,
@@ -835,14 +798,6 @@ const runInspection = async (
 
             created_action_points:
                 createdActionPoints,
-
-            nso_status:
-
-                matchedRules.length > 0
-
-                    ? "Open"
-
-                    : "Closed"
 
         };
 

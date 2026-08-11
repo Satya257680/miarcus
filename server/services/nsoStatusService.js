@@ -1,3 +1,6 @@
+const NewStoreOpening = require("../models/newStoreOpeningModel");
+const historyService = require("./nsoHistoryService");
+
 // ======================================================
 // NSO STATUS SERVICE
 // ======================================================
@@ -164,6 +167,18 @@ const canChangeStatus = (
 
         next === STATUS.CANCELLED
 
+    ) {
+
+        return true;
+
+    }
+
+    // A failed inspection can place a project On Hold. A subsequent
+    // clean inspection is explicitly allowed to return it to the
+    // pre-opening gate.
+    if (
+        current === STATUS.ON_HOLD &&
+        next === STATUS.READY_FOR_OPENING
     ) {
 
         return true;
@@ -500,6 +515,127 @@ const getStatusProgress = (
 };
 
 // ======================================================
+// INSPECTION RESULT -> AUTHORITATIVE NSO STATUS
+// ======================================================
+//
+// Phase 1C centralizes the business decision made after an
+// inspection.  The checklist's nso_status remains only a
+// backward-compatible checklist result; the NSO project's
+// `new_store_openings.status` is the source of truth.
+// ======================================================
+const deriveInspectionStatus = (project, matchedRules = []) => {
+
+    if (!project) {
+        throw new Error("New Store Opening project not found.");
+    }
+
+    const hasFailures = Array.isArray(matchedRules) && matchedRules.length > 0;
+    const current = project.status || STATUS.PLANNING;
+
+    // Never regress a project that has already reached a terminal/business
+    // milestone after the inspection. A failed inspection still records the
+    // result, but does not move Completed/Cancelled projects backwards.
+    if (current === STATUS.COMPLETED || current === STATUS.CANCELLED) {
+        return current;
+    }
+
+    if (hasFailures) {
+        return STATUS.ON_HOLD;
+    }
+
+    // A clean inspection clears an inspection-created hold. It also advances
+    // pre-opening projects that have reached the inspection gate.
+    if (
+        current === STATUS.ON_HOLD ||
+        current === STATUS.TRAINING ||
+        current === STATUS.READY_FOR_OPENING
+    ) {
+        return STATUS.READY_FOR_OPENING;
+    }
+
+    return current;
+};
+
+const applyInspectionResult = async (
+    projectId,
+    matchedRules = [],
+    userId = null
+) => {
+
+    if (!projectId) {
+        return {
+            changed: false,
+            project_id: null,
+            status: null,
+            reason: "No NSO project is linked to this submission."
+        };
+    }
+
+    const project = await new Promise((resolve, reject) => {
+        NewStoreOpening.getById(projectId, (err, rows) => {
+            if (err) return reject(err);
+            // getById returns a single row through the model's callback contract.
+            resolve(rows);
+        });
+    });
+
+    if (!project) {
+        throw new Error(`New Store Opening project #${projectId} not found.`);
+    }
+
+    const oldStatus = project.status || STATUS.PLANNING;
+    const newStatus = deriveInspectionStatus(project, matchedRules);
+
+    if (oldStatus === newStatus) {
+        return {
+            changed: false,
+            project_id: Number(projectId),
+            old_status: oldStatus,
+            status: newStatus
+        };
+    }
+
+    // Reuse the transition guard for every status mutation.
+    changeStatus(project, newStatus);
+
+    await new Promise((resolve, reject) => {
+        NewStoreOpening.updateStatus(
+            projectId,
+            newStatus,
+            userId,
+            (err, result) => {
+                if (err) return reject(err);
+                if (!result || result.affectedRows === 0) {
+                    return reject(new Error(`Unable to update NSO project #${projectId} status.`));
+                }
+                resolve(result);
+            }
+        );
+    });
+
+    try {
+        await historyService.statusChanged(
+            projectId,
+            userId,
+            oldStatus,
+            newStatus
+        );
+    } catch (historyError) {
+        // Status is already persisted; history failure must not make the
+        // inspection look failed. It is logged for operational visibility.
+        console.error("[NSO Status] Failed to write status history:", historyError);
+    }
+
+    return {
+        changed: true,
+        project_id: Number(projectId),
+        old_status: oldStatus,
+        status: newStatus
+    };
+};
+
+
+// ======================================================
 // MODULE EXPORTS
 // ======================================================
 
@@ -533,6 +669,9 @@ module.exports = {
 
     getStatusColor,
 
-    getStatusProgress
+    getStatusProgress,
+
+    deriveInspectionStatus,
+    applyInspectionResult
 
 };

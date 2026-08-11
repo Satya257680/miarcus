@@ -80,6 +80,10 @@ exports.getAllReports = (req,res)=>{
 
         req.query.checklist_type_id || null,
 
+        new_store_opening_id:
+
+        req.query.new_store_opening_id || null,
+
 
 
         employee_id:

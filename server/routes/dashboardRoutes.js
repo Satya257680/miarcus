@@ -26,8 +26,8 @@ const {
 
     getChecklistSummary,
 
-    getActionPointSummary
-
+    getActionPointSummary,
+    getNSOSummary
 
 } = require(
     "../controllers/dashboardController"
@@ -55,6 +55,12 @@ const {
 // GET /api/dashboard/stats
 // ======================================================
 
+
+router.get(
+    "/nso-summary",
+    authMiddleware,
+    getNSOSummary
+);
 
 router.get(
 

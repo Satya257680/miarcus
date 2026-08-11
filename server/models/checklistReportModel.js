@@ -168,6 +168,11 @@ ChecklistReport.getAll = (
 
     }
 
+    if(filters.new_store_opening_id){
+        sql += ` AND cs.new_store_opening_id = ? `;
+        values.push(filters.new_store_opening_id);
+    }
+
 
 
 
@@ -823,6 +828,9 @@ ChecklistReport.countAll = (
 
             ON ct.id = cs.checklist_type_id
 
+        LEFT JOIN new_store_openings nso
+            ON nso.id = cs.new_store_opening_id
+
 
 
         LEFT JOIN stores s
@@ -901,6 +909,11 @@ LEFT JOIN departments d
         );
 
 
+    }
+
+    if(filters.new_store_opening_id){
+        sql += ` AND cs.new_store_opening_id = ? `;
+        values.push(filters.new_store_opening_id);
     }
 
 
@@ -1024,6 +1037,10 @@ ChecklistReport.exportReports = (
         SELECT
 
             cs.id,
+            cs.new_store_opening_id,
+            nso.location AS nso_location,
+            nso.city AS nso_city,
+            nso.status AS nso_status,
 
             ct.checklist_name,
 
@@ -1059,6 +1076,9 @@ ChecklistReport.exportReports = (
 
             ON ct.id = cs.checklist_type_id
 
+        LEFT JOIN new_store_openings nso
+            ON nso.id = cs.new_store_opening_id
+
         LEFT JOIN stores s
 
             ON s.id = cs.store_id
@@ -1084,6 +1104,10 @@ ChecklistReport.exportReports = (
         GROUP BY
 
             cs.id,
+            cs.new_store_opening_id,
+            nso.location,
+            nso.city,
+            nso.status,
 
             ct.checklist_name,
 

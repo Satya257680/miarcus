@@ -106,12 +106,41 @@ Dashboard.getStats = (callback) => {
 
 
         (
-
             SELECT COUNT(*)
-
             FROM nso_rules
+        ) AS totalNSORules,
 
-        ) AS totalNSORules
+        (
+            SELECT COUNT(*)
+            FROM new_store_openings
+            WHERE status = 'On Hold'
+        ) AS onHoldNSO,
+
+        (
+            SELECT COUNT(*)
+            FROM new_store_openings
+            WHERE status = 'Ready For Opening'
+        ) AS readyForOpeningNSO,
+
+        (
+            SELECT COUNT(*)
+            FROM new_store_openings
+            WHERE status = 'Opened'
+        ) AS openedNSO,
+
+        (
+            SELECT COUNT(*)
+            FROM action_points
+            WHERE status IN ('Open', 'Pending', 'In Progress')
+        ) AS openActionPoints,
+
+        (
+            SELECT COUNT(*)
+            FROM action_points
+            WHERE due_date IS NOT NULL
+              AND due_date < CURDATE()
+              AND status NOT IN ('Completed', 'Closed')
+        ) AS overdueActionPoints
 
 
 
@@ -151,286 +180,28 @@ Dashboard.getStats = (callback) => {
 
 Dashboard.getRecentActivities = (callback) => {
 
-
-
     const sql = `
-
-
-
-    SELECT *
-
-
-
-    FROM (
-
-
-
-
-
-
-
         SELECT
-
-
-            'User' AS type,
-
-
-
-            CONCAT(
-
-                name,
-
-                ' was added'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM users
-
-
-
-
-
-
-
-        UNION ALL
-
-
-
-
-
-
-
-
-        SELECT
-
-
-            'Store' AS type,
-
-
-
-            CONCAT(
-
-                store_name,
-
-                ' store was created'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM stores
-
-
-
-
-
-
-
-        UNION ALL
-
-
-
-
-
-
-
-
-        SELECT
-
-
-            'Checklist' AS type,
-
-
-
-            CONCAT(
-
-                'Checklist submitted (Submission #',
-
-                id,
-
-                ')'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM checklist_submissions
-
-
-
-
-
-
-
-        UNION ALL
-
-
-
-
-
-
-
-
-        SELECT
-
-
-            'Action Point' AS type,
-
-
-
-            CONCAT(
-
-                'Action Point created (#',
-
-                id,
-
-                ')'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM checklist_submission_answers
-
-
-
-
-
-
-
-        UNION ALL
-
-
-
-
-
-
-
-
-        SELECT
-
-
-            'New Store Opening' AS type,
-
-
-
-            CONCAT(
-
-                location,
-
-                ', ',
-
-                city,
-
-                ' was created'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM new_store_openings
-
-
-
-
-
-
-
-        UNION ALL
-
-
-
-
-
-
-
-
-        SELECT
-
-
-            'NSO Rule' AS type,
-
-
-
-            CONCAT(
-
-                'NSO Rule created (#',
-
-                id,
-
-                ')'
-
-            ) AS activity,
-
-
-
-            created_at
-
-
-
-        FROM nso_rules
-
-
-
-
-
-
-
-    ) AS recent_activities
-
-
-
-    ORDER BY created_at DESC
-
-
-
-    LIMIT 10
-
-
-
+            a.activity_type AS type,
+            a.title,
+            a.description AS activity,
+            a.module_name,
+            a.reference_id,
+            nso.location AS nso_location,
+            nso.city AS nso_city,
+            nso.status AS nso_status,
+            a.created_at
+        FROM activities a
+        LEFT JOIN new_store_openings nso
+            ON a.module_name = 'New Store Openings'
+            AND nso.id = a.reference_id
+        ORDER BY a.created_at DESC
+        LIMIT 10
     `;
 
-
-
-
-
-
-    db.query(
-
-        sql,
-
-        callback
-
-    );
-
-
+    db.query(sql, callback);
 
 };
-
-
-
 
 
 
@@ -555,6 +326,32 @@ Dashboard.getActionPointSummary = (callback)=>{
 
 
 
+
+
+// ======================================================
+// GET NSO BUSINESS SUMMARY
+// ======================================================
+
+Dashboard.getNSOSummary = (callback) => {
+
+    const sql = `
+        SELECT
+            COUNT(*) AS total,
+            SUM(status = 'Planning') AS planning,
+            SUM(status = 'Layout Pending') AS layout_pending,
+            SUM(status = 'Approval Pending') AS approval_pending,
+            SUM(status = 'Construction') AS construction,
+            SUM(status = 'Training') AS training,
+            SUM(status = 'Ready For Opening') AS ready_for_opening,
+            SUM(status = 'Opened') AS opened,
+            SUM(status = 'Completed') AS completed,
+            SUM(status = 'On Hold') AS on_hold,
+            SUM(status = 'Cancelled') AS cancelled
+        FROM new_store_openings
+    `;
+
+    db.query(sql, callback);
+};
 
 
 // ======================================================
