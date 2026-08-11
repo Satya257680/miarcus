@@ -61,6 +61,8 @@ function ActionPoints() {
 
     const [checklists, setChecklists] = useState([]);
 
+    const [nsoProjects, setNsoProjects] = useState([]);
+
     const [loading, setLoading] = useState(true);
 
     // ======================================================
@@ -82,6 +84,8 @@ function ActionPoints() {
     const [priority, setPriority] = useState("");
 
     const [checklistType, setChecklistType] = useState("");
+
+    const [nsoProject, setNsoProject] = useState("");
 
     const [startDate, setStartDate] = useState("");
 
@@ -326,7 +330,8 @@ const fetchFilters = async () => {
 
             deptRes,
 
-            checklistRes
+            checklistRes,
+            nsoRes
 
         ] = await Promise.all([
 
@@ -345,6 +350,13 @@ const fetchFilters = async () => {
             axios.get(
 
                 `${API}/api/checklist-types`
+
+            ),
+
+            axios.get(
+
+                `${API}/api/new-store-openings`,
+                { params: { page: 1, limit: 1000 } }
 
             )
 
@@ -371,6 +383,12 @@ const fetchFilters = async () => {
         setChecklists(
 
             checklistRes.data.data || []
+
+        );
+
+        setNsoProjects(
+
+            nsoRes.data.data || []
 
         );
 
@@ -697,6 +715,8 @@ const handleClearFilters = () => {
 
     setDepartment("");
 
+    setNsoProject("");
+
     setStatus("");
 
     setPriority("");
@@ -738,6 +758,14 @@ const filteredActionPoints = useMemo(() => {
                 .includes(search.toLowerCase()) ||
 
             item.department_name
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.nso_store_name
+                ?.toLowerCase()
+                .includes(search.toLowerCase()) ||
+
+            item.nso_location
                 ?.toLowerCase()
                 .includes(search.toLowerCase()) ||
 
@@ -790,6 +818,13 @@ const filteredActionPoints = useMemo(() => {
             item.checklist_type_id == checklistType;
 
 
+        const nsoMatch =
+
+            !nsoProject ||
+
+            item.new_store_opening_id == nsoProject;
+
+
 
         const fromMatch =
 
@@ -818,6 +853,8 @@ const filteredActionPoints = useMemo(() => {
             storeMatch &&
 
             departmentMatch &&
+
+            nsoMatch &&
 
             statusMatch &&
 
@@ -1437,6 +1474,40 @@ return (
                             value={item.id}
                         >
                             {item.department_name}
+                        </option>
+
+                    ))}
+
+                </select>
+
+            </div>
+
+            {/* ==========================================
+                NEW STORE OPENING
+            ========================================== */}
+
+            <div className="filter-group">
+
+                <label>NSO Project</label>
+
+                <select
+                    value={nsoProject}
+                    onChange={(e) =>
+                        setNsoProject(e.target.value)
+                    }
+                >
+
+                    <option value="">
+                        All NSO Projects
+                    </option>
+
+                    {nsoProjects.map((item) => (
+
+                        <option
+                            key={item.id}
+                            value={item.id}
+                        >
+                            #{item.id} - {item.store_name || item.location || "NSO Project"}
                         </option>
 
                     ))}

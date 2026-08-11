@@ -5,9 +5,11 @@ import "../styles/ChecklistSubmission.css";
 function ChecklistSubmission() {
   const [checklistTypes, setChecklistTypes] = useState([]);
   const [stores, setStores] = useState([]);
+  const [newStoreOpenings, setNewStoreOpenings] = useState([]);
   const [questions, setQuestions] = useState([]);
 
   const [checklistTypeId, setChecklistTypeId] = useState("");
+  const [newStoreOpeningId, setNewStoreOpeningId] = useState("");
   const [storeId, setStoreId] = useState("");
 
   const [submissionDate, setSubmissionDate] = useState(
@@ -68,6 +70,7 @@ const canDelete =
 
   fetchChecklistTypes();
   fetchStores();
+  fetchNewStoreOpenings();
 
 }, [canView]);
 
@@ -100,6 +103,23 @@ const canDelete =
       setStores(data);
     } catch (error) {
       console.error("Store Error:", error);
+    }
+  };
+
+  const fetchNewStoreOpenings = async () => {
+    try {
+      const response = await axios.get(
+        "https://miarcus-backend.onrender.com/api/new-store-openings?limit=1000"
+      );
+
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data.data || [];
+
+      setNewStoreOpenings(data);
+    } catch (error) {
+      console.error("New Store Opening Error:", error);
+      setNewStoreOpenings([]);
     }
   };
 
@@ -437,6 +457,11 @@ const handleSubmit = async (e) => {
 
   }
 
+  if (!newStoreOpeningId) {
+    alert("Please select New Store Opening project.");
+    return;
+  }
+
   if (!checklistTypeId) {
     alert("Please select Checklist Type.");
     return;
@@ -578,6 +603,12 @@ const handleSubmit = async (e) => {
 
 
 formData.append(
+"new_store_opening_id",
+newStoreOpeningId
+);
+
+
+formData.append(
 "checklist_type_id",
 checklistTypeId
 );
@@ -656,6 +687,7 @@ headers:{
       );
 
       setChecklistTypeId("");
+      setNewStoreOpeningId("");
       setStoreId("");
 
       setSubmissionDate(
@@ -730,6 +762,31 @@ return (
       {/* TOP FILTERS */}
 
       <div className="checklist-selection-card">
+
+        <div className="checklist-field">
+
+          <label>
+            New Store Opening
+            <span>*</span>
+          </label>
+
+          <select
+            value={newStoreOpeningId}
+            onChange={(e) => setNewStoreOpeningId(e.target.value)}
+          >
+            <option value="">
+              Select New Store Opening
+            </option>
+
+            {newStoreOpenings.map((project) => (
+              <option key={project.id} value={project.id}>
+                #{project.id} - {project.location || "Project"}
+                {project.city ? ` (${project.city})` : ""}
+              </option>
+            ))}
+          </select>
+
+        </div>
 
         <div className="checklist-field">
 
