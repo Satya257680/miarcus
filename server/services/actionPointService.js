@@ -1,1198 +1,506 @@
-const db = require("../config/db");
-
-// ======================================================
-// MODELS
-// ======================================================
-
 const ActionPoint = require("../models/actionPointModel");
-
 const Activity = require("../models/activityModel");
-
 const Audit = require("../models/auditModel");
 
 // ======================================================
-// CREATE ACTION POINTS
+// helper: wrap a callback-style model call in a Promise
 // ======================================================
 
-const createActionPoints = (
-
-    submission,
-
-    matchedRules,
-
-    userId
-
-) => {
-
-    return new Promise(
-
-        (
-
-            resolve,
-
-            reject
-
-        ) => {
-
-            // ==========================================
-            // NO MATCHED RULES
-            // ==========================================
-
-            if (
-
-                matchedRules.length === 0
-
-            ) {
-
-                return resolve([]);
-
-            }
-
-            const createdActionPoints = [];
-
-            let completed = 0;
-
-            // ==========================================
-            // LOOP RULES
-            // ==========================================
-
-            matchedRules.forEach(
-
-                (
-
-                    item
-
-                ) => {
-
-                    const rule = item.rule;
-
-                    // ==================================
-                    // CREATE ACTION POINT ?
-                    // ==================================
-
-                    if (
-
-                        Number(
-
-                            rule.create_action_point
-
-                        ) !== 1
-
-                    ) {
-
-                        completed++;
-
-                        if (
-
-                            completed ===
-
-                            matchedRules.length
-
-                        ) {
-
-                            resolve(
-
-                                createdActionPoints
-
-                            );
-
-                        }
-
-                        return;
-
-                    }
-
-                    // ==================================
-                    // DEPARTMENT
-                    // ==================================
-
-                    const departmentIds =
-
-                        rule.department_ids
-
-                            ? rule.department_ids
-
-                                  .split(",")
-
-                                  .map(Number)
-
-                            : [];
-
-                    const data = {
-
-                        submission_id:
-
-                            submission.id,
-
-                        submission_answer_id:
-
-                            item.answer_id ||
-
-                            null,
-
-                        rule_id:
-
-                            rule.id,
-
-                        store_id:
-
-                            submission.store_id,
-
-                        department_id:
-
-                            departmentIds[0] ||
-
-                            null,
-
-                        question_id:
-
-                            item.question_id,
-
-                        assigned_to:
-
-                            null,
-
-                        answer:
-
-                            item.answer,
-
-                        comment:
-
-                            item.remarks,
-
-                        attachment:
-
-                            null,
-
-                        status:
-
-                            "Open",
-
-                        priority:
-
-                            rule.priority ||
-
-                            "Medium",
-
-                        sla_value:
-
-                            rule.sla_days ||
-
-                            0,
-
-                        sla_type:
-
-                            "Days",
-
-                        created_by:
-
-                            userId
-
-                    };
-                                        // ==================================
-                    // CREATE ACTION POINT
-                    // ==================================
-
-                    ActionPoint.create(
-
-                        data,
-
-                        (
-
-                            err,
-
-                            result
-
-                        ) => {
-
-                            if (
-
-                                err
-
-                            ) {
-
-                                console.log(
-
-                                    "====================================="
-
-                                );
-
-                                console.log(
-
-                                    "ACTION POINT INSERT ERROR"
-
-                                );
-
-                                console.log(
-
-                                    err
-
-                                );
-
-                                console.log(
-
-                                    data
-
-                                );
-
-                                console.log(
-
-                                    "====================================="
-
-                                );
-
-                                return reject(
-
-                                    err
-
-                                );
-
-                            }
-
-                            console.log(
-
-                                "====================================="
-
-                            );
-
-                            console.log(
-
-                                "ACTION POINT CREATED"
-
-                            );
-
-                            console.log(
-
-                                "Action Point ID:",
-
-                                result.insertId
-
-                            );
-
-                            console.log(
-
-                                "Submission ID:",
-
-                                submission.id
-
-                            );
-
-                            console.log(
-
-                                "Question ID:",
-
-                                item.question_id
-
-                            );
-
-                            console.log(
-
-                                "====================================="
-
-                            );
-
-                            createdActionPoints.push({
-
-                                id:
-
-                                    result.insertId,
-
-                                submission_id:
-
-                                    submission.id,
-
-                                question_id:
-
-                                    item.question_id,
-
-                                rule_id:
-
-                                    rule.id,
-
-                                priority:
-
-                                    rule.priority,
-
-                                status:
-
-                                    "Open"
-
-                            });
-
-                            completed++;
-
-                            if (
-
-                                completed ===
-
-                                matchedRules.length
-
-                            ) {
-
-                                resolve(
-
-                                    createdActionPoints
-
-                                );
-
-                            }
-
-                        }
-
-                    );
-
-                }
-
-            );
-
+const asPromise = (fn, ...args) =>
+    new Promise((resolve, reject) => {
+        fn(...args, (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+
+// ======================================================
+// GET ALL (list + pagination)
+// ======================================================
+
+const getAll = async (filters) => {
+
+    const rows = await asPromise(ActionPoint.getAll, filters);
+    const countResult = await asPromise(ActionPoint.count, filters);
+    const total = countResult[0].total || 0;
+
+    return {
+        rows,
+        pagination: {
+            page: Math.floor((filters.offset || 0) / (filters.limit || 10)) + 1,
+            limit: filters.limit || 10,
+            total,
+            totalPages: Math.ceil(total / (filters.limit || 10))
         }
-
-    );
+    };
 
 };
+
 // ======================================================
-// UPDATE ACTION POINT
+// GET BY ID
 // ======================================================
 
-const updateActionPoint = (
+const getById = async (id) => {
 
-    id,
+    const rows = await asPromise(ActionPoint.getById, id);
 
-    data,
+    if (!rows || rows.length === 0) {
+        return null;
+    }
 
-    userId
-
-) => {
-
-    return new Promise(
-
-        (
-
-            resolve,
-
-            reject
-
-        ) => {
-
-            ActionPoint.update(
-
-                id,
-
-                {
-
-                    assigned_to:
-
-                        data.assigned_to ||
-
-                        null,
-
-                    priority:
-
-                        data.priority ||
-
-                        "Medium",
-
-                    status:
-
-                        data.status ||
-
-                        "Open",
-
-                    answer:
-
-                        data.answer ||
-
-                        "",
-
-                    comment:
-
-                        data.comment ||
-
-                        "",
-
-                    attachment:
-
-                        data.attachment ||
-
-                        null,
-
-                    sla_value:
-
-                        Number(
-
-                            data.sla_value
-
-                        ) || 0,
-
-                    sla_type:
-
-                        data.sla_type ||
-
-                        "Days"
-
-                },
-
-                (
-
-                    err
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    // ==================================
-                    // ACTIVITY
-                    // ==================================
-
-                    Activity.create(
-
-                        {
-
-                            title:
-
-                                "Action Point Updated",
-
-                            description:
-
-                                `Action Point #${id} updated successfully.`,
-
-                            module_name:
-
-                                "Action Points",
-
-                            status:
-
-                                data.status ||
-
-                                "Open",
-
-                            priority:
-
-                                data.priority ||
-
-                                "Medium",
-
-                            created_by:
-
-                                userId,
-
-                            assigned_to:
-
-                                data.assigned_to ||
-
-                                null
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    // ==================================
-                    // AUDIT
-                    // ==================================
-
-                    Audit.create(
-
-                        {
-
-                            module_name:
-
-                                "Action Points",
-
-                            reference_id:
-
-                                id,
-
-                            action:
-
-                                "UPDATE",
-
-                            old_data:
-
-                                null,
-
-                            new_data:
-
-                                data,
-
-                            changed_by:
-
-                                userId
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    resolve({
-
-                        success: true,
-
-                        message:
-
-                            "Action Point updated successfully."
-
-                    });
-
-                }
-
-            );
-
-        }
-
-    );
+    return rows[0];
 
 };
+
 // ======================================================
-// TAKE ACTION / CLOSE ACTION POINT
-// ======================================================
-
-const takeAction = (
-
-    id,
-
-    data,
-
-    userId
-
-) => {
-
-    return new Promise(
-
-        (
-
-            resolve,
-
-            reject
-
-        ) => {
-
-            ActionPoint.takeAction(
-
-                id,
-
-                {
-
-                    action_taken:
-
-                        data.action_taken ||
-
-                        "",
-
-                    comment:
-
-                        data.comment ||
-
-                        "",
-
-                    attachment:
-
-                        data.attachment ||
-
-                        null,
-
-                    status:
-
-                        "Closed",
-
-                    completed_at:
-
-                        new Date()
-
-                },
-
-                (
-
-                    err
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    // ==================================
-                    // ACTIVITY
-                    // ==================================
-
-                    Activity.create(
-
-                        {
-
-                            title:
-
-                                "Action Point Closed",
-
-                            description:
-
-                                `Action Point #${id} has been closed.`,
-
-                            module_name:
-
-                                "Action Points",
-
-                            status:
-
-                                "Closed",
-
-                            priority:
-
-                                "Medium",
-
-                            created_by:
-
-                                userId,
-
-                            assigned_to:
-
-                                null
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    // ==================================
-                    // AUDIT
-                    // ==================================
-
-                    Audit.create(
-
-                        {
-
-                            module_name:
-
-                                "Action Points",
-
-                            reference_id:
-
-                                id,
-
-                            action:
-
-                                "CLOSE",
-
-                            old_data:
-
-                                null,
-
-                            new_data:
-
-                                {
-
-                                    action_taken:
-
-                                        data.action_taken,
-
-                                    comment:
-
-                                        data.comment,
-
-                                    completed_at:
-
-                                        new Date()
-
-                                },
-
-                            changed_by:
-
-                                userId
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    resolve({
-
-                        success: true,
-
-                        message:
-
-                            "Action Point closed successfully."
-
-                    });
-
-                }
-
-            );
-
-        }
-
-    );
-
-};
-// ======================================================
-// DELETE ACTION POINT
+// EXPORT (CSV data)
 // ======================================================
 
-const deleteActionPoint = (
+const exportData = (filters) => asPromise(ActionPoint.exportData, filters);
 
-    id,
-
-    userId
-
-) => {
-
-    return new Promise(
-
-        (
-
-            resolve,
-
-            reject
-
-        ) => {
-
-            ActionPoint.delete(
-
-                id,
-
-                (
-
-                    err
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    // ==================================
-                    // ACTIVITY
-                    // ==================================
-
-                    Activity.create(
-
-                        {
-
-                            title:
-
-                                "Action Point Deleted",
-
-                            description:
-
-                                `Action Point #${id} deleted successfully.`,
-
-                            module_name:
-
-                                "Action Points",
-
-                            status:
-
-                                "Deleted",
-
-                            priority:
-
-                                "Medium",
-
-                            created_by:
-
-                                userId,
-
-                            assigned_to:
-
-                                null
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    // ==================================
-                    // AUDIT
-                    // ==================================
-
-                    Audit.create(
-
-                        {
-
-                            module_name:
-
-                                "Action Points",
-
-                            reference_id:
-
-                                id,
-
-                            action:
-
-                                "DELETE",
-
-                            old_data:
-
-                                null,
-
-                            new_data:
-
-                                {
-
-                                    deleted: true
-
-                                },
-
-                            changed_by:
-
-                                userId
-
-                        },
-
-                        () => {}
-
-                    );
-
-                    resolve({
-
-                        success: true,
-
-                        message:
-
-                            "Action Point deleted successfully."
-
-                    });
-
-                }
-
-            );
-
-        }
-
-    );
-
-};
 // ======================================================
 // GET OPEN ACTION POINTS
 // ======================================================
 
-const getOpenActionPoints = () => {
+const getOpen = () => asPromise(ActionPoint.getOpenActionPoints);
 
-    return new Promise(
+// ======================================================
+// GET ACTION POINTS BY SUBMISSION
+// ======================================================
 
-        (
+const getBySubmission = (submissionId) =>
+    asPromise(ActionPoint.getBySubmission, submissionId);
 
-            resolve,
+// ======================================================
+// DASHBOARD STATS
+// ======================================================
 
-            reject
+const getDashboardStats = () => asPromise(ActionPoint.getDashboardStats);
 
-        ) => {
+// ======================================================
+// CREATE ACTION POINTS FROM MATCHED NSO RULES
+// Called by inspectionService.runInspection() after the
+// rule engine evaluates a checklist submission.
+// Only rules with create_action_point = 1 produce a row.
+// ======================================================
 
-            ActionPoint.getOpenActionPoints(
+const createFromRules = async (submission, matchedRules, userId) => {
 
-                (
+    const created = [];
 
-                    err,
+    if (!matchedRules || matchedRules.length === 0) {
+        return created;
+    }
 
-                    rows
+    for (const item of matchedRules) {
 
-                ) => {
+        const rule = item.rule;
 
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    resolve(
-
-                        rows || []
-
-                    );
-
-                }
-
-            );
-
+        if (Number(rule.create_action_point) !== 1) {
+            continue;
         }
 
-    );
+        if (!item.answer_id) {
+            throw new Error(
+                `Missing checklist submission answer ID for question ${item.question_id}.`
+            );
+        }
+
+        const departmentIds = rule.department_ids
+            ? String(rule.department_ids)
+                .split(",")
+                .map((id) => Number(id))
+                .filter(Boolean)
+            : [];
+
+        const data = {
+            submission_id: submission.id,
+            submission_answer_id: item.answer_id,
+            rule_id: rule.id || null,
+            store_id: submission.store_id,
+            department_id: departmentIds[0] || null,
+            question_id: item.question_id,
+            assigned_to: null,
+            priority: rule.priority || "Medium",
+            sla_value: Number(rule.sla_days) || 0,
+            status: "Open",
+            remarks: item.remarks || null,
+            attachment: null,
+            created_by: userId || null
+        };
+
+        const result = await asPromise(ActionPoint.create, data);
+
+        created.push({ id: result.insertId, ...data });
+
+        console.log(
+            `[ActionPointService] Action Point #${result.insertId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
+        );
+
+        Activity.create(
+            {
+                title: "Action Point Created",
+                description: `Action Point #${result.insertId} raised from rule "${rule.name || rule.id}" on submission #${submission.id}.`,
+                module_name: "Action Points",
+                status: "Open",
+                priority: data.priority,
+                created_by: userId,
+                assigned_to: null
+            },
+            () => {}
+        );
+
+        Audit.create(
+            {
+                module_name: "Action Points",
+                reference_id: result.insertId,
+                action: "CREATE",
+                old_data: null,
+                new_data: data,
+                changed_by: userId
+            },
+            () => {}
+        );
+
+    }
+
+    return created;
 
 };
 
-
 // ======================================================
-// EXPORT ACTION POINTS
+// MANUAL CREATE
+// Used by POST /api/action-points (user-raised)
+// Mirrors the field/validation contract of the original
+// controller exactly.
 // ======================================================
 
-const exportActionPoints = (
+const createManual = async (body, attachment, userId) => {
 
-    filters = {}
+    const {
+        submission_id,
+        submission_answer_id,
+        rule_id,
+        store_id,
+        department_id,
+        question_id,
+        assigned_to,
+        priority,
+        sla_days,
+        remarks,
+        status
+    } = body;
 
-) => {
+    if (!submission_id) {
+        const err = new Error("Submission is required.");
+        err.statusCode = 400;
+        throw err;
+    }
 
-    return new Promise(
+    if (!submission_answer_id) {
+        const err = new Error("Submission Answer is required.");
+        err.statusCode = 400;
+        throw err;
+    }
 
-        (
+    if (!question_id) {
+        const err = new Error("Question is required.");
+        err.statusCode = 400;
+        throw err;
+    }
 
-            resolve,
+    if (!store_id) {
+        const err = new Error("Store is required.");
+        err.statusCode = 400;
+        throw err;
+    }
 
-            reject
+    const actionPointData = {
+        submission_id,
+        submission_answer_id,
+        rule_id: rule_id || null,
+        store_id,
+        department_id: department_id || null,
+        question_id,
+        assigned_to: assigned_to || null,
+        priority: priority || "Medium",
+        sla_value: Number(sla_days) || 0,
+        status: status || "Open",
+        remarks: remarks || "",
+        attachment,
+        created_by: userId
+    };
 
-        ) => {
+    const result = await asPromise(ActionPoint.create, actionPointData);
+    const actionPointId = result.insertId;
 
-            ActionPoint.exportData(
-
-                filters,
-
-                (
-
-                    err,
-
-                    rows
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    resolve(
-
-                        rows || []
-
-                    );
-
-                }
-
-            );
-
-        }
-
+    Activity.create(
+        {
+            title: "Action Point Created",
+            description: `Action Point #${actionPointId} created.`,
+            module_name: "Action Points",
+            status: "Open",
+            priority: actionPointData.priority,
+            created_by: userId,
+            assigned_to: assigned_to || null
+        },
+        () => {}
     );
+
+    Audit.create(
+        {
+            module_name: "Action Points",
+            reference_id: actionPointId,
+            action: "CREATE",
+            old_data: null,
+            new_data: actionPointData,
+            changed_by: userId
+        },
+        () => {}
+    );
+
+    return { id: actionPointId };
 
 };
 
-
 // ======================================================
-// GET ACTION POINT BY ID
+// UPDATE ACTION POINT
+// (assigned_to / priority / sla_days / remarks / status)
 // ======================================================
 
-const getActionPointById = (
+const update = async (id, body, attachment, userId) => {
 
-    id
+    const {
+        assigned_to,
+        priority,
+        sla_days,
+        remarks,
+        status
+    } = body;
 
-) => {
+    const oldData = await getById(id);
 
-    return new Promise(
+    if (!oldData) {
+        const err = new Error("Action Point not found.");
+        err.statusCode = 404;
+        throw err;
+    }
 
-        (
+    const updateData = {
+        assigned_to: assigned_to || null,
+        priority: priority || oldData.priority,
+        sla_value: Number(sla_days) || oldData.sla_value,
+        remarks: remarks || "",
+        attachment: attachment || oldData.attachment
+    };
 
-            resolve,
+    await asPromise(ActionPoint.update, id, updateData);
 
-            reject
+    if (status && status !== oldData.status) {
+        await asPromise(ActionPoint.updateStatus, id, status);
+    }
 
-        ) => {
-
-            ActionPoint.getById(
-
-                id,
-
-                (
-
-                    err,
-
-                    row
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    resolve(
-
-                        row || null
-
-                    );
-
-                }
-
-            );
-
-        }
-
+    Activity.create(
+        {
+            title: "Action Point Updated",
+            description: `Action Point #${id} updated.`,
+            module_name: "Action Points",
+            status: "Open",
+            priority: updateData.priority,
+            created_by: userId,
+            assigned_to: updateData.assigned_to
+        },
+        () => {}
     );
+
+    Audit.create(
+        {
+            module_name: "Action Points",
+            reference_id: id,
+            action: "UPDATE",
+            old_data: oldData,
+            new_data: {
+                ...oldData,
+                ...updateData,
+                status: status || oldData.status
+            },
+            changed_by: userId
+        },
+        () => {}
+    );
+
+    return { success: true, message: "Action Point updated successfully." };
 
 };
 
-
 // ======================================================
-// GET ALL ACTION POINTS
+// TAKE ACTION / CLOSE ACTION POINT
+// Also writes back to checklist_submission_answers via
+// the model's transaction (action_taken / action_remarks
+// / completion_date).
 // ======================================================
 
-const getAllActionPoints = (
+const takeAction = async (id, body, userId) => {
 
-    filters
+    const { action_taken, remarks, status } = body;
 
-) => {
+    if (!action_taken) {
+        const err = new Error("Action Taken is required.");
+        err.statusCode = 400;
+        throw err;
+    }
 
-    return new Promise(
+    const oldData = await getById(id);
 
-        (
+    if (!oldData) {
+        const err = new Error("Action Point not found.");
+        err.statusCode = 404;
+        throw err;
+    }
 
-            resolve,
+    await asPromise(ActionPoint.takeAction, id, {
+        action_taken,
+        remarks,
+        status: status || "Closed"
+    });
 
-            reject
-
-        ) => {
-
-            ActionPoint.getAll(
-
-                filters,
-
-                (
-
-                    err,
-
-                    result
-
-                ) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
-                        );
-
-                    }
-
-                    resolve(
-
-                        result
-
-                    );
-
-                }
-
-            );
-
-        }
-
+    Activity.create(
+        {
+            title: "Action Point Closed",
+            description: `Action Point #${id} completed.`,
+            module_name: "Action Points",
+            status: "Closed",
+            priority: oldData.priority,
+            created_by: userId,
+            assigned_to: oldData.assigned_to
+        },
+        () => {}
     );
 
+    Audit.create(
+        {
+            module_name: "Action Points",
+            reference_id: id,
+            action: "TAKE_ACTION",
+            old_data: oldData,
+            new_data: { action_taken, remarks, status: "Closed" },
+            changed_by: userId
+        },
+        () => {}
+    );
+
+    return { success: true, message: "Action Point completed successfully." };
+
 };
+
+// ======================================================
+// DELETE ACTION POINT
+// ======================================================
+
+const deleteActionPoint = async (id, userId) => {
+
+    const oldData = await getById(id);
+
+    if (!oldData) {
+        const err = new Error("Action Point not found.");
+        err.statusCode = 404;
+        throw err;
+    }
+
+    const result = await asPromise(ActionPoint.delete, id);
+
+    if (result.affectedRows === 0) {
+        const err = new Error("Action Point not found.");
+        err.statusCode = 404;
+        throw err;
+    }
+
+    Activity.create(
+        {
+            title: "Action Point Deleted",
+            description: `Action Point #${id} deleted.`,
+            module_name: "Action Points",
+            status: "Closed",
+            priority: oldData.priority,
+            created_by: userId,
+            assigned_to: oldData.assigned_to
+        },
+        () => {}
+    );
+
+    Audit.create(
+        {
+            module_name: "Action Points",
+            reference_id: id,
+            action: "DELETE",
+            old_data: oldData,
+            new_data: null,
+            changed_by: userId
+        },
+        () => {}
+    );
+
+    return { success: true, message: "Action Point deleted successfully." };
+
+};
+
+// ======================================================
+// DELETE ALL ACTION POINTS
+// ======================================================
+
+const deleteAll = async (userId) => {
+
+    const result = await asPromise(ActionPoint.deleteAll);
+
+    Activity.create(
+        {
+            title: "All Action Points Deleted",
+            description: "All Action Points removed.",
+            module_name: "Action Points",
+            status: "Closed",
+            priority: "High",
+            created_by: userId,
+            assigned_to: null
+        },
+        () => {}
+    );
+
+    Audit.create(
+        {
+            module_name: "Action Points",
+            reference_id: null,
+            action: "DELETE_ALL",
+            old_data: null,
+            new_data: { affectedRows: result.affectedRows },
+            changed_by: userId
+        },
+        () => {}
+    );
+
+    return { success: true, message: "All Action Points deleted successfully." };
+
+};
+
 // ======================================================
 // MODULE EXPORTS
 // ======================================================
 
 module.exports = {
 
-    // ======================================
-    // CREATE
-    // ======================================
+    // rule-engine path (called from inspectionService)
+    createFromRules,
 
-    createActionPoints,
-
-    // ======================================
-    // UPDATE
-    // ======================================
-
-    updateActionPoint,
-
-    // ======================================
-    // TAKE ACTION
-    // ======================================
-
+    // manual CRUD path (called from actionPointController)
+    getAll,
+    getById,
+    exportData,
+    getOpen,
+    getBySubmission,
+    getDashboardStats,
+    createManual,
+    update,
     takeAction,
-
-    // ======================================
-    // DELETE
-    // ======================================
-
-    deleteActionPoint,
-
-    // ======================================
-    // GET ALL
-    // ======================================
-
-    getAllActionPoints,
-
-    // ======================================
-    // GET BY ID
-    // ======================================
-
-    getActionPointById,
-
-    // ======================================
-    // OPEN ACTION POINTS
-    // ======================================
-
-    getOpenActionPoints,
-
-    // ======================================
-    // EXPORT
-    // ======================================
-
-    exportActionPoints
+    delete: deleteActionPoint,
+    deleteAll
 
 };
