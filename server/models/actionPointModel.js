@@ -17,6 +17,8 @@ ActionPoint.createTables = (callback) => {
 
         id INT AUTO_INCREMENT PRIMARY KEY,
 
+        new_store_opening_id INT NULL,
+
         submission_id INT NOT NULL,
 
         submission_answer_id INT NOT NULL,
@@ -73,6 +75,8 @@ ActionPoint.createTables = (callback) => {
 
         ON UPDATE CURRENT_TIMESTAMP,
 
+        INDEX(new_store_opening_id),
+
         INDEX(submission_id),
 
         INDEX(submission_answer_id),
@@ -101,6 +105,44 @@ ActionPoint.createTables = (callback) => {
 
 };
 
+// ======================================================
+// ENSURE NSO PARENT COLUMN
+// ======================================================
+
+ActionPoint.ensureParentColumn = async () => {
+    const hasColumn = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW COLUMNS FROM action_points LIKE 'new_store_opening_id'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasColumn) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE action_points ADD COLUMN new_store_opening_id INT NULL AFTER id`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    const hasIndex = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW INDEX FROM action_points WHERE Key_name = 'idx_action_points_nso'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasIndex) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE action_points ADD INDEX idx_action_points_nso (new_store_opening_id)`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+};
+
 
 
 // ======================================================
@@ -120,6 +162,8 @@ ActionPoint.getAll = (
     SELECT
 
         ap.id,
+
+        ap.new_store_opening_id,
 
         ap.submission_id,
 
@@ -154,6 +198,11 @@ ActionPoint.getAll = (
         cs.inspection_score,
 
         cs.nso_status,
+
+        nso.location AS nso_location,
+        nso.city AS nso_city,
+        nso.status AS nso_project_status,
+        nso.store_name AS nso_store_name,
 
         s.store_name,
 
@@ -200,6 +249,10 @@ ActionPoint.getAll = (
     LEFT JOIN departments d
 
         ON ap.department_id = d.id
+
+    LEFT JOIN new_store_openings nso
+
+        ON ap.new_store_opening_id = nso.id
 
     LEFT JOIN users u
 
@@ -255,6 +308,27 @@ ActionPoint.getAll = (
 
     }
         // ======================================
+    // NEW STORE OPENING FILTER
+    // ======================================
+
+    if (filters.new_store_opening_id) {
+
+        sql += `
+
+        AND ap.new_store_opening_id = ?
+
+        `;
+
+        values.push(
+
+            filters.new_store_opening_id
+
+        );
+
+    }
+
+
+    // ======================================
     // STATUS FILTER
     // ======================================
 
@@ -438,6 +512,8 @@ ActionPoint.getAll = (
 
         ap.id,
 
+        ap.new_store_opening_id,
+
         ap.submission_id,
 
         ap.submission_answer_id,
@@ -471,6 +547,11 @@ ActionPoint.getAll = (
         cs.inspection_score,
 
         cs.nso_status,
+
+        nso.location,
+        nso.city,
+        nso.status,
+        nso.store_name,
 
         s.store_name,
 
@@ -639,6 +720,27 @@ ActionPoint.count = (
 
     }
 
+
+
+    // ======================================
+    // NEW STORE OPENING FILTER
+    // ======================================
+
+    if (filters.new_store_opening_id) {
+
+        sql += `
+
+        AND ap.new_store_opening_id = ?
+
+        `;
+
+        values.push(
+
+            filters.new_store_opening_id
+
+        );
+
+    }
 
 
     // ======================================
@@ -844,6 +946,8 @@ ActionPoint.getById = (
 
         ap.id,
 
+        ap.new_store_opening_id,
+
         ap.submission_id,
 
         ap.submission_answer_id,
@@ -881,6 +985,11 @@ ActionPoint.getById = (
         cs.inspection_score,
 
         cs.nso_status,
+
+        nso.location AS nso_location,
+        nso.city AS nso_city,
+        nso.status AS nso_project_status,
+        nso.store_name AS nso_store_name,
 
         cs.latitude,
 
@@ -954,6 +1063,10 @@ ActionPoint.getById = (
 
         ON ap.assigned_to = au.id
 
+    LEFT JOIN new_store_openings nso
+
+        ON ap.new_store_opening_id = nso.id
+
     WHERE ap.id = ?
 
     LIMIT 1
@@ -992,6 +1105,8 @@ ActionPoint.create = (
     INSERT INTO action_points
     (
 
+        new_store_opening_id,
+
         submission_id,
 
         submission_answer_id,
@@ -1024,13 +1139,15 @@ ActionPoint.create = (
 
     (
 
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 
     )
 
     `;
 
     const values = [
+
+        data.new_store_opening_id || null,
 
         data.submission_id,
 
@@ -1502,6 +1619,74 @@ ActionPoint.getOpenActionPoints = (
 
 };
 
+
+
+// ======================================================
+// GET ACTION POINTS BY NEW STORE OPENING
+// ======================================================
+
+ActionPoint.getByNSO = (
+
+    newStoreOpeningId,
+
+    callback
+
+) => {
+
+    const sql = `
+
+    SELECT
+
+        ap.*,
+        q.question,
+        s.store_name,
+        s.city,
+        s.state,
+        d.department_name,
+        ct.checklist_name,
+        cs.submission_date,
+        cs.inspection_score,
+        cs.nso_status,
+        nso.location AS nso_location,
+        nso.city AS nso_city,
+        nso.status AS nso_project_status,
+        nso.store_name AS nso_store_name,
+        u.name AS assigned_to_name
+
+    FROM action_points ap
+
+    INNER JOIN checklist_submissions cs
+        ON ap.submission_id = cs.id
+
+    INNER JOIN questions q
+        ON ap.question_id = q.id
+
+    INNER JOIN stores s
+        ON ap.store_id = s.id
+
+    LEFT JOIN departments d
+        ON ap.department_id = d.id
+
+    LEFT JOIN checklist_types ct
+        ON cs.checklist_type_id = ct.id
+
+    LEFT JOIN new_store_openings nso
+        ON ap.new_store_opening_id = nso.id
+
+    LEFT JOIN users u
+        ON ap.assigned_to = u.id
+
+    WHERE ap.new_store_opening_id = ?
+
+    ORDER BY
+        FIELD(ap.priority, 'Critical', 'High', 'Medium', 'Low'),
+        ap.created_at DESC
+
+    `;
+
+    db.query(sql, [newStoreOpeningId], callback);
+
+};
 
 
 // ======================================================

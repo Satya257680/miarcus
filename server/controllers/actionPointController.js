@@ -19,6 +19,7 @@ exports.getAllActionPoints = async (req, res) => {
         const filters = {
             store_id: req.query.store_id || null,
             department_id: req.query.department_id || null,
+            new_store_opening_id: req.query.new_store_opening_id || null,
             checklist_type_id: req.query.checklist_type_id || null,
             priority: req.query.priority || null,
             status: req.query.status || null,
@@ -61,6 +62,7 @@ exports.exportActionPointsCSV = async (req, res) => {
         const filters = {
             store_id: req.query.store_id || null,
             department_id: req.query.department_id || null,
+            new_store_opening_id: req.query.new_store_opening_id || null,
             checklist_type_id: req.query.checklist_type_id || null,
             priority: req.query.priority || null,
             status: req.query.status || null,
@@ -130,6 +132,35 @@ exports.exportActionPointsCSV = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Export failed.",
+            error: error.message
+        });
+    }
+
+};
+
+
+// ======================================================
+// GET ACTION POINTS BY NEW STORE OPENING
+// GET /api/action-points/nso/:newStoreOpeningId
+// ======================================================
+
+exports.getActionPointsByNSO = async (req, res) => {
+
+    try {
+
+        const data = await actionPointService.getByNSO(req.params.newStoreOpeningId);
+
+        return res.status(200).json({
+            success: true,
+            data
+        });
+
+    }
+    catch (error) {
+        console.error("GET ACTION POINTS BY NSO ERROR:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to fetch Action Points for the NSO project.",
             error: error.message
         });
     }
@@ -323,6 +354,7 @@ exports.deleteAllActionPoints = async (req, res) => {
 module.exports = {
     getAllActionPoints: exports.getAllActionPoints,
     exportActionPointsCSV: exports.exportActionPointsCSV,
+    getActionPointsByNSO: exports.getActionPointsByNSO,
     getActionPointById: exports.getActionPointById,
     createActionPoint: exports.createActionPoint,
     updateActionPoint: exports.updateActionPoint,

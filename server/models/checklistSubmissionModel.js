@@ -19,6 +19,8 @@ ChecklistSubmission.createTables = (callback) => {
 
         id INT AUTO_INCREMENT PRIMARY KEY,
 
+        new_store_opening_id INT NULL,
+
         checklist_type_id INT NOT NULL,
 
         store_id INT NOT NULL,
@@ -126,6 +128,90 @@ ChecklistSubmission.createTables = (callback) => {
 };
 
 // ======================================================
+// ENSURE NEW STORE OPENING PARENT COLUMN
+// Existing databases may already have the table.
+// CREATE TABLE IF NOT EXISTS does not alter it, so we
+// explicitly add the column/index/FK when missing.
+// ======================================================
+
+ChecklistSubmission.ensureParentColumn = async () => {
+
+    const hasColumn = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW COLUMNS FROM checklist_submissions LIKE 'new_store_opening_id'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasColumn) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE checklist_submissions ADD COLUMN new_store_opening_id INT NULL AFTER id`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    const hasIndex = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW INDEX FROM checklist_submissions WHERE Key_name = 'idx_checklist_submissions_nso'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasIndex) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE checklist_submissions ADD INDEX idx_checklist_submissions_nso (new_store_opening_id)`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    const hasParentTable = await new Promise((resolve, reject) => {
+        db.query(
+            `SELECT TABLE_NAME
+             FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'new_store_openings'
+             LIMIT 1`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasParentTable) {
+        console.warn("⚠️ new_store_openings table not found; skipping checklist submission FK migration.");
+        return;
+    }
+
+    const hasForeignKey = await new Promise((resolve, reject) => {
+        db.query(
+            `SELECT CONSTRAINT_NAME
+             FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'checklist_submissions'
+               AND COLUMN_NAME = 'new_store_opening_id'
+               AND REFERENCED_TABLE_NAME = 'new_store_openings'
+             LIMIT 1`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasForeignKey) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE checklist_submissions
+                 ADD CONSTRAINT fk_checklist_submissions_nso
+                 FOREIGN KEY (new_store_opening_id)
+                 REFERENCES new_store_openings(id)
+                 ON DELETE SET NULL`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+};
+
+// ======================================================
 // CREATE SUBMISSION WITH ANSWERS
 //
 // FIX (v2 - matches actual config/db.js):
@@ -178,6 +264,8 @@ ChecklistSubmission.create = async (
 
             (
 
+                new_store_opening_id,
+
                 checklist_type_id,
 
                 store_id,
@@ -210,13 +298,15 @@ ChecklistSubmission.create = async (
 
             (
 
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 
             )
 
         `;
 
         const submissionValues = [
+
+            submission.new_store_opening_id || null,
 
             submission.checklist_type_id,
 
@@ -399,6 +489,8 @@ ChecklistSubmission.getAll = (
 
             cs.id,
 
+            cs.new_store_opening_id,
+
             cs.checklist_type_id,
 
             cs.store_id,
@@ -431,13 +523,29 @@ ChecklistSubmission.getAll = (
 
             ct.type_name AS checklist_type_name,
 
+            nso.location AS nso_location,
+
+            nso.city AS nso_city,
+
+            nso.status AS nso_project_status,
+
             s.store_name,
 
             u.name AS submitted_by_name,
 
-            pu.name AS processed_by_name
+            pu.name AS processed_by_name,
+
+            nso.location AS nso_location,
+
+            nso.city AS nso_city,
+
+            nso.status AS nso_project_status
 
         FROM checklist_submissions cs
+
+        LEFT JOIN new_store_openings nso
+
+            ON cs.new_store_opening_id = nso.id
 
         LEFT JOIN checklist_types ct
 
@@ -597,6 +705,10 @@ ChecklistSubmission.countAll = (
 
         FROM checklist_submissions cs
 
+        LEFT JOIN new_store_openings nso
+
+            ON cs.new_store_opening_id = nso.id
+
         LEFT JOIN checklist_types ct
 
             ON cs.checklist_type_id = ct.id
@@ -680,6 +792,49 @@ ChecklistSubmission.countAll = (
 };
 
 // ======================================================
+// VERIFY NSO PROJECT
+// ======================================================
+
+ChecklistSubmission.getNewStoreOpeningById = (
+    id,
+    callback
+) => {
+    db.query(
+        `SELECT id, location, city, status
+         FROM new_store_openings
+         WHERE id = ?
+         LIMIT 1`,
+        [id],
+        callback
+    );
+};
+
+// ======================================================
+// GET SUBMISSIONS FOR AN NSO PROJECT
+// ======================================================
+
+ChecklistSubmission.getByNewStoreOpeningId = (
+    newStoreOpeningId,
+    callback
+) => {
+    const sql = `
+        SELECT
+            cs.*,
+            ct.type_name AS checklist_type_name,
+            s.store_name,
+            s.city AS store_city,
+            u.name AS submitted_by_name
+        FROM checklist_submissions cs
+        LEFT JOIN checklist_types ct ON cs.checklist_type_id = ct.id
+        LEFT JOIN stores s ON cs.store_id = s.id
+        LEFT JOIN users u ON cs.submitted_by = u.id
+        WHERE cs.new_store_opening_id = ?
+        ORDER BY cs.created_at DESC
+    `;
+    db.query(sql, [newStoreOpeningId], callback);
+};
+
+// ======================================================
 // GET SINGLE SUBMISSION
 // ======================================================
 
@@ -696,6 +851,8 @@ ChecklistSubmission.getById = (
         SELECT
 
             cs.id,
+
+            cs.new_store_opening_id,
 
             cs.checklist_type_id,
 

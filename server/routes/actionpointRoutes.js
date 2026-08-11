@@ -19,6 +19,7 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 const {
     getAllActionPoints,
     getActionPointById,
+    getActionPointsByNSO,
     exportActionPointsCSV,
     createActionPoint,
     updateActionPoint,
@@ -71,6 +72,24 @@ router.get(
         "View"
     ),
     exportActionPointsCSV
+);
+
+
+// ======================================================
+// GET ACTION POINTS BY NEW STORE OPENING
+// GET /api/action-points/nso/:newStoreOpeningId
+//
+// IMPORTANT: keep this route before /:id.
+// ======================================================
+
+router.get(
+    "/nso/:newStoreOpeningId",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "View"
+    ),
+    getActionPointsByNSO
 );
 
 

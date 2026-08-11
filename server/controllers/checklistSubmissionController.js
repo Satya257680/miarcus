@@ -29,6 +29,8 @@ exports.createSubmission = async (req, res) => {
 
         const {
 
+            new_store_opening_id,
+
             checklist_type_id,
 
             store_id,
@@ -105,6 +107,32 @@ exports.createSubmission = async (req, res) => {
 
         }
 
+        if (!new_store_opening_id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "New Store Opening project is required."
+
+            });
+
+        }
+
+        const projectRows = await new Promise((resolve, reject) => {
+            ChecklistSubmission.getNewStoreOpeningById(
+                new_store_opening_id,
+                (err, rows) => err ? reject(err) : resolve(rows)
+            );
+        });
+
+        if (!projectRows.length) {
+            return res.status(400).json({
+                success: false,
+                message: "Selected New Store Opening project was not found."
+            });
+        }
+
         if (!submission_date) {
 
             return res.status(400).json({
@@ -140,6 +168,8 @@ exports.createSubmission = async (req, res) => {
         }
 
         const submissionData = {
+
+            new_store_opening_id: Number(new_store_opening_id),
 
             checklist_type_id,
 
@@ -267,7 +297,7 @@ exports.createSubmission = async (req, res) => {
 
                     description:
 
-                        `Checklist submitted for store ${store_id}`,
+                        `Checklist submitted for NSO #${new_store_opening_id}, store ${store_id}`,
 
                     module_name:
 
@@ -340,6 +370,10 @@ exports.createSubmission = async (req, res) => {
                         submission_id:
 
                             submissionId,
+
+                        new_store_opening_id:
+
+                            Number(new_store_opening_id),
 
                         inspection:
 

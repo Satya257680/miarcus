@@ -114,6 +114,22 @@ async function initializeDatabase() {
 
     await createTablesAsync(ActionPoint, "action_points");
     await createTablesAsync(ChecklistSubmission, "checklist_submissions");
+
+    // Existing databases need explicit migrations because CREATE TABLE IF NOT EXISTS
+    // does not modify an already-created table.
+    try {
+        await ActionPoint.ensureParentColumn();
+        console.log("✅ action_points NSO parent relationship verified");
+    } catch (error) {
+        console.error("❌ action_points NSO migration failed:", error.message);
+    }
+
+    try {
+        await ChecklistSubmission.ensureParentColumn();
+        console.log("✅ checklist_submissions NSO parent relationship verified");
+    } catch (error) {
+        console.error("❌ checklist_submissions NSO migration failed:", error.message);
+    }
 }
 
 initializeDatabase();

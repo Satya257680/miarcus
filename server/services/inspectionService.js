@@ -459,6 +459,7 @@ const createActionPoints = (
                     : [];
 
                 const actionPointData = {
+                    new_store_opening_id: submission.new_store_opening_id || null,
                     submission_id: submission.id,
                     submission_answer_id: item.answer_id,
                     rule_id: rule.id || null,
@@ -644,74 +645,72 @@ const updateNSOStatus = (
 
 ) => {
 
-    return new Promise(
+    return new Promise(async (resolve, reject) => {
 
-        (
+        try {
 
-            resolve,
+            const rows = await new Promise((resolveRows, rejectRows) => {
+                db.query(
+                    `SELECT new_store_opening_id FROM checklist_submissions WHERE id = ? LIMIT 1`,
+                    [submissionId],
+                    (err, result) => err ? rejectRows(err) : resolveRows(result)
+                );
+            });
 
-            reject
+            const newStoreOpeningId = rows[0]?.new_store_opening_id;
 
-        ) => {
+            // Keep the checklist-level result for backward compatibility.
+            const checklistStatus = matchedRules.length > 0 ? "Open" : "Closed";
 
-            const status =
+            await new Promise((resolveUpdate, rejectUpdate) => {
+                db.query(
+                    `UPDATE checklist_submissions SET nso_status = ? WHERE id = ?`,
+                    [checklistStatus, submissionId],
+                    (err) => err ? rejectUpdate(err) : resolveUpdate()
+                );
+            });
 
-                matchedRules.length > 0
+            // The NSO project is now the authoritative business record.
+            // A failed inspection puts the project On Hold. A previously
+            // On Hold project can move to Ready For Opening after a clean
+            // inspection; other later statuses are never regressed.
+            if (newStoreOpeningId) {
+                const projectRows = await new Promise((resolveRows, rejectRows) => {
+                    db.query(
+                        `SELECT status FROM new_store_openings WHERE id = ? LIMIT 1`,
+                        [newStoreOpeningId],
+                        (err, result) => err ? rejectRows(err) : resolveRows(result)
+                    );
+                });
 
-                    ? "Open"
+                const currentStatus = projectRows[0]?.status;
 
-                    : "Closed";
-
-            const sql = `
-
-                UPDATE checklist_submissions
-
-                SET
-
-                    nso_status = ?
-
-                WHERE id = ?
-
-            `;
-
-            db.query(
-
-                sql,
-
-                [
-
-                    status,
-
-                    submissionId
-
-                ],
-
-                (err) => {
-
-                    if (
-
-                        err
-
-                    ) {
-
-                        return reject(
-
-                            err
-
+                if (matchedRules.length > 0) {
+                    await new Promise((resolveUpdate, rejectUpdate) => {
+                        db.query(
+                            `UPDATE new_store_openings SET status = 'On Hold', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                            [newStoreOpeningId],
+                            (err) => err ? rejectUpdate(err) : resolveUpdate()
                         );
-
-                    }
-
-                    resolve();
-
+                    });
+                } else if (currentStatus === "On Hold") {
+                    await new Promise((resolveUpdate, rejectUpdate) => {
+                        db.query(
+                            `UPDATE new_store_openings SET status = 'Ready For Opening', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                            [newStoreOpeningId],
+                            (err) => err ? rejectUpdate(err) : resolveUpdate()
+                        );
+                    });
                 }
+            }
 
-            );
+            resolve();
 
+        } catch (error) {
+            reject(error);
         }
 
-    );
-
+    });
 };
 
 // ======================================================

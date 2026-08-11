@@ -18,6 +18,10 @@ const upload = require(
     "../middleware/upload"
 );
 
+const ChecklistSubmission = require(
+    "../models/checklistSubmissionModel"
+);
+
 // ======================================================
 // CONTROLLER
 // ======================================================
@@ -117,6 +121,48 @@ router.get(
 
     exportSubmissions
 
+);
+
+// ======================================================
+// GET SUBMISSIONS FOR NEW STORE OPENING
+// GET /api/checklist-submissions/by-nso/:newStoreOpeningId
+// Permission : View
+// IMPORTANT: KEEP BEFORE /:id
+// ======================================================
+
+router.get(
+
+    "/by-nso/:newStoreOpeningId",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    (req, res) => {
+
+        ChecklistSubmission.getByNewStoreOpeningId(
+            req.params.newStoreOpeningId,
+            (err, rows) => {
+                if (err) {
+                    console.error("GET NSO SUBMISSIONS ERROR:", err);
+                    return res.status(500).json({
+                        success: false,
+                        message: err.message
+                    });
+                }
+                return res.json({
+                    success: true,
+                    data: rows
+                });
+            }
+        );
+    }
 );
 
 // ======================================================
