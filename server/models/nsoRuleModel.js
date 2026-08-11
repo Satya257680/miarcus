@@ -304,12 +304,25 @@ const getRuleById = (
     );
 
 };
+
+
 // ======================================================
 // CREATE RULE + DEPARTMENTS
 // TRANSACTION
+//
+// FIX:
+// "../config/db" wraps a mysql2/promise pool and exposes
+// { pool, query, execute, getConnection, ... }. It has NO
+// beginTransaction / commit / rollback of its own — those
+// only exist on a single connection obtained via
+// pool.getConnection(). This version gets a dedicated
+// connection, drives the transaction with async/await, and
+// always releases the connection back to the pool. The
+// external callback(err, result) signature is unchanged so
+// nothing in the controller needs to change.
 // ======================================================
 
-const createRuleWithDepartments = (
+const createRuleWithDepartments = async (
 
     rule,
 
@@ -317,13 +330,13 @@ const createRuleWithDepartments = (
 
 ) => {
 
-    db.beginTransaction((err) => {
+    let connection;
 
-        if (err) {
+    try {
 
-            return callback(err);
+        connection = await db.getConnection();
 
-        }
+        await connection.beginTransaction();
 
         const createRuleSql = `
 
@@ -353,7 +366,7 @@ const createRuleWithDepartments = (
 
         `;
 
-        db.query(
+        const [result] = await connection.query(
 
             createRuleSql,
 
@@ -375,129 +388,89 @@ const createRuleWithDepartments = (
 
                 rule.created_by
 
-            ],
-
-            (err, result) => {
-
-                if (err) {
-
-                    return db.rollback(() => {
-
-                        callback(err);
-
-                    });
-
-                }
-
-                const ruleId = result.insertId;
-
-                if (
-
-                    !rule.departments ||
-
-                    rule.departments.length === 0
-
-                ) {
-
-                    return db.commit((err) => {
-
-                        if (err) {
-
-                            return db.rollback(() => {
-
-                                callback(err);
-
-                            });
-
-                        }
-
-                        callback(null, result);
-
-                    });
-
-                }
-
-                const values = rule.departments.map(
-
-                    (departmentId) => [
-
-                        ruleId,
-
-                        departmentId
-
-                    ]
-
-                );
-
-                const departmentSql = `
-
-                    INSERT INTO nso_rule_departments
-
-                    (
-
-                        rule_id,
-
-                        department_id
-
-                    )
-
-                    VALUES ?
-
-                `;
-
-                db.query(
-
-                    departmentSql,
-
-                    [
-
-                        values
-
-                    ],
-
-                    (err) => {
-
-                        if (err) {
-
-                            return db.rollback(() => {
-
-                                callback(err);
-
-                            });
-
-                        }
-
-                        db.commit((err) => {
-
-                            if (err) {
-
-                                return db.rollback(() => {
-
-                                    callback(err);
-
-                                });
-
-                            }
-
-                            callback(
-
-                                null,
-
-                                result
-
-                            );
-
-                        });
-
-                    }
-
-                );
-
-            }
+            ]
 
         );
 
-    });
+        const ruleId = result.insertId;
+
+        if (
+
+            rule.departments &&
+
+            rule.departments.length > 0
+
+        ) {
+
+            const values = rule.departments.map(
+
+                (departmentId) => [
+
+                    ruleId,
+
+                    departmentId
+
+                ]
+
+            );
+
+            const departmentSql = `
+
+                INSERT INTO nso_rule_departments
+
+                (
+
+                    rule_id,
+
+                    department_id
+
+                )
+
+                VALUES ?
+
+            `;
+
+            await connection.query(
+
+                departmentSql,
+
+                [
+
+                    values
+
+                ]
+
+            );
+
+        }
+
+        await connection.commit();
+
+        callback(null, result);
+
+    }
+
+    catch (err) {
+
+        if (connection) {
+
+            await connection.rollback();
+
+        }
+
+        callback(err);
+
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
+
+        }
+
+    }
 
 };
 
@@ -506,9 +479,15 @@ const createRuleWithDepartments = (
 // ======================================================
 // BULK CREATE RULES
 // WITH CREATED BY
+//
+// FIX:
+// Now runs inside a single transaction via a dedicated
+// connection, so a failure partway through a large CSV
+// rolls back everything already inserted instead of
+// leaving the table half-populated.
 // ======================================================
 
-const bulkCreateRules = (
+const bulkCreateRules = async (
 
     rules,
 
@@ -518,179 +497,147 @@ const bulkCreateRules = (
 
 ) => {
 
-    const connection = db;
+    let connection;
 
-    const insertRules = async () => {
+    try {
 
-        try {
+        connection = await db.getConnection();
 
-            for (const rule of rules) {
+        await connection.beginTransaction();
 
-                const insertRuleSql = `
+        for (const rule of rules) {
 
-                    INSERT INTO nso_rules
+            const insertRuleSql = `
 
-                    (
+                INSERT INTO nso_rules
 
-                        trigger_column,
+                (
 
-                        expected_answer,
+                    trigger_column,
 
-                        priority,
+                    expected_answer,
 
-                        sla_days,
+                    priority,
 
-                        create_action_point,
+                    sla_days,
 
-                        mandatory,
+                    create_action_point,
 
-                        is_active,
+                    mandatory,
 
-                        created_by
+                    is_active,
 
-                    )
+                    created_by
 
-                    VALUES (?,?,?,?,?,?,?,?)
+                )
 
-                `;
+                VALUES (?,?,?,?,?,?,?,?)
 
-                const result = await new Promise(
+            `;
 
-                    (resolve, reject) => {
+            const [result] = await connection.query(
 
-                        connection.query(
+                insertRuleSql,
 
-                            insertRuleSql,
+                [
 
-                            [
+                    rule.trigger_column,
 
-                                rule.trigger_column,
+                    rule.expected_answer || "No",
 
-                                rule.expected_answer || "No",
+                    rule.priority || "Medium",
 
-                                rule.priority || "Medium",
+                    rule.sla_days || 3,
 
-                                rule.sla_days || 3,
+                    rule.create_action_point ?? 1,
 
-                                rule.create_action_point ?? 1,
+                    rule.mandatory ?? 1,
 
-                                rule.mandatory ?? 1,
+                    rule.is_active ?? 1,
 
-                                rule.is_active ?? 1,
+                    createdBy
 
-                                createdBy
+                ]
 
-                            ],
+            );
 
-                            (err, res) => {
+            const ruleId = result.insertId;
 
-                                if (err) {
+            if (
 
-                                    reject(err);
+                rule.department_ids &&
 
-                                }
+                rule.department_ids.length > 0
 
-                                else {
+            ) {
 
-                                    resolve(res);
+                for (
 
-                                }
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-                const ruleId = result.insertId;
-
-                if (
-
-                    rule.department_ids &&
-
-                    rule.department_ids.length > 0
+                    const departmentId of rule.department_ids
 
                 ) {
 
-                    for (
+                    await connection.query(
 
-                        const departmentId of rule.department_ids
+                        `
 
-                    ) {
+                        INSERT INTO nso_rule_departments
 
-                        await new Promise(
+                        (
 
-                            (resolve, reject) => {
+                            rule_id,
 
-                                connection.query(
+                            department_id
 
-                                    `
+                        )
 
-                                    INSERT INTO nso_rule_departments
+                        VALUES (?,?)
 
-                                    (
+                        `,
 
-                                        rule_id,
+                        [
 
-                                        department_id
+                            ruleId,
 
-                                    )
+                            departmentId
 
-                                    VALUES (?,?)
+                        ]
 
-                                    `,
-
-                                    [
-
-                                        ruleId,
-
-                                        departmentId
-
-                                    ],
-
-                                    (err) => {
-
-                                        if (err) {
-
-                                            reject(err);
-
-                                        }
-
-                                        else {
-
-                                            resolve();
-
-                                        }
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
+                    );
 
                 }
 
             }
 
-            callback(null);
+        }
+
+        await connection.commit();
+
+        callback(null);
+
+    }
+
+    catch (err) {
+
+        if (connection) {
+
+            await connection.rollback();
 
         }
 
-        catch (err) {
+        callback(err);
 
-            callback(err);
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
 
         }
 
-    };
-
-    insertRules();
+    }
 
 };
 
@@ -699,7 +646,7 @@ const bulkCreateRules = (
 // TRANSACTION
 // ======================================================
 
-const updateRuleWithDepartments = (
+const updateRuleWithDepartments = async (
 
     id,
 
@@ -723,19 +670,19 @@ const updateRuleWithDepartments = (
 
 ) => {
 
-    db.beginTransaction((err) => {
+    let connection;
 
-        if (err) {
+    try {
 
-            return callback(err);
+        connection = await db.getConnection();
 
-        }
+        await connection.beginTransaction();
 
         // ==============================
         // UPDATE RULE
         // ==============================
 
-        db.query(
+        await connection.query(
 
             `
 
@@ -779,190 +726,15 @@ const updateRuleWithDepartments = (
 
                 id
 
-            ],
-
-            (err) => {
-
-                if (err) {
-
-                    return db.rollback(() => {
-
-                        callback(err);
-
-                    });
-
-                }
-
-                // ==============================
-                // REMOVE OLD DEPARTMENTS
-                // ==============================
-
-                db.query(
-
-                    `
-
-                    DELETE FROM nso_rule_departments
-
-                    WHERE rule_id = ?
-
-                    `,
-
-                    [
-
-                        id
-
-                    ],
-
-                    (err) => {
-
-                        if (err) {
-
-                            return db.rollback(() => {
-
-                                callback(err);
-
-                            });
-
-                        }
-
-                        // ==============================
-                        // INSERT NEW DEPARTMENTS
-                        // ==============================
-
-                        if (
-
-                            !departments ||
-
-                            departments.length === 0
-
-                        ) {
-
-                            return db.commit((err) => {
-
-                                if (err) {
-
-                                    return db.rollback(() => {
-
-                                        callback(err);
-
-                                    });
-
-                                }
-
-                                callback(null);
-
-                            });
-
-                        }
-
-                        const values = departments.map(
-
-                            (departmentId) => [
-
-                                id,
-
-                                departmentId
-
-                            ]
-
-                        );
-
-                        db.query(
-
-                            `
-
-                            INSERT INTO nso_rule_departments
-
-                            (
-
-                                rule_id,
-
-                                department_id
-
-                            )
-
-                            VALUES ?
-
-                            `,
-
-                            [
-
-                                values
-
-                            ],
-
-                            (err) => {
-
-                                if (err) {
-
-                                    return db.rollback(() => {
-
-                                        callback(err);
-
-                                    });
-
-                                }
-
-                                db.commit((err) => {
-
-                                    if (err) {
-
-                                        return db.rollback(() => {
-
-                                            callback(err);
-
-                                        });
-
-                                    }
-
-                                    callback(null);
-
-                                });
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
+            ]
 
         );
 
-    });
+        // ==============================
+        // REMOVE OLD DEPARTMENTS
+        // ==============================
 
-};
-
-
-// ======================================================
-// DELETE SINGLE RULE
-// ======================================================
-
-const deleteRule = (
-
-    id,
-
-    callback
-
-) => {
-
-
-    db.beginTransaction((err)=>{
-
-
-        if(err){
-
-            return callback(err);
-
-        }
-
-
-
-        // Delete mapping first
-
-        db.query(
+        await connection.query(
 
             `
 
@@ -976,95 +748,182 @@ const deleteRule = (
 
                 id
 
-            ],
-
-            (err)=>{
-
-
-                if(err){
-
-                    return db.rollback(()=>{
-
-                        callback(err);
-
-                    });
-
-                }
-
-
-
-                // Delete main rule
-
-                db.query(
-
-                    `
-
-                    DELETE FROM nso_rules
-
-                    WHERE id = ?
-
-                    `,
-
-                    [
-
-                        id
-
-                    ],
-
-                    (err,result)=>{
-
-
-                        if(err){
-
-                            return db.rollback(()=>{
-
-                                callback(err);
-
-                            });
-
-                        }
-
-
-
-                        db.commit((err)=>{
-
-
-                            if(err){
-
-                                return db.rollback(()=>{
-
-                                    callback(err);
-
-                                });
-
-                            }
-
-
-                            callback(null,result);
-
-
-                        });
-
-
-
-                    }
-
-                );
-
-
-
-            }
+            ]
 
         );
 
+        // ==============================
+        // INSERT NEW DEPARTMENTS
+        // ==============================
 
+        if (
 
-    });
+            departments &&
 
+            departments.length > 0
+
+        ) {
+
+            const values = departments.map(
+
+                (departmentId) => [
+
+                    id,
+
+                    departmentId
+
+                ]
+
+            );
+
+            await connection.query(
+
+                `
+
+                INSERT INTO nso_rule_departments
+
+                (
+
+                    rule_id,
+
+                    department_id
+
+                )
+
+                VALUES ?
+
+                `,
+
+                [
+
+                    values
+
+                ]
+
+            );
+
+        }
+
+        await connection.commit();
+
+        callback(null);
+
+    }
+
+    catch (err) {
+
+        if (connection) {
+
+            await connection.rollback();
+
+        }
+
+        callback(err);
+
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
+
+        }
+
+    }
 
 };
 
 
+// ======================================================
+// DELETE SINGLE RULE
+// ======================================================
+
+const deleteRule = async (
+
+    id,
+
+    callback
+
+) => {
+
+    let connection;
+
+    try {
+
+        connection = await db.getConnection();
+
+        await connection.beginTransaction();
+
+        // Delete mapping first
+
+        await connection.query(
+
+            `
+
+            DELETE FROM nso_rule_departments
+
+            WHERE rule_id = ?
+
+            `,
+
+            [
+
+                id
+
+            ]
+
+        );
+
+        // Delete main rule
+
+        const [result] = await connection.query(
+
+            `
+
+            DELETE FROM nso_rules
+
+            WHERE id = ?
+
+            `,
+
+            [
+
+                id
+
+            ]
+
+        );
+
+        await connection.commit();
+
+        callback(null, result);
+
+    }
+
+    catch (err) {
+
+        if (connection) {
+
+            await connection.rollback();
+
+        }
+
+        callback(err);
+
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
+
+        }
+
+    }
+
+};
 
 
 
@@ -1072,107 +931,67 @@ const deleteRule = (
 // DELETE ALL RULES
 // ======================================================
 
-const deleteAllRules = (
+const deleteAllRules = async (
 
     callback
 
 ) => {
 
+    let connection;
 
-    db.beginTransaction((err)=>{
+    try {
 
+        connection = await db.getConnection();
 
-        if(err){
+        await connection.beginTransaction();
 
-            return callback(err);
-
-        }
-
-
-
-        db.query(
+        await connection.query(
 
             `
 
             DELETE FROM nso_rule_departments
 
-            `,
-
-            (err)=>{
-
-
-                if(err){
-
-                    return db.rollback(()=>{
-
-                        callback(err);
-
-                    });
-
-                }
-
-
-
-                db.query(
-
-                    `
-
-                    DELETE FROM nso_rules
-
-                    `,
-
-                    (err,result)=>{
-
-
-                        if(err){
-
-                            return db.rollback(()=>{
-
-                                callback(err);
-
-                            });
-
-                        }
-
-
-
-                        db.commit((err)=>{
-
-
-                            if(err){
-
-                                return db.rollback(()=>{
-
-                                    callback(err);
-
-                                });
-
-                            }
-
-
-
-                            callback(null,result);
-
-
-
-                        });
-
-
-
-                    }
-
-                );
-
-
-
-            }
+            `
 
         );
 
+        const [result] = await connection.query(
 
+            `
 
-    });
+            DELETE FROM nso_rules
 
+            `
+
+        );
+
+        await connection.commit();
+
+        callback(null, result);
+
+    }
+
+    catch (err) {
+
+        if (connection) {
+
+            await connection.rollback();
+
+        }
+
+        callback(err);
+
+    }
+
+    finally {
+
+        if (connection) {
+
+            connection.release();
+
+        }
+
+    }
 
 };
 // ======================================================
