@@ -66,7 +66,57 @@ const db = require("./config/db");
 // TLS inspection / a free-tier Aiven service waking up).
 // ------------------------------------------------------
 
-db.connectWithRetry();
+// ------------------------------------------------------
+// TABLE INITIALIZATION
+// ------------------------------------------------------
+// Some models (ActionPoint, ChecklistSubmission) ship a
+// `createTables()` helper that runs `CREATE TABLE IF NOT
+// EXISTS`, but nothing ever called it — the tables only
+// existed if someone created them by hand in Aiven. That's
+// why /api/action-points was throwing a 500: the table
+// simply wasn't there. connectWithRetry() now runs first,
+// then we create/verify the tables it depends on before the
+// server starts accepting traffic.
+// ------------------------------------------------------
+
+const ActionPoint = require("./models/actionPointModel");
+const ChecklistSubmission = require("./models/checklistSubmissionModel");
+
+function createTablesAsync(model, label) {
+    return new Promise((resolve) => {
+        model.createTables((err) => {
+            if (err) {
+                console.error(`❌ Failed to create/verify ${label} table(s):`, err.message);
+            } else {
+                console.log(`✅ ${label} table(s) verified`);
+            }
+            // Resolve either way — a table-creation failure shouldn't
+            // block the whole server from starting, it'll just keep
+            // producing the same clear error on affected endpoints.
+            resolve();
+        });
+    });
+}
+
+async function initializeDatabase() {
+
+    const connected = await db.connectWithRetry();
+
+    if (!connected) {
+        console.error("🛑 Skipping table initialization — no database connection.");
+        return;
+    }
+
+    console.log("");
+    console.log("==============================================");
+    console.log("VERIFYING / CREATING REQUIRED TABLES");
+    console.log("==============================================");
+
+    await createTablesAsync(ActionPoint, "action_points");
+    await createTablesAsync(ChecklistSubmission, "checklist_submissions");
+}
+
+initializeDatabase();
 
 
 // ======================================================

@@ -1188,7 +1188,20 @@ ActionPoint.updateStatus = (
 // TAKE ACTION
 // ======================================================
 
-ActionPoint.takeAction = (
+// ------------------------------------------------------
+// NOTE: this used to call db.beginTransaction(...) /
+// db.rollback(...) / db.commit(...), but config/db.js only
+// exports { pool, query, execute, getConnection,
+// testDatabaseConnection, connectWithRetry, closePool } —
+// there is no beginTransaction/rollback/commit on it, so
+// every call here threw "db.beginTransaction is not a
+// function" before a single query ran. mysql2 puts
+// transaction control on a checked-out connection, not the
+// pool, so this now grabs a connection explicitly and runs
+// the transaction on that.
+// ------------------------------------------------------
+
+ActionPoint.takeAction = async (
 
     id,
 
@@ -1198,19 +1211,19 @@ ActionPoint.takeAction = (
 
 ) => {
 
-    db.beginTransaction((transactionError) => {
+    let connection;
 
-        if (transactionError) {
+    try {
 
-            return callback(transactionError);
+        connection = await db.getConnection();
 
-        }
+        await connection.beginTransaction();
 
         // ======================================
         // GET ACTION POINT
         // ======================================
 
-        db.query(
+        const [rows] = await connection.execute(
 
             `
 
@@ -1224,173 +1237,133 @@ ActionPoint.takeAction = (
 
             `,
 
-            [id],
+            [id]
 
-            (findError, rows) => {
+        );
 
-                if (findError) {
+        if (rows.length === 0) {
 
-                    return db.rollback(() => {
+            await connection.rollback();
 
-                        callback(findError);
+            return callback(
 
-                    });
+                new Error(
 
-                }
+                    "Action Point not found."
 
-                if (rows.length === 0) {
+                )
 
-                    return db.rollback(() => {
+            );
 
-                        callback(
+        }
 
-                            new Error(
+        const submissionAnswerId =
 
-                                "Action Point not found."
+            rows[0].submission_answer_id;
 
-                            )
+        // ======================================
+        // UPDATE ACTION POINT
+        // ======================================
 
-                        );
+        await connection.execute(
 
-                    });
+            `
 
-                }
+            UPDATE action_points
 
-                const submissionAnswerId =
+            SET
 
-                    rows[0].submission_answer_id;
+                status = 'Closed',
 
-                // ======================================
-                // UPDATE ACTION POINT
-                // ======================================
+                remarks = ?,
 
-                db.query(
+                completed_at = CURRENT_TIMESTAMP,
 
-                    `
+                updated_at = CURRENT_TIMESTAMP
 
-                    UPDATE action_points
+            WHERE id = ?
 
-                    SET
+            `,
 
-                        status = 'Closed',
+            [
 
-                        remarks = ?,
+                data.remarks || "",
 
-                        completed_at = CURRENT_TIMESTAMP,
+                id
 
-                        updated_at = CURRENT_TIMESTAMP
+            ]
 
-                    WHERE id = ?
+        );
 
-                    `,
+        // ======================================
+        // UPDATE SUBMISSION ANSWER
+        // ======================================
 
-                    [
+        await connection.execute(
 
-                        data.remarks || "",
+            `
 
-                        id
+            UPDATE checklist_submission_answers
 
-                    ],
+            SET
 
-                    (actionError) => {
+                action_taken = ?,
 
-                        if (actionError) {
+                action_remarks = ?,
 
-                            return db.rollback(() => {
+                completion_date = CURRENT_TIMESTAMP
 
-                                callback(actionError);
+            WHERE id = ?
 
-                            });
+            `,
 
-                        }
+            [
 
-                        // ======================================
-                        // UPDATE SUBMISSION ANSWER
-                        // ======================================
+                data.action_taken || "Completed",
 
-                        db.query(
+                data.remarks || "",
 
-                            `
+                submissionAnswerId
 
-                            UPDATE checklist_submission_answers
+            ]
 
-                            SET
+        );
 
-                                action_taken = ?,
+        await connection.commit();
 
-                                action_remarks = ?,
+        callback(
 
-                                completion_date = CURRENT_TIMESTAMP
+            null,
 
-                            WHERE id = ?
+            {
 
-                            `,
-
-                            [
-
-                                data.action_taken || "Completed",
-
-                                data.remarks || "",
-
-                                submissionAnswerId
-
-                            ],
-
-                            (answerError) => {
-
-                                if (answerError) {
-
-                                    return db.rollback(() => {
-
-                                        callback(answerError);
-
-                                    });
-
-                                }
-
-                                db.commit(
-
-                                    (commitError) => {
-
-                                        if (commitError) {
-
-                                            return db.rollback(() => {
-
-                                                callback(commitError);
-
-                                            });
-
-                                        }
-
-                                        callback(
-
-                                            null,
-
-                                            {
-
-                                                success: true
-
-                                            }
-
-                                        );
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
+                success: true
 
             }
 
         );
 
-    });
+    } catch (error) {
+
+        if (connection) {
+
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError.message);
+            }
+
+        }
+
+        callback(error);
+
+    } finally {
+
+        if (connection) {
+            connection.release();
+        }
+
+    }
 
 };
 // ======================================================
