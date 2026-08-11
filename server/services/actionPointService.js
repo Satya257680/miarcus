@@ -78,6 +78,33 @@ const getBySubmission = (submissionId) =>
 const getDashboardStats = () => asPromise(ActionPoint.getDashboardStats);
 
 // ======================================================
+// TRUTHY FLAG HELPER
+// ======================================================
+
+// ------------------------------------------------------
+// Same fix as services/inspectionService.js — nso_rules
+// boolean-ish columns can come back from mysql2 as a Buffer
+// if the column is BIT(1) rather than TINYINT. This isn't
+// currently called by the live rule-engine path (that runs
+// through inspectionService.js), but keeping it consistent
+// in case something switches to call it.
+// ------------------------------------------------------
+
+const isFlagEnabled = (value) => {
+
+    if (Buffer.isBuffer(value)) {
+        return value.length > 0 && value[0] === 1;
+    }
+
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    return Number(value) === 1;
+
+};
+
+// ======================================================
 // CREATE ACTION POINTS FROM MATCHED NSO RULES
 // Called by inspectionService.runInspection() after the
 // rule engine evaluates a checklist submission.
@@ -96,7 +123,7 @@ const createFromRules = async (submission, matchedRules, userId) => {
 
         const rule = item.rule;
 
-        if (Number(rule.create_action_point) !== 1) {
+        if (!isFlagEnabled(rule.create_action_point)) {
             continue;
         }
 

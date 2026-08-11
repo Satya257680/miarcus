@@ -580,7 +580,17 @@ ChecklistReport.getById = (
 // ======================================================
 
 
-ChecklistReport.update = (
+// ------------------------------------------------------
+// NOTE: same fix as actionPointModel.js / nsoRuleModel.js —
+// "../config/db" wraps a mysql2/promise pool and has no
+// beginTransaction/commit/rollback of its own; those only
+// exist on a connection from pool.getConnection(). This
+// grabs a dedicated connection, drives the transaction with
+// async/await, and always releases it. Callback signature
+// (err, result) is unchanged.
+// ------------------------------------------------------
+
+ChecklistReport.update = async (
 
     id,
 
@@ -588,50 +598,33 @@ ChecklistReport.update = (
 
     callback
 
-)=>{
+) => {
 
+    let connection;
 
+    try {
 
-    db.beginTransaction((err)=>{
+        connection = await db.getConnection();
 
-
-        if(err){
-
-            return callback(err);
-
-        }
-
-
-
-
+        await connection.beginTransaction();
 
         // ==========================================
         // UPDATE SUBMISSION STATUS
         // ==========================================
 
+        await connection.query(
 
-        const submissionSql = `
-
+            `
 
             UPDATE checklist_submissions
-
 
             SET
 
                 status = ?
 
-
             WHERE id = ?
 
-
-
-        `;
-
-
-
-        db.query(
-
-            submissionSql,
+            `,
 
             [
 
@@ -639,198 +632,75 @@ ChecklistReport.update = (
 
                 id
 
-            ],
-
-
-            (submissionErr)=>{
-
-
-
-                if(submissionErr){
-
-
-                    return db.rollback(()=>{
-
-
-                        callback(submissionErr);
-
-
-                    });
-
-
-                }
-
-
-
-
-
-
-
-                // ==========================================
-                // UPDATE ANSWERS
-                // ==========================================
-
-
-                if(
-
-                    !data.answer &&
-
-                    !data.remarks
-
-                ){
-
-
-                    return db.commit((commitErr)=>{
-
-
-                        if(commitErr){
-
-
-                            return db.rollback(()=>{
-
-                                callback(commitErr);
-
-                            });
-
-
-                        }
-
-
-
-                        callback(null);
-
-
-                    });
-
-
-
-                }
-
-
-
-
-
-
-
-                const answerSql = `
-
-
-                    UPDATE checklist_submission_answers
-
-
-                    SET
-
-
-                        answer = ?,
-
-
-                        remarks = ?
-
-
-
-                    WHERE submission_id = ?
-
-
-
-                `;
-
-
-
-
-
-
-
-                db.query(
-
-                    answerSql,
-
-                    [
-
-                        data.answer || "",
-
-                        data.remarks || "",
-
-                        id
-
-
-                    ],
-
-
-                    (answerErr,result)=>{
-
-
-                        if(answerErr){
-
-
-
-                            return db.rollback(()=>{
-
-
-                                callback(answerErr);
-
-
-                            });
-
-
-                        }
-
-
-
-
-
-
-                        db.commit((commitErr)=>{
-
-
-                            if(commitErr){
-
-
-                                return db.rollback(()=>{
-
-
-                                    callback(commitErr);
-
-
-                                });
-
-
-                            }
-
-
-
-                            callback(
-
-                                null,
-
-                                result
-
-                            );
-
-
-
-                        });
-
-
-
-                    }
-
-
-
-                );
-
-
-
-            }
-
-
+            ]
 
         );
 
+        // ==========================================
+        // UPDATE ANSWERS
+        // ==========================================
 
+        let result = null;
 
-    });
+        if (data.answer || data.remarks) {
 
+            const [answerResult] = await connection.query(
 
+                `
+
+                UPDATE checklist_submission_answers
+
+                SET
+
+                    answer = ?,
+
+                    remarks = ?
+
+                WHERE submission_id = ?
+
+                `,
+
+                [
+
+                    data.answer || "",
+
+                    data.remarks || "",
+
+                    id
+
+                ]
+
+            );
+
+            result = answerResult;
+
+        }
+
+        await connection.commit();
+
+        callback(null, result);
+
+    } catch (error) {
+
+        if (connection) {
+
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError.message);
+            }
+
+        }
+
+        callback(error);
+
+    } finally {
+
+        if (connection) {
+            connection.release();
+        }
+
+    }
 
 };
 // ======================================================
@@ -839,178 +709,88 @@ ChecklistReport.update = (
 // ======================================================
 
 
-ChecklistReport.delete = (
+// ------------------------------------------------------
+// NOTE: same connection-based transaction fix as update()
+// above.
+// ------------------------------------------------------
+
+ChecklistReport.delete = async (
 
     id,
 
     callback
 
-)=>{
+) => {
 
+    let connection;
 
-    db.beginTransaction((err)=>{
+    try {
 
+        connection = await db.getConnection();
 
-        if(err){
-
-            return callback(err);
-
-        }
-
-
-
+        await connection.beginTransaction();
 
         // ==========================================
         // DELETE ANSWERS FIRST
         // ==========================================
 
+        await connection.query(
 
-        const deleteAnswersSql = `
-
+            `
 
             DELETE FROM checklist_submission_answers
 
-
             WHERE submission_id = ?
 
+            `,
 
-
-        `;
-
-
-
-
-        db.query(
-
-            deleteAnswersSql,
-
-            [id],
-
-            (answerErr)=>{
-
-
-                if(answerErr){
-
-
-                    return db.rollback(()=>{
-
-
-                        callback(answerErr);
-
-
-                    });
-
-
-                }
-
-
-
-
-
-
-
-                // ==========================================
-                // DELETE SUBMISSION
-                // ==========================================
-
-
-                const deleteSubmissionSql = `
-
-
-                    DELETE FROM checklist_submissions
-
-
-                    WHERE id = ?
-
-
-
-                `;
-
-
-
-
-                db.query(
-
-                    deleteSubmissionSql,
-
-                    [id],
-
-                    (deleteErr,result)=>{
-
-
-                        if(deleteErr){
-
-
-                            return db.rollback(()=>{
-
-
-                                callback(deleteErr);
-
-
-                            });
-
-
-                        }
-
-
-
-
-
-
-
-
-                        db.commit((commitErr)=>{
-
-
-                            if(commitErr){
-
-
-                                return db.rollback(()=>{
-
-
-                                    callback(commitErr);
-
-
-                                });
-
-
-                            }
-
-
-
-                            callback(
-
-                                null,
-
-                                result
-
-                            );
-
-
-
-                        });
-
-
-
-                    }
-
-
-
-                );
-
-
-
-            }
-
-
+            [id]
 
         );
 
+        // ==========================================
+        // DELETE SUBMISSION
+        // ==========================================
 
+        const [result] = await connection.query(
 
-    });
+            `
 
+            DELETE FROM checklist_submissions
 
+            WHERE id = ?
+
+            `,
+
+            [id]
+
+        );
+
+        await connection.commit();
+
+        callback(null, result);
+
+    } catch (error) {
+
+        if (connection) {
+
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError.message);
+            }
+
+        }
+
+        callback(error);
+
+    } finally {
+
+        if (connection) {
+            connection.release();
+        }
+
+    }
 
 };
 // ======================================================
