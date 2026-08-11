@@ -54,6 +54,13 @@ function NSOTracking() {
         useState(null);
 
 
+    const getProjectStatusLabel = (item) => {
+
+        return item?.nso_status || item?.status || "Planning";
+
+    };
+
+
     // ==================================================
     // PERMISSIONS
     // ==================================================
@@ -842,7 +849,11 @@ function NSOTracking() {
                                 </th>
 
                                 <th>
-                                    Status
+                                    NSO Status
+                                </th>
+
+                                <th>
+                                    Tracking Status
                                 </th>
 
                                 <th>
@@ -869,7 +880,7 @@ function NSOTracking() {
                                 <tr>
 
                                     <td
-                                        colSpan="7"
+                                        colSpan="8"
                                         style={{
                                             textAlign:
                                                 "center"
@@ -940,6 +951,16 @@ function NSOTracking() {
 
                                             {/* ==================
                                                 STATUS
+                                            ================== */}
+
+                                            <td>
+
+                                                {getProjectStatusLabel(item)}
+
+                                            </td>
+
+                                            {/* ==================
+                                                TRACKING STATUS
                                             ================== */}
 
                                             <td>

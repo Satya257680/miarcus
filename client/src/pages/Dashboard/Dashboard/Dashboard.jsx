@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getDashboardStats } from "../../../services/dashboardService";
+import { getDashboardStats, getNSOSummary } from "../../../services/dashboardService";
 import {
   FaTasks,
   FaBullhorn,
@@ -36,6 +36,8 @@ function Dashboard() {
 
   const [search, setSearch] = useState("");
 
+  const [nsoSummary, setNsoSummary] = useState({ total: 0, ready_for_opening: 0, opened: 0, on_hold: 0 });
+
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalStores: 0,
@@ -58,6 +60,13 @@ function Dashboard() {
       const response = await getDashboardStats();
 
       setDashboardStats(response.data);
+
+      try {
+        const nsoResponse = await getNSOSummary();
+        setNsoSummary(nsoResponse.data || {});
+      } catch (nsoError) {
+        console.error("NSO Summary Error:", nsoError);
+      }
 
     } catch (error) {
 
@@ -477,6 +486,58 @@ const currentDate = now.toLocaleDateString("en-IN", {
 
         </div>
 
+    </Card>
+
+</div>
+
+{/* ==========================================
+    NSO BUSINESS SUMMARY
+========================================== */}
+
+<div className="dashboard-stats-grid">
+
+    <Card className="dashboard-stat-card">
+        <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon stores"><FaStore /></div>
+            <div>
+                <h3>NSO Projects</h3>
+                <h2>{nsoSummary.total || 0}</h2>
+                <p>Total New Store Openings</p>
+            </div>
+        </div>
+    </Card>
+
+    <Card className="dashboard-stat-card">
+        <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon checklist"><FaClipboardCheck /></div>
+            <div>
+                <h3>Ready For Opening</h3>
+                <h2>{nsoSummary.ready_for_opening || 0}</h2>
+                <p>Projects at opening gate</p>
+            </div>
+        </div>
+    </Card>
+
+    <Card className="dashboard-stat-card">
+        <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon checklist"><FaChartLine /></div>
+            <div>
+                <h3>Opened</h3>
+                <h2>{nsoSummary.opened || 0}</h2>
+                <p>Successfully opened projects</p>
+            </div>
+        </div>
+    </Card>
+
+    <Card className="dashboard-stat-card">
+        <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon pending"><FaExclamationTriangle /></div>
+            <div>
+                <h3>On Hold</h3>
+                <h2>{nsoSummary.on_hold || 0}</h2>
+                <p>Projects requiring attention</p>
+            </div>
+        </div>
     </Card>
 
 </div>

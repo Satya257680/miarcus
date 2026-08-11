@@ -69,6 +69,18 @@ export const getTrackingByStoreOpening = (id) => {
 
 };
 
+
+// ======================================================
+// GET NSO PROJECT SUMMARY
+// ======================================================
+
+export const getNSOProjectSummary = (id) => {
+    return axios.get(
+        `${BASE_URL}/nso-tracking/store/${id}/summary`,
+        authConfig()
+    );
+};
+
 // ======================================================
 // CREATE NSO TRACKING
 // ======================================================
@@ -199,6 +211,7 @@ export default {
     getNSOTracking,
     getNSOTrackingById,
     getTrackingByStoreOpening,
+    getNSOProjectSummary,
     createNSOTracking,
     updateNSOTracking,
     updateNSOTrackingStatus,

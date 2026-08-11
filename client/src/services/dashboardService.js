@@ -47,3 +47,12 @@ export const getRecentActivities = async () => {
     return response.data;
 
 };
+
+// ======================================================
+// Get NSO Business Summary
+// ======================================================
+
+export const getNSOSummary = async () => {
+    const response = await axios.get(`${API}/nso-summary`, authConfig());
+    return response.data;
+};

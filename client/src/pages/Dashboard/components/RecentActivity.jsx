@@ -172,9 +172,9 @@ function RecentActivity() {
 
                             <div className="activity-card-body">
 
-                                <h4>{item.type}</h4>
+                                <h4>{item.title || item.type}</h4>
 
-                                <p>{item.activity}</p>
+                                <p>{item.activity || item.description || "Activity"}</p>
 
                                 <span>
 

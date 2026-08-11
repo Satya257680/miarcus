@@ -21,6 +21,8 @@ function ActivityCenter() {
 
     const [priority, setPriority] = useState("");
 
+    const [newStoreOpeningId, setNewStoreOpeningId] = useState("");
+
     const [page, setPage] = useState(1);
 
     const limit = 10;
@@ -37,6 +39,7 @@ function ActivityCenter() {
                 search,
                 status,
                 priority,
+                new_store_opening_id: newStoreOpeningId,
                 page,
                 limit,
             });
@@ -70,6 +73,7 @@ function ActivityCenter() {
         setSearch("");
         setStatus("");
         setPriority("");
+        setNewStoreOpeningId("");
         setPage(1);
 
         setTimeout(() => {
@@ -141,6 +145,14 @@ const handleView = (activity) => {
                     <option value="High">High</option>
                     <option value="Critical">Critical</option>
                 </select>
+
+                <input
+                    type="number"
+                    min="1"
+                    placeholder="NSO Project ID"
+                    value={newStoreOpeningId}
+                    onChange={(e) => setNewStoreOpeningId(e.target.value)}
+                />
 
                 <button
                     className="search-btn"
