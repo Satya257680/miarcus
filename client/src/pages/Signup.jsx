@@ -513,6 +513,9 @@ function Signup() {
     const validateProfileStep =
         () => {
 
+            // ----------------------------------------------
+            // REQUIRED FIELDS
+            // ----------------------------------------------
             if (
                 !fullName.trim() ||
                 !employeeId.trim() ||
@@ -524,118 +527,226 @@ function Signup() {
                 !password ||
                 !confirmPassword
             ) {
-
                 alert(
-                    "Please fill all required fields."
+                    "Please fill all required fields before continuing."
                 );
-
                 return false;
-
             }
 
+            // ----------------------------------------------
+            // EMAIL FORMAT
+            // Requires a real domain and TLD, for example:
+            // name@gmail.com, name@company.com, name@company.in
+            // ----------------------------------------------
+            const emailPattern =
+                /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,63}$/;
 
+            const normalizedEmail =
+                email.trim().toLowerCase();
+
+            const normalizedConfirmEmail =
+                confirmEmail.trim().toLowerCase();
+
+            if (!emailPattern.test(normalizedEmail)) {
+                alert(
+                    "Please enter a valid email address, for example name@gmail.com, name@company.com or name@company.in."
+                );
+                return false;
+            }
+
+            // ----------------------------------------------
+            // CONFIRM EMAIL
+            // ----------------------------------------------
             if (
-                email.trim().toLowerCase() !==
-                confirmEmail
-                    .trim()
-                    .toLowerCase()
+                normalizedEmail !==
+                normalizedConfirmEmail
             ) {
-
                 alert(
                     "Email and Confirm Email do not match."
                 );
-
                 return false;
-
             }
 
+            // ----------------------------------------------
+            // PHONE / WHATSAPP
+            // Exactly 10 digits
+            // ----------------------------------------------
+            const phonePattern = /^\d{10}$/;
 
+            if (!phonePattern.test(callContact.trim())) {
+                alert(
+                    "Call Contact must contain exactly 10 digits."
+                );
+                return false;
+            }
+
+            if (!phonePattern.test(whatsappContact.trim())) {
+                alert(
+                    "WhatsApp Contact must contain exactly 10 digits."
+                );
+                return false;
+            }
+
+            // ----------------------------------------------
+            // CONFIRM WHATSAPP
+            // ----------------------------------------------
             if (
                 whatsappContact.trim() !==
                 confirmWhatsappContact.trim()
             ) {
-
                 alert(
                     "WhatsApp contacts do not match."
                 );
-
                 return false;
-
             }
 
+            // ----------------------------------------------
+            // PASSWORD
+            // 6 to 8 characters
+            // At least: uppercase + lowercase + number
+            // and one special character from @ # $ %
+            // ----------------------------------------------
+            const passwordPattern =
+                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%]).{6,8}$/;
 
-            if (
-                password.length < 6
-            ) {
-
+            if (!passwordPattern.test(password)) {
                 alert(
-                    "Password must contain at least 6 characters."
+                    "Password must be 6-8 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character from @ # $ %."
                 );
-
                 return false;
-
             }
 
-
+            // ----------------------------------------------
+            // CONFIRM PASSWORD
+            // ----------------------------------------------
             if (
                 password !==
                 confirmPassword
             ) {
-
                 alert(
                     "Password and Confirm Password do not match."
                 );
-
                 return false;
-
             }
-
-
-            if (
-                callContact.trim().length < 10
-            ) {
-
-                alert(
-                    "Please enter a valid Call Contact."
-                );
-
-                return false;
-
-            }
-
-
-            if (
-                whatsappContact.trim().length < 10
-            ) {
-
-                alert(
-                    "Please enter a valid WhatsApp Contact."
-                );
-
-                return false;
-
-            }
-
 
             return true;
+        };
 
+
+    const validateReportingStep =
+        () => {
+
+            if (!selectedReport) {
+                alert(
+                    "Please select a Reporting Manager."
+                );
+                return false;
+            }
+
+            if (!departmentId) {
+                alert(
+                    "Please select a Department."
+                );
+                return false;
+            }
+
+            if (!designationId) {
+                alert(
+                    "Please select a Designation."
+                );
+                return false;
+            }
+
+            return true;
+        };
+
+
+    const validateStoresStep =
+        () => {
+
+            if (selectedStores.length === 0) {
+                alert(
+                    "Please assign at least one store before continuing."
+                );
+                return false;
+            }
+
+            return true;
+        };
+
+
+    const validateAccessStep =
+        () => {
+
+            const hasAccess =
+                Object.values(
+                    modulePermissions
+                ).some(
+                    (permission) =>
+                        permission !== "None"
+                );
+
+            if (!hasAccess) {
+                alert(
+                    "Please assign access to at least one module before continuing."
+                );
+                return false;
+            }
+
+            return true;
         };
 
 
     const validateCurrentStep =
         () => {
 
-            if (
-                steps[currentStep].key ===
-                "profile"
-            ) {
+            const currentKey =
+                steps[currentStep].key;
 
+            if (currentKey === "profile") {
                 return validateProfileStep();
+            }
 
+            if (currentKey === "reporting") {
+                return validateReportingStep();
+            }
+
+            if (currentKey === "stores") {
+                return validateStoresStep();
+            }
+
+            if (currentKey === "access") {
+                return validateAccessStep();
             }
 
             return true;
+        };
 
+
+    const validateAllSteps =
+        () => {
+
+            if (!validateProfileStep()) {
+                setCurrentStep(0);
+                return false;
+            }
+
+            if (!validateReportingStep()) {
+                setCurrentStep(1);
+                return false;
+            }
+
+            if (!validateStoresStep()) {
+                setCurrentStep(2);
+                return false;
+            }
+
+            if (!validateAccessStep()) {
+                setCurrentStep(3);
+                return false;
+            }
+
+            return true;
         };
 
 
@@ -710,14 +821,10 @@ function Signup() {
     const handleSignup =
         async () => {
 
-            if (
-                !validateProfileStep()
-            ) {
-
-                setCurrentStep(0);
-
+            // Re-check every required step before creating
+            // the account, even if the user has navigated back.
+            if (!validateAllSteps()) {
                 return;
-
             }
 
 
@@ -1008,6 +1115,8 @@ function Signup() {
                                 )
                             }
                             maxLength={10}
+                            inputMode="numeric"
+                            pattern="[0-9]{10}"
                             placeholder="Enter Call Contact"
                         />
 
@@ -1032,6 +1141,8 @@ function Signup() {
                                 )
                             }
                             maxLength={10}
+                            inputMode="numeric"
+                            pattern="[0-9]{10}"
                             placeholder="Enter WhatsApp Contact"
                         />
 
@@ -1058,6 +1169,8 @@ function Signup() {
                                 )
                             }
                             maxLength={10}
+                            inputMode="numeric"
+                            pattern="[0-9]{10}"
                             placeholder="Re-enter WhatsApp Contact"
                         />
 
@@ -1076,12 +1189,13 @@ function Signup() {
                         <input
                             type="password"
                             value={password}
+                            maxLength={8}
                             onChange={(e) =>
                                 setPassword(
                                     e.target.value
                                 )
                             }
-                            placeholder="Enter password"
+                            placeholder="6-8 chars: Aa1@#$%"
                         />
 
                     </div>
@@ -1099,6 +1213,7 @@ function Signup() {
                         <input
                             type="password"
                             value={confirmPassword}
+                            maxLength={8}
                             onChange={(e) =>
                                 setConfirmPassword(
                                     e.target.value
