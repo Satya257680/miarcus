@@ -167,18 +167,8 @@ const exportCSV = () => {
 // Bulk Upload
 // ============================
 
-const uploadUsers = async () => {
-
-  if (!selectedFile) {
-    alert("Please Select File");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", selectedFile);
-
+const handleBulkUpload = async (formData) => {
   try {
-
     const res = await axios.post(
       "https://miarcus-backend.onrender.com/api/users/bulk-upload",
       formData,
@@ -189,28 +179,22 @@ const uploadUsers = async () => {
       }
     );
 
-    // Refresh users after upload
-    await fetchUsers();
-
-    // Close modal
-    setShowBulkModal(false);
-
-    // Clear selected file
-    setSelectedFile(null);
-
-    // Reset file input (if you have a ref)
-    // fileInputRef.current.value = "";
-
-    alert(res.data.message);
-
+    return {
+      success: res.data?.success !== false,
+      message: res.data?.message || "Users uploaded successfully.",
+      ...res.data,
+    };
   } catch (err) {
+    console.error("Bulk user upload failed:", err);
 
-    console.log(err);
-    alert("Upload Failed");
-
+    throw new Error(
+      err.response?.data?.message ||
+      err.message ||
+      "Bulk upload failed."
+    );
   }
-
 };
+
 // ============================
 // Delete All Users
 // ============================
@@ -806,54 +790,18 @@ return (
     />
 )}
 {/* ============================
-      Bulk Upload Modal
-============================ */}
+      BULK UPLOAD MODAL
+      ============================ */}
 
-{showBulkModal && (
-
-<div className="modal-overlay">
-
-  <div className="user-modal">
-
-    <h2>Bulk Add Users</h2>
-
-    <p>
-      Upload a CSV or Excel file to create users.
-    </p>
-
-    <input
-      type="file"
-      accept=".csv,.xlsx,.xls"
-      onChange={(e) =>
-        setSelectedFile(e.target.files[0])
-      }
-    />
-
-    <div className="modal-buttons">
-
-      <button
-        className="cancel-btn"
-        onClick={() =>
-          setShowBulkModal(false)
-        }
-      >
-        Cancel
-      </button>
-
-      <button
-        className="save-btn"
-        onClick={uploadUsers}
-      >
-        Upload Users
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-)}
+<BulkUploadModal
+  isOpen={showBulkModal}
+  onClose={() => setShowBulkModal(false)}
+  title="Bulk Upload Users"
+  uploadFunction={handleBulkUpload}
+  onSuccess={fetchUsers}
+  acceptedFile=".csv,.xlsx,.xls"
+  sampleFile="https://miarcus-backend.onrender.com/api/users/sample"
+/>
 {/* ============================
       Delete All Modal
 ============================ */}
