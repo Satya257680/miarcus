@@ -17,7 +17,6 @@ import FinancialDetails from "./FinancialDetails";
 import PossessionDetails from "./PossessionDetails";
 import TimelinePreview from "./TimelinePreview";
 import ReviewStep from "./reviewStep";
-import ProjectSummary from "./ProjectSummary";
 import ModalFooter from "./ModalFooter";
 
 import "../../styles/AddNewStoreOpeningModal.css";
@@ -836,7 +835,7 @@ export default function AddNewStoreOpeningModal({
 
             ...prev,
 
-            attachment: file.name
+            attachment: file
 
         }));
 
@@ -1186,11 +1185,26 @@ export default function AddNewStoreOpeningModal({
 
 
                     {/* ==================================================
-                       LEFT
+                       STEP CONTENT
+
+                       Steps 1-4 stay as separate pages.
+
+                       Step 5 is the ONLY place that renders:
+                       - Project Summary
+                       - Remarks
+                       - Attachment
+
+                       This prevents Review fields from appearing on
+                       Basic / Financial / Possession / Timeline.
                     ================================================== */}
 
-                    <div className="nso-left">
-
+                    <div
+                        className={
+                            currentStep === 5
+                                ? "nso-left nso-review-full"
+                                : "nso-left nso-single-page"
+                        }
+                    >
 
                         {/* ==================================================
                            STEP 1
@@ -1283,7 +1297,9 @@ export default function AddNewStoreOpeningModal({
 
 
                         {/* ==================================================
-                           STEP 5
+                           STEP 5 — REVIEW
+
+                           ReviewStep owns the complete Review page.
                         ================================================== */}
 
                         {
@@ -1292,6 +1308,10 @@ export default function AddNewStoreOpeningModal({
                                 <ReviewStep
 
                                     formData={formData}
+
+                                    progress={progress}
+
+                                    currentStep={5}
 
                                     attachment={
                                         attachment
@@ -1327,30 +1347,6 @@ export default function AddNewStoreOpeningModal({
                         }
 
 
-                    </div>
-
-
-                    {/* ==================================================
-                       RIGHT SUMMARY
-                    ================================================== */}
-
-                    <div className="nso-right">
-
-                       <ProjectSummary
-    formData={formData}
-    progress={progress}
-    currentStep={currentStep}
-
-    attachment={attachment}
-    existingAttachment={existingAttachment}
-    preview={preview}
-
-    onFileChange={handleFileChange}
-    onRemoveFile={removeAttachment}
-
-    handleChange={handleChange}
-    errors={errors}
-/>
                     </div>
 
 

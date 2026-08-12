@@ -1,248 +1,85 @@
 import React from "react";
 
 import {
-    FaStore,
-    FaChartLine,
-    FaCalendarCheck,
-    FaMoneyBillWave,
-    FaClock,
-    FaCheckCircle,
+    FaCommentAlt,
     FaPaperclip,
-    FaCommentAlt
+    FaFileAlt
 } from "react-icons/fa";
+
+import ProjectSummary from "./ProjectSummary";
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
-/* ======================================================
-   FORMAT CURRENCY
-====================================================== */
-
-const formatCurrency = (value) => {
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-        return "₹0";
-    }
-
-    const numericValue = Number(value);
-
-    if (Number.isNaN(numericValue)) {
-        return "₹0";
-    }
-
-    return new Intl.NumberFormat(
-        "en-IN",
-        {
-            style: "currency",
-            currency: "INR",
-            maximumFractionDigits: 0
-        }
-    ).format(numericValue);
-};
-
 
 /* ======================================================
-   FORMAT DATE
+   REVIEW STEP
 ====================================================== */
 
-const formatDate = (value) => {
-
-    if (!value) {
-        return "--";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleDateString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-        }
-    );
-};
-
-
-/* ======================================================
-   GET ATTACHMENT NAME
-====================================================== */
-
-const getAttachmentName = (attachment) => {
-
-    if (!attachment) {
-        return null;
-    }
-
-    /* File object */
-    if (attachment instanceof File) {
-        return attachment.name;
-    }
-
-    /* Object returned from backend */
-    if (typeof attachment === "object") {
-
-        return (
-            attachment.name ||
-            attachment.file_name ||
-            attachment.filename ||
-            attachment.originalname ||
-            null
-        );
-    }
-
-    /* String */
-    if (typeof attachment === "string") {
-
-        const parts = attachment.split("/");
-
-        return parts[parts.length - 1] || attachment;
-    }
-
-    return null;
-};
-
-
-/* ======================================================
-   GET ATTACHMENT URL
-====================================================== */
-
-const getAttachmentUrl = (attachment) => {
-
-    if (!attachment) {
-        return null;
-    }
-
-    /* File object */
-    if (attachment instanceof File) {
-        return URL.createObjectURL(attachment);
-    }
-
-    /* Object returned from backend */
-    if (typeof attachment === "object") {
-
-        return (
-            attachment.url ||
-            attachment.file_url ||
-            attachment.fileUrl ||
-            attachment.path ||
-            attachment.file_path ||
-            null
-        );
-    }
-
-    /* String */
-    if (typeof attachment === "string") {
-        return attachment;
-    }
-
-    return null;
-};
-
-
-/* ======================================================
-   PROJECT SUMMARY
-====================================================== */
-
-export default function ProjectSummary({
+export default function ReviewStep({
 
     formData = {},
 
-    progress = 0,
+    progress = 100,
 
-    currentStep = 1
+    currentStep = 5,
+
+    handleChange,
+
+    handleFileChange
 
 }) {
 
-    /* ==================================================
-       SAFE PROGRESS
-    ================================================== */
-
-    const safeProgress = Math.min(
-        100,
-        Math.max(
-            0,
-            Number(progress) || 0
-        )
-    );
-
 
     /* ==================================================
-       STATUS
+       FILE NAME
     ================================================== */
 
-    const status =
-        formData?.status ||
-        "Planning";
+    const getFileName = () => {
 
+        const file =
+            formData?.attachment ||
+            formData?.attachments ||
+            formData?.file ||
+            formData?.document;
 
-    /* ==================================================
-       EXPECTED SALE
-    ================================================== */
+        if (!file) {
+            return "";
+        }
 
-    const expectedSale =
-        formData?.expected_sale;
+        if (file instanceof File) {
+            return file.name;
+        }
 
+        if (typeof file === "string") {
 
-    /* ==================================================
-       DEAL DAYS
-    ================================================== */
+            const parts =
+                file.split("/");
 
-    const dealDays =
-        formData?.deal_days;
+            return (
+                parts[parts.length - 1]
+            );
 
+        }
 
-    /* ==================================================
-       POSSESSION DATE
-    ================================================== */
+        if (typeof file === "object") {
 
-    const possessionDate =
-        formData?.actual_possession_date;
+            return (
+                file.name ||
+                file.file_name ||
+                file.filename ||
+                file.originalname ||
+                ""
+            );
 
+        }
 
-    /* ==================================================
-       POSSESSION DELAY
-    ================================================== */
+        return "";
 
-    const possessionDelay =
-        formData?.possession_delay;
-
-
-    /* ==================================================
-       REMARKS
-    ================================================== */
-
-    const remarks =
-        formData?.remarks ||
-        formData?.remark ||
-        "";
-
-
-    /* ==================================================
-       ATTACHMENT
-    ================================================== */
-
-    const attachment =
-        formData?.attachment ||
-        formData?.attachments ||
-        formData?.file ||
-        formData?.document ||
-        null;
+    };
 
 
     const attachmentName =
-        getAttachmentName(attachment);
-
-
-    const attachmentUrl =
-        getAttachmentUrl(attachment);
+        getFileName();
 
 
     /* ==================================================
@@ -251,64 +88,71 @@ export default function ProjectSummary({
 
     return (
 
-        <div className="summary-card">
+        <div className="review-step-container">
 
 
             {/* ==================================================
-               SUMMARY HEADER
+               PROJECT SUMMARY
             ================================================== */}
 
-            <div className="summary-header">
+            <ProjectSummary
 
-                <h3>
+                formData={formData}
 
-                    <FaStore />
+                progress={progress}
 
-                    Project Summary
+                currentStep={currentStep}
 
-                </h3>
-
-
-                <span className="summary-badge">
-
-                    {status}
-
-                </span>
-
-            </div>
+            />
 
 
             {/* ==================================================
-               PROGRESS
+               REMARKS
             ================================================== */}
 
-            <div className="summary-progress">
+            <div className="review-input-card">
 
-                <div className="summary-progress-top">
+                <div className="review-input-header">
 
-                    <span>
+                    <div className="review-input-icon">
 
-                        Form Completion
+                        <FaCommentAlt />
 
-                    </span>
+                    </div>
 
 
-                    <strong>
+                    <div>
 
-                        {safeProgress}%
+                        <h3>
+                            Remarks
+                        </h3>
 
-                    </strong>
+                        <p>
+                            Add any important notes about this
+                            store opening.
+                        </p>
+
+                    </div>
 
                 </div>
 
 
-                <div className="summary-progress-bar">
+                <div className="review-input-body">
 
-                    <div
-                        className="summary-progress-fill"
-                        style={{
-                            width: `${safeProgress}%`
-                        }}
+                    <textarea
+
+                        name="remarks"
+
+                        value={
+                            formData?.remarks || ""
+                        }
+
+                        onChange={handleChange}
+
+                        placeholder="Enter remarks..."
+
+                        rows={5}
+
                     />
 
                 </div>
@@ -317,267 +161,102 @@ export default function ProjectSummary({
 
 
             {/* ==================================================
-               SUMMARY GRID
+               ATTACHMENT
             ================================================== */}
 
-            <div className="summary-grid">
+            <div className="review-input-card">
 
+                <div className="review-input-header">
 
-                {/* ==================================================
-                   EXPECTED SALE
-                ================================================== */}
+                    <div className="review-input-icon">
 
-                <div className="summary-item">
-
-                    <FaMoneyBillWave />
-
-                    <div>
-
-                        <label>
-
-                            Expected Sale
-
-                        </label>
-
-
-                        <strong>
-
-                            {
-                                formatCurrency(
-                                    expectedSale
-                                )
-                            }
-
-                        </strong>
+                        <FaPaperclip />
 
                     </div>
 
-                </div>
-
-
-                {/* ==================================================
-                   DEAL DAYS
-                ================================================== */}
-
-                <div className="summary-item">
-
-                    <FaClock />
 
                     <div>
 
-                        <label>
-
-                            Deal Days
-
-                        </label>
-
-
-                        <strong>
-
-                            {
-                                dealDays !== null &&
-                                dealDays !== undefined &&
-                                dealDays !== ""
-                                    ? dealDays
-                                    : "--"
-                            }
-
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                {/* ==================================================
-                   POSSESSION
-                ================================================== */}
-
-                <div className="summary-item">
-
-                    <FaCalendarCheck />
-
-                    <div>
-
-                        <label>
-
-                            Possession
-
-                        </label>
-
-
-                        <strong>
-
-                            {
-                                formatDate(
-                                    possessionDate
-                                )
-                            }
-
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                {/* ==================================================
-                   DELAY
-                ================================================== */}
-
-                <div className="summary-item">
-
-                    <FaChartLine />
-
-                    <div>
-
-                        <label>
-
-                            Delay
-
-                        </label>
-
-
-                        <strong>
-
-                            {
-                                possessionDelay !== null &&
-                                possessionDelay !== undefined &&
-                                possessionDelay !== ""
-                                    ? possessionDelay
-                                    : "0"
-                            }
-
-                            {" "}Days
-
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                {/* ==================================================
-                   REMARKS
-                ================================================== */}
-
-                <div className="summary-item">
-
-                    <FaCommentAlt />
-
-                    <div>
-
-                        <label>
-
-                            Remarks
-
-                        </label>
-
-
-                        <strong
-                            style={{
-                                whiteSpace: "pre-wrap",
-                                wordBreak: "break-word"
-                            }}
-                        >
-
-                            {
-                                remarks
-                                    ? remarks
-                                    : "--"
-                            }
-
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                {/* ==================================================
-                   ATTACHMENT
-                ================================================== */}
-
-                <div className="summary-item">
-
-                    <FaPaperclip />
-
-                    <div>
-
-                        <label>
-
+                        <h3>
                             Attachment
+                        </h3>
 
-                        </label>
-
-
-                        {
-                            attachmentName ? (
-
-                                attachmentUrl ? (
-
-                                    <a
-                                        href={attachmentUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{
-                                            color: "#2563eb",
-                                            fontWeight: "600",
-                                            textDecoration: "none",
-                                            wordBreak: "break-word"
-                                        }}
-                                    >
-
-                                        {attachmentName}
-
-                                    </a>
-
-                                ) : (
-
-                                    <strong
-                                        style={{
-                                            wordBreak: "break-word"
-                                        }}
-                                    >
-
-                                        {attachmentName}
-
-                                    </strong>
-
-                                )
-
-                            ) : (
-
-                                <strong>
-
-                                    --
-
-                                </strong>
-
-                            )
-                        }
+                        <p>
+                            Upload any supporting document
+                            or file.
+                        </p>
 
                     </div>
 
                 </div>
 
 
-            </div>
+                <div className="review-input-body">
 
 
-            {/* ==================================================
-               SUMMARY FOOTER
-            ================================================== */}
+                    <label
+                        className="review-file-upload"
+                    >
 
-            <div className="summary-footer">
+                        <FaFileAlt />
 
-                <FaCheckCircle />
+                        <span>
+                            Choose File
+                        </span>
 
-                <span>
+                        <input
 
-                    Step {currentStep} of 5
+                            type="file"
 
-                </span>
+                            name="attachment"
+
+                            onChange={
+                                handleFileChange
+                                    ? handleFileChange
+                                    : handleChange
+                            }
+
+                            style={{
+                                display: "none"
+                            }}
+
+                        />
+
+                    </label>
+
+
+                    {
+                        attachmentName && (
+
+                            <div className="selected-file">
+
+                                <FaPaperclip />
+
+                                <span>
+
+                                    {attachmentName}
+
+                                </span>
+
+                            </div>
+
+                        )
+                    }
+
+
+                    {
+                        !attachmentName && (
+
+                            <div className="no-file-selected">
+
+                                No file selected
+
+                            </div>
+
+                        )
+                    }
+
+                </div>
 
             </div>
 

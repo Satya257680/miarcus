@@ -6,11 +6,8 @@ import {
     FaCalendarCheck,
     FaMoneyBillWave,
     FaClock,
-    FaCheckCircle,
-    FaCommentAlt
+    FaCheckCircle
 } from "react-icons/fa";
-
-import AttachmentUpload from "./AttachmentUpload";
 
 import "../../styles/AddNewStoreOpeningModal.css";
 
@@ -29,12 +26,9 @@ const formatCurrency = (value) => {
         return "₹0";
     }
 
-    const numericValue =
-        Number(value);
+    const numericValue = Number(value);
 
-    if (
-        Number.isNaN(numericValue)
-    ) {
+    if (Number.isNaN(numericValue)) {
         return "₹0";
     }
 
@@ -59,14 +53,9 @@ const formatDate = (value) => {
         return "--";
     }
 
-    const date =
-        new Date(value);
+    const date = new Date(value);
 
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
+    if (Number.isNaN(date.getTime())) {
         return value;
     }
 
@@ -91,31 +80,10 @@ export default function ProjectSummary({
 
     progress = 0,
 
-    currentStep = 1,
-
-    /* ==================================================
-       REMARKS
-    ================================================== */
-
-    handleChange,
-
-    errors = {},
-
-    /* ==================================================
-       ATTACHMENT
-    ================================================== */
-
-    attachment = null,
-
-    existingAttachment = null,
-
-    preview = "",
-
-    onFileChange,
-
-    onRemoveFile
+    currentStep = 1
 
 }) {
+
 
     /* ==================================================
        SAFE PROGRESS
@@ -161,306 +129,201 @@ export default function ProjectSummary({
 
 
     /* ==================================================
-       REMARKS
-    ================================================== */
-
-    const remarks =
-        formData?.remarks || "";
-
-
-    /* ==================================================
        RENDER
     ================================================== */
 
     return (
 
-        <div className="project-summary-container">
+        <div className="summary-card">
 
 
             {/* ==================================================
-               PROJECT SUMMARY
+               SUMMARY HEADER
             ================================================== */}
 
-            <div className="summary-card">
+            <div className="summary-header">
+
+                <h3>
+
+                    <FaStore />
+
+                    Project Summary
+
+                </h3>
 
 
-                {/* ==================================================
-                   HEADER
-                ================================================== */}
+                <span className="summary-badge">
 
-                <div className="summary-header">
+                    {status}
 
-                    <h3>
+                </span>
 
-                        <FaStore />
-
-                        Project Summary
-
-                    </h3>
+            </div>
 
 
-                    <span className="summary-badge">
+            {/* ==================================================
+               PROGRESS
+            ================================================== */}
 
-                        {status}
+            <div className="summary-progress">
 
+                <div className="summary-progress-top">
+
+                    <span>
+                        Form Completion
                     </span>
+
+
+                    <strong>
+                        {safeProgress}%
+                    </strong>
 
                 </div>
 
 
+                <div className="summary-progress-bar">
+
+                    <div
+                        className="summary-progress-fill"
+                        style={{
+                            width: `${safeProgress}%`
+                        }}
+                    />
+
+                </div>
+
+            </div>
+
+
+            {/* ==================================================
+               SUMMARY GRID
+            ================================================== */}
+
+            <div className="summary-grid">
+
+
                 {/* ==================================================
-                   PROGRESS
+                   EXPECTED SALE
                 ================================================== */}
 
-                <div className="summary-progress">
+                <div className="summary-item">
 
-                    <div className="summary-progress-top">
+                    <FaMoneyBillWave />
 
-                        <span>
-                            Form Completion
-                        </span>
+                    <div>
+
+                        <label>
+                            Expected Sale
+                        </label>
 
 
                         <strong>
-                            {safeProgress}%
+
+                            {
+                                formatCurrency(
+                                    expectedSale
+                                )
+                            }
+
                         </strong>
 
                     </div>
 
-
-                    <div className="summary-progress-bar">
-
-                        <div
-                            className="summary-progress-fill"
-                            style={{
-                                width: `${safeProgress}%`
-                            }}
-                        />
-
-                    </div>
-
                 </div>
 
 
                 {/* ==================================================
-                   SUMMARY GRID
+                   DEAL DAYS
                 ================================================== */}
 
-                <div className="summary-grid">
+                <div className="summary-item">
 
-
-                    {/* ==================================================
-                       EXPECTED SALE
-                    ================================================== */}
-
-                    <div className="summary-item">
-
-                        <FaMoneyBillWave />
-
-                        <div>
-
-                            <label>
-                                Expected Sale
-                            </label>
-
-
-                            <strong>
-
-                                {
-                                    formatCurrency(
-                                        expectedSale
-                                    )
-                                }
-
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* ==================================================
-                       DEAL DAYS
-                    ================================================== */}
-
-                    <div className="summary-item">
-
-                        <FaClock />
-
-                        <div>
-
-                            <label>
-                                Deal Days
-                            </label>
-
-
-                            <strong>
-
-                                {
-                                    dealDays !== null &&
-                                    dealDays !== undefined &&
-                                    dealDays !== ""
-                                        ? dealDays
-                                        : "--"
-                                }
-
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* ==================================================
-                       POSSESSION
-                    ================================================== */}
-
-                    <div className="summary-item">
-
-                        <FaCalendarCheck />
-
-                        <div>
-
-                            <label>
-                                Possession
-                            </label>
-
-
-                            <strong>
-
-                                {
-                                    formatDate(
-                                        possessionDate
-                                    )
-                                }
-
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* ==================================================
-                       DELAY
-                    ================================================== */}
-
-                    <div className="summary-item">
-
-                        <FaChartLine />
-
-                        <div>
-
-                            <label>
-                                Delay
-                            </label>
-
-
-                            <strong>
-
-                                {
-                                    possessionDelay !== null &&
-                                    possessionDelay !== undefined &&
-                                    possessionDelay !== ""
-                                        ? possessionDelay
-                                        : "0"
-                                }
-
-                                {" "}Days
-
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-
-                {/* ==================================================
-                   FOOTER
-                ================================================== */}
-
-                <div className="summary-footer">
-
-                    <FaCheckCircle />
-
-                    <span>
-
-                        Step {currentStep} of 5
-
-                    </span>
-
-                </div>
-
-
-            </div>
-
-
-            {/* ==================================================
-               REMARKS
-               BELOW PROJECT SUMMARY
-            ================================================== */}
-
-            <div className="review-remarks-card">
-
-
-                <div className="review-section-header">
-
-                    <div className="review-section-icon">
-
-                        <FaCommentAlt />
-
-                    </div>
-
+                    <FaClock />
 
                     <div>
 
-                        <h3>
-                            Remarks
-                        </h3>
+                        <label>
+                            Deal Days
+                        </label>
 
-                        <p>
-                            Add any important notes
-                            about this store opening.
-                        </p>
+
+                        <strong>
+
+                            {
+                                dealDays !== null &&
+                                dealDays !== undefined &&
+                                dealDays !== ""
+                                    ? dealDays
+                                    : "--"
+                            }
+
+                        </strong>
 
                     </div>
 
                 </div>
 
 
-                <div className="review-section-body">
+                {/* ==================================================
+                   POSSESSION
+                ================================================== */}
 
-                    <label htmlFor="project-summary-remarks">
+                <div className="summary-item">
 
-                        Remarks
+                    <FaCalendarCheck />
 
-                    </label>
+                    <div>
 
-
-                    <textarea
-                        id="project-summary-remarks"
-                        name="remarks"
-                        value={remarks}
-                        onChange={handleChange}
-                        placeholder="Enter remarks..."
-                        rows={4}
-                    />
+                        <label>
+                            Possession
+                        </label>
 
 
-                    {
-                        errors?.remarks && (
+                        <strong>
 
-                            <span className="review-field-error">
+                            {
+                                formatDate(
+                                    possessionDate
+                                )
+                            }
 
-                                {errors.remarks}
+                        </strong>
 
-                            </span>
+                    </div>
 
-                        )
-                    }
+                </div>
+
+
+                {/* ==================================================
+                   DELAY
+                ================================================== */}
+
+                <div className="summary-item">
+
+                    <FaChartLine />
+
+                    <div>
+
+                        <label>
+                            Delay
+                        </label>
+
+
+                        <strong>
+
+                            {
+                                possessionDelay !== null &&
+                                possessionDelay !== undefined &&
+                                possessionDelay !== ""
+                                    ? possessionDelay
+                                    : "0"
+                            }
+
+                            {" "}Days
+
+                        </strong>
+
+                    </div>
 
                 </div>
 
@@ -469,31 +332,18 @@ export default function ProjectSummary({
 
 
             {/* ==================================================
-               ATTACHMENT
-               BELOW REMARKS
+               SUMMARY FOOTER
             ================================================== */}
 
-            <div className="review-attachment-card">
+            <div className="summary-footer">
 
-                <AttachmentUpload
+                <FaCheckCircle />
 
-                    file={attachment}
+                <span>
 
-                    existingAttachment={
-                        existingAttachment
-                    }
+                    Step {currentStep} of 5
 
-                    preview={preview}
-
-                    onFileChange={
-                        onFileChange
-                    }
-
-                    onRemove={
-                        onRemoveFile
-                    }
-
-                />
+                </span>
 
             </div>
 
