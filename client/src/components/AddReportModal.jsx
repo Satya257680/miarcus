@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import "../styles/AddReportModal.css";
 
 function AddReportModal({
   editData,
@@ -11,20 +12,48 @@ function AddReportModal({
   const [designation, setDesignation] = useState("");
   const [status, setStatus] = useState("Active");
 
+  // =====================================================
+  // LOAD EDIT DATA
+  // =====================================================
+
   useEffect(() => {
     if (editData) {
       setManagerName(editData.manager_name || "");
       setDepartment(editData.department || "");
       setDesignation(editData.designation || "");
       setStatus(editData.status || "Active");
+    } else {
+      setManagerName("");
+      setDepartment("");
+      setDesignation("");
+      setStatus("Active");
     }
   }, [editData]);
+
+  // =====================================================
+  // SUBMIT
+  // =====================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!managerName.trim()) {
+      alert("Manager Name is required.");
+      return;
+    }
+
+    if (!department) {
+      alert("Please select a Department.");
+      return;
+    }
+
+    if (!designation) {
+      alert("Please select a Designation.");
+      return;
+    }
+
     const data = {
-      manager_name: managerName,
+      manager_name: managerName.trim(),
       department,
       designation,
       status,
@@ -45,115 +74,225 @@ function AddReportModal({
 
       refresh();
       closeModal();
+    } catch (err) {
+      console.error("Report save error:", err);
+      console.log("Response:", err.response?.data);
 
-    }catch (err) {
-  console.error(err);
+      alert(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message ||
+          "Unable to save manager."
+      );
+    }
+  };
 
-  console.log("Response:", err.response?.data);
+  // =====================================================
+  // CLOSE
+  // =====================================================
 
-  alert(
-    err.response?.data?.message ||
-    err.response?.data?.error ||
-    err.message
-  );
-}
+  const handleClose = () => {
+    setManagerName("");
+    setDepartment("");
+    setDesignation("");
+    setStatus("Active");
+
+    closeModal();
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal">
+    <div className="report-modal-overlay">
 
-        <h2>{editData ? "Edit Manager" : "Add Manager"}</h2>
+      <div className="report-modal">
 
-        <form onSubmit={handleSubmit}>
+        {/* =================================================
+            HEADER
+        ================================================= */}
+
+        <div className="report-modal-header">
+
+          <div>
+            <h2>
+              {editData ? "Edit Manager" : "Add Manager"}
+            </h2>
+
+            <p>
+              {editData
+                ? "Update manager information"
+                : "Create a new reporting manager"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="report-close-btn"
+            onClick={handleClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+
+        </div>
+
+        {/* =================================================
+            FORM
+        ================================================= */}
+
+        <form
+          className="report-modal-form"
+          onSubmit={handleSubmit}
+        >
 
           {/* Manager Name */}
 
-          <label>Manager Name</label>
+          <div className="report-form-group">
 
-          <input
-            type="text"
-            placeholder="Enter Manager Name"
-            value={managerName}
-            onChange={(e) => setManagerName(e.target.value)}
-            required
-          />
+            <label htmlFor="managerName">
+              Manager Name
+              <span className="required-star">*</span>
+            </label>
+
+            <input
+              id="managerName"
+              type="text"
+              placeholder="Enter manager name"
+              value={managerName}
+              onChange={(e) =>
+                setManagerName(e.target.value)
+              }
+              autoComplete="off"
+            />
+
+          </div>
 
           {/* Department */}
 
-          <label>Department</label>
+          <div className="report-form-group">
 
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            required
-          >
-            <option value="">Select Department</option>
+            <label htmlFor="department">
+              Department
+              <span className="required-star">*</span>
+            </label>
 
-            <option>Accounts</option>
-            <option>Buying</option>
-            <option>Customer Support</option>
-            <option>Design</option>
-            <option>E-commerce</option>
-            <option>HR</option>
-            <option>IT Department</option>
-            <option>Maintenance</option>
-            <option>Management</option>
-            <option>Marketing</option>
-            <option>Quality</option>
-            <option>Store Personnel</option>
-            <option>VM</option>
-            <option>Warehouse</option>
-          </select>
+            <select
+              id="department"
+              value={department}
+              onChange={(e) =>
+                setDepartment(e.target.value)
+              }
+            >
+
+              <option value="">
+                Select Department
+              </option>
+
+              <option>Accounts</option>
+              <option>Buying</option>
+              <option>Customer Support</option>
+              <option>Design</option>
+              <option>E-commerce</option>
+              <option>HR</option>
+              <option>IT Department</option>
+              <option>Maintenance</option>
+              <option>Management</option>
+              <option>Marketing</option>
+              <option>Quality</option>
+              <option>Store Personnel</option>
+              <option>VM</option>
+              <option>Warehouse</option>
+
+            </select>
+
+          </div>
 
           {/* Designation */}
 
-          <label>Designation</label>
+          <div className="report-form-group">
 
-          <select
-            value={designation}
-            onChange={(e) => setDesignation(e.target.value)}
-            required
-          >
-            <option value="">Select Designation</option>
+            <label htmlFor="designation">
+              Designation
+              <span className="required-star">*</span>
+            </label>
 
-            <option>Manager</option>
-            <option>ASM</option>
-            <option>Regional Head</option>
-            <option>City Manager</option>
-            <option>Team Lead</option>
-            <option>Supervisor</option>
-            <option>Executive</option>
-          </select>
+            <select
+              id="designation"
+              value={designation}
+              onChange={(e) =>
+                setDesignation(e.target.value)
+              }
+            >
+
+              <option value="">
+                Select Designation
+              </option>
+
+              <option>Manager</option>
+              <option>ASM</option>
+              <option>Regional Head</option>
+              <option>City Manager</option>
+              <option>Team Lead</option>
+              <option>Supervisor</option>
+              <option>Executive</option>
+
+            </select>
+
+          </div>
 
           {/* Status */}
 
-          <label>Status</label>
+          <div className="report-form-group">
 
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option>Active</option>
-            <option>Inactive</option>
-          </select>
+            <label htmlFor="status">
+              Status
+            </label>
 
-          <div className="modal-buttons">
+            <select
+              id="status"
+              value={status}
+              onChange={(e) =>
+                setStatus(e.target.value)
+              }
+            >
+
+              <option value="Active">
+                Active
+              </option>
+
+              <option value="Inactive">
+                Inactive
+              </option>
+
+            </select>
+
+          </div>
+
+          {/* =================================================
+              FOOTER BUTTONS
+          ================================================= */}
+
+          <div className="report-modal-buttons">
+
             <button
               type="button"
-              onClick={closeModal}
+              className="report-cancel-btn"
+              onClick={handleClose}
             >
               Cancel
             </button>
 
-            <button type="submit">
-              {editData ? "Update" : "Save"}
+            <button
+              type="submit"
+              className="report-save-btn"
+            >
+              {editData ? "Update Manager" : "Save Manager"}
             </button>
+
           </div>
 
         </form>
 
       </div>
+
     </div>
   );
 }

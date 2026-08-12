@@ -24,9 +24,11 @@ function DepartmentModal({
   const loadUsers = async () => {
     try {
       const response = await getUsers();
-      setUsers(response.users || []);
+
+      setUsers(response?.users || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load users:", err);
+      setUsers([]);
     }
   };
 
@@ -35,13 +37,11 @@ function DepartmentModal({
   // =====================================================
 
   useEffect(() => {
-
     if (!isOpen) return;
 
     loadUsers();
 
     if (department) {
-
       console.log("Department Data:", department);
 
       setDepartmentName(
@@ -63,40 +63,35 @@ function DepartmentModal({
       let assigned = [];
 
       if (Array.isArray(department.users)) {
-
-        assigned = department.users.map(user =>
+        assigned = department.users.map((user) =>
           typeof user === "object"
             ? user.id
             : user
         );
-
-      } else if (Array.isArray(department.assignedUsers)) {
-
-        assigned = department.assignedUsers.map(user =>
-          typeof user === "object"
-            ? user.id
-            : user
+      } else if (
+        Array.isArray(department.assignedUsers)
+      ) {
+        assigned = department.assignedUsers.map(
+          (user) =>
+            typeof user === "object"
+              ? user.id
+              : user
         );
-
-      } else if (Array.isArray(department.userIds)) {
-
+      } else if (
+        Array.isArray(department.userIds)
+      ) {
         assigned = department.userIds;
-
       }
 
       setSelectedUsers(assigned);
-
     } else {
-
       setDepartmentName("");
       setDescription("");
       setStatus("Active");
       setSelectedUsers([]);
-
     }
 
     setSearch("");
-
   }, [department, isOpen]);
 
   // =====================================================
@@ -104,146 +99,235 @@ function DepartmentModal({
   // =====================================================
 
   const handleSubmit = (e) => {
-
     e.preventDefault();
 
     if (!departmentName.trim()) {
-
       alert("Department Name is required");
-
       return;
-
     }
 
     onSave({
-
-      department_name: departmentName,
-
-      description,
-
+      department_name: departmentName.trim(),
+      description: description.trim(),
       status,
-
       users: selectedUsers,
-
     });
-
   };
 
-  if (!isOpen) return null;
+  // =====================================================
+  // MODAL CLOSE
+  // =====================================================
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  // =====================================================
+  // DO NOT RENDER WHEN CLOSED
+  // =====================================================
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
+    <div
+      className="modal-overlay department-modal-overlay"
+      onMouseDown={(e) => {
+        // Close only when clicking directly on overlay
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className="department-modal department-modal-animated"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="department-modal-title"
+      >
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-    <div className="modal-overlay">
+        <div className="modal-header department-modal-header">
+          <div className="modal-header-content">
+            <div className="modal-header-icon">
+              <span>
+                {department ? "✎" : "+"}
+              </span>
+            </div>
 
-      <div className="department-modal">
+            <div>
+              <h2 id="department-modal-title">
+                {department
+                  ? "Edit Department"
+                  : "Add Department"}
+              </h2>
 
-        {/* Header */}
+              <p>
+                {department
+                  ? "Update department information and assigned employees."
+                  : "Create a new department and assign employees."}
+              </p>
+            </div>
+          </div>
 
-        <div className="modal-header">
-
-          <h2>
-            {department
-              ? "Edit Department"
-              : "Add Department"}
-          </h2>
-
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close"
+            title="Close"
+          >
+            ×
+          </button>
         </div>
 
-        {/* Form */}
+        {/* =================================================
+            FORM
+        ================================================= */}
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={handleSubmit}
+          className="department-form"
+        >
+          {/* =================================================
+              BASIC INFORMATION
+          ================================================= */}
 
-          {/* Department Name */}
+          <div className="department-form-section">
+            <div className="section-title">
+              <span className="section-line"></span>
+              <h3>Department Information</h3>
+            </div>
 
-          <div className="form-group">
+            <div className="department-form-grid">
+              {/* Department Name */}
 
-            <label>Department Name</label>
+              <div className="form-group department-field">
+                <label htmlFor="department-name">
+                  Department Name
+                  <span className="required">*</span>
+                </label>
 
-            <input
-              type="text"
-              value={departmentName}
-              onChange={(e) =>
-                setDepartmentName(e.target.value)
-              }
-              placeholder="Enter Department Name"
-            />
+                <input
+                  id="department-name"
+                  type="text"
+                  value={departmentName}
+                  onChange={(e) =>
+                    setDepartmentName(e.target.value)
+                  }
+                  placeholder="Enter department name"
+                  autoComplete="off"
+                />
+              </div>
 
+              {/* Description */}
+
+              <div className="form-group department-field">
+                <label htmlFor="department-description">
+                  Description
+                </label>
+
+                <textarea
+                  id="department-description"
+                  rows="3"
+                  value={description}
+                  onChange={(e) =>
+                    setDescription(e.target.value)
+                  }
+                  placeholder="Enter department description"
+                />
+              </div>
+            </div>
+
+            {/* Status */}
+
+            <div className="form-group department-field status-field">
+              <label htmlFor="department-status">
+                Status
+              </label>
+
+              <div className="select-wrapper">
+                <select
+                  id="department-status"
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value)
+                  }
+                >
+                  <option value="Active">
+                    Active
+                  </option>
+
+                  <option value="Inactive">
+                    Inactive
+                  </option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* Description */}
+          {/* =================================================
+              EMPLOYEE ASSIGNMENT
+          ================================================= */}
 
-          <div className="form-group">
+          <div className="department-form-section employee-section">
+            <div className="section-title">
+              <span className="section-line"></span>
 
-            <label>Description</label>
+              <div>
+                <h3>Assign Employees</h3>
 
-            <textarea
-              rows="3"
-              value={description}
-              onChange={(e) =>
-                setDescription(e.target.value)
-              }
-              placeholder="Enter Description"
-            />
+                <p>
+                  Select employees who belong to this
+                  department.
+                </p>
+              </div>
+            </div>
 
+            <div className="employee-list-wrapper">
+              <EmployeeList
+                users={users}
+                search={search}
+                setSearch={setSearch}
+                selectedUsers={selectedUsers}
+                setSelectedUsers={setSelectedUsers}
+              />
+            </div>
           </div>
 
-          {/* Status */}
+          {/* =================================================
+              FOOTER
+          ================================================= */}
 
-          <div className="form-group">
-
-            <label>Status</label>
-
-            <select
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value)
-              }
-            >
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-
-          </div>
-
-          {/* Employee List */}
-
-          <EmployeeList
-            users={users}
-            search={search}
-            setSearch={setSearch}
-            selectedUsers={selectedUsers}
-            setSelectedUsers={setSelectedUsers}
-          />
-
-          {/* Footer */}
-
-          <div className="modal-buttons">
-
+          <div className="modal-buttons department-modal-footer">
             <button
               type="button"
-              className="cancel-btn"
-              onClick={onClose}
+              className="cancel-btn department-cancel-btn"
+              onClick={handleClose}
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              className="save-btn"
+              className="save-btn department-save-btn"
             >
-              {department ? "Update" : "Create"}
+              <span className="save-btn-icon">
+                {department ? "✓" : "+"}
+              </span>
+
+              <span>
+                {department ? "Update Department" : "Create Department"}
+              </span>
             </button>
-
           </div>
-
         </form>
-
       </div>
-
     </div>
-
   );
-
 }
 
 export default DepartmentModal;

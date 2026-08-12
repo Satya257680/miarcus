@@ -4,6 +4,10 @@ import "../styles/AddStoremodal.css";
 function AddStoreModal({ store, onSave, onClose }) {
   const isEdit = Boolean(store);
 
+  // =====================================================
+  // EMPTY FORM
+  // =====================================================
+
   const emptyForm = {
     store_code: "",
     store_name: "",
@@ -18,6 +22,10 @@ function AddStoreModal({ store, onSave, onClose }) {
   };
 
   const [form, setForm] = useState(emptyForm);
+
+  // =====================================================
+  // LOAD STORE DATA
+  // =====================================================
 
   useEffect(() => {
     if (store) {
@@ -38,6 +46,10 @@ function AddStoreModal({ store, onSave, onClose }) {
     }
   }, [store]);
 
+  // =====================================================
+  // HANDLE CHANGE
+  // =====================================================
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -46,6 +58,10 @@ function AddStoreModal({ store, onSave, onClose }) {
       [name]: value,
     }));
   };
+
+  // =====================================================
+  // SUBMIT
+  // =====================================================
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -75,146 +91,343 @@ function AddStoreModal({ store, onSave, onClose }) {
       return;
     }
 
-    onSave(form);
+    onSave({
+      ...form,
+      store_code: form.store_code.trim(),
+      store_name: form.store_name.trim(),
+      country: form.country.trim(),
+      state: form.state.trim(),
+      city: form.city.trim(),
+      address: form.address.trim(),
+      manager_name: form.manager_name.trim(),
+      contact_number: form.contact_number.trim(),
+      email: form.email.trim(),
+    });
   };
 
+  // =====================================================
+  // CLOSE
+  // =====================================================
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
   return (
-    <div className="modal-overlay">
-      <div className="store-modal">
+    <div
+      className="modal-overlay store-modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className="store-modal store-modal-animated"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="store-modal-title"
+      >
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-        <div className="modal-header">
-          <h2>{isEdit ? "Edit Store" : "Add Store"}</h2>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-
-          <div className="form-grid">
-
-            <div>
-              <label>Store Code *</label>
-              <input
-                type="text"
-                name="store_code"
-                value={form.store_code}
-                onChange={handleChange}
-              />
+        <div className="modal-header store-modal-header">
+          <div className="modal-header-content">
+            <div className="modal-header-icon">
+              <span>{isEdit ? "✎" : "+"}</span>
             </div>
 
             <div>
-              <label>Store Name *</label>
-              <input
-                type="text"
-                name="store_name"
-                value={form.store_name}
-                onChange={handleChange}
-              />
-            </div>
+              <h2 id="store-modal-title">
+                {isEdit ? "Edit Store" : "Add Store"}
+              </h2>
 
-            <div>
-              <label>Country *</label>
-              <input
-                type="text"
-                name="country"
-                value={form.country}
-                onChange={handleChange}
-              />
+              <p>
+                {isEdit
+                  ? "Update store information and details."
+                  : "Add a new store and its information."}
+              </p>
             </div>
-
-            <div>
-              <label>State *</label>
-              <input
-                type="text"
-                name="state"
-                value={form.state}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label>City *</label>
-              <input
-                type="text"
-                name="city"
-                value={form.city}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label>Status</label>
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-
-            <div className="full-width">
-              <label>Address</label>
-              <textarea
-                rows="3"
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label>Manager Name</label>
-              <input
-                type="text"
-                name="manager_name"
-                value={form.manager_name}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label>Contact Number</label>
-              <input
-                type="text"
-                name="contact_number"
-                value={form.contact_number}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="full-width">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-              />
-            </div>
-
           </div>
 
-          <div className="modal-buttons">
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close"
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
 
+        {/* =================================================
+            FORM
+        ================================================= */}
+
+        <form
+          onSubmit={handleSubmit}
+          className="store-form"
+        >
+          {/* =================================================
+              STORE INFORMATION
+          ================================================= */}
+
+          <div className="store-form-section">
+            <div className="section-title">
+              <span className="section-line"></span>
+
+              <div>
+                <h3>Store Information</h3>
+
+                <p>
+                  Enter the basic information for the store.
+                </p>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              {/* Store Code */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-code">
+                  Store Code
+                  <span className="required">*</span>
+                </label>
+
+                <input
+                  id="store-code"
+                  type="text"
+                  name="store_code"
+                  value={form.store_code}
+                  onChange={handleChange}
+                  placeholder="Enter store code"
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Store Name */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-name">
+                  Store Name
+                  <span className="required">*</span>
+                </label>
+
+                <input
+                  id="store-name"
+                  type="text"
+                  name="store_name"
+                  value={form.store_name}
+                  onChange={handleChange}
+                  placeholder="Enter store name"
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Country */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-country">
+                  Country
+                  <span className="required">*</span>
+                </label>
+
+                <input
+                  id="store-country"
+                  type="text"
+                  name="country"
+                  value={form.country}
+                  onChange={handleChange}
+                  placeholder="Enter country"
+                />
+              </div>
+
+              {/* State */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-state">
+                  State
+                  <span className="required">*</span>
+                </label>
+
+                <input
+                  id="store-state"
+                  type="text"
+                  name="state"
+                  value={form.state}
+                  onChange={handleChange}
+                  placeholder="Enter state"
+                />
+              </div>
+
+              {/* City */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-city">
+                  City
+                  <span className="required">*</span>
+                </label>
+
+                <input
+                  id="store-city"
+                  type="text"
+                  name="city"
+                  value={form.city}
+                  onChange={handleChange}
+                  placeholder="Enter city"
+                />
+              </div>
+
+              {/* Status */}
+
+              <div className="form-group store-field">
+                <label htmlFor="store-status">
+                  Status
+                </label>
+
+                <div className="select-wrapper">
+                  <select
+                    id="store-status"
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                  >
+                    <option value="Active">
+                      Active
+                    </option>
+
+                    <option value="Inactive">
+                      Inactive
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Address */}
+
+              <div className="form-group store-field full-width">
+                <label htmlFor="store-address">
+                  Address
+                </label>
+
+                <textarea
+                  id="store-address"
+                  rows="3"
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  placeholder="Enter complete store address"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* =================================================
+              CONTACT INFORMATION
+          ================================================= */}
+
+          <div className="store-form-section">
+            <div className="section-title">
+              <span className="section-line"></span>
+
+              <div>
+                <h3>Contact Information</h3>
+
+                <p>
+                  Add the store manager and contact details.
+                </p>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              {/* Manager */}
+
+              <div className="form-group store-field">
+                <label htmlFor="manager-name">
+                  Manager Name
+                </label>
+
+                <input
+                  id="manager-name"
+                  type="text"
+                  name="manager_name"
+                  value={form.manager_name}
+                  onChange={handleChange}
+                  placeholder="Enter manager name"
+                />
+              </div>
+
+              {/* Contact */}
+
+              <div className="form-group store-field">
+                <label htmlFor="contact-number">
+                  Contact Number
+                </label>
+
+                <input
+                  id="contact-number"
+                  type="text"
+                  name="contact_number"
+                  value={form.contact_number}
+                  onChange={handleChange}
+                  placeholder="Enter contact number"
+                />
+              </div>
+
+              {/* Email */}
+
+              <div className="form-group store-field full-width">
+                <label htmlFor="store-email">
+                  Email
+                </label>
+
+                <input
+                  id="store-email"
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="Enter email address"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* =================================================
+              FOOTER
+          ================================================= */}
+
+          <div className="modal-buttons store-modal-footer">
             <button
               type="button"
-              className="cancel-btn"
-              onClick={onClose}
+              className="cancel-btn store-cancel-btn"
+              onClick={handleClose}
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              className="save-btn"
+              className="save-btn store-save-btn"
             >
-              {isEdit ? "Update Store" : "Save Store"}
+              <span className="save-btn-icon">
+                {isEdit ? "✓" : "+"}
+              </span>
+
+              <span>
+                {isEdit
+                  ? "Update Store"
+                  : "Save Store"}
+              </span>
             </button>
-
           </div>
-
         </form>
-
       </div>
     </div>
   );
