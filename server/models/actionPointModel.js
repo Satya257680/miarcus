@@ -224,7 +224,7 @@ ActionPoint.getAll = (
 
             nso.status AS nso_project_status,
 
-            nso.store_name AS nso_store_name,
+        
 
             s.store_name,
 
@@ -747,7 +747,7 @@ ActionPoint.getById = (
 
             nso.status AS nso_project_status,
 
-            nso.store_name AS nso_store_name,
+         
 
             cs.latitude,
 
@@ -1355,7 +1355,7 @@ ActionPoint.getByNSO = (
 
             nso.status AS nso_project_status,
 
-            nso.store_name AS nso_store_name,
+           
 
             u.name AS assigned_to_name
 
