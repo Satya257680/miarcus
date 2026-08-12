@@ -30,9 +30,9 @@ function CreatePointModal({
     sla_type: "Hours",
   });
 
-  // ======================================================
+  // ==========================================================
   // UPDATE SUBMISSION ID WHEN PARENT CHANGES IT
-  // ======================================================
+  // ==========================================================
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -41,9 +41,9 @@ function CreatePointModal({
     }));
   }, [submissionId]);
 
-  // ======================================================
+  // ==========================================================
   // LOAD DROPDOWN DATA
-  // ======================================================
+  // ==========================================================
 
   useEffect(() => {
     if (isOpen) {
@@ -65,20 +65,19 @@ function CreatePointModal({
           }
         : {};
 
-      const [storeRes, deptRes, questionRes] =
-        await Promise.all([
-          axios.get(`${API}/api/stores`, {
-            headers,
-          }),
+      const [storeRes, deptRes, questionRes] = await Promise.all([
+        axios.get(`${API}/api/stores`, {
+          headers,
+        }),
 
-          axios.get(`${API}/api/departments`, {
-            headers,
-          }),
+        axios.get(`${API}/api/departments`, {
+          headers,
+        }),
 
-          axios.get(`${API}/api/questions`, {
-            headers,
-          }),
-        ]);
+        axios.get(`${API}/api/questions`, {
+          headers,
+        }),
+      ]);
 
       setStores(
         storeRes.data?.data ||
@@ -113,17 +112,17 @@ function CreatePointModal({
     }
   };
 
-  // ======================================================
+  // ==========================================================
   // CLOSE
-  // ======================================================
+  // ==========================================================
 
   if (!isOpen) {
     return null;
   }
 
-  // ======================================================
+  // ==========================================================
   // HANDLE CHANGE
-  // ======================================================
+  // ==========================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -134,9 +133,9 @@ function CreatePointModal({
     }));
   };
 
-  // ======================================================
+  // ==========================================================
   // HANDLE FILE
-  // ======================================================
+  // ==========================================================
 
   const handleFile = (e) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -144,9 +143,9 @@ function CreatePointModal({
     setFile(selectedFile);
   };
 
-  // ======================================================
+  // ==========================================================
   // RESET FORM
-  // ======================================================
+  // ==========================================================
 
   const resetForm = () => {
     setFormData({
@@ -163,9 +162,9 @@ function CreatePointModal({
     setFile(null);
   };
 
-  // ======================================================
+  // ==========================================================
   // CLOSE MODAL
-  // ======================================================
+  // ==========================================================
 
   const handleClose = () => {
     if (loading) {
@@ -176,9 +175,9 @@ function CreatePointModal({
     onClose();
   };
 
-  // ======================================================
+  // ==========================================================
   // SUBMIT
-  // ======================================================
+  // ==========================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -187,9 +186,9 @@ function CreatePointModal({
       return;
     }
 
-    // ==================================================
+    // ========================================================
     // VALIDATION
-    // ==================================================
+    // ========================================================
 
     if (!formData.store_id) {
       alert("Please select a Store.");
@@ -206,6 +205,12 @@ function CreatePointModal({
       return;
     }
 
+    // Backend currently requires Submission Answer.
+    if (!formData.answer.trim()) {
+      alert("Please enter the Submission Answer.");
+      return;
+    }
+
     if (
       !formData.sla_value ||
       Number(formData.sla_value) <= 0
@@ -214,113 +219,112 @@ function CreatePointModal({
       return;
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * submission_id is required by the current backend/database
-     * because an Action Point is linked to the checklist answer.
-     *
-     * DO NOT hard-code submission_id = 28.
-     */
-
-    if (!formData.submission_id) {
-      alert(
-        "No checklist submission is selected. Please open this Action Point from a checklist submission."
-      );
-      return;
-    }
-
-    // ==================================================
-    // START
-    // ==================================================
+    // ========================================================
+    // IMPORTANT
+    //
+    // submission_id is OPTIONAL for manual Action Point
+    // creation.
+    //
+    // If this Action Point was opened from a checklist
+    // submission, submission_id will be sent.
+    //
+    // If user clicked "Add Action Point" directly from the
+    // Action Points page, submission_id will NOT be sent.
+    // ========================================================
 
     setLoading(true);
 
     try {
       const data = new FormData();
 
-      // ------------------------------------------------
-      // CHECKLIST SUBMISSION
-      // ------------------------------------------------
+      // ------------------------------------------------------
+      // SUBMISSION ID
+      // ------------------------------------------------------
 
-      data.append(
-        "submission_id",
-        String(formData.submission_id)
-      );
+      if (formData.submission_id) {
+        data.append(
+          "submission_id",
+          String(formData.submission_id)
+        );
+      }
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // STORE
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       data.append(
         "store_id",
         String(formData.store_id)
       );
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // DEPARTMENT
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       data.append(
         "department_id",
         String(formData.department_id)
       );
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // QUESTION
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       data.append(
         "question_id",
         String(formData.question_id)
       );
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // ANSWER
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       data.append(
         "answer",
-        formData.answer || ""
+        formData.answer.trim()
       );
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // REMARKS
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       data.append(
         "remarks",
         formData.remarks || ""
       );
 
-      // ------------------------------------------------
-      // SLA
-      //
-      // Backend can use sla_value.
-      // ------------------------------------------------
+      // ------------------------------------------------------
+      // SLA VALUE
+      // ------------------------------------------------------
 
       data.append(
         "sla_value",
         String(formData.sla_value)
       );
 
+      // ------------------------------------------------------
+      // SLA TYPE
+      // ------------------------------------------------------
+
       data.append(
         "sla_type",
         formData.sla_type
       );
 
-      // ------------------------------------------------
-      // ALSO SEND sla FOR COMPATIBILITY
-      // ------------------------------------------------
+      // ------------------------------------------------------
+      // SLA
+      //
+      // Keep this for backend compatibility.
+      // ------------------------------------------------------
 
       data.append(
         "sla",
         `${formData.sla_value} ${formData.sla_type}`
       );
 
-      // ------------------------------------------------
+      // ------------------------------------------------------
       // ATTACHMENT
-      // ------------------------------------------------
+      // ------------------------------------------------------
 
       if (file) {
         data.append(
@@ -329,9 +333,9 @@ function CreatePointModal({
         );
       }
 
-      // ==================================================
+      // ======================================================
       // AUTH TOKEN
-      // ==================================================
+      // ======================================================
 
       const token =
         localStorage.getItem("token") ||
@@ -344,17 +348,46 @@ function CreatePointModal({
           `Bearer ${token}`;
       }
 
-      // IMPORTANT:
-      // Do NOT manually set Content-Type.
-      //
-      // Axios/browser will automatically create:
-      // multipart/form-data; boundary=...
-      //
-      // This prevents multipart parsing problems.
+      // ======================================================
+      // DEBUG
+      // ======================================================
 
-      // ==================================================
+      console.log(
+        "CREATE ACTION POINT DATA:"
+      );
+
+      console.log({
+        submission_id:
+          formData.submission_id || null,
+
+        store_id:
+          formData.store_id,
+
+        department_id:
+          formData.department_id,
+
+        question_id:
+          formData.question_id,
+
+        answer:
+          formData.answer,
+
+        remarks:
+          formData.remarks,
+
+        sla_value:
+          formData.sla_value,
+
+        sla_type:
+          formData.sla_type,
+
+        attachment:
+          file?.name || null,
+      });
+
+      // ======================================================
       // API REQUEST
-      // ==================================================
+      // ======================================================
 
       const res = await axios.post(
         `${API}/api/action-points`,
@@ -364,13 +397,13 @@ function CreatePointModal({
         }
       );
 
-      // ==================================================
+      // ======================================================
       // SUCCESS
-      // ==================================================
+      // ======================================================
 
       alert(
         res.data?.message ||
-        "Action Point created successfully."
+          "Action Point created successfully."
       );
 
       resetForm();
@@ -382,18 +415,16 @@ function CreatePointModal({
       onClose();
 
     } catch (error) {
-
       console.error(
         "CREATE ACTION POINT ERROR:",
         error
       );
 
-      // ==================================================
+      // ======================================================
       // BACKEND ERROR
-      // ==================================================
+      // ======================================================
 
       if (error.response) {
-
         console.error(
           "STATUS:",
           error.response.status
@@ -404,11 +435,28 @@ function CreatePointModal({
           error.response.data
         );
 
-        alert(
+        const backendMessage =
           error.response.data?.message ||
           error.response.data?.error ||
-          "Unable to create Action Point."
-        );
+          "Unable to create Action Point.";
+
+        // ----------------------------------------------------
+        // SPECIAL MESSAGE
+        // ----------------------------------------------------
+
+        if (
+          backendMessage
+            .toLowerCase()
+            .includes("submission")
+        ) {
+          alert(
+            `${backendMessage}\n\n` +
+            `If you are creating an Action Point manually, ` +
+            `the backend must allow submission_id to be NULL.`
+          );
+        } else {
+          alert(backendMessage);
+        }
 
       } else if (error.request) {
 
@@ -424,15 +472,13 @@ function CreatePointModal({
       }
 
     } finally {
-
       setLoading(false);
-
     }
   };
 
-  // ======================================================
+  // ==========================================================
   // RENDER
-  // ======================================================
+  // ==========================================================
 
   return (
     <div className="modal-overlay">
@@ -442,6 +488,41 @@ function CreatePointModal({
         <h2>
           Create Action Point
         </h2>
+
+        {/* ==================================================
+            CREATION TYPE INFORMATION
+        ================================================== */}
+
+        <div className="creation-info">
+
+          {formData.submission_id ? (
+            <>
+              <span className="creation-badge checklist">
+                Checklist Action Point
+              </span>
+
+              <small>
+                Submission ID:{" "}
+                {formData.submission_id}
+              </small>
+            </>
+          ) : (
+            <>
+              <span className="creation-badge manual">
+                Manual Action Point
+              </span>
+
+              <small>
+                This Action Point is being created manually.
+              </small>
+            </>
+          )}
+
+        </div>
+
+        {/* ==================================================
+            LOADING
+        ================================================== */}
 
         {loadingData ? (
 
@@ -456,6 +537,10 @@ function CreatePointModal({
             {/* ==================================================
                 STORE
             ================================================== */}
+
+            <label>
+              Store / Location
+            </label>
 
             <select
               name="store_id"
@@ -475,6 +560,7 @@ function CreatePointModal({
                   key={store.id}
                   value={store.id}
                 >
+
                   {store.store_name ||
                     store.name ||
                     "Unnamed Store"}
@@ -482,6 +568,7 @@ function CreatePointModal({
                   {store.store_code
                     ? ` (${store.store_code})`
                     : ""}
+
                 </option>
 
               ))}
@@ -491,6 +578,10 @@ function CreatePointModal({
             {/* ==================================================
                 DEPARTMENT
             ================================================== */}
+
+            <label>
+              Department
+            </label>
 
             <select
               name="department_id"
@@ -510,9 +601,11 @@ function CreatePointModal({
                   key={dept.id}
                   value={dept.id}
                 >
+
                   {dept.department_name ||
                     dept.name ||
                     "Unnamed Department"}
+
                 </option>
 
               ))}
@@ -522,6 +615,10 @@ function CreatePointModal({
             {/* ==================================================
                 QUESTION
             ================================================== */}
+
+            <label>
+              Question
+            </label>
 
             <select
               name="question_id"
@@ -541,9 +638,11 @@ function CreatePointModal({
                   key={question.id}
                   value={question.id}
                 >
+
                   {question.question ||
                     question.question_text ||
                     "Unnamed Question"}
+
                 </option>
 
               ))}
@@ -553,6 +652,10 @@ function CreatePointModal({
             {/* ==================================================
                 SLA
             ================================================== */}
+
+            <label>
+              SLA
+            </label>
 
             <div className="sla-row">
 
@@ -590,18 +693,27 @@ function CreatePointModal({
                 ANSWER
             ================================================== */}
 
+            <label>
+              Submission Answer
+            </label>
+
             <input
               type="text"
               name="answer"
-              placeholder="Submission Answer"
+              placeholder="Enter Submission Answer"
               value={formData.answer}
               onChange={handleChange}
+              required
               disabled={loading}
             />
 
             {/* ==================================================
                 REMARKS
             ================================================== */}
+
+            <label>
+              Remarks
+            </label>
 
             <textarea
               rows="4"
@@ -626,6 +738,12 @@ function CreatePointModal({
               disabled={loading}
             />
 
+            {file && (
+              <div className="selected-file">
+                Selected: {file.name}
+              </div>
+            )}
+
             {/* ==================================================
                 BUTTONS
             ================================================== */}
@@ -644,11 +762,13 @@ function CreatePointModal({
               <button
                 type="submit"
                 className="save-btn"
-                disabled={loading}
+                disabled={loading || loadingData}
               >
+
                 {loading
                   ? "Creating..."
                   : "Create Point"}
+
               </button>
 
             </div>

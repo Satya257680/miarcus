@@ -1,6 +1,6 @@
-/* ======================================================
+/* =========================================================
    CREATE ACTION POINT MODAL
-   ====================================================== */
+   ========================================================= */
 
 .modal-overlay {
   position: fixed;
@@ -11,63 +11,45 @@
   align-items: center;
   justify-content: center;
 
-  padding: 20px;
+  padding: 24px;
 
   background: rgba(15, 23, 42, 0.62);
-
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+
+  animation: modalOverlayFade 0.2s ease-out;
 }
 
 
-/* ======================================================
-   MODAL
-   ====================================================== */
+/* =========================================================
+   MODAL CONTAINER
+   ========================================================= */
 
 .create-modal {
-  width: 100%;
-  max-width: 540px;
-
-  max-height: calc(100vh - 40px);
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
 
   overflow-y: auto;
-
-  padding: 28px 26px 24px;
+  overflow-x: hidden;
 
   background: #ffffff;
-
   border-radius: 14px;
 
+  padding: 26px 28px 24px;
+
   box-shadow:
-    0 24px 60px rgba(15, 23, 42, 0.25),
+    0 25px 60px rgba(15, 23, 42, 0.25),
     0 8px 20px rgba(15, 23, 42, 0.12);
 
-  border: 1px solid #e5e7eb;
+  animation: modalSlideUp 0.25s ease-out;
 
-  animation: createModalIn 0.2s ease-out;
+  box-sizing: border-box;
 }
 
 
-/* ======================================================
-   MODAL ANIMATION
-   ====================================================== */
-
-@keyframes createModalIn {
-  from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-
-/* ======================================================
-   SCROLLBAR
-   ====================================================== */
+/* =========================================================
+   MODAL SCROLLBAR
+   ========================================================= */
 
 .create-modal::-webkit-scrollbar {
   width: 7px;
@@ -79,34 +61,36 @@
 }
 
 .create-modal::-webkit-scrollbar-thumb {
-  background: #b8b0e8;
+  background: #cbd5e1;
   border-radius: 10px;
 }
 
 .create-modal::-webkit-scrollbar-thumb:hover {
-  background: #8b7bd8;
+  background: #94a3b8;
 }
 
 
-/* ======================================================
+/* =========================================================
    TITLE
-   ====================================================== */
+   ========================================================= */
 
 .create-modal h2 {
   margin: 0 0 22px;
 
-  color: #6f63c5;
-
   font-size: 22px;
+  line-height: 1.3;
+
   font-weight: 700;
 
-  line-height: 1.3;
+  color: #7567d8;
+
+  letter-spacing: -0.2px;
 }
 
 
-/* ======================================================
+/* =========================================================
    FORM
-   ====================================================== */
+   ========================================================= */
 
 .create-modal form {
   display: flex;
@@ -115,108 +99,18 @@
 }
 
 
-/* ======================================================
-   SELECT
-   ====================================================== */
+/* =========================================================
+   INPUTS / SELECTS / TEXTAREA
+   ========================================================= */
 
-.create-modal select {
-  width: 100%;
-  height: 48px;
-
-  padding: 0 14px;
-
-  border: 1px solid #d7dbe2;
-  border-radius: 8px;
-
-  background-color: #ffffff;
-
-  color: #1f2937;
-
-  font-size: 14px;
-  font-family: inherit;
-
-  outline: none;
-
-  cursor: pointer;
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.create-modal select:hover {
-  border-color: #b8b0e8;
-}
-
-.create-modal select:focus {
-  border-color: #7c6fd1;
-
-  box-shadow:
-    0 0 0 3px rgba(124, 111, 209, 0.12);
-}
-
-
-/* ======================================================
-   INPUT
-   ====================================================== */
-
-.create-modal input[type="text"],
-.create-modal input[type="number"] {
-  width: 100%;
-  height: 48px;
-
-  box-sizing: border-box;
-
-  padding: 0 14px;
-
-  border: 1px solid #d7dbe2;
-  border-radius: 8px;
-
-  background: #ffffff;
-
-  color: #1f2937;
-
-  font-size: 14px;
-  font-family: inherit;
-
-  outline: none;
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.create-modal input[type="text"]::placeholder,
-.create-modal input[type="number"]::placeholder {
-  color: #9ca3af;
-}
-
-.create-modal input[type="text"]:focus,
-.create-modal input[type="number"]:focus {
-  border-color: #7c6fd1;
-
-  box-shadow:
-    0 0 0 3px rgba(124, 111, 209, 0.12);
-}
-
-
-/* ======================================================
-   TEXTAREA
-   ====================================================== */
-
+.create-modal input,
+.create-modal select,
 .create-modal textarea {
   width: 100%;
 
   box-sizing: border-box;
 
-  min-height: 100px;
-
-  padding: 12px 14px;
-
-  resize: vertical;
-
-  border: 1px solid #d7dbe2;
+  border: 1px solid #d7dce3;
   border-radius: 8px;
 
   background: #ffffff;
@@ -226,35 +120,87 @@
   font-size: 14px;
   font-family: inherit;
 
-  line-height: 1.5;
-
   outline: none;
 
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
+
+/* Input and select height */
+
+.create-modal input,
+.create-modal select {
+  height: 46px;
+
+  padding: 0 13px;
+}
+
+
+/* Textarea */
+
+.create-modal textarea {
+  min-height: 92px;
+
+  padding: 12px 13px;
+
+  resize: vertical;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   PLACEHOLDER
+   ========================================================= */
+
+.create-modal input::placeholder,
 .create-modal textarea::placeholder {
   color: #9ca3af;
 }
 
+
+/* =========================================================
+   FOCUS
+   ========================================================= */
+
+.create-modal input:focus,
+.create-modal select:focus,
 .create-modal textarea:focus {
-  border-color: #7c6fd1;
+  border-color: #8877df;
 
   box-shadow:
-    0 0 0 3px rgba(124, 111, 209, 0.12);
+    0 0 0 3px rgba(117, 103, 216, 0.12);
+
+  background: #ffffff;
 }
 
 
-/* ======================================================
+/* =========================================================
+   DISABLED / READONLY
+   ========================================================= */
+
+.create-modal input:disabled,
+.create-modal select:disabled,
+.create-modal textarea:disabled {
+  background: #f1f3f5;
+
+  color: #64748b;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
    SLA ROW
-   ====================================================== */
+   ========================================================= */
 
 .sla-row {
   display: grid;
 
-  grid-template-columns: 1fr 145px;
+  grid-template-columns: minmax(0, 1fr) 150px;
 
   gap: 10px;
 
@@ -262,9 +208,9 @@
 }
 
 
-/* ======================================================
-   FILE UPLOAD LABEL
-   ====================================================== */
+/* =========================================================
+   ATTACHMENT LABEL
+   ========================================================= */
 
 .upload-label {
   display: block;
@@ -272,122 +218,113 @@
   margin-top: 2px;
   margin-bottom: -6px;
 
-  color: #111827;
+  font-size: 13px;
 
-  font-size: 14px;
   font-weight: 600;
+
+  color: #1f2937;
 }
 
 
-/* ======================================================
+/* =========================================================
    FILE INPUT
-   ====================================================== */
+   ========================================================= */
 
 .create-modal input[type="file"] {
-  width: 100%;
+  height: auto;
 
-  box-sizing: border-box;
-
-  min-height: 48px;
-
-  padding: 7px 10px;
-
-  border: 1px solid #d7dbe2;
-  border-radius: 8px;
-
-  background: #ffffff;
-
-  color: #374151;
-
-  font-size: 13px;
+  padding: 8px 10px;
 
   cursor: pointer;
 
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease;
+  background: #ffffff;
+
+  color: #475569;
+
+  font-size: 13px;
 }
 
-.create-modal input[type="file"]:hover {
-  border-color: #b8b0e8;
-
-  background: #faf9ff;
-}
 
 .create-modal input[type="file"]::file-selector-button {
   margin-right: 10px;
 
   padding: 7px 12px;
 
-  border: 1px solid #cfc9ef;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
 
-  background: #f3f1ff;
+  background: #f8fafc;
 
-  color: #5d50b3;
+  color: #334155;
 
   font-size: 13px;
-  font-weight: 600;
+
+  font-weight: 500;
 
   cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
+
 
 .create-modal input[type="file"]::file-selector-button:hover {
-  background: #eae7ff;
+  background: #eef2f7;
+
+  border-color: #b8c0cc;
 }
 
 
-/* ======================================================
+/* =========================================================
    BUTTON CONTAINER
-   ====================================================== */
+   ========================================================= */
 
 .modal-buttons {
   display: grid;
 
   grid-template-columns: 1fr 1fr;
 
-  gap: 10px;
+  gap: 12px;
 
   margin-top: 8px;
 }
 
 
-/* ======================================================
+/* =========================================================
    ALL BUTTONS
-   ====================================================== */
+   ========================================================= */
 
 .modal-buttons button {
   height: 44px;
 
   border: none;
-  border-radius: 7px;
+  border-radius: 8px;
 
   font-family: inherit;
 
   font-size: 14px;
+
   font-weight: 600;
 
   cursor: pointer;
 
   transition:
     transform 0.15s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease,
-    opacity 0.2s ease;
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    opacity 0.18s ease;
 }
 
-.modal-buttons button:hover {
-  transform: translateY(-1px);
-}
 
 .modal-buttons button:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 
-/* ======================================================
+/* =========================================================
    CANCEL BUTTON
-   ====================================================== */
+   ========================================================= */
 
 .cancel-btn {
   background: #e5e7eb;
@@ -395,114 +332,165 @@
   color: #374151;
 }
 
+
 .cancel-btn:hover {
-  background: #d9dce1;
-}
+  background: #d7dbe0;
 
-.cancel-btn:focus {
-  outline: none;
-
-  box-shadow:
-    0 0 0 3px rgba(107, 114, 128, 0.15);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
 }
 
 
-/* ======================================================
-   SAVE BUTTON
-   ====================================================== */
+/* =========================================================
+   SAVE / CREATE BUTTON
+   ========================================================= */
 
 .save-btn {
-  background: #6f55c7;
+  background: #796bd8;
 
   color: #ffffff;
 
   box-shadow:
-    0 3px 8px rgba(111, 85, 199, 0.2);
+    0 4px 10px rgba(121, 107, 216, 0.22);
 }
+
 
 .save-btn:hover {
-  background: #6047b5;
+  background: #6d5fd0;
 
   box-shadow:
-    0 5px 12px rgba(111, 85, 199, 0.28);
-}
-
-.save-btn:focus {
-  outline: none;
-
-  box-shadow:
-    0 0 0 3px rgba(111, 85, 199, 0.18);
+    0 6px 14px rgba(121, 107, 216, 0.28);
 }
 
 
-/* ======================================================
-   DISABLED STATE
-   ====================================================== */
+.save-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.6;
 
-.create-modal button:disabled,
-.create-modal input:disabled,
-.create-modal select:disabled,
-.create-modal textarea:disabled {
   cursor: not-allowed;
-
-  opacity: 0.65;
-}
-
-.save-btn:disabled {
-  background: #9b8bd4;
 
   box-shadow: none;
 }
 
-.cancel-btn:disabled {
-  background: #d1d5db;
+
+
+/* =========================================================
+   MANUAL ACTION POINT MODE
+   ========================================================= */
+
+.create-modal.manual-mode {
+  width: min(600px, 100%);
 }
 
 
-/* ======================================================
-   LOADING MESSAGE
-   ====================================================== */
+/* =========================================================
+   OPTIONAL SECTION
+   ========================================================= */
 
-.loading-message {
-  min-height: 160px;
+.create-modal .optional-label {
+  font-size: 12px;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #94a3b8;
 
-  color: #6f63c5;
-
-  font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 
-/* ======================================================
-   REQUIRED FIELD / VALIDATION
-   ====================================================== */
+/* =========================================================
+   ERROR MESSAGE
+   ========================================================= */
 
-.create-modal input:invalid:not(:placeholder-shown),
-.create-modal select:invalid {
-  border-color: #d7dbe2;
+.create-modal .form-error {
+  padding: 10px 12px;
+
+  border-radius: 7px;
+
+  background: #fef2f2;
+
+  border: 1px solid #fecaca;
+
+  color: #b91c1c;
+
+  font-size: 13px;
+
+  line-height: 1.4;
 }
 
 
-/* ======================================================
-   RESPONSIVE - TABLET
-   ====================================================== */
+/* =========================================================
+   SUCCESS MESSAGE
+   ========================================================= */
 
-@media (max-width: 700px) {
+.create-modal .form-success {
+  padding: 10px 12px;
+
+  border-radius: 7px;
+
+  background: #f0fdf4;
+
+  border: 1px solid #bbf7d0;
+
+  color: #15803d;
+
+  font-size: 13px;
+
+  line-height: 1.4;
+}
+
+
+/* =========================================================
+   MODAL OVERLAY ANIMATION
+   ========================================================= */
+
+@keyframes modalOverlayFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   MODAL ANIMATION
+   ========================================================= */
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(15px)
+      scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 768px) {
 
   .modal-overlay {
-    padding: 14px;
+    padding: 16px;
   }
 
   .create-modal {
-    max-width: 100%;
+    width: 100%;
 
-    max-height: calc(100vh - 28px);
+    max-height: calc(100vh - 32px);
 
-    padding: 24px 20px 20px;
+    padding: 22px 20px 20px;
 
     border-radius: 12px;
   }
@@ -513,23 +501,28 @@
     margin-bottom: 18px;
   }
 
+  .sla-row {
+    grid-template-columns: minmax(0, 1fr) 130px;
+  }
 }
 
 
-/* ======================================================
-   RESPONSIVE - MOBILE
-   ====================================================== */
+/* =========================================================
+   MOBILE
+   ========================================================= */
 
-@media (max-width: 480px) {
+@media (max-width: 520px) {
 
   .modal-overlay {
-    padding: 8px;
+    align-items: flex-start;
+
+    padding: 12px;
   }
 
   .create-modal {
-    max-height: calc(100vh - 16px);
+    max-height: calc(100vh - 24px);
 
-    padding: 20px 16px 16px;
+    padding: 20px 16px 18px;
 
     border-radius: 10px;
   }
@@ -538,15 +531,14 @@
     font-size: 19px;
   }
 
-  .create-modal form {
-    gap: 12px;
+  .create-modal input,
+  .create-modal select {
+    height: 44px;
+
+    font-size: 13px;
   }
 
-  .create-modal select,
-  .create-modal input[type="text"],
-  .create-modal input[type="number"] {
-    height: 46px;
-
+  .create-modal textarea {
     font-size: 13px;
   }
 
@@ -556,39 +548,69 @@
     gap: 10px;
   }
 
-  .create-modal textarea {
-    min-height: 90px;
-  }
-
   .modal-buttons {
     grid-template-columns: 1fr;
 
-    gap: 8px;
+    gap: 9px;
   }
 
   .modal-buttons button {
     height: 44px;
   }
-
 }
 
 
-/* ======================================================
+/* =========================================================
    VERY SMALL SCREENS
-   ====================================================== */
+   ========================================================= */
 
 @media (max-width: 360px) {
 
+  .modal-overlay {
+    padding: 8px;
+  }
+
   .create-modal {
-    padding: 18px 13px 14px;
+    max-height: calc(100vh - 16px);
+
+    padding: 18px 13px 16px;
   }
 
   .create-modal h2 {
     font-size: 18px;
   }
+}
 
-  .create-modal input[type="file"] {
-    font-size: 12px;
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+.create-modal button:focus-visible,
+.create-modal input:focus-visible,
+.create-modal select:focus-visible,
+.create-modal textarea:focus-visible {
+  outline: 2px solid #796bd8;
+
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   REDUCE MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .modal-overlay,
+  .create-modal {
+    animation: none;
   }
 
+  .create-modal input,
+  .create-modal select,
+  .create-modal textarea,
+  .modal-buttons button {
+    transition: none;
+  }
 }
