@@ -1336,16 +1336,21 @@ export default function AddNewStoreOpeningModal({
 
                     <div className="nso-right">
 
-                        <ProjectSummary
+                       <ProjectSummary
+    formData={formData}
+    progress={progress}
+    currentStep={currentStep}
 
-                            formData={formData}
+    attachment={attachment}
+    existingAttachment={existingAttachment}
+    preview={preview}
 
-                            progress={progress}
+    onFileChange={handleFileChange}
+    onRemoveFile={removeAttachment}
 
-                            currentStep={currentStep}
-
-                        />
-
+    handleChange={handleChange}
+    errors={errors}
+/>
                     </div>
 
 
