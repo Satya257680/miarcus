@@ -1,16 +1,10 @@
 /* =========================================================
-   REPORTING MANAGER MODAL
-   Professional + Animated
-========================================================= */
+   NSO RULE PROFESSIONAL MODAL
+   ========================================================= */
 
-/* =========================================================
-   OVERLAY
-========================================================= */
-
-.report-modal-overlay {
+.nso-rule-modal-overlay {
   position: fixed;
   inset: 0;
-
   z-index: 9999;
 
   display: flex;
@@ -19,486 +13,453 @@
 
   padding: 24px;
 
-  background: rgba(15, 31, 38, 0.58);
+  background: rgba(20, 35, 45, 0.62);
 
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 
-  animation: reportOverlayFade 0.22s ease-out;
+  animation: nsoRuleOverlayIn 0.2s ease;
 }
+
 
 /* =========================================================
    MODAL
-========================================================= */
+   ========================================================= */
 
-.report-modal {
-  width: min(760px, 100%);
+.nso-rule-modal {
+  width: min(920px, 100%);
 
   max-height: calc(100vh - 48px);
 
   display: flex;
   flex-direction: column;
 
+  background: #f7f9fc;
+
+  border-radius: 16px;
+
   overflow: hidden;
 
-  background: #ffffff;
-
-  border: 1px solid rgba(157, 185, 191, 0.45);
-
-  border-radius: 18px;
-
   box-shadow:
-    0 28px 70px rgba(24, 54, 64, 0.20),
-    0 8px 25px rgba(24, 54, 64, 0.10);
+    0 30px 80px rgba(0, 0, 0, 0.25),
+    0 10px 30px rgba(0, 0, 0, 0.12);
 
-  animation:
-    reportModalEnter
-    0.32s
-    cubic-bezier(0.22, 1, 0.36, 1);
+  animation: nsoRuleModalIn 0.25s ease;
 }
+
 
 /* =========================================================
    HEADER
-========================================================= */
+   ========================================================= */
 
-.report-modal-header {
-  position: relative;
-
-  min-height: 92px;
+.nso-rule-modal-header {
+  min-height: 104px;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  padding: 20px 26px;
+  padding: 22px 28px;
 
   background:
     linear-gradient(
       135deg,
-      #eaf5f7 0%,
-      #f6fafb 55%,
-      #ffffff 100%
+      #2563eb 0%,
+      #3478ee 55%,
+      #2488dc 100%
     );
 
-  border-bottom: 1px solid #dce8eb;
+  color: #ffffff;
+
+  flex-shrink: 0;
 }
 
-/* Top accent line */
 
-.report-modal-header::before {
-  content: "";
-
-  position: absolute;
-
-  top: 0;
-  left: 0;
-  right: 0;
-
-  height: 3px;
-
-  background:
-    linear-gradient(
-      90deg,
-      #3f6b78,
-      #6f9eaa,
-      #b7d7df
-    );
-}
-
-/* =========================================================
-   HEADER CONTENT
-========================================================= */
-
-.report-header-content {
+.nso-rule-header-content {
   display: flex;
   align-items: center;
 
-  gap: 14px;
+  gap: 16px;
 
   min-width: 0;
 }
 
-/* =========================================================
-   HEADER ICON
-========================================================= */
 
-.report-modal-icon {
-  width: 46px;
-  height: 46px;
-
-  flex-shrink: 0;
+.nso-rule-header-icon {
+  width: 52px;
+  height: 52px;
 
   display: flex;
   align-items: center;
   justify-content: center;
+
+  flex-shrink: 0;
 
   border-radius: 13px;
 
-  background:
-    linear-gradient(
-      135deg,
-      #dceff3,
-      #c4e1e7
-    );
+  background: rgba(255, 255, 255, 0.17);
 
-  border: 1px solid #b8d6dc;
-
-  color: #315d69;
-
-  font-size: 23px;
-  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.16);
 
   box-shadow:
-    0 5px 14px rgba(63, 107, 120, 0.12);
-
-  animation:
-    reportIconPop
-    0.4s
-    ease-out
-    0.08s
-    both;
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.report-modal-icon span {
-  display: block;
 
-  line-height: 1;
+.nso-rule-header-icon svg {
+  width: 26px;
+  height: 26px;
 }
 
-/* =========================================================
-   HEADER TEXT
-========================================================= */
 
-.report-header-text {
+.nso-rule-header-text {
   min-width: 0;
 }
 
-.report-modal-header h2 {
+
+.nso-rule-header-text h2 {
   margin: 0;
 
-  color: #183640;
+  font-size: 24px;
+  line-height: 1.2;
 
-  font-size: 21px;
   font-weight: 700;
 
-  letter-spacing: -0.25px;
+  color: #ffffff;
+
+  letter-spacing: -0.2px;
 }
 
-.report-modal-header p {
+
+.nso-rule-header-text p {
   margin: 5px 0 0;
 
-  color: #6d8087;
-
   font-size: 13px;
+  line-height: 1.4;
 
-  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
 }
 
-/* =========================================================
-   CLOSE BUTTON
-========================================================= */
 
-.report-close-btn {
-  width: 36px;
-  height: 36px;
-
-  flex-shrink: 0;
+.nso-rule-close-btn {
+  width: 42px;
+  height: 42px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  margin-left: 15px;
+  flex-shrink: 0;
 
-  border: 1px solid #d6e1e4;
+  border: none;
+  border-radius: 11px;
 
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
 
-  background: #ffffff;
-
-  color: #647980;
-
-  font-family: inherit;
-
-  font-size: 25px;
-  font-weight: 400;
-
-  line-height: 1;
+  color: #ffffff;
 
   cursor: pointer;
 
   transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
-.report-close-btn:hover {
-  background: #fff1f1;
 
-  border-color: #efb8b8;
+.nso-rule-close-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
 
-  color: #c43d3d;
-
-  transform: rotate(90deg);
-
-  box-shadow:
-    0 4px 12px rgba(196, 61, 61, 0.10);
+  transform: translateY(-1px);
 }
 
-.report-close-btn:active {
-  transform: rotate(90deg) scale(0.94);
-}
 
-.report-close-btn:disabled {
+.nso-rule-close-btn:disabled {
   opacity: 0.55;
-
   cursor: not-allowed;
 
   transform: none;
 }
 
+
+.nso-rule-close-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
+
 /* =========================================================
    FORM
-========================================================= */
+   ========================================================= */
 
-.report-modal-form {
+.nso-rule-form {
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  flex: 1;
+}
+
+
+/* =========================================================
+   BODY
+   ========================================================= */
+
+.nso-rule-modal-body {
+  flex: 1;
+
   min-height: 0;
 
   overflow-y: auto;
 
-  padding: 25px 28px 0;
+  padding: 24px;
 
-  scrollbar-width: thin;
-
-  scrollbar-color:
-    #b7d7df
-    transparent;
+  background: #f6f8fb;
 }
 
-/* Chrome / Edge scrollbar */
 
-.report-modal-form::-webkit-scrollbar {
-  width: 6px;
+/* =========================================================
+   CUSTOM SCROLLBAR
+   ========================================================= */
+
+.nso-rule-modal-body::-webkit-scrollbar {
+  width: 8px;
 }
 
-.report-modal-form::-webkit-scrollbar-track {
+
+.nso-rule-modal-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.report-modal-form::-webkit-scrollbar-thumb {
-  background: #b7d7df;
 
-  border-radius: 10px;
+.nso-rule-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+
+  border-radius: 20px;
 }
 
-.report-modal-form::-webkit-scrollbar-thumb:hover {
-  background: #8eb9c3;
+
+.nso-rule-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
+
 
 /* =========================================================
    SECTION
-========================================================= */
+   ========================================================= */
 
-.report-form-section {
-  margin-bottom: 5px;
+.nso-rule-section {
+  background: #ffffff;
+
+  border: 1px solid #dce5ef;
+
+  border-radius: 12px;
+
+  padding: 24px;
+
+  box-shadow:
+    0 3px 12px rgba(15, 23, 42, 0.045);
+
+  margin-bottom: 18px;
 }
+
 
 /* =========================================================
-   SECTION TITLE
-========================================================= */
+   SECTION HEADING
+   ========================================================= */
 
-.report-section-title {
+.nso-rule-section-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 
-  gap: 11px;
-
-  margin-bottom: 20px;
+  gap: 13px;
 }
 
-.report-section-line {
-  width: 4px;
 
-  min-height: 38px;
+.nso-rule-section-icon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   flex-shrink: 0;
 
-  border-radius: 5px;
+  border-radius: 11px;
 
-  background:
-    linear-gradient(
-      180deg,
-      #3f6b78,
-      #8eb9c3
-    );
+  background: #eaf2ff;
+
+  color: #2563eb;
 }
 
-.report-section-title h3 {
+
+.nso-rule-section-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+
+.nso-rule-section-heading h3 {
   margin: 0;
 
-  color: #244650;
-
   font-size: 15px;
+
   font-weight: 700;
 
-  letter-spacing: 0.1px;
+  color: #172033;
 }
 
-.report-section-title p {
+
+.nso-rule-section-heading p {
   margin: 4px 0 0;
 
-  color: #7a8b91;
+  font-size: 12px;
 
-  font-size: 12.5px;
+  color: #68778c;
 
-  line-height: 1.4;
+  line-height: 1.45;
 }
+
+
+/* =========================================================
+   DIVIDER
+   ========================================================= */
+
+.nso-rule-divider {
+  height: 1px;
+
+  margin: 20px 0;
+
+  background: #e5ebf2;
+}
+
 
 /* =========================================================
    FORM GRID
-========================================================= */
+   ========================================================= */
 
-.report-form-grid {
+.nso-rule-grid {
   display: grid;
 
   grid-template-columns:
     repeat(2, minmax(0, 1fr));
 
-  column-gap: 20px;
-
-  row-gap: 19px;
+  gap: 18px 20px;
 }
 
+
+.nso-rule-field-full {
+  grid-column: 1 / -1;
+}
+
+
 /* =========================================================
-   FORM GROUP
-========================================================= */
+   FIELD
+   ========================================================= */
 
-.report-form-group {
-  display: flex;
-  flex-direction: column;
-
+.nso-rule-field {
   min-width: 0;
 }
 
-.report-form-group label {
+
+.nso-rule-field label {
+  display: block;
+
   margin-bottom: 7px;
 
-  color: #344f58;
-
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: 600;
 
-  line-height: 1.3;
+  color: #263449;
 }
 
-.required-star {
+
+.nso-rule-required {
   margin-left: 3px;
 
-  color: #d04444;
+  color: #dc2626;
 
   font-weight: 700;
 }
 
+
 /* =========================================================
-   INPUT / SELECT
-========================================================= */
+   INPUTS
+   ========================================================= */
 
-.report-form-group input,
-.report-form-group select {
+.nso-rule-field input,
+.nso-rule-field select {
   width: 100%;
-
-  box-sizing: border-box;
 
   height: 43px;
 
-  padding: 0 13px;
+  box-sizing: border-box;
 
-  border: 1px solid #d3e0e3;
+  border: 1px solid #d4dfeb;
 
-  border-radius: 9px;
+  border-radius: 8px;
 
   background: #ffffff;
 
-  color: #243f48;
+  color: #263449;
 
-  font-family: inherit;
-
-  font-size: 13.5px;
+  padding: 0 13px;
 
   outline: none;
+
+  font-size: 13px;
+
+  font-family: inherit;
 
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
-    background 0.2s ease,
-    transform 0.15s ease;
+    background 0.2s ease;
 }
 
-/* =========================================================
-   PLACEHOLDER
-========================================================= */
 
-.report-form-group input::placeholder {
-  color: #a1afb3;
-
-  opacity: 1;
+.nso-rule-field input::placeholder {
+  color: #9aa9bb;
 }
 
-/* =========================================================
-   INPUT HOVER
-========================================================= */
 
-.report-form-group input:hover,
-.report-form-group select:hover {
-  border-color: #b2cbd0;
+.nso-rule-field input:hover,
+.nso-rule-field select:hover {
+  border-color: #b7c7da;
 }
 
-/* =========================================================
-   INPUT FOCUS
-========================================================= */
 
-.report-form-group input:focus,
-.report-form-group select:focus {
-  border-color: #6f9eaa;
-
-  background: #fcfeff;
+.nso-rule-field input:focus,
+.nso-rule-field select:focus {
+  border-color: #3b82f6;
 
   box-shadow:
-    0 0 0 3px rgba(111, 158, 170, 0.13);
-
-  transform: translateY(-1px);
+    0 0 0 3px rgba(59, 130, 246, 0.11);
 }
 
-/* =========================================================
-   DISABLED
-========================================================= */
 
-.report-form-group input:disabled,
-.report-form-group select:disabled {
-  background: #f4f7f8;
+.nso-rule-field input:disabled,
+.nso-rule-field select:disabled {
+  background: #f4f6f8;
 
-  color: #8b999e;
+  color: #94a3b8;
 
   cursor: not-allowed;
-
-  opacity: 0.75;
 }
+
 
 /* =========================================================
-   SELECT WRAPPER
-========================================================= */
+   SELECT
+   ========================================================= */
 
-.report-select-wrapper {
+.nso-rule-select-wrap {
   position: relative;
-
-  width: 100%;
 }
 
-.report-select-wrapper select {
+
+.nso-rule-select-wrap select {
   appearance: none;
   -webkit-appearance: none;
 
@@ -507,183 +468,621 @@
   cursor: pointer;
 }
 
-/* =========================================================
-   SELECT ARROW
-========================================================= */
 
-.report-select-wrapper::after {
-  content: "⌄";
-
+.nso-rule-select-wrap svg {
   position: absolute;
 
+  right: 12px;
   top: 50%;
-  right: 13px;
 
-  transform:
-    translateY(-57%);
+  width: 16px;
+  height: 16px;
 
-  color: #637c84;
+  transform: translateY(-50%);
 
-  font-size: 17px;
-
-  font-weight: 600;
+  color: #718096;
 
   pointer-events: none;
 }
 
+
+/* =========================================================
+   DEPARTMENT TOOLBAR
+   ========================================================= */
+
+.nso-rule-department-toolbar {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-bottom: 12px;
+}
+
+
+.nso-rule-search {
+  position: relative;
+
+  flex: 1;
+}
+
+
+.nso-rule-search > svg {
+  position: absolute;
+
+  left: 13px;
+  top: 50%;
+
+  width: 16px;
+  height: 16px;
+
+  transform: translateY(-50%);
+
+  color: #8a99aa;
+
+  pointer-events: none;
+}
+
+
+.nso-rule-search input {
+  width: 100%;
+
+  height: 42px;
+
+  box-sizing: border-box;
+
+  padding: 0 13px 0 38px;
+
+  border: 1px solid #d4dfeb;
+
+  border-radius: 8px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  font-size: 13px;
+
+  color: #263449;
+
+  font-family: inherit;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+.nso-rule-search input:focus {
+  border-color: #3b82f6;
+
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.11);
+}
+
+
+.nso-rule-select-all {
+  height: 42px;
+
+  padding: 0 15px;
+
+  border: 1px solid #cbd8e7;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #31506e;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+
+.nso-rule-select-all:hover {
+  background: #f1f6fb;
+
+  border-color: #9fb4ca;
+}
+
+
+.nso-rule-select-all:disabled {
+  opacity: 0.55;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   SELECTION INFO
+   ========================================================= */
+
+.nso-rule-selection-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 38px;
+
+  padding: 0 12px;
+
+  margin-bottom: 10px;
+
+  border-radius: 7px;
+
+  background: #f4f8fc;
+
+  border: 1px solid #e2eaf2;
+}
+
+
+.nso-rule-selection-info > div {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color: #62758a;
+
+  font-size: 12px;
+}
+
+
+.nso-rule-selection-info svg {
+  width: 15px;
+  height: 15px;
+
+  color: #2563eb;
+}
+
+
+.nso-rule-selection-info strong {
+  min-width: 24px;
+
+  height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 7px;
+
+  border-radius: 20px;
+
+  background: #e6f1ff;
+
+  color: #2563eb;
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   DEPARTMENT LIST
+   ========================================================= */
+
+.nso-rule-department-list {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 9px;
+
+  max-height: 220px;
+
+  overflow-y: auto;
+
+  padding-right: 3px;
+}
+
+
+.nso-rule-department-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+.nso-rule-department-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.nso-rule-department-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+
+  border-radius: 10px;
+}
+
+
+/* =========================================================
+   DEPARTMENT ITEM
+   ========================================================= */
+
+.nso-rule-department-item {
+  position: relative;
+
+  min-height: 46px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 0 12px;
+
+  border: 1px solid #dce5ee;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+.nso-rule-department-item:hover {
+  border-color: #a9c4e4;
+
+  background: #f8fbff;
+}
+
+
+.nso-rule-department-item.selected {
+  border-color: #75a8ed;
+
+  background: #f1f7ff;
+
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.04);
+}
+
+
+.nso-rule-department-item input {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   CUSTOM CHECKBOX
+   ========================================================= */
+
+.nso-rule-custom-checkbox {
+  width: 18px;
+  height: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: 1.5px solid #bdcad8;
+
+  border-radius: 5px;
+
+  background: #ffffff;
+
+  color: #ffffff;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+
+.nso-rule-department-item.selected
+.nso-rule-custom-checkbox {
+  background: #2563eb;
+
+  border-color: #2563eb;
+}
+
+
+.nso-rule-custom-checkbox svg {
+  width: 12px;
+  height: 12px;
+
+  stroke-width: 3;
+}
+
+
+.nso-rule-department-name {
+  color: #34465a;
+
+  font-size: 12px;
+
+  font-weight: 500;
+
+  line-height: 1.3;
+}
+
+
+/* =========================================================
+   EMPTY DEPARTMENT
+   ========================================================= */
+
+.nso-rule-empty {
+  grid-column: 1 / -1;
+
+  min-height: 110px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  color: #91a0b0;
+
+  font-size: 12px;
+
+  border: 1px dashed #ccd7e2;
+
+  border-radius: 9px;
+
+  background: #fafbfd;
+}
+
+
+.nso-rule-empty svg {
+  width: 23px;
+  height: 23px;
+}
+
+
+/* =========================================================
+   INFORMATION BANNER
+   ========================================================= */
+
+.nso-rule-info-banner {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 12px;
+
+  padding: 14px 16px;
+
+  margin-bottom: 2px;
+
+  border: 1px solid #c9e2f4;
+
+  border-radius: 10px;
+
+  background: #eef8fd;
+}
+
+
+.nso-rule-info-icon {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 9px;
+
+  background: #d8f0fb;
+
+  color: #2680a8;
+}
+
+
+.nso-rule-info-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+
+.nso-rule-info-banner strong {
+  display: block;
+
+  margin-bottom: 3px;
+
+  color: #28566d;
+
+  font-size: 12px;
+}
+
+
+.nso-rule-info-banner p {
+  margin: 0;
+
+  color: #567184;
+
+  font-size: 11px;
+
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.nso-rule-loading {
+  min-height: 330px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+
+.nso-rule-spinner-large {
+  width: 32px;
+  height: 32px;
+
+  color: #2563eb;
+
+  animation: nsoRuleSpin 1s linear infinite;
+}
+
+
 /* =========================================================
    FOOTER
-========================================================= */
+   ========================================================= */
 
-.report-modal-footer {
+.nso-rule-modal-footer {
+  min-height: 76px;
+
   display: flex;
   align-items: center;
   justify-content: flex-end;
 
-  gap: 11px;
+  gap: 10px;
 
-  margin-top: 28px;
-
-  padding: 18px 0 22px;
-
-  border-top: 1px solid #e4ecee;
+  padding: 15px 24px;
 
   background: #ffffff;
+
+  border-top: 1px solid #dfe7ef;
+
+  flex-shrink: 0;
 }
+
 
 /* =========================================================
    CANCEL BUTTON
-========================================================= */
+   ========================================================= */
 
-.report-cancel-btn {
-  min-width: 92px;
-
+.nso-rule-cancel-btn {
   height: 42px;
+
+  min-width: 100px;
 
   padding: 0 18px;
 
-  border: 1px solid #d3dfe2;
+  border: 1px solid #cbd7e3;
 
-  border-radius: 9px;
+  border-radius: 8px;
 
   background: #ffffff;
 
-  color: #536b72;
+  color: #475569;
 
   font-family: inherit;
 
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: 600;
 
   cursor: pointer;
 
   transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.report-cancel-btn:hover {
-  background: #f5f8f9;
 
-  border-color: #b7cbd0;
+.nso-rule-cancel-btn:hover {
+  background: #f8fafc;
 
-  color: #314f58;
-
-  transform: translateY(-1px);
-
-  box-shadow:
-    0 4px 10px rgba(40, 70, 78, 0.07);
+  border-color: #aebdcd;
 }
 
-.report-cancel-btn:active {
-  transform: translateY(0);
-}
 
-.report-cancel-btn:disabled {
+.nso-rule-cancel-btn:disabled {
   opacity: 0.55;
 
   cursor: not-allowed;
 }
 
+
 /* =========================================================
    SAVE BUTTON
-========================================================= */
+   ========================================================= */
 
-.report-save-btn {
-  min-width: 160px;
-
+.nso-rule-save-btn {
   height: 42px;
 
+  min-width: 145px;
+
   display: inline-flex;
-
   align-items: center;
-
   justify-content: center;
 
   gap: 8px;
 
-  padding: 0 19px;
+  padding: 0 20px;
 
-  border: 1px solid #3f6b78;
+  border: none;
 
-  border-radius: 9px;
+  border-radius: 8px;
 
   background:
     linear-gradient(
       135deg,
-      #3f6b78,
-      #527f8b
+      #2563eb,
+      #3478ee
     );
 
   color: #ffffff;
 
   font-family: inherit;
 
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: 600;
 
   cursor: pointer;
 
   box-shadow:
-    0 5px 13px rgba(63, 107, 120, 0.18);
+    0 5px 14px rgba(37, 99, 235, 0.22);
 
   transition:
-    background 0.2s ease,
-    transform 0.18s ease,
+    transform 0.2s ease,
     box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    opacity 0.2s ease;
 }
 
-.report-save-btn:hover {
-  background:
-    linear-gradient(
-      135deg,
-      #355e6b,
-      #466f7c
-    );
 
-  border-color: #355e6b;
-
-  transform: translateY(-2px);
+.nso-rule-save-btn:hover {
+  transform: translateY(-1px);
 
   box-shadow:
-    0 8px 18px rgba(63, 107, 120, 0.25);
+    0 7px 18px rgba(37, 99, 235, 0.28);
 }
 
-.report-save-btn:active {
-  transform: translateY(0) scale(0.98);
 
-  box-shadow:
-    0 3px 8px rgba(63, 107, 120, 0.18);
+.nso-rule-save-btn:active {
+  transform: translateY(0);
 }
 
-.report-save-btn:disabled {
-  opacity: 0.72;
+
+.nso-rule-save-btn:disabled {
+  opacity: 0.65;
 
   cursor: not-allowed;
 
@@ -692,56 +1091,31 @@
   box-shadow: none;
 }
 
-/* =========================================================
-   SAVE ICON
-========================================================= */
 
-.report-save-icon {
-  width: 20px;
-  height: 20px;
-
-  display: inline-flex;
-
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 50%;
-
-  background:
-    rgba(255, 255, 255, 0.16);
-
-  font-size: 12px;
-
-  font-weight: 700;
+.nso-rule-save-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
+
 /* =========================================================
-   LOADING SPINNER
-========================================================= */
+   SAVE SPINNER
+   ========================================================= */
 
-.report-spinner {
-  width: 15px;
-  height: 15px;
+.nso-rule-spinner {
+  width: 16px;
+  height: 16px;
 
-  border: 2px solid
-    rgba(255, 255, 255, 0.35);
-
-  border-top-color: #ffffff;
-
-  border-radius: 50%;
-
-  animation:
-    reportSpinner
-    0.7s
-    linear
-    infinite;
+  animation: nsoRuleSpin 1s linear infinite;
 }
+
 
 /* =========================================================
    ANIMATIONS
-========================================================= */
+   ========================================================= */
 
-@keyframes reportOverlayFade {
+@keyframes nsoRuleOverlayIn {
+
   from {
     opacity: 0;
   }
@@ -749,15 +1123,18 @@
   to {
     opacity: 1;
   }
+
 }
 
-@keyframes reportModalEnter {
+
+@keyframes nsoRuleModalIn {
+
   from {
     opacity: 0;
 
     transform:
-      translateY(18px)
-      scale(0.97);
+      translateY(14px)
+      scale(0.985);
   }
 
   to {
@@ -767,197 +1144,153 @@
       translateY(0)
       scale(1);
   }
+
 }
 
-@keyframes reportIconPop {
+
+@keyframes nsoRuleSpin {
+
   from {
-    opacity: 0;
-
-    transform:
-      scale(0.75)
-      rotate(-8deg);
+    transform: rotate(0deg);
   }
 
-  to {
-    opacity: 1;
-
-    transform:
-      scale(1)
-      rotate(0);
-  }
-}
-
-@keyframes reportSpinner {
   to {
     transform: rotate(360deg);
   }
+
 }
 
-/* =========================================================
-   TABLET
-========================================================= */
 
-@media (max-width: 700px) {
-  .report-modal-overlay {
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 760px) {
+
+  .nso-rule-modal-overlay {
+    padding: 12px;
+  }
+
+
+  .nso-rule-modal {
+    max-height: calc(100vh - 24px);
+
+    border-radius: 13px;
+  }
+
+
+  .nso-rule-modal-header {
+    min-height: 88px;
+
+    padding: 17px 18px;
+  }
+
+
+  .nso-rule-header-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+
+  .nso-rule-header-text h2 {
+    font-size: 19px;
+  }
+
+
+  .nso-rule-header-text p {
+    font-size: 11px;
+  }
+
+
+  .nso-rule-modal-body {
     padding: 15px;
   }
 
-  .report-modal {
-    max-height:
-      calc(100vh - 30px);
 
-    border-radius: 15px;
-  }
-
-  .report-modal-header {
-    padding: 18px 20px;
-  }
-
-  .report-modal-form {
-    padding: 22px 20px 0;
-  }
-
-  .report-form-grid {
-    grid-template-columns: 1fr;
-
-    row-gap: 17px;
-  }
-
-  .report-modal-footer {
-    margin-top: 23px;
-  }
-}
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 480px) {
-  .report-modal-overlay {
-    align-items: flex-end;
-
-    padding: 0;
-  }
-
-  .report-modal {
-    width: 100%;
-
-    max-height: 94vh;
-
-    border-radius:
-      18px 18px 0 0;
-
-    animation:
-      reportMobileEnter
-      0.3s
-      cubic-bezier(
-        0.22,
-        1,
-        0.36,
-        1
-      );
-  }
-
-  .report-modal-header {
-    min-height: 82px;
-
+  .nso-rule-section {
     padding: 17px;
   }
 
-  .report-modal-icon {
-    width: 41px;
-    height: 41px;
 
-    border-radius: 11px;
+  .nso-rule-grid {
+    grid-template-columns: 1fr;
 
-    font-size: 20px;
+    gap: 15px;
   }
 
-  .report-modal-header h2 {
-    font-size: 18px;
+
+  .nso-rule-field-full {
+    grid-column: auto;
   }
 
-  .report-modal-header p {
-    font-size: 11.5px;
+
+  .nso-rule-department-list {
+    grid-template-columns: 1fr;
+
+    max-height: 200px;
   }
 
-  .report-close-btn {
-    width: 34px;
-    height: 34px;
 
-    font-size: 23px;
-  }
-
-  .report-modal-form {
-    padding: 20px 17px 0;
-  }
-
-  .report-section-title {
-    margin-bottom: 16px;
-  }
-
-  .report-section-title h3 {
-    font-size: 14px;
-  }
-
-  .report-form-group input,
-  .report-form-group select {
-    height: 42px;
-  }
-
-  .report-modal-footer {
-    flex-direction: column-reverse;
-
+  .nso-rule-department-toolbar {
+    flex-direction: column;
     align-items: stretch;
-
-    gap: 9px;
-
-    padding: 15px 0 18px;
   }
 
-  .report-cancel-btn,
-  .report-save-btn {
+
+  .nso-rule-select-all {
     width: 100%;
   }
+
+
+  .nso-rule-modal-footer {
+    padding: 12px 15px;
+  }
+
+
+  .nso-rule-cancel-btn,
+  .nso-rule-save-btn {
+    flex: 1;
+  }
+
 }
 
-/* =========================================================
-   MOBILE ANIMATION
-========================================================= */
-
-@keyframes reportMobileEnter {
-  from {
-    opacity: 0;
-
-    transform:
-      translateY(35px);
-  }
-
-  to {
-    opacity: 1;
-
-    transform:
-      translateY(0);
-  }
-}
 
 /* =========================================================
-   ACCESSIBILITY
-========================================================= */
+   VERY SMALL SCREENS
+   ========================================================= */
 
-@media (prefers-reduced-motion: reduce) {
-  .report-modal-overlay,
-  .report-modal,
-  .report-modal-icon,
-  .report-spinner {
-    animation: none !important;
+@media (max-width: 420px) {
+
+  .nso-rule-modal-header {
+    align-items: flex-start;
   }
 
-  .report-close-btn,
-  .report-form-group input,
-  .report-form-group select,
-  .report-cancel-btn,
-  .report-save-btn {
-    transition: none !important;
+
+  .nso-rule-header-content {
+    gap: 10px;
   }
+
+
+  .nso-rule-header-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+
+  .nso-rule-close-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+
+  .nso-rule-modal-footer {
+    flex-direction: column-reverse;
+  }
+
+
+  .nso-rule-cancel-btn,
+  .nso-rule-save-btn {
+    width: 100%;
+  }
+
 }
