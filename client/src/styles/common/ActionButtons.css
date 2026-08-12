@@ -1,187 +1,165 @@
 /* =========================================================
    GLOBAL ACTION BUTTONS
-   Used throughout MIARCUS
    ========================================================= */
 
 .action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  width: 100%;
-  white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-width: max-content;
+    white-space: nowrap;
 }
 
 /* =========================================================
    COMMON BUTTON
    ========================================================= */
 
-.action-btn {
-  height: 32px;
-  min-width: 32px;
+.action-buttons button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 
-  padding: 0 10px;
+    min-width: 72px;
+    height: 32px;
 
-  border: none;
-  border-radius: 6px;
+    padding: 0 11px;
 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
+    border: none;
+    border-radius: 6px;
 
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
 
-  line-height: 1;
+    line-height: 1;
+    cursor: pointer;
 
-  cursor: pointer;
-
-  transition:
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transition: all 0.2s ease;
 }
 
-.action-btn svg {
-  width: 13px;
-  height: 13px;
-
-  flex-shrink: 0;
-}
-
-.action-btn:hover {
-  transform: translateY(-1px);
-}
-
-.action-btn:active {
-  transform: translateY(0);
+.action-buttons button svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
 }
 
 /* =========================================================
    VIEW
+   YELLOW
    ========================================================= */
 
-.view-btn {
-  background: #2563eb;
-  color: #ffffff;
+.action-buttons .view-btn {
+    background-color: #facc15 !important;
+    color: #1f2937 !important;
+    border: 1px solid #eab308 !important;
 }
 
-.view-btn:hover {
-  background: #1d4ed8;
-  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
+.action-buttons .view-btn:hover {
+    background-color: #eab308 !important;
+    color: #111827 !important;
+    transform: translateY(-1px);
 }
 
 /* =========================================================
    EDIT
+   LIGHT BLUE
    ========================================================= */
 
-.edit-btn {
-  background: #f59e0b;
-  color: #ffffff;
+.action-buttons .edit-btn {
+    background-color: #60a5fa !important;
+    color: #ffffff !important;
+    border: 1px solid #3b82f6 !important;
 }
 
-.edit-btn:hover {
-  background: #d97706;
-  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.25);
-}
-
-/* =========================================================
-   DISABLE
-   ========================================================= */
-
-.disable-btn {
-  background: #64748b;
-  color: #ffffff;
-}
-
-.disable-btn:hover {
-  background: #475569;
-  box-shadow: 0 3px 8px rgba(100, 116, 139, 0.25);
+.action-buttons .edit-btn:hover {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
 }
 
 /* =========================================================
    DELETE
+   RED
    ========================================================= */
 
-.delete-btn {
-  background: #ef4444;
-  color: #ffffff;
+.action-buttons .delete-btn {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+    border: 1px solid #dc2626 !important;
 }
 
-.delete-btn:hover {
-  background: #dc2626;
-  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
-}
-
-/* =========================================================
-   TABLE ACTION CELL
-   ========================================================= */
-
-.table-actions {
-  width: 150px;
-  min-width: 150px;
-  max-width: 150px;
-
-  padding: 8px 10px !important;
-
-  text-align: center !important;
-  vertical-align: middle !important;
+.action-buttons .delete-btn:hover {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
 }
 
 /* =========================================================
-   TABLE ACTION HEADER
+   DISABLE
+   GRAY
    ========================================================= */
 
-.table-actions-header {
-  width: 150px;
-  min-width: 150px;
-  max-width: 150px;
+.action-buttons .disable-btn {
+    background-color: #64748b !important;
+    color: #ffffff !important;
+    border: 1px solid #475569 !important;
+}
 
-  text-align: center !important;
-  white-space: nowrap;
+.action-buttons .disable-btn:hover {
+    background-color: #475569 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   CLICK
+   ========================================================= */
+
+.action-buttons button:active {
+    transform: translateY(0);
+}
+
+/* =========================================================
+   DISABLED
+   ========================================================= */
+
+.action-buttons button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* =========================================================
+   ACTION TABLE CELL
+   ========================================================= */
+
+.action-cell {
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 /* =========================================================
    RESPONSIVE
    ========================================================= */
 
-@media (max-width: 900px) {
-  .table-actions,
-  .table-actions-header {
-    width: 135px;
-    min-width: 135px;
-    max-width: 135px;
-  }
+@media (max-width: 768px) {
 
-  .action-buttons {
-    gap: 4px;
-  }
+    .action-buttons {
+        gap: 5px;
+    }
 
-  .action-btn {
-    height: 30px;
-    padding: 0 8px;
-    font-size: 11px;
-  }
-}
+    .action-buttons button {
+        width: 34px;
+        min-width: 34px;
+        height: 32px;
+        padding: 0;
+    }
 
-@media (max-width: 600px) {
-  .table-actions,
-  .table-actions-header {
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
-  }
-
-  .action-btn {
-    width: 32px;
-    min-width: 32px;
-    padding: 0;
-  }
-
-  .action-btn span {
-    display: none;
-  }
+    .action-buttons button span {
+        display: none;
+    }
 }
