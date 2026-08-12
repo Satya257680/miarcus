@@ -10,7 +10,7 @@ import { getQuestions } from "../services/questionService";
 import { getDepartments } from "../services/departmentService";
 
 import "../styles/AddRuleModal.css";
-import "../styles/common/ProfessionalModal.css";
+import ProfessionalModal from "./common/ProfessionalModal";
 
 function AddRuleModal({
 

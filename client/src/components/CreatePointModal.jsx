@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/CreatePointModal.css";
-import "../styles/common/ProfessionalModal.css";
+import ProfessionalModal from "./common/ProfessionalModal";
 
 const API = "https://miarcus-backend.onrender.com";
 

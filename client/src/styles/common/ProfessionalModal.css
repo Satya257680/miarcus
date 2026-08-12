@@ -1,25 +1,15 @@
 /* =========================================================
-   MIARCUS - PROFESSIONAL MODAL SYSTEM
+   MIARCUS
+   GLOBAL PROFESSIONAL MODAL
    ========================================================= */
 
-:root {
-    --modal-primary: #2f7187;
-    --modal-primary-dark: #245d70;
-    --modal-primary-light: #e8f5f8;
 
-    --modal-text: #1f2937;
-    --modal-muted: #64748b;
+/* =========================================================
+   BODY LOCK
+   ========================================================= */
 
-    --modal-border: #d9e2e8;
-    --modal-bg: #ffffff;
-    --modal-page: #f4f8fa;
-
-    --modal-danger: #dc3545;
-    --modal-success: #198754;
-
-    --modal-shadow:
-        0 25px 70px rgba(15, 23, 42, 0.20),
-        0 8px 25px rgba(15, 23, 42, 0.08);
+body.professional-modal-open {
+  overflow: hidden;
 }
 
 
@@ -27,240 +17,287 @@
    OVERLAY
    ========================================================= */
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
+.professional-modal-overlay {
+  position: fixed;
+  inset: 0;
 
-    width: 100%;
-    height: 100%;
+  z-index: 9999;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    padding: 24px;
+  padding: 24px;
 
-    background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.58);
 
-    backdrop-filter: blur(7px);
-    -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
-    z-index: 9999;
-
-    animation: modalOverlayIn 0.25s ease-out;
+  animation: professionalOverlayIn 0.22s ease-out;
 }
 
 
 /* =========================================================
-   OVERLAY ANIMATION
+   MODAL CONTAINER
    ========================================================= */
 
-@keyframes modalOverlayIn {
+.professional-modal {
+  width: min(
+    var(--professional-modal-width),
+    100%
+  );
 
-    from {
-        opacity: 0;
-        backdrop-filter: blur(0);
-    }
+  max-height: calc(100vh - 48px);
 
-    to {
-        opacity: 1;
-        backdrop-filter: blur(7px);
-    }
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  background: #ffffff;
+
+  border: 1px solid rgba(226, 232, 240, 0.95);
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 30px 80px rgba(15, 23, 42, 0.24),
+    0 12px 35px rgba(15, 23, 42, 0.14);
+
+  animation:
+    professionalModalIn
+    0.30s
+    cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 
 /* =========================================================
-   COMMON MODAL
+   HEADER
    ========================================================= */
 
-.department-modal,
-.store-modal,
-.modal {
+.professional-modal-header {
+  min-height: 78px;
 
-    position: relative;
+  flex-shrink: 0;
 
-    width: min(720px, 95vw);
-    max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-    background: var(--modal-bg);
+  padding: 16px 20px;
 
-    border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f7fafc 100%
+    );
 
-    border: 1px solid rgba(255, 255, 255, 0.8);
-
-    box-shadow: var(--modal-shadow);
-
-    overflow: hidden;
-
-    animation:
-        modalEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1);
-
-    transform-origin: center;
+  border-bottom: 1px solid #e6edf2;
 }
 
 
 /* =========================================================
-   LARGE MODALS
+   HEADER LEFT
    ========================================================= */
 
-.store-modal {
-    width: min(900px, 95vw);
-}
+.professional-modal-heading {
+  min-width: 0;
 
-.department-modal {
-    width: min(820px, 95vw);
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
 }
 
 
 /* =========================================================
-   MODAL ENTER ANIMATION
+   ICON
    ========================================================= */
 
-@keyframes modalEnter {
+.professional-modal-icon {
+  width: 44px;
+  height: 44px;
 
-    0% {
-        opacity: 0;
-        transform:
-            translateY(35px)
-            scale(0.94);
-    }
+  flex-shrink: 0;
 
-    60% {
-        opacity: 1;
-        transform:
-            translateY(-4px)
-            scale(1.01);
-    }
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    100% {
-        opacity: 1;
-        transform:
-            translateY(0)
-            scale(1);
-    }
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #eaf7fb,
+      #dceff5
+    );
+
+  color: #286b82;
+
+  font-size: 18px;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(40, 107, 130, 0.08);
 }
 
 
 /* =========================================================
-   MODAL HEADER
+   TITLE
    ========================================================= */
 
-.modal-header {
-
-    position: relative;
-
-    display: flex;
-    align-items: center;
-
-    min-height: 78px;
-
-    padding: 18px 24px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #e8f6fa 0%,
-            #d5edf4 55%,
-            #c8e6ef 100%
-        );
-
-    border-bottom: 1px solid #d6e5ea;
+.professional-modal-title-area {
+  min-width: 0;
 }
 
 
-/* Decorative line */
+.professional-modal-title-area h2 {
+  margin: 0;
 
-.modal-header::before {
+  color: #172033;
 
-    content: "";
+  font-size: 20px;
 
-    position: absolute;
+  line-height: 1.25;
 
-    left: 0;
-    top: 0;
+  font-weight: 700;
 
-    width: 5px;
-    height: 100%;
+  letter-spacing: -0.25px;
+}
 
-    background:
-        linear-gradient(
-            to bottom,
-            #2f7187,
-            #5aa9bd
-        );
+
+.professional-modal-title-area p {
+  margin: 4px 0 0;
+
+  color: #7b8794;
+
+  font-size: 12px;
+
+  line-height: 1.4;
 }
 
 
 /* =========================================================
-   HEADER TITLE
+   CLOSE BUTTON
    ========================================================= */
 
-.modal-header h2 {
+.professional-modal-close {
+  width: 36px;
+  height: 36px;
 
-    margin: 0;
+  flex-shrink: 0;
 
-    padding-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    color: #173b4a;
+  border: none;
 
-    font-size: 19px;
-    font-weight: 700;
+  border-radius: 9px;
 
-    letter-spacing: -0.2px;
+  background: #f0f3f6;
+
+  color: #64748b;
+
+  font-size: 14px;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.20s ease,
+    box-shadow 0.18s ease;
+}
+
+
+.professional-modal-close:hover {
+  background: #e7edf2;
+
+  color: #1e293b;
+
+  transform: rotate(90deg);
+
+  box-shadow:
+    0 3px 8px rgba(15, 23, 42, 0.08);
+}
+
+
+.professional-modal-close:active {
+  transform:
+    rotate(90deg)
+    scale(0.92);
 }
 
 
 /* =========================================================
-   FORM
+   BODY
    ========================================================= */
 
-.department-modal form,
-.store-modal form,
-.modal form {
+.professional-modal-body {
+  flex: 1;
 
-    padding: 24px;
+  min-height: 0;
 
-    max-height: calc(90vh - 78px);
+  overflow-y: auto;
 
-    overflow-y: auto;
+  padding: 22px;
 
-    scrollbar-width: thin;
-    scrollbar-color: #b9ccd3 transparent;
+  background: #ffffff;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    #c6d1da
+    transparent;
+}
+
+
+.professional-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+.professional-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.professional-modal-body::-webkit-scrollbar-thumb {
+  background: #c6d1da;
+
+  border-radius: 20px;
+}
+
+
+.professional-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #aebcc8;
 }
 
 
 /* =========================================================
-   FORM SCROLLBAR
+   FOOTER
    ========================================================= */
 
-.department-modal form::-webkit-scrollbar,
-.store-modal form::-webkit-scrollbar,
-.modal form::-webkit-scrollbar {
+.professional-modal-footer {
+  min-height: 70px;
 
-    width: 7px;
-}
+  flex-shrink: 0;
 
-.department-modal form::-webkit-scrollbar-track,
-.store-modal form::-webkit-scrollbar-track,
-.modal form::-webkit-scrollbar-track {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 
-    background: transparent;
-}
+  gap: 10px;
 
-.department-modal form::-webkit-scrollbar-thumb,
-.store-modal form::-webkit-scrollbar-thumb,
-.modal form::-webkit-scrollbar-thumb {
+  padding: 14px 22px;
 
-    background: #b8ccd3;
+  background: #fafcfd;
 
-    border-radius: 20px;
-}
-
-.department-modal form::-webkit-scrollbar-thumb:hover,
-.store-modal form::-webkit-scrollbar-thumb:hover,
-.modal form::-webkit-scrollbar-thumb:hover {
-
-    background: #8eabb5;
+  border-top: 1px solid #e6edf2;
 }
 
 
@@ -268,15 +305,13 @@
    FORM GROUP
    ========================================================= */
 
-.form-group {
+.professional-modal .form-group {
+  margin: 0 0 17px;
+}
 
-    display: flex;
 
-    flex-direction: column;
-
-    gap: 7px;
-
-    margin-bottom: 18px;
+.professional-modal .form-group:last-child {
+  margin-bottom: 0;
 }
 
 
@@ -284,93 +319,75 @@
    LABEL
    ========================================================= */
 
-.form-group label,
-.modal label,
-.store-modal label,
-.department-modal label {
+.professional-modal label {
+  display: block;
 
-    color: #334155;
+  margin-bottom: 7px;
 
-    font-size: 13px;
+  color: #344054;
 
-    font-weight: 600;
+  font-size: 12px;
 
-    line-height: 1.3;
+  line-height: 1.4;
+
+  font-weight: 600;
+}
+
+
+.professional-modal label span {
+  color: #dc3545;
 }
 
 
 /* =========================================================
-   REQUIRED FIELD
+   INPUT / SELECT / TEXTAREA
    ========================================================= */
 
-.form-group label::after {
+.professional-modal input,
+.professional-modal select,
+.professional-modal textarea {
+  width: 100%;
 
-    content: "";
+  box-sizing: border-box;
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  color: #1e293b;
+
+  background: #ffffff;
+
+  border: 1px solid #d5dee7;
+
+  border-radius: 8px;
+
+  outline: none;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 
 
-/* =========================================================
-   INPUTS
-   ========================================================= */
+.professional-modal input,
+.professional-modal select {
+  height: 42px;
 
-.form-group input,
-.form-group textarea,
-.form-group select,
-
-.modal input,
-.modal textarea,
-.modal select,
-
-.store-modal input,
-.store-modal textarea,
-.store-modal select,
-
-.department-modal input,
-.department-modal textarea,
-.department-modal select {
-
-    width: 100%;
-
-    min-height: 42px;
-
-    box-sizing: border-box;
-
-    padding: 10px 13px;
-
-    border: 1px solid #ccd8df;
-
-    border-radius: 8px;
-
-    background: #ffffff;
-
-    color: #1f2937;
-
-    font-size: 13px;
-
-    outline: none;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease,
-        background 0.2s ease,
-        transform 0.15s ease;
+  padding: 0 12px;
 }
 
 
-/* =========================================================
-   TEXTAREA
-   ========================================================= */
+.professional-modal textarea {
+  min-height: 92px;
 
-.form-group textarea,
-.modal textarea,
-.store-modal textarea,
-.department-modal textarea {
+  padding: 11px 12px;
 
-    min-height: 95px;
+  resize: vertical;
 
-    resize: vertical;
-
-    line-height: 1.5;
+  line-height: 1.5;
 }
 
 
@@ -378,16 +395,9 @@
    PLACEHOLDER
    ========================================================= */
 
-.form-group input::placeholder,
-.form-group textarea::placeholder,
-.modal input::placeholder,
-.modal textarea::placeholder,
-.store-modal input::placeholder,
-.store-modal textarea::placeholder,
-.department-modal input::placeholder,
-.department-modal textarea::placeholder {
-
-    color: #9aa9b5;
+.professional-modal input::placeholder,
+.professional-modal textarea::placeholder {
+  color: #9aa8b5;
 }
 
 
@@ -395,23 +405,10 @@
    INPUT HOVER
    ========================================================= */
 
-.form-group input:hover,
-.form-group textarea:hover,
-.form-group select:hover,
-
-.modal input:hover,
-.modal textarea:hover,
-.modal select:hover,
-
-.store-modal input:hover,
-.store-modal textarea:hover,
-.store-modal select:hover,
-
-.department-modal input:hover,
-.department-modal textarea:hover,
-.department-modal select:hover {
-
-    border-color: #a8c1cb;
+.professional-modal input:hover,
+.professional-modal select:hover,
+.professional-modal textarea:hover {
+  border-color: #b8c7d3;
 }
 
 
@@ -419,158 +416,266 @@
    INPUT FOCUS
    ========================================================= */
 
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus,
+.professional-modal input:focus,
+.professional-modal select:focus,
+.professional-modal textarea:focus {
+  border-color: #42869e;
 
-.modal input:focus,
-.modal textarea:focus,
-.modal select:focus,
+  background: #ffffff;
 
-.store-modal input:focus,
-.store-modal textarea:focus,
-.store-modal select:focus,
-
-.department-modal input:focus,
-.department-modal textarea:focus,
-.department-modal select:focus {
-
-    border-color: var(--modal-primary);
-
-    background: #fbfeff;
-
-    box-shadow:
-        0 0 0 3px rgba(47, 113, 135, 0.12);
-
-    transform: translateY(-1px);
+  box-shadow:
+    0 0 0 3px
+    rgba(66, 134, 158, 0.12);
 }
 
 
 /* =========================================================
-   SELECT
+   FORM GRID
    ========================================================= */
 
-select {
+.professional-form-grid {
+  display: grid;
 
-    cursor: pointer;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 17px 16px;
+}
+
+
+.professional-form-full {
+  grid-column: 1 / -1;
 }
 
 
 /* =========================================================
-   STORE FORM GRID
+   SECTION
    ========================================================= */
 
-.form-grid {
+.professional-form-section {
+  margin-bottom: 22px;
 
-    display: grid;
+  padding-bottom: 21px;
 
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-    gap: 18px 16px;
+  border-bottom: 1px solid #e8edf2;
 }
 
 
-.form-grid > div {
+.professional-form-section:last-child {
+  margin-bottom: 0;
 
-    min-width: 0;
-}
+  padding-bottom: 0;
 
-
-.form-grid .full-width {
-
-    grid-column: 1 / -1;
+  border-bottom: none;
 }
 
 
 /* =========================================================
-   EMPLOYEE SECTION
+   SECTION HEADER
    ========================================================= */
 
-.employee-wrapper {
+.professional-section-header {
+  display: flex;
 
-    margin-top: 22px;
+  align-items: flex-start;
 
-    padding: 18px;
+  gap: 10px;
 
-    border: 1px solid #dce7ec;
-
-    border-radius: 12px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #fbfdfe,
-            #f7fafb
-        );
-
-    animation: sectionFadeIn 0.35s ease;
-}
-
-
-@keyframes sectionFadeIn {
-
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  margin-bottom: 18px;
 }
 
 
 /* =========================================================
-   EMPLOYEE TITLE
+   SECTION ACCENT
    ========================================================= */
 
-.employee-title {
+.professional-section-line {
+  width: 3px;
 
-    margin: 0 0 14px;
+  min-height: 29px;
 
-    color: #244554;
+  flex-shrink: 0;
 
-    font-size: 15px;
+  border-radius: 10px;
 
-    font-weight: 700;
+  background:
+    linear-gradient(
+      180deg,
+      #2f819b,
+      #67aec1
+    );
 }
 
 
 /* =========================================================
-   EMPLOYEE TOOLBAR
+   SECTION TITLE
    ========================================================= */
 
-.employee-toolbar {
+.professional-section-title {
+  margin: 0;
 
-    display: flex;
+  color: #334155;
 
-    align-items: center;
+  font-size: 13px;
 
-    justify-content: space-between;
+  line-height: 1.35;
 
-    gap: 14px;
-
-    margin-bottom: 14px;
+  font-weight: 700;
 }
 
 
-.select-all {
+/* =========================================================
+   SECTION DESCRIPTION
+   ========================================================= */
 
-    display: flex;
+.professional-section-description {
+  margin: 3px 0 0;
 
-    align-items: center;
+  color: #8a98a6;
 
-    gap: 8px;
+  font-size: 11px;
 
-    white-space: nowrap;
+  line-height: 1.4;
+}
 
-    color: #475569;
 
-    font-size: 12px;
+/* =========================================================
+   BUTTON BASE
+   ========================================================= */
 
-    cursor: pointer;
+.professional-btn {
+  min-width: 105px;
+
+  height: 40px;
+
+  padding: 0 17px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 7px;
+
+  border-radius: 8px;
+
+  font-family: inherit;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+
+.professional-btn:hover {
+  transform: translateY(-1px);
+}
+
+
+.professional-btn:active {
+  transform:
+    translateY(0)
+    scale(0.98);
+}
+
+
+/* =========================================================
+   CANCEL BUTTON
+   ========================================================= */
+
+.professional-btn-cancel {
+  border: 1px solid #d3dce5;
+
+  background: #ffffff;
+
+  color: #475569;
+}
+
+
+.professional-btn-cancel:hover {
+  background: #f7f9fb;
+
+  border-color: #bdc9d4;
+
+  box-shadow:
+    0 3px 9px rgba(15, 23, 42, 0.06);
+}
+
+
+/* =========================================================
+   PRIMARY BUTTON
+   ========================================================= */
+
+.professional-btn-primary {
+  border: 1px solid #286a80;
+
+  background:
+    linear-gradient(
+      135deg,
+      #3986a0,
+      #255f76
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 5px 14px
+    rgba(40, 106, 128, 0.20);
+}
+
+
+.professional-btn-primary:hover {
+  box-shadow:
+    0 7px 19px
+    rgba(40, 106, 128, 0.28);
+}
+
+
+/* =========================================================
+   DANGER BUTTON
+   ========================================================= */
+
+.professional-btn-danger {
+  border: 1px solid #dc3545;
+
+  background: #dc3545;
+
+  color: #ffffff;
+}
+
+
+.professional-btn-danger:hover {
+  background: #c82333;
+
+  border-color: #c82333;
+
+  box-shadow:
+    0 5px 14px
+    rgba(220, 53, 69, 0.20);
+}
+
+
+/* =========================================================
+   DISABLED BUTTON
+   ========================================================= */
+
+.professional-btn:disabled {
+  opacity: 0.55;
+
+  cursor: not-allowed;
+
+  transform: none;
+
+  box-shadow: none;
 }
 
 
@@ -578,384 +683,132 @@ select {
    CHECKBOX
    ========================================================= */
 
-.select-all input,
-.employee-card input {
+.professional-modal input[type="checkbox"] {
+  width: 16px;
 
-    width: 16px;
-    height: 16px;
+  height: 16px;
 
-    accent-color: var(--modal-primary);
+  margin: 0;
 
-    cursor: pointer;
+  padding: 0;
+
+  accent-color: #337d95;
+
+  cursor: pointer;
 }
 
 
 /* =========================================================
-   EMPLOYEE SEARCH
+   RADIO
    ========================================================= */
 
-.employee-search {
+.professional-modal input[type="radio"] {
+  width: 16px;
 
-    position: relative;
+  height: 16px;
 
-    flex: 1;
+  margin: 0;
 
-    max-width: 360px;
-}
+  accent-color: #337d95;
 
-
-.employee-search .search-icon {
-
-    position: absolute;
-
-    left: 12px;
-    top: 50%;
-
-    transform: translateY(-50%);
-
-    color: #91a2ad;
-
-    font-size: 12px;
-
-    pointer-events: none;
-}
-
-
-.employee-search input {
-
-    padding-left: 34px !important;
-
-    min-height: 38px !important;
+  cursor: pointer;
 }
 
 
 /* =========================================================
-   EMPLOYEE GRID
+   ERROR
    ========================================================= */
 
-.employee-grid {
+.professional-field-error {
+  margin-top: 5px;
 
-    display: grid;
+  color: #dc3545;
 
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-    gap: 9px;
-
-    max-height: 220px;
-
-    overflow-y: auto;
-
-    padding-right: 4px;
+  font-size: 11px;
 }
 
 
 /* =========================================================
-   EMPLOYEE CARD
+   INFO BOX
    ========================================================= */
 
-.employee-card {
+.professional-info-box {
+  padding: 12px 14px;
 
-    display: flex;
+  border: 1px solid #dce8ee;
 
-    align-items: center;
+  border-radius: 9px;
 
-    gap: 11px;
+  background: #f5fafc;
 
-    padding: 11px 12px;
+  color: #526575;
 
-    border: 1px solid #e1e9ed;
+  font-size: 12px;
 
-    border-radius: 9px;
-
-    background: #ffffff;
-
-    cursor: pointer;
-
-    transition:
-        border-color 0.2s ease,
-        background 0.2s ease,
-        transform 0.18s ease,
-        box-shadow 0.18s ease;
-}
-
-
-.employee-card:hover {
-
-    border-color: #a9cbd5;
-
-    background: #f7fcfd;
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 4px 12px rgba(47, 113, 135, 0.08);
+  line-height: 1.5;
 }
 
 
 /* =========================================================
-   EMPLOYEE INFO
+   EMPTY STATE
    ========================================================= */
 
-.employee-info {
+.professional-empty-state {
+  min-height: 100px;
 
-    min-width: 0;
-}
+  display: flex;
 
+  align-items: center;
 
-.employee-name {
+  justify-content: center;
 
-    color: #263746;
+  padding: 20px;
 
-    font-size: 13px;
+  border: 1px dashed #d5dee7;
 
-    font-weight: 600;
-}
+  border-radius: 10px;
 
+  background: #fafcfd;
 
-.employee-id {
+  color: #8a98a6;
 
-    margin-top: 2px;
+  font-size: 12px;
 
-    color: #8a9aa5;
-
-    font-size: 11px;
+  text-align: center;
 }
 
 
 /* =========================================================
-   EMPTY
+   ANIMATIONS
    ========================================================= */
 
-.employee-empty {
+@keyframes professionalOverlayIn {
+  from {
+    opacity: 0;
+  }
 
-    grid-column: 1 / -1;
-
-    padding: 24px;
-
-    text-align: center;
-
-    color: #8b9aa4;
-
-    font-size: 12px;
-
-    border: 1px dashed #cbd8de;
-
-    border-radius: 9px;
-
-    background: #fafcfd;
+  to {
+    opacity: 1;
+  }
 }
 
 
-/* =========================================================
-   FOOTER BUTTON AREA
-   ========================================================= */
-
-.modal-buttons {
-
-    display: flex;
-
-    justify-content: flex-end;
-
-    align-items: center;
-
-    gap: 10px;
-
-    margin-top: 26px;
-
-    padding-top: 18px;
-
-    border-top: 1px solid #e7edf0;
-
-    background: #ffffff;
-}
-
-
-/* =========================================================
-   COMMON BUTTON
-   ========================================================= */
-
-.modal-buttons button {
-
-    min-width: 105px;
-
-    min-height: 40px;
-
-    padding: 9px 18px;
-
-    border-radius: 8px;
-
-    border: 1px solid transparent;
-
-    font-size: 13px;
-
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        transform 0.18s ease,
-        box-shadow 0.18s ease,
-        background 0.18s ease;
-}
-
-
-/* =========================================================
-   CANCEL
-   ========================================================= */
-
-.cancel-btn {
-
-    color: #475569;
-
-    background: #ffffff;
-
-    border-color: #ccd8df !important;
-}
-
-
-.cancel-btn:hover {
-
-    background: #f4f7f9;
-
-    border-color: #aebdc5 !important;
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 4px 10px rgba(15, 23, 42, 0.06);
-}
-
-
-/* =========================================================
-   SAVE
-   ========================================================= */
-
-.save-btn {
-
-    color: #ffffff;
-
-    background:
-        linear-gradient(
-            135deg,
-            #367f96,
-            #286b80
-        );
-
-    border: none !important;
-
-    box-shadow:
-        0 4px 12px rgba(47, 113, 135, 0.22);
-}
-
-
-.save-btn:hover {
-
-    background:
-        linear-gradient(
-            135deg,
-            #2f7187,
-            #215d71
-        );
-
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 7px 18px rgba(47, 113, 135, 0.28);
-}
-
-
-.save-btn:active {
-
-    transform: translateY(0);
-
-    box-shadow:
-        0 3px 8px rgba(47, 113, 135, 0.2);
-}
-
-
-/* =========================================================
-   BUTTON LOADING SUPPORT
-   ========================================================= */
-
-.modal-buttons button:disabled {
-
-    opacity: 0.6;
-
-    cursor: not-allowed;
-
-    transform: none;
-
-    box-shadow: none;
-}
-
-
-/* =========================================================
-   MODAL CLOSE BUTTON
-   ========================================================= */
-
-.modal-close,
-.close-btn {
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    width: 34px;
-    height: 34px;
-
-    margin-left: auto;
-
-    border: none;
-
-    border-radius: 8px;
-
-    background: rgba(255, 255, 255, 0.75);
-
-    color: #64748b;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
-}
-
-
-.modal-close:hover,
-.close-btn:hover {
-
-    background: #ffffff;
-
-    color: #dc3545;
-
-    transform: rotate(90deg);
-}
-
-
-/* =========================================================
-   MODAL TITLE ANIMATION
-   ========================================================= */
-
-.modal-header h2 {
-
-    animation: titleIn 0.45s ease 0.08s both;
-}
-
-
-@keyframes titleIn {
-
-    from {
-        opacity: 0;
-        transform: translateX(-8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+@keyframes professionalModalIn {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(18px)
+      scale(0.965);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
 }
 
 
@@ -965,92 +818,111 @@ select {
 
 @media (max-width: 700px) {
 
-    .modal-overlay {
+  .professional-modal-overlay {
+    padding: 12px;
+  }
 
-        padding: 12px;
-    }
 
-    .department-modal,
-    .store-modal,
-    .modal {
+  .professional-modal {
+    max-height:
+      calc(100vh - 24px);
 
-        width: 100%;
+    border-radius: 14px;
+  }
 
-        max-height: 94vh;
 
-        border-radius: 14px;
-    }
+  .professional-modal-header {
+    min-height: 70px;
 
-    .modal-header {
+    padding: 13px 15px;
+  }
 
-        min-height: 68px;
 
-        padding: 16px 18px;
-    }
+  .professional-modal-icon {
+    width: 40px;
+    height: 40px;
 
-    .department-modal form,
-    .store-modal form,
-    .modal form {
+    border-radius: 10px;
 
-        padding: 18px;
-    }
+    font-size: 16px;
+  }
 
-    .form-grid {
 
-        grid-template-columns: 1fr;
-    }
+  .professional-modal-title-area h2 {
+    font-size: 18px;
+  }
 
-    .form-grid .full-width {
 
-        grid-column: auto;
-    }
+  .professional-modal-title-area p {
+    font-size: 11px;
+  }
 
-    .employee-toolbar {
 
-        align-items: stretch;
+  .professional-modal-body {
+    padding: 18px 15px 20px;
+  }
 
-        flex-direction: column;
-    }
 
-    .employee-search {
+  .professional-modal-footer {
+    min-height: 65px;
 
-        max-width: none;
-    }
+    padding: 12px 15px;
+  }
 
-    .employee-grid {
 
-        grid-template-columns: 1fr;
-    }
+  .professional-form-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .modal-buttons {
 
-        flex-direction: column-reverse;
-
-        align-items: stretch;
-    }
-
-    .modal-buttons button {
-
-        width: 100%;
-    }
+  .professional-form-full {
+    grid-column: auto;
+  }
 }
 
 
 /* =========================================================
-   REDUCED MOTION ACCESSIBILITY
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 450px) {
+
+  .professional-modal-footer {
+    flex-direction: column-reverse;
+
+    align-items: stretch;
+  }
+
+
+  .professional-btn {
+    width: 100%;
+  }
+
+
+  .professional-modal-close {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
-    .modal-overlay,
-    .department-modal,
-    .store-modal,
-    .modal,
-    .employee-wrapper,
-    .modal-header h2 {
+  .professional-modal-overlay,
+  .professional-modal {
+    animation: none;
+  }
 
-        animation: none !important;
 
-        transition: none !important;
-    }
+  .professional-modal-close,
+  .professional-btn,
+  .professional-modal input,
+  .professional-modal select,
+  .professional-modal textarea {
+    transition: none;
+  }
 }

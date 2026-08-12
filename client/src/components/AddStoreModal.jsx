@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import "../styles/AddStoremodal.css";
-import "../styles/common/ProfessionalModal.css";
-
+import ProfessionalModal from "./common/ProfessionalModal";
 function AddStoreModal({ store, onSave, onClose }) {
   const isEdit = Boolean(store);
 
