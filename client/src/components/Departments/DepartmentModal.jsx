@@ -4,7 +4,7 @@ import EmployeeList from "./EmployeeList";
 import { getUsers } from "../../services/userService";
 
 import "../../styles/common/ProfessionalModal.css";
-import "../../styles/DepartmentModal.css";
+import "./DepartmentModal.css";
 
 function DepartmentModal({
   isOpen,
