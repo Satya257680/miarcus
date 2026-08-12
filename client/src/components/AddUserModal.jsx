@@ -3,13 +3,10 @@ import "../styles/AddUserModal.css";
 
 import {
   LuShieldCheck,
-  LuUsers,
   LuBuilding2,
-  LuBriefcaseBusiness,
   LuStore,
   LuLockKeyhole,
   LuSettings2,
-  LuUserRoundCog,
   LuX,
   LuCheck,
   LuSearch,
@@ -18,9 +15,10 @@ import {
   LuArrowLeft,
   LuArrowRight,
   LuUserRound,
-  LuCircleAlert,
   LuClipboardCheck,
-  LuMapPin,
+  LuUserRoundCog,
+  LuCircleAlert,
+  LuPower,
 } from "react-icons/lu";
 
 import axios from "axios";
@@ -39,7 +37,7 @@ function AddUserModal({
       id: 1,
       title: "Profile",
       shortTitle: "Profile",
-      description: "Basic user information",
+      description: "Personal & contact information",
       icon: LuUserRound,
     },
     {
@@ -58,21 +56,22 @@ function AddUserModal({
     },
     {
       id: 4,
-      title: "Module Access",
+      title: "Access & Settings",
       shortTitle: "Access",
-      description: "Configure permissions",
+      description: "Permissions & account",
       icon: LuLockKeyhole,
     },
     {
       id: 5,
       title: "Review",
       shortTitle: "Review",
-      description: "Review & create",
+      description: "Verify & submit",
       icon: LuClipboardCheck,
     },
   ];
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   // =====================================================
   // PROFILE
@@ -89,7 +88,34 @@ function AddUserModal({
     useState("");
 
   // =====================================================
-  // MODULES
+  // ORGANIZATION
+  // =====================================================
+
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+
+  const [departmentId, setDepartmentId] = useState("");
+  const [designationId, setDesignationId] = useState("");
+
+  // =====================================================
+  // REPORTS TO
+  // =====================================================
+
+  const [reportsList, setReportsList] = useState([]);
+  const [reportSearch, setReportSearch] = useState("");
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [showReportList, setShowReportList] = useState(false);
+
+  // =====================================================
+  // STORES
+  // =====================================================
+
+  const [stores, setStores] = useState([]);
+  const [storeSearch, setStoreSearch] = useState("");
+  const [selectedStores, setSelectedStores] = useState([]);
+
+  // =====================================================
+  // MODULE ACCESS
   // =====================================================
 
   const modules = [
@@ -127,23 +153,16 @@ function AddUserModal({
   const [modulePermissions, setModulePermissions] =
     useState(createDefaultPermissions());
 
-  const handlePermissionChange = (
-    module,
-    permission
-  ) => {
-    setModulePermissions((prev) => ({
-      ...prev,
-      [module]: permission,
-    }));
-  };
-
   // =====================================================
-  // STORES
+  // ACCOUNT SETTINGS
   // =====================================================
 
-  const [stores, setStores] = useState([]);
-  const [storeSearch, setStoreSearch] = useState("");
-  const [selectedStores, setSelectedStores] = useState([]);
+  const [isActive, setIsActive] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // =====================================================
+  // FILTERED STORES
+  // =====================================================
 
   const filteredStores = useMemo(() => {
     return stores.filter((store) =>
@@ -153,49 +172,9 @@ function AddUserModal({
     );
   }, [stores, storeSearch]);
 
-  const toggleStore = (storeId) => {
-    setSelectedStores((prev) => {
-      if (prev.includes(storeId)) {
-        return prev.filter((id) => id !== storeId);
-      }
-
-      return [...prev, storeId];
-    });
-  };
-
-  const allStoresSelected =
-    stores.length > 0 &&
-    selectedStores.length === stores.length;
-
-  const toggleAllStores = () => {
-    if (allStoresSelected) {
-      setSelectedStores([]);
-    } else {
-      setSelectedStores(
-        stores.map((store) => store.id)
-      );
-    }
-  };
-
   // =====================================================
-  // DEPARTMENTS / DESIGNATIONS
+  // FILTERED REPORTS
   // =====================================================
-
-  const [departments, setDepartments] = useState([]);
-  const [designations, setDesignations] = useState([]);
-
-  const [departmentId, setDepartmentId] = useState("");
-  const [designationId, setDesignationId] = useState("");
-
-  // =====================================================
-  // REPORTS TO
-  // =====================================================
-
-  const [reportsList, setReportsList] = useState([]);
-  const [reportSearch, setReportSearch] = useState("");
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [showReportList, setShowReportList] =
-    useState(false);
 
   const filteredReports = useMemo(() => {
     return reportsList.filter((manager) =>
@@ -206,13 +185,26 @@ function AddUserModal({
   }, [reportsList, reportSearch]);
 
   // =====================================================
-  // ACCOUNT
+  // SELECTED DATA
   // =====================================================
 
-  const [isActive, setIsActive] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const selectedDepartment = departments.find(
+    (dept) =>
+      String(dept.id) === String(departmentId)
+  );
 
-  const [loading, setLoading] = useState(false);
+  const selectedDesignation = designations.find(
+    (designation) =>
+      String(designation.id) === String(designationId)
+  );
+
+  const selectedPermissionCount = Object.values(
+    modulePermissions
+  ).filter((permission) => permission !== "None").length;
+
+  const completionPercentage = Math.round(
+    (currentStep / steps.length) * 100
+  );
 
   // =====================================================
   // LOAD INITIAL DATA
@@ -233,32 +225,7 @@ function AddUserModal({
     setCurrentStep(1);
 
     if (!editingUser) {
-      setFullName("");
-      setEmployeeId("");
-      setEmail("");
-      setConfirmEmail("");
-
-      setCallContact("");
-      setWhatsappContact("");
-      setConfirmWhatsappContact("");
-
-      setDepartmentId("");
-      setDesignationId("");
-
-      setSelectedReport(null);
-      setReportSearch("");
-      setShowReportList(false);
-
-      setSelectedStores([]);
-      setStoreSearch("");
-
-      setModulePermissions(
-        createDefaultPermissions()
-      );
-
-      setIsActive(true);
-      setIsAdmin(false);
-
+      resetForm();
       return;
     }
 
@@ -269,10 +236,7 @@ function AddUserModal({
     );
 
     setEmail(editingUser.email || "");
-
-    setConfirmEmail(
-      editingUser.email || ""
-    );
+    setConfirmEmail(editingUser.email || "");
 
     setCallContact(
       editingUser.call_contact || ""
@@ -307,14 +271,11 @@ function AddUserModal({
       editingUser.reports_to || ""
     );
 
-    if (
-      editingUser.stores &&
+    setSelectedStores(
       Array.isArray(editingUser.stores)
-    ) {
-      setSelectedStores(editingUser.stores);
-    } else {
-      setSelectedStores([]);
-    }
+        ? editingUser.stores
+        : []
+    );
 
     setIsActive(
       editingUser.status === "Active"
@@ -324,20 +285,46 @@ function AddUserModal({
       Boolean(editingUser.is_admin)
     );
 
-    if (editingUser.permissions) {
-      setModulePermissions({
-        ...createDefaultPermissions(),
-        ...editingUser.permissions,
-      });
-    } else {
-      setModulePermissions(
-        createDefaultPermissions()
-      );
-    }
+    setModulePermissions({
+      ...createDefaultPermissions(),
+      ...(editingUser.permissions || {}),
+    });
   }, [editingUser]);
 
   // =====================================================
-  // LOAD REPORTS
+  // RESET
+  // =====================================================
+
+  const resetForm = () => {
+    setFullName("");
+    setEmployeeId("");
+    setEmail("");
+    setConfirmEmail("");
+
+    setCallContact("");
+    setWhatsappContact("");
+    setConfirmWhatsappContact("");
+
+    setDepartmentId("");
+    setDesignationId("");
+
+    setSelectedReport(null);
+    setReportSearch("");
+    setShowReportList(false);
+
+    setSelectedStores([]);
+    setStoreSearch("");
+
+    setModulePermissions(
+      createDefaultPermissions()
+    );
+
+    setIsActive(true);
+    setIsAdmin(false);
+  };
+
+  // =====================================================
+  // API - REPORTS
   // =====================================================
 
   const loadReports = async () => {
@@ -355,16 +342,16 @@ function AddUserModal({
           })
         )
       );
-    } catch (err) {
+    } catch (error) {
       console.error(
         "Failed to load reports:",
-        err
+        error
       );
     }
   };
 
   // =====================================================
-  // LOAD DEPARTMENTS
+  // API - DEPARTMENTS
   // =====================================================
 
   const fetchDepartments = async () => {
@@ -376,16 +363,16 @@ function AddUserModal({
       setDepartments(
         res.data?.data || []
       );
-    } catch (err) {
+    } catch (error) {
       console.error(
         "Failed to load departments:",
-        err
+        error
       );
     }
   };
 
   // =====================================================
-  // LOAD DESIGNATIONS
+  // API - DESIGNATIONS
   // =====================================================
 
   const fetchDesignations = async () => {
@@ -397,16 +384,16 @@ function AddUserModal({
       setDesignations(
         res.data?.data || []
       );
-    } catch (err) {
+    } catch (error) {
       console.error(
         "Failed to load designations:",
-        err
+        error
       );
     }
   };
 
   // =====================================================
-  // LOAD STORES
+  // API - STORES
   // =====================================================
 
   const fetchStores = async () => {
@@ -418,10 +405,10 @@ function AddUserModal({
       setStores(
         res.data?.data || []
       );
-    } catch (err) {
+    } catch (error) {
       console.error(
         "Failed to load stores:",
-        err
+        error
       );
     }
   };
@@ -453,12 +440,61 @@ function AddUserModal({
   };
 
   // =====================================================
+  // PERMISSION CHANGE
+  // =====================================================
+
+  const handlePermissionChange = (
+    module,
+    permission
+  ) => {
+    if (isAdmin) return;
+
+    setModulePermissions((previous) => ({
+      ...previous,
+      [module]: permission,
+    }));
+  };
+
+  // =====================================================
+  // STORE SELECTION
+  // =====================================================
+
+  const toggleStore = (storeId) => {
+    setSelectedStores((previous) => {
+      if (previous.includes(storeId)) {
+        return previous.filter(
+          (id) => id !== storeId
+        );
+      }
+
+      return [
+        ...previous,
+        storeId,
+      ];
+    });
+  };
+
+  const allStoresSelected =
+    stores.length > 0 &&
+    selectedStores.length === stores.length;
+
+  const toggleAllStores = () => {
+    if (allStoresSelected) {
+      setSelectedStores([]);
+    } else {
+      setSelectedStores(
+        stores.map((store) => store.id)
+      );
+    }
+  };
+
+  // =====================================================
   // STEP VALIDATION
   // =====================================================
 
   const validateStep = (step) => {
     // ---------------------------------------------------
-    // STEP 1 - PROFILE
+    // STEP 1
     // ---------------------------------------------------
 
     if (step === 1) {
@@ -547,7 +583,7 @@ function AddUserModal({
     }
 
     // ---------------------------------------------------
-    // STEP 2 - ORGANIZATION
+    // STEP 2
     // ---------------------------------------------------
 
     if (step === 2) {
@@ -572,7 +608,7 @@ function AddUserModal({
     }
 
     // ---------------------------------------------------
-    // STEP 3 - STORES
+    // STEP 3
     // ---------------------------------------------------
 
     if (step === 3) {
@@ -587,10 +623,17 @@ function AddUserModal({
     }
 
     // ---------------------------------------------------
-    // STEP 4 - MODULE ACCESS
+    // STEP 4
     // ---------------------------------------------------
 
     if (step === 4) {
+      if (!isActive && isAdmin) {
+        alert(
+          "Administrator account must remain active."
+        );
+        return false;
+      }
+
       if (isAdmin) {
         return true;
       }
@@ -624,9 +667,12 @@ function AddUserModal({
       return;
     }
 
-    if (currentStep < steps.length) {
+    if (
+      currentStep < steps.length
+    ) {
       setCurrentStep(
-        (prev) => prev + 1
+        (previous) =>
+          previous + 1
       );
 
       setShowReportList(false);
@@ -640,7 +686,8 @@ function AddUserModal({
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(
-        (prev) => prev - 1
+        (previous) =>
+          previous - 1
       );
 
       setShowReportList(false);
@@ -648,12 +695,15 @@ function AddUserModal({
   };
 
   // =====================================================
-  // GO TO STEP
-  // Only completed previous steps
+  // STEP NAVIGATION
   // =====================================================
 
-  const handleStepClick = (stepNumber) => {
-    if (stepNumber >= currentStep) {
+  const handleStepClick = (
+    stepNumber
+  ) => {
+    if (
+      stepNumber >= currentStep
+    ) {
       return;
     }
 
@@ -662,12 +712,15 @@ function AddUserModal({
   };
 
   // =====================================================
-  // CREATE / UPDATE USER
+  // CREATE / UPDATE
   // =====================================================
 
   const handleCreateUser = async () => {
-    // Validate all steps before final submission.
-    for (let step = 1; step <= 4; step++) {
+    for (
+      let step = 1;
+      step <= 4;
+      step++
+    ) {
       if (!validateStep(step)) {
         setCurrentStep(step);
         return;
@@ -678,24 +731,41 @@ function AddUserModal({
       setLoading(true);
 
       const payload = {
-        fullName: fullName.trim(),
-        employeeId: employeeId.trim(),
-        email: email.trim(),
-        callContact: callContact.trim(),
+        fullName:
+          fullName.trim(),
+
+        employeeId:
+          employeeId.trim(),
+
+        email:
+          email.trim(),
+
+        callContact:
+          callContact.trim(),
+
         whatsappContact:
           whatsappContact.trim(),
 
-        reportsTo: selectedReport,
+        reportsTo:
+          selectedReport,
 
-        department_id: departmentId,
-        designation_id: designationId,
+        department_id:
+          departmentId,
 
-        stores: selectedStores,
+        designation_id:
+          designationId,
 
-        permissions: modulePermissions,
+        stores:
+          selectedStores,
 
-        active: isActive,
-        administrator: isAdmin,
+        permissions:
+          modulePermissions,
+
+        active:
+          isActive,
+
+        administrator:
+          isAdmin,
       };
 
       if (editingUser) {
@@ -719,19 +789,18 @@ function AddUserModal({
       }
 
       fetchUsers();
-
       await loadReports();
 
       onClose();
-    } catch (err) {
+    } catch (error) {
       console.error(
         "User save error:",
-        err
+        error
       );
 
       alert(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Unable to save user."
       );
     } finally {
@@ -740,1046 +809,926 @@ function AddUserModal({
   };
 
   // =====================================================
-  // SUMMARY
-  // =====================================================
-
-  const completionPercentage =
-    Math.round(
-      (currentStep / steps.length) * 100
-    );
-
-  const selectedPermissionCount =
-    Object.values(modulePermissions).filter(
-      (permission) =>
-        permission !== "None"
-    ).length;
-
-  const selectedDepartment =
-    departments.find(
-      (dept) =>
-        String(dept.id) ===
-        String(departmentId)
-    );
-
-  const selectedDesignation =
-    designations.find(
-      (designation) =>
-        String(designation.id) ===
-        String(designationId)
-    );
-
-  // =====================================================
   // RENDER PROFILE
   // =====================================================
 
-  const renderProfileStep = () => {
-    return (
-      <section className="user-step-card">
-        <div className="user-step-card-header">
-          <div className="user-step-card-icon">
-            <LuShieldCheck />
-          </div>
-
-          <div>
-            <h3>Profile & Sign-in</h3>
-
-            <p>
-              Enter the user's personal and
-              contact information.
-            </p>
-          </div>
+  const renderProfileStep = () => (
+    <section className="user-page-card">
+      <div className="user-page-heading">
+        <div className="user-page-heading-icon">
+          <LuUserRound />
         </div>
 
-        <div className="user-divider" />
+        <div>
+          <h3>Profile & Sign-in</h3>
 
-        <div className="user-form-grid">
-          <div className="user-field user-field-full">
+          <p>
+            Enter the user's personal and
+            contact information.
+          </p>
+        </div>
+      </div>
+
+      <div className="user-page-divider" />
+
+      <div className="user-form-grid">
+        <div className="user-field full">
+          <label>
+            Full Name <span>*</span>
+          </label>
+
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) =>
+              setFullName(
+                e.target.value
+              )
+            }
+            placeholder="e.g. Priya Sharma"
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="user-field">
+          <label>
+            Employee ID <span>*</span>
+          </label>
+
+          <input
+            type="text"
+            value={employeeId}
+            onChange={(e) =>
+              setEmployeeId(
+                e.target.value
+              )
+            }
+            placeholder="e.g. EMP1023"
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="user-field">
+          <label>
+            Email <span>*</span>
+          </label>
+
+          <input
+            type="email"
+            value={email}
+            onChange={(e) =>
+              setEmail(
+                e.target.value
+              )
+            }
+            placeholder="name@company.com"
+          />
+        </div>
+
+        {!editingUser && (
+          <div className="user-field full">
             <label>
-              Full Name
-              <span>*</span>
-            </label>
-
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) =>
-                setFullName(
-                  e.target.value
-                )
-              }
-              placeholder="e.g. Priya Sharma"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="user-field">
-            <label>
-              Employee ID
-              <span>*</span>
-            </label>
-
-            <input
-              type="text"
-              value={employeeId}
-              onChange={(e) =>
-                setEmployeeId(
-                  e.target.value
-                )
-              }
-              placeholder="e.g. EMP1023"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="user-field">
-            <label>
-              Email
-              <span>*</span>
+              Confirm Email <span>*</span>
             </label>
 
             <input
               type="email"
-              value={email}
+              value={confirmEmail}
               onChange={(e) =>
-                setEmail(
+                setConfirmEmail(
                   e.target.value
                 )
               }
-              placeholder="name@company.com"
-              autoComplete="off"
+              placeholder="Re-enter email address"
             />
           </div>
+        )}
 
-          {!editingUser && (
-            <div className="user-field user-field-full">
-              <label>
-                Confirm Email
-                <span>*</span>
-              </label>
+        <div className="user-field">
+          <label>
+            Call Contact <span>*</span>
+          </label>
 
-              <input
-                type="email"
-                value={confirmEmail}
-                onChange={(e) =>
-                  setConfirmEmail(
-                    e.target.value
-                  )
-                }
-                placeholder="Re-enter email address"
-                autoComplete="off"
-              />
-            </div>
-          )}
-
-          <div className="user-field">
-            <label>
-              Call Contact
-              <span>*</span>
-            </label>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              value={callContact}
-              onChange={(e) =>
-                setCallContact(
-                  e.target.value.replace(
-                    /\D/g,
-                    ""
-                  )
+          <input
+            type="text"
+            inputMode="numeric"
+            value={callContact}
+            onChange={(e) =>
+              setCallContact(
+                e.target.value.replace(
+                  /\D/g,
+                  ""
                 )
-              }
-              placeholder="Enter Call Contact"
-              maxLength={10}
-            />
-          </div>
+              )
+            }
+            placeholder="Enter Call Contact"
+            maxLength={10}
+          />
+        </div>
 
-          <div className="user-field">
-            <label>
-              WhatsApp Contact
-              <span>*</span>
-            </label>
+        <div className="user-field">
+          <label>
+            WhatsApp Contact <span>*</span>
+          </label>
 
-            <input
-              type="text"
-              inputMode="numeric"
-              value={whatsappContact}
-              onChange={(e) =>
-                setWhatsappContact(
-                  e.target.value.replace(
-                    /\D/g,
-                    ""
-                  )
+          <input
+            type="text"
+            inputMode="numeric"
+            value={whatsappContact}
+            onChange={(e) =>
+              setWhatsappContact(
+                e.target.value.replace(
+                  /\D/g,
+                  ""
                 )
-              }
-              placeholder="Enter WhatsApp Contact"
-              maxLength={10}
-            />
-          </div>
-
-          {!editingUser && (
-            <div className="user-field user-field-full">
-              <label>
-                Confirm WhatsApp Contact
-                <span>*</span>
-              </label>
-
-              <input
-                type="text"
-                inputMode="numeric"
-                value={
-                  confirmWhatsappContact
-                }
-                onChange={(e) =>
-                  setConfirmWhatsappContact(
-                    e.target.value.replace(
-                      /\D/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Re-enter WhatsApp Contact"
-                maxLength={10}
-              />
-            </div>
-          )}
+              )
+            }
+            placeholder="Enter WhatsApp Contact"
+            maxLength={10}
+          />
         </div>
 
         {!editingUser && (
-          <div className="user-info-banner">
-            <div className="user-info-banner-icon">
-              <LuShieldCheck />
-            </div>
+          <div className="user-field full">
+            <label>
+              Confirm WhatsApp Contact{" "}
+              <span>*</span>
+            </label>
 
-            <div>
-              <strong>
-                Invitation Workflow
-              </strong>
-
-              <p>
-                After completing all steps and
-                clicking{" "}
-                <b>
-                  Create & Send Invitation
-                </b>
-                , the user will receive an
-                activation email.
-              </p>
-            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={
+                confirmWhatsappContact
+              }
+              onChange={(e) =>
+                setConfirmWhatsappContact(
+                  e.target.value.replace(
+                    /\D/g,
+                    ""
+                  )
+                )
+              }
+              placeholder="Re-enter WhatsApp Contact"
+              maxLength={10}
+            />
           </div>
         )}
-      </section>
-    );
-  };
+      </div>
+
+      {!editingUser && (
+        <div className="user-info-banner">
+          <div className="user-info-banner-icon">
+            <LuShieldCheck />
+          </div>
+
+          <div>
+            <strong>
+              Invitation Workflow
+            </strong>
+
+            <p>
+              After completing all steps and
+              creating the account, the user
+              will receive an activation email.
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 
   // =====================================================
   // RENDER ORGANIZATION
   // =====================================================
 
-  const renderOrganizationStep = () => {
-    return (
-      <section className="user-step-card">
-        <div className="user-step-card-header">
-          <div className="user-step-card-icon">
-            <LuBuilding2 />
-          </div>
+  const renderOrganizationStep = () => (
+    <section className="user-page-card">
+      <div className="user-page-heading">
+        <div className="user-page-heading-icon">
+          <LuBuilding2 />
+        </div>
 
-          <div>
-            <h3>Organization</h3>
+        <div>
+          <h3>Organization</h3>
 
-            <p>
-              Assign the user's department,
-              designation and reporting manager.
-            </p>
+          <p>
+            Assign department, designation
+            and reporting manager.
+          </p>
+        </div>
+      </div>
+
+      <div className="user-page-divider" />
+
+      <div className="user-form-grid">
+        <div className="user-field">
+          <label>
+            Department <span>*</span>
+          </label>
+
+          <div className="user-select">
+            <select
+              value={departmentId}
+              onChange={(e) => {
+                setDepartmentId(
+                  e.target.value
+                );
+                setDesignationId("");
+              }}
+            >
+              <option value="">
+                Select Department
+              </option>
+
+              {departments.map(
+                (department) => (
+                  <option
+                    key={department.id}
+                    value={department.id}
+                  >
+                    {
+                      department.department_name
+                    }
+                  </option>
+                )
+              )}
+            </select>
+
+            <LuChevronDown />
           </div>
         </div>
 
-        <div className="user-divider" />
+        <div className="user-field">
+          <label>
+            Designation <span>*</span>
+          </label>
 
-        <div className="organization-layout">
-          <div className="user-field">
-            <label>
-              Department
-              <span>*</span>
-            </label>
+          <div className="user-select">
+            <select
+              value={designationId}
+              onChange={(e) =>
+                setDesignationId(
+                  e.target.value
+                )
+              }
+              disabled={!departmentId}
+            >
+              <option value="">
+                Select Designation
+              </option>
 
-            <div className="select-control">
-              <select
-                value={departmentId}
-                onChange={(e) => {
-                  setDepartmentId(
-                    e.target.value
-                  );
-                  setDesignationId("");
-                }}
-              >
-                <option value="">
-                  Select Department
-                </option>
-
-                {departments.map(
-                  (dept) => (
+              {designations
+                .filter(
+                  (designation) =>
+                    String(
+                      designation.department_id
+                    ) ===
+                    String(departmentId)
+                )
+                .map(
+                  (designation) => (
                     <option
-                      key={dept.id}
-                      value={dept.id}
+                      key={designation.id}
+                      value={designation.id}
                     >
-                      {dept.department_name}
+                      {
+                        designation.designation_name
+                      }
                     </option>
                   )
                 )}
-              </select>
+            </select>
 
-              <LuChevronDown />
-            </div>
+            <LuChevronDown />
           </div>
+        </div>
 
-          <div className="user-field">
-            <label>
-              Designation
-              <span>*</span>
-            </label>
+        <div className="user-field full">
+          <label>
+            Reports To <span>*</span>
+          </label>
 
-            <div className="select-control">
-              <select
-                value={designationId}
-                onChange={(e) =>
-                  setDesignationId(
+          <div className="report-selector">
+            <div className="report-input-wrap">
+              <LuSearch />
+
+              <input
+                type="text"
+                placeholder="Search reporting manager..."
+                value={
+                  selectedReport
+                    ? selectedReport.name
+                    : reportSearch
+                }
+                onChange={(e) => {
+                  setReportSearch(
                     e.target.value
+                  );
+                  setSelectedReport(null);
+                  setShowReportList(true);
+                }}
+                onFocus={() =>
+                  setShowReportList(true)
+                }
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowReportList(
+                    !showReportList
                   )
                 }
-                disabled={!departmentId}
               >
-                <option value="">
-                  Select Designation
-                </option>
+                <LuChevronDown />
+              </button>
+            </div>
 
-                {designations
-                  .filter(
-                    (designation) =>
-                      String(
-                        designation.department_id
-                      ) ===
-                      String(departmentId)
-                  )
-                  .map(
-                    (designation) => (
-                      <option
-                        key={
-                          designation.id
-                        }
-                        value={
-                          designation.id
-                        }
+            {showReportList && (
+              <div className="report-results">
+                {filteredReports.length >
+                0 ? (
+                  filteredReports.map(
+                    (manager) => (
+                      <button
+                        type="button"
+                        key={manager.id}
+                        onClick={() => {
+                          setSelectedReport(
+                            manager
+                          );
+
+                          setReportSearch(
+                            manager.name
+                          );
+
+                          setShowReportList(
+                            false
+                          );
+                        }}
                       >
-                        {
-                          designation.designation_name
-                        }
-                      </option>
+                        <span className="report-avatar">
+                          {(
+                            manager.name ||
+                            "?"
+                          )
+                            .charAt(0)
+                            .toUpperCase()}
+                        </span>
+
+                        <span>
+                          <strong>
+                            {manager.name}
+                          </strong>
+
+                          <small>
+                            {manager.email}
+                          </small>
+                        </span>
+
+                        {selectedReport?.id ===
+                          manager.id && (
+                          <LuCheck />
+                        )}
+                      </button>
                     )
-                  )}
-              </select>
-
-              <LuChevronDown />
-            </div>
-          </div>
-
-          <div className="user-field user-field-full">
-            <label>
-              Reports To
-              <span>*</span>
-            </label>
-
-            <div className="report-selector">
-              <div className="report-input-wrap">
-                <LuSearch />
-
-                <input
-                  type="text"
-                  placeholder="Search reporting manager..."
-                  value={
-                    selectedReport
-                      ? selectedReport.name
-                      : reportSearch
-                  }
-                  onChange={(e) => {
-                    setReportSearch(
-                      e.target.value
-                    );
-                    setSelectedReport(
-                      null
-                    );
-                    setShowReportList(
-                      true
-                    );
-                  }}
-                  onFocus={() =>
-                    setShowReportList(
-                      true
-                    )
-                  }
-                />
-
-                <button
-                  type="button"
-                  className="report-chevron"
-                  onClick={() =>
-                    setShowReportList(
-                      !showReportList
-                    )
-                  }
-                >
-                  <LuChevronDown />
-                </button>
+                  )
+                ) : (
+                  <div className="report-no-results">
+                    No managers found
+                  </div>
+                )}
               </div>
-
-              {showReportList && (
-                <div className="report-results">
-                  {filteredReports.length >
-                  0 ? (
-                    filteredReports.map(
-                      (manager) => (
-                        <button
-                          type="button"
-                          key={manager.id}
-                          className="report-result"
-                          onClick={() => {
-                            setSelectedReport(
-                              manager
-                            );
-
-                            setReportSearch(
-                              manager.name
-                            );
-
-                            setShowReportList(
-                              false
-                            );
-                          }}
-                        >
-                          <span className="report-avatar">
-                            {(
-                              manager.name ||
-                              "?"
-                            )
-                              .charAt(0)
-                              .toUpperCase()}
-                          </span>
-
-                          <span className="report-result-info">
-                            <strong>
-                              {
-                                manager.name
-                              }
-                            </strong>
-
-                            <small>
-                              {
-                                manager.email
-                              }
-                            </small>
-                          </span>
-
-                          {selectedReport?.id ===
-                            manager.id && (
-                            <LuCheck />
-                          )}
-                        </button>
-                      )
-                    )
-                  ) : (
-                    <div className="report-no-results">
-                      No managers found
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="organization-preview">
-          <div>
-            <span>Department</span>
-            <strong>
-              {selectedDepartment
-                ?.department_name ||
-                "Not selected"}
-            </strong>
-          </div>
-
-          <div>
-            <span>Designation</span>
-            <strong>
-              {selectedDesignation
-                ?.designation_name ||
-                "Not selected"}
-            </strong>
-          </div>
-
-          <div>
-            <span>Reports To</span>
-            <strong>
-              {selectedReport?.name ||
-                "Not selected"}
-            </strong>
-          </div>
+      <div className="organization-summary">
+        <div>
+          <span>Department</span>
+          <strong>
+            {selectedDepartment
+              ?.department_name ||
+              "Not selected"}
+          </strong>
         </div>
-      </section>
-    );
-  };
+
+        <div>
+          <span>Designation</span>
+          <strong>
+            {selectedDesignation
+              ?.designation_name ||
+              "Not selected"}
+          </strong>
+        </div>
+
+        <div>
+          <span>Reports To</span>
+          <strong>
+            {selectedReport?.name ||
+              "Not selected"}
+          </strong>
+        </div>
+      </div>
+    </section>
+  );
 
   // =====================================================
   // RENDER STORES
   // =====================================================
 
-  const renderStoresStep = () => {
-    return (
-      <section className="user-step-card">
-        <div className="user-step-card-header">
-          <div className="user-step-card-icon">
-            <LuStore />
-          </div>
-
-          <div>
-            <h3>Assigned Stores</h3>
-
-            <p>
-              Select the stores this user is
-              allowed to access.
-            </p>
-          </div>
+  const renderStoresStep = () => (
+    <section className="user-page-card">
+      <div className="user-page-heading">
+        <div className="user-page-heading-icon">
+          <LuStore />
         </div>
 
-        <div className="user-divider" />
+        <div>
+          <h3>Assigned Stores</h3>
 
-        <div className="store-toolbar">
-          <div className="store-search-wrap">
-            <LuSearch />
+          <p>
+            Select the stores this user is
+            allowed to access.
+          </p>
+        </div>
+      </div>
 
-            <input
-              type="text"
-              placeholder="Search stores..."
-              value={storeSearch}
-              onChange={(e) =>
-                setStoreSearch(
-                  e.target.value
-                )
-              }
-            />
-          </div>
+      <div className="user-page-divider" />
 
-          <button
-            type="button"
-            className={`select-all-stores ${
-              allStoresSelected
-                ? "selected"
-                : ""
-            }`}
-            onClick={
-              toggleAllStores
+      <div className="store-toolbar">
+        <div className="store-search">
+          <LuSearch />
+
+          <input
+            type="text"
+            placeholder="Search stores..."
+            value={storeSearch}
+            onChange={(e) =>
+              setStoreSearch(
+                e.target.value
+              )
             }
-          >
-            <span className="custom-check">
-              {allStoresSelected && (
-                <LuCheck />
-              )}
-            </span>
-
-            Select All
-          </button>
+          />
         </div>
 
-        <div className="store-selection-header">
-          <div>
-            <strong>
-              {selectedStores.length}
-            </strong>{" "}
-            of {stores.length} stores selected
-          </div>
+        <button
+          type="button"
+          className={
+            allStoresSelected
+              ? "selected"
+              : ""
+          }
+          onClick={
+            toggleAllStores
+          }
+        >
+          <span className="store-check">
+            {allStoresSelected && (
+              <LuCheck />
+            )}
+          </span>
+
+          Select All
+        </button>
+      </div>
+
+      <div className="store-selection-summary">
+        <div>
+          <strong>
+            {selectedStores.length}
+          </strong>
 
           <span>
-            At least one store is required
+            {" "}
+            of {stores.length} stores selected
           </span>
         </div>
 
-        <div className="store-list">
-          {filteredStores.length > 0 ? (
-            filteredStores.map(
-              (store) => {
-                const selected =
-                  selectedStores.includes(
-                    store.id
-                  );
+        <small>
+          At least one store is required
+        </small>
+      </div>
 
-                return (
-                  <button
-                    type="button"
-                    key={store.id}
-                    className={`store-card ${
+      <div className="store-grid">
+        {filteredStores.length > 0 ? (
+          filteredStores.map(
+            (store) => {
+              const selected =
+                selectedStores.includes(
+                  store.id
+                );
+
+              return (
+                <button
+                  type="button"
+                  key={store.id}
+                  className={`store-item ${
+                    selected
+                      ? "selected"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    toggleStore(
+                      store.id
+                    )
+                  }
+                >
+                  <span
+                    className={`store-item-check ${
                       selected
-                        ? "selected"
+                        ? "checked"
                         : ""
                     }`}
-                    onClick={() =>
-                      toggleStore(
-                        store.id
-                      )
-                    }
                   >
-                    <span
-                      className={`store-checkbox ${
-                        selected
-                          ? "checked"
-                          : ""
-                      }`}
-                    >
-                      {selected && (
-                        <LuCheck />
-                      )}
-                    </span>
+                    {selected && (
+                      <LuCheck />
+                    )}
+                  </span>
 
-                    <span className="store-card-content">
-                      <LuStore />
+                  <LuStore />
 
-                      <span className="store-card-name">
-                        {store.store_name}
-                      </span>
-                    </span>
-                  </button>
-                );
-              }
-            )
-          ) : (
-            <div className="store-empty">
-              <LuStore />
+                  <span>
+                    {store.store_name}
+                  </span>
+                </button>
+              );
+            }
+          )
+        ) : (
+          <div className="store-empty">
+            <LuStore />
 
-              <span>
-                No stores found
-              </span>
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  };
-
-  // =====================================================
-  // RENDER MODULE ACCESS
-  // =====================================================
-
-  const renderAccessStep = () => {
-    return (
-      <section className="user-step-card">
-        <div className="user-step-card-header">
-          <div className="user-step-card-icon">
-            <LuLockKeyhole />
+            <span>
+              No stores found
+            </span>
           </div>
+        )}
+      </div>
+    </section>
+  );
+
+  // =====================================================
+  // RENDER ACCESS + SETTINGS
+  // =====================================================
+
+  const renderAccessStep = () => (
+    <section className="user-page-card">
+      <div className="user-page-heading">
+        <div className="user-page-heading-icon">
+          <LuLockKeyhole />
+        </div>
+
+        <div>
+          <h3>Access & Account Settings</h3>
+
+          <p>
+            Configure module permissions,
+            account activation and administrator
+            access.
+          </p>
+        </div>
+      </div>
+
+      <div className="user-page-divider" />
+
+      {/* ACCOUNT SETTINGS */}
+
+      <div className="settings-section">
+        <div className="settings-section-title">
+          <LuSettings2 />
 
           <div>
-            <h3>Module Access</h3>
+            <h4>Account Settings</h4>
 
             <p>
-              Choose the permission level for
-              every module.
+              Control the user's account status
+              and administrative privileges.
             </p>
           </div>
         </div>
 
-        <div className="user-divider" />
+        <div className="settings-grid">
+          <div
+            className={`setting-card ${
+              isActive
+                ? "active"
+                : ""
+            }`}
+          >
+            <div className="setting-icon">
+              <LuPower />
+            </div>
 
-        <div className="permission-note">
-          <LuLockKeyhole />
-
-          <span>
-            Administrator accounts automatically
-            receive Full access to every module.
-          </span>
-        </div>
-
-        {isAdmin && (
-          <div className="admin-access-banner">
-            <LuShieldCheck />
-
-            <div>
+            <div className="setting-content">
               <strong>
-                Administrator Access Enabled
+                Account Status
               </strong>
 
               <span>
-                All modules have automatically
-                been assigned Full access.
+                {isActive
+                  ? "User account is active"
+                  : "User account is inactive"}
               </span>
             </div>
+
+            <button
+              type="button"
+              className={`toggle ${
+                isActive
+                  ? "on"
+                  : ""
+              }`}
+              onClick={() =>
+                setIsActive(
+                  !isActive
+                )
+              }
+              disabled={isAdmin}
+              aria-label="Toggle account status"
+            >
+              <span />
+            </button>
           </div>
-        )}
+
+          <div
+            className={`setting-card ${
+              isAdmin
+                ? "admin"
+                : ""
+            }`}
+          >
+            <div className="setting-icon">
+              <LuShieldCheck />
+            </div>
+
+            <div className="setting-content">
+              <strong>
+                Administrator
+              </strong>
+
+              <span>
+                {isAdmin
+                  ? "Full system access enabled"
+                  : "Standard user account"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className={`toggle ${
+                isAdmin
+                  ? "on"
+                  : ""
+              }`}
+              onClick={(e) =>
+                handleAdminChange(
+                  !isAdmin
+                )
+              }
+              aria-label="Toggle administrator"
+            >
+              <span />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ADMIN NOTICE */}
+
+      {isAdmin && (
+        <div className="admin-banner">
+          <div className="admin-banner-icon">
+            <LuShieldCheck />
+          </div>
+
+          <div>
+            <strong>
+              Administrator Access Enabled
+            </strong>
+
+            <p>
+              This user automatically receives
+              Full permission for every module.
+              Individual permission controls are
+              disabled.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* PERMISSIONS */}
+
+      <div className="permission-section">
+        <div className="permission-section-header">
+          <div>
+            <h4>Module Permissions</h4>
+
+            <p>
+              Select the access level for each
+              module.
+            </p>
+          </div>
+
+          <div className="permission-count">
+            <strong>
+              {isAdmin
+                ? modules.length
+                : selectedPermissionCount}
+            </strong>
+
+            <span>
+              {isAdmin
+                ? "Full access"
+                : "modules configured"}
+            </span>
+          </div>
+        </div>
 
         <div className="permission-table-wrap">
           <div className="permission-table">
-            <div className="permission-head">
-              <div className="permission-module-title">
+            <div className="permission-header-row">
+              <div>
                 Module
               </div>
 
               {permissionTypes.map(
                 (type) => (
-                  <div
-                    key={type}
-                    className={`permission-title permission-${type.toLowerCase()}`}
-                  >
+                  <div key={type}>
                     {type}
                   </div>
                 )
               )}
             </div>
 
-            {modules.map((module) => (
-              <div
-                key={module}
-                className="permission-row"
-              >
-                <div className="permission-module">
-                  {module}
-                </div>
+            {modules.map(
+              (module) => (
+                <div
+                  className="permission-row"
+                  key={module}
+                >
+                  <div className="permission-module">
+                    {module}
+                  </div>
 
-                {permissionTypes.map(
-                  (type) => {
-                    const checked =
-                      modulePermissions[
-                        module
-                      ] === type;
+                  {permissionTypes.map(
+                    (type) => {
+                      const checked =
+                        modulePermissions[
+                          module
+                        ] === type;
 
-                    return (
-                      <label
-                        key={type}
-                        className={`permission-option ${
-                          checked
-                            ? "active"
-                            : ""
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`permission-${module}`}
-                          checked={checked}
-                          disabled={isAdmin}
-                          onChange={() =>
-                            handlePermissionChange(
-                              module,
-                              type
-                            )
+                      return (
+                        <label
+                          key={type}
+                          className={
+                            checked
+                              ? "permission-option checked"
+                              : "permission-option"
                           }
-                        />
+                        >
+                          <input
+                            type="radio"
+                            name={`permission-${module}`}
+                            checked={
+                              checked
+                            }
+                            disabled={
+                              isAdmin
+                            }
+                            onChange={() =>
+                              handlePermissionChange(
+                                module,
+                                type
+                              )
+                            }
+                          />
 
-                        <span className="permission-radio">
-                          {checked && (
-                            <span />
-                          )}
-                        </span>
-                      </label>
-                    );
-                  }
-                )}
-              </div>
-            ))}
+                          <span className="permission-radio">
+                            {checked && (
+                              <span />
+                            )}
+                          </span>
+                        </label>
+                      );
+                    }
+                  )}
+                </div>
+              )
+            )}
           </div>
         </div>
-      </section>
-    );
-  };
+      </div>
+    </section>
+  );
 
   // =====================================================
   // RENDER REVIEW
   // =====================================================
 
-  const renderReviewStep = () => {
-    return (
-      <section className="review-layout">
-        <div className="user-step-card">
-          <div className="user-step-card-header">
-            <div className="user-step-card-icon">
-              <LuClipboardCheck />
-            </div>
-
-            <div>
-              <h3>Review User</h3>
-
-              <p>
-                Verify all information before
-                creating the user account.
-              </p>
-            </div>
+  const renderReviewStep = () => (
+    <section className="review-page">
+      <div className="user-page-card">
+        <div className="user-page-heading">
+          <div className="user-page-heading-icon">
+            <LuClipboardCheck />
           </div>
 
-          <div className="user-divider" />
+          <div>
+            <h3>Review User</h3>
 
-          <div className="review-section">
-            <div className="review-section-title">
+            <p>
+              Verify all information before
+              creating the user account.
+            </p>
+          </div>
+        </div>
+
+        <div className="user-page-divider" />
+
+        {/* PROFILE */}
+
+        <div className="review-block">
+          <div className="review-block-title">
+            <div>
               <LuUserRound />
               <span>
                 Profile Information
               </span>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentStep(1)
-                }
-              >
-                Edit
-              </button>
             </div>
 
-            <div className="review-grid">
-              <div>
-                <span>Full Name</span>
-                <strong>
-                  {fullName || "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Employee ID</span>
-                <strong>
-                  {employeeId || "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Email</span>
-                <strong>
-                  {email || "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Call Contact</span>
-                <strong>
-                  {callContact || "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>WhatsApp Contact</span>
-                <strong>
-                  {whatsappContact || "-"}
-                </strong>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentStep(1)
+              }
+            >
+              Edit
+            </button>
           </div>
 
-          <div className="review-section">
-            <div className="review-section-title">
-              <LuBuilding2 />
-              <span>
-                Organization
-              </span>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentStep(2)
-                }
-              >
-                Edit
-              </button>
-            </div>
-
-            <div className="review-grid">
-              <div>
-                <span>Department</span>
-                <strong>
-                  {selectedDepartment
-                    ?.department_name ||
-                    "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Designation</span>
-                <strong>
-                  {selectedDesignation
-                    ?.designation_name ||
-                    "-"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Reports To</span>
-                <strong>
-                  {selectedReport?.name ||
-                    "-"}
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="review-section">
-            <div className="review-section-title">
-              <LuStore />
-              <span>
-                Assigned Stores
-              </span>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentStep(3)
-                }
-              >
-                Edit
-              </button>
-            </div>
-
-            <div className="review-store-list">
-              {selectedStores.map(
-                (storeId) => {
-                  const store =
-                    stores.find(
-                      (item) =>
-                        String(
-                          item.id
-                        ) ===
-                        String(storeId)
-                    );
-
-                  return (
-                    <span
-                      key={storeId}
-                      className="review-store-chip"
-                    >
-                      <LuStore />
-                      {store?.store_name ||
-                        `Store #${storeId}`}
-                    </span>
-                  );
-                }
-              )}
-            </div>
-          </div>
-
-          <div className="review-section">
-            <div className="review-section-title">
-              <LuLockKeyhole />
-              <span>
-                Module Access
-              </span>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentStep(4)
-                }
-              >
-                Edit
-              </button>
-            </div>
-
-            <div className="review-access-summary">
-              <div className="review-access-number">
-                {isAdmin
-                  ? modules.length
-                  : selectedPermissionCount}
-              </div>
-
-              <div>
-                <strong>
-                  {isAdmin
-                    ? "Full Administrator Access"
-                    : "Modules with Access"}
-                </strong>
-
-                <span>
-                  {isAdmin
-                    ? "All modules have Full permission."
-                    : `${selectedPermissionCount} module(s) have access configured.`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="review-section">
-            <div className="review-section-title">
-              <LuSettings2 />
-              <span>
-                Account Settings
-              </span>
-            </div>
-
-            <div className="review-settings">
-              <span
-                className={`review-status ${
-                  isActive
-                    ? "active"
-                    : "inactive"
-                }`}
-              >
-                {isActive
-                  ? "Active Account"
-                  : "Inactive Account"}
-              </span>
-
-              {isAdmin && (
-                <span className="review-admin">
-                  <LuShieldCheck />
-                  Administrator
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="review-summary-card">
-          <div className="review-summary-top">
-            <div className="summary-icon">
-              <LuClipboardCheck />
-            </div>
-
+          <div className="review-grid">
             <div>
-              <h3>
-                Ready to Submit
-              </h3>
-
-              <p>
-                Everything looks good.
-              </p>
-            </div>
-          </div>
-
-          <div className="summary-progress">
-            <div className="summary-progress-label">
-              <span>
-                Form Completion
-              </span>
-
-              <strong>
-                100%
-              </strong>
-            </div>
-
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{
-                  width: "100%",
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="summary-item">
-            <LuUserRound />
-
-            <div>
-              <span>User</span>
+              <span>Full Name</span>
               <strong>
                 {fullName || "-"}
               </strong>
             </div>
+
+            <div>
+              <span>Employee ID</span>
+              <strong>
+                {employeeId || "-"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Email</span>
+              <strong>
+                {email || "-"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Call Contact</span>
+              <strong>
+                {callContact || "-"}
+              </strong>
+            </div>
+
+            <div>
+              <span>WhatsApp Contact</span>
+              <strong>
+                {whatsappContact || "-"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {/* ORGANIZATION */}
+
+        <div className="review-block">
+          <div className="review-block-title">
+            <div>
+              <LuBuilding2 />
+              <span>
+                Organization
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentStep(2)
+              }
+            >
+              Edit
+            </button>
           </div>
 
-          <div className="summary-item">
-            <LuBuilding2 />
-
+          <div className="review-grid">
             <div>
               <span>Department</span>
               <strong>
@@ -1788,43 +1737,152 @@ function AddUserModal({
                   "-"}
               </strong>
             </div>
-          </div>
-
-          <div className="summary-item">
-            <LuStore />
 
             <div>
-              <span>Stores</span>
+              <span>Designation</span>
               <strong>
-                {selectedStores.length}
+                {selectedDesignation
+                  ?.designation_name ||
+                  "-"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Reports To</span>
+              <strong>
+                {selectedReport?.name ||
+                  "-"}
               </strong>
             </div>
           </div>
+        </div>
 
-          <div className="summary-item">
-            <LuLockKeyhole />
+        {/* STORES */}
+
+        <div className="review-block">
+          <div className="review-block-title">
+            <div>
+              <LuStore />
+              <span>
+                Assigned Stores
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentStep(3)
+              }
+            >
+              Edit
+            </button>
+          </div>
+
+          <div className="review-store-list">
+            {selectedStores.map(
+              (storeId) => {
+                const store =
+                  stores.find(
+                    (item) =>
+                      String(
+                        item.id
+                      ) ===
+                      String(storeId)
+                  );
+
+                return (
+                  <span
+                    key={storeId}
+                    className="review-store-chip"
+                  >
+                    <LuStore />
+
+                    {store?.store_name ||
+                      `Store #${storeId}`}
+                  </span>
+                );
+              }
+            )}
+          </div>
+        </div>
+
+        {/* ACCESS */}
+
+        <div className="review-block">
+          <div className="review-block-title">
+            <div>
+              <LuLockKeyhole />
+              <span>
+                Access & Settings
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentStep(4)
+              }
+            >
+              Edit
+            </button>
+          </div>
+
+          <div className="review-access-grid">
+            <div>
+              <span>Account</span>
+
+              <strong
+                className={
+                  isActive
+                    ? "status-active"
+                    : "status-inactive"
+                }
+              >
+                {isActive
+                  ? "Active"
+                  : "Inactive"}
+              </strong>
+            </div>
 
             <div>
-              <span>Access</span>
+              <span>Role</span>
+
               <strong>
                 {isAdmin
                   ? "Administrator"
-                  : `${selectedPermissionCount} modules`}
+                  : "Standard User"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Module Access</span>
+
+              <strong>
+                {isAdmin
+                  ? `${modules.length} Full`
+                  : `${selectedPermissionCount} configured`}
               </strong>
             </div>
           </div>
+        </div>
 
-          <div className="summary-ready">
-            <LuCheck />
+        <div className="review-ready-banner">
+          <LuCheck />
+
+          <div>
+            <strong>
+              Ready to Submit
+            </strong>
 
             <span>
-              All required information completed
+              All required information has been
+              completed successfully.
             </span>
           </div>
         </div>
-      </section>
-    );
-  };
+      </div>
+    </section>
+  );
 
   // =====================================================
   // CURRENT STEP
@@ -1853,6 +1911,136 @@ function AddUserModal({
   };
 
   // =====================================================
+  // RIGHT SIDE SUMMARY
+  // =====================================================
+
+  const renderSummary = () => (
+    <aside className="user-summary-panel">
+      <div className="summary-panel-top">
+        <div className="summary-panel-icon">
+          <LuClipboardCheck />
+        </div>
+
+        <div>
+          <h3>
+            User Summary
+          </h3>
+
+          <span>
+            {currentStep === 5
+              ? "Ready to submit"
+              : "Configuration"}
+          </span>
+        </div>
+      </div>
+
+      <div className="summary-progress">
+        <div className="summary-progress-label">
+          <span>
+            Form Completion
+          </span>
+
+          <strong>
+            {completionPercentage}%
+          </strong>
+        </div>
+
+        <div className="summary-progress-track">
+          <div
+            className="summary-progress-fill"
+            style={{
+              width: `${completionPercentage}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="summary-items">
+        <div className="summary-item">
+          <LuUserRound />
+
+          <div>
+            <span>User</span>
+
+            <strong>
+              {fullName || "Not entered"}
+            </strong>
+          </div>
+        </div>
+
+        <div className="summary-item">
+          <LuBuilding2 />
+
+          <div>
+            <span>Department</span>
+
+            <strong>
+              {selectedDepartment
+                ?.department_name ||
+                "Not selected"}
+            </strong>
+          </div>
+        </div>
+
+        <div className="summary-item">
+          <LuStore />
+
+          <div>
+            <span>Stores</span>
+
+            <strong>
+              {selectedStores.length}
+            </strong>
+          </div>
+        </div>
+
+        <div className="summary-item">
+          <LuLockKeyhole />
+
+          <div>
+            <span>Access</span>
+
+            <strong>
+              {isAdmin
+                ? "Administrator"
+                : `${selectedPermissionCount} modules`}
+            </strong>
+          </div>
+        </div>
+
+        <div className="summary-item">
+          <LuPower />
+
+          <div>
+            <span>Account</span>
+
+            <strong
+              className={
+                isActive
+                  ? "summary-active"
+                  : "summary-inactive"
+              }
+            >
+              {isActive
+                ? "Active"
+                : "Inactive"}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="summary-step-status">
+        <LuCheck />
+
+        <span>
+          Step {currentStep} of{" "}
+          {steps.length}
+        </span>
+      </div>
+    </aside>
+  );
+
+  // =====================================================
   // RENDER
   // =====================================================
 
@@ -1877,7 +2065,7 @@ function AddUserModal({
             HEADER
         ================================================= */}
 
-        <div className="user-modal-header">
+        <header className="user-modal-header">
           <div className="user-modal-title-area">
             <div className="user-modal-main-icon">
               {editingUser ? (
@@ -1911,84 +2099,94 @@ function AddUserModal({
           >
             <LuX />
           </button>
-        </div>
+        </header>
 
         {/* =================================================
             STEPPER
         ================================================= */}
 
         <div className="user-stepper">
-          {steps.map((step, index) => {
-            const StepIcon = step.icon;
+          {steps.map(
+            (step, index) => {
+              const StepIcon =
+                step.icon;
 
-            const active =
-              currentStep === step.id;
+              const active =
+                currentStep ===
+                step.id;
 
-            const completed =
-              currentStep > step.id;
+              const completed =
+                currentStep >
+                step.id;
 
-            return (
-              <React.Fragment key={step.id}>
-                <button
-                  type="button"
-                  className={`step-item ${
-                    active
-                      ? "active"
-                      : ""
-                  } ${
-                    completed
-                      ? "completed"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    handleStepClick(
-                      step.id
-                    )
-                  }
-                  disabled={
-                    step.id >= currentStep
-                  }
+              return (
+                <React.Fragment
+                  key={step.id}
                 >
-                  <span className="step-circle">
-                    {completed ? (
-                      <LuCheck />
-                    ) : (
-                      <StepIcon />
-                    )}
-                  </span>
-
-                  <span className="step-text">
-                    <small>
-                      Step {step.id}
-                    </small>
-
-                    <strong>
-                      {step.shortTitle}
-                    </strong>
-                  </span>
-                </button>
-
-                {index <
-                  steps.length - 1 && (
-                  <span
-                    className={`step-line ${
-                      currentStep >
-                      step.id
+                  <button
+                    type="button"
+                    className={`user-step ${
+                      active
+                        ? "active"
+                        : ""
+                    } ${
+                      completed
                         ? "completed"
                         : ""
                     }`}
-                  />
-                )}
-              </React.Fragment>
-            );
-          })}
+                    onClick={() =>
+                      handleStepClick(
+                        step.id
+                      )
+                    }
+                    disabled={
+                      step.id >=
+                      currentStep
+                    }
+                  >
+                    <span className="user-step-circle">
+                      {completed ? (
+                        <LuCheck />
+                      ) : (
+                        <StepIcon />
+                      )}
+                    </span>
+
+                    <span className="user-step-text">
+                      <small>
+                        Step {step.id}
+                      </small>
+
+                      <strong>
+                        {
+                          step.shortTitle
+                        }
+                      </strong>
+                    </span>
+                  </button>
+
+                  {index <
+                    steps.length -
+                      1 && (
+                    <span
+                      className={`user-step-line ${
+                        completed
+                          ? "completed"
+                          : ""
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            }
+          )}
         </div>
 
         {/* =================================================
-            PROGRESS
+            MOBILE PROGRESS
         ================================================= */}
 
-        <div className="user-progress-mobile">
+        <div className="user-mobile-progress">
           <div>
             <span>
               Step {currentStep} of{" "}
@@ -2000,9 +2198,8 @@ function AddUserModal({
             </strong>
           </div>
 
-          <div className="progress-track">
+          <div className="mobile-progress-track">
             <div
-              className="progress-fill"
               style={{
                 width: `${completionPercentage}%`,
               }}
@@ -2011,18 +2208,22 @@ function AddUserModal({
         </div>
 
         {/* =================================================
-            BODY
+            MAIN CONTENT
         ================================================= */}
 
-        <div className="user-modal-body">
-          {renderCurrentStep()}
+        <div className="user-modal-content">
+          <main className="user-main-content">
+            {renderCurrentStep()}
+          </main>
+
+          {renderSummary()}
         </div>
 
         {/* =================================================
             FOOTER
         ================================================= */}
 
-        <div className="user-modal-footer">
+        <footer className="user-modal-footer">
           <button
             type="button"
             className="user-cancel-btn"
@@ -2033,7 +2234,7 @@ function AddUserModal({
             Cancel
           </button>
 
-          <div className="footer-navigation">
+          <div className="user-footer-navigation">
             {currentStep > 1 && (
               <button
                 type="button"
@@ -2046,7 +2247,8 @@ function AddUserModal({
               </button>
             )}
 
-            {currentStep < steps.length ? (
+            {currentStep <
+            steps.length ? (
               <button
                 type="button"
                 className="user-next-btn"
@@ -2060,7 +2262,9 @@ function AddUserModal({
               <button
                 type="button"
                 className="user-submit-btn"
-                onClick={handleCreateUser}
+                onClick={
+                  handleCreateUser
+                }
                 disabled={loading}
               >
                 {loading ? (
@@ -2091,7 +2295,7 @@ function AddUserModal({
               </button>
             )}
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   );
