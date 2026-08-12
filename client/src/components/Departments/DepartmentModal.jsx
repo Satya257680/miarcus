@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import "./DepartmentModal.css";
 import ProfessionalModal from "../common/ProfessionalModal";
 import EmployeeList from "./EmployeeList";
 import { getUsers } from "../../services/userService";
+
+import "../../styles/common/ProfessionalModal.css";
+import "../../styles/DepartmentModal.css";
 
 function DepartmentModal({
   isOpen,
@@ -10,9 +12,17 @@ function DepartmentModal({
   onSave,
   department,
 }) {
+  // =====================================================
+  // FORM STATE
+  // =====================================================
+
   const [departmentName, setDepartmentName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("Active");
+
+  // =====================================================
+  // EMPLOYEE STATE
+  // =====================================================
 
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -26,19 +36,57 @@ function DepartmentModal({
     try {
       const response = await getUsers();
 
-      setUsers(response?.users || []);
-    } catch (err) {
-      console.error("Failed to load users:", err);
+      setUsers(response?.users || response?.data || []);
+    } catch (error) {
+      console.error("Failed to load users:", error);
       setUsers([]);
     }
   };
 
   // =====================================================
-  // LOAD DEPARTMENT DATA
+  // NORMALIZE ASSIGNED USERS
+  // =====================================================
+
+  const normalizeAssignedUsers = (data) => {
+    if (!data) {
+      return [];
+    }
+
+    if (Array.isArray(data.users)) {
+      return data.users
+        .map((user) =>
+          typeof user === "object"
+            ? user?.id
+            : user
+        )
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(data.assignedUsers)) {
+      return data.assignedUsers
+        .map((user) =>
+          typeof user === "object"
+            ? user?.id
+            : user
+        )
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(data.userIds)) {
+      return data.userIds.filter(Boolean);
+    }
+
+    return [];
+  };
+
+  // =====================================================
+  // LOAD / RESET FORM
   // =====================================================
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
 
     loadUsers();
 
@@ -57,34 +105,9 @@ function DepartmentModal({
         department.status || "Active"
       );
 
-      // -----------------------------------------
-      // Normalize assigned users
-      // -----------------------------------------
-
-      let assigned = [];
-
-      if (Array.isArray(department.users)) {
-        assigned = department.users.map((user) =>
-          typeof user === "object"
-            ? user.id
-            : user
-        );
-      } else if (
-        Array.isArray(department.assignedUsers)
-      ) {
-        assigned = department.assignedUsers.map(
-          (user) =>
-            typeof user === "object"
-              ? user.id
-              : user
-        );
-      } else if (
-        Array.isArray(department.userIds)
-      ) {
-        assigned = department.userIds;
-      }
-
-      setSelectedUsers(assigned);
+      setSelectedUsers(
+        normalizeAssignedUsers(department)
+      );
     } else {
       setDepartmentName("");
       setDescription("");
@@ -96,31 +119,35 @@ function DepartmentModal({
   }, [department, isOpen]);
 
   // =====================================================
-  // SAVE
-  // =====================================================
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!departmentName.trim()) {
-      alert("Department Name is required");
-      return;
-    }
-
-    onSave({
-      department_name: departmentName.trim(),
-      description: description.trim(),
-      status,
-      users: selectedUsers,
-    });
-  };
-
-  // =====================================================
-  // MODAL CLOSE
+  // CLOSE
   // =====================================================
 
   const handleClose = () => {
     onClose();
+  };
+
+  // =====================================================
+  // SUBMIT
+  // =====================================================
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    const trimmedName = departmentName.trim();
+
+    if (!trimmedName) {
+      alert("Department Name is required");
+      return;
+    }
+
+    const payload = {
+      department_name: trimmedName,
+      description: description.trim(),
+      status,
+      users: selectedUsers,
+    };
+
+    onSave(payload);
   };
 
   // =====================================================
@@ -131,131 +158,124 @@ function DepartmentModal({
     return null;
   }
 
+  // =====================================================
+  // HEADER ICON
+  // =====================================================
+
+  const modalIcon = department ? "✎" : "+";
+
+  // =====================================================
+  // FOOTER
+  // =====================================================
+
+  const modalFooter = (
+    <div className="professional-modal-footer department-modal-footer">
+      <button
+        type="button"
+        className="professional-btn professional-btn-secondary"
+        onClick={handleClose}
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        form="department-form"
+        className="professional-btn professional-btn-primary"
+      >
+        <span className="professional-btn-icon">
+          {department ? "✓" : "+"}
+        </span>
+
+        <span>
+          {department
+            ? "Update Department"
+            : "Create Department"}
+        </span>
+      </button>
+    </div>
+  );
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
   return (
-    <div
-      className="modal-overlay department-modal-overlay"
-      onMouseDown={(e) => {
-        // Close only when clicking directly on overlay
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
+    <ProfessionalModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={
+        department
+          ? "Edit Department"
+          : "Add Department"
+      }
+      subtitle={
+        department
+          ? "Update department information and assigned employees."
+          : "Create a new department and assign employees."
+      }
+      icon={modalIcon}
+      size="large"
+      footer={modalFooter}
     >
-      <div
-        className="department-modal department-modal-animated"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="department-modal-title"
+      <form
+        id="department-form"
+        className="department-professional-form"
+        onSubmit={handleSubmit}
       >
         {/* =================================================
-            HEADER
+            SECTION 1 — DEPARTMENT INFORMATION
         ================================================= */}
 
-        <div className="modal-header department-modal-header">
-          <div className="modal-header-content">
-            <div className="modal-header-icon">
-              <span>
-                {department ? "✎" : "+"}
-              </span>
-            </div>
+        <section className="professional-form-section">
+          <div className="professional-section-heading">
+            <div className="professional-section-indicator"></div>
 
             <div>
-              <h2 id="department-modal-title">
-                {department
-                  ? "Edit Department"
-                  : "Add Department"}
-              </h2>
+              <h3>Department Information</h3>
 
               <p>
-                {department
-                  ? "Update department information and assigned employees."
-                  : "Create a new department and assign employees."}
+                Configure the basic department information.
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={handleClose}
-            aria-label="Close"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
+          <div className="professional-form-grid">
+            {/* Department Name */}
 
-        {/* =================================================
-            FORM
-        ================================================= */}
+            <div className="professional-field">
+              <label htmlFor="department-name">
+                Department Name
+                <span className="required">*</span>
+              </label>
 
-        <form
-          onSubmit={handleSubmit}
-          className="department-form"
-        >
-          {/* =================================================
-              BASIC INFORMATION
-          ================================================= */}
-
-          <div className="department-form-section">
-            <div className="section-title">
-              <span className="section-line"></span>
-              <h3>Department Information</h3>
-            </div>
-
-            <div className="department-form-grid">
-              {/* Department Name */}
-
-              <div className="form-group department-field">
-                <label htmlFor="department-name">
-                  Department Name
-                  <span className="required">*</span>
-                </label>
-
-                <input
-                  id="department-name"
-                  type="text"
-                  value={departmentName}
-                  onChange={(e) =>
-                    setDepartmentName(e.target.value)
-                  }
-                  placeholder="Enter department name"
-                  autoComplete="off"
-                />
-              </div>
-
-              {/* Description */}
-
-              <div className="form-group department-field">
-                <label htmlFor="department-description">
-                  Description
-                </label>
-
-                <textarea
-                  id="department-description"
-                  rows="3"
-                  value={description}
-                  onChange={(e) =>
-                    setDescription(e.target.value)
-                  }
-                  placeholder="Enter department description"
-                />
-              </div>
+              <input
+                id="department-name"
+                type="text"
+                value={departmentName}
+                onChange={(event) =>
+                  setDepartmentName(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter department name"
+                autoComplete="off"
+              />
             </div>
 
             {/* Status */}
 
-            <div className="form-group department-field status-field">
+            <div className="professional-field">
               <label htmlFor="department-status">
                 Status
               </label>
 
-              <div className="select-wrapper">
+              <div className="professional-select-wrapper">
                 <select
                   id="department-status"
                   value={status}
-                  onChange={(e) =>
-                    setStatus(e.target.value)
+                  onChange={(event) =>
+                    setStatus(event.target.value)
                   }
                 >
                   <option value="Active">
@@ -270,64 +290,61 @@ function DepartmentModal({
             </div>
           </div>
 
-          {/* =================================================
-              EMPLOYEE ASSIGNMENT
-          ================================================= */}
+          {/* Description */}
 
-          <div className="department-form-section employee-section">
-            <div className="section-title">
-              <span className="section-line"></span>
+          <div className="professional-field professional-field-full">
+            <label htmlFor="department-description">
+              Description
+            </label>
 
-              <div>
-                <h3>Assign Employees</h3>
+            <textarea
+              id="department-description"
+              rows="4"
+              value={description}
+              onChange={(event) =>
+                setDescription(
+                  event.target.value
+                )
+              }
+              placeholder="Enter department description"
+            />
+          </div>
+        </section>
 
-                <p>
-                  Select employees who belong to this
-                  department.
-                </p>
-              </div>
+        {/* =================================================
+            SECTION 2 — ASSIGN EMPLOYEES
+        ================================================= */}
+
+        <section className="professional-form-section department-employee-section">
+          <div className="professional-section-heading">
+            <div className="professional-section-indicator"></div>
+
+            <div>
+              <h3>Assign Employees</h3>
+
+              <p>
+                Select employees who belong to this
+                department.
+              </p>
             </div>
 
-            <div className="employee-list-wrapper">
-              <EmployeeList
-                users={users}
-                search={search}
-                setSearch={setSearch}
-                selectedUsers={selectedUsers}
-                setSelectedUsers={setSelectedUsers}
-              />
+            <div className="professional-section-count">
+              {selectedUsers.length} selected
             </div>
           </div>
 
-          {/* =================================================
-              FOOTER
-          ================================================= */}
-
-          <div className="modal-buttons department-modal-footer">
-            <button
-              type="button"
-              className="cancel-btn department-cancel-btn"
-              onClick={handleClose}
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="save-btn department-save-btn"
-            >
-              <span className="save-btn-icon">
-                {department ? "✓" : "+"}
-              </span>
-
-              <span>
-                {department ? "Update Department" : "Create Department"}
-              </span>
-            </button>
+          <div className="department-employee-container">
+            <EmployeeList
+              users={users}
+              search={search}
+              setSearch={setSearch}
+              selectedUsers={selectedUsers}
+              setSelectedUsers={setSelectedUsers}
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </section>
+      </form>
+    </ProfessionalModal>
   );
 }
 

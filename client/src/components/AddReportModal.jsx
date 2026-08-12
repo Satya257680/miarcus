@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/AddReportModal.css";
-import ProfessionalModal from "./common/ProfessionalModal";
 
 function AddReportModal({
   editData,
@@ -12,6 +11,42 @@ function AddReportModal({
   const [department, setDepartment] = useState("");
   const [designation, setDesignation] = useState("");
   const [status, setStatus] = useState("Active");
+  const [saving, setSaving] = useState(false);
+
+  // =====================================================
+  // DEPARTMENT LIST
+  // =====================================================
+
+  const departments = [
+    "Accounts",
+    "Buying",
+    "Customer Support",
+    "Design",
+    "E-commerce",
+    "HR",
+    "IT Department",
+    "Maintenance",
+    "Management",
+    "Marketing",
+    "Quality",
+    "Store Personnel",
+    "VM",
+    "Warehouse",
+  ];
+
+  // =====================================================
+  // DESIGNATION LIST
+  // =====================================================
+
+  const designations = [
+    "Manager",
+    "ASM",
+    "Regional Head",
+    "City Manager",
+    "Team Lead",
+    "Supervisor",
+    "Executive",
+  ];
 
   // =====================================================
   // LOAD EDIT DATA
@@ -24,12 +59,31 @@ function AddReportModal({
       setDesignation(editData.designation || "");
       setStatus(editData.status || "Active");
     } else {
-      setManagerName("");
-      setDepartment("");
-      setDesignation("");
-      setStatus("Active");
+      resetForm();
     }
   }, [editData]);
+
+  // =====================================================
+  // RESET FORM
+  // =====================================================
+
+  const resetForm = () => {
+    setManagerName("");
+    setDepartment("");
+    setDesignation("");
+    setStatus("Active");
+  };
+
+  // =====================================================
+  // CLOSE
+  // =====================================================
+
+  const handleClose = () => {
+    if (saving) return;
+
+    resetForm();
+    closeModal();
+  };
 
   // =====================================================
   // SUBMIT
@@ -61,6 +115,8 @@ function AddReportModal({
     };
 
     try {
+      setSaving(true);
+
       if (editData) {
         await axios.put(
           `https://miarcus-backend.onrender.com/api/reports/${editData.id}`,
@@ -73,10 +129,13 @@ function AddReportModal({
         );
       }
 
-      refresh();
+      await refresh();
+
+      resetForm();
       closeModal();
     } catch (err) {
       console.error("Report save error:", err);
+
       console.log("Response:", err.response?.data);
 
       alert(
@@ -85,54 +144,63 @@ function AddReportModal({
           err.message ||
           "Unable to save manager."
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   // =====================================================
-  // CLOSE
+  // MODAL
   // =====================================================
 
-  const handleClose = () => {
-    setManagerName("");
-    setDepartment("");
-    setDesignation("");
-    setStatus("Active");
-
-    closeModal();
-  };
-
   return (
-    <div className="report-modal-overlay">
-
-      <div className="report-modal">
-
+    <div
+      className="professional-modal-overlay report-modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !saving) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className="professional-modal report-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-modal-title"
+      >
         {/* =================================================
             HEADER
         ================================================= */}
 
-        <div className="report-modal-header">
+        <div className="professional-modal-header report-modal-header">
+          <div className="professional-modal-header-content">
+            <div className="professional-modal-icon report-modal-icon">
+              <span>{editData ? "✎" : "+"}</span>
+            </div>
 
-          <div>
-            <h2>
-              {editData ? "Edit Manager" : "Add Manager"}
-            </h2>
+            <div>
+              <h2 id="report-modal-title">
+                {editData ? "Edit Manager" : "Add Manager"}
+              </h2>
 
-            <p>
-              {editData
-                ? "Update manager information"
-                : "Create a new reporting manager"}
-            </p>
+              <p>
+                {editData
+                  ? "Update reporting manager information."
+                  : "Create a new reporting manager."}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
-            className="report-close-btn"
+            className="professional-modal-close"
             onClick={handleClose}
+            disabled={saving}
             aria-label="Close"
+            title="Close"
           >
             ×
           </button>
-
         </div>
 
         {/* =================================================
@@ -140,160 +208,186 @@ function AddReportModal({
         ================================================= */}
 
         <form
-          className="report-modal-form"
+          className="professional-modal-form report-modal-form"
           onSubmit={handleSubmit}
         >
+          {/* =================================================
+              BASIC INFORMATION
+          ================================================= */}
 
-          {/* Manager Name */}
+          <div className="professional-form-section">
+            <div className="professional-section-title">
+              <span className="professional-section-line"></span>
 
-          <div className="report-form-group">
+              <div>
+                <h3>Manager Information</h3>
 
-            <label htmlFor="managerName">
-              Manager Name
-              <span className="required-star">*</span>
-            </label>
+                <p>
+                  Enter the reporting manager details below.
+                </p>
+              </div>
+            </div>
 
-            <input
-              id="managerName"
-              type="text"
-              placeholder="Enter manager name"
-              value={managerName}
-              onChange={(e) =>
-                setManagerName(e.target.value)
-              }
-              autoComplete="off"
-            />
+            <div className="professional-form-grid">
+              {/* =================================================
+                  MANAGER NAME
+              ================================================= */}
 
-          </div>
+              <div className="professional-form-group">
+                <label htmlFor="manager-name">
+                  Manager Name
+                  <span className="required-star">*</span>
+                </label>
 
-          {/* Department */}
+                <input
+                  id="manager-name"
+                  type="text"
+                  value={managerName}
+                  onChange={(e) =>
+                    setManagerName(e.target.value)
+                  }
+                  placeholder="Enter manager name"
+                  autoComplete="off"
+                  disabled={saving}
+                />
+              </div>
 
-          <div className="report-form-group">
+              {/* =================================================
+                  DEPARTMENT
+              ================================================= */}
 
-            <label htmlFor="department">
-              Department
-              <span className="required-star">*</span>
-            </label>
+              <div className="professional-form-group">
+                <label htmlFor="manager-department">
+                  Department
+                  <span className="required-star">*</span>
+                </label>
 
-            <select
-              id="department"
-              value={department}
-              onChange={(e) =>
-                setDepartment(e.target.value)
-              }
-            >
+                <div className="professional-select-wrapper">
+                  <select
+                    id="manager-department"
+                    value={department}
+                    onChange={(e) =>
+                      setDepartment(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+                    <option value="">
+                      Select Department
+                    </option>
 
-              <option value="">
-                Select Department
-              </option>
+                    {departments.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-              <option>Accounts</option>
-              <option>Buying</option>
-              <option>Customer Support</option>
-              <option>Design</option>
-              <option>E-commerce</option>
-              <option>HR</option>
-              <option>IT Department</option>
-              <option>Maintenance</option>
-              <option>Management</option>
-              <option>Marketing</option>
-              <option>Quality</option>
-              <option>Store Personnel</option>
-              <option>VM</option>
-              <option>Warehouse</option>
+              {/* =================================================
+                  DESIGNATION
+              ================================================= */}
 
-            </select>
+              <div className="professional-form-group">
+                <label htmlFor="manager-designation">
+                  Designation
+                  <span className="required-star">*</span>
+                </label>
 
-          </div>
+                <div className="professional-select-wrapper">
+                  <select
+                    id="manager-designation"
+                    value={designation}
+                    onChange={(e) =>
+                      setDesignation(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+                    <option value="">
+                      Select Designation
+                    </option>
 
-          {/* Designation */}
+                    {designations.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <div className="report-form-group">
+              {/* =================================================
+                  STATUS
+              ================================================= */}
 
-            <label htmlFor="designation">
-              Designation
-              <span className="required-star">*</span>
-            </label>
+              <div className="professional-form-group">
+                <label htmlFor="manager-status">
+                  Status
+                </label>
 
-            <select
-              id="designation"
-              value={designation}
-              onChange={(e) =>
-                setDesignation(e.target.value)
-              }
-            >
+                <div className="professional-select-wrapper">
+                  <select
+                    id="manager-status"
+                    value={status}
+                    onChange={(e) =>
+                      setStatus(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+                    <option value="Active">
+                      Active
+                    </option>
 
-              <option value="">
-                Select Designation
-              </option>
-
-              <option>Manager</option>
-              <option>ASM</option>
-              <option>Regional Head</option>
-              <option>City Manager</option>
-              <option>Team Lead</option>
-              <option>Supervisor</option>
-              <option>Executive</option>
-
-            </select>
-
-          </div>
-
-          {/* Status */}
-
-          <div className="report-form-group">
-
-            <label htmlFor="status">
-              Status
-            </label>
-
-            <select
-              id="status"
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value)
-              }
-            >
-
-              <option value="Active">
-                Active
-              </option>
-
-              <option value="Inactive">
-                Inactive
-              </option>
-
-            </select>
-
+                    <option value="Inactive">
+                      Inactive
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* =================================================
-              FOOTER BUTTONS
+              FOOTER
           ================================================= */}
 
-          <div className="report-modal-buttons">
-
+          <div className="professional-modal-footer report-modal-buttons">
             <button
               type="button"
-              className="report-cancel-btn"
+              className="professional-cancel-btn"
               onClick={handleClose}
+              disabled={saving}
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              className="report-save-btn"
+              className="professional-save-btn"
+              disabled={saving}
             >
-              {editData ? "Update Manager" : "Save Manager"}
+              {saving ? (
+                <>
+                  <span className="professional-spinner"></span>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <span className="professional-save-icon">
+                    {editData ? "✓" : "+"}
+                  </span>
+
+                  <span>
+                    {editData
+                      ? "Update Manager"
+                      : "Create Manager"}
+                  </span>
+                </>
+              )}
             </button>
-
           </div>
-
         </form>
-
       </div>
-
     </div>
   );
 }

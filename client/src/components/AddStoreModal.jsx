@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "../styles/AddStoremodal.css";
-import ProfessionalModal from "./common/ProfessionalModal";
+
 function AddStoreModal({ store, onSave, onClose }) {
   const isEdit = Boolean(store);
 
@@ -42,7 +42,7 @@ function AddStoreModal({ store, onSave, onClose }) {
         status: String(store.status ?? "Active"),
       });
     } else {
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
     }
   }, [store]);
 
@@ -66,27 +66,27 @@ function AddStoreModal({ store, onSave, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!form.store_code.toString().trim()) {
+    if (!form.store_code.trim()) {
       alert("Store Code is required.");
       return;
     }
 
-    if (!form.store_name.toString().trim()) {
+    if (!form.store_name.trim()) {
       alert("Store Name is required.");
       return;
     }
 
-    if (!form.country.toString().trim()) {
+    if (!form.country.trim()) {
       alert("Country is required.");
       return;
     }
 
-    if (!form.state.toString().trim()) {
+    if (!form.state.trim()) {
       alert("State is required.");
       return;
     }
 
-    if (!form.city.toString().trim()) {
+    if (!form.city.trim()) {
       alert("City is required.");
       return;
     }
@@ -119,7 +119,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
   return (
     <div
-      className="modal-overlay store-modal-overlay"
+      className="store-modal-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
           handleClose();
@@ -127,7 +127,7 @@ function AddStoreModal({ store, onSave, onClose }) {
       }}
     >
       <div
-        className="store-modal store-modal-animated"
+        className="store-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="store-modal-title"
@@ -136,9 +136,9 @@ function AddStoreModal({ store, onSave, onClose }) {
             HEADER
         ================================================= */}
 
-        <div className="modal-header store-modal-header">
-          <div className="modal-header-content">
-            <div className="modal-header-icon">
+        <div className="store-modal-header">
+          <div className="store-header-content">
+            <div className="store-header-icon">
               <span>{isEdit ? "✎" : "+"}</span>
             </div>
 
@@ -149,15 +149,15 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               <p>
                 {isEdit
-                  ? "Update store information and details."
-                  : "Add a new store and its information."}
+                  ? "Update store information and contact details."
+                  : "Create a new store and add its information."}
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            className="modal-close-btn"
+            className="store-close-btn"
             onClick={handleClose}
             aria-label="Close"
             title="Close"
@@ -178,23 +178,22 @@ function AddStoreModal({ store, onSave, onClose }) {
               STORE INFORMATION
           ================================================= */}
 
-          <div className="store-form-section">
-            <div className="section-title">
-              <span className="section-line"></span>
+          <section className="store-section">
+            <div className="store-section-heading">
+              <span className="store-section-line" />
 
               <div>
                 <h3>Store Information</h3>
-
                 <p>
-                  Enter the basic information for the store.
+                  Enter the basic information for this store.
                 </p>
               </div>
             </div>
 
-            <div className="form-grid">
+            <div className="store-form-grid">
               {/* Store Code */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-code">
                   Store Code
                   <span className="required">*</span>
@@ -213,7 +212,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Store Name */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-name">
                   Store Name
                   <span className="required">*</span>
@@ -232,7 +231,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Country */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-country">
                   Country
                   <span className="required">*</span>
@@ -250,7 +249,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* State */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-state">
                   State
                   <span className="required">*</span>
@@ -268,7 +267,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* City */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-city">
                   City
                   <span className="required">*</span>
@@ -286,12 +285,12 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Status */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="store-status">
                   Status
                 </label>
 
-                <div className="select-wrapper">
+                <div className="store-select-wrapper">
                   <select
                     id="store-status"
                     name="status"
@@ -311,44 +310,44 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Address */}
 
-              <div className="form-group store-field full-width">
+              <div className="store-field store-full-width">
                 <label htmlFor="store-address">
                   Address
                 </label>
 
                 <textarea
                   id="store-address"
-                  rows="3"
                   name="address"
+                  rows="3"
                   value={form.address}
                   onChange={handleChange}
                   placeholder="Enter complete store address"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* =================================================
               CONTACT INFORMATION
           ================================================= */}
 
-          <div className="store-form-section">
-            <div className="section-title">
-              <span className="section-line"></span>
+          <section className="store-section">
+            <div className="store-section-heading">
+              <span className="store-section-line" />
 
               <div>
                 <h3>Contact Information</h3>
 
                 <p>
-                  Add the store manager and contact details.
+                  Add manager and store contact details.
                 </p>
               </div>
             </div>
 
-            <div className="form-grid">
+            <div className="store-form-grid">
               {/* Manager */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="manager-name">
                   Manager Name
                 </label>
@@ -365,7 +364,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Contact */}
 
-              <div className="form-group store-field">
+              <div className="store-field">
                 <label htmlFor="contact-number">
                   Contact Number
                 </label>
@@ -382,7 +381,7 @@ function AddStoreModal({ store, onSave, onClose }) {
 
               {/* Email */}
 
-              <div className="form-group store-field full-width">
+              <div className="store-field store-full-width">
                 <label htmlFor="store-email">
                   Email
                 </label>
@@ -397,16 +396,16 @@ function AddStoreModal({ store, onSave, onClose }) {
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* =================================================
               FOOTER
           ================================================= */}
 
-          <div className="modal-buttons store-modal-footer">
+          <div className="store-modal-footer">
             <button
               type="button"
-              className="cancel-btn store-cancel-btn"
+              className="store-cancel-btn"
               onClick={handleClose}
             >
               Cancel
@@ -414,16 +413,16 @@ function AddStoreModal({ store, onSave, onClose }) {
 
             <button
               type="submit"
-              className="save-btn store-save-btn"
+              className="store-save-btn"
             >
-              <span className="save-btn-icon">
+              <span className="store-save-icon">
                 {isEdit ? "✓" : "+"}
               </span>
 
               <span>
                 {isEdit
                   ? "Update Store"
-                  : "Save Store"}
+                  : "Create Store"}
               </span>
             </button>
           </div>

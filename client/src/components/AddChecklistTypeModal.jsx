@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import "../styles/AddChecklistTypeModal.css";
+
 import ProfessionalModal from "./common/ProfessionalModal";
+
+import "../styles/AddChecklistTypeModal.css";
 
 const API = "https://miarcus-backend.onrender.com/api";
 
@@ -10,24 +12,45 @@ function AddChecklistTypeModal({
   onSave,
   onClose,
 }) {
+  // =====================================================
+  // BASIC STATE
+  // =====================================================
+
   const [checklistName, setChecklistName] = useState("");
 
+  // =====================================================
+  // DEPARTMENTS
+  // =====================================================
+
   const [departments, setDepartments] = useState([]);
-  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [selectedDepartments, setSelectedDepartments] =
+    useState([]);
+
+  // =====================================================
+  // USERS
+  // =====================================================
 
   const [users, setUsers] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] =
+    useState([]);
 
   const [searchUser, setSearchUser] = useState("");
+
+  // =====================================================
+  // SUBMISSION SETTINGS
+  // =====================================================
 
   const [allowPastSubmission, setAllowPastSubmission] =
     useState(false);
 
-  const [cutoffTime, setCutoffTime] = useState("");
+  const [cutoffTime, setCutoffTime] =
+    useState("");
 
-  const [status, setStatus] = useState("Active");
+  const [status, setStatus] =
+    useState("Active");
 
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
 
   // =====================================================
   // LOAD DEPARTMENTS
@@ -41,10 +64,17 @@ function AddChecklistTypeModal({
         );
 
         if (res.data.success) {
-          setDepartments(res.data.data || []);
+          setDepartments(
+            res.data.data || []
+          );
         }
       } catch (err) {
-        console.error("Department loading error:", err);
+        console.error(
+          "Department loading error:",
+          err
+        );
+
+        setDepartments([]);
       }
     };
 
@@ -63,10 +93,17 @@ function AddChecklistTypeModal({
         );
 
         if (res.data.success) {
-          setUsers(res.data.users || []);
+          setUsers(
+            res.data.users || []
+          );
         }
       } catch (err) {
-        console.error("User loading error:", err);
+        console.error(
+          "User loading error:",
+          err
+        );
+
+        setUsers([]);
       }
     };
 
@@ -74,7 +111,7 @@ function AddChecklistTypeModal({
   }, []);
 
   // =====================================================
-  // EDIT MODE
+  // EDIT / RESET
   // =====================================================
 
   useEffect(() => {
@@ -95,7 +132,9 @@ function AddChecklistTypeModal({
     );
 
     setAllowPastSubmission(
-      Boolean(checklist.allow_past_submission)
+      Boolean(
+        checklist.allow_past_submission
+      )
     );
 
     setCutoffTime(
@@ -107,13 +146,17 @@ function AddChecklistTypeModal({
     );
 
     setSelectedDepartments(
-      Array.isArray(checklist.department_ids)
+      Array.isArray(
+        checklist.department_ids
+      )
         ? checklist.department_ids
         : []
     );
 
     setSelectedUsers(
-      Array.isArray(checklist.user_ids)
+      Array.isArray(
+        checklist.user_ids
+      )
         ? checklist.user_ids
         : []
     );
@@ -126,7 +169,9 @@ function AddChecklistTypeModal({
   // =====================================================
 
   const toggleDepartment = (id) => {
-    if (selectedDepartments.includes(id)) {
+    if (
+      selectedDepartments.includes(id)
+    ) {
       setSelectedDepartments(
         selectedDepartments.filter(
           (item) => item !== id
@@ -154,7 +199,8 @@ function AddChecklistTypeModal({
     } else {
       setSelectedDepartments(
         departments.map(
-          (department) => department.id
+          (department) =>
+            department.id
         )
       );
     }
@@ -165,7 +211,9 @@ function AddChecklistTypeModal({
   // =====================================================
 
   const toggleUser = (id) => {
-    if (selectedUsers.includes(id)) {
+    if (
+      selectedUsers.includes(id)
+    ) {
       setSelectedUsers(
         selectedUsers.filter(
           (item) => item !== id
@@ -183,44 +231,53 @@ function AddChecklistTypeModal({
   // FILTER USERS
   // =====================================================
 
-  const filteredUsers = users.filter((user) => {
-    const keyword =
-      searchUser.toLowerCase().trim();
+  const filteredUsers = users.filter(
+    (user) => {
+      const keyword =
+        searchUser
+          .toLowerCase()
+          .trim();
 
-    if (!keyword) return true;
+      if (!keyword) {
+        return true;
+      }
 
-    return (
-      user.name
-        ?.toLowerCase()
-        .includes(keyword) ||
-      user.employee_id
-        ?.toLowerCase()
-        .includes(keyword) ||
-      user.email
-        ?.toLowerCase()
-        .includes(keyword)
-    );
-  });
+      return (
+        user.name
+          ?.toLowerCase()
+          .includes(keyword) ||
+        user.employee_id
+          ?.toLowerCase()
+          .includes(keyword) ||
+        user.email
+          ?.toLowerCase()
+          .includes(keyword)
+      );
+    }
+  );
 
   // =====================================================
   // SELECT ALL USERS
   // =====================================================
 
   const selectAllUsers = () => {
-    const visibleIds = filteredUsers.map(
-      (user) => user.id
-    );
+    const visibleIds =
+      filteredUsers.map(
+        (user) => user.id
+      );
 
     const allVisibleSelected =
       visibleIds.length > 0 &&
-      visibleIds.every((id) =>
-        selectedUsers.includes(id)
+      visibleIds.every(
+        (id) =>
+          selectedUsers.includes(id)
       );
 
     if (allVisibleSelected) {
       setSelectedUsers(
         selectedUsers.filter(
-          (id) => !visibleIds.includes(id)
+          (id) =>
+            !visibleIds.includes(id)
         )
       );
     } else {
@@ -241,7 +298,10 @@ function AddChecklistTypeModal({
     e.preventDefault();
 
     if (!checklistName.trim()) {
-      alert("Checklist Name is required.");
+      alert(
+        "Checklist Name is required."
+      );
+
       return;
     }
 
@@ -249,7 +309,8 @@ function AddChecklistTypeModal({
 
     try {
       await onSave({
-        checklist_name: checklistName.trim(),
+        checklist_name:
+          checklistName.trim(),
 
         departments:
           selectedDepartments,
@@ -258,7 +319,9 @@ function AddChecklistTypeModal({
           selectedUsers,
 
         allow_past_submission:
-          allowPastSubmission ? 1 : 0,
+          allowPastSubmission
+            ? 1
+            : 0,
 
         cutoff_time:
           cutoffTime || null,
@@ -267,14 +330,17 @@ function AddChecklistTypeModal({
       });
     } catch (err) {
       console.error(err);
-      alert("Unable to save checklist type.");
+
+      alert(
+        "Unable to save checklist type."
+      );
     } finally {
       setSaving(false);
     }
   };
 
   // =====================================================
-  // SELECTED COUNTS
+  // COUNTS
   // =====================================================
 
   const selectedDepartmentCount =
@@ -289,189 +355,224 @@ function AddChecklistTypeModal({
       departments.length;
 
   const visibleUserIds =
-    filteredUsers.map((user) => user.id);
+    filteredUsers.map(
+      (user) => user.id
+    );
 
   const allVisibleUsersSelected =
     visibleUserIds.length > 0 &&
-    visibleUserIds.every((id) =>
-      selectedUsers.includes(id)
+    visibleUserIds.every(
+      (id) =>
+        selectedUsers.includes(id)
     );
+
+  // =====================================================
+  // FOOTER
+  // =====================================================
+
+  const modalFooter = (
+    <div className="professional-modal-footer checklist-modal-footer">
+
+      <button
+        type="button"
+        className="professional-btn professional-btn-secondary"
+        onClick={onClose}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        form="checklist-type-form"
+        className="professional-btn professional-btn-primary checklist-save-button"
+        disabled={saving}
+      >
+        {saving ? (
+          <>
+            <span className="checklist-spinner"></span>
+            Saving...
+          </>
+        ) : (
+          <>
+            <span className="professional-btn-icon">
+              {checklist ? "✓" : "+"}
+            </span>
+
+            <span>
+              {checklist
+                ? "Update Checklist"
+                : "Create Checklist"}
+            </span>
+          </>
+        )}
+      </button>
+
+    </div>
+  );
 
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-    <div
-      className="modal-overlay checklist-modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
+    <ProfessionalModal
+      isOpen={true}
+      onClose={saving ? undefined : onClose}
+      title={
+        checklist
+          ? "Edit Checklist Type"
+          : "Add Checklist Type"
+      }
+      subtitle={
+        checklist
+          ? "Update checklist configuration and access."
+          : "Create and configure a new checklist type."
+      }
+      icon={checklist ? "✎" : "+"}
+      size="large"
+      footer={modalFooter}
     >
-      <div
-        className="checklist-modal checklist-modal-animated"
-        role="dialog"
-        aria-modal="true"
+
+      <form
+        id="checklist-type-form"
+        className="checklist-professional-form"
+        onSubmit={handleSubmit}
       >
+
         {/* =================================================
-            HEADER
+            BASIC INFORMATION
         ================================================= */}
 
-        <div className="checklist-modal-header">
-          <div className="checklist-header-content">
+        <section className="professional-form-section">
 
-            <div className="checklist-header-icon">
-              {checklist ? "✎" : "+"}
-            </div>
+          <div className="professional-section-heading">
+
+            <div className="professional-section-indicator" />
 
             <div>
-              <h2>
-                {checklist
-                  ? "Edit Checklist Type"
-                  : "Add Checklist Type"}
-              </h2>
+              <h3>
+                Basic Information
+              </h3>
 
               <p>
-                {checklist
-                  ? "Update checklist configuration and access."
-                  : "Create and configure a new checklist type."}
+                Enter the checklist type details.
               </p>
             </div>
 
           </div>
 
-          <button
-            type="button"
-            className="checklist-close-btn"
-            onClick={onClose}
-            aria-label="Close"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
+          <div className="professional-field">
+
+            <label htmlFor="checklist-name">
+              Checklist Name
+              <span className="required">
+                *
+              </span>
+            </label>
+
+            <input
+              id="checklist-name"
+              type="text"
+              placeholder="Enter checklist name"
+              value={checklistName}
+              onChange={(e) =>
+                setChecklistName(
+                  e.target.value
+                )
+              }
+              autoFocus
+              required
+              disabled={saving}
+            />
+
+          </div>
+
+        </section>
 
         {/* =================================================
-            BODY
+            DEPARTMENTS
         ================================================= */}
 
-        <form
-          className="checklist-modal-body"
-          onSubmit={handleSubmit}
-        >
+        <section className="professional-form-section">
 
-          {/* =================================================
-              BASIC INFORMATION
-          ================================================= */}
+          <div className="professional-section-heading checklist-heading-row">
 
-          <section className="checklist-section">
+            <div className="checklist-heading-left">
 
-            <div className="checklist-section-heading">
-
-              <span className="section-accent"></span>
+              <div className="professional-section-indicator" />
 
               <div>
-                <h3>Basic Information</h3>
+                <h3>
+                  Departments
+                </h3>
 
                 <p>
-                  Enter the checklist type details.
+                  Select departments that can use this checklist.
                 </p>
               </div>
 
             </div>
 
-            <div className="checklist-form-group">
+            <button
+              type="button"
+              className="checklist-select-all-button"
+              onClick={
+                selectAllDepartments
+              }
+              disabled={
+                saving ||
+                departments.length === 0
+              }
+            >
+              {allDepartmentsSelected
+                ? "Unselect All"
+                : "Select All"}
+            </button>
 
-              <label>
-                Checklist Name
-                <span className="required">*</span>
-              </label>
+          </div>
 
-              <input
-                type="text"
-                placeholder="Enter Checklist Name"
-                value={checklistName}
-                onChange={(e) =>
-                  setChecklistName(e.target.value)
-                }
-                autoFocus
-              />
+          <div className="checklist-selection-summary">
 
-            </div>
+            <span>
+              {selectedDepartmentCount}
+            </span>
 
-          </section>
+            {selectedDepartmentCount ===
+            1
+              ? " department selected"
+              : " departments selected"}
 
-          {/* =================================================
-              DEPARTMENTS
-          ================================================= */}
+          </div>
 
-          <section className="checklist-section">
+          <div className="checklist-option-list">
 
-            <div className="checklist-section-heading section-heading-with-action">
+            {departments.length === 0 ? (
 
-              <div className="heading-left">
-
-                <span className="section-accent"></span>
-
-                <div>
-                  <h3>Departments</h3>
-
-                  <p>
-                    Select departments that can use this checklist.
-                  </p>
-                </div>
-
+              <div className="checklist-empty-state">
+                No Departments Found
               </div>
 
-              <button
-                type="button"
-                className="checklist-select-all-btn"
-                onClick={selectAllDepartments}
-              >
-                {allDepartmentsSelected
-                  ? "Unselect All"
-                  : "Select All"}
-              </button>
+            ) : (
 
-            </div>
-
-            <div className="selection-summary">
-              <span>
-                {selectedDepartmentCount}
-              </span>
-
-              {selectedDepartmentCount === 1
-                ? " department selected"
-                : " departments selected"}
-            </div>
-
-            <div className="checklist-checkbox-list">
-
-              {departments.length === 0 ? (
-
-                <div className="checklist-empty">
-                  No Departments Found
-                </div>
-
-              ) : (
-
-                departments.map((dept) => {
+              departments.map(
+                (department) => {
 
                   const selected =
                     selectedDepartments.includes(
-                      dept.id
+                      department.id
                     );
 
                   return (
                     <label
-                      key={dept.id}
-                      className={
-                        selected
-                          ? "checklist-option selected"
-                          : "checklist-option"
+                      key={
+                        department.id
                       }
+                      className={`checklist-option-card ${
+                        selected
+                          ? "selected"
+                          : ""
+                      }`}
                     >
 
                       <input
@@ -479,132 +580,158 @@ function AddChecklistTypeModal({
                         checked={selected}
                         onChange={() =>
                           toggleDepartment(
-                            dept.id
+                            department.id
                           )
                         }
+                        disabled={saving}
                       />
 
-                      <span className="custom-check">
-                        {selected && "✓"}
+                      <span className="checklist-custom-check">
+                        {selected
+                          ? "✓"
+                          : ""}
                       </span>
 
-                      <span className="option-text">
-                        {dept.department_name}
+                      <span className="checklist-option-text">
+                        {
+                          department.department_name
+                        }
                       </span>
 
                     </label>
                   );
-                })
-              )}
+                }
+              )
 
-            </div>
+            )}
 
-          </section>
+          </div>
 
-          {/* =================================================
-              EMPLOYEES
-          ================================================= */}
+        </section>
 
-          <section className="checklist-section">
+        {/* =================================================
+            EMPLOYEES
+        ================================================= */}
 
-            <div className="checklist-section-heading section-heading-with-action">
+        <section className="professional-form-section">
 
-              <div className="heading-left">
+          <div className="professional-section-heading checklist-heading-row">
 
-                <span className="section-accent"></span>
+            <div className="checklist-heading-left">
 
-                <div>
-                  <h3>Employees</h3>
+              <div className="professional-section-indicator" />
 
-                  <p>
-                    Assign employees who can access this checklist.
-                  </p>
-                </div>
+              <div>
+                <h3>
+                  Employees
+                </h3>
 
+                <p>
+                  Assign employees who can access this checklist.
+                </p>
               </div>
 
+            </div>
+
+            <button
+              type="button"
+              className="checklist-select-all-button"
+              onClick={
+                selectAllUsers
+              }
+              disabled={
+                saving ||
+                filteredUsers.length === 0
+              }
+            >
+              {allVisibleUsersSelected
+                ? "Unselect All"
+                : "Select All"}
+            </button>
+
+          </div>
+
+          <div className="checklist-selection-summary">
+
+            <span>
+              {selectedUserCount}
+            </span>
+
+            {selectedUserCount === 1
+              ? " employee selected"
+              : " employees selected"}
+
+          </div>
+
+          {/* SEARCH */}
+
+          <div className="checklist-search-wrapper">
+
+            <span className="checklist-search-icon">
+              ⌕
+            </span>
+
+            <input
+              type="text"
+              placeholder="Search by Employee ID, Name or Email..."
+              value={searchUser}
+              onChange={(e) =>
+                setSearchUser(
+                  e.target.value
+                )
+              }
+              disabled={saving}
+            />
+
+            {searchUser && (
               <button
                 type="button"
-                className="checklist-select-all-btn"
-                onClick={selectAllUsers}
-              >
-                {allVisibleUsersSelected
-                  ? "Unselect All"
-                  : "Select All"}
-              </button>
-
-            </div>
-
-            <div className="selection-summary">
-              <span>
-                {selectedUserCount}
-              </span>
-
-              {selectedUserCount === 1
-                ? " employee selected"
-                : " employees selected"}
-            </div>
-
-            {/* Search */}
-
-            <div className="checklist-search-box">
-
-              <span className="search-symbol">
-                ⌕
-              </span>
-
-              <input
-                type="text"
-                placeholder="Search by Employee ID, Name or Email..."
-                value={searchUser}
-                onChange={(e) =>
-                  setSearchUser(
-                    e.target.value
-                  )
+                className="checklist-clear-search"
+                onClick={() =>
+                  setSearchUser("")
                 }
-              />
+                disabled={saving}
+              >
+                ×
+              </button>
+            )}
 
-              {searchUser && (
-                <button
-                  type="button"
-                  className="clear-search-btn"
-                  onClick={() =>
-                    setSearchUser("")
-                  }
-                >
-                  ×
-                </button>
-              )}
+          </div>
 
-            </div>
+          {/* EMPLOYEE LIST */}
 
-            {/* Employee List */}
+          <div className="checklist-option-list checklist-employee-list">
 
-            <div className="checklist-checkbox-list employee-list">
+            {filteredUsers.length === 0 ? (
 
-              {filteredUsers.length === 0 ? (
+              <div className="checklist-empty-state">
+                No Employees Found
+              </div>
 
-                <div className="checklist-empty">
-                  No Employees Found
-                </div>
+            ) : (
 
-              ) : (
-
-                filteredUsers.map((user) => {
+              filteredUsers.map(
+                (user) => {
 
                   const selected =
                     selectedUsers.includes(
                       user.id
                     );
 
+                  const initial =
+                    user.name
+                      ?.charAt(0)
+                      ?.toUpperCase() ||
+                    "U";
+
                   return (
                     <label
                       key={user.id}
-                      className={
+                      className={`checklist-option-card checklist-employee-card ${
                         selected
-                          ? "checklist-option employee-option selected"
-                          : "checklist-option employee-option"
-                      }
+                          ? "selected"
+                          : ""
+                      }`}
                     >
 
                       <input
@@ -615,19 +742,20 @@ function AddChecklistTypeModal({
                             user.id
                           )
                         }
+                        disabled={saving}
                       />
 
-                      <span className="custom-check">
-                        {selected && "✓"}
+                      <span className="checklist-custom-check">
+                        {selected
+                          ? "✓"
+                          : ""}
                       </span>
 
-                      <span className="employee-avatar">
-                        {user.name
-                          ?.charAt(0)
-                          ?.toUpperCase() || "U"}
+                      <span className="checklist-employee-avatar">
+                        {initial}
                       </span>
 
-                      <span className="employee-details">
+                      <span className="checklist-employee-details">
 
                         <strong>
                           {user.name}
@@ -645,102 +773,123 @@ function AddChecklistTypeModal({
 
                     </label>
                   );
-                })
-              )}
+                }
+              )
 
+            )}
+
+          </div>
+
+        </section>
+
+        {/* =================================================
+            SUBMISSION SETTINGS
+        ================================================= */}
+
+        <section className="professional-form-section">
+
+          <div className="professional-section-heading">
+
+            <div className="professional-section-indicator" />
+
+            <div>
+              <h3>
+                Submission Settings
+              </h3>
+
+              <p>
+                Configure submission rules and checklist status.
+              </p>
             </div>
 
-          </section>
+          </div>
 
-          {/* =================================================
-              SUBMISSION SETTINGS
-          ================================================= */}
+          <div className="checklist-settings-grid">
 
-          <section className="checklist-section">
+            {/* PAST SUBMISSION */}
 
-            <div className="checklist-section-heading">
+            <label
+              className={`checklist-setting-card ${
+                allowPastSubmission
+                  ? "active"
+                  : ""
+              }`}
+            >
 
-              <span className="section-accent"></span>
+              <input
+                type="checkbox"
+                checked={
+                  allowPastSubmission
+                }
+                onChange={(e) =>
+                  setAllowPastSubmission(
+                    e.target.checked
+                  )
+                }
+                disabled={saving}
+              />
 
-              <div>
-                <h3>Submission Settings</h3>
+              <span className="checklist-setting-check">
+                {allowPastSubmission
+                  ? "✓"
+                  : ""}
+              </span>
 
-                <p>
-                  Configure submission rules and checklist status.
-                </p>
-              </div>
+              <span className="checklist-setting-content">
 
-            </div>
+                <strong>
+                  Allow Past Date Submission
+                </strong>
 
-            <div className="checklist-settings-grid">
+                <small>
+                  Allow users to submit checklists for previous dates.
+                </small>
 
-              {/* Past Submission */}
+              </span>
 
-              <label className="setting-card">
+            </label>
 
-                <input
-                  type="checkbox"
-                  checked={allowPastSubmission}
-                  onChange={(e) =>
-                    setAllowPastSubmission(
-                      e.target.checked
-                    )
-                  }
-                />
+            {/* CUTOFF */}
 
-                <span className="setting-check">
-                  {allowPastSubmission && "✓"}
-                </span>
+            <div className="professional-field">
 
-                <span className="setting-content">
-
-                  <strong>
-                    Allow Past Date Submission
-                  </strong>
-
-                  <small>
-                    Allow users to submit checklists for previous dates.
-                  </small>
-
-                </span>
-
+              <label htmlFor="checklist-cutoff">
+                Daily Submission Cutoff Time
               </label>
 
-              {/* Cutoff */}
+              <input
+                id="checklist-cutoff"
+                type="time"
+                value={cutoffTime}
+                onChange={(e) =>
+                  setCutoffTime(
+                    e.target.value
+                  )
+                }
+                disabled={saving}
+              />
 
-              <div className="checklist-form-group">
+            </div>
 
-                <label>
-                  Daily Submission Cutoff Time
-                </label>
+            {/* STATUS */}
 
-                <input
-                  type="time"
-                  value={cutoffTime}
-                  onChange={(e) =>
-                    setCutoffTime(
-                      e.target.value
-                    )
-                  }
-                />
+            <div className="professional-field">
 
-              </div>
+              <label htmlFor="checklist-status">
+                Status
+              </label>
 
-              {/* Status */}
-
-              <div className="checklist-form-group">
-
-                <label>
-                  Status
-                </label>
+              <div className="professional-select-wrapper">
 
                 <select
+                  id="checklist-status"
                   value={status}
                   onChange={(e) =>
                     setStatus(
                       e.target.value
                     )
                   }
+                  disabled={saving}
                 >
                   <option value="Active">
                     Active
@@ -755,52 +904,13 @@ function AddChecklistTypeModal({
 
             </div>
 
-          </section>
-
-          {/* =================================================
-              FOOTER
-          ================================================= */}
-
-          <div className="checklist-modal-footer">
-
-            <button
-              type="button"
-              className="checklist-cancel-btn"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="checklist-save-btn"
-              disabled={saving}
-            >
-
-              {saving ? (
-                <>
-                  <span className="save-spinner"></span>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <span>
-                    {checklist ? "✓" : "+"}
-                  </span>
-
-                  {checklist
-                    ? "Update Checklist"
-                    : "Create Checklist"}
-                </>
-              )}
-
-            </button>
-
           </div>
 
-        </form>
-      </div>
-    </div>
+        </section>
+
+      </form>
+
+    </ProfessionalModal>
   );
 }
 

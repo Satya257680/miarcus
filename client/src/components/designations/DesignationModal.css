@@ -1,360 +1,156 @@
 /* =========================================================
-   DESIGNATION MODAL
-   Clean + Professional + Animated
+   DESIGNATION PROFESSIONAL FORM
    ========================================================= */
 
-
-/* =========================================================
-   OVERLAY
-   ========================================================= */
-
-.designation-modal-overlay {
-    position: fixed;
-    inset: 0;
-
-    width: 100%;
-    height: 100%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 24px;
-
-    background: rgba(15, 23, 42, 0.52);
-
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-
-    z-index: 9999;
-
-    overflow-y: auto;
-
-    animation: designationOverlayIn 0.22s ease-out;
-}
-
-
-@keyframes designationOverlayIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+.designation-professional-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 
 /* =========================================================
-   MAIN MODAL
+   FORM SECTION
    ========================================================= */
 
-.designation-modal {
-    position: relative;
+.designation-professional-form
+.professional-form-section {
+  width: 100%;
+  padding: 26px 28px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #e6edf3;
+}
 
-    width: min(720px, 100%);
-
-    max-height: calc(100vh - 48px);
-
-    display: flex;
-    flex-direction: column;
-
-    background: #ffffff;
-
-    border: 1px solid #dce5ea;
-
-    border-radius: 14px;
-
-    box-shadow:
-        0 20px 50px rgba(15, 23, 42, 0.18),
-        0 6px 18px rgba(15, 23, 42, 0.08);
-
-    overflow: hidden;
+.designation-professional-form
+.professional-form-section:last-child {
+  border-bottom: none;
 }
 
 
 /* =========================================================
-   MODAL ANIMATION
+   SECTION HEADING
    ========================================================= */
 
-.designation-modal-animated {
-    animation:
-        designationModalIn
-        0.32s
-        cubic-bezier(0.22, 1, 0.36, 1);
+.designation-professional-form
+.professional-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
+.designation-professional-form
+.professional-section-indicator {
+  width: 3px;
+  min-width: 3px;
+  height: 30px;
+  margin-top: 2px;
 
-@keyframes designationModalIn {
-    from {
-        opacity: 0;
-        transform: translateY(28px) scale(0.97);
-    }
+  border-radius: 4px;
 
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+  background: linear-gradient(
+    180deg,
+    #2563eb 0%,
+    #06b6d4 100%
+  );
+}
+
+.designation-professional-form
+.professional-section-heading h3 {
+  margin: 0;
+
+  color: #1e293b;
+
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.designation-professional-form
+.professional-section-heading p {
+  margin: 3px 0 0;
+
+  color: #64748b;
+
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 
 /* =========================================================
-   HEADER
+   SELECTED COUNT
    ========================================================= */
 
-.designation-modal-header {
-    min-height: 82px;
+.designation-professional-form
+.professional-section-count {
+  margin-left: auto;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  padding: 6px 11px;
 
-    padding: 18px 22px;
+  border-radius: 20px;
 
-    background: #ffffff;
+  background: #eff6ff;
+  color: #2563eb;
 
-    border-bottom: 1px solid #e7edf1;
+  border: 1px solid #dbeafe;
 
-    flex-shrink: 0;
-}
+  font-size: 11px;
+  font-weight: 700;
 
-
-.modal-header-content {
-    display: flex;
-    align-items: center;
-
-    gap: 13px;
-
-    min-width: 0;
-}
-
-
-.modal-header-icon {
-    width: 42px;
-    height: 42px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    flex-shrink: 0;
-
-    border-radius: 10px;
-
-    background: #e8f3f6;
-
-    color: #3f6b78;
-
-    font-size: 22px;
-    font-weight: 700;
-}
-
-
-.modal-header-icon span {
-    line-height: 1;
-}
-
-
-.modal-header-content h2 {
-    margin: 0;
-
-    color: #24343d;
-
-    font-size: 20px;
-    font-weight: 700;
-
-    line-height: 1.25;
-}
-
-
-.modal-header-content p {
-    margin: 4px 0 0;
-
-    color: #7a8991;
-
-    font-size: 12px;
-
-    line-height: 1.4;
+  white-space: nowrap;
 }
 
 
 /* =========================================================
-   CLOSE
+   FORM GRID
    ========================================================= */
 
-.modal-close-btn {
-    width: 34px;
-    height: 34px;
+.designation-professional-form
+.professional-form-grid {
+  display: grid;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
 
-    flex-shrink: 0;
-
-    padding: 0;
-
-    border: none;
-    border-radius: 8px;
-
-    background: transparent;
-
-    color: #7b8790;
-
-    font-size: 25px;
-
-    line-height: 1;
-
-    cursor: pointer;
-
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
-}
-
-
-.modal-close-btn:hover {
-    background: #f1f5f7;
-
-    color: #33434c;
-
-    transform: rotate(90deg);
+  gap: 20px;
 }
 
 
 /* =========================================================
-   FORM
+   FIELD
    ========================================================= */
 
-.designation-form {
-    min-height: 0;
+.designation-professional-form
+.professional-field {
+  width: 100%;
+  min-width: 0;
 
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    scrollbar-width: thin;
-    scrollbar-color: #c6d3d8 transparent;
+  gap: 8px;
 }
 
-
-.designation-form::-webkit-scrollbar {
-    width: 6px;
+.designation-professional-form
+.professional-field-full {
+  margin-top: 20px;
 }
 
+.designation-professional-form
+.professional-field label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
 
-.designation-form::-webkit-scrollbar-track {
-    background: transparent;
+  color: #334155;
+
+  font-size: 12px;
+  font-weight: 700;
 }
 
-
-.designation-form::-webkit-scrollbar-thumb {
-    background: #c6d3d8;
-
-    border-radius: 10px;
-}
-
-
-/* =========================================================
-   SECTION
-   ========================================================= */
-
-.designation-form-section {
-    padding: 20px 22px;
-
-    border-bottom: 1px solid #edf1f3;
-}
-
-
-.section-title {
-    display: flex;
-    align-items: flex-start;
-
-    gap: 9px;
-
-    margin-bottom: 17px;
-}
-
-
-.section-line {
-    width: 3px;
-    min-width: 3px;
-
-    height: 22px;
-
-    margin-top: 1px;
-
-    border-radius: 5px;
-
-    background: #5d8b98;
-}
-
-
-.section-title h3 {
-    margin: 0;
-
-    color: #34464f;
-
-    font-size: 14px;
-    font-weight: 700;
-
-    line-height: 1.5;
-}
-
-
-.section-title p {
-    margin: 2px 0 0;
-
-    color: #89969d;
-
-    font-size: 11px;
-
-    line-height: 1.4;
-}
-
-
-/* =========================================================
-   GRID
-   ========================================================= */
-
-.designation-form-grid {
-    display: grid;
-
-    grid-template-columns: 1fr 1fr;
-
-    gap: 16px;
-}
-
-
-/* =========================================================
-   FORM GROUP
-   ========================================================= */
-
-.designation-field {
-    display: flex;
-    flex-direction: column;
-
-    min-width: 0;
-}
-
-
-.designation-field label {
-    margin-bottom: 7px;
-
-    color: #44555e;
-
-    font-size: 12px;
-    font-weight: 600;
-}
-
-
+.designation-professional-form
 .required {
-    margin-left: 3px;
-
-    color: #e74c3c;
+  color: #ef4444;
 }
 
 
@@ -362,84 +158,64 @@
    INPUT / SELECT / TEXTAREA
    ========================================================= */
 
-.designation-field input,
-.designation-field textarea,
-.designation-field select {
-    width: 100%;
+.designation-professional-form
+.professional-field input,
+.designation-professional-form
+.professional-field select,
+.designation-professional-form
+.professional-field textarea {
+  width: 100%;
+  box-sizing: border-box;
 
-    box-sizing: border-box;
+  border: 1px solid #d8e1ea;
 
-    border: 1px solid #d5e0e5;
+  background: #ffffff;
 
-    border-radius: 7px;
+  color: #1e293b;
 
-    background: #fbfcfd;
+  font-family: inherit;
+  font-size: 13px;
 
-    color: #2f3e46;
+  outline: none;
 
-    font-family: inherit;
-
-    font-size: 13px;
-
-    outline: none;
-
-    transition:
-        border-color 0.2s ease,
-        background-color 0.2s ease,
-        box-shadow 0.2s ease,
-        transform 0.2s ease;
-}
-
-
-.designation-field input,
-.designation-field select {
-    height: 40px;
-
-    padding: 0 12px;
-}
-
-
-.designation-field textarea {
-    min-height: 90px;
-
-    padding: 10px 12px;
-
-    resize: vertical;
-
-    line-height: 1.5;
-}
-
-
-.designation-field input::placeholder,
-.designation-field textarea::placeholder {
-    color: #a6b1b7;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 
 /* =========================================================
-   FOCUS
+   INPUT
    ========================================================= */
 
-.designation-field input:focus,
-.designation-field textarea:focus,
-.designation-field select:focus {
-    border-color: #6f9eaa;
+.designation-professional-form
+.professional-field input {
+  height: 46px;
 
-    background: #ffffff;
+  padding: 0 13px;
 
-    box-shadow:
-        0 0 0 3px rgba(93, 139, 152, 0.12);
-
-    transform: translateY(-1px);
+  border-radius: 9px;
 }
 
+.designation-professional-form
+.professional-field input::placeholder {
+  color: #9aa9b8;
+}
 
-/* =========================================================
-   DESCRIPTION
-   ========================================================= */
+.designation-professional-form
+.professional-field input:hover {
+  border-color: #b9c9d8;
+}
 
-.description-field {
-    margin-top: 16px;
+.designation-professional-form
+.professional-field input:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.10);
 }
 
 
@@ -447,36 +223,96 @@
    SELECT
    ========================================================= */
 
-.select-wrapper {
-    position: relative;
+.designation-professional-form
+.professional-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.designation-professional-form
+.professional-field select {
+  height: 46px;
+
+  padding:
+    0 38px 0 13px;
+
+  border-radius: 9px;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  cursor: pointer;
+}
+
+.designation-professional-form
+.professional-select-wrapper::after {
+  content: "⌄";
+
+  position: absolute;
+
+  right: 14px;
+  top: 50%;
+
+  transform:
+    translateY(-55%);
+
+  color: #64748b;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  pointer-events: none;
+}
+
+.designation-professional-form
+.professional-field select:hover {
+  border-color: #b9c9d8;
+}
+
+.designation-professional-form
+.professional-field select:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.10);
 }
 
 
-.select-wrapper select {
-    appearance: none;
-    -webkit-appearance: none;
+/* =========================================================
+   TEXTAREA
+   ========================================================= */
 
-    padding-right: 34px;
+.designation-professional-form
+.professional-field textarea {
+  min-height: 100px;
 
-    cursor: pointer;
+  padding: 12px 13px;
+
+  border-radius: 9px;
+
+  resize: vertical;
+
+  line-height: 1.5;
 }
 
+.designation-professional-form
+.professional-field textarea::placeholder {
+  color: #9aa9b8;
+}
 
-.select-wrapper::after {
-    content: "⌄";
+.designation-professional-form
+.professional-field textarea:hover {
+  border-color: #b9c9d8;
+}
 
-    position: absolute;
+.designation-professional-form
+.professional-field textarea:focus {
+  border-color: #2563eb;
 
-    top: 50%;
-    right: 12px;
-
-    transform: translateY(-55%);
-
-    color: #71818a;
-
-    font-size: 15px;
-
-    pointer-events: none;
+  box-shadow:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.10);
 }
 
 
@@ -484,10 +320,9 @@
    STATUS
    ========================================================= */
 
-.status-field {
-    max-width: 50%;
-
-    margin-top: 16px;
+.designation-status-field {
+  width: calc(50% - 10px);
+  margin-top: 20px;
 }
 
 
@@ -495,23 +330,35 @@
    EMPLOYEE SECTION
    ========================================================= */
 
-.employee-section {
-    padding-bottom: 18px;
+.designation-employee-section {
+  padding-bottom: 28px !important;
 }
 
 
-.employee-list-wrapper {
-    width: 100%;
+/* =========================================================
+   EMPLOYEE CONTAINER
+   ========================================================= */
 
-    box-sizing: border-box;
+.designation-employee-container {
+  width: 100%;
+  min-height: 180px;
 
-    overflow: hidden;
+  padding: 4px;
 
-    border: 1px solid #dfe7eb;
+  box-sizing: border-box;
 
-    border-radius: 9px;
+  border:
+    1px solid #dce6ef;
 
-    background: #ffffff;
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  overflow: hidden;
+}
+
+.designation-employee-container > * {
+  width: 100%;
 }
 
 
@@ -520,49 +367,60 @@
    ========================================================= */
 
 .designation-modal-footer {
-    display: flex;
+  width: 100%;
 
-    align-items: center;
-    justify-content: flex-end;
+  display: flex;
 
-    gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
 
-    padding: 16px 22px;
-
-    background: #fafcfd;
-
-    border-top: 1px solid #e7edf0;
-
-    flex-shrink: 0;
+  gap: 12px;
 }
 
 
-.designation-modal-footer button {
-    height: 38px;
+/* =========================================================
+   BUTTONS
+   ========================================================= */
 
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+.designation-modal-footer
+.professional-btn {
+  min-height: 42px;
 
-    gap: 7px;
+  padding: 0 20px;
 
-    padding: 0 17px;
+  border-radius: 8px;
 
-    border-radius: 7px;
+  font-family: inherit;
 
-    font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
 
-    font-size: 12px;
-    font-weight: 600;
+  cursor: pointer;
 
-    cursor: pointer;
+  display: inline-flex;
 
-    transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.15s ease,
-        box-shadow 0.2s ease;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.designation-modal-footer
+.professional-btn:hover {
+  transform:
+    translateY(-1px);
+}
+
+.designation-modal-footer
+.professional-btn:active {
+  transform:
+    translateY(0);
 }
 
 
@@ -570,144 +428,107 @@
    CANCEL
    ========================================================= */
 
-.designation-cancel-btn {
-    min-width: 85px;
+.designation-modal-footer
+.professional-btn-secondary {
+  min-width: 100px;
 
-    border: 1px solid #d2dde2;
+  background: #ffffff;
 
-    background: #ffffff;
+  color: #475569;
 
-    color: #596a73;
+  border:
+    1px solid #d5dee8;
 }
 
+.designation-modal-footer
+.professional-btn-secondary:hover {
+  background: #f8fafc;
 
-.designation-cancel-btn:hover {
-    background: #f3f6f7;
+  border-color: #c4d0dc;
 
-    border-color: #c2d0d5;
-
-    color: #35464f;
-
-    transform: translateY(-1px);
-}
-
-
-.designation-cancel-btn:active {
-    transform: scale(0.98);
-}
-
-
-/* =========================================================
-   SAVE
-   ========================================================= */
-
-.designation-save-btn {
-    min-width: 150px;
-
-    border: 1px solid #4f7f8d;
-
-    background: #527f8c;
-
-    color: #ffffff;
-}
-
-
-.designation-save-btn:hover {
-    background: #426d7a;
-
-    border-color: #426d7a;
-
-    box-shadow:
-        0 4px 10px rgba(66, 109, 122, 0.22);
-
-    transform: translateY(-1px);
-}
-
-
-.designation-save-btn:active {
-    transform: scale(0.98);
-
-    box-shadow: none;
-}
-
-
-.save-btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 14px;
-
-    line-height: 1;
+  box-shadow:
+    0 4px 12px
+    rgba(15, 23, 42, 0.06);
 }
 
 
 /* =========================================================
-   FOCUS
+   SAVE / UPDATE
    ========================================================= */
 
-.designation-modal-footer button:focus-visible,
-.modal-close-btn:focus-visible {
-    outline: 3px solid rgba(93, 139, 152, 0.22);
+.designation-modal-footer
+.professional-btn-primary {
+  min-width: 175px;
 
-    outline-offset: 2px;
+  color: #ffffff;
+
+  border:
+    1px solid #2563eb;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb 0%,
+      #3b82f6 100%
+    );
+
+  box-shadow:
+    0 6px 16px
+    rgba(37, 99, 235, 0.20);
+}
+
+.designation-modal-footer
+.professional-btn-primary:hover {
+  box-shadow:
+    0 9px 22px
+    rgba(37, 99, 235, 0.28);
+}
+
+.designation-modal-footer
+.professional-btn-icon {
+  font-size: 14px;
+  font-weight: 800;
 }
 
 
 /* =========================================================
-   MOBILE
+   RESPONSIVE
    ========================================================= */
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
 
-    .designation-modal-overlay {
-        align-items: flex-start;
+  .designation-professional-form
+  .professional-form-grid {
+    grid-template-columns: 1fr;
 
-        padding: 15px;
-    }
+    gap: 16px;
+  }
 
+  .designation-professional-form
+  .professional-field-full {
+    margin-top: 16px;
+  }
 
-    .designation-modal {
-        width: 100%;
+  .designation-professional-form
+  .professional-form-section {
+    padding: 22px 20px;
+  }
 
-        max-height: calc(100vh - 30px);
+  .designation-status-field {
+    width: 100%;
+    margin-top: 16px;
+  }
 
-        border-radius: 12px;
-    }
+  .designation-modal-footer {
+    flex-direction: column-reverse;
 
+    align-items: stretch;
+  }
 
-    .designation-modal-header {
-        padding: 16px;
-    }
-
-
-    .designation-form-section {
-        padding: 17px 16px;
-    }
-
-
-    .designation-form-grid {
-        grid-template-columns: 1fr;
-
-        gap: 14px;
-    }
-
-
-    .description-field {
-        margin-top: 14px;
-    }
-
-
-    .status-field {
-        max-width: 100%;
-
-        margin-top: 14px;
-    }
-
-
-    .designation-modal-footer {
-        padding: 14px 16px;
-    }
+  .designation-modal-footer
+  .professional-btn {
+    width: 100%;
+  }
 }
 
 
@@ -715,66 +536,30 @@
    SMALL MOBILE
    ========================================================= */
 
-@media (max-width: 450px) {
+@media (max-width: 480px) {
 
-    .designation-modal-overlay {
-        padding: 8px;
-    }
+  .designation-professional-form
+  .professional-form-section {
+    padding: 18px 16px;
+  }
 
+  .designation-professional-form
+  .professional-section-heading {
+    gap: 9px;
+  }
 
-    .designation-modal {
-        max-height: calc(100vh - 16px);
+  .designation-professional-form
+  .professional-section-heading h3 {
+    font-size: 14px;
+  }
 
-        border-radius: 10px;
-    }
+  .designation-professional-form
+  .professional-section-heading p {
+    font-size: 11px;
+  }
 
-
-    .modal-header-icon {
-        width: 36px;
-        height: 36px;
-
-        font-size: 18px;
-    }
-
-
-    .modal-header-content h2 {
-        font-size: 17px;
-    }
-
-
-    .modal-header-content p {
-        font-size: 10px;
-    }
-
-
-    .designation-modal-footer {
-        flex-direction: column-reverse;
-
-        align-items: stretch;
-    }
-
-
-    .designation-modal-footer button {
-        width: 100%;
-    }
-}
-
-
-/* =========================================================
-   REDUCE MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-    .designation-modal-overlay,
-    .designation-modal-animated {
-        animation: none;
-    }
-
-
-    .designation-modal *,
-    .designation-modal *::before,
-    .designation-modal *::after {
-        transition: none !important;
-    }
+  .designation-professional-form
+  .professional-section-count {
+    display: none;
+  }
 }

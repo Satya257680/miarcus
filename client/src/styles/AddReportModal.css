@@ -1,6 +1,11 @@
 /* =========================================================
-   ADD / EDIT REPORT MODAL
-   ========================================================= */
+   ADD REPORT / REPORTING MANAGER MODAL
+   Professional Global Modal Style
+========================================================= */
+
+/* =========================================================
+   OVERLAY
+========================================================= */
 
 .report-modal-overlay {
   position: fixed;
@@ -13,84 +18,169 @@
 
   padding: 24px;
 
-  background: rgba(15, 23, 42, 0.48);
+  background: rgba(15, 31, 38, 0.58);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-
-  animation: reportOverlayFade 0.2s ease-out;
+  animation: reportOverlayFade 0.22s ease-out;
 }
-
 
 /* =========================================================
    MODAL
-   ========================================================= */
+========================================================= */
 
 .report-modal {
-  width: min(500px, 100%);
-
+  width: min(760px, 100%);
   max-height: calc(100vh - 48px);
 
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 
   background: #ffffff;
 
-  border: 1px solid #e5e7eb;
-
-  border-radius: 16px;
+  border: 1px solid rgba(157, 185, 191, 0.45);
+  border-radius: 18px;
 
   box-shadow:
-    0 24px 60px rgba(15, 23, 42, 0.18),
-    0 8px 24px rgba(15, 23, 42, 0.08);
+    0 28px 70px rgba(24, 54, 64, 0.20),
+    0 8px 25px rgba(24, 54, 64, 0.10);
 
-  animation: reportModalSlide 0.25s ease-out;
+  overflow: hidden;
+
+  animation: reportModalEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
 }
-
 
 /* =========================================================
    HEADER
-   ========================================================= */
+========================================================= */
 
 .report-modal-header {
+  position: relative;
+
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 
-  padding: 22px 24px 18px;
+  min-height: 92px;
 
-  border-bottom: 1px solid #edf0f2;
+  padding: 20px 26px;
 
-  background: #ffffff;
+  background:
+    linear-gradient(
+      135deg,
+      #eaf5f7 0%,
+      #f6fafb 55%,
+      #ffffff 100%
+    );
+
+  border-bottom: 1px solid #dce8eb;
 }
+
+/* Small top accent */
+
+.report-modal-header::before {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 3px;
+
+  background: linear-gradient(
+    90deg,
+    #3f6b78,
+    #6f9eaa,
+    #b7d7df
+  );
+}
+
+/* Header content */
+
+.professional-modal-header-content {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  min-width: 0;
+}
+
+/* =========================================================
+   HEADER ICON
+========================================================= */
+
+.professional-modal-icon {
+  width: 46px;
+  height: 46px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 13px;
+
+  background: linear-gradient(
+    135deg,
+    #dceff3,
+    #c4e1e7
+  );
+
+  border: 1px solid #b8d6dc;
+
+  color: #315d69;
+
+  font-size: 23px;
+  font-weight: 600;
+
+  box-shadow:
+    0 5px 14px rgba(63, 107, 120, 0.12);
+
+  animation: reportIconPop 0.4s ease-out 0.08s both;
+}
+
+.report-modal-icon span {
+  display: block;
+  line-height: 1;
+}
+
+/* =========================================================
+   HEADER TEXT
+========================================================= */
 
 .report-modal-header h2 {
   margin: 0;
 
-  color: #1f2937;
+  color: #183640;
 
   font-size: 21px;
   font-weight: 700;
 
-  line-height: 1.3;
+  letter-spacing: -0.25px;
 }
 
 .report-modal-header p {
   margin: 5px 0 0;
 
-  color: #7b8794;
+  color: #6d8087;
 
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
-
 
 /* =========================================================
    CLOSE BUTTON
-   ========================================================= */
+========================================================= */
 
-.report-close-btn {
-  width: 34px;
-  height: 34px;
+.professional-modal-close {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;
@@ -98,281 +188,509 @@
 
   margin-left: 15px;
 
-  border: 0;
-  border-radius: 8px;
+  border: 1px solid #d6e1e4;
+  border-radius: 10px;
 
-  background: #f3f4f6;
+  background: #ffffff;
 
-  color: #6b7280;
+  color: #647980;
 
   font-size: 25px;
   font-weight: 400;
-
   line-height: 1;
 
   cursor: pointer;
 
   transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-.report-close-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
+.professional-modal-close:hover {
+  background: #fff1f1;
+
+  border-color: #efb8b8;
+
+  color: #c43d3d;
 
   transform: rotate(90deg);
+
+  box-shadow: 0 4px 12px rgba(196, 61, 61, 0.10);
 }
 
-.report-close-btn:active {
+.professional-modal-close:active {
   transform: rotate(90deg) scale(0.94);
 }
 
+.professional-modal-close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 /* =========================================================
    FORM
-   ========================================================= */
+========================================================= */
 
 .report-modal-form {
-  padding: 22px 24px 24px;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 25px 28px 0;
+
+  scrollbar-width: thin;
+  scrollbar-color: #b7d7df transparent;
 }
 
+/* Chrome / Edge scrollbar */
+
+.report-modal-form::-webkit-scrollbar {
+  width: 6px;
+}
+
+.report-modal-form::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.report-modal-form::-webkit-scrollbar-thumb {
+  background: #b7d7df;
+  border-radius: 10px;
+}
+
+.report-modal-form::-webkit-scrollbar-thumb:hover {
+  background: #8eb9c3;
+}
+
+/* =========================================================
+   FORM SECTION
+========================================================= */
+
+.professional-form-section {
+  margin-bottom: 8px;
+}
+
+/* =========================================================
+   SECTION TITLE
+========================================================= */
+
+.professional-section-title {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  margin-bottom: 19px;
+}
+
+.professional-section-line {
+  width: 4px;
+  min-height: 38px;
+
+  flex-shrink: 0;
+
+  border-radius: 5px;
+
+  background: linear-gradient(
+    180deg,
+    #3f6b78,
+    #8eb9c3
+  );
+}
+
+.professional-section-title h3 {
+  margin: 0;
+
+  color: #244650;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  letter-spacing: 0.1px;
+}
+
+.professional-section-title p {
+  margin: 4px 0 0;
+
+  color: #7a8b91;
+
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   FORM GRID
+========================================================= */
+
+.professional-form-grid {
+  display: grid;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  column-gap: 20px;
+  row-gap: 19px;
+}
 
 /* =========================================================
    FORM GROUP
-   ========================================================= */
+========================================================= */
 
-.report-form-group {
-  margin-bottom: 17px;
+.professional-form-group {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
 }
 
-.report-form-group label {
-  display: block;
-
+.professional-form-group label {
   margin-bottom: 7px;
 
-  color: #374151;
+  color: #344f58;
 
   font-size: 13px;
   font-weight: 600;
+
+  line-height: 1.3;
 }
 
 .required-star {
   margin-left: 3px;
 
-  color: #dc2626;
+  color: #d04444;
 
   font-weight: 700;
 }
 
-
 /* =========================================================
    INPUT / SELECT
-   ========================================================= */
+========================================================= */
 
-.report-form-group input,
-.report-form-group select {
+.professional-form-group input,
+.professional-form-group select,
+.professional-form-group textarea {
   width: 100%;
-
-  height: 44px;
 
   box-sizing: border-box;
 
-  padding: 0 13px;
-
-  border: 1px solid #d8dee4;
-  border-radius: 8px;
-
-  outline: none;
+  border: 1px solid #d3e0e3;
+  border-radius: 9px;
 
   background: #ffffff;
 
-  color: #1f2937;
+  color: #243f48;
 
-  font-size: 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+
+  outline: none;
 
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    transform 0.15s ease;
 }
 
-.report-form-group input::placeholder {
-  color: #9ca3af;
+.professional-form-group input,
+.professional-form-group select {
+  height: 43px;
+
+  padding: 0 13px;
 }
 
-.report-form-group input:hover,
-.report-form-group select:hover {
-  border-color: #b7c4ce;
+.professional-form-group textarea {
+  min-height: 95px;
+
+  padding: 11px 13px;
+
+  resize: vertical;
 }
 
-.report-form-group input:focus,
-.report-form-group select:focus {
-  border-color: #7bb6d3;
+/* =========================================================
+   PLACEHOLDER
+========================================================= */
 
-  background: #ffffff;
+.professional-form-group input::placeholder,
+.professional-form-group textarea::placeholder {
+  color: #a1afb3;
+
+  opacity: 1;
+}
+
+/* =========================================================
+   FOCUS
+========================================================= */
+
+.professional-form-group input:focus,
+.professional-form-group select:focus,
+.professional-form-group textarea:focus {
+  border-color: #6f9eaa;
+
+  background: #fcfeff;
 
   box-shadow:
-    0 0 0 3px rgba(123, 182, 211, 0.14);
+    0 0 0 3px rgba(111, 158, 170, 0.13);
+
+  transform: translateY(-1px);
 }
 
+/* =========================================================
+   HOVER
+========================================================= */
+
+.professional-form-group input:hover,
+.professional-form-group select:hover,
+.professional-form-group textarea:hover {
+  border-color: #b2cbd0;
+}
 
 /* =========================================================
-   SELECT
-   ========================================================= */
+   DISABLED
+========================================================= */
 
-.report-form-group select {
+.professional-form-group input:disabled,
+.professional-form-group select:disabled,
+.professional-form-group textarea:disabled {
+  background: #f4f7f8;
+
+  color: #8b999e;
+
+  cursor: not-allowed;
+
+  opacity: 0.75;
+}
+
+/* =========================================================
+   SELECT WRAPPER
+========================================================= */
+
+.professional-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.professional-select-wrapper select {
+  appearance: none;
+  -webkit-appearance: none;
+
+  padding-right: 38px;
+
   cursor: pointer;
-
-  appearance: auto;
 }
 
+/* Dropdown arrow */
+
+.professional-select-wrapper::after {
+  content: "⌄";
+
+  position: absolute;
+
+  top: 50%;
+  right: 13px;
+
+  transform: translateY(-57%);
+
+  color: #637c84;
+
+  font-size: 17px;
+  font-weight: 600;
+
+  pointer-events: none;
+}
+
+.professional-select-wrapper select:disabled {
+  cursor: not-allowed;
+}
 
 /* =========================================================
-   BUTTON AREA
-   ========================================================= */
+   FOOTER
+========================================================= */
 
-.report-modal-buttons {
+.professional-modal-footer {
   display: flex;
-
   align-items: center;
   justify-content: flex-end;
 
-  gap: 10px;
+  gap: 11px;
 
-  margin-top: 24px;
-  padding-top: 18px;
+  margin-top: 28px;
 
-  border-top: 1px solid #edf0f2;
+  padding: 18px 0 22px;
+
+  border-top: 1px solid #e4ecee;
+
+  background: #ffffff;
 }
 
-
 /* =========================================================
-   CANCEL
-   ========================================================= */
+   CANCEL BUTTON
+========================================================= */
 
-.report-cancel-btn {
-  min-width: 95px;
+.professional-cancel-btn {
+  min-width: 92px;
   height: 42px;
 
   padding: 0 18px;
 
-  border: 1px solid #d7dde3;
-  border-radius: 8px;
+  border: 1px solid #d3dfe2;
+  border-radius: 9px;
 
   background: #ffffff;
 
-  color: #4b5563;
+  color: #536b72;
 
-  font-size: 14px;
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 600;
 
   cursor: pointer;
 
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.15s ease;
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-.report-cancel-btn:hover {
-  background: #f8fafc;
+.professional-cancel-btn:hover {
+  background: #f5f8f9;
 
-  border-color: #b9c2cc;
+  border-color: #b7cbd0;
 
-  color: #1f2937;
+  color: #314f58;
+
+  transform: translateY(-1px);
+
+  box-shadow: 0 4px 10px rgba(40, 70, 78, 0.07);
 }
 
-.report-cancel-btn:active {
-  transform: scale(0.97);
+.professional-cancel-btn:active {
+  transform: translateY(0);
 }
 
+.professional-cancel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 /* =========================================================
-   SAVE / UPDATE
-   ========================================================= */
+   SAVE BUTTON
+========================================================= */
 
-.report-save-btn {
-  min-width: 135px;
+.professional-save-btn {
+  min-width: 160px;
   height: 42px;
 
-  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-  border: 1px solid #72aeca;
-  border-radius: 8px;
+  gap: 8px;
 
-  background: #8fc7df;
+  padding: 0 19px;
 
-  color: #17384a;
+  border: 1px solid #3f6b78;
+  border-radius: 9px;
 
-  font-size: 14px;
-  font-weight: 700;
+  background: linear-gradient(
+    135deg,
+    #3f6b78,
+    #527f8b
+  );
+
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
 
   cursor: pointer;
 
-  box-shadow: 0 3px 8px rgba(72, 132, 158, 0.16);
+  box-shadow:
+    0 5px 13px rgba(63, 107, 120, 0.18);
 
   transition:
     background 0.2s ease,
+    transform 0.18s ease,
     box-shadow 0.2s ease,
-    transform 0.15s ease;
+    border-color 0.2s ease;
 }
 
-.report-save-btn:hover {
-  background: #79bad6;
+.professional-save-btn:hover {
+  background: linear-gradient(
+    135deg,
+    #355e6b,
+    #466f7c
+  );
+
+  border-color: #355e6b;
+
+  transform: translateY(-2px);
 
   box-shadow:
-    0 5px 12px rgba(72, 132, 158, 0.22);
-
-  transform: translateY(-1px);
+    0 8px 18px rgba(63, 107, 120, 0.25);
 }
 
-.report-save-btn:active {
+.professional-save-btn:active {
   transform: translateY(0) scale(0.98);
+
+  box-shadow:
+    0 3px 8px rgba(63, 107, 120, 0.18);
 }
 
+.professional-save-btn:disabled {
+  opacity: 0.72;
+
+  cursor: not-allowed;
+
+  transform: none;
+
+  box-shadow: none;
+}
 
 /* =========================================================
-   FOCUS ACCESSIBILITY
-   ========================================================= */
+   SAVE ICON
+========================================================= */
 
-.report-cancel-btn:focus-visible,
-.report-save-btn:focus-visible,
-.report-close-btn:focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.2);
+.professional-save-icon {
+  width: 20px;
+  height: 20px;
 
-  outline-offset: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.16);
+
+  font-size: 12px;
+  font-weight: 700;
 }
-
 
 /* =========================================================
-   SCROLLBAR
-   ========================================================= */
+   LOADING SPINNER
+========================================================= */
 
-.report-modal::-webkit-scrollbar {
-  width: 7px;
+.professional-spinner {
+  width: 15px;
+  height: 15px;
+
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+
+  border-radius: 50%;
+
+  animation: reportSpinner 0.7s linear infinite;
 }
-
-.report-modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.report-modal::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-
-  border-radius: 10px;
-}
-
-.report-modal::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
 
 /* =========================================================
    ANIMATIONS
-   ========================================================= */
+========================================================= */
 
 @keyframes reportOverlayFade {
   from {
@@ -384,10 +702,10 @@
   }
 }
 
-@keyframes reportModalSlide {
+@keyframes reportModalEnter {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.98);
+    transform: translateY(18px) scale(0.97);
   }
 
   to {
@@ -396,44 +714,172 @@
   }
 }
 
+@keyframes reportIconPop {
+  from {
+    opacity: 0;
+    transform: scale(0.75) rotate(-8deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes reportSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* =========================================================
-   RESPONSIVE
-   ========================================================= */
+   RESPONSIVE - TABLET
+========================================================= */
 
-@media (max-width: 600px) {
-
+@media (max-width: 700px) {
   .report-modal-overlay {
-    padding: 14px;
+    padding: 15px;
+  }
+
+  .report-modal {
+    max-height: calc(100vh - 30px);
+
+    border-radius: 15px;
+  }
+
+  .report-modal-header {
+    padding: 18px 20px;
+  }
+
+  .report-modal-form {
+    padding: 22px 20px 0;
+  }
+
+  .professional-form-grid {
+    grid-template-columns: 1fr;
+
+    row-gap: 17px;
+  }
+
+  .professional-modal-footer {
+    margin-top: 23px;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+  .report-modal-overlay {
+    align-items: flex-end;
+
+    padding: 0;
   }
 
   .report-modal {
     width: 100%;
+    max-height: 94vh;
 
-    max-height: calc(100vh - 28px);
+    border-radius: 18px 18px 0 0;
 
-    border-radius: 13px;
+    animation: reportMobileEnter 0.3s
+      cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .report-modal-header {
-    padding: 18px;
+    min-height: 82px;
+
+    padding: 17px 17px;
   }
 
-  .report-modal-form {
-    padding: 18px;
+  .professional-modal-icon {
+    width: 41px;
+    height: 41px;
+
+    border-radius: 11px;
+
+    font-size: 20px;
   }
 
   .report-modal-header h2 {
-    font-size: 19px;
+    font-size: 18px;
   }
 
-  .report-modal-buttons {
+  .report-modal-header p {
+    font-size: 11.5px;
+  }
+
+  .professional-modal-close {
+    width: 34px;
+    height: 34px;
+
+    font-size: 23px;
+  }
+
+  .report-modal-form {
+    padding: 20px 17px 0;
+  }
+
+  .professional-section-title {
+    margin-bottom: 16px;
+  }
+
+  .professional-section-title h3 {
+    font-size: 14px;
+  }
+
+  .professional-form-group input,
+  .professional-form-group select {
+    height: 42px;
+  }
+
+  .professional-modal-footer {
     flex-direction: column-reverse;
+
     align-items: stretch;
+
+    gap: 9px;
+
+    padding: 15px 0 18px;
   }
 
-  .report-cancel-btn,
-  .report-save-btn {
+  .professional-cancel-btn,
+  .professional-save-btn {
     width: 100%;
+  }
+}
+
+@keyframes reportMobileEnter {
+  from {
+    opacity: 0;
+    transform: translateY(35px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .report-modal-overlay,
+  .report-modal,
+  .professional-modal-icon,
+  .professional-spinner {
+    animation: none !important;
+  }
+
+  .professional-modal-close,
+  .professional-form-group input,
+  .professional-form-group select,
+  .professional-form-group textarea,
+  .professional-cancel-btn,
+  .professional-save-btn {
+    transition: none !important;
   }
 }

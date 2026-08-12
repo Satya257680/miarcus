@@ -1,865 +1,478 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import "../styles/AddReportModal.css";
 
-import {
-  createRule,
-  updateRule,
-} from "../services/nsoRuleService";
-
-import { getQuestions } from "../services/questionService";
-
-import { getDepartments } from "../services/departmentService";
-
-import "../styles/AddRuleModal.css";
-import ProfessionalModal from "./common/ProfessionalModal";
-
-function AddRuleModal({
-
-  isOpen,
-
-  onClose,
-
-  onSuccess,
-
-  editData = null,
-
+function AddReportModal({
+  editData,
+  closeModal,
+  refresh,
 }) {
-
-  // ==========================================
-  // States
-  // ==========================================
-
-  const [questions, setQuestions] = useState([]);
-
-  const [departments, setDepartments] = useState([]);
-
-  const [loading, setLoading] = useState(false);
+  const [managerName, setManagerName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [status, setStatus] = useState("Active");
 
   const [saving, setSaving] = useState(false);
 
-  const [departmentSearch, setDepartmentSearch] = useState("");
+  // =====================================================
+  // DEPARTMENT OPTIONS
+  // =====================================================
 
-  const [form, setForm] = useState({
+  const departmentOptions = [
+    "Accounts",
+    "Buying",
+    "Customer Support",
+    "Design",
+    "E-commerce",
+    "HR",
+    "IT Department",
+    "Maintenance",
+    "Management",
+    "Marketing",
+    "Quality",
+    "Store Personnel",
+    "VM",
+    "Warehouse",
+  ];
 
-    trigger_column: "",
+  // =====================================================
+  // DESIGNATION OPTIONS
+  // =====================================================
 
-    expected_answer: "No",
+  const designationOptions = [
+    "Manager",
+    "ASM",
+    "Regional Head",
+    "City Manager",
+    "Team Lead",
+    "Supervisor",
+    "Executive",
+  ];
 
-    priority: "Medium",
-
-    sla_days: 3,
-
-    create_action_point: 1,
-
-    mandatory: 1,
-
-    is_active: 1,
-
-    departments: [],
-
-  });
-
-  // ==========================================
-  // Filter Departments
-  // ==========================================
-
-  const filteredDepartments = departments.filter(
-
-    (department) =>
-
-      department.department_name
-
-        .toLowerCase()
-
-        .includes(
-
-          departmentSearch.toLowerCase()
-
-        )
-
-  );
-
-  // ==========================================
-  // Load Questions & Departments
-  // ==========================================
+  // =====================================================
+  // LOAD EDIT DATA
+  // =====================================================
 
   useEffect(() => {
-
-    if (!isOpen) return;
-
-    loadData();
-
-  }, [isOpen]);
-
-  // ==========================================
-  // Populate Edit Data
-  // ==========================================
-
-  useEffect(() => {
-
-    if (!editData) {
-
-      setForm({
-
-        trigger_column: "",
-
-        expected_answer: "No",
-
-        priority: "Medium",
-
-        sla_days: 3,
-
-        create_action_point: 1,
-
-        mandatory: 1,
-
-        is_active: 1,
-
-        departments: [],
-
-      });
-
-      return;
-
+    if (editData) {
+      setManagerName(editData.manager_name || "");
+      setDepartment(editData.department || "");
+      setDesignation(editData.designation || "");
+      setStatus(editData.status || "Active");
+    } else {
+      resetForm();
     }
+  }, [editData]);
 
-    const selectedDepartmentIds = departments
+  // =====================================================
+  // RESET FORM
+  // =====================================================
 
-      .filter((department) => {
-
-        const names =
-
-          editData.departments
-
-            ?.split(",")
-
-            .map((item) => item.trim()) || [];
-
-        return names.includes(
-
-          department.department_name
-
-        );
-
-      })
-
-      .map((department) => department.id);
-
-    setForm({
-
-      trigger_column:
-        editData.trigger_column || "",
-
-      expected_answer:
-        editData.expected_answer || "No",
-
-      priority:
-        editData.priority || "Medium",
-
-      sla_days:
-        editData.sla_days || 3,
-
-      create_action_point:
-        editData.create_action_point ?? 1,
-
-      mandatory:
-        editData.mandatory ?? 1,
-
-      is_active:
-        editData.is_active ?? 1,
-
-      departments:
-        selectedDepartmentIds,
-
-    });
-
-  }, [
-
-    editData,
-
-    departments,
-
-  ]);
-
-  // ==========================================
-  // Load Dropdown Data
-  // ==========================================
-
-  const loadData = async () => {
-
-    try {
-
-      setLoading(true);
-
-      const questionRes = await getQuestions();
-
-      const departmentRes = await getDepartments();
-
-      setQuestions(
-
-        questionRes.data || []
-
-      );
-
-      setDepartments(
-
-        departmentRes.data || []
-
-      );
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(
-
-        "Failed to load dropdown data."
-
-      );
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+  const resetForm = () => {
+    setManagerName("");
+    setDepartment("");
+    setDesignation("");
+    setStatus("Active");
   };
 
-  // ==========================================
-  // Handle Input Change
-  // ==========================================
+  // =====================================================
+  // CLOSE MODAL
+  // =====================================================
 
-  const handleChange = (e) => {
+  const handleClose = () => {
+    if (saving) return;
 
-  const { name, value } = e.target;
-
-  let newValue = value;
-
-  if (
-    name === "sla_days" ||
-    name === "create_action_point" ||
-    name === "mandatory" ||
-    name === "is_active"
-  ) {
-    newValue = Number(value);
-  }
-
-  setForm((prev) => ({
-
-    ...prev,
-
-    [name]: newValue,
-
-  }));
-
-};
-  // ==========================================
-  // Toggle Department
-  // ==========================================
-
-  const toggleDepartment = (id) => {
-
-    setForm((prev) => {
-
-      const exists = prev.departments.includes(id);
-
-      return {
-
-        ...prev,
-
-        departments: exists
-
-          ? prev.departments.filter(
-
-              (item) => item !== id
-
-            )
-
-          : [
-
-              ...prev.departments,
-
-              id,
-
-            ],
-
-      };
-
-    });
-
+    resetForm();
+    closeModal();
   };
 
-  // ==========================================
-  // Handle Submit
-  // ==========================================
+  // =====================================================
+  // SUBMIT
+  // =====================================================
 
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
-    if (!form.trigger_column) {
+    // -----------------------------------------------------
+    // VALIDATION
+    // -----------------------------------------------------
 
-      alert("Please select Trigger Column.");
-
+    if (!managerName.trim()) {
+      alert("Manager Name is required.");
       return;
-
     }
 
-    if (form.departments.length === 0) {
-
-      alert("Please select at least one Department.");
-
+    if (!department) {
+      alert("Please select a Department.");
       return;
-
     }
+
+    if (!designation) {
+      alert("Please select a Designation.");
+      return;
+    }
+
+    const data = {
+      manager_name: managerName.trim(),
+      department,
+      designation,
+      status,
+    };
+
+    // -----------------------------------------------------
+    // SAVE
+    // -----------------------------------------------------
 
     try {
-
       setSaving(true);
 
-     const payload = {
-
-    trigger_column: form.trigger_column,
-
-    expected_answer: form.expected_answer,
-
-    priority: form.priority,
-
-    sla_days: form.sla_days,
-
-    create_action_point: form.create_action_point,
-
-    mandatory: form.mandatory,
-
-    is_active: form.is_active,
-
-    departments: form.departments,
-
-};
       if (editData) {
-
-        await updateRule(
-
-          editData.id,
-
-          payload
-
+        await axios.put(
+          `https://miarcus-backend.onrender.com/api/reports/${editData.id}`,
+          data
         );
-
-        alert(
-
-          "Rule updated successfully."
-
-        );
-
       } else {
-
-        await createRule(payload);
-
-        alert(
-
-          "Rule created successfully."
-
+        await axios.post(
+          "https://miarcus-backend.onrender.com/api/reports",
+          data
         );
-
       }
 
-      if (onSuccess) {
-
-        onSuccess();
-
+      // Refresh parent table
+      if (typeof refresh === "function") {
+        await refresh();
       }
 
-      onClose();
-
-      setForm({
-
-    trigger_column: "",
-
-    expected_answer: "No",
-
-    priority: "Medium",
-
-    sla_days: 3,
-
-    create_action_point: 1,
-
-    mandatory: 1,
-
-    is_active: 1,
-
-    departments: [],
-
-});
-      setDepartmentSearch("");
+      // Close modal
+      resetForm();
+      closeModal();
 
     } catch (err) {
+      console.error("Report save error:", err);
 
-      console.error(err);
-
-      alert(
-
-        err.response?.data?.message ||
-
-        "Failed to save rule."
-
+      console.log(
+        "Response:",
+        err.response?.data
       );
 
+      alert(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message ||
+          "Unable to save manager."
+      );
     } finally {
-
       setSaving(false);
-
     }
-
   };
 
-  // ==========================================
-  // Don't Render if Closed
-  // ==========================================
-
-  if (!isOpen) return null;
-
-  // ==========================================
-  // JSX
-  // ==========================================
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
+    <div
+      className="report-modal-overlay"
+      onMouseDown={(e) => {
+        if (
+          e.target === e.currentTarget &&
+          !saving
+        ) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className="report-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-modal-title"
+      >
 
-    <div className="modal-overlay">
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-      <div className="modal">
+        <div className="report-modal-header">
 
-        <div className="modal-header">
+          <div className="report-header-content">
 
-          <h2>
+            <div className="report-modal-icon">
+              <span>
+                {editData ? "✎" : "+"}
+              </span>
+            </div>
 
-            {editData
+            <div className="report-header-text">
 
-              ? "Edit NSO Rule"
+              <h2 id="report-modal-title">
+                {editData
+                  ? "Edit Manager"
+                  : "Add Manager"}
+              </h2>
 
-              : "Add NSO Rule"}
+              <p>
+                {editData
+                  ? "Update manager information and reporting details."
+                  : "Create a new reporting manager for your organization."}
+              </p>
 
-          </h2>
+            </div>
+
+          </div>
 
           <button
-
-            className="close-btn"
-
-            onClick={onClose}
-
+            type="button"
+            className="report-close-btn"
+            onClick={handleClose}
+            disabled={saving}
+            aria-label="Close"
+            title="Close"
           >
-
-            ✕
-
+            ×
           </button>
 
         </div>
 
-        {loading ? (
+        {/* =================================================
+            FORM
+        ================================================= */}
 
-          <div className="loading-container">
+        <form
+          className="report-modal-form"
+          onSubmit={handleSubmit}
+        >
 
-            Loading...
+          {/* =================================================
+              INFORMATION SECTION
+          ================================================= */}
+
+          <div className="report-form-section">
+
+            <div className="report-section-title">
+
+              <span className="report-section-line"></span>
+
+              <div>
+                <h3>Manager Information</h3>
+
+                <p>
+                  Enter the manager's organizational details.
+                </p>
+              </div>
+
+            </div>
+
+            {/* =================================================
+                FORM GRID
+            ================================================= */}
+
+            <div className="report-form-grid">
+
+              {/* =================================================
+                  MANAGER NAME
+              ================================================= */}
+
+              <div className="report-form-group">
+
+                <label htmlFor="managerName">
+                  Manager Name
+                  <span className="required-star">*</span>
+                </label>
+
+                <input
+                  id="managerName"
+                  type="text"
+                  placeholder="Enter manager name"
+                  value={managerName}
+                  onChange={(e) =>
+                    setManagerName(e.target.value)
+                  }
+                  autoComplete="off"
+                  disabled={saving}
+                />
+
+              </div>
+
+              {/* =================================================
+                  DEPARTMENT
+              ================================================= */}
+
+              <div className="report-form-group">
+
+                <label htmlFor="department">
+                  Department
+                  <span className="required-star">*</span>
+                </label>
+
+                <div className="report-select-wrapper">
+
+                  <select
+                    id="department"
+                    value={department}
+                    onChange={(e) =>
+                      setDepartment(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+
+                    <option value="">
+                      Select Department
+                    </option>
+
+                    {departmentOptions.map(
+                      (item) => (
+                        <option
+                          key={item}
+                          value={item}
+                        >
+                          {item}
+                        </option>
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  DESIGNATION
+              ================================================= */}
+
+              <div className="report-form-group">
+
+                <label htmlFor="designation">
+                  Designation
+                  <span className="required-star">*</span>
+                </label>
+
+                <div className="report-select-wrapper">
+
+                  <select
+                    id="designation"
+                    value={designation}
+                    onChange={(e) =>
+                      setDesignation(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+
+                    <option value="">
+                      Select Designation
+                    </option>
+
+                    {designationOptions.map(
+                      (item) => (
+                        <option
+                          key={item}
+                          value={item}
+                        >
+                          {item}
+                        </option>
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  STATUS
+              ================================================= */}
+
+              <div className="report-form-group">
+
+                <label htmlFor="status">
+                  Status
+                </label>
+
+                <div className="report-select-wrapper">
+
+                  <select
+                    id="status"
+                    value={status}
+                    onChange={(e) =>
+                      setStatus(e.target.value)
+                    }
+                    disabled={saving}
+                  >
+
+                    <option value="Active">
+                      Active
+                    </option>
+
+                    <option value="Inactive">
+                      Inactive
+                    </option>
+
+                  </select>
+
+                </div>
+
+              </div>
+
+            </div>
 
           </div>
 
-        ) : (
-
-          <form onSubmit={handleSubmit}>
-
-           {/* ================= Trigger Column ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Trigger Column
-
-  </label>
-
-  <select
-
-    name="trigger_column"
-
-    value={form.trigger_column}
-
-    onChange={handleChange}
-
-    required
-
-  >
-
-    <option value="">
-
-      Select Trigger Column
-
-    </option>
-
-    {questions.map((question) => (
-
-      <option
-
-        key={question.id}
-
-        value={question.question}
-
-      >
-
-        {question.question}
-
-      </option>
-
-    ))}
-
-  </select>
-
-</div>
-
-{/* ================= Expected Answer ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Expected Answer
-
-  </label>
-
-  <select
-
-    name="expected_answer"
-
-    value={form.expected_answer}
-
-    onChange={handleChange}
-
-  >
-
-    <option value="Yes">Yes</option>
-
-    <option value="No">No</option>
-
-    <option value="NA">NA</option>
-
-  </select>
-
-</div>
-
-{/* ================= Priority ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Priority
-
-  </label>
-
-  <select
-
-    name="priority"
-
-    value={form.priority}
-
-    onChange={handleChange}
-
-  >
-
-    <option value="Low">Low</option>
-
-    <option value="Medium">Medium</option>
-
-    <option value="High">High</option>
-
-    <option value="Critical">Critical</option>
-
-  </select>
-
-</div>
-
-{/* ================= SLA Days ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    SLA Days
-
-  </label>
-
-  <input
-
-    type="number"
-
-    name="sla_days"
-
-    min="1"
-
-    value={form.sla_days}
-
-    onChange={handleChange}
-
-  />
-
-</div>
-
-{/* ================= Create Action Point ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Create Action Point
-
-  </label>
-
-  <select
-
-    name="create_action_point"
-
-    value={form.create_action_point}
-
-    onChange={handleChange}
-
-  >
-
-    <option value={1}>Yes</option>
-
-    <option value={0}>No</option>
-
-  </select>
-
-</div>
-
-{/* ================= Mandatory ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Mandatory
-
-  </label>
-
-  <select
-
-    name="mandatory"
-
-    value={form.mandatory}
-
-    onChange={handleChange}
-
-  >
-
-    <option value={1}>Yes</option>
-
-    <option value={0}>No</option>
-
-  </select>
-
-</div>
-
-{/* ================= Status ================= */}
-
-<div className="form-group">
-
-  <label>
-
-    Status
-
-  </label>
-
-  <select
-
-    name="is_active"
-
-    value={form.is_active}
-
-    onChange={handleChange}
-
-  >
-
-    <option value={1}>Active</option>
-
-    <option value={0}>Inactive</option>
-
-  </select>
-
-</div>
-
-{/* ================= Departments ================= */}
-
-<div className="form-group full-width">
-
-  <label>
-
-    Assigned Departments
-
-  </label>
-
-  <input
-
-    type="text"
-
-    className="department-search"
-
-    placeholder="Search departments..."
-
-    value={departmentSearch}
-
-    onChange={(e) =>
-
-      setDepartmentSearch(
-
-        e.target.value
-
-      )
-
-    }
-
-  />
-
-  <div className="department-box">
-
-    {filteredDepartments.length > 0 ? (
-
-      filteredDepartments.map((department) => (
-
-        <label
-
-          key={department.id}
-
-          htmlFor={`department-${department.id}`}
-
-          className="department-row"
-
-        >
-
-          <input
-
-            id={`department-${department.id}`}
-
-            type="checkbox"
-
-            checked={form.departments.includes(
-
-              department.id
-
-            )}
-
-            onChange={() =>
-
-              toggleDepartment(
-
-                department.id
-
-              )
-
-            }
-
-          />
-
-          <span>
-
-            {department.department_name}
-
-          </span>
-
-        </label>
-
-      ))
-
-    ) : (
-
-      <div className="no-department">
-
-        No departments found.
+          {/* =================================================
+              FOOTER
+          ================================================= */}
+
+          <div className="report-modal-footer">
+
+            <button
+              type="button"
+              className="report-cancel-btn"
+              onClick={handleClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="report-save-btn"
+              disabled={saving}
+            >
+
+              {saving ? (
+                <>
+                  <span className="report-spinner"></span>
+
+                  <span>
+                    {editData
+                      ? "Updating..."
+                      : "Saving..."}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="report-save-icon">
+                    {editData ? "✓" : "+"}
+                  </span>
+
+                  <span>
+                    {editData
+                      ? "Update Manager"
+                      : "Save Manager"}
+                  </span>
+                </>
+              )}
+
+            </button>
+
+          </div>
+
+        </form>
 
       </div>
-
-    )}
-
-  </div>
-
-</div>
-
-{/* ================= Buttons ================= */}
-
-<div className="modal-actions">
-
-  <button
-
-    type="submit"
-
-    className="save-btn"
-
-    disabled={saving}
-
-  >
-
-    {saving
-
-      ? "Saving..."
-
-      : editData
-
-      ? "Update Rule"
-
-      : "Create Rule"}
-
-  </button>
-
-  <button
-
-    type="button"
-
-    className="cancel-btn"
-
-    onClick={() => {
-
-      setForm({
-
-        trigger_column: "",
-
-        expected_answer: "No",
-
-        priority: "Medium",
-
-        sla_days: 3,
-
-        create_action_point: 1,
-
-        mandatory: 1,
-
-        is_active: 1,
-
-        departments: [],
-
-      });
-
-      setDepartmentSearch("");
-
-      onClose();
-
-    }}
-
-  >
-
-    Cancel
-
-  </button>
-
-</div>
-
-</form>
-
-)}
-
-</div>
-
-</div>
-
-);
-
+    </div>
+  );
 }
 
-export default AddRuleModal;
+export default AddReportModal;

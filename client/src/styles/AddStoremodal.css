@@ -1,761 +1,795 @@
 /* =========================================================
    ADD / EDIT STORE MODAL
-   Clean + Professional + Animated
-   ========================================================= */
-
-
-/* =========================================================
-   OVERLAY
-   ========================================================= */
+   Professional Global Style
+========================================================= */
 
 .store-modal-overlay {
-    position: fixed;
-    inset: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
 
-    width: 100%;
-    height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  padding: 24px;
 
-    padding: 24px;
+  background: rgba(15, 32, 38, 0.58);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 
-    background: rgba(15, 23, 42, 0.52);
-
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-
-    z-index: 9999;
-
-    overflow-y: auto;
-
-    animation: storeOverlayIn 0.22s ease-out;
+  animation: storeOverlayIn 0.22s ease-out;
 }
-
-
-@keyframes storeOverlayIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
 
 /* =========================================================
-   MAIN MODAL
-   ========================================================= */
+   MODAL
+========================================================= */
 
 .store-modal {
-    position: relative;
+  width: min(900px, 100%);
 
-    width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
 
-    max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
 
-    display: flex;
-    flex-direction: column;
+  background: #ffffff;
 
-    background: #ffffff;
+  border: 1px solid rgba(157, 185, 191, 0.5);
+  border-radius: 18px;
 
-    border: 1px solid #dce5ea;
+  box-shadow:
+    0 30px 70px rgba(25, 55, 65, 0.22),
+    0 8px 25px rgba(25, 55, 65, 0.12);
 
-    border-radius: 14px;
+  overflow: hidden;
 
-    box-shadow:
-        0 20px 50px rgba(15, 23, 42, 0.18),
-        0 6px 18px rgba(15, 23, 42, 0.08);
-
-    overflow: hidden;
+  animation: storeModalIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
-
-/* =========================================================
-   MODAL ANIMATION
-   ========================================================= */
-
-.store-modal-animated {
-    animation:
-        storeModalIn
-        0.32s
-        cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-
-@keyframes storeModalIn {
-    from {
-        opacity: 0;
-        transform: translateY(28px) scale(0.97);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
 
 /* =========================================================
    HEADER
-   ========================================================= */
+========================================================= */
 
 .store-modal-header {
-    min-height: 82px;
+  position: relative;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-    padding: 18px 22px;
+  padding: 22px 26px;
 
-    background: #ffffff;
+  background:
+    linear-gradient(
+      135deg,
+      #d9edf1 0%,
+      #c6e2e7 48%,
+      #b7d7df 100%
+    );
 
-    border-bottom: 1px solid #e7edf1;
-
-    flex-shrink: 0;
+  border-bottom: 1px solid #b5cdd2;
 }
 
+/* Decorative line */
 
-.modal-header-content {
-    display: flex;
-    align-items: center;
+.store-modal-header::after {
+  content: "";
 
-    gap: 13px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
 
-    min-width: 0;
+  height: 3px;
+
+  background: linear-gradient(
+    90deg,
+    #3f6b78,
+    #6f9da8,
+    #3f6b78
+  );
+
+  background-size: 200% 100%;
+
+  animation: storeHeaderLine 4s linear infinite;
 }
 
+/* =========================================================
+   HEADER CONTENT
+========================================================= */
 
-.modal-header-icon {
-    width: 42px;
-    height: 42px;
+.store-header-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    flex-shrink: 0;
-
-    border-radius: 10px;
-
-    background: #e8f3f6;
-
-    color: #3f6b78;
-
-    font-size: 22px;
-    font-weight: 700;
+  min-width: 0;
 }
 
+.store-header-icon {
+  width: 48px;
+  height: 48px;
 
-.modal-header-icon span {
-    line-height: 1;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 13px;
+
+  color: #ffffff;
+  background: #3f6b78;
+
+  box-shadow:
+    0 7px 16px rgba(63, 107, 120, 0.25);
+
+  animation: storeIconPop 0.45s ease-out 0.08s both;
 }
 
-
-.modal-header-content h2 {
-    margin: 0;
-
-    color: #24343d;
-
-    font-size: 20px;
-    font-weight: 700;
-
-    line-height: 1.25;
+.store-header-icon span {
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 600;
 }
 
+/* =========================================================
+   HEADER TEXT
+========================================================= */
 
-.modal-header-content p {
-    margin: 4px 0 0;
+.store-modal-header h2 {
+  margin: 0;
 
-    color: #7a8991;
+  color: #17353e;
 
-    font-size: 12px;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 700;
 
-    line-height: 1.4;
+  letter-spacing: -0.2px;
 }
 
+.store-modal-header p {
+  margin: 5px 0 0;
+
+  color: #5c737a;
+
+  font-size: 13px;
+  line-height: 1.45;
+}
 
 /* =========================================================
    CLOSE BUTTON
-   ========================================================= */
+========================================================= */
 
-.modal-close-btn {
-    width: 34px;
-    height: 34px;
+.store-close-btn {
+  width: 38px;
+  height: 38px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  flex-shrink: 0;
 
-    flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    padding: 0;
+  border: 1px solid rgba(63, 107, 120, 0.2);
+  border-radius: 10px;
 
-    border: none;
-    border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #4f6870;
 
-    background: transparent;
+  font-size: 25px;
+  line-height: 1;
 
-    color: #7b8790;
+  cursor: pointer;
 
-    font-size: 25px;
-
-    line-height: 1;
-
-    cursor: pointer;
-
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
+.store-close-btn:hover {
+  background: #ffffff;
+  color: #c43f3f;
 
-.modal-close-btn:hover {
-    background: #f1f5f7;
+  transform: rotate(90deg);
 
-    color: #33434c;
-
-    transform: rotate(90deg);
+  box-shadow:
+    0 5px 14px rgba(30, 60, 70, 0.12);
 }
 
-
-.modal-close-btn:active {
-    transform: rotate(90deg) scale(0.92);
+.store-close-btn:active {
+  transform: rotate(90deg) scale(0.92);
 }
-
 
 /* =========================================================
    FORM
-   ========================================================= */
+========================================================= */
 
 .store-form {
-    min-height: 0;
+  flex: 1;
 
-    display: flex;
-    flex-direction: column;
+  overflow-y: auto;
 
-    overflow-y: auto;
-    overflow-x: hidden;
+  padding: 24px 26px 0;
 
-    scrollbar-width: thin;
-    scrollbar-color: #c6d3d8 transparent;
+  scrollbar-width: thin;
+  scrollbar-color: #aac5cb transparent;
 }
-
 
 .store-form::-webkit-scrollbar {
-    width: 6px;
+  width: 7px;
 }
-
 
 .store-form::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
-
 
 .store-form::-webkit-scrollbar-thumb {
-    background: #c6d3d8;
-
-    border-radius: 10px;
+  background: #aac5cb;
+  border-radius: 20px;
 }
-
 
 .store-form::-webkit-scrollbar-thumb:hover {
-    background: #aebfc6;
+  background: #7fabb5;
 }
-
 
 /* =========================================================
-   FORM SECTION
-   ========================================================= */
+   SECTION
+========================================================= */
 
-.store-form-section {
-    padding: 20px 22px;
+.store-section {
+  margin-bottom: 23px;
 
-    border-bottom: 1px solid #edf1f3;
+  padding: 20px;
+
+  background: #fbfdfe;
+
+  border: 1px solid #e1ebee;
+  border-radius: 14px;
+
+  animation: storeSectionIn 0.4s ease both;
 }
 
+.store-section:nth-of-type(2) {
+  animation-delay: 0.06s;
+}
 
 /* =========================================================
-   SECTION TITLE
-   ========================================================= */
+   SECTION HEADING
+========================================================= */
 
-.section-title {
-    display: flex;
-    align-items: flex-start;
+.store-section-heading {
+  display: flex;
+  align-items: flex-start;
 
-    gap: 9px;
+  gap: 11px;
 
-    margin-bottom: 17px;
+  margin-bottom: 18px;
 }
 
+.store-section-line {
+  width: 4px;
+  min-height: 38px;
 
-.section-line {
-    width: 3px;
-    min-width: 3px;
+  flex-shrink: 0;
 
-    height: 22px;
+  margin-top: 1px;
 
-    margin-top: 1px;
+  border-radius: 10px;
 
-    border-radius: 5px;
-
-    background: #5d8b98;
+  background: #3f6b78;
 }
 
+.store-section-heading h3 {
+  margin: 0;
 
-.section-title h3 {
-    margin: 0;
+  color: #23444d;
 
-    color: #34464f;
-
-    font-size: 14px;
-    font-weight: 700;
-
-    line-height: 1.5;
+  font-size: 15px;
+  font-weight: 700;
 }
 
+.store-section-heading p {
+  margin: 4px 0 0;
 
-.section-title p {
-    margin: 2px 0 0;
+  color: #789097;
 
-    color: #89969d;
-
-    font-size: 11px;
-
-    line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.4;
 }
-
 
 /* =========================================================
    FORM GRID
-   ========================================================= */
+========================================================= */
 
-.form-grid {
-    display: grid;
+.store-form-grid {
+  display: grid;
 
-    grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
 
-    gap: 16px;
+  gap: 17px 18px;
 }
 
-
 /* =========================================================
-   FORM GROUP
-   ========================================================= */
+   FIELD
+========================================================= */
 
 .store-field {
-    display: flex;
-    flex-direction: column;
+  min-width: 0;
 
-    min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
-
 
 .store-field label {
-    margin-bottom: 7px;
+  margin-bottom: 7px;
 
-    color: #44555e;
+  color: #334f57;
 
-    font-size: 12px;
-    font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  letter-spacing: 0.1px;
 }
-
 
 .required {
-    margin-left: 3px;
+  margin-left: 3px;
 
-    color: #e74c3c;
+  color: #d94a4a;
+
+  font-weight: 700;
 }
 
-
 /* =========================================================
-   INPUT / TEXTAREA / SELECT
-   ========================================================= */
+   INPUTS
+========================================================= */
 
 .store-field input,
 .store-field textarea,
 .store-field select {
-    width: 100%;
+  width: 100%;
 
-    box-sizing: border-box;
+  box-sizing: border-box;
 
-    border: 1px solid #d5e0e5;
+  border: 1px solid #cbdde1;
+  border-radius: 9px;
 
-    border-radius: 7px;
+  background: #ffffff;
+  color: #29434b;
 
-    background: #fbfcfd;
+  font-family: inherit;
+  font-size: 13px;
 
-    color: #2f3e46;
+  outline: none;
 
-    font-family: inherit;
-
-    font-size: 13px;
-
-    outline: none;
-
-    transition:
-        border-color 0.2s ease,
-        background-color 0.2s ease,
-        box-shadow 0.2s ease,
-        transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease,
+    background 0.2s ease;
 }
-
 
 .store-field input,
 .store-field select {
-    height: 40px;
+  height: 43px;
 
-    padding: 0 12px;
+  padding: 0 13px;
 }
-
 
 .store-field textarea {
-    min-height: 90px;
+  min-height: 82px;
 
-    padding: 10px 12px;
+  padding: 11px 13px;
 
-    resize: vertical;
-
-    line-height: 1.5;
+  resize: vertical;
 }
 
+/* Placeholder */
 
 .store-field input::placeholder,
 .store-field textarea::placeholder {
-    color: #a6b1b7;
+  color: #a2b3b8;
 }
 
+/* Hover */
 
-/* =========================================================
-   FOCUS
-   ========================================================= */
+.store-field input:hover,
+.store-field textarea:hover,
+.store-field select:hover {
+  border-color: #9dbdc5;
+}
+
+/* Focus */
 
 .store-field input:focus,
 .store-field textarea:focus,
 .store-field select:focus {
-    border-color: #6f9eaa;
+  border-color: #5f8d99;
 
-    background: #ffffff;
+  background: #ffffff;
 
-    box-shadow:
-        0 0 0 3px rgba(93, 139, 152, 0.12);
+  box-shadow:
+    0 0 0 3px rgba(95, 141, 153, 0.12);
 
-    transform: translateY(-1px);
+  transform: translateY(-1px);
 }
 
+/* =========================================================
+   SELECT
+========================================================= */
+
+.store-select-wrapper {
+  position: relative;
+}
+
+.store-select-wrapper::after {
+  content: "⌄";
+
+  position: absolute;
+
+  top: 50%;
+  right: 13px;
+
+  transform: translateY(-54%);
+
+  color: #5f7b83;
+
+  font-size: 17px;
+
+  pointer-events: none;
+}
+
+.store-select-wrapper select {
+  appearance: none;
+  -webkit-appearance: none;
+
+  padding-right: 38px;
+
+  cursor: pointer;
+}
 
 /* =========================================================
    FULL WIDTH
-   ========================================================= */
+========================================================= */
 
-.full-width {
-    grid-column: 1 / -1;
+.store-full-width {
+  grid-column: 1 / -1;
 }
-
-
-/* =========================================================
-   SELECT WRAPPER
-   ========================================================= */
-
-.select-wrapper {
-    position: relative;
-}
-
-
-.select-wrapper select {
-    appearance: none;
-    -webkit-appearance: none;
-
-    padding-right: 34px;
-
-    cursor: pointer;
-}
-
-
-.select-wrapper::after {
-    content: "⌄";
-
-    position: absolute;
-
-    top: 50%;
-    right: 12px;
-
-    transform: translateY(-55%);
-
-    color: #71818a;
-
-    font-size: 15px;
-
-    pointer-events: none;
-}
-
 
 /* =========================================================
    FOOTER
-   ========================================================= */
+========================================================= */
 
 .store-modal-footer {
-    display: flex;
+  position: sticky;
+  bottom: 0;
 
-    align-items: center;
-    justify-content: flex-end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 
-    gap: 10px;
+  gap: 11px;
 
-    padding: 16px 22px;
+  margin: 0 -26px;
 
-    background: #fafcfd;
+  padding: 17px 26px;
 
-    border-top: 1px solid #e7edf0;
+  background: rgba(255, 255, 255, 0.96);
 
-    flex-shrink: 0;
+  border-top: 1px solid #e0eaed;
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-
-
-/* =========================================================
-   BUTTONS
-   ========================================================= */
-
-.store-modal-footer button {
-    height: 38px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 7px;
-
-    padding: 0 17px;
-
-    border-radius: 7px;
-
-    font-family: inherit;
-
-    font-size: 12px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.15s ease,
-        box-shadow 0.2s ease;
-}
-
 
 /* =========================================================
    CANCEL
-   ========================================================= */
+========================================================= */
 
 .store-cancel-btn {
-    min-width: 85px;
+  min-width: 100px;
+  height: 42px;
 
-    border: 1px solid #d2dde2;
+  padding: 0 19px;
 
-    background: #ffffff;
+  border: 1px solid #cbdde1;
+  border-radius: 9px;
 
-    color: #596a73;
+  background: #ffffff;
+  color: #536b72;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
-
 
 .store-cancel-btn:hover {
-    background: #f3f6f7;
+  border-color: #9eb8be;
 
-    border-color: #c2d0d5;
+  background: #f5f9fa;
 
-    color: #35464f;
+  transform: translateY(-1px);
 
-    transform: translateY(-1px);
+  box-shadow:
+    0 5px 12px rgba(35, 68, 77, 0.08);
 }
-
 
 .store-cancel-btn:active {
-    transform: scale(0.98);
+  transform: translateY(0) scale(0.98);
 }
 
-
 /* =========================================================
-   SAVE
-   ========================================================= */
+   SAVE BUTTON
+========================================================= */
 
 .store-save-btn {
-    min-width: 130px;
+  min-width: 155px;
+  height: 42px;
 
-    border: 1px solid #4f7f8d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-    background: #527f8c;
+  gap: 8px;
 
-    color: #ffffff;
+  padding: 0 20px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: linear-gradient(
+    135deg,
+    #3f6b78,
+    #315b68
+  );
+
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 7px 16px rgba(63, 107, 120, 0.23);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
 }
-
 
 .store-save-btn:hover {
-    background: #426d7a;
+  filter: brightness(1.06);
 
-    border-color: #426d7a;
+  transform: translateY(-2px);
 
-    box-shadow:
-        0 4px 10px rgba(66, 109, 122, 0.22);
-
-    transform: translateY(-1px);
+  box-shadow:
+    0 10px 22px rgba(63, 107, 120, 0.30);
 }
-
 
 .store-save-btn:active {
-    transform: scale(0.98);
+  transform: translateY(0) scale(0.98);
 
-    box-shadow: none;
+  box-shadow:
+    0 5px 12px rgba(63, 107, 120, 0.2);
 }
 
+.store-save-icon {
+  width: 20px;
+  height: 20px;
 
-/* =========================================================
-   SAVE ICON
-   ========================================================= */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-.save-btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  border-radius: 50%;
 
-    font-size: 14px;
-    font-weight: 700;
+  background: rgba(255, 255, 255, 0.18);
 
-    line-height: 1;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-
 /* =========================================================
-   FOCUS ACCESSIBILITY
-   ========================================================= */
+   ANIMATIONS
+========================================================= */
 
-.store-modal-footer button:focus-visible,
-.modal-close-btn:focus-visible {
-    outline: 3px solid rgba(93, 139, 152, 0.22);
+@keyframes storeOverlayIn {
+  from {
+    opacity: 0;
+  }
 
-    outline-offset: 2px;
+  to {
+    opacity: 1;
+  }
 }
 
+@keyframes storeModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
 
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-    .store-modal-overlay {
-        align-items: flex-start;
-
-        padding: 15px;
-    }
-
-
-    .store-modal {
-        width: 100%;
-
-        max-height: calc(100vh - 30px);
-
-        border-radius: 12px;
-    }
-
-
-    .store-modal-header {
-        padding: 16px;
-    }
-
-
-    .store-form-section {
-        padding: 17px 16px;
-    }
-
-
-    .form-grid {
-        grid-template-columns: 1fr;
-
-        gap: 14px;
-    }
-
-
-    .full-width {
-        grid-column: auto;
-    }
-
-
-    .store-modal-footer {
-        padding: 14px 16px;
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
+@keyframes storeIconPop {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-8deg);
+  }
 
-/* =========================================================
-   SMALL MOBILE
-   ========================================================= */
-
-@media (max-width: 450px) {
-
-    .store-modal-overlay {
-        padding: 8px;
-    }
-
-
-    .store-modal {
-        max-height: calc(100vh - 16px);
-
-        border-radius: 10px;
-    }
-
-
-    .modal-header-icon {
-        width: 36px;
-        height: 36px;
-
-        font-size: 18px;
-    }
-
-
-    .modal-header-content h2 {
-        font-size: 17px;
-    }
-
-
-    .modal-header-content p {
-        font-size: 10px;
-    }
-
-
-    .store-modal-footer {
-        flex-direction: column-reverse;
-
-        align-items: stretch;
-    }
-
-
-    .store-modal-footer button {
-        width: 100%;
-    }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
 }
 
+@keyframes storeSectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes storeHeaderLine {
+  from {
+    background-position: 0% 50%;
+  }
+
+  to {
+    background-position: 200% 50%;
+  }
+}
 
 /* =========================================================
-   REDUCE MOTION
-   ========================================================= */
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 760px) {
+  .store-modal-overlay {
+    padding: 12px;
+  }
+
+  .store-modal {
+    max-height: calc(100vh - 24px);
+
+    border-radius: 15px;
+  }
+
+  .store-modal-header {
+    padding: 18px;
+  }
+
+  .store-form {
+    padding: 18px 18px 0;
+  }
+
+  .store-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .store-full-width {
+    grid-column: auto;
+  }
+
+  .store-section {
+    padding: 16px;
+  }
+
+  .store-modal-footer {
+    margin: 0 -18px;
+
+    padding: 15px 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .store-modal-header {
+    padding: 16px;
+  }
+
+  .store-header-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .store-header-icon span {
+    font-size: 21px;
+  }
+
+  .store-modal-header h2 {
+    font-size: 18px;
+  }
+
+  .store-modal-header p {
+    font-size: 11px;
+  }
+
+  .store-close-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .store-form {
+    padding: 15px 15px 0;
+  }
+
+  .store-section {
+    padding: 14px;
+    margin-bottom: 15px;
+  }
+
+  .store-modal-footer {
+    margin: 0 -15px;
+
+    padding: 13px 15px;
+
+    flex-direction: column-reverse;
+  }
+
+  .store-cancel-btn,
+  .store-save-btn {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+.store-close-btn:focus-visible,
+.store-cancel-btn:focus-visible,
+.store-save-btn:focus-visible,
+.store-field input:focus-visible,
+.store-field textarea:focus-visible,
+.store-field select:focus-visible {
+  outline: 3px solid rgba(63, 107, 120, 0.18);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
+  .store-modal-overlay,
+  .store-modal,
+  .store-header-icon,
+  .store-section,
+  .store-modal-header::after {
+    animation: none;
+  }
 
-    .store-modal-overlay,
-    .store-modal-animated {
-        animation: none;
-    }
-
-
-    .store-modal *,
-    .store-modal *::before,
-    .store-modal *::after {
-        transition: none !important;
-    }
+  .store-close-btn,
+  .store-cancel-btn,
+  .store-save-btn,
+  .store-field input,
+  .store-field textarea,
+  .store-field select {
+    transition: none;
+  }
 }

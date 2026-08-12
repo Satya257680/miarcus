@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import "./DesignationModal.css";
+
 import ProfessionalModal from "../common/ProfessionalModal";
 import EmployeeList from "../Departments/EmployeeList";
+
 import { getUsers } from "../../services/userService";
+
+import "../../styles/common/ProfessionalModal.css";
+import "./DesignationModal.css";
 
 function DesignationModal({
   isOpen,
@@ -11,10 +15,18 @@ function DesignationModal({
   designation,
   departments = [],
 }) {
+  // =====================================================
+  // FORM STATE
+  // =====================================================
+
   const [designationName, setDesignationName] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("Active");
+
+  // =====================================================
+  // EMPLOYEE STATE
+  // =====================================================
 
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -28,24 +40,73 @@ function DesignationModal({
     try {
       const response = await getUsers();
 
-      setUsers(response?.users || []);
-    } catch (err) {
-      console.error("Failed to load users:", err);
+      setUsers(
+        response?.users ||
+        response?.data ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load users:",
+        error
+      );
+
       setUsers([]);
     }
   };
 
   // =====================================================
-  // LOAD DESIGNATION DATA
+  // NORMALIZE ASSIGNED USERS
+  // =====================================================
+
+  const normalizeAssignedUsers = (data) => {
+    if (!data) {
+      return [];
+    }
+
+    if (Array.isArray(data.users)) {
+      return data.users
+        .map((user) =>
+          typeof user === "object"
+            ? user?.id
+            : user
+        )
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(data.assignedUsers)) {
+      return data.assignedUsers
+        .map((user) =>
+          typeof user === "object"
+            ? user?.id
+            : user
+        )
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(data.userIds)) {
+      return data.userIds.filter(Boolean);
+    }
+
+    return [];
+  };
+
+  // =====================================================
+  // LOAD / RESET DESIGNATION
   // =====================================================
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
 
     loadUsers();
 
     if (designation) {
-      console.log("Designation Data:", designation);
+      console.log(
+        "Designation Data:",
+        designation
+      );
 
       setDesignationName(
         designation.designation_name || ""
@@ -63,34 +124,9 @@ function DesignationModal({
         designation.status || "Active"
       );
 
-      // -----------------------------------------
-      // Normalize assigned users
-      // -----------------------------------------
-
-      let assignedUsers = [];
-
-      if (Array.isArray(designation.users)) {
-        assignedUsers = designation.users.map((user) =>
-          typeof user === "object"
-            ? user.id
-            : user
-        );
-      } else if (
-        Array.isArray(designation.assignedUsers)
-      ) {
-        assignedUsers =
-          designation.assignedUsers.map((user) =>
-            typeof user === "object"
-              ? user.id
-              : user
-          );
-      } else if (
-        Array.isArray(designation.userIds)
-      ) {
-        assignedUsers = designation.userIds;
-      }
-
-      setSelectedUsers(assignedUsers);
+      setSelectedUsers(
+        normalizeAssignedUsers(designation)
+      );
     } else {
       setDesignationName("");
       setDepartmentId("");
@@ -106,8 +142,8 @@ function DesignationModal({
   // SUBMIT
   // =====================================================
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (event) => {
+    event.preventDefault();
 
     if (!departmentId) {
       alert("Please select a Department");
@@ -144,291 +180,243 @@ function DesignationModal({
     return null;
   }
 
-  return (
-    <div
-      className="modal-overlay designation-modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
-    >
-      <div
-        className="designation-modal designation-modal-animated"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="designation-modal-title"
-      >
+  // =====================================================
+  // FOOTER
+  // =====================================================
 
+  const modalFooter = (
+    <div className="professional-modal-footer designation-modal-footer">
+      <button
+        type="button"
+        className="professional-btn professional-btn-secondary"
+        onClick={handleClose}
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        form="designation-form"
+        className="professional-btn professional-btn-primary"
+      >
+        <span className="professional-btn-icon">
+          {designation ? "✓" : "+"}
+        </span>
+
+        <span>
+          {designation
+            ? "Update Designation"
+            : "Create Designation"}
+        </span>
+      </button>
+    </div>
+  );
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
+  return (
+    <ProfessionalModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={
+        designation
+          ? "Edit Designation"
+          : "Add Designation"
+      }
+      subtitle={
+        designation
+          ? "Update designation information and assigned employees."
+          : "Create a new designation and assign employees."
+      }
+      icon={designation ? "✎" : "+"}
+      size="large"
+      footer={modalFooter}
+    >
+      <form
+        id="designation-form"
+        className="designation-professional-form"
+        onSubmit={handleSubmit}
+      >
         {/* =================================================
-            HEADER
+            DESIGNATION INFORMATION
         ================================================= */}
 
-        <div className="modal-header designation-modal-header">
-
-          <div className="modal-header-content">
-
-            <div className="modal-header-icon">
-              <span>
-                {designation ? "✎" : "+"}
-              </span>
-            </div>
+        <section className="professional-form-section">
+          <div className="professional-section-heading">
+            <div className="professional-section-indicator" />
 
             <div>
-
-              <h2 id="designation-modal-title">
-                {designation
-                  ? "Edit Designation"
-                  : "Add Designation"}
-              </h2>
+              <h3>Designation Information</h3>
 
               <p>
-                {designation
-                  ? "Update designation information and assigned employees."
-                  : "Create a new designation and assign employees."}
+                Configure the designation and department
+                information.
               </p>
-
             </div>
-
           </div>
 
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={handleClose}
-            aria-label="Close"
-            title="Close"
-          >
-            ×
-          </button>
+          {/* =================================================
+              FIRST ROW
+          ================================================= */}
 
-        </div>
+          <div className="professional-form-grid">
 
+            {/* Department */}
+
+            <div className="professional-field">
+              <label htmlFor="designation-department">
+                Department
+                <span className="required">
+                  *
+                </span>
+              </label>
+
+              <div className="professional-select-wrapper">
+                <select
+                  id="designation-department"
+                  value={departmentId}
+                  onChange={(event) =>
+                    setDepartmentId(
+                      event.target.value
+                    )
+                  }
+                  required
+                >
+                  <option value="">
+                    Select Department
+                  </option>
+
+                  {departments.map((dept) => (
+                    <option
+                      key={dept.id}
+                      value={dept.id}
+                    >
+                      {dept.department_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Designation Name */}
+
+            <div className="professional-field">
+              <label htmlFor="designation-name">
+                Designation Name
+                <span className="required">
+                  *
+                </span>
+              </label>
+
+              <input
+                id="designation-name"
+                type="text"
+                value={designationName}
+                onChange={(event) =>
+                  setDesignationName(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter designation name"
+                autoComplete="off"
+                required
+              />
+            </div>
+          </div>
+
+          {/* =================================================
+              DESCRIPTION
+          ================================================= */}
+
+          <div className="professional-field professional-field-full">
+            <label htmlFor="designation-description">
+              Description
+            </label>
+
+            <textarea
+              id="designation-description"
+              rows="4"
+              value={description}
+              onChange={(event) =>
+                setDescription(
+                  event.target.value
+                )
+              }
+              placeholder="Enter designation description"
+            />
+          </div>
+
+          {/* =================================================
+              STATUS
+          ================================================= */}
+
+          <div className="professional-field designation-status-field">
+            <label htmlFor="designation-status">
+              Status
+            </label>
+
+            <div className="professional-select-wrapper">
+              <select
+                id="designation-status"
+                value={status}
+                onChange={(event) =>
+                  setStatus(event.target.value)
+                }
+              >
+                <option value="Active">
+                  Active
+                </option>
+
+                <option value="Inactive">
+                  Inactive
+                </option>
+              </select>
+            </div>
+          </div>
+        </section>
 
         {/* =================================================
-            FORM
+            ASSIGN EMPLOYEES
         ================================================= */}
 
-        <form
-          onSubmit={handleSubmit}
-          className="designation-form"
-        >
+        <section className="professional-form-section designation-employee-section">
 
-          {/* =================================================
-              BASIC INFORMATION
-          ================================================= */}
+          <div className="professional-section-heading">
 
-          <div className="designation-form-section">
+            <div className="professional-section-indicator" />
 
-            <div className="section-title">
+            <div>
+              <h3>Assign Employees</h3>
 
-              <span className="section-line"></span>
-
-              <h3>
-                Designation Information
-              </h3>
-
+              <p>
+                Select employees who belong to this
+                designation.
+              </p>
             </div>
 
-
-            <div className="designation-form-grid">
-
-              {/* Department */}
-
-              <div className="form-group designation-field">
-
-                <label htmlFor="designation-department">
-                  Department
-                  <span className="required">*</span>
-                </label>
-
-                <div className="select-wrapper">
-
-                  <select
-                    id="designation-department"
-                    value={departmentId}
-                    onChange={(e) =>
-                      setDepartmentId(e.target.value)
-                    }
-                  >
-                    <option value="">
-                      Select Department
-                    </option>
-
-                    {departments.map((dept) => (
-                      <option
-                        key={dept.id}
-                        value={dept.id}
-                      >
-                        {dept.department_name}
-                      </option>
-                    ))}
-
-                  </select>
-
-                </div>
-
-              </div>
-
-
-              {/* Designation */}
-
-              <div className="form-group designation-field">
-
-                <label htmlFor="designation-name">
-                  Designation Name
-                  <span className="required">*</span>
-                </label>
-
-                <input
-                  id="designation-name"
-                  type="text"
-                  value={designationName}
-                  onChange={(e) =>
-                    setDesignationName(e.target.value)
-                  }
-                  placeholder="Enter designation name"
-                  autoComplete="off"
-                />
-
-              </div>
-
-            </div>
-
-
-            {/* Description */}
-
-            <div className="form-group designation-field description-field">
-
-              <label htmlFor="designation-description">
-                Description
-              </label>
-
-              <textarea
-                id="designation-description"
-                rows="3"
-                value={description}
-                onChange={(e) =>
-                  setDescription(e.target.value)
-                }
-                placeholder="Enter designation description"
-              />
-
-            </div>
-
-
-            {/* Status */}
-
-            <div className="form-group designation-field status-field">
-
-              <label htmlFor="designation-status">
-                Status
-              </label>
-
-              <div className="select-wrapper">
-
-                <select
-                  id="designation-status"
-                  value={status}
-                  onChange={(e) =>
-                    setStatus(e.target.value)
-                  }
-                >
-                  <option value="Active">
-                    Active
-                  </option>
-
-                  <option value="Inactive">
-                    Inactive
-                  </option>
-                </select>
-
-              </div>
-
+            <div className="professional-section-count">
+              {selectedUsers.length} selected
             </div>
 
           </div>
 
-
-          {/* =================================================
-              EMPLOYEE ASSIGNMENT
-          ================================================= */}
-
-          <div className="designation-form-section employee-section">
-
-            <div className="section-title">
-
-              <span className="section-line"></span>
-
-              <div>
-
-                <h3>
-                  Assign Employees
-                </h3>
-
-                <p>
-                  Select employees who belong to this
-                  designation.
-                </p>
-
-              </div>
-
-            </div>
-
-
-            <div className="employee-list-wrapper">
-
-              <EmployeeList
-                users={users}
-                search={search}
-                setSearch={setSearch}
-                selectedUsers={selectedUsers}
-                setSelectedUsers={setSelectedUsers}
-              />
-
-            </div>
-
+          <div className="designation-employee-container">
+            <EmployeeList
+              users={users}
+              search={search}
+              setSearch={setSearch}
+              selectedUsers={selectedUsers}
+              setSelectedUsers={
+                setSelectedUsers
+              }
+            />
           </div>
 
-
-          {/* =================================================
-              FOOTER
-          ================================================= */}
-
-          <div className="modal-buttons designation-modal-footer">
-
-            <button
-              type="button"
-              className="cancel-btn designation-cancel-btn"
-              onClick={handleClose}
-            >
-              Cancel
-            </button>
-
-
-            <button
-              type="submit"
-              className="save-btn designation-save-btn"
-            >
-
-              <span className="save-btn-icon">
-                {designation ? "✓" : "+"}
-              </span>
-
-              <span>
-                {designation
-                  ? "Update Designation"
-                  : "Create Designation"}
-              </span>
-
-            </button>
-
-          </div>
-
-        </form>
-
-      </div>
-    </div>
+        </section>
+      </form>
+    </ProfessionalModal>
   );
 }
 

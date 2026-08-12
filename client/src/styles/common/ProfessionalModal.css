@@ -1,106 +1,133 @@
 /* =========================================================
-   MIARCUS
-   GLOBAL PROFESSIONAL MODAL
-   ========================================================= */
-
-
-/* =========================================================
-   BODY LOCK
-   ========================================================= */
-
-body.professional-modal-open {
-  overflow: hidden;
-}
+   PROFESSIONAL GLOBAL MODAL
+   Miarcus Design System
+========================================================= */
 
 
 /* =========================================================
    OVERLAY
-   ========================================================= */
+========================================================= */
 
 .professional-modal-overlay {
   position: fixed;
   inset: 0;
-
-  z-index: 9999;
+  z-index: 99999;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  padding: 24px;
+  padding: 28px;
 
-  background: rgba(15, 23, 42, 0.58);
+  background: rgba(15, 30, 45, 0.58);
 
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 
-  animation: professionalOverlayIn 0.22s ease-out;
+  animation: professionalModalOverlayIn 0.22s ease-out;
 }
 
 
 /* =========================================================
-   MODAL CONTAINER
-   ========================================================= */
+   MODAL BASE
+========================================================= */
 
 .professional-modal {
-  width: min(
-    var(--professional-modal-width),
-    100%
-  );
-
-  max-height: calc(100vh - 48px);
+  width: 100%;
+  max-height: calc(100vh - 56px);
 
   display: flex;
   flex-direction: column;
 
-  overflow: hidden;
-
   background: #ffffff;
 
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid rgba(15, 52, 74, 0.08);
 
   border-radius: 18px;
 
-  box-shadow:
-    0 30px 80px rgba(15, 23, 42, 0.24),
-    0 12px 35px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
 
-  animation:
-    professionalModalIn
-    0.30s
-    cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 30px 70px rgba(15, 35, 55, 0.22),
+    0 10px 30px rgba(15, 35, 55, 0.12);
+
+  animation: professionalModalIn 0.28s cubic-bezier(
+    0.22,
+    1,
+    0.36,
+    1
+  );
+}
+
+
+/* =========================================================
+   MODAL SIZES
+========================================================= */
+
+.professional-modal-small {
+  max-width: 620px;
+}
+
+.professional-modal-medium {
+  max-width: 820px;
+}
+
+.professional-modal-large {
+  max-width: 1080px;
+}
+
+.professional-modal-xl {
+  max-width: 1280px;
 }
 
 
 /* =========================================================
    HEADER
-   ========================================================= */
+========================================================= */
 
 .professional-modal-header {
-  min-height: 78px;
+  position: relative;
 
-  flex-shrink: 0;
+  min-height: 92px;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  padding: 16px 20px;
+  padding: 18px 24px;
 
   background:
     linear-gradient(
       135deg,
-      #ffffff 0%,
-      #f7fafc 100%
+      #2f6ff0 0%,
+      #367cf5 55%,
+      #268fd3 100%
     );
 
-  border-bottom: 1px solid #e6edf2;
+  color: #ffffff;
+}
+
+
+/* subtle header shine */
+
+.professional-modal-header::after {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 1px;
+
+  background: rgba(255, 255, 255, 0.32);
 }
 
 
 /* =========================================================
    HEADER LEFT
-   ========================================================= */
+========================================================= */
 
 .professional-modal-heading {
   min-width: 0;
@@ -108,330 +135,273 @@ body.professional-modal-open {
   display: flex;
   align-items: center;
 
-  gap: 13px;
+  gap: 15px;
 }
 
 
 /* =========================================================
    ICON
-   ========================================================= */
+========================================================= */
 
 .professional-modal-icon {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
 
-  flex-shrink: 0;
+  flex: 0 0 52px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border-radius: 12px;
+  border-radius: 14px;
 
-  background:
-    linear-gradient(
-      135deg,
-      #eaf7fb,
-      #dceff5
-    );
+  background: rgba(255, 255, 255, 0.17);
 
-  color: #286b82;
+  border: 1px solid rgba(255, 255, 255, 0.18);
 
-  font-size: 18px;
+  color: #ffffff;
+
+  font-size: 24px;
+  font-weight: 700;
 
   box-shadow:
-    inset 0 0 0 1px
-    rgba(40, 107, 130, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 
 /* =========================================================
    TITLE
-   ========================================================= */
+========================================================= */
 
 .professional-modal-title-area {
   min-width: 0;
 }
 
-
 .professional-modal-title-area h2 {
   margin: 0;
 
-  color: #172033;
+  color: #ffffff;
 
-  font-size: 20px;
-
+  font-size: 22px;
   line-height: 1.25;
 
   font-weight: 700;
 
-  letter-spacing: -0.25px;
+  letter-spacing: -0.2px;
 }
 
-
 .professional-modal-title-area p {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
 
-  color: #7b8794;
+  color: rgba(255, 255, 255, 0.88);
 
-  font-size: 12px;
-
+  font-size: 13px;
   line-height: 1.4;
 }
 
 
 /* =========================================================
    CLOSE BUTTON
-   ========================================================= */
+========================================================= */
 
 .professional-modal-close {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
 
-  flex-shrink: 0;
+  flex: 0 0 42px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border: none;
+  margin-left: 16px;
 
-  border-radius: 9px;
+  border: 0;
+  border-radius: 12px;
 
-  background: #f0f3f6;
+  background: rgba(255, 255, 255, 0.14);
 
-  color: #64748b;
-
-  font-size: 14px;
+  color: #ffffff;
 
   cursor: pointer;
 
   transition:
     background 0.18s ease,
-    color 0.18s ease,
-    transform 0.20s ease,
+    transform 0.18s ease,
     box-shadow 0.18s ease;
 }
 
+.professional-modal-close span {
+  display: block;
 
-.professional-modal-close:hover {
-  background: #e7edf2;
+  font-size: 25px;
+  line-height: 1;
 
-  color: #1e293b;
-
-  transform: rotate(90deg);
-
-  box-shadow:
-    0 3px 8px rgba(15, 23, 42, 0.08);
+  font-weight: 300;
 }
 
+.professional-modal-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+
+  transform: rotate(4deg) scale(1.04);
+
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.12);
+}
 
 .professional-modal-close:active {
-  transform:
-    rotate(90deg)
-    scale(0.92);
+  transform: scale(0.95);
 }
 
 
 /* =========================================================
-   BODY
-   ========================================================= */
+   CONTENT
+========================================================= */
 
-.professional-modal-body {
-  flex: 1;
+.professional-modal-content {
+  flex: 1 1 auto;
 
   min-height: 0;
 
-  overflow-y: auto;
-
-  padding: 22px;
+  padding: 28px;
 
   background: #ffffff;
 
+  overflow-y: auto;
+
+  overscroll-behavior: contain;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.professional-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.professional-modal-content::-webkit-scrollbar-track {
+  background: #f4f7fa;
+}
+
+.professional-modal-content::-webkit-scrollbar-thumb {
+  background: #c7d3df;
+
+  border-radius: 10px;
+}
+
+.professional-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #aebdca;
+}
+
+
+/* Firefox */
+
+.professional-modal-content {
   scrollbar-width: thin;
-
-  scrollbar-color:
-    #c6d1da
-    transparent;
-}
-
-
-.professional-modal-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-
-.professional-modal-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-
-.professional-modal-body::-webkit-scrollbar-thumb {
-  background: #c6d1da;
-
-  border-radius: 20px;
-}
-
-
-.professional-modal-body::-webkit-scrollbar-thumb:hover {
-  background: #aebcc8;
+  scrollbar-color: #c7d3df #f4f7fa;
 }
 
 
 /* =========================================================
    FOOTER
-   ========================================================= */
+========================================================= */
 
 .professional-modal-footer {
-  min-height: 70px;
-
-  flex-shrink: 0;
+  flex: 0 0 auto;
 
   display: flex;
   align-items: center;
   justify-content: flex-end;
 
-  gap: 10px;
+  gap: 12px;
 
-  padding: 14px 22px;
+  min-height: 82px;
 
-  background: #fafcfd;
-
-  border-top: 1px solid #e6edf2;
-}
-
-
-/* =========================================================
-   FORM GROUP
-   ========================================================= */
-
-.professional-modal .form-group {
-  margin: 0 0 17px;
-}
-
-
-.professional-modal .form-group:last-child {
-  margin-bottom: 0;
-}
-
-
-/* =========================================================
-   LABEL
-   ========================================================= */
-
-.professional-modal label {
-  display: block;
-
-  margin-bottom: 7px;
-
-  color: #344054;
-
-  font-size: 12px;
-
-  line-height: 1.4;
-
-  font-weight: 600;
-}
-
-
-.professional-modal label span {
-  color: #dc3545;
-}
-
-
-/* =========================================================
-   INPUT / SELECT / TEXTAREA
-   ========================================================= */
-
-.professional-modal input,
-.professional-modal select,
-.professional-modal textarea {
-  width: 100%;
-
-  box-sizing: border-box;
-
-  font-family: inherit;
-
-  font-size: 13px;
-
-  color: #1e293b;
+  padding: 16px 28px;
 
   background: #ffffff;
 
-  border: 1px solid #d5dee7;
-
-  border-radius: 8px;
-
-  outline: none;
-
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-
-
-.professional-modal input,
-.professional-modal select {
-  height: 42px;
-
-  padding: 0 12px;
-}
-
-
-.professional-modal textarea {
-  min-height: 92px;
-
-  padding: 11px 12px;
-
-  resize: vertical;
-
-  line-height: 1.5;
-}
-
-
-/* =========================================================
-   PLACEHOLDER
-   ========================================================= */
-
-.professional-modal input::placeholder,
-.professional-modal textarea::placeholder {
-  color: #9aa8b5;
-}
-
-
-/* =========================================================
-   INPUT HOVER
-   ========================================================= */
-
-.professional-modal input:hover,
-.professional-modal select:hover,
-.professional-modal textarea:hover {
-  border-color: #b8c7d3;
-}
-
-
-/* =========================================================
-   INPUT FOCUS
-   ========================================================= */
-
-.professional-modal input:focus,
-.professional-modal select:focus,
-.professional-modal textarea:focus {
-  border-color: #42869e;
-
-  background: #ffffff;
+  border-top: 1px solid #e7edf2;
 
   box-shadow:
-    0 0 0 3px
-    rgba(66, 134, 158, 0.12);
+    0 -4px 15px rgba(20, 40, 60, 0.025);
+}
+
+
+/* =========================================================
+   GENERIC FORM SECTION
+========================================================= */
+
+.professional-modal-section {
+  margin-bottom: 28px;
+
+  padding-bottom: 24px;
+
+  border-bottom: 1px solid #e6edf2;
+}
+
+.professional-modal-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+
+  border-bottom: 0;
+}
+
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+.professional-modal-section-header {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  margin-bottom: 20px;
+}
+
+.professional-modal-section-marker {
+  width: 3px;
+  min-height: 28px;
+
+  margin-top: 1px;
+
+  border-radius: 4px;
+
+  background: linear-gradient(
+    180deg,
+    #2f6ff0,
+    #28a9d6
+  );
+}
+
+.professional-modal-section-title {
+  margin: 0;
+
+  color: #253548;
+
+  font-size: 15px;
+  line-height: 1.3;
+
+  font-weight: 700;
+}
+
+.professional-modal-section-description {
+  margin: 3px 0 0;
+
+  color: #7a8b9b;
+
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 
 /* =========================================================
    FORM GRID
-   ========================================================= */
+========================================================= */
 
 .professional-form-grid {
   display: grid;
@@ -439,9 +409,13 @@ body.professional-modal-open {
   grid-template-columns:
     repeat(2, minmax(0, 1fr));
 
-  gap: 17px 16px;
+  gap: 20px 18px;
 }
 
+.professional-form-grid-3 {
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+}
 
 .professional-form-full {
   grid-column: 1 / -1;
@@ -449,340 +423,302 @@ body.professional-modal-open {
 
 
 /* =========================================================
-   SECTION
-   ========================================================= */
+   FORM FIELD
+========================================================= */
 
-.professional-form-section {
-  margin-bottom: 22px;
-
-  padding-bottom: 21px;
-
-  border-bottom: 1px solid #e8edf2;
+.professional-field {
+  min-width: 0;
 }
 
+.professional-field label {
+  display: block;
 
-.professional-form-section:last-child {
-  margin-bottom: 0;
+  margin-bottom: 7px;
 
-  padding-bottom: 0;
+  color: #344557;
 
-  border-bottom: none;
+  font-size: 12px;
+
+  font-weight: 600;
+
+  line-height: 1.35;
 }
 
+.professional-field label .required {
+  color: #e44d4d;
 
-/* =========================================================
-   SECTION HEADER
-   ========================================================= */
-
-.professional-section-header {
-  display: flex;
-
-  align-items: flex-start;
-
-  gap: 10px;
-
-  margin-bottom: 18px;
+  margin-left: 3px;
 }
 
 
 /* =========================================================
-   SECTION ACCENT
-   ========================================================= */
+   INPUTS / SELECT / TEXTAREA
+========================================================= */
 
-.professional-section-line {
-  width: 3px;
+.professional-field input,
+.professional-field select,
+.professional-field textarea {
+  width: 100%;
 
-  min-height: 29px;
+  box-sizing: border-box;
 
-  flex-shrink: 0;
+  border: 1px solid #d5e0e9;
 
-  border-radius: 10px;
+  border-radius: 9px;
 
-  background:
-    linear-gradient(
-      180deg,
-      #2f819b,
-      #67aec1
-    );
-}
+  background: #ffffff;
 
+  color: #26384a;
 
-/* =========================================================
-   SECTION TITLE
-   ========================================================= */
-
-.professional-section-title {
-  margin: 0;
-
-  color: #334155;
+  font-family: inherit;
 
   font-size: 13px;
 
-  line-height: 1.35;
+  outline: none;
 
-  font-weight: 700;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.professional-field input,
+.professional-field select {
+  height: 43px;
+
+  padding: 0 13px;
+}
+
+.professional-field textarea {
+  min-height: 100px;
+
+  padding: 12px 13px;
+
+  resize: vertical;
+}
+
+.professional-field input::placeholder,
+.professional-field textarea::placeholder {
+  color: #a4b1bd;
+}
+
+.professional-field input:hover,
+.professional-field select:hover,
+.professional-field textarea:hover {
+  border-color: #bdccd8;
+}
+
+.professional-field input:focus,
+.professional-field select:focus,
+.professional-field textarea:focus {
+  border-color: #3680ef;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 3px rgba(54, 128, 239, 0.11);
 }
 
 
 /* =========================================================
-   SECTION DESCRIPTION
-   ========================================================= */
-
-.professional-section-description {
-  margin: 3px 0 0;
-
-  color: #8a98a6;
-
-  font-size: 11px;
-
-  line-height: 1.4;
-}
-
-
-/* =========================================================
-   BUTTON BASE
-   ========================================================= */
+   BUTTONS
+========================================================= */
 
 .professional-btn {
-  min-width: 105px;
+  min-width: 108px;
 
-  height: 40px;
+  height: 42px;
 
-  padding: 0 17px;
+  padding: 0 18px;
 
   display: inline-flex;
-
   align-items: center;
-
   justify-content: center;
 
   gap: 7px;
 
-  border-radius: 8px;
+  border-radius: 9px;
 
   font-family: inherit;
 
-  font-size: 12px;
+  font-size: 13px;
 
   font-weight: 600;
 
   cursor: pointer;
 
   transition:
-    transform 0.16s ease,
+    transform 0.18s ease,
     box-shadow 0.18s ease,
     background 0.18s ease,
     border-color 0.18s ease;
 }
 
-
 .professional-btn:hover {
   transform: translateY(-1px);
 }
 
-
 .professional-btn:active {
-  transform:
-    translateY(0)
-    scale(0.98);
+  transform: translateY(0);
 }
 
 
-/* =========================================================
-   CANCEL BUTTON
-   ========================================================= */
+/* Secondary */
 
-.professional-btn-cancel {
-  border: 1px solid #d3dce5;
+.professional-btn-secondary {
+  border: 1px solid #d3dee7;
 
   background: #ffffff;
 
-  color: #475569;
+  color: #536476;
 }
 
-
-.professional-btn-cancel:hover {
+.professional-btn-secondary:hover {
   background: #f7f9fb;
 
-  border-color: #bdc9d4;
-
-  box-shadow:
-    0 3px 9px rgba(15, 23, 42, 0.06);
+  border-color: #b9c9d5;
 }
 
 
-/* =========================================================
-   PRIMARY BUTTON
-   ========================================================= */
+/* Primary */
 
 .professional-btn-primary {
-  border: 1px solid #286a80;
+  border: 1px solid #2f72ed;
 
   background:
     linear-gradient(
       135deg,
-      #3986a0,
-      #255f76
+      #2f72ed,
+      #287fe9
     );
 
   color: #ffffff;
 
   box-shadow:
-    0 5px 14px
-    rgba(40, 106, 128, 0.20);
+    0 6px 15px rgba(47, 114, 237, 0.22);
 }
-
 
 .professional-btn-primary:hover {
   box-shadow:
-    0 7px 19px
-    rgba(40, 106, 128, 0.28);
+    0 9px 20px rgba(47, 114, 237, 0.28);
 }
 
 
-/* =========================================================
-   DANGER BUTTON
-   ========================================================= */
+/* Danger */
 
 .professional-btn-danger {
-  border: 1px solid #dc3545;
+  border: 1px solid #f0c8c8;
 
-  background: #dc3545;
+  background: #ffffff;
 
-  color: #ffffff;
+  color: #d74747;
 }
-
 
 .professional-btn-danger:hover {
-  background: #c82333;
+  background: #fff6f6;
 
-  border-color: #c82333;
-
-  box-shadow:
-    0 5px 14px
-    rgba(220, 53, 69, 0.20);
+  border-color: #e7a9a9;
 }
 
 
 /* =========================================================
-   DISABLED BUTTON
-   ========================================================= */
+   CHECKBOX / RADIO AREA
+========================================================= */
 
-.professional-btn:disabled {
-  opacity: 0.55;
+.professional-checkbox-card {
+  display: flex;
+  align-items: flex-start;
 
-  cursor: not-allowed;
+  gap: 10px;
 
-  transform: none;
+  padding: 13px 14px;
 
-  box-shadow: none;
+  border: 1px solid #dce5ec;
+
+  border-radius: 9px;
+
+  background: #fbfcfd;
+
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
+.professional-checkbox-card:hover {
+  border-color: #c4d5e2;
 
-/* =========================================================
-   CHECKBOX
-   ========================================================= */
-
-.professional-modal input[type="checkbox"] {
-  width: 16px;
-
-  height: 16px;
-
-  margin: 0;
-
-  padding: 0;
-
-  accent-color: #337d95;
-
-  cursor: pointer;
+  background: #f8fbfd;
 }
 
+.professional-checkbox-card input {
+  width: 17px;
+  height: 17px;
 
-/* =========================================================
-   RADIO
-   ========================================================= */
+  margin-top: 1px;
 
-.professional-modal input[type="radio"] {
-  width: 16px;
-
-  height: 16px;
-
-  margin: 0;
-
-  accent-color: #337d95;
-
-  cursor: pointer;
+  accent-color: #2f72ed;
 }
 
+.professional-checkbox-title {
+  color: #35475a;
 
-/* =========================================================
-   ERROR
-   ========================================================= */
+  font-size: 13px;
 
-.professional-field-error {
-  margin-top: 5px;
+  font-weight: 600;
+}
 
-  color: #dc3545;
+.professional-checkbox-description {
+  margin-top: 2px;
+
+  color: #8796a4;
 
   font-size: 11px;
 }
 
 
 /* =========================================================
-   INFO BOX
-   ========================================================= */
+   LOADING
+========================================================= */
 
-.professional-info-box {
-  padding: 12px 14px;
+.professional-modal-loading {
+  min-height: 180px;
 
-  border: 1px solid #dce8ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  border-radius: 9px;
+  color: #718394;
 
-  background: #f5fafc;
-
-  color: #526575;
-
-  font-size: 12px;
-
-  line-height: 1.5;
+  font-size: 13px;
 }
 
 
 /* =========================================================
    EMPTY STATE
-   ========================================================= */
+========================================================= */
 
-.professional-empty-state {
-  min-height: 100px;
+.professional-modal-empty {
+  padding: 30px 20px;
 
-  display: flex;
+  text-align: center;
 
-  align-items: center;
-
-  justify-content: center;
-
-  padding: 20px;
-
-  border: 1px dashed #d5dee7;
+  border: 1px dashed #cfdae3;
 
   border-radius: 10px;
 
   background: #fafcfd;
 
-  color: #8a98a6;
+  color: #8796a4;
 
-  font-size: 12px;
-
-  text-align: center;
+  font-size: 13px;
 }
 
 
 /* =========================================================
    ANIMATIONS
-   ========================================================= */
+========================================================= */
 
-@keyframes professionalOverlayIn {
+@keyframes professionalModalOverlayIn {
   from {
     opacity: 0;
   }
@@ -792,14 +728,13 @@ body.professional-modal-open {
   }
 }
 
-
 @keyframes professionalModalIn {
   from {
     opacity: 0;
 
     transform:
-      translateY(18px)
-      scale(0.965);
+      translateY(22px)
+      scale(0.97);
   }
 
   to {
@@ -813,116 +748,139 @@ body.professional-modal-open {
 
 
 /* =========================================================
-   MOBILE
-   ========================================================= */
+   RESPONSIVE
+========================================================= */
 
-@media (max-width: 700px) {
-
+@media (max-width: 900px) {
   .professional-modal-overlay {
-    padding: 12px;
+    padding: 18px;
   }
-
 
   .professional-modal {
-    max-height:
-      calc(100vh - 24px);
-
-    border-radius: 14px;
+    max-height: calc(100vh - 36px);
   }
 
+  .professional-modal-content {
+    padding: 22px;
+  }
+
+  .professional-modal-footer {
+    padding: 14px 22px;
+  }
+
+  .professional-form-grid-3 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 680px) {
+  .professional-modal-overlay {
+    align-items: flex-end;
+
+    padding: 0;
+  }
+
+  .professional-modal {
+    width: 100%;
+
+    max-width: none;
+
+    max-height: 94vh;
+
+    border-radius:
+      18px 18px 0 0;
+
+    animation: professionalModalMobileIn
+      0.28s cubic-bezier(
+        0.22,
+        1,
+        0.36,
+        1
+      );
+  }
 
   .professional-modal-header {
-    min-height: 70px;
+    min-height: 82px;
 
-    padding: 13px 15px;
+    padding: 15px 17px;
   }
-
 
   .professional-modal-icon {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
 
-    border-radius: 10px;
+    flex-basis: 44px;
 
-    font-size: 16px;
+    border-radius: 12px;
+
+    font-size: 20px;
   }
-
 
   .professional-modal-title-area h2 {
     font-size: 18px;
   }
 
-
   .professional-modal-title-area p {
     font-size: 11px;
   }
 
+  .professional-modal-close {
+    width: 38px;
+    height: 38px;
 
-  .professional-modal-body {
-    padding: 18px 15px 20px;
+    flex-basis: 38px;
   }
 
+  .professional-modal-content {
+    padding: 20px 17px;
+  }
 
   .professional-modal-footer {
-    min-height: 65px;
+    min-height: 72px;
 
-    padding: 12px 15px;
+    padding: 12px 17px;
   }
 
-
-  .professional-form-grid {
+  .professional-form-grid,
+  .professional-form-grid-3 {
     grid-template-columns: 1fr;
   }
-
 
   .professional-form-full {
     grid-column: auto;
   }
-}
-
-
-/* =========================================================
-   SMALL MOBILE
-   ========================================================= */
-
-@media (max-width: 450px) {
-
-  .professional-modal-footer {
-    flex-direction: column-reverse;
-
-    align-items: stretch;
-  }
-
 
   .professional-btn {
-    width: 100%;
-  }
-
-
-  .professional-modal-close {
-    width: 34px;
-    height: 34px;
+    min-width: 100px;
   }
 }
 
 
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-  .professional-modal-overlay,
-  .professional-modal {
-    animation: none;
+@media (max-width: 430px) {
+  .professional-modal-footer {
+    flex-direction: column-reverse;
   }
 
+  .professional-modal-footer .professional-btn {
+    width: 100%;
+  }
+}
 
-  .professional-modal-close,
-  .professional-btn,
-  .professional-modal input,
-  .professional-modal select,
-  .professional-modal textarea {
-    transition: none;
+
+@keyframes professionalModalMobileIn {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
   }
 }

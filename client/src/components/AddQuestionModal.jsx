@@ -7,7 +7,7 @@ import {
 } from "../services/questionService";
 
 import "../styles/AddQuestionModal.css";
-import ProfessionalModal from "./common/ProfessionalModal";
+
 function AddQuestionModal({
   question,
   onClose,
@@ -15,10 +15,19 @@ function AddQuestionModal({
 }) {
   const isEdit = !!question;
 
+  // =====================================================
+  // DATA
+  // =====================================================
+
   const [checklistTypes, setChecklistTypes] = useState([]);
   const [departments, setDepartments] = useState([]);
 
-  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [selectedDepartments, setSelectedDepartments] =
+    useState([]);
+
+  // =====================================================
+  // FORM
+  // =====================================================
 
   const [formData, setFormData] = useState({
     checklist_type_id: "",
@@ -66,7 +75,7 @@ function AddQuestionModal({
   };
 
   // =====================================================
-  // EDIT MODE
+  // EDIT / RESET FORM
   // =====================================================
 
   useEffect(() => {
@@ -88,7 +97,9 @@ function AddQuestionModal({
       return;
     }
 
-    const departmentIds = Array.isArray(question.department_ids)
+    const departmentIds = Array.isArray(
+      question.department_ids
+    )
       ? question.department_ids
       : [];
 
@@ -120,8 +131,7 @@ function AddQuestionModal({
       status:
         question.status || "Active",
 
-      departments:
-        departmentIds,
+      departments: departmentIds,
     });
   }, [question]);
 
@@ -139,7 +149,6 @@ function AddQuestionModal({
 
     setFormData((prev) => ({
       ...prev,
-
       [name]:
         type === "checkbox"
           ? checked
@@ -170,13 +179,14 @@ function AddQuestionModal({
   };
 
   // =====================================================
-  // SELECT ALL DEPARTMENTS
+  // SELECT / UNSELECT ALL
   // =====================================================
 
   const selectAllDepartments = () => {
     if (
       departments.length > 0 &&
-      selectedDepartments.length === departments.length
+      selectedDepartments.length ===
+        departments.length
     ) {
       setSelectedDepartments([]);
 
@@ -208,21 +218,18 @@ function AddQuestionModal({
     e.preventDefault();
 
     if (!formData.checklist_type_id) {
-      return alert(
-        "Please select Checklist Type."
-      );
+      alert("Please select Checklist Type.");
+      return;
     }
 
     if (!formData.question.trim()) {
-      return alert(
-        "Please enter Question."
-      );
+      alert("Please enter Question.");
+      return;
     }
 
     if (!formData.answer_type) {
-      return alert(
-        "Please select Answer Type."
-      );
+      alert("Please select Answer Type.");
+      return;
     }
 
     const payload = {
@@ -250,9 +257,7 @@ function AddQuestionModal({
     } catch (err) {
       console.error(err);
 
-      alert(
-        "Unable to save question."
-      );
+      alert("Unable to save question.");
     }
   };
 
@@ -273,12 +278,14 @@ function AddQuestionModal({
         className="question-modal question-modal-animated"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="question-modal-title"
       >
         {/* =================================================
             HEADER
         ================================================= */}
 
         <div className="question-modal-header">
+
           <div className="question-header-content">
 
             <div className="question-header-icon">
@@ -287,8 +294,9 @@ function AddQuestionModal({
               </span>
             </div>
 
-            <div>
-              <h2>
+            <div className="question-header-text">
+
+              <h2 id="question-modal-title">
                 {isEdit
                   ? "Edit Question"
                   : "Add Question"}
@@ -296,9 +304,10 @@ function AddQuestionModal({
 
               <p>
                 {isEdit
-                  ? "Update checklist question details."
-                  : "Create a new checklist question."}
+                  ? "Update checklist question details and configuration."
+                  : "Create a new checklist question and configure its behaviour."}
               </p>
+
             </div>
 
           </div>
@@ -312,6 +321,7 @@ function AddQuestionModal({
           >
             ×
           </button>
+
         </div>
 
         {/* =================================================
@@ -322,11 +332,12 @@ function AddQuestionModal({
           onSubmit={handleSubmit}
           className="question-form"
         >
+
           {/* =================================================
-              BASIC INFORMATION
+              QUESTION INFORMATION
           ================================================= */}
 
-          <div className="question-section">
+          <section className="question-section">
 
             <div className="question-section-title">
 
@@ -350,14 +361,20 @@ function AddQuestionModal({
 
                 <label>
                   Checklist Type
-                  <span className="required">*</span>
+                  <span className="required">
+                    *
+                  </span>
                 </label>
 
                 <select
                   name="checklist_type_id"
-                  value={formData.checklist_type_id}
+                  value={
+                    formData.checklist_type_id
+                  }
                   onChange={handleChange}
+                  required
                 >
+
                   <option value="">
                     Select Checklist Type
                   </option>
@@ -370,6 +387,7 @@ function AddQuestionModal({
                       {item.checklist_name}
                     </option>
                   ))}
+
                 </select>
 
               </div>
@@ -385,7 +403,9 @@ function AddQuestionModal({
                 <input
                   type="number"
                   name="sequence_no"
-                  value={formData.sequence_no}
+                  value={
+                    formData.sequence_no
+                  }
                   onChange={handleChange}
                   placeholder="Enter sequence"
                   min="1"
@@ -399,27 +419,33 @@ function AddQuestionModal({
 
                 <label>
                   Question
-                  <span className="required">*</span>
+                  <span className="required">
+                    *
+                  </span>
                 </label>
 
                 <textarea
                   rows="3"
                   name="question"
-                  value={formData.question}
+                  value={
+                    formData.question
+                  }
                   onChange={handleChange}
                   placeholder="Enter checklist question"
+                  required
                 />
 
               </div>
 
             </div>
-          </div>
+
+          </section>
 
           {/* =================================================
               ANSWER CONFIGURATION
           ================================================= */}
 
-          <div className="question-section">
+          <section className="question-section">
 
             <div className="question-section-title">
 
@@ -447,15 +473,36 @@ function AddQuestionModal({
 
                 <select
                   name="answer_type"
-                  value={formData.answer_type}
+                  value={
+                    formData.answer_type
+                  }
                   onChange={handleChange}
                 >
-                  <option>Text</option>
-                  <option>Number</option>
-                  <option>Yes / No</option>
-                  <option>Date</option>
-                  <option>Dropdown</option>
-                  <option>Image</option>
+
+                  <option value="Text">
+                    Text
+                  </option>
+
+                  <option value="Number">
+                    Number
+                  </option>
+
+                  <option value="Yes / No">
+                    Yes / No
+                  </option>
+
+                  <option value="Date">
+                    Date
+                  </option>
+
+                  <option value="Dropdown">
+                    Dropdown
+                  </option>
+
+                  <option value="Image">
+                    Image
+                  </option>
+
                 </select>
 
               </div>
@@ -471,7 +518,9 @@ function AddQuestionModal({
                 <input
                   type="number"
                   name="sla_value"
-                  value={formData.sla_value}
+                  value={
+                    formData.sla_value
+                  }
                   onChange={handleChange}
                   placeholder="Enter SLA"
                   min="0"
@@ -489,12 +538,24 @@ function AddQuestionModal({
 
                 <select
                   name="sla_unit"
-                  value={formData.sla_unit}
+                  value={
+                    formData.sla_unit
+                  }
                   onChange={handleChange}
                 >
-                  <option>Minutes</option>
-                  <option>Hours</option>
-                  <option>Days</option>
+
+                  <option value="Minutes">
+                    Minutes
+                  </option>
+
+                  <option value="Hours">
+                    Hours
+                  </option>
+
+                  <option value="Days">
+                    Days
+                  </option>
+
                 </select>
 
               </div>
@@ -509,11 +570,20 @@ function AddQuestionModal({
 
                 <select
                   name="status"
-                  value={formData.status}
+                  value={
+                    formData.status
+                  }
                   onChange={handleChange}
                 >
-                  <option>Active</option>
-                  <option>Inactive</option>
+
+                  <option value="Active">
+                    Active
+                  </option>
+
+                  <option value="Inactive">
+                    Inactive
+                  </option>
+
                 </select>
 
               </div>
@@ -522,12 +592,20 @@ function AddQuestionModal({
 
             {/* Answer Required */}
 
-            <label className="answer-required-card">
+            <label
+              className={
+                formData.answer_required
+                  ? "answer-required-card active"
+                  : "answer-required-card"
+              }
+            >
 
               <input
                 type="checkbox"
                 name="answer_required"
-                checked={formData.answer_required}
+                checked={
+                  formData.answer_required
+                }
                 onChange={handleChange}
               />
 
@@ -545,32 +623,44 @@ function AddQuestionModal({
 
               </span>
 
+              <span className="answer-required-status">
+                {formData.answer_required
+                  ? "Required"
+                  : "Optional"}
+              </span>
+
             </label>
 
-          </div>
+          </section>
 
           {/* =================================================
               DEPARTMENTS
           ================================================= */}
 
-          <div className="question-section">
+          <section className="question-section">
 
             <div className="question-section-title department-title">
 
               <span className="question-section-line"></span>
 
               <div>
-                <h3>Departments</h3>
+
+                <h3>
+                  Departments
+                </h3>
 
                 <p>
                   Select the departments that can use this question.
                 </p>
+
               </div>
 
               <button
                 type="button"
                 className="select-all-btn"
-                onClick={selectAllDepartments}
+                onClick={
+                  selectAllDepartments
+                }
               >
                 {departments.length > 0 &&
                 selectedDepartments.length ===
@@ -581,56 +671,94 @@ function AddQuestionModal({
 
             </div>
 
+            <div className="department-selection-summary">
+
+              <span className="selection-count">
+                {selectedDepartments.length}
+              </span>
+
+              <span>
+                {selectedDepartments.length === 1
+                  ? "Department selected"
+                  : "Departments selected"}
+              </span>
+
+            </div>
+
             <div className="question-checkbox-list">
 
               {departments.length === 0 ? (
 
                 <div className="question-empty-departments">
-                  No Departments Found
+
+                  <span className="empty-icon">
+                    !
+                  </span>
+
+                  <div>
+                    <strong>
+                      No Departments Found
+                    </strong>
+
+                    <small>
+                      Create a department before assigning it to this question.
+                    </small>
+                  </div>
+
                 </div>
 
               ) : (
 
-                departments.map((dept) => (
+                departments.map((dept) => {
 
-                  <label
-                    key={dept.id}
-                    className={
-                      selectedDepartments.includes(
-                        dept.id
-                      )
-                        ? "department-option selected"
-                        : "department-option"
-                    }
-                  >
+                  const selected =
+                    selectedDepartments.includes(
+                      dept.id
+                    );
 
-                    <input
-                      type="checkbox"
-                      checked={selectedDepartments.includes(
-                        dept.id
-                      )}
-                      onChange={() =>
-                        toggleDepartment(
-                          dept.id
-                        )
+                  return (
+                    <label
+                      key={dept.id}
+                      className={
+                        selected
+                          ? "department-option selected"
+                          : "department-option"
                       }
-                    />
+                    >
 
-                    <span className="department-check"></span>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() =>
+                          toggleDepartment(
+                            dept.id
+                          )
+                        }
+                      />
 
-                    <span>
-                      {dept.department_name}
-                    </span>
+                      <span className="department-check">
+                        {selected ? "✓" : ""}
+                      </span>
 
-                  </label>
+                      <span className="department-name">
+                        {dept.department_name}
+                      </span>
 
-                ))
+                      {selected && (
+                        <span className="department-selected-label">
+                          Selected
+                        </span>
+                      )}
+
+                    </label>
+                  );
+                })
 
               )}
 
             </div>
 
-          </div>
+          </section>
 
           {/* =================================================
               FOOTER
@@ -650,18 +778,23 @@ function AddQuestionModal({
               type="submit"
               className="question-save-btn"
             >
-              <span>
+
+              <span className="save-icon">
                 {isEdit ? "✓" : "+"}
               </span>
 
-              {isEdit
-                ? "Update Question"
-                : "Save Question"}
+              <span>
+                {isEdit
+                  ? "Update Question"
+                  : "Save Question"}
+              </span>
+
             </button>
 
           </div>
 
         </form>
+
       </div>
     </div>
   );

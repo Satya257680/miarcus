@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { FaTimes } from "react-icons/fa";
-
 import "../../styles/common/ProfessionalModal.css";
 
 function ProfessionalModal({
@@ -8,83 +6,70 @@ function ProfessionalModal({
   onClose,
   title,
   subtitle,
-  icon,
+  icon = "+",
   children,
   footer,
-  width = "760px",
-  className = "",
+  size = "medium",
+  scrollable = false,
   closeOnOverlay = true,
+  showFooter = true,
 }) {
-  // =====================================================
-  // ESCAPE KEY + BODY SCROLL LOCK
-  // =====================================================
-
   useEffect(() => {
     if (!isOpen) return;
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const handleEscape = (event) => {
       if (event.key === "Escape") {
-        onClose?.();
+        onClose();
       }
     };
 
     document.addEventListener("keydown", handleEscape);
 
-    document.body.classList.add("professional-modal-open");
-
     return () => {
+      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleEscape);
-      document.body.classList.remove("professional-modal-open");
     };
   }, [isOpen, onClose]);
-
-  // =====================================================
-  // DON'T RENDER WHEN CLOSED
-  // =====================================================
 
   if (!isOpen) {
     return null;
   }
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+  const handleOverlayClick = (event) => {
+    if (
+      closeOnOverlay &&
+      event.target === event.currentTarget
+    ) {
+      onClose();
+    }
+  };
 
   return (
     <div
       className="professional-modal-overlay"
-      onMouseDown={(event) => {
-        if (
-          closeOnOverlay &&
-          event.target === event.currentTarget
-        ) {
-          onClose?.();
-        }
-      }}
+      onMouseDown={handleOverlayClick}
     >
       <div
-        className={`professional-modal ${className}`}
-        style={{
-          "--professional-modal-width": width,
-        }}
+        className={`professional-modal professional-modal-${size} ${
+          scrollable
+            ? "professional-modal-scrollable"
+            : ""
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="professional-modal-title"
-        onMouseDown={(event) => {
-          event.stopPropagation();
-        }}
       >
-        {/* =================================================
+        {/* ================================
             HEADER
-            ================================================= */}
-
+        ================================= */}
         <div className="professional-modal-header">
           <div className="professional-modal-heading">
-            {icon && (
-              <div className="professional-modal-icon">
-                {icon}
-              </div>
-            )}
+            <div className="professional-modal-icon">
+              {icon}
+            </div>
 
             <div className="professional-modal-title-area">
               <h2 id="professional-modal-title">
@@ -101,25 +86,23 @@ function ProfessionalModal({
             type="button"
             className="professional-modal-close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close modal"
           >
-            <FaTimes />
+            <span>×</span>
           </button>
         </div>
 
-        {/* =================================================
-            BODY
-            ================================================= */}
-
-        <div className="professional-modal-body">
+        {/* ================================
+            CONTENT
+        ================================= */}
+        <div className="professional-modal-content">
           {children}
         </div>
 
-        {/* =================================================
+        {/* ================================
             FOOTER
-            ================================================= */}
-
-        {footer && (
+        ================================= */}
+        {showFooter && (
           <div className="professional-modal-footer">
             {footer}
           </div>

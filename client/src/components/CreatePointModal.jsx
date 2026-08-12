@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/CreatePointModal.css";
-import ProfessionalModal from "./common/ProfessionalModal";
 
 const API = "https://miarcus-backend.onrender.com";
 
@@ -32,7 +31,7 @@ function CreatePointModal({
   });
 
   // ==========================================================
-  // UPDATE SUBMISSION ID WHEN PARENT CHANGES IT
+  // UPDATE SUBMISSION ID
   // ==========================================================
 
   useEffect(() => {
@@ -114,14 +113,6 @@ function CreatePointModal({
   };
 
   // ==========================================================
-  // CLOSE
-  // ==========================================================
-
-  if (!isOpen) {
-    return null;
-  }
-
-  // ==========================================================
   // HANDLE CHANGE
   // ==========================================================
 
@@ -140,7 +131,6 @@ function CreatePointModal({
 
   const handleFile = (e) => {
     const selectedFile = e.target.files?.[0] || null;
-
     setFile(selectedFile);
   };
 
@@ -187,9 +177,9 @@ function CreatePointModal({
       return;
     }
 
-    // ========================================================
+    // --------------------------------------------------------
     // VALIDATION
-    // ========================================================
+    // --------------------------------------------------------
 
     if (!formData.store_id) {
       alert("Please select a Store.");
@@ -206,7 +196,6 @@ function CreatePointModal({
       return;
     }
 
-    // Backend currently requires Submission Answer.
     if (!formData.answer.trim()) {
       alert("Please enter the Submission Answer.");
       return;
@@ -219,19 +208,6 @@ function CreatePointModal({
       alert("Please enter a valid SLA value.");
       return;
     }
-
-    // ========================================================
-    // IMPORTANT
-    //
-    // submission_id is OPTIONAL for manual Action Point
-    // creation.
-    //
-    // If this Action Point was opened from a checklist
-    // submission, submission_id will be sent.
-    //
-    // If user clicked "Add Action Point" directly from the
-    // Action Points page, submission_id will NOT be sent.
-    // ========================================================
 
     setLoading(true);
 
@@ -313,9 +289,7 @@ function CreatePointModal({
       );
 
       // ------------------------------------------------------
-      // SLA
-      //
-      // Keep this for backend compatibility.
+      // SLA BACKEND COMPATIBILITY
       // ------------------------------------------------------
 
       data.append(
@@ -334,9 +308,9 @@ function CreatePointModal({
         );
       }
 
-      // ======================================================
+      // ------------------------------------------------------
       // AUTH TOKEN
-      // ======================================================
+      // ------------------------------------------------------
 
       const token =
         localStorage.getItem("token") ||
@@ -349,9 +323,9 @@ function CreatePointModal({
           `Bearer ${token}`;
       }
 
-      // ======================================================
+      // ------------------------------------------------------
       // DEBUG
-      // ======================================================
+      // ------------------------------------------------------
 
       console.log(
         "CREATE ACTION POINT DATA:"
@@ -386,9 +360,9 @@ function CreatePointModal({
           file?.name || null,
       });
 
-      // ======================================================
+      // ------------------------------------------------------
       // API REQUEST
-      // ======================================================
+      // ------------------------------------------------------
 
       const res = await axios.post(
         `${API}/api/action-points`,
@@ -398,9 +372,9 @@ function CreatePointModal({
         }
       );
 
-      // ======================================================
+      // ------------------------------------------------------
       // SUCCESS
-      // ======================================================
+      // ------------------------------------------------------
 
       alert(
         res.data?.message ||
@@ -421,10 +395,6 @@ function CreatePointModal({
         error
       );
 
-      // ======================================================
-      // BACKEND ERROR
-      // ======================================================
-
       if (error.response) {
         console.error(
           "STATUS:",
@@ -440,10 +410,6 @@ function CreatePointModal({
           error.response.data?.message ||
           error.response.data?.error ||
           "Unable to create Action Point.";
-
-        // ----------------------------------------------------
-        // SPECIAL MESSAGE
-        // ----------------------------------------------------
 
         if (
           backendMessage
@@ -478,305 +444,531 @@ function CreatePointModal({
   };
 
   // ==========================================================
+  // DO NOT RENDER WHEN CLOSED
+  // ==========================================================
+
+  if (!isOpen) {
+    return null;
+  }
+
+  // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
-    <div className="modal-overlay">
+    <div
+      className="modal-overlay action-point-overlay"
+      onMouseDown={(e) => {
+        if (
+          e.target === e.currentTarget &&
+          !loading
+        ) {
+          handleClose();
+        }
+      }}
+    >
 
-      <div className="create-modal">
-
-        <h2>
-          Create Action Point
-        </h2>
+      <div
+        className="create-modal action-point-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="action-point-title"
+      >
 
         {/* ==================================================
-            CREATION TYPE INFORMATION
+            HEADER
         ================================================== */}
 
-        <div className="creation-info">
+        <div className="action-point-header">
 
-          {formData.submission_id ? (
-            <>
-              <span className="creation-badge checklist">
-                Checklist Action Point
-              </span>
+          <div className="action-point-header-content">
 
-              <small>
-                Submission ID:{" "}
-                {formData.submission_id}
-              </small>
-            </>
-          ) : (
-            <>
-              <span className="creation-badge manual">
-                Manual Action Point
-              </span>
+            <div className="action-point-header-icon">
+              <span>✓</span>
+            </div>
 
-              <small>
-                This Action Point is being created manually.
-              </small>
-            </>
-          )}
+            <div>
+
+              <h2 id="action-point-title">
+                Create Action Point
+              </h2>
+
+              <p>
+                Create and assign a new action point
+              </p>
+
+            </div>
+
+          </div>
+
+          <button
+            type="button"
+            className="action-point-close"
+            onClick={handleClose}
+            disabled={loading}
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
 
         </div>
 
         {/* ==================================================
-            LOADING
+            BODY
         ================================================== */}
 
-        {loadingData ? (
+        <div className="action-point-body">
 
-          <div className="loading-message">
-            Loading...
-          </div>
+          {/* ==================================================
+              CREATION TYPE
+          ================================================== */}
 
-        ) : (
+          <div className="creation-info">
 
-          <form onSubmit={handleSubmit}>
+            {formData.submission_id ? (
+              <div className="creation-status checklist-status">
 
-            {/* ==================================================
-                STORE
-            ================================================== */}
+                <div className="creation-status-icon">
+                  ✓
+                </div>
 
-            <label>
-              Store / Location
-            </label>
+                <div>
+                  <strong>
+                    Checklist Action Point
+                  </strong>
 
-            <select
-              name="store_id"
-              value={formData.store_id}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
+                  <small>
+                    Submission ID:{" "}
+                    {formData.submission_id}
+                  </small>
+                </div>
 
-              <option value="">
-                Select Store / Location
-              </option>
+              </div>
+            ) : (
+              <div className="creation-status manual-status">
 
-              {stores.map((store) => (
+                <div className="creation-status-icon">
+                  +
+                </div>
 
-                <option
-                  key={store.id}
-                  value={store.id}
-                >
+                <div>
+                  <strong>
+                    Manual Action Point
+                  </strong>
 
-                  {store.store_name ||
-                    store.name ||
-                    "Unnamed Store"}
+                  <small>
+                    This Action Point is being
+                    created manually.
+                  </small>
+                </div>
 
-                  {store.store_code
-                    ? ` (${store.store_code})`
-                    : ""}
-
-                </option>
-
-              ))}
-
-            </select>
-
-            {/* ==================================================
-                DEPARTMENT
-            ================================================== */}
-
-            <label>
-              Department
-            </label>
-
-            <select
-              name="department_id"
-              value={formData.department_id}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
-
-              <option value="">
-                Select Department
-              </option>
-
-              {departments.map((dept) => (
-
-                <option
-                  key={dept.id}
-                  value={dept.id}
-                >
-
-                  {dept.department_name ||
-                    dept.name ||
-                    "Unnamed Department"}
-
-                </option>
-
-              ))}
-
-            </select>
-
-            {/* ==================================================
-                QUESTION
-            ================================================== */}
-
-            <label>
-              Question
-            </label>
-
-            <select
-              name="question_id"
-              value={formData.question_id}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
-
-              <option value="">
-                Select Question
-              </option>
-
-              {questions.map((question) => (
-
-                <option
-                  key={question.id}
-                  value={question.id}
-                >
-
-                  {question.question ||
-                    question.question_text ||
-                    "Unnamed Question"}
-
-                </option>
-
-              ))}
-
-            </select>
-
-            {/* ==================================================
-                SLA
-            ================================================== */}
-
-            <label>
-              SLA
-            </label>
-
-            <div className="sla-row">
-
-              <input
-                type="number"
-                name="sla_value"
-                placeholder="SLA Value"
-                min="1"
-                value={formData.sla_value}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
-
-              <select
-                name="sla_type"
-                value={formData.sla_type}
-                onChange={handleChange}
-                disabled={loading}
-              >
-
-                <option value="Hours">
-                  Hours
-                </option>
-
-                <option value="Days">
-                  Days
-                </option>
-
-              </select>
-
-            </div>
-
-            {/* ==================================================
-                ANSWER
-            ================================================== */}
-
-            <label>
-              Submission Answer
-            </label>
-
-            <input
-              type="text"
-              name="answer"
-              placeholder="Enter Submission Answer"
-              value={formData.answer}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-
-            {/* ==================================================
-                REMARKS
-            ================================================== */}
-
-            <label>
-              Remarks
-            </label>
-
-            <textarea
-              rows="4"
-              name="remarks"
-              placeholder="Remarks (optional)"
-              value={formData.remarks}
-              onChange={handleChange}
-              disabled={loading}
-            />
-
-            {/* ==================================================
-                ATTACHMENT
-            ================================================== */}
-
-            <label className="upload-label">
-              Attachment (optional)
-            </label>
-
-            <input
-              type="file"
-              onChange={handleFile}
-              disabled={loading}
-            />
-
-            {file && (
-              <div className="selected-file">
-                Selected: {file.name}
               </div>
             )}
 
-            {/* ==================================================
-                BUTTONS
-            ================================================== */}
+          </div>
 
-            <div className="modal-buttons">
+          {/* ==================================================
+              LOADING
+          ================================================== */}
 
-              <button
-                type="button"
-                className="cancel-btn"
-                onClick={handleClose}
-                disabled={loading}
-              >
-                Cancel
-              </button>
+          {loadingData ? (
 
-              <button
-                type="submit"
-                className="save-btn"
-                disabled={loading || loadingData}
-              >
+            <div className="action-point-loading">
 
-                {loading
-                  ? "Creating..."
-                  : "Create Point"}
+              <div className="loading-spinner"></div>
 
-              </button>
+              <span>
+                Loading form data...
+              </span>
 
             </div>
 
-          </form>
+          ) : (
 
-        )}
+            <form
+              onSubmit={handleSubmit}
+              className="action-point-form"
+            >
+
+              {/* ==================================================
+                  BASIC INFORMATION
+              ================================================== */}
+
+              <div className="action-point-section">
+
+                <div className="action-section-title">
+
+                  <span className="section-accent"></span>
+
+                  <div>
+                    <h3>
+                      Action Point Information
+                    </h3>
+
+                    <p>
+                      Select the location, department
+                      and checklist question.
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="action-form-grid">
+
+                  {/* STORE */}
+
+                  <div className="action-form-group">
+
+                    <label htmlFor="action-store">
+                      Store / Location
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <select
+                      id="action-store"
+                      name="store_id"
+                      value={formData.store_id}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                    >
+
+                      <option value="">
+                        Select Store / Location
+                      </option>
+
+                      {stores.map((store) => (
+
+                        <option
+                          key={store.id}
+                          value={store.id}
+                        >
+                          {store.store_name ||
+                            store.name ||
+                            "Unnamed Store"}
+
+                          {store.store_code
+                            ? ` (${store.store_code})`
+                            : ""}
+                        </option>
+
+                      ))}
+
+                    </select>
+
+                  </div>
+
+                  {/* DEPARTMENT */}
+
+                  <div className="action-form-group">
+
+                    <label htmlFor="action-department">
+                      Department
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <select
+                      id="action-department"
+                      name="department_id"
+                      value={formData.department_id}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                    >
+
+                      <option value="">
+                        Select Department
+                      </option>
+
+                      {departments.map((dept) => (
+
+                        <option
+                          key={dept.id}
+                          value={dept.id}
+                        >
+                          {dept.department_name ||
+                            dept.name ||
+                            "Unnamed Department"}
+                        </option>
+
+                      ))}
+
+                    </select>
+
+                  </div>
+
+                  {/* QUESTION */}
+
+                  <div className="action-form-group action-full-width">
+
+                    <label htmlFor="action-question">
+                      Question
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <select
+                      id="action-question"
+                      name="question_id"
+                      value={formData.question_id}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                    >
+
+                      <option value="">
+                        Select Question
+                      </option>
+
+                      {questions.map((question) => (
+
+                        <option
+                          key={question.id}
+                          value={question.id}
+                        >
+                          {question.question ||
+                            question.question_text ||
+                            "Unnamed Question"}
+                        </option>
+
+                      ))}
+
+                    </select>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* ==================================================
+                  ACTION DETAILS
+              ================================================== */}
+
+              <div className="action-point-section">
+
+                <div className="action-section-title">
+
+                  <span className="section-accent"></span>
+
+                  <div>
+                    <h3>
+                      Action Details
+                    </h3>
+
+                    <p>
+                      Provide the answer, SLA and
+                      supporting information.
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="action-form-grid">
+
+                  {/* SLA */}
+
+                  <div className="action-form-group">
+
+                    <label>
+                      SLA
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <div className="sla-row">
+
+                      <input
+                        type="number"
+                        name="sla_value"
+                        placeholder="SLA Value"
+                        min="1"
+                        value={formData.sla_value}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                      />
+
+                      <select
+                        name="sla_type"
+                        value={formData.sla_type}
+                        onChange={handleChange}
+                        disabled={loading}
+                      >
+
+                        <option value="Hours">
+                          Hours
+                        </option>
+
+                        <option value="Days">
+                          Days
+                        </option>
+
+                      </select>
+
+                    </div>
+
+                  </div>
+
+                  {/* ANSWER */}
+
+                  <div className="action-form-group">
+
+                    <label htmlFor="action-answer">
+                      Submission Answer
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <input
+                      id="action-answer"
+                      type="text"
+                      name="answer"
+                      placeholder="Enter Submission Answer"
+                      value={formData.answer}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                    />
+
+                  </div>
+
+                  {/* REMARKS */}
+
+                  <div className="action-form-group action-full-width">
+
+                    <label htmlFor="action-remarks">
+                      Remarks
+                    </label>
+
+                    <textarea
+                      id="action-remarks"
+                      rows="4"
+                      name="remarks"
+                      placeholder="Enter remarks (optional)"
+                      value={formData.remarks}
+                      onChange={handleChange}
+                      disabled={loading}
+                    />
+
+                  </div>
+
+                  {/* ATTACHMENT */}
+
+                  <div className="action-form-group action-full-width">
+
+                    <label>
+                      Attachment
+                      <span className="optional-text">
+                        Optional
+                      </span>
+                    </label>
+
+                    <div className="file-upload-box">
+
+                      <input
+                        id="action-attachment"
+                        type="file"
+                        onChange={handleFile}
+                        disabled={loading}
+                      />
+
+                      <label
+                        htmlFor="action-attachment"
+                        className="file-upload-label"
+                      >
+
+                        <span className="file-upload-icon">
+                          ↑
+                        </span>
+
+                        <span>
+                          {file
+                            ? "Change attachment"
+                            : "Choose attachment"}
+                        </span>
+
+                      </label>
+
+                      {file && (
+
+                        <div className="selected-file">
+
+                          <span className="file-check">
+                            ✓
+                          </span>
+
+                          <span>
+                            {file.name}
+                          </span>
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* ==================================================
+                  FOOTER
+              ================================================== */}
+
+              <div className="action-point-footer">
+
+                <button
+                  type="button"
+                  className="action-cancel-btn"
+                  onClick={handleClose}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="action-create-btn"
+                  disabled={
+                    loading ||
+                    loadingData
+                  }
+                >
+
+                  {loading ? (
+                    <>
+                      <span className="button-spinner"></span>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <span className="create-button-icon">
+                        +
+                      </span>
+                      Create Action Point
+                    </>
+                  )}
+
+                </button>
+
+              </div>
+
+            </form>
+
+          )}
+
+        </div>
 
       </div>
 
