@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import AddUserModal from "../components/AddUserModal";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import {
   FaSearch,
