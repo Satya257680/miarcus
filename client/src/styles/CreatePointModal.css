@@ -1,141 +1,594 @@
-.modal-overlay{
+/* ======================================================
+   CREATE ACTION POINT MODAL
+   ====================================================== */
 
-    position:fixed;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
 
-    inset:0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    background:rgba(0,0,0,.4);
+  padding: 20px;
 
-    display:flex;
+  background: rgba(15, 23, 42, 0.62);
 
-    justify-content:center;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
 
-    align-items:center;
 
-    z-index:9999;
+/* ======================================================
+   MODAL
+   ====================================================== */
+
+.create-modal {
+  width: 100%;
+  max-width: 540px;
+
+  max-height: calc(100vh - 40px);
+
+  overflow-y: auto;
+
+  padding: 28px 26px 24px;
+
+  background: #ffffff;
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.25),
+    0 8px 20px rgba(15, 23, 42, 0.12);
+
+  border: 1px solid #e5e7eb;
+
+  animation: createModalIn 0.2s ease-out;
+}
+
+
+/* ======================================================
+   MODAL ANIMATION
+   ====================================================== */
+
+@keyframes createModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ======================================================
+   SCROLLBAR
+   ====================================================== */
+
+.create-modal::-webkit-scrollbar {
+  width: 7px;
+}
+
+.create-modal::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.create-modal::-webkit-scrollbar-thumb {
+  background: #b8b0e8;
+  border-radius: 10px;
+}
+
+.create-modal::-webkit-scrollbar-thumb:hover {
+  background: #8b7bd8;
+}
+
+
+/* ======================================================
+   TITLE
+   ====================================================== */
+
+.create-modal h2 {
+  margin: 0 0 22px;
+
+  color: #6f63c5;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  line-height: 1.3;
+}
+
+
+/* ======================================================
+   FORM
+   ====================================================== */
+
+.create-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+
+/* ======================================================
+   SELECT
+   ====================================================== */
+
+.create-modal select {
+  width: 100%;
+  height: 48px;
+
+  padding: 0 14px;
+
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+
+  background-color: #ffffff;
+
+  color: #1f2937;
+
+  font-size: 14px;
+  font-family: inherit;
+
+  outline: none;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.create-modal select:hover {
+  border-color: #b8b0e8;
+}
+
+.create-modal select:focus {
+  border-color: #7c6fd1;
+
+  box-shadow:
+    0 0 0 3px rgba(124, 111, 209, 0.12);
+}
+
+
+/* ======================================================
+   INPUT
+   ====================================================== */
+
+.create-modal input[type="text"],
+.create-modal input[type="number"] {
+  width: 100%;
+  height: 48px;
+
+  box-sizing: border-box;
+
+  padding: 0 14px;
+
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #1f2937;
+
+  font-size: 14px;
+  font-family: inherit;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.create-modal input[type="text"]::placeholder,
+.create-modal input[type="number"]::placeholder {
+  color: #9ca3af;
+}
+
+.create-modal input[type="text"]:focus,
+.create-modal input[type="number"]:focus {
+  border-color: #7c6fd1;
+
+  box-shadow:
+    0 0 0 3px rgba(124, 111, 209, 0.12);
+}
+
+
+/* ======================================================
+   TEXTAREA
+   ====================================================== */
+
+.create-modal textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  min-height: 100px;
+
+  padding: 12px 14px;
+
+  resize: vertical;
+
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #1f2937;
+
+  font-size: 14px;
+  font-family: inherit;
+
+  line-height: 1.5;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.create-modal textarea::placeholder {
+  color: #9ca3af;
+}
+
+.create-modal textarea:focus {
+  border-color: #7c6fd1;
+
+  box-shadow:
+    0 0 0 3px rgba(124, 111, 209, 0.12);
+}
+
+
+/* ======================================================
+   SLA ROW
+   ====================================================== */
+
+.sla-row {
+  display: grid;
+
+  grid-template-columns: 1fr 145px;
+
+  gap: 10px;
+
+  width: 100%;
+}
+
+
+/* ======================================================
+   FILE UPLOAD LABEL
+   ====================================================== */
+
+.upload-label {
+  display: block;
+
+  margin-top: 2px;
+  margin-bottom: -6px;
+
+  color: #111827;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+/* ======================================================
+   FILE INPUT
+   ====================================================== */
+
+.create-modal input[type="file"] {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  min-height: 48px;
+
+  padding: 7px 10px;
+
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #374151;
+
+  font-size: 13px;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.create-modal input[type="file"]:hover {
+  border-color: #b8b0e8;
+
+  background: #faf9ff;
+}
+
+.create-modal input[type="file"]::file-selector-button {
+  margin-right: 10px;
+
+  padding: 7px 12px;
+
+  border: 1px solid #cfc9ef;
+  border-radius: 6px;
+
+  background: #f3f1ff;
+
+  color: #5d50b3;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.create-modal input[type="file"]::file-selector-button:hover {
+  background: #eae7ff;
+}
+
+
+/* ======================================================
+   BUTTON CONTAINER
+   ====================================================== */
+
+.modal-buttons {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 10px;
+
+  margin-top: 8px;
+}
+
+
+/* ======================================================
+   ALL BUTTONS
+   ====================================================== */
+
+.modal-buttons button {
+  height: 44px;
+
+  border: none;
+  border-radius: 7px;
+
+  font-family: inherit;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.modal-buttons button:hover {
+  transform: translateY(-1px);
+}
+
+.modal-buttons button:active {
+  transform: translateY(0);
+}
+
+
+/* ======================================================
+   CANCEL BUTTON
+   ====================================================== */
+
+.cancel-btn {
+  background: #e5e7eb;
+
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background: #d9dce1;
+}
+
+.cancel-btn:focus {
+  outline: none;
+
+  box-shadow:
+    0 0 0 3px rgba(107, 114, 128, 0.15);
+}
+
+
+/* ======================================================
+   SAVE BUTTON
+   ====================================================== */
+
+.save-btn {
+  background: #6f55c7;
+
+  color: #ffffff;
+
+  box-shadow:
+    0 3px 8px rgba(111, 85, 199, 0.2);
+}
+
+.save-btn:hover {
+  background: #6047b5;
+
+  box-shadow:
+    0 5px 12px rgba(111, 85, 199, 0.28);
+}
+
+.save-btn:focus {
+  outline: none;
+
+  box-shadow:
+    0 0 0 3px rgba(111, 85, 199, 0.18);
+}
+
+
+/* ======================================================
+   DISABLED STATE
+   ====================================================== */
+
+.create-modal button:disabled,
+.create-modal input:disabled,
+.create-modal select:disabled,
+.create-modal textarea:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.65;
+}
+
+.save-btn:disabled {
+  background: #9b8bd4;
+
+  box-shadow: none;
+}
+
+.cancel-btn:disabled {
+  background: #d1d5db;
+}
+
+
+/* ======================================================
+   LOADING MESSAGE
+   ====================================================== */
+
+.loading-message {
+  min-height: 160px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #6f63c5;
+
+  font-size: 15px;
+  font-weight: 600;
+}
+
+
+/* ======================================================
+   REQUIRED FIELD / VALIDATION
+   ====================================================== */
+
+.create-modal input:invalid:not(:placeholder-shown),
+.create-modal select:invalid {
+  border-color: #d7dbe2;
+}
+
+
+/* ======================================================
+   RESPONSIVE - TABLET
+   ====================================================== */
+
+@media (max-width: 700px) {
+
+  .modal-overlay {
+    padding: 14px;
+  }
+
+  .create-modal {
+    max-width: 100%;
+
+    max-height: calc(100vh - 28px);
+
+    padding: 24px 20px 20px;
+
+    border-radius: 12px;
+  }
+
+  .create-modal h2 {
+    font-size: 20px;
+
+    margin-bottom: 18px;
+  }
 
 }
 
-.create-modal{
 
-    width:650px;
+/* ======================================================
+   RESPONSIVE - MOBILE
+   ====================================================== */
 
-    max-height:90vh;
+@media (max-width: 480px) {
 
-    overflow-y:auto;
+  .modal-overlay {
+    padding: 8px;
+  }
 
-    background:white;
+  .create-modal {
+    max-height: calc(100vh - 16px);
 
-    border-radius:15px;
+    padding: 20px 16px 16px;
 
-    padding:30px;
+    border-radius: 10px;
+  }
 
-}
+  .create-modal h2 {
+    font-size: 19px;
+  }
 
-.create-modal h2{
+  .create-modal form {
+    gap: 12px;
+  }
 
-    color:#9283d7;
+  .create-modal select,
+  .create-modal input[type="text"],
+  .create-modal input[type="number"] {
+    height: 46px;
 
-    margin-bottom:25px;
+    font-size: 13px;
+  }
 
-}
+  .sla-row {
+    grid-template-columns: 1fr;
 
-.create-modal form{
+    gap: 10px;
+  }
 
-    display:flex;
+  .create-modal textarea {
+    min-height: 90px;
+  }
 
-    flex-direction:column;
+  .modal-buttons {
+    grid-template-columns: 1fr;
 
-    gap:18px;
+    gap: 8px;
+  }
 
-}
-
-.create-modal input,
-.create-modal select,
-.create-modal textarea{
-
-    width:100%;
-
-    padding:14px;
-
-    border:1px solid #ddd;
-
-    border-radius:10px;
-
-    font-size:16px;
-
-}
-
-.sla-row{
-
-    display:flex;
-
-    gap:15px;
-
-}
-
-.sla-row input{
-
-    flex:1;
+  .modal-buttons button {
+    height: 44px;
+  }
 
 }
 
-.sla-row select{
 
-    width:180px;
+/* ======================================================
+   VERY SMALL SCREENS
+   ====================================================== */
 
-}
+@media (max-width: 360px) {
 
-.upload-label{
+  .create-modal {
+    padding: 18px 13px 14px;
+  }
 
-    font-weight:600;
+  .create-modal h2 {
+    font-size: 18px;
+  }
 
-}
-
-.modal-buttons{
-
-    display:flex;
-
-    justify-content:flex-end;
-
-    gap:15px;
-
-    margin-top:10px;
-
-}
-
-.cancel-btn{
-
-    background:#ddd;
-
-    border:none;
-
-    padding:12px 28px;
-
-    border-radius:10px;
-
-    cursor:pointer;
-
-}
-
-.save-btn{
-
-    background:#9b8adb;
-
-    color:white;
-
-    border:none;
-
-    padding:12px 28px;
-
-    border-radius:10px;
-
-    cursor:pointer;
-
-}
-
-.save-btn:hover{
-
-    background:#8b79d3;
+  .create-modal input[type="file"] {
+    font-size: 12px;
+  }
 
 }

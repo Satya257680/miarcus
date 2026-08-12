@@ -8,6 +8,7 @@ function CreatePointModal({
   isOpen,
   onClose,
   onSuccess,
+  submissionId = null,
 }) {
   const [stores, setStores] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -15,8 +16,11 @@ function CreatePointModal({
 
   const [file, setFile] = useState(null);
 
- const [formData, setFormData] = useState({
-  submission_id: 28,
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+
+  const [formData, setFormData] = useState({
+    submission_id: submissionId || "",
     store_id: "",
     department_id: "",
     question_id: "",
@@ -26,6 +30,21 @@ function CreatePointModal({
     sla_type: "Hours",
   });
 
+  // ======================================================
+  // UPDATE SUBMISSION ID WHEN PARENT CHANGES IT
+  // ======================================================
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      submission_id: submissionId || "",
+    }));
+  }, [submissionId]);
+
+  // ======================================================
+  // LOAD DROPDOWN DATA
+  // ======================================================
+
   useEffect(() => {
     if (isOpen) {
       loadData();
@@ -33,38 +52,105 @@ function CreatePointModal({
   }, [isOpen]);
 
   const loadData = async () => {
-    try {
-      const [storeRes, deptRes, questionRes] = await Promise.all([
-        axios.get(`${API}/api/stores`),
-        axios.get(`${API}/api/departments`),
-        axios.get(`${API}/api/questions`),
-      ]);
+    setLoadingData(true);
 
-      setStores(storeRes.data.data || []);
-      setDepartments(deptRes.data.data || []);
-      setQuestions(questionRes.data.data || []);
-    } catch (err) {
-      console.log(err);
-      alert("Unable to load dropdown data.");
+    try {
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("accessToken");
+
+      const headers = token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {};
+
+      const [storeRes, deptRes, questionRes] =
+        await Promise.all([
+          axios.get(`${API}/api/stores`, {
+            headers,
+          }),
+
+          axios.get(`${API}/api/departments`, {
+            headers,
+          }),
+
+          axios.get(`${API}/api/questions`, {
+            headers,
+          }),
+        ]);
+
+      setStores(
+        storeRes.data?.data ||
+          storeRes.data?.stores ||
+          []
+      );
+
+      setDepartments(
+        deptRes.data?.data ||
+          deptRes.data?.departments ||
+          []
+      );
+
+      setQuestions(
+        questionRes.data?.data ||
+          questionRes.data?.questions ||
+          []
+      );
+    } catch (error) {
+      console.error(
+        "CREATE ACTION POINT - LOAD DATA ERROR:",
+        error
+      );
+
+      const message =
+        error.response?.data?.message ||
+        "Unable to load dropdown data.";
+
+      alert(message);
+    } finally {
+      setLoadingData(false);
     }
   };
 
-  if (!isOpen) return null;
+  // ======================================================
+  // CLOSE
+  // ======================================================
+
+  if (!isOpen) {
+    return null;
+  }
+
+  // ======================================================
+  // HANDLE CHANGE
+  // ======================================================
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
+  // ======================================================
+  // HANDLE FILE
+  // ======================================================
+
   const handleFile = (e) => {
-    setFile(e.target.files[0]);
+    const selectedFile = e.target.files?.[0] || null;
+
+    setFile(selectedFile);
   };
+
+  // ======================================================
+  // RESET FORM
+  // ======================================================
 
   const resetForm = () => {
     setFormData({
-      submission_id: 28,
+      submission_id: submissionId || "",
       store_id: "",
       department_id: "",
       question_id: "",
@@ -77,181 +163,502 @@ function CreatePointModal({
     setFile(null);
   };
 
+  // ======================================================
+  // CLOSE MODAL
+  // ======================================================
+
+  const handleClose = () => {
+    if (loading) {
+      return;
+    }
+
+    resetForm();
+    onClose();
+  };
+
+  // ======================================================
+  // SUBMIT
+  // ======================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (loading) {
+      return;
+    }
+
+    // ==================================================
+    // VALIDATION
+    // ==================================================
+
+    if (!formData.store_id) {
+      alert("Please select a Store.");
+      return;
+    }
+
+    if (!formData.department_id) {
+      alert("Please select a Department.");
+      return;
+    }
+
+    if (!formData.question_id) {
+      alert("Please select a Question.");
+      return;
+    }
+
+    if (
+      !formData.sla_value ||
+      Number(formData.sla_value) <= 0
+    ) {
+      alert("Please enter a valid SLA value.");
+      return;
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * submission_id is required by the current backend/database
+     * because an Action Point is linked to the checklist answer.
+     *
+     * DO NOT hard-code submission_id = 28.
+     */
+
+    if (!formData.submission_id) {
+      alert(
+        "No checklist submission is selected. Please open this Action Point from a checklist submission."
+      );
+      return;
+    }
+
+    // ==================================================
+    // START
+    // ==================================================
+
+    setLoading(true);
 
     try {
       const data = new FormData();
 
-      data.append("submission_id", formData.submission_id);
-      data.append("store_id", formData.store_id);
-      data.append("department_id", formData.department_id);
-      data.append("question_id", formData.question_id);
-      data.append("answer", formData.answer);
-      data.append("remarks", formData.remarks);
+      // ------------------------------------------------
+      // CHECKLIST SUBMISSION
+      // ------------------------------------------------
+
+      data.append(
+        "submission_id",
+        String(formData.submission_id)
+      );
+
+      // ------------------------------------------------
+      // STORE
+      // ------------------------------------------------
+
+      data.append(
+        "store_id",
+        String(formData.store_id)
+      );
+
+      // ------------------------------------------------
+      // DEPARTMENT
+      // ------------------------------------------------
+
+      data.append(
+        "department_id",
+        String(formData.department_id)
+      );
+
+      // ------------------------------------------------
+      // QUESTION
+      // ------------------------------------------------
+
+      data.append(
+        "question_id",
+        String(formData.question_id)
+      );
+
+      // ------------------------------------------------
+      // ANSWER
+      // ------------------------------------------------
+
+      data.append(
+        "answer",
+        formData.answer || ""
+      );
+
+      // ------------------------------------------------
+      // REMARKS
+      // ------------------------------------------------
+
+      data.append(
+        "remarks",
+        formData.remarks || ""
+      );
+
+      // ------------------------------------------------
+      // SLA
+      //
+      // Backend can use sla_value.
+      // ------------------------------------------------
+
+      data.append(
+        "sla_value",
+        String(formData.sla_value)
+      );
+
+      data.append(
+        "sla_type",
+        formData.sla_type
+      );
+
+      // ------------------------------------------------
+      // ALSO SEND sla FOR COMPATIBILITY
+      // ------------------------------------------------
+
       data.append(
         "sla",
         `${formData.sla_value} ${formData.sla_type}`
       );
 
+      // ------------------------------------------------
+      // ATTACHMENT
+      // ------------------------------------------------
+
       if (file) {
-        data.append("attachment", file);
+        data.append(
+          "attachment",
+          file
+        );
       }
+
+      // ==================================================
+      // AUTH TOKEN
+      // ==================================================
+
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("accessToken");
+
+      const headers = {};
+
+      if (token) {
+        headers.Authorization =
+          `Bearer ${token}`;
+      }
+
+      // IMPORTANT:
+      // Do NOT manually set Content-Type.
+      //
+      // Axios/browser will automatically create:
+      // multipart/form-data; boundary=...
+      //
+      // This prevents multipart parsing problems.
+
+      // ==================================================
+      // API REQUEST
+      // ==================================================
 
       const res = await axios.post(
         `${API}/api/action-points`,
         data,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers,
         }
       );
 
-      alert(res.data.message);
+      // ==================================================
+      // SUCCESS
+      // ==================================================
+
+      alert(
+        res.data?.message ||
+        "Action Point created successfully."
+      );
 
       resetForm();
 
       if (onSuccess) {
-        onSuccess();
+        await onSuccess();
       }
 
       onClose();
-    } catch (err) {
-      console.log(err);
 
-      if (err.response) {
-        alert(err.response.data.message);
+    } catch (error) {
+
+      console.error(
+        "CREATE ACTION POINT ERROR:",
+        error
+      );
+
+      // ==================================================
+      // BACKEND ERROR
+      // ==================================================
+
+      if (error.response) {
+
+        console.error(
+          "STATUS:",
+          error.response.status
+        );
+
+        console.error(
+          "RESPONSE:",
+          error.response.data
+        );
+
+        alert(
+          error.response.data?.message ||
+          error.response.data?.error ||
+          "Unable to create Action Point."
+        );
+
+      } else if (error.request) {
+
+        alert(
+          "Backend server did not respond."
+        );
+
       } else {
-        alert("Server Error");
+
+        alert(
+          "Unable to create Action Point."
+        );
       }
+
+    } finally {
+
+      setLoading(false);
+
     }
   };
-    return (
+
+  // ======================================================
+  // RENDER
+  // ======================================================
+
+  return (
     <div className="modal-overlay">
+
       <div className="create-modal">
-        <h2>Create Action Point</h2>
 
-        <form onSubmit={handleSubmit}>
-          {/* Store */}
-          <select
-            name="store_id"
-            value={formData.store_id}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Store / Location</option>
+        <h2>
+          Create Action Point
+        </h2>
 
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.store_name} ({store.store_code})
-              </option>
-            ))}
-          </select>
+        {loadingData ? (
 
-          {/* Department */}
-          <select
-            name="department_id"
-            value={formData.department_id}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Department</option>
+          <div className="loading-message">
+            Loading...
+          </div>
 
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.department_name}
-              </option>
-            ))}
-          </select>
+        ) : (
 
-          {/* Question */}
-          <select
-            name="question_id"
-            value={formData.question_id}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Question</option>
+          <form onSubmit={handleSubmit}>
 
-            {questions.map((question) => (
-              <option key={question.id} value={question.id}>
-                {question.question}
-              </option>
-            ))}
-          </select>
-
-          {/* SLA */}
-          <div className="sla-row">
-            <input
-              type="number"
-              name="sla_value"
-              placeholder="SLA Value"
-              value={formData.sla_value}
-              onChange={handleChange}
-              required
-            />
+            {/* ==================================================
+                STORE
+            ================================================== */}
 
             <select
-              name="sla_type"
-              value={formData.sla_type}
+              name="store_id"
+              value={formData.store_id}
               onChange={handleChange}
+              required
+              disabled={loading}
             >
-              <option value="Hours">Hours</option>
-              <option value="Days">Days</option>
+
+              <option value="">
+                Select Store / Location
+              </option>
+
+              {stores.map((store) => (
+
+                <option
+                  key={store.id}
+                  value={store.id}
+                >
+                  {store.store_name ||
+                    store.name ||
+                    "Unnamed Store"}
+
+                  {store.store_code
+                    ? ` (${store.store_code})`
+                    : ""}
+                </option>
+
+              ))}
+
             </select>
-          </div>
 
-          {/* Answer */}
-          <input
-            type="text"
-            name="answer"
-            placeholder="Answer (optional)"
-            value={formData.answer}
-            onChange={handleChange}
-          />
+            {/* ==================================================
+                DEPARTMENT
+            ================================================== */}
 
-          {/* Remarks */}
-          <textarea
-            rows="4"
-            name="remarks"
-            placeholder="Remarks (optional)"
-            value={formData.remarks}
-            onChange={handleChange}
-          />
-
-          {/* Attachment */}
-          <label className="upload-label">
-            Attachment (optional)
-          </label>
-
-          <input
-            type="file"
-            onChange={handleFile}
-          />
-
-          {/* Buttons */}
-          <div className="modal-buttons">
-            <button
-              type="button"
-              className="cancel-btn"
-              onClick={() => {
-                resetForm();
-                onClose();
-              }}
+            <select
+              name="department_id"
+              value={formData.department_id}
+              onChange={handleChange}
+              required
+              disabled={loading}
             >
-              Cancel
-            </button>
 
-            <button
-              type="submit"
-              className="save-btn"
+              <option value="">
+                Select Department
+              </option>
+
+              {departments.map((dept) => (
+
+                <option
+                  key={dept.id}
+                  value={dept.id}
+                >
+                  {dept.department_name ||
+                    dept.name ||
+                    "Unnamed Department"}
+                </option>
+
+              ))}
+
+            </select>
+
+            {/* ==================================================
+                QUESTION
+            ================================================== */}
+
+            <select
+              name="question_id"
+              value={formData.question_id}
+              onChange={handleChange}
+              required
+              disabled={loading}
             >
-              Create Point
-            </button>
-          </div>
-        </form>
+
+              <option value="">
+                Select Question
+              </option>
+
+              {questions.map((question) => (
+
+                <option
+                  key={question.id}
+                  value={question.id}
+                >
+                  {question.question ||
+                    question.question_text ||
+                    "Unnamed Question"}
+                </option>
+
+              ))}
+
+            </select>
+
+            {/* ==================================================
+                SLA
+            ================================================== */}
+
+            <div className="sla-row">
+
+              <input
+                type="number"
+                name="sla_value"
+                placeholder="SLA Value"
+                min="1"
+                value={formData.sla_value}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+
+              <select
+                name="sla_type"
+                value={formData.sla_type}
+                onChange={handleChange}
+                disabled={loading}
+              >
+
+                <option value="Hours">
+                  Hours
+                </option>
+
+                <option value="Days">
+                  Days
+                </option>
+
+              </select>
+
+            </div>
+
+            {/* ==================================================
+                ANSWER
+            ================================================== */}
+
+            <input
+              type="text"
+              name="answer"
+              placeholder="Submission Answer"
+              value={formData.answer}
+              onChange={handleChange}
+              disabled={loading}
+            />
+
+            {/* ==================================================
+                REMARKS
+            ================================================== */}
+
+            <textarea
+              rows="4"
+              name="remarks"
+              placeholder="Remarks (optional)"
+              value={formData.remarks}
+              onChange={handleChange}
+              disabled={loading}
+            />
+
+            {/* ==================================================
+                ATTACHMENT
+            ================================================== */}
+
+            <label className="upload-label">
+              Attachment (optional)
+            </label>
+
+            <input
+              type="file"
+              onChange={handleFile}
+              disabled={loading}
+            />
+
+            {/* ==================================================
+                BUTTONS
+            ================================================== */}
+
+            <div className="modal-buttons">
+
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={handleClose}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="save-btn"
+                disabled={loading}
+              >
+                {loading
+                  ? "Creating..."
+                  : "Create Point"}
+              </button>
+
+            </div>
+
+          </form>
+
+        )}
+
       </div>
+
     </div>
   );
 }
