@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/AddReportModal.css";
+import "../../styles/common/ProfessionalModal.css";
 
 function AddReportModal({
   editData,

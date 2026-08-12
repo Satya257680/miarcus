@@ -1,0 +1,1056 @@
+/* =========================================================
+   MIARCUS - PROFESSIONAL MODAL SYSTEM
+   ========================================================= */
+
+:root {
+    --modal-primary: #2f7187;
+    --modal-primary-dark: #245d70;
+    --modal-primary-light: #e8f5f8;
+
+    --modal-text: #1f2937;
+    --modal-muted: #64748b;
+
+    --modal-border: #d9e2e8;
+    --modal-bg: #ffffff;
+    --modal-page: #f4f8fa;
+
+    --modal-danger: #dc3545;
+    --modal-success: #198754;
+
+    --modal-shadow:
+        0 25px 70px rgba(15, 23, 42, 0.20),
+        0 8px 25px rgba(15, 23, 42, 0.08);
+}
+
+
+/* =========================================================
+   OVERLAY
+   ========================================================= */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+
+    background: rgba(15, 23, 42, 0.55);
+
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+
+    z-index: 9999;
+
+    animation: modalOverlayIn 0.25s ease-out;
+}
+
+
+/* =========================================================
+   OVERLAY ANIMATION
+   ========================================================= */
+
+@keyframes modalOverlayIn {
+
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0);
+    }
+
+    to {
+        opacity: 1;
+        backdrop-filter: blur(7px);
+    }
+}
+
+
+/* =========================================================
+   COMMON MODAL
+   ========================================================= */
+
+.department-modal,
+.store-modal,
+.modal {
+
+    position: relative;
+
+    width: min(720px, 95vw);
+    max-height: 90vh;
+
+    background: var(--modal-bg);
+
+    border-radius: 18px;
+
+    border: 1px solid rgba(255, 255, 255, 0.8);
+
+    box-shadow: var(--modal-shadow);
+
+    overflow: hidden;
+
+    animation:
+        modalEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+
+    transform-origin: center;
+}
+
+
+/* =========================================================
+   LARGE MODALS
+   ========================================================= */
+
+.store-modal {
+    width: min(900px, 95vw);
+}
+
+.department-modal {
+    width: min(820px, 95vw);
+}
+
+
+/* =========================================================
+   MODAL ENTER ANIMATION
+   ========================================================= */
+
+@keyframes modalEnter {
+
+    0% {
+        opacity: 0;
+        transform:
+            translateY(35px)
+            scale(0.94);
+    }
+
+    60% {
+        opacity: 1;
+        transform:
+            translateY(-4px)
+            scale(1.01);
+    }
+
+    100% {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* =========================================================
+   MODAL HEADER
+   ========================================================= */
+
+.modal-header {
+
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    min-height: 78px;
+
+    padding: 18px 24px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #e8f6fa 0%,
+            #d5edf4 55%,
+            #c8e6ef 100%
+        );
+
+    border-bottom: 1px solid #d6e5ea;
+}
+
+
+/* Decorative line */
+
+.modal-header::before {
+
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 5px;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            to bottom,
+            #2f7187,
+            #5aa9bd
+        );
+}
+
+
+/* =========================================================
+   HEADER TITLE
+   ========================================================= */
+
+.modal-header h2 {
+
+    margin: 0;
+
+    padding-left: 4px;
+
+    color: #173b4a;
+
+    font-size: 19px;
+    font-weight: 700;
+
+    letter-spacing: -0.2px;
+}
+
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.department-modal form,
+.store-modal form,
+.modal form {
+
+    padding: 24px;
+
+    max-height: calc(90vh - 78px);
+
+    overflow-y: auto;
+
+    scrollbar-width: thin;
+    scrollbar-color: #b9ccd3 transparent;
+}
+
+
+/* =========================================================
+   FORM SCROLLBAR
+   ========================================================= */
+
+.department-modal form::-webkit-scrollbar,
+.store-modal form::-webkit-scrollbar,
+.modal form::-webkit-scrollbar {
+
+    width: 7px;
+}
+
+.department-modal form::-webkit-scrollbar-track,
+.store-modal form::-webkit-scrollbar-track,
+.modal form::-webkit-scrollbar-track {
+
+    background: transparent;
+}
+
+.department-modal form::-webkit-scrollbar-thumb,
+.store-modal form::-webkit-scrollbar-thumb,
+.modal form::-webkit-scrollbar-thumb {
+
+    background: #b8ccd3;
+
+    border-radius: 20px;
+}
+
+.department-modal form::-webkit-scrollbar-thumb:hover,
+.store-modal form::-webkit-scrollbar-thumb:hover,
+.modal form::-webkit-scrollbar-thumb:hover {
+
+    background: #8eabb5;
+}
+
+
+/* =========================================================
+   FORM GROUP
+   ========================================================= */
+
+.form-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+
+    margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   LABEL
+   ========================================================= */
+
+.form-group label,
+.modal label,
+.store-modal label,
+.department-modal label {
+
+    color: #334155;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    line-height: 1.3;
+}
+
+
+/* =========================================================
+   REQUIRED FIELD
+   ========================================================= */
+
+.form-group label::after {
+
+    content: "";
+}
+
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.form-group input,
+.form-group textarea,
+.form-group select,
+
+.modal input,
+.modal textarea,
+.modal select,
+
+.store-modal input,
+.store-modal textarea,
+.store-modal select,
+
+.department-modal input,
+.department-modal textarea,
+.department-modal select {
+
+    width: 100%;
+
+    min-height: 42px;
+
+    box-sizing: border-box;
+
+    padding: 10px 13px;
+
+    border: 1px solid #ccd8df;
+
+    border-radius: 8px;
+
+    background: #ffffff;
+
+    color: #1f2937;
+
+    font-size: 13px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease,
+        transform 0.15s ease;
+}
+
+
+/* =========================================================
+   TEXTAREA
+   ========================================================= */
+
+.form-group textarea,
+.modal textarea,
+.store-modal textarea,
+.department-modal textarea {
+
+    min-height: 95px;
+
+    resize: vertical;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   PLACEHOLDER
+   ========================================================= */
+
+.form-group input::placeholder,
+.form-group textarea::placeholder,
+.modal input::placeholder,
+.modal textarea::placeholder,
+.store-modal input::placeholder,
+.store-modal textarea::placeholder,
+.department-modal input::placeholder,
+.department-modal textarea::placeholder {
+
+    color: #9aa9b5;
+}
+
+
+/* =========================================================
+   INPUT HOVER
+   ========================================================= */
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover,
+
+.modal input:hover,
+.modal textarea:hover,
+.modal select:hover,
+
+.store-modal input:hover,
+.store-modal textarea:hover,
+.store-modal select:hover,
+
+.department-modal input:hover,
+.department-modal textarea:hover,
+.department-modal select:hover {
+
+    border-color: #a8c1cb;
+}
+
+
+/* =========================================================
+   INPUT FOCUS
+   ========================================================= */
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus,
+
+.modal input:focus,
+.modal textarea:focus,
+.modal select:focus,
+
+.store-modal input:focus,
+.store-modal textarea:focus,
+.store-modal select:focus,
+
+.department-modal input:focus,
+.department-modal textarea:focus,
+.department-modal select:focus {
+
+    border-color: var(--modal-primary);
+
+    background: #fbfeff;
+
+    box-shadow:
+        0 0 0 3px rgba(47, 113, 135, 0.12);
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+select {
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   STORE FORM GRID
+   ========================================================= */
+
+.form-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 18px 16px;
+}
+
+
+.form-grid > div {
+
+    min-width: 0;
+}
+
+
+.form-grid .full-width {
+
+    grid-column: 1 / -1;
+}
+
+
+/* =========================================================
+   EMPLOYEE SECTION
+   ========================================================= */
+
+.employee-wrapper {
+
+    margin-top: 22px;
+
+    padding: 18px;
+
+    border: 1px solid #dce7ec;
+
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #fbfdfe,
+            #f7fafb
+        );
+
+    animation: sectionFadeIn 0.35s ease;
+}
+
+
+@keyframes sectionFadeIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================================
+   EMPLOYEE TITLE
+   ========================================================= */
+
+.employee-title {
+
+    margin: 0 0 14px;
+
+    color: #244554;
+
+    font-size: 15px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   EMPLOYEE TOOLBAR
+   ========================================================= */
+
+.employee-toolbar {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 14px;
+
+    margin-bottom: 14px;
+}
+
+
+.select-all {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    white-space: nowrap;
+
+    color: #475569;
+
+    font-size: 12px;
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   CHECKBOX
+   ========================================================= */
+
+.select-all input,
+.employee-card input {
+
+    width: 16px;
+    height: 16px;
+
+    accent-color: var(--modal-primary);
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   EMPLOYEE SEARCH
+   ========================================================= */
+
+.employee-search {
+
+    position: relative;
+
+    flex: 1;
+
+    max-width: 360px;
+}
+
+
+.employee-search .search-icon {
+
+    position: absolute;
+
+    left: 12px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #91a2ad;
+
+    font-size: 12px;
+
+    pointer-events: none;
+}
+
+
+.employee-search input {
+
+    padding-left: 34px !important;
+
+    min-height: 38px !important;
+}
+
+
+/* =========================================================
+   EMPLOYEE GRID
+   ========================================================= */
+
+.employee-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 9px;
+
+    max-height: 220px;
+
+    overflow-y: auto;
+
+    padding-right: 4px;
+}
+
+
+/* =========================================================
+   EMPLOYEE CARD
+   ========================================================= */
+
+.employee-card {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    padding: 11px 12px;
+
+    border: 1px solid #e1e9ed;
+
+    border-radius: 9px;
+
+    background: #ffffff;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+
+.employee-card:hover {
+
+    border-color: #a9cbd5;
+
+    background: #f7fcfd;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 4px 12px rgba(47, 113, 135, 0.08);
+}
+
+
+/* =========================================================
+   EMPLOYEE INFO
+   ========================================================= */
+
+.employee-info {
+
+    min-width: 0;
+}
+
+
+.employee-name {
+
+    color: #263746;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+
+.employee-id {
+
+    margin-top: 2px;
+
+    color: #8a9aa5;
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   EMPTY
+   ========================================================= */
+
+.employee-empty {
+
+    grid-column: 1 / -1;
+
+    padding: 24px;
+
+    text-align: center;
+
+    color: #8b9aa4;
+
+    font-size: 12px;
+
+    border: 1px dashed #cbd8de;
+
+    border-radius: 9px;
+
+    background: #fafcfd;
+}
+
+
+/* =========================================================
+   FOOTER BUTTON AREA
+   ========================================================= */
+
+.modal-buttons {
+
+    display: flex;
+
+    justify-content: flex-end;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-top: 26px;
+
+    padding-top: 18px;
+
+    border-top: 1px solid #e7edf0;
+
+    background: #ffffff;
+}
+
+
+/* =========================================================
+   COMMON BUTTON
+   ========================================================= */
+
+.modal-buttons button {
+
+    min-width: 105px;
+
+    min-height: 40px;
+
+    padding: 9px 18px;
+
+    border-radius: 8px;
+
+    border: 1px solid transparent;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+}
+
+
+/* =========================================================
+   CANCEL
+   ========================================================= */
+
+.cancel-btn {
+
+    color: #475569;
+
+    background: #ffffff;
+
+    border-color: #ccd8df !important;
+}
+
+
+.cancel-btn:hover {
+
+    background: #f4f7f9;
+
+    border-color: #aebdc5 !important;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+
+/* =========================================================
+   SAVE
+   ========================================================= */
+
+.save-btn {
+
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #367f96,
+            #286b80
+        );
+
+    border: none !important;
+
+    box-shadow:
+        0 4px 12px rgba(47, 113, 135, 0.22);
+}
+
+
+.save-btn:hover {
+
+    background:
+        linear-gradient(
+            135deg,
+            #2f7187,
+            #215d71
+        );
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 7px 18px rgba(47, 113, 135, 0.28);
+}
+
+
+.save-btn:active {
+
+    transform: translateY(0);
+
+    box-shadow:
+        0 3px 8px rgba(47, 113, 135, 0.2);
+}
+
+
+/* =========================================================
+   BUTTON LOADING SUPPORT
+   ========================================================= */
+
+.modal-buttons button:disabled {
+
+    opacity: 0.6;
+
+    cursor: not-allowed;
+
+    transform: none;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   MODAL CLOSE BUTTON
+   ========================================================= */
+
+.modal-close,
+.close-btn {
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    margin-left: auto;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background: rgba(255, 255, 255, 0.75);
+
+    color: #64748b;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+
+.modal-close:hover,
+.close-btn:hover {
+
+    background: #ffffff;
+
+    color: #dc3545;
+
+    transform: rotate(90deg);
+}
+
+
+/* =========================================================
+   MODAL TITLE ANIMATION
+   ========================================================= */
+
+.modal-header h2 {
+
+    animation: titleIn 0.45s ease 0.08s both;
+}
+
+
+@keyframes titleIn {
+
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .modal-overlay {
+
+        padding: 12px;
+    }
+
+    .department-modal,
+    .store-modal,
+    .modal {
+
+        width: 100%;
+
+        max-height: 94vh;
+
+        border-radius: 14px;
+    }
+
+    .modal-header {
+
+        min-height: 68px;
+
+        padding: 16px 18px;
+    }
+
+    .department-modal form,
+    .store-modal form,
+    .modal form {
+
+        padding: 18px;
+    }
+
+    .form-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid .full-width {
+
+        grid-column: auto;
+    }
+
+    .employee-toolbar {
+
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+    .employee-search {
+
+        max-width: none;
+    }
+
+    .employee-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .modal-buttons {
+
+        flex-direction: column-reverse;
+
+        align-items: stretch;
+    }
+
+    .modal-buttons button {
+
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION ACCESSIBILITY
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .modal-overlay,
+    .department-modal,
+    .store-modal,
+    .modal,
+    .employee-wrapper,
+    .modal-header h2 {
+
+        animation: none !important;
+
+        transition: none !important;
+    }
+}
