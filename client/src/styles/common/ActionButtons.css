@@ -1,130 +1,187 @@
-/* ======================================================
-   ACTION BUTTONS
-====================================================== */
+/* =========================================================
+   GLOBAL ACTION BUTTONS
+   Used throughout MIARCUS
+   ========================================================= */
 
 .action-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  width: 100%;
+  white-space: nowrap;
 }
 
-/* ======================================================
+/* =========================================================
    COMMON BUTTON
-====================================================== */
+   ========================================================= */
 
-.action-buttons button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+.action-btn {
+  height: 32px;
+  min-width: 32px;
 
-    min-width: 90px;
-    height: 36px;
+  padding: 0 10px;
 
-    padding: 0 14px;
+  border: none;
+  border-radius: 6px;
 
-    border: none;
-    border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 
-    cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
 
-    font-size: 13px;
-    font-weight: 600;
+  line-height: 1;
 
-    transition: all 0.25s ease;
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-/* ======================================================
-   ICON
-====================================================== */
+.action-btn svg {
+  width: 13px;
+  height: 13px;
 
-.action-buttons button svg {
-    font-size: 14px;
+  flex-shrink: 0;
 }
 
-/* ======================================================
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+/* =========================================================
    VIEW
-====================================================== */
+   ========================================================= */
 
 .view-btn {
-    background: #17a2b8;
-    color: #fff;
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .view-btn:hover {
-    background: #138496;
+  background: #1d4ed8;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
 }
 
-/* ======================================================
+/* =========================================================
    EDIT
-====================================================== */
+   ========================================================= */
 
 .edit-btn {
-    background: #f0ad4e;
-    color: #fff;
+  background: #f59e0b;
+  color: #ffffff;
 }
 
 .edit-btn:hover {
-    background: #ec971f;
+  background: #d97706;
+  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.25);
 }
 
-/* ======================================================
-   DELETE
-====================================================== */
-
-.delete-btn {
-    background: #d9534f;
-    color: #fff;
-}
-
-.delete-btn:hover {
-    background: #c9302c;
-}
-
-/* ======================================================
+/* =========================================================
    DISABLE
-====================================================== */
+   ========================================================= */
 
 .disable-btn {
-    background: #6c757d;
-    color: #fff;
+  background: #64748b;
+  color: #ffffff;
 }
 
 .disable-btn:hover {
-    background: #5a6268;
+  background: #475569;
+  box-shadow: 0 3px 8px rgba(100, 116, 139, 0.25);
 }
 
-/* ======================================================
-   DISABLED
-====================================================== */
+/* =========================================================
+   DELETE
+   ========================================================= */
 
-.action-buttons button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.delete-btn {
+  background: #ef4444;
+  color: #ffffff;
 }
 
-/* ======================================================
+.delete-btn:hover {
+  background: #dc2626;
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
+}
+
+/* =========================================================
+   TABLE ACTION CELL
+   ========================================================= */
+
+.table-actions {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+
+  padding: 8px 10px !important;
+
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* =========================================================
+   TABLE ACTION HEADER
+   ========================================================= */
+
+.table-actions-header {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+
+  text-align: center !important;
+  white-space: nowrap;
+}
+
+/* =========================================================
    RESPONSIVE
-====================================================== */
+   ========================================================= */
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .table-actions,
+  .table-actions-header {
+    width: 135px;
+    min-width: 135px;
+    max-width: 135px;
+  }
 
-    .action-buttons {
-        gap: 6px;
-    }
+  .action-buttons {
+    gap: 4px;
+  }
 
-    .action-buttons button {
-        min-width: 75px;
-        height: 34px;
-        font-size: 12px;
-        padding: 0 10px;
-    }
+  .action-btn {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
 
-    .action-buttons button span {
-        display: none;
-    }
+@media (max-width: 600px) {
+  .table-actions,
+  .table-actions-header {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+  }
+
+  .action-btn {
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+  }
+
+  .action-btn span {
+    display: none;
+  }
 }
