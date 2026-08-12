@@ -199,12 +199,11 @@ ActionPoint.getAll = (
 
         cs.nso_status,
 
-        nso.location AS nso_location,
-        nso.city AS nso_city,
-        nso.status AS nso_project_status,
-        nso.store_name AS nso_store_name,
+       nso.location AS nso_location,
+nso.city AS nso_city,
+nso.status AS nso_project_status,
 
-        s.store_name,
+s.store_name,
 
         s.city,
 
@@ -549,12 +548,10 @@ ActionPoint.getAll = (
         cs.nso_status,
 
         nso.location,
-        nso.city,
-        nso.status,
-        nso.store_name,
+nso.city,
+nso.status,
 
-        s.store_name,
-
+s.store_name,
         s.city,
 
         s.state,
@@ -986,11 +983,9 @@ ActionPoint.getById = (
 
         cs.nso_status,
 
-        nso.location AS nso_location,
-        nso.city AS nso_city,
-        nso.status AS nso_project_status,
-        nso.store_name AS nso_store_name,
-
+       nso.location AS nso_location,
+nso.city AS nso_city,
+nso.status AS nso_project_status,
         cs.latitude,
 
         cs.longitude,
@@ -1650,7 +1645,7 @@ ActionPoint.getByNSO = (
         nso.location AS nso_location,
         nso.city AS nso_city,
         nso.status AS nso_project_status,
-        nso.store_name AS nso_store_name,
+        
         u.name AS assigned_to_name
 
     FROM action_points ap
