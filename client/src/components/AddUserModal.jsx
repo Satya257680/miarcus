@@ -2057,9 +2057,15 @@ function AddUserModal({
       }}
     >
       <div
-        className="user-modal"
+        className="user-modal user-modal-wide"
         role="dialog"
         aria-modal="true"
+        style={{
+          width: "min(1400px, 94vw)",
+          maxWidth: "1400px",
+          height: "min(900px, 92vh)",
+          maxHeight: "92vh",
+        }}
       >
         {/* =================================================
             HEADER
