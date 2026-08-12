@@ -6,11 +6,12 @@ import {
     FaCalendarCheck,
     FaMoneyBillWave,
     FaClock,
-    FaCheckCircle
+    FaCheckCircle,
+    FaPaperclip,
+    FaCommentAlt
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
-
 
 /* ======================================================
    FORMAT CURRENCY
@@ -26,14 +27,11 @@ const formatCurrency = (value) => {
         return "₹0";
     }
 
-
     const numericValue = Number(value);
-
 
     if (Number.isNaN(numericValue)) {
         return "₹0";
     }
-
 
     return new Intl.NumberFormat(
         "en-IN",
@@ -43,7 +41,6 @@ const formatCurrency = (value) => {
             maximumFractionDigits: 0
         }
     ).format(numericValue);
-
 };
 
 
@@ -57,14 +54,11 @@ const formatDate = (value) => {
         return "--";
     }
 
-
     const date = new Date(value);
-
 
     if (Number.isNaN(date.getTime())) {
         return value;
     }
-
 
     return date.toLocaleDateString(
         "en-IN",
@@ -74,7 +68,82 @@ const formatDate = (value) => {
             year: "numeric"
         }
     );
+};
 
+
+/* ======================================================
+   GET ATTACHMENT NAME
+====================================================== */
+
+const getAttachmentName = (attachment) => {
+
+    if (!attachment) {
+        return null;
+    }
+
+    /* File object */
+    if (attachment instanceof File) {
+        return attachment.name;
+    }
+
+    /* Object returned from backend */
+    if (typeof attachment === "object") {
+
+        return (
+            attachment.name ||
+            attachment.file_name ||
+            attachment.filename ||
+            attachment.originalname ||
+            null
+        );
+    }
+
+    /* String */
+    if (typeof attachment === "string") {
+
+        const parts = attachment.split("/");
+
+        return parts[parts.length - 1] || attachment;
+    }
+
+    return null;
+};
+
+
+/* ======================================================
+   GET ATTACHMENT URL
+====================================================== */
+
+const getAttachmentUrl = (attachment) => {
+
+    if (!attachment) {
+        return null;
+    }
+
+    /* File object */
+    if (attachment instanceof File) {
+        return URL.createObjectURL(attachment);
+    }
+
+    /* Object returned from backend */
+    if (typeof attachment === "object") {
+
+        return (
+            attachment.url ||
+            attachment.file_url ||
+            attachment.fileUrl ||
+            attachment.path ||
+            attachment.file_path ||
+            null
+        );
+    }
+
+    /* String */
+    if (typeof attachment === "string") {
+        return attachment;
+    }
+
+    return null;
 };
 
 
@@ -91,7 +160,6 @@ export default function ProjectSummary({
     currentStep = 1
 
 }) {
-
 
     /* ==================================================
        SAFE PROGRESS
@@ -145,6 +213,36 @@ export default function ProjectSummary({
 
     const possessionDelay =
         formData?.possession_delay;
+
+
+    /* ==================================================
+       REMARKS
+    ================================================== */
+
+    const remarks =
+        formData?.remarks ||
+        formData?.remark ||
+        "";
+
+
+    /* ==================================================
+       ATTACHMENT
+    ================================================== */
+
+    const attachment =
+        formData?.attachment ||
+        formData?.attachments ||
+        formData?.file ||
+        formData?.document ||
+        null;
+
+
+    const attachmentName =
+        getAttachmentName(attachment);
+
+
+    const attachmentUrl =
+        getAttachmentUrl(attachment);
 
 
     /* ==================================================
@@ -353,6 +451,111 @@ export default function ProjectSummary({
                             {" "}Days
 
                         </strong>
+
+                    </div>
+
+                </div>
+
+
+                {/* ==================================================
+                   REMARKS
+                ================================================== */}
+
+                <div className="summary-item">
+
+                    <FaCommentAlt />
+
+                    <div>
+
+                        <label>
+
+                            Remarks
+
+                        </label>
+
+
+                        <strong
+                            style={{
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word"
+                            }}
+                        >
+
+                            {
+                                remarks
+                                    ? remarks
+                                    : "--"
+                            }
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                {/* ==================================================
+                   ATTACHMENT
+                ================================================== */}
+
+                <div className="summary-item">
+
+                    <FaPaperclip />
+
+                    <div>
+
+                        <label>
+
+                            Attachment
+
+                        </label>
+
+
+                        {
+                            attachmentName ? (
+
+                                attachmentUrl ? (
+
+                                    <a
+                                        href={attachmentUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            color: "#2563eb",
+                                            fontWeight: "600",
+                                            textDecoration: "none",
+                                            wordBreak: "break-word"
+                                        }}
+                                    >
+
+                                        {attachmentName}
+
+                                    </a>
+
+                                ) : (
+
+                                    <strong
+                                        style={{
+                                            wordBreak: "break-word"
+                                        }}
+                                    >
+
+                                        {attachmentName}
+
+                                    </strong>
+
+                                )
+
+                            ) : (
+
+                                <strong>
+
+                                    --
+
+                                </strong>
+
+                            )
+                        }
 
                     </div>
 
