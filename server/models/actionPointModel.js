@@ -2,8 +2,6 @@ const db = require("../config/db");
 
 const ActionPoint = {};
 
-
-
 // ======================================================
 // CREATE TABLE
 // ======================================================
@@ -11,138 +9,163 @@ const ActionPoint = {};
 ActionPoint.createTables = (callback) => {
 
     const sql = `
+        CREATE TABLE IF NOT EXISTS action_points
+        (
+            id INT AUTO_INCREMENT PRIMARY KEY,
 
-    CREATE TABLE IF NOT EXISTS action_points
-    (
+            new_store_opening_id INT NULL,
 
-        id INT AUTO_INCREMENT PRIMARY KEY,
+            submission_id INT NULL,
 
-        new_store_opening_id INT NULL,
+            submission_answer_id INT NULL,
 
-        submission_id INT NOT NULL,
+            rule_id INT NULL,
 
-        submission_answer_id INT NOT NULL,
+            store_id INT NOT NULL,
 
-        rule_id INT NULL,
+            department_id INT NULL,
 
-        store_id INT NOT NULL,
+            question_id INT NOT NULL,
 
-        department_id INT NULL,
+            assigned_to INT NULL,
 
-        question_id INT NOT NULL,
+            priority ENUM(
+                'Low',
+                'Medium',
+                'High',
+                'Critical'
+            ) DEFAULT 'Medium',
 
-        assigned_to INT NULL,
+            sla_value INT DEFAULT 0,
 
-        priority ENUM(
+            status ENUM(
+                'Open',
+                'In Progress',
+                'Closed'
+            ) DEFAULT 'Open',
 
-            'Low',
+            remarks TEXT NULL,
 
-            'Medium',
+            attachment VARCHAR(500) NULL,
 
-            'High',
+            completed_at TIMESTAMP NULL,
 
-            'Critical'
+            created_by INT NULL,
 
-        ) DEFAULT 'Medium',
+            created_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP,
 
-        sla_value INT DEFAULT 0,
+            updated_at TIMESTAMP
+                DEFAULT CURRENT_TIMESTAMP
+                ON UPDATE CURRENT_TIMESTAMP,
 
-        status ENUM(
-
-            'Open',
-
-            'In Progress',
-
-            'Closed'
-
-        ) DEFAULT 'Open',
-
-        remarks TEXT NULL,
-
-        attachment VARCHAR(500) NULL,
-
-        completed_at TIMESTAMP NULL,
-
-        created_by INT NULL,
-
-        created_at TIMESTAMP
-
-        DEFAULT CURRENT_TIMESTAMP,
-
-        updated_at TIMESTAMP
-
-        DEFAULT CURRENT_TIMESTAMP
-
-        ON UPDATE CURRENT_TIMESTAMP,
-
-        INDEX(new_store_opening_id),
-
-        INDEX(submission_id),
-
-        INDEX(submission_answer_id),
-
-        INDEX(rule_id),
-
-        INDEX(store_id),
-
-        INDEX(question_id),
-
-        INDEX(status),
-
-        INDEX(priority)
-
-    )
-
+            INDEX(new_store_opening_id),
+            INDEX(submission_id),
+            INDEX(submission_answer_id),
+            INDEX(rule_id),
+            INDEX(store_id),
+            INDEX(question_id),
+            INDEX(status),
+            INDEX(priority)
+        )
     `;
 
-    db.query(
-
-        sql,
-
-        callback
-
-    );
-
+    db.query(sql, callback);
 };
+
 
 // ======================================================
 // ENSURE NSO PARENT COLUMN
 // ======================================================
 
 ActionPoint.ensureParentColumn = async () => {
+
     const hasColumn = await new Promise((resolve, reject) => {
+
         db.query(
-            `SHOW COLUMNS FROM action_points LIKE 'new_store_opening_id'`,
-            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+            `SHOW COLUMNS FROM action_points
+             LIKE 'new_store_opening_id'`,
+            (err, rows) => {
+
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve(rows.length > 0);
+            }
         );
     });
 
+
     if (!hasColumn) {
+
         await new Promise((resolve, reject) => {
+
             db.query(
-                `ALTER TABLE action_points ADD COLUMN new_store_opening_id INT NULL AFTER id`,
-                (err) => err ? reject(err) : resolve()
+                `
+                ALTER TABLE action_points
+                ADD COLUMN new_store_opening_id INT NULL
+                AFTER id
+                `,
+                (err) => {
+
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    resolve();
+                }
             );
         });
     }
 
+
     const hasIndex = await new Promise((resolve, reject) => {
+
         db.query(
-            `SHOW INDEX FROM action_points WHERE Key_name = 'idx_action_points_nso'`,
-            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+            `
+            SHOW INDEX
+            FROM action_points
+            WHERE Key_name = 'idx_action_points_nso'
+            `,
+            (err, rows) => {
+
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve(rows.length > 0);
+            }
         );
     });
 
+
     if (!hasIndex) {
+
         await new Promise((resolve, reject) => {
+
             db.query(
-                `ALTER TABLE action_points ADD INDEX idx_action_points_nso (new_store_opening_id)`,
-                (err) => err ? reject(err) : resolve()
+                `
+                ALTER TABLE action_points
+                ADD INDEX idx_action_points_nso
+                (new_store_opening_id)
+                `,
+                (err) => {
+
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    resolve();
+                }
             );
         });
     }
 };
-
 
 
 // ======================================================
@@ -150,1017 +173,753 @@ ActionPoint.ensureParentColumn = async () => {
 // ======================================================
 
 ActionPoint.getAll = (
-
     filters,
-
     callback
-
 ) => {
 
     let sql = `
+        SELECT
 
-    SELECT
+            ap.id,
 
-        ap.id,
+            ap.new_store_opening_id,
 
-        ap.new_store_opening_id,
+            ap.submission_id,
 
-        ap.submission_id,
+            ap.submission_answer_id,
 
-        ap.submission_answer_id,
+            ap.rule_id,
 
-        ap.rule_id,
+            ap.store_id,
 
-        ap.store_id,
+            ap.department_id,
 
-        ap.department_id,
+            ap.question_id,
 
-        ap.question_id,
+            ap.assigned_to,
 
-        ap.assigned_to,
+            ap.priority,
 
-        ap.priority,
+            ap.sla_value,
 
-        ap.sla_value ,
+            ap.status,
 
-        ap.status,
+            ap.remarks AS comment,
 
-        ap.remarks AS comment,
+            ap.attachment,
 
-        ap.attachment,
+            ap.completed_at,
 
-        ap.completed_at,
+            ap.created_at,
 
-        ap.created_at,
+            cs.submission_date,
 
-        cs.submission_date,
+            cs.inspection_score,
 
-        cs.inspection_score,
+            cs.nso_status,
 
-        cs.nso_status,
+            nso.location AS nso_location,
 
-       nso.location AS nso_location,
-nso.city AS nso_city,
-nso.status AS nso_project_status,
+            nso.city AS nso_city,
 
-s.store_name,
+            nso.status AS nso_project_status,
 
-        s.city,
+            nso.store_name AS nso_store_name,
 
-        s.state,
+            s.store_name,
 
-        ct.checklist_name,
+            s.city,
 
-        q.question,
+            s.state,
 
-        csa.answer,
+            ct.checklist_name,
 
-        csa.remarks AS answer_remarks,
+            q.question,
 
-        u.name AS employee_name,
+            csa.answer,
 
-        u.employee_id,
+            csa.remarks AS answer_remarks,
 
-        d.department_name
+            u.name AS employee_name,
 
-    FROM action_points ap
+            u.employee_id,
 
-    INNER JOIN checklist_submissions cs
+            d.department_name,
 
-        ON ap.submission_id = cs.id
+            au.name AS assigned_to_name
 
-    INNER JOIN checklist_submission_answers csa
+        FROM action_points ap
 
-        ON ap.submission_answer_id = csa.id
+        LEFT JOIN checklist_submissions cs
+            ON ap.submission_id = cs.id
 
-    INNER JOIN stores s
+        LEFT JOIN checklist_submission_answers csa
+            ON ap.submission_answer_id = csa.id
 
-        ON ap.store_id = s.id
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-    INNER JOIN checklist_types ct
+        LEFT JOIN checklist_types ct
+            ON cs.checklist_type_id = ct.id
 
-        ON cs.checklist_type_id = ct.id
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-    INNER JOIN questions q
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-        ON ap.question_id = q.id
+        LEFT JOIN new_store_openings nso
+            ON ap.new_store_opening_id = nso.id
 
-    LEFT JOIN departments d
+        LEFT JOIN users u
+            ON cs.submitted_by = u.id
 
-        ON ap.department_id = d.id
+        LEFT JOIN users au
+            ON ap.assigned_to = au.id
 
-    LEFT JOIN new_store_openings nso
-
-        ON ap.new_store_opening_id = nso.id
-
-    LEFT JOIN users u
-
-        ON cs.submitted_by = u.id
-
-    WHERE 1 = 1
-
+        WHERE 1 = 1
     `;
+
 
     const values = [];
 
 
-
-    // ======================================
+    // ==================================================
     // STORE FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.store_id) {
 
         sql += `
-
-        AND ap.store_id = ?
-
+            AND ap.store_id = ?
         `;
 
         values.push(
-
             filters.store_id
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // DEPARTMENT FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.department_id) {
 
         sql += `
-
-        AND ap.department_id = ?
-
+            AND ap.department_id = ?
         `;
 
         values.push(
-
             filters.department_id
-
         );
-
     }
-        // ======================================
+
+
+    // ==================================================
     // NEW STORE OPENING FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.new_store_opening_id) {
 
         sql += `
-
-        AND ap.new_store_opening_id = ?
-
+            AND ap.new_store_opening_id = ?
         `;
 
         values.push(
-
             filters.new_store_opening_id
-
         );
-
     }
 
 
-    // ======================================
+    // ==================================================
     // STATUS FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.status) {
 
         sql += `
-
-        AND ap.status = ?
-
+            AND ap.status = ?
         `;
 
         values.push(
-
             filters.status
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // PRIORITY FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.priority) {
 
         sql += `
-
-        AND ap.priority = ?
-
+            AND ap.priority = ?
         `;
 
         values.push(
-
             filters.priority
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // CHECKLIST TYPE FILTER
-    // ======================================
+    // ==================================================
 
     if (filters.checklist_type_id) {
 
         sql += `
-
-        AND cs.checklist_type_id = ?
-
+            AND cs.checklist_type_id = ?
         `;
 
         values.push(
-
             filters.checklist_type_id
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // START DATE
-    // ======================================
+    // ==================================================
 
     if (filters.start_date) {
 
         sql += `
-
-        AND DATE(cs.submission_date) >= ?
-
+            AND (
+                cs.submission_date IS NOT NULL
+                AND DATE(cs.submission_date) >= ?
+            )
         `;
 
         values.push(
-
             filters.start_date
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // END DATE
-    // ======================================
+    // ==================================================
 
     if (filters.end_date) {
 
         sql += `
-
-        AND DATE(cs.submission_date) <= ?
-
+            AND (
+                cs.submission_date IS NOT NULL
+                AND DATE(cs.submission_date) <= ?
+            )
         `;
 
         values.push(
-
             filters.end_date
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // SEARCH
-    // ======================================
+    // ==================================================
 
     if (filters.search) {
 
         sql += `
-
-        AND (
-
-            s.store_name LIKE ?
-
-            OR s.city LIKE ?
-
-            OR s.state LIKE ?
-
-            OR ct.checklist_name LIKE ?
-
-            OR q.question LIKE ?
-
-            OR csa.answer LIKE ?
-
-            OR u.name LIKE ?
-
-            OR d.department_name LIKE ?
-
-            OR ap.status LIKE ?
-
-            OR ap.priority LIKE ?
-
-        )
-
+            AND (
+                s.store_name LIKE ?
+                OR s.city LIKE ?
+                OR s.state LIKE ?
+                OR ct.checklist_name LIKE ?
+                OR q.question LIKE ?
+                OR csa.answer LIKE ?
+                OR u.name LIKE ?
+                OR d.department_name LIKE ?
+                OR ap.status LIKE ?
+                OR ap.priority LIKE ?
+                OR ap.remarks LIKE ?
+            )
         `;
 
-        const keyword = `%${filters.search}%`;
+
+        const keyword =
+            `%${filters.search}%`;
+
 
         values.push(
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
+            keyword,
             keyword
-
         );
-
     }
 
 
-
-    // ======================================
-    // GROUP BY
-    // ======================================
+    // ==================================================
+    // ORDER
+    // ==================================================
 
     sql += `
-
-    GROUP BY
-
-        ap.id,
-
-        ap.new_store_opening_id,
-
-        ap.submission_id,
-
-        ap.submission_answer_id,
-
-        ap.rule_id,
-
-        ap.store_id,
-
-        ap.department_id,
-
-        ap.question_id,
-
-        ap.assigned_to,
-
-        ap.priority,
-
-        ap.sla_value,
-
-        ap.status,
-
-        ap.remarks,
-
-        ap.attachment,
-
-        ap.completed_at,
-
-        ap.created_at,
-
-        cs.submission_date,
-
-        cs.inspection_score,
-
-        cs.nso_status,
-
-        nso.location,
-nso.city,
-nso.status,
-
-s.store_name,
-        s.city,
-
-        s.state,
-
-        ct.checklist_name,
-
-        q.question,
-
-        csa.answer,
-
-        csa.remarks,
-
-        u.name,
-
-        u.employee_id,
-
-        d.department_name
-
+        ORDER BY
+            ap.created_at DESC
     `;
 
 
-
-    // ======================================
-    // ORDER BY
-    // ======================================
-
-    sql += `
-
-    ORDER BY
-
-        ap.created_at DESC
-
-    `;
-
-
-
-    // ======================================
+    // ==================================================
     // PAGINATION
-    // ======================================
+    // ==================================================
 
     sql += `
-
-    LIMIT ?, ?
-
+        LIMIT ?, ?
     `;
+
 
     values.push(
-
         filters.offset || 0,
-
         filters.limit || 10
-
     );
-
 
 
     db.query(
-
         sql,
-
         values,
-
         callback
-
     );
-
 };
+
+
 // ======================================================
 // COUNT ACTION POINTS
 // ======================================================
 
 ActionPoint.count = (
-
     filters,
-
     callback
-
 ) => {
 
     let sql = `
+        SELECT
+            COUNT(DISTINCT ap.id) AS total
 
-    SELECT
+        FROM action_points ap
 
-        COUNT(DISTINCT ap.id) AS total
+        LEFT JOIN checklist_submissions cs
+            ON ap.submission_id = cs.id
 
-    FROM action_points ap
+        LEFT JOIN checklist_submission_answers csa
+            ON ap.submission_answer_id = csa.id
 
-    INNER JOIN checklist_submissions cs
+        LEFT JOIN checklist_types ct
+            ON cs.checklist_type_id = ct.id
 
-        ON ap.submission_id = cs.id
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-    INNER JOIN checklist_submission_answers csa
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-        ON ap.submission_answer_id = csa.id
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-    INNER JOIN checklist_types ct
+        LEFT JOIN users u
+            ON cs.submitted_by = u.id
 
-        ON cs.checklist_type_id = ct.id
-
-    INNER JOIN stores s
-
-        ON ap.store_id = s.id
-
-    INNER JOIN questions q
-
-        ON ap.question_id = q.id
-
-    LEFT JOIN departments d
-
-        ON ap.department_id = d.id
-
-    LEFT JOIN users u
-
-        ON cs.submitted_by = u.id
-
-    WHERE 1 = 1
-
+        WHERE 1 = 1
     `;
+
 
     const values = [];
 
 
-
-    // ======================================
-    // STORE FILTER
-    // ======================================
-
     if (filters.store_id) {
 
         sql += `
-
-        AND ap.store_id = ?
-
+            AND ap.store_id = ?
         `;
 
         values.push(
-
             filters.store_id
-
         );
-
     }
 
-
-
-    // ======================================
-    // DEPARTMENT FILTER
-    // ======================================
 
     if (filters.department_id) {
 
         sql += `
-
-        AND ap.department_id = ?
-
+            AND ap.department_id = ?
         `;
 
         values.push(
-
             filters.department_id
-
         );
-
     }
 
-
-
-    // ======================================
-    // NEW STORE OPENING FILTER
-    // ======================================
 
     if (filters.new_store_opening_id) {
 
         sql += `
-
-        AND ap.new_store_opening_id = ?
-
+            AND ap.new_store_opening_id = ?
         `;
 
         values.push(
-
             filters.new_store_opening_id
-
         );
-
     }
 
-
-    // ======================================
-    // STATUS FILTER
-    // ======================================
 
     if (filters.status) {
 
         sql += `
-
-        AND ap.status = ?
-
+            AND ap.status = ?
         `;
 
         values.push(
-
             filters.status
-
         );
-
     }
 
-
-
-    // ======================================
-    // PRIORITY FILTER
-    // ======================================
 
     if (filters.priority) {
 
         sql += `
-
-        AND ap.priority = ?
-
+            AND ap.priority = ?
         `;
 
         values.push(
-
             filters.priority
-
         );
-
     }
 
-
-
-    // ======================================
-    // CHECKLIST TYPE FILTER
-    // ======================================
 
     if (filters.checklist_type_id) {
 
         sql += `
-
-        AND cs.checklist_type_id = ?
-
+            AND cs.checklist_type_id = ?
         `;
 
         values.push(
-
             filters.checklist_type_id
-
         );
-
     }
 
-
-
-    // ======================================
-    // START DATE
-    // ======================================
 
     if (filters.start_date) {
 
         sql += `
-
-        AND DATE(cs.submission_date) >= ?
-
+            AND (
+                cs.submission_date IS NOT NULL
+                AND DATE(cs.submission_date) >= ?
+            )
         `;
 
         values.push(
-
             filters.start_date
-
         );
-
     }
 
-
-
-    // ======================================
-    // END DATE
-    // ======================================
 
     if (filters.end_date) {
 
         sql += `
-
-        AND DATE(cs.submission_date) <= ?
-
+            AND (
+                cs.submission_date IS NOT NULL
+                AND DATE(cs.submission_date) <= ?
+            )
         `;
 
         values.push(
-
             filters.end_date
-
         );
-
     }
 
-
-
-    // ======================================
-    // SEARCH
-    // ======================================
 
     if (filters.search) {
 
         sql += `
-
-        AND (
-
-            s.store_name LIKE ?
-
-            OR s.city LIKE ?
-
-            OR s.state LIKE ?
-
-            OR ct.checklist_name LIKE ?
-
-            OR q.question LIKE ?
-
-            OR csa.answer LIKE ?
-
-            OR u.name LIKE ?
-
-            OR d.department_name LIKE ?
-
-            OR ap.status LIKE ?
-
-            OR ap.priority LIKE ?
-
-        )
-
+            AND (
+                s.store_name LIKE ?
+                OR s.city LIKE ?
+                OR s.state LIKE ?
+                OR ct.checklist_name LIKE ?
+                OR q.question LIKE ?
+                OR csa.answer LIKE ?
+                OR u.name LIKE ?
+                OR d.department_name LIKE ?
+                OR ap.status LIKE ?
+                OR ap.priority LIKE ?
+                OR ap.remarks LIKE ?
+            )
         `;
 
-        const keyword = `%${filters.search}%`;
+
+        const keyword =
+            `%${filters.search}%`;
+
 
         values.push(
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
+            keyword,
             keyword
-
         );
-
     }
 
 
-
     db.query(
-
         sql,
-
         values,
-
         callback
-
     );
-
 };
+
+
 // ======================================================
 // GET ACTION POINT BY ID
 // ======================================================
 
 ActionPoint.getById = (
-
     id,
-
     callback
-
 ) => {
 
     const sql = `
 
-    SELECT
+        SELECT
 
-        ap.id,
+            ap.id,
 
-        ap.new_store_opening_id,
+            ap.new_store_opening_id,
 
-        ap.submission_id,
+            ap.submission_id,
 
-        ap.submission_answer_id,
+            ap.submission_answer_id,
 
-        ap.rule_id,
+            ap.rule_id,
 
-        ap.store_id,
+            ap.store_id,
 
-        ap.department_id,
+            ap.department_id,
 
-        ap.question_id,
+            ap.question_id,
 
-        ap.assigned_to,
+            ap.assigned_to,
 
-        ap.priority,
+            ap.priority,
 
-        ap.sla_value ,
+            ap.sla_value,
 
-        ap.status,
+            ap.status,
 
-        ap.remarks AS comment,
+            ap.remarks AS comment,
 
-        ap.attachment,
+            ap.attachment,
 
-        ap.completed_at,
+            ap.completed_at,
 
-        ap.created_by,
+            ap.created_by,
 
-        ap.created_at,
+            ap.created_at,
 
-        ap.updated_at,
+            ap.updated_at,
 
-        cs.submission_date,
+            cs.submission_date,
 
-        cs.inspection_score,
+            cs.inspection_score,
 
-        cs.nso_status,
+            cs.nso_status,
 
-       nso.location AS nso_location,
-nso.city AS nso_city,
-nso.status AS nso_project_status,
-        cs.latitude,
+            nso.location AS nso_location,
 
-        cs.longitude,
+            nso.city AS nso_city,
 
-        cs.device,
+            nso.status AS nso_project_status,
 
-        s.store_name,
+            nso.store_name AS nso_store_name,
 
-        s.city,
+            cs.latitude,
 
-        s.state,
+            cs.longitude,
 
-        ct.checklist_name,
+            cs.device,
 
-        q.question,
+            s.store_name,
 
-        csa.answer,
+            s.city,
 
-        csa.remarks AS answer_remarks,
+            s.state,
 
-        nr.trigger_column,
+            ct.checklist_name,
 
-        nr.expected_answer,
+            q.question,
 
-        nr.create_action_point,
+            csa.answer,
 
-        u.name AS employee_name,
+            csa.remarks AS answer_remarks,
 
-        u.employee_id,
+            nr.trigger_column,
 
-        au.name AS assigned_to_name,
+            nr.expected_answer,
 
-        d.department_name
+            nr.create_action_point,
 
-    FROM action_points ap
+            u.name AS employee_name,
 
-    INNER JOIN checklist_submissions cs
+            u.employee_id,
 
-        ON ap.submission_id = cs.id
+            au.name AS assigned_to_name,
 
-    INNER JOIN checklist_submission_answers csa
+            d.department_name
 
-        ON ap.submission_answer_id = csa.id
+        FROM action_points ap
 
-    INNER JOIN questions q
+        LEFT JOIN checklist_submissions cs
+            ON ap.submission_id = cs.id
 
-        ON ap.question_id = q.id
+        LEFT JOIN checklist_submission_answers csa
+            ON ap.submission_answer_id = csa.id
 
-    INNER JOIN stores s
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-        ON ap.store_id = s.id
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-    INNER JOIN checklist_types ct
+        LEFT JOIN checklist_types ct
+            ON cs.checklist_type_id = ct.id
 
-        ON cs.checklist_type_id = ct.id
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-    LEFT JOIN departments d
+        LEFT JOIN nso_rules nr
+            ON ap.rule_id = nr.id
 
-        ON ap.department_id = d.id
+        LEFT JOIN users u
+            ON cs.submitted_by = u.id
 
-    LEFT JOIN nso_rules nr
+        LEFT JOIN users au
+            ON ap.assigned_to = au.id
 
-        ON ap.rule_id = nr.id
+        LEFT JOIN new_store_openings nso
+            ON ap.new_store_opening_id = nso.id
 
-    LEFT JOIN users u
+        WHERE ap.id = ?
 
-        ON cs.submitted_by = u.id
-
-    LEFT JOIN users au
-
-        ON ap.assigned_to = au.id
-
-    LEFT JOIN new_store_openings nso
-
-        ON ap.new_store_opening_id = nso.id
-
-    WHERE ap.id = ?
-
-    LIMIT 1
+        LIMIT 1
 
     `;
 
+
     db.query(
-
         sql,
-
-        [
-
-            id
-
-        ],
-
+        [id],
         callback
-
     );
-
 };
+
+
 // ======================================================
 // CREATE ACTION POINT
 // ======================================================
 
 ActionPoint.create = (
-
     data,
-
     callback
-
 ) => {
 
     const sql = `
 
-    INSERT INTO action_points
-    (
+        INSERT INTO action_points
+        (
+            new_store_opening_id,
+            submission_id,
+            submission_answer_id,
+            rule_id,
+            store_id,
+            department_id,
+            question_id,
+            assigned_to,
+            priority,
+            sla_value,
+            status,
+            remarks,
+            attachment,
+            created_by
+        )
 
-        new_store_opening_id,
-
-        submission_id,
-
-        submission_answer_id,
-
-        rule_id,
-
-        store_id,
-
-        department_id,
-
-        question_id,
-
-        assigned_to,
-
-        priority,
-
-        sla_value ,
-
-        status,
-
-        remarks,
-
-        attachment,
-
-        created_by
-
-    )
-
-    VALUES
-
-    (
-
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-
-    )
+        VALUES
+        (
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?
+        )
 
     `;
+
+
+    // ==================================================
+    // IMPORTANT
+    //
+    // Empty manual values become NULL.
+    // ==================================================
+
+    const submissionId =
+        data.submission_id === undefined ||
+        data.submission_id === null ||
+        data.submission_id === ""
+            ? null
+            : Number(data.submission_id);
+
+
+    const submissionAnswerId =
+        data.submission_answer_id === undefined ||
+        data.submission_answer_id === null ||
+        data.submission_answer_id === ""
+            ? null
+            : Number(data.submission_answer_id);
+
 
     const values = [
 
         data.new_store_opening_id || null,
 
-        data.submission_id,
+        submissionId,
 
-        data.submission_answer_id,
+        submissionAnswerId,
 
         data.rule_id || null,
 
-        data.store_id,
+        data.store_id
+            ? Number(data.store_id)
+            : null,
 
-        data.department_id || null,
+        data.department_id
+            ? Number(data.department_id)
+            : null,
 
-        data.question_id,
+        data.question_id
+            ? Number(data.question_id)
+            : null,
 
         data.assigned_to || null,
 
         data.priority || "Medium",
 
-        Number(data.sla_value ?? data.sla_days) || 0,
+        Number(
+            data.sla_value ??
+            data.sla_days
+        ) || 0,
 
         data.status || "Open",
 
@@ -1169,21 +928,15 @@ ActionPoint.create = (
         data.attachment || null,
 
         data.created_by || null
-
     ];
 
+
     db.query(
-
         sql,
-
         values,
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
@@ -1191,196 +944,161 @@ ActionPoint.create = (
 // ======================================================
 
 ActionPoint.update = (
-
     id,
-
     data,
-
     callback
-
 ) => {
 
     const sql = `
 
-    UPDATE action_points
+        UPDATE action_points
 
-    SET
+        SET
 
-        assigned_to = ?,
+            assigned_to = ?,
 
-        priority = ?,
+            priority = ?,
 
-        sla_value = ?,
+            sla_value = ?,
 
-        remarks = ?,
+            remarks = ?,
 
-        attachment = ?,
+            attachment = ?,
 
-        updated_at = CURRENT_TIMESTAMP
+            updated_at = CURRENT_TIMESTAMP
 
-    WHERE id = ?
+        WHERE id = ?
 
     `;
 
+
     db.query(
-
         sql,
-
         [
 
             data.assigned_to || null,
 
             data.priority || "Medium",
 
-          Number(data.sla_value ?? data.sla_days) || 0,
+            Number(
+                data.sla_value ??
+                data.sla_days
+            ) || 0,
 
             data.remarks || null,
 
             data.attachment || null,
 
             id
-
         ],
 
         callback
-
     );
-
 };
+
 
 // ======================================================
 // UPDATE ACTION POINT STATUS
 // ======================================================
 
 ActionPoint.updateStatus = (
-
     id,
-
     status,
-
     callback
-
 ) => {
 
     const sql = `
 
-    UPDATE action_points
+        UPDATE action_points
 
-    SET
+        SET
 
-        status = ?,
+            status = ?,
 
-        updated_at = CURRENT_TIMESTAMP
+            updated_at = CURRENT_TIMESTAMP
 
-    WHERE id = ?
+        WHERE id = ?
 
     `;
 
+
     db.query(
-
         sql,
-
         [
-
             status,
-
             id
-
         ],
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
 // TAKE ACTION
 // ======================================================
 
-// ------------------------------------------------------
-// NOTE: this used to call db.beginTransaction(...) /
-// db.rollback(...) / db.commit(...), but config/db.js only
-// exports { pool, query, execute, getConnection,
-// testDatabaseConnection, connectWithRetry, closePool } —
-// there is no beginTransaction/rollback/commit on it, so
-// every call here threw "db.beginTransaction is not a
-// function" before a single query ran. mysql2 puts
-// transaction control on a checked-out connection, not the
-// pool, so this now grabs a connection explicitly and runs
-// the transaction on that.
-// ------------------------------------------------------
-
 ActionPoint.takeAction = async (
-
     id,
-
     data,
-
     callback
-
 ) => {
 
     let connection;
 
+
     try {
 
-        connection = await db.getConnection();
+        connection =
+            await db.getConnection();
+
 
         await connection.beginTransaction();
 
-        // ======================================
+
+        // ============================================
         // GET ACTION POINT
-        // ======================================
+        // ============================================
 
-        const [rows] = await connection.execute(
-
+        const [
+            rows
+        ] = await connection.execute(
             `
-
             SELECT
-
                 submission_answer_id
 
             FROM action_points
 
             WHERE id = ?
-
             `,
-
             [id]
-
         );
 
-        if (rows.length === 0) {
+
+        if (
+            !rows ||
+            rows.length === 0
+        ) {
 
             await connection.rollback();
 
             return callback(
-
                 new Error(
-
                     "Action Point not found."
-
                 )
-
             );
-
         }
 
-        const submissionAnswerId =
 
+        const submissionAnswerId =
             rows[0].submission_answer_id;
 
-        // ======================================
-        // UPDATE ACTION POINT
-        // ======================================
+
+        // ============================================
+        // CLOSE ACTION POINT
+        // ============================================
 
         await connection.execute(
-
             `
-
             UPDATE action_points
 
             SET
@@ -1389,70 +1107,67 @@ ActionPoint.takeAction = async (
 
                 remarks = ?,
 
-                completed_at = CURRENT_TIMESTAMP,
+                completed_at =
+                    CURRENT_TIMESTAMP,
 
-                updated_at = CURRENT_TIMESTAMP
+                updated_at =
+                    CURRENT_TIMESTAMP
 
             WHERE id = ?
-
             `,
-
             [
-
                 data.remarks || "",
-
                 id
-
             ]
-
         );
 
-        // ======================================
-        // UPDATE SUBMISSION ANSWER
-        // ======================================
 
-        await connection.execute(
+        // ============================================
+        // CHECKLIST ANSWER
+        //
+        // Only update this when this Action Point
+        // came from a checklist.
+        // ============================================
 
-            `
+        if (submissionAnswerId) {
 
-            UPDATE checklist_submission_answers
+            await connection.execute(
+                `
+                UPDATE checklist_submission_answers
 
-            SET
+                SET
 
-                action_taken = ?,
+                    action_taken = ?,
 
-                action_remarks = ?,
+                    action_remarks = ?,
 
-                completion_date = CURRENT_TIMESTAMP
+                    completion_date =
+                        CURRENT_TIMESTAMP
 
-            WHERE id = ?
+                WHERE id = ?
+                `,
+                [
 
-            `,
+                    data.action_taken ||
+                        "Completed",
 
-            [
+                    data.remarks ||
+                        "",
 
-                data.action_taken || "Completed",
+                    submissionAnswerId
+                ]
+            );
+        }
 
-                data.remarks || "",
-
-                submissionAnswerId
-
-            ]
-
-        );
 
         await connection.commit();
 
+
         callback(
-
             null,
-
             {
-
                 success: true
-
             }
-
         );
 
     } catch (error) {
@@ -1460,60 +1175,57 @@ ActionPoint.takeAction = async (
         if (connection) {
 
             try {
-                await connection.rollback();
-            } catch (rollbackError) {
-                console.error("Rollback failed:", rollbackError.message);
-            }
 
+                await connection.rollback();
+
+            } catch (
+                rollbackError
+            ) {
+
+                console.error(
+                    "Rollback failed:",
+                    rollbackError.message
+                );
+            }
         }
+
 
         callback(error);
 
     } finally {
 
         if (connection) {
+
             connection.release();
         }
-
     }
-
 };
+
+
 // ======================================================
 // DELETE ACTION POINT
 // ======================================================
 
 ActionPoint.delete = (
-
     id,
-
     callback
-
 ) => {
 
     const sql = `
 
-    DELETE FROM action_points
+        DELETE FROM action_points
 
-    WHERE id = ?
+        WHERE id = ?
 
     `;
 
+
     db.query(
-
         sql,
-
-        [
-
-            id
-
-        ],
-
+        [id],
         callback
-
     );
-
 };
-
 
 
 // ======================================================
@@ -1521,27 +1233,19 @@ ActionPoint.delete = (
 // ======================================================
 
 ActionPoint.deleteAll = (
-
     callback
-
 ) => {
 
     const sql = `
-
-    DELETE FROM action_points
-
+        DELETE FROM action_points
     `;
 
+
     db.query(
-
         sql,
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
@@ -1549,71 +1253,67 @@ ActionPoint.deleteAll = (
 // ======================================================
 
 ActionPoint.getOpenActionPoints = (
-
     callback
-
 ) => {
 
     const sql = `
 
-    SELECT
+        SELECT
 
-        ap.id,
+            ap.id,
 
-        ap.priority,
+            ap.priority,
 
-        ap.status,
+            ap.status,
 
-     ap.sla_value,
+            ap.sla_value,
 
-        ap.created_at,
+            ap.created_at,
 
-        s.store_name,
+            s.store_name,
 
-        q.question,
+            q.question,
 
-        d.department_name,
+            d.department_name,
 
-        u.name AS assigned_to_name
+            u.name AS assigned_to_name
 
-    FROM action_points ap
+        FROM action_points ap
 
-    INNER JOIN stores s
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-        ON ap.store_id = s.id
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-    INNER JOIN questions q
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-        ON ap.question_id = q.id
+        LEFT JOIN users u
+            ON ap.assigned_to = u.id
 
-    LEFT JOIN departments d
+        WHERE ap.status <> 'Closed'
 
-        ON ap.department_id = d.id
+        ORDER BY
 
-    LEFT JOIN users u
+            FIELD(
+                ap.priority,
+                'Critical',
+                'High',
+                'Medium',
+                'Low'
+            ),
 
-        ON ap.assigned_to = u.id
-
-    WHERE ap.status <> 'Closed'
-
-    ORDER BY
-
-        ap.priority DESC,
-
-        ap.created_at ASC
+            ap.created_at ASC
 
     `;
 
+
     db.query(
-
         sql,
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
@@ -1621,66 +1321,89 @@ ActionPoint.getOpenActionPoints = (
 // ======================================================
 
 ActionPoint.getByNSO = (
-
     newStoreOpeningId,
-
     callback
-
 ) => {
 
     const sql = `
 
-    SELECT
+        SELECT
 
-        ap.*,
-        q.question,
-        s.store_name,
-        s.city,
-        s.state,
-        d.department_name,
-        ct.checklist_name,
-        cs.submission_date,
-        cs.inspection_score,
-        cs.nso_status,
-        nso.location AS nso_location,
-        nso.city AS nso_city,
-        nso.status AS nso_project_status,
-        
-        u.name AS assigned_to_name
+            ap.*,
 
-    FROM action_points ap
+            q.question,
 
-    INNER JOIN checklist_submissions cs
-        ON ap.submission_id = cs.id
+            s.store_name,
 
-    INNER JOIN questions q
-        ON ap.question_id = q.id
+            s.city,
 
-    INNER JOIN stores s
-        ON ap.store_id = s.id
+            s.state,
 
-    LEFT JOIN departments d
-        ON ap.department_id = d.id
+            d.department_name,
 
-    LEFT JOIN checklist_types ct
-        ON cs.checklist_type_id = ct.id
+            ct.checklist_name,
 
-    LEFT JOIN new_store_openings nso
-        ON ap.new_store_opening_id = nso.id
+            cs.submission_date,
 
-    LEFT JOIN users u
-        ON ap.assigned_to = u.id
+            cs.inspection_score,
 
-    WHERE ap.new_store_opening_id = ?
+            cs.nso_status,
 
-    ORDER BY
-        FIELD(ap.priority, 'Critical', 'High', 'Medium', 'Low'),
-        ap.created_at DESC
+            nso.location AS nso_location,
+
+            nso.city AS nso_city,
+
+            nso.status AS nso_project_status,
+
+            nso.store_name AS nso_store_name,
+
+            u.name AS assigned_to_name
+
+        FROM action_points ap
+
+        LEFT JOIN checklist_submissions cs
+            ON ap.submission_id = cs.id
+
+        INNER JOIN questions q
+            ON ap.question_id = q.id
+
+        INNER JOIN stores s
+            ON ap.store_id = s.id
+
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
+
+        LEFT JOIN checklist_types ct
+            ON cs.checklist_type_id = ct.id
+
+        LEFT JOIN new_store_openings nso
+            ON ap.new_store_opening_id = nso.id
+
+        LEFT JOIN users u
+            ON ap.assigned_to = u.id
+
+        WHERE ap.new_store_opening_id = ?
+
+        ORDER BY
+
+            FIELD(
+                ap.priority,
+                'Critical',
+                'High',
+                'Medium',
+                'Low'
+            ),
+
+            ap.created_at DESC
 
     `;
 
-    db.query(sql, [newStoreOpeningId], callback);
 
+    db.query(
+        sql,
+        [newStoreOpeningId],
+        callback
+    );
 };
 
 
@@ -1689,300 +1412,231 @@ ActionPoint.getByNSO = (
 // ======================================================
 
 ActionPoint.getBySubmission = (
-
     submissionId,
-
     callback
-
 ) => {
 
     const sql = `
 
-    SELECT
+        SELECT
 
-        ap.*,
+            ap.*,
 
-        q.question,
+            q.question,
 
-        s.store_name,
+            s.store_name,
 
-        d.department_name
+            d.department_name
 
-    FROM action_points ap
+        FROM action_points ap
 
-    INNER JOIN questions q
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-        ON ap.question_id = q.id
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-    INNER JOIN stores s
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-        ON ap.store_id = s.id
+        WHERE ap.submission_id = ?
 
-    LEFT JOIN departments d
-
-        ON ap.department_id = d.id
-
-    WHERE ap.submission_id = ?
-
-    ORDER BY ap.created_at ASC
+        ORDER BY
+            ap.created_at ASC
 
     `;
 
+
     db.query(
-
         sql,
-
-        [
-
-            submissionId
-
-        ],
-
+        [submissionId],
         callback
-
     );
-
 };
+
+
 // ======================================================
 // EXPORT ACTION POINTS
 // ======================================================
 
 ActionPoint.exportData = (
-
     filters,
-
     callback
-
 ) => {
 
     let sql = `
 
-    SELECT
+        SELECT
 
-        ap.id,
+            ap.id,
 
-        cs.submission_date,
+            cs.submission_date,
 
-        s.store_name,
+            s.store_name,
 
-        s.city,
+            s.city,
 
-        s.state,
+            s.state,
 
-        ct.checklist_name,
+            ct.checklist_name,
 
-        q.question,
+            q.question,
 
-        d.department_name,
+            d.department_name,
 
-        csa.answer,
+            csa.answer,
 
-        ap.priority,
+            ap.priority,
 
-        ap.sla_value ,
+            ap.sla_value,
 
-        ap.status,
+            ap.status,
 
-        ap.remarks AS comment,
+            ap.remarks AS comment,
 
-        ap.completed_at,
+            ap.completed_at,
 
-        u.name AS submitted_by,
+            u.name AS submitted_by,
 
-        au.name AS assigned_to,
+            au.name AS assigned_to,
 
-        ap.created_at
+            ap.created_at
 
-    FROM action_points ap
+        FROM action_points ap
 
-    INNER JOIN checklist_submissions cs
+        LEFT JOIN checklist_submissions cs
+            ON ap.submission_id = cs.id
 
-        ON ap.submission_id = cs.id
+        LEFT JOIN checklist_submission_answers csa
+            ON ap.submission_answer_id = csa.id
 
-    INNER JOIN checklist_submission_answers csa
+        INNER JOIN stores s
+            ON ap.store_id = s.id
 
-        ON ap.submission_answer_id = csa.id
+        LEFT JOIN checklist_types ct
+            ON cs.checklist_type_id = ct.id
 
-    INNER JOIN stores s
+        INNER JOIN questions q
+            ON ap.question_id = q.id
 
-        ON ap.store_id = s.id
+        LEFT JOIN departments d
+            ON ap.department_id = d.id
 
-    INNER JOIN checklist_types ct
+        LEFT JOIN users u
+            ON cs.submitted_by = u.id
 
-        ON cs.checklist_type_id = ct.id
+        LEFT JOIN users au
+            ON ap.assigned_to = au.id
 
-    INNER JOIN questions q
-
-        ON ap.question_id = q.id
-
-    LEFT JOIN departments d
-
-        ON ap.department_id = d.id
-
-    LEFT JOIN users u
-
-        ON cs.submitted_by = u.id
-
-    LEFT JOIN users au
-
-        ON ap.assigned_to = au.id
-
-    WHERE 1 = 1
+        WHERE 1 = 1
 
     `;
+
 
     const values = [];
 
 
-
-    // ======================================
-    // STORE FILTER
-    // ======================================
+    // ==================================================
+    // STORE
+    // ==================================================
 
     if (filters.store_id) {
 
         sql += `
-
-        AND ap.store_id = ?
-
+            AND ap.store_id = ?
         `;
 
         values.push(
-
             filters.store_id
-
         );
-
     }
 
 
-
-    // ======================================
-    // STATUS FILTER
-    // ======================================
+    // ==================================================
+    // STATUS
+    // ==================================================
 
     if (filters.status) {
 
         sql += `
-
-        AND ap.status = ?
-
+            AND ap.status = ?
         `;
 
         values.push(
-
             filters.status
-
         );
-
     }
 
 
-
-    // ======================================
-    // PRIORITY FILTER
-    // ======================================
+    // ==================================================
+    // PRIORITY
+    // ==================================================
 
     if (filters.priority) {
 
         sql += `
-
-        AND ap.priority = ?
-
+            AND ap.priority = ?
         `;
 
         values.push(
-
             filters.priority
-
         );
-
     }
 
 
-
-    // ======================================
+    // ==================================================
     // SEARCH
-    // ======================================
+    // ==================================================
 
     if (filters.search) {
 
         sql += `
-
-        AND (
-
-            s.store_name LIKE ?
-
-            OR s.city LIKE ?
-
-            OR s.state LIKE ?
-
-            OR ct.checklist_name LIKE ?
-
-            OR q.question LIKE ?
-
-            OR d.department_name LIKE ?
-
-            OR csa.answer LIKE ?
-
-            OR ap.status LIKE ?
-
-            OR ap.priority LIKE ?
-
-        )
-
+            AND (
+                s.store_name LIKE ?
+                OR s.city LIKE ?
+                OR s.state LIKE ?
+                OR ct.checklist_name LIKE ?
+                OR q.question LIKE ?
+                OR d.department_name LIKE ?
+                OR csa.answer LIKE ?
+                OR ap.status LIKE ?
+                OR ap.priority LIKE ?
+                OR ap.remarks LIKE ?
+            )
         `;
 
-        const keyword = `%${filters.search}%`;
+
+        const keyword =
+            `%${filters.search}%`;
+
 
         values.push(
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
             keyword,
-
+            keyword,
             keyword
-
         );
-
     }
 
 
-
     sql += `
-
-    ORDER BY
-
-        ap.created_at DESC
-
+        ORDER BY
+            ap.created_at DESC
     `;
 
 
-
     db.query(
-
         sql,
-
         values,
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
@@ -1990,73 +1644,49 @@ ActionPoint.exportData = (
 // ======================================================
 
 ActionPoint.getDashboardStats = (
-
     callback
-
 ) => {
 
     const sql = `
 
-    SELECT
+        SELECT
 
-        COUNT(*) AS total_action_points,
+            COUNT(*) AS total_action_points,
 
-        SUM(
+            SUM(
+                CASE
+                    WHEN status = 'Open'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS open_action_points,
 
-            CASE
+            SUM(
+                CASE
+                    WHEN status = 'In Progress'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS in_progress_action_points,
 
-                WHEN status = 'Open'
+            SUM(
+                CASE
+                    WHEN status = 'Closed'
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS closed_action_points
 
-                THEN 1
-
-                ELSE 0
-
-            END
-
-        ) AS open_action_points,
-
-        SUM(
-
-            CASE
-
-                WHEN status = 'In Progress'
-
-                THEN 1
-
-                ELSE 0
-
-            END
-
-        ) AS in_progress_action_points,
-
-        SUM(
-
-            CASE
-
-                WHEN status = 'Closed'
-
-                THEN 1
-
-                ELSE 0
-
-            END
-
-        ) AS closed_action_points
-
-    FROM action_points
+        FROM action_points
 
     `;
 
+
     db.query(
-
         sql,
-
         callback
-
     );
-
 };
-
 
 
 // ======================================================
