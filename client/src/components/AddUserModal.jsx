@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../styles/AddUserModal.css";
-import "../../styles/common/ProfessionalModal.css";
+import "../styles/common/ProfessionalModal.css";
 import { LuShieldCheck } from "react-icons/lu";
 import { HiUserGroup } from "react-icons/hi2";
 import axios from "axios";

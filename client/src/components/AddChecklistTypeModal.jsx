@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/AddChecklistTypeModal.css";
-import "../../styles/common/ProfessionalModal.css";
+import "../styles/common/ProfessionalModal.css";
 
 const API = "https://miarcus-backend.onrender.com/api";
 

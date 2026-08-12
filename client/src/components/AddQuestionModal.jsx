@@ -7,7 +7,7 @@ import {
 } from "../services/questionService";
 
 import "../styles/AddQuestionModal.css";
-import "../../styles/common/ProfessionalModal.css";
+import "../styles/common/ProfessionalModal.css";
 function AddQuestionModal({
   question,
   onClose,

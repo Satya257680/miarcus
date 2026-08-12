@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./DepartmentModal.css";
-import "../../styles/common/ProfessionalModal.css";
+import "../styles/common/ProfessionalModal.css";
 import EmployeeList from "./EmployeeList";
 import { getUsers } from "../../services/userService";
 
