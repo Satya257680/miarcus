@@ -1294,22 +1294,19 @@ exports.bulkUploadQuestions = async (req, res) => {
                     )
                 ) {
 
-                    const [
-                        rowsById
-                    ] =
-                        await db.query(
-                            `
-                            SELECT id
-                            FROM checklist_types
-                            WHERE id = ?
-                            LIMIT 1
-                            `,
-                            [
-                                Number(
-                                    checklistTypeName
-                                )
-                            ]
-                        );
+                    const rowsById = await db.query(
+                        `
+                        SELECT id
+                        FROM checklist_types
+                        WHERE id = ?
+                        LIMIT 1
+                        `,
+                        [
+                            Number(
+                                checklistTypeName
+                            )
+                        ]
+                    );
 
                     checklistRows =
                         rowsById;
@@ -1323,26 +1320,23 @@ exports.bulkUploadQuestions = async (req, res) => {
                     !checklistRows.length
                 ) {
 
-                    const [
-                        rowsByName
-                    ] =
-                        await db.query(
-                            `
-                            SELECT id
-                            FROM checklist_types
-                            WHERE LOWER(
-                                TRIM(checklist_name)
-                            )
-                            =
-                            LOWER(
-                                TRIM(?)
-                            )
-                            LIMIT 1
-                            `,
-                            [
-                                checklistTypeName
-                            ]
-                        );
+                    const rowsByName = await db.query(
+                        `
+                        SELECT id
+                        FROM checklist_types
+                        WHERE LOWER(
+                            TRIM(checklist_name)
+                        )
+                        =
+                        LOWER(
+                            TRIM(?)
+                        )
+                        LIMIT 1
+                        `,
+                        [
+                            checklistTypeName
+                        ]
+                    );
 
                     checklistRows =
                         rowsByName;
@@ -1386,28 +1380,25 @@ exports.bulkUploadQuestions = async (req, res) => {
                 // They are NOT skipped.
                 // ==================================================
 
-                const [
-                    duplicateRows
-                ] =
-                    await db.query(
-                        `
-                        SELECT id
-                        FROM questions
-                        WHERE checklist_type_id = ?
-                        AND LOWER(
-                            TRIM(question)
-                        )
-                        =
-                        LOWER(
-                            TRIM(?)
-                        )
-                        LIMIT 1
-                        `,
-                        [
-                            checklistTypeId,
-                            questionText
-                        ]
-                    );
+                const duplicateRows = await db.query(
+                    `
+                    SELECT id
+                    FROM questions
+                    WHERE checklist_type_id = ?
+                    AND LOWER(
+                        TRIM(question)
+                    )
+                    =
+                    LOWER(
+                        TRIM(?)
+                    )
+                    LIMIT 1
+                    `,
+                    [
+                        checklistTypeId,
+                        questionText
+                    ]
+                );
 
                 const existingQuestionId =
                     duplicateRows.length
@@ -1543,35 +1534,32 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                 else {
 
-                    const [
-                        insertResult
-                    ] =
-                        await db.query(
-                            `
-                            INSERT INTO questions
-                            (
-                                checklist_type_id,
-                                question,
-                                sequence_no,
-                                answer_type,
-                                sla_value,
-                                sla_unit,
-                                answer_required,
-                                status
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            `,
-                            [
-                                checklistTypeId,
-                                questionText,
-                                sequenceNo,
-                                answerType,
-                                slaValue,
-                                slaUnit || null,
-                                answerRequired,
-                                status
-                            ]
-                        );
+                    const insertResult = await db.query(
+                        `
+                        INSERT INTO questions
+                        (
+                            checklist_type_id,
+                            question,
+                            sequence_no,
+                            answer_type,
+                            sla_value,
+                            sla_unit,
+                            answer_required,
+                            status
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        `,
+                        [
+                            checklistTypeId,
+                            questionText,
+                            sequenceNo,
+                            answerType,
+                            slaValue,
+                            slaUnit || null,
+                            answerRequired,
+                            status
+                        ]
+                    );
 
                     questionId =
                         insertResult.insertId;
@@ -1646,22 +1634,19 @@ exports.bulkUploadQuestions = async (req, res) => {
                             )
                         ) {
 
-                            const [
-                                rowsById
-                            ] =
-                                await db.query(
-                                    `
-                                    SELECT id
-                                    FROM departments
-                                    WHERE id = ?
-                                    LIMIT 1
-                                    `,
-                                    [
-                                        Number(
-                                            departmentValue
-                                        )
-                                    ]
-                                );
+                            const rowsById = await db.query(
+                                `
+                                SELECT id
+                                FROM departments
+                                WHERE id = ?
+                                LIMIT 1
+                                `,
+                                [
+                                    Number(
+                                        departmentValue
+                                    )
+                                ]
+                            );
 
                             departmentRows =
                                 rowsById;
@@ -1675,26 +1660,23 @@ exports.bulkUploadQuestions = async (req, res) => {
                             !departmentRows.length
                         ) {
 
-                            const [
-                                rowsByName
-                            ] =
-                                await db.query(
-                                    `
-                                    SELECT id
-                                    FROM departments
-                                    WHERE LOWER(
-                                        TRIM(department_name)
-                                    )
-                                    =
-                                    LOWER(
-                                        TRIM(?)
-                                    )
-                                    LIMIT 1
-                                    `,
-                                    [
-                                        departmentValue
-                                    ]
-                                );
+                            const rowsByName = await db.query(
+                                `
+                                SELECT id
+                                FROM departments
+                                WHERE LOWER(
+                                    TRIM(department_name)
+                                )
+                                =
+                                LOWER(
+                                    TRIM(?)
+                                )
+                                LIMIT 1
+                                `,
+                                [
+                                    departmentValue
+                                ]
+                            );
 
                             departmentRows =
                                 rowsByName;
@@ -1821,7 +1803,7 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                 console.error(
                     `Error processing row ${excelRowNumber}:`,
-                    rowError
+                    rowError?.stack || rowError
                 );
 
                 skippedCount++;
@@ -1899,6 +1881,23 @@ exports.bulkUploadQuestions = async (req, res) => {
 
         console.log(
             "=========================================="
+        );
+
+        const skippedReasonCounts = {};
+
+        skippedRows.forEach((item) => {
+
+            const reason =
+                item.reason ||
+                "Unknown error";
+
+            skippedReasonCounts[reason] =
+                (skippedReasonCounts[reason] || 0) + 1;
+        });
+
+        console.log(
+            "Skipped reasons:",
+            skippedReasonCounts
         );
 
         return res.status(201).json({
