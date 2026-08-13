@@ -13,6 +13,7 @@ const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
 
 const nsoStatusService = require("./nsoStatusService");
+const { logActivity } = require("../utils/activityLogger");
 
 // ======================================================
 // GET SUBMISSION
@@ -106,15 +107,40 @@ const getSubmissionAnswers = (
 
                 q.question,
 
-                q.checklist_type_id
+                q.checklist_type_id,
+
+                q.answer_type,
+
+                q.sla_value AS question_sla_value,
+
+                q.sla_unit AS question_sla_unit,
+
+                GROUP_CONCAT(
+                    DISTINCT qd.department_id
+                    ORDER BY qd.department_id
+                    SEPARATOR ','
+                ) AS department_ids
 
             FROM checklist_submission_answers csa
 
             INNER JOIN questions q
-
                 ON q.id = csa.question_id
 
+            LEFT JOIN question_departments qd
+                ON qd.question_id = q.id
+
             WHERE csa.submission_id = ?
+
+            GROUP BY
+                csa.id,
+                csa.question_id,
+                csa.answer,
+                csa.remarks,
+                q.question,
+                q.checklist_type_id,
+                q.answer_type,
+                q.sla_value,
+                q.sla_unit
 
             ORDER BY q.sequence_no
 
@@ -323,72 +349,90 @@ const evaluateRules = (
     const matchedRules = [];
 
     answers.forEach((answer) => {
-
-        const questionText = String(
-            answer.question || ""
-        ).trim().toLowerCase();
-
-        if (!questionText) {
-            return;
-        }
+        const questionText = normalizeText(answer.question);
+        if (!questionText) return;
 
         const rule = rules.find((item) => {
-
-            const triggerColumn = String(
-                item.trigger_column || ""
-            ).trim().toLowerCase();
-
+            const triggerColumn = normalizeText(item.trigger_column);
             return triggerColumn === questionText;
-
         });
 
-        if (!rule) {
-            return;
-        }
+        if (!rule) return;
 
-        const submittedAnswer = String(
-            answer.answer ?? ""
-        ).trim();
-
-        const expectedAnswer = String(
-            rule.expected_answer ?? ""
-        ).trim();
+        const submittedAnswer = String(answer.answer ?? "").trim();
+        const expectedAnswer = String(rule.expected_answer ?? "").trim();
 
         if (
             submittedAnswer.toLowerCase() !==
             expectedAnswer.toLowerCase()
         ) {
-
             matchedRules.push({
-
-                answer_id:
-                    answer.id,
-
-                question_id:
-                    answer.question_id,
-
-                question:
-                    answer.question,
-
-                answer:
-                    answer.answer,
-
-                expected_answer:
-                    rule.expected_answer,
-
-                remarks:
-                    answer.remarks,
-
+                answer_id: answer.id,
+                question_id: answer.question_id,
+                question: answer.question,
+                answer: answer.answer,
+                expected_answer: rule.expected_answer,
+                remarks: answer.remarks,
+                department_ids: answer.department_ids,
                 rule
-
             });
-
         }
-
     });
 
     return matchedRules;
+};
 
+// ======================================================
+// BUILD AUTOMATIC RULES FOR NEW PROBLEMS
+// ======================================================
+
+const buildAutomaticProblems = async (
+    answers,
+    rules,
+    submission,
+    userId
+) => {
+    const problems = [];
+
+    for (const answer of answers) {
+        const questionText = normalizeText(answer.question);
+        if (!questionText) continue;
+
+        // A manually configured active rule always wins.
+        const existingRule = rules.find(
+            (item) => normalizeText(item.trigger_column) === questionText
+        );
+
+        if (existingRule) continue;
+        if (!isAutomaticProblem(answer)) continue;
+
+        try {
+            const automaticRule = await createAutomaticNSORule(
+                answer,
+                submission,
+                userId
+            );
+
+            problems.push({
+                answer_id: answer.id,
+                question_id: answer.question_id,
+                question: answer.question,
+                answer: answer.answer,
+                expected_answer: automaticRule.expected_answer,
+                remarks: answer.remarks,
+                department_ids: answer.department_ids,
+                rule: automaticRule,
+                automatic: true
+            });
+        } catch (error) {
+            console.error(
+                `Automatic NSO Rule creation failed for question #${answer.question_id}:`,
+                error
+            );
+        }
+    }
+
+    return problems;
 };
 
 // ======================================================
@@ -417,6 +461,226 @@ const isFlagEnabled = (value) => {
 
     return Number(value) === 1;
 
+};
+
+// ======================================================
+// AUTOMATIC PROBLEM DETECTION
+//
+// A checklist does not need an NSO Rule to be submitted.
+// The inspection engine first detects an obvious problem.
+// If no matching manual rule exists, an NSO Rule is then
+// generated automatically and used for the Action Point.
+// ======================================================
+
+const normalizeText = (value) =>
+    String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+const isAutomaticProblem = (answer) => {
+    const value = normalizeText(answer.answer);
+    const remarks = normalizeText(answer.remarks);
+    const type = normalizeText(answer.answer_type);
+
+    if (!value) {
+        return true;
+    }
+
+    // Yes/No questions: only an explicit No is automatically a problem.
+    if (["yes/no", "yes_no", "boolean"].includes(type)) {
+        return value === "no";
+    }
+
+    const problemPhrases = [
+        "no",
+        "not available",
+        "unavailable",
+        "missing",
+        "not working",
+        "broken",
+        "damaged",
+        "defective",
+        "failed",
+        "failure",
+        "error",
+        "issue",
+        "problem",
+        "in progress",
+        "progress",
+        "ongoing",
+        "continue",
+        "continuing",
+        "pending",
+        "not started",
+        "not complete",
+        "not completed",
+        "incomplete",
+        "unfinished",
+        "partially complete",
+        "partial",
+        "blocked",
+        "rejected",
+        "overdue",
+        "delay",
+        "delayed"
+    ];
+
+    const positivePhrases = [
+        "yes",
+        "completed",
+        "complete",
+        "done",
+        "available",
+        "working",
+        "ok",
+        "okay",
+        "pass",
+        "passed",
+        "satisfactory",
+        "no issue",
+        "no problem",
+        "not applicable",
+        "n/a",
+        "na"
+    ];
+
+    if (positivePhrases.includes(value)) {
+        return false;
+    }
+
+    if (problemPhrases.some((phrase) => value.includes(phrase))) {
+        return true;
+    }
+
+    if (
+        problemPhrases.some((phrase) => remarks.includes(phrase)) &&
+        !positivePhrases.some((phrase) => value.includes(phrase))
+    ) {
+        return true;
+    }
+
+    return false;
+};
+
+const inferExpectedAnswer = (answer) => {
+    const value = normalizeText(answer.answer);
+
+    if (value === "no") return "Yes";
+    if (value === "na" || value === "n/a") return "Yes";
+
+    // Existing NSO rules currently support Yes / No / NA as their
+    // expected-answer values. For an automatically detected textual
+    // problem, Yes means "the requirement should be satisfactory".
+    return "Yes";
+};
+
+const getRuleDepartmentIds = (answer) => {
+    if (!answer.department_ids) return [];
+
+    return String(answer.department_ids)
+        .split(",")
+        .map(Number)
+        .filter((id) => Number.isInteger(id) && id > 0);
+};
+
+const createAutomaticNSORule = async (
+    answer,
+    submission,
+    userId
+) => {
+    const departments = getRuleDepartmentIds(answer);
+
+    const priority =
+        answer.priority || "High";
+
+    const questionSlaValue = Number(answer.question_sla_value);
+    const questionSlaUnit = normalizeText(answer.question_sla_unit);
+
+    const slaDays =
+        questionSlaValue > 0
+            ? Math.max(
+                1,
+                questionSlaUnit.includes("hour")
+                    ? Math.ceil(questionSlaValue / 24)
+                    : Math.ceil(questionSlaValue)
+              )
+            : 3;
+
+    const rule = {
+        trigger_column: answer.question,
+        expected_answer: inferExpectedAnswer(answer),
+        priority,
+        sla_days: slaDays,
+        create_action_point: 1,
+        mandatory: 1,
+        is_active: 1,
+        created_by: userId,
+        departments
+    };
+
+    const result = await new Promise((resolve, reject) => {
+        NSORule.createRuleWithDepartments(
+            rule,
+            (err, created) => err ? reject(err) : resolve(created)
+        );
+    });
+
+    return {
+        ...rule,
+        id: result.insertId,
+        department_ids: departments.join(",")
+    };
+};
+
+const findResponsibleUser = async (departmentIds) => {
+    if (!departmentIds || departmentIds.length === 0) {
+        return null;
+    }
+
+    return new Promise((resolve, reject) => {
+        const placeholders = departmentIds.map(() => "?").join(",");
+        db.query(
+            `SELECT id, name, email\n             FROM users\n             WHERE department_id IN (${placeholders})\n               AND (status = 'Active' OR status IS NULL)\n             ORDER BY id ASC\n             LIMIT 1`,
+            departmentIds,
+            (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows?.[0] || null);
+            }
+        );
+    });
+};
+
+const notifyActionPoint = async ({
+    actionPointId,
+    submissionId,
+    question,
+    priority,
+    departmentIds,
+    userId,
+    automatic = true
+}) => {
+    try {
+        const responsibleUser = await findResponsibleUser(departmentIds);
+
+        await logActivity({
+            activity_type: automatic ? "Automatic Action Point" : "Action Point",
+            reference_id: actionPointId,
+            title: "Action Point Created",
+            description:
+                `Action Point #${actionPointId} was created${automatic ? " automatically" : ""} for checklist submission #${submissionId}. Problem: ${question}`,
+            module_name: "Action Points",
+            status: "Open",
+            priority: priority || "Medium",
+            created_by: userId,
+            assigned_to: responsibleUser?.id || null
+        });
+
+        return responsibleUser;
+    } catch (error) {
+        console.error("Action Point notification error:", error);
+        return null;
+    }
 };
 
 // ======================================================
@@ -497,6 +761,16 @@ const createActionPoints = (
                     submission_answer_id: item.answer_id,
                     rule_id: rule.id || null,
                     question_id: item.question_id
+                });
+
+                await notifyActionPoint({
+                    actionPointId: result.insertId,
+                    submissionId: submission.id,
+                    question: item.question,
+                    priority: actionPointData.priority,
+                    departmentIds,
+                    userId,
+                    automatic: Boolean(item.automatic)
                 });
 
                 console.log(
@@ -707,14 +981,27 @@ const runInspection = async (
         // ======================================
 
         const matchedRules =
-
             evaluateRules(
-
                 answers,
-
                 rules
-
             );
+
+        // ======================================
+        // AUTOMATIC PROBLEM DETECTION
+        // ======================================
+
+        const automaticProblems =
+            await buildAutomaticProblems(
+                answers,
+                rules,
+                submission,
+                userId
+            );
+
+        const allMatchedRules = [
+            ...matchedRules,
+            ...automaticProblems
+        ];
 
         // ======================================
         // CREATE ACTION POINTS
@@ -723,7 +1010,7 @@ const runInspection = async (
         const createdActionPoints =
             await createActionPoints(
                 submission,
-                matchedRules,
+                allMatchedRules,
                 userId
             );
 
@@ -735,7 +1022,7 @@ const runInspection = async (
 
             submission,
 
-            matchedRules,
+            allMatchedRules,
 
             userId
 
@@ -749,7 +1036,7 @@ const runInspection = async (
 
             submissionId,
 
-            matchedRules,
+            allMatchedRules,
 
             userId
 
@@ -763,7 +1050,7 @@ const runInspection = async (
 
             submissionId,
 
-            matchedRules,
+            allMatchedRules,
 
             score,
 
@@ -775,7 +1062,7 @@ const runInspection = async (
 
             success: true,
 
-            nso_status: nsoStatusResult?.status || submission.nso_status || (matchedRules.length > 0 ? "Open" : "Closed"),
+            nso_status: nsoStatusResult?.status || submission.nso_status || (allMatchedRules.length > 0 ? "Open" : "Closed"),
 
             nso_status_changed: Boolean(nsoStatusResult?.changed),
 
@@ -791,13 +1078,16 @@ const runInspection = async (
 
             matched_rules:
 
-                matchedRules.length,
+                allMatchedRules.length,
 
             action_points:
                 createdActionPoints.length,
 
             created_action_points:
                 createdActionPoints,
+
+            automatic_rules:
+                automaticProblems.length,
 
         };
 

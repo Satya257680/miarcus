@@ -204,13 +204,15 @@ ActionPoint.getAll = (
 
             ap.status,
 
-            ap.remarks AS comment,
+            ap.remarks AS remarks,
 
             ap.attachment,
 
             ap.completed_at,
 
             ap.created_at,
+
+            COALESCE(cs.submission_date, DATE(ap.created_at)) AS date,
 
             cs.submission_date,
 
@@ -238,6 +240,8 @@ ActionPoint.getAll = (
 
             csa.answer,
 
+            ap.sla_value AS sla_days,
+
             csa.remarks AS answer_remarks,
 
             u.name AS employee_name,
@@ -259,11 +263,11 @@ ActionPoint.getAll = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        LEFT JOIN checklist_types ct
-            ON cs.checklist_type_id = ct.id
-
         INNER JOIN questions q
             ON ap.question_id = q.id
+
+        LEFT JOIN checklist_types ct
+            ON ct.id = q.checklist_type_id
 
         LEFT JOIN departments d
             ON ap.department_id = d.id
@@ -371,7 +375,7 @@ ActionPoint.getAll = (
     if (filters.checklist_type_id) {
 
         sql += `
-            AND cs.checklist_type_id = ?
+            AND q.checklist_type_id = ?
         `;
 
         values.push(
@@ -387,10 +391,7 @@ ActionPoint.getAll = (
     if (filters.start_date) {
 
         sql += `
-            AND (
-                cs.submission_date IS NOT NULL
-                AND DATE(cs.submission_date) >= ?
-            )
+            AND COALESCE(cs.submission_date, DATE(ap.created_at)) >= ?
         `;
 
         values.push(
@@ -406,10 +407,7 @@ ActionPoint.getAll = (
     if (filters.end_date) {
 
         sql += `
-            AND (
-                cs.submission_date IS NOT NULL
-                AND DATE(cs.submission_date) <= ?
-            )
+            AND COALESCE(cs.submission_date, DATE(ap.created_at)) <= ?
         `;
 
         values.push(
@@ -515,14 +513,14 @@ ActionPoint.count = (
         LEFT JOIN checklist_submission_answers csa
             ON ap.submission_answer_id = csa.id
 
-        LEFT JOIN checklist_types ct
-            ON cs.checklist_type_id = ct.id
-
         INNER JOIN stores s
             ON ap.store_id = s.id
 
         INNER JOIN questions q
             ON ap.question_id = q.id
+
+        LEFT JOIN checklist_types ct
+            ON ct.id = q.checklist_type_id
 
         LEFT JOIN departments d
             ON ap.department_id = d.id
@@ -600,7 +598,7 @@ ActionPoint.count = (
     if (filters.checklist_type_id) {
 
         sql += `
-            AND cs.checklist_type_id = ?
+            AND q.checklist_type_id = ?
         `;
 
         values.push(
@@ -613,8 +611,7 @@ ActionPoint.count = (
 
         sql += `
             AND (
-                cs.submission_date IS NOT NULL
-                AND DATE(cs.submission_date) >= ?
+                COALESCE(cs.submission_date, DATE(ap.created_at)) >= ?
             )
         `;
 
@@ -628,8 +625,7 @@ ActionPoint.count = (
 
         sql += `
             AND (
-                cs.submission_date IS NOT NULL
-                AND DATE(cs.submission_date) <= ?
+                COALESCE(cs.submission_date, DATE(ap.created_at)) <= ?
             )
         `;
 
@@ -719,11 +715,11 @@ ActionPoint.getById = (
 
             ap.priority,
 
-            ap.sla_value,
+            ap.sla_value AS sla_days,
 
             ap.status,
 
-            ap.remarks AS comment,
+            ap.remarks AS remarks,
 
             ap.attachment,
 
@@ -798,7 +794,7 @@ ActionPoint.getById = (
             ON ap.store_id = s.id
 
         LEFT JOIN checklist_types ct
-            ON cs.checklist_type_id = ct.id
+            ON ct.id = q.checklist_type_id
 
         LEFT JOIN departments d
             ON ap.department_id = d.id
@@ -1374,7 +1370,7 @@ ActionPoint.getByNSO = (
             ON ap.department_id = d.id
 
         LEFT JOIN checklist_types ct
-            ON cs.checklist_type_id = ct.id
+            ON ct.id = q.checklist_type_id
 
         LEFT JOIN new_store_openings nso
             ON ap.new_store_opening_id = nso.id
@@ -1470,7 +1466,7 @@ ActionPoint.exportData = (
 
             ap.id,
 
-            cs.submission_date,
+            COALESCE(cs.submission_date, DATE(ap.created_at)) AS submission_date,
 
             s.store_name,
 
@@ -1488,11 +1484,11 @@ ActionPoint.exportData = (
 
             ap.priority,
 
-            ap.sla_value,
+            ap.sla_value AS sla_days,
 
             ap.status,
 
-            ap.remarks AS comment,
+            ap.remarks AS remarks,
 
             ap.completed_at,
 
@@ -1513,11 +1509,11 @@ ActionPoint.exportData = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        LEFT JOIN checklist_types ct
-            ON cs.checklist_type_id = ct.id
-
         INNER JOIN questions q
             ON ap.question_id = q.id
+
+        LEFT JOIN checklist_types ct
+            ON ct.id = q.checklist_type_id
 
         LEFT JOIN departments d
             ON ap.department_id = d.id
