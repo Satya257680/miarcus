@@ -8,6 +8,7 @@ const XLSX = require("xlsx");
 const csv = require("csv-parser");
 const { Readable } = require("stream");
 const path = require("path");
+
 // ======================================================
 // GET QUESTIONS
 // If checklist_type_id is passed,
@@ -18,14 +19,10 @@ const path = require("path");
 exports.getQuestions = (req, res) => {
 
     const {
-
-    checklist_type_id,
-
-    department_id,
-
-    search
-
-} = req.query;
+        checklist_type_id,
+        department_id,
+        search
+    } = req.query;
 
     // ======================================
     // CHECKLIST SUBMISSION
@@ -44,21 +41,15 @@ exports.getQuestions = (req, res) => {
                     console.error(err);
 
                     return res.status(500).json({
-
                         success: false,
-
                         message: err.message
-
                     });
 
                 }
 
                 return res.status(200).json({
-
                     success: true,
-
                     data: rows
-
                 });
 
             }
@@ -71,43 +62,36 @@ exports.getQuestions = (req, res) => {
     // QUESTIONS PAGE
     // ======================================
 
-    
+    Question.getAllQuestions(
 
-        Question.getAllQuestions(
+        req.query,
 
-    req.query,
+        (err, rows) => {
 
-    (err, rows) => {
+            if (err) {
 
-        if (err) {
+                console.error(err);
 
-            console.error(err);
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
 
-            return res.status(500).json({
+            }
 
-                success: false,
-
-                message: err.message
-
+            return res.status(200).json({
+                success: true,
+                count: rows.length,
+                data: rows
             });
 
         }
 
-        return res.status(200).json({
-
-            success: true,
-
-            count: rows.length,
-
-            data: rows
-
-        });
-
-    }
-
-);
+    );
 
 };
+
+
 // ======================================================
 // GET QUESTION BY ID
 // ======================================================
@@ -127,11 +111,8 @@ exports.getQuestionById = (req, res) => {
                 console.error(err);
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
 
             }
@@ -139,40 +120,33 @@ exports.getQuestionById = (req, res) => {
             if (rows.length === 0) {
 
                 return res.status(404).json({
-
                     success: false,
-
                     message: "Question not found"
-
                 });
 
             }
 
-          const question = rows[0];
+            const question = rows[0];
 
-question.department_ids =
+            question.department_ids =
+                question.department_ids
+                    ? question.department_ids
+                        .split(",")
+                        .map(Number)
+                    : [];
 
-    question.department_ids
-
-        ? question.department_ids
-              .split(",")
-              .map(Number)
-
-        : [];
-
-return res.status(200).json({
-
-    success: true,
-
-    data: question
-
-});
+            return res.status(200).json({
+                success: true,
+                data: question
+            });
 
         }
 
     );
 
 };
+
+
 // ======================================================
 // CREATE QUESTION
 // ======================================================
@@ -201,6 +175,7 @@ exports.createQuestion = (req, res) => {
 
     } = req.body;
 
+
     // ======================================
     // VALIDATION
     // ======================================
@@ -221,13 +196,16 @@ exports.createQuestion = (req, res) => {
 
             success: false,
 
-            message: "Checklist Type, Question and Answer Type are required."
+            message:
+                "Checklist Type, Question and Answer Type are required."
 
         });
 
     }
 
+
     status = status || "Active";
+
 
     // ======================================
     // CREATE QUESTION
@@ -254,7 +232,8 @@ exports.createQuestion = (req, res) => {
             status
 
         },
-                (err, result) => {
+
+        (err, result) => {
 
             if (err) {
 
@@ -270,7 +249,9 @@ exports.createQuestion = (req, res) => {
 
             }
 
+
             const questionId = result.insertId;
+
 
             // ======================================
             // SAVE DEPARTMENTS
@@ -298,6 +279,7 @@ exports.createQuestion = (req, res) => {
 
                     }
 
+
                     // ======================================
                     // LOG ACTIVITY
                     // ======================================
@@ -310,7 +292,8 @@ exports.createQuestion = (req, res) => {
 
                         title: "Question Created",
 
-                        description: `${question} question was created`,
+                        description:
+                            `${question} question was created`,
 
                         module_name: "Questions",
 
@@ -324,11 +307,13 @@ exports.createQuestion = (req, res) => {
 
                     });
 
+
                     return res.status(201).json({
 
                         success: true,
 
-                        message: "Question created successfully.",
+                        message:
+                            "Question created successfully.",
 
                         id: questionId
 
@@ -343,6 +328,8 @@ exports.createQuestion = (req, res) => {
     );
 
 };
+
+
 // ======================================================
 // UPDATE QUESTION
 // ======================================================
@@ -373,6 +360,7 @@ exports.updateQuestion = (req, res) => {
 
     } = req.body;
 
+
     // ======================================
     // VALIDATION
     // ======================================
@@ -393,13 +381,16 @@ exports.updateQuestion = (req, res) => {
 
             success: false,
 
-            message: "Checklist Type, Question and Answer Type are required."
+            message:
+                "Checklist Type, Question and Answer Type are required."
 
         });
 
     }
 
+
     status = status || "Active";
+
 
     // ======================================
     // UPDATE QUESTION
@@ -445,6 +436,7 @@ exports.updateQuestion = (req, res) => {
 
             }
 
+
             // ======================================
             // DELETE OLD DEPARTMENTS
             // ======================================
@@ -468,6 +460,7 @@ exports.updateQuestion = (req, res) => {
                         });
 
                     }
+
 
                     // ======================================
                     // SAVE NEW DEPARTMENTS
@@ -495,6 +488,7 @@ exports.updateQuestion = (req, res) => {
 
                             }
 
+
                             // ======================================
                             // LOG ACTIVITY
                             // ======================================
@@ -507,7 +501,8 @@ exports.updateQuestion = (req, res) => {
 
                                 title: "Question Updated",
 
-                                description: `${question} question was updated`,
+                                description:
+                                    `${question} question was updated`,
 
                                 module_name: "Questions",
 
@@ -521,11 +516,13 @@ exports.updateQuestion = (req, res) => {
 
                             });
 
+
                             return res.status(200).json({
 
                                 success: true,
 
-                                message: "Question updated successfully."
+                                message:
+                                    "Question updated successfully."
 
                             });
 
@@ -542,6 +539,8 @@ exports.updateQuestion = (req, res) => {
     );
 
 };
+
+
 // ======================================================
 // DELETE QUESTION
 // ======================================================
@@ -549,6 +548,7 @@ exports.updateQuestion = (req, res) => {
 exports.deleteQuestion = (req, res) => {
 
     const { id } = req.params;
+
 
     // ======================================
     // GET QUESTION DETAILS
@@ -574,6 +574,7 @@ exports.deleteQuestion = (req, res) => {
 
             }
 
+
             if (rows.length === 0) {
 
                 return res.status(404).json({
@@ -586,7 +587,9 @@ exports.deleteQuestion = (req, res) => {
 
             }
 
+
             const questionData = rows[0];
+
 
             // ======================================
             // DELETE QUESTION DEPARTMENTS
@@ -612,6 +615,7 @@ exports.deleteQuestion = (req, res) => {
 
                     }
 
+
                     // ======================================
                     // DELETE QUESTION
                     // ======================================
@@ -636,6 +640,7 @@ exports.deleteQuestion = (req, res) => {
 
                             }
 
+
                             // ======================================
                             // LOG ACTIVITY
                             // ======================================
@@ -648,7 +653,8 @@ exports.deleteQuestion = (req, res) => {
 
                                 title: "Question Deleted",
 
-                                description: `${questionData.question} question was deleted`,
+                                description:
+                                    `${questionData.question} question was deleted`,
 
                                 module_name: "Questions",
 
@@ -662,11 +668,13 @@ exports.deleteQuestion = (req, res) => {
 
                             });
 
+
                             return res.status(200).json({
 
                                 success: true,
 
-                                message: "Question deleted successfully."
+                                message:
+                                    "Question deleted successfully."
 
                             });
 
@@ -683,7 +691,6 @@ exports.deleteQuestion = (req, res) => {
     );
 
 };
-
 
 
 // ======================================================
@@ -710,6 +717,7 @@ exports.deleteAllQuestions = (req, res) => {
 
             }
 
+
             // ======================================
             // LOG ACTIVITY
             // ======================================
@@ -722,7 +730,8 @@ exports.deleteAllQuestions = (req, res) => {
 
                 title: "All Questions Deleted",
 
-                description: "All questions were deleted from the Questions module",
+                description:
+                    "All questions were deleted from the Questions module",
 
                 module_name: "Questions",
 
@@ -736,11 +745,13 @@ exports.deleteAllQuestions = (req, res) => {
 
             });
 
+
             return res.status(200).json({
 
                 success: true,
 
-                message: "All Questions deleted successfully."
+                message:
+                    "All Questions deleted successfully."
 
             });
 
@@ -749,8 +760,14 @@ exports.deleteAllQuestions = (req, res) => {
     );
 
 };
+
+
 // ======================================================
 // BULK UPLOAD QUESTIONS
+// Supports:
+// .csv
+// .xlsx
+// .xls
 // ======================================================
 
 exports.bulkUploadQuestions = async (req, res) => {
@@ -759,13 +776,29 @@ exports.bulkUploadQuestions = async (req, res) => {
     console.log("BULK UPLOAD QUESTIONS");
     console.log("========================================");
 
-    console.log("Content-Type:", req.headers["content-type"]);
+    console.log(
+        "Content-Type:",
+        req.headers["content-type"]
+    );
 
-    console.log("req.file:", req.file);
+    console.log(
+        "File:",
+        req.file
+            ? req.file.originalname
+            : "NO FILE"
+    );
 
-    console.log("req.body:", req.body);
+    console.log(
+        "Body:",
+        req.body
+    );
+
 
     try {
+
+        // =====================================
+        // FILE VALIDATION
+        // =====================================
 
         if (!req.file) {
 
@@ -773,17 +806,28 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                 success: false,
 
-                message: "Please upload a file."
+                message:
+                    "Please upload a file."
 
             });
 
         }
 
-        const extension = path
-            .extname(req.file.originalname)
-            .toLowerCase();
+
+        // =====================================
+        // FILE EXTENSION
+        // =====================================
+
+        const extension =
+            path
+                .extname(
+                    req.file.originalname
+                )
+                .toLowerCase();
+
 
         let rows = [];
+
 
         // =====================================
         // CSV
@@ -791,41 +835,139 @@ exports.bulkUploadQuestions = async (req, res) => {
 
         if (extension === ".csv") {
 
-            rows = await new Promise((resolve, reject) => {
+            rows = await new Promise(
+                (resolve, reject) => {
 
-                const result = [];
+                    const result = [];
 
-                Readable.from(req.file.buffer)
-                    .pipe(csv())
-                    .on("data", (row) => result.push(row))
-                    .on("end", () => resolve(result))
-                    .on("error", reject);
+                    Readable
+                        .from(req.file.buffer)
 
-            });
+                        .pipe(csv())
+
+                        .on(
+                            "data",
+                            (row) => {
+
+                                result.push(row);
+
+                            }
+                        )
+
+                        .on(
+                            "end",
+                            () => {
+
+                                resolve(result);
+
+                            }
+                        )
+
+                        .on(
+                            "error",
+                            reject
+                        );
+
+                }
+            );
 
         }
+
 
         // =====================================
         // EXCEL
         // =====================================
 
-        else {
+        else if (
 
-            const workbook = XLSX.read(req.file.buffer, {
+            extension === ".xlsx" ||
 
-                type: "buffer"
+            extension === ".xls"
 
-            });
+        ) {
 
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const workbook =
+                XLSX.read(
+                    req.file.buffer,
+                    {
+                        type: "buffer"
+                    }
+                );
 
-            rows = XLSX.utils.sheet_to_json(sheet);
+
+            if (
+                !workbook.SheetNames ||
+                !workbook.SheetNames.length
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Excel file does not contain any worksheet."
+
+                });
+
+            }
+
+
+            const sheet =
+                workbook.Sheets[
+                    workbook.SheetNames[0]
+                ];
+
+
+            rows =
+                XLSX.utils.sheet_to_json(
+                    sheet,
+                    {
+                        defval: ""
+                    }
+                );
 
         }
 
-        console.log("Rows Found:", rows.length);
 
-        console.log("First Row:", rows[0]);
+        // =====================================
+        // INVALID FILE TYPE
+        // =====================================
+
+        else {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Only CSV, XLSX and XLS files are supported."
+
+            });
+
+        }
+
+
+        // =====================================
+        // DEBUG
+        // =====================================
+
+        console.log(
+            "Rows Found:",
+            rows.length
+        );
+
+
+        console.log(
+            "First Row:",
+            rows.length
+                ? rows[0]
+                : null
+        );
+
+
+        // =====================================
+        // NO DATA
+        // =====================================
 
         if (!rows.length) {
 
@@ -833,203 +975,667 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                 success: false,
 
-                message: "No data found."
+                message:
+                    "No data found."
 
             });
 
         }
 
-        for (const row of rows) {
 
-            // =====================================
-            // CHECKLIST TYPE
-            // =====================================
+        // =====================================
+        // RESULT TRACKING
+        // =====================================
 
-            const [checklists] = await db.promise().query(
+        let insertedCount = 0;
 
-                `SELECT id
-                 FROM checklist_types
-                 WHERE checklist_name = ?`,
+        let skippedCount = 0;
 
-                [row["Checklist Type"]]
+        const skippedRows = [];
 
-            );
 
-            if (!checklists.length) {
+        // =====================================
+        // PROCESS EACH ROW
+        // =====================================
 
-                console.log(
-                    "Checklist Type Not Found:",
-                    row["Checklist Type"]
+        for (
+            const row of rows
+        ) {
+
+            try {
+
+                // =====================================
+                // CHECKLIST TYPE
+                // Supports:
+                //
+                // Checklist Type
+                // checklist_type
+                // checklistType
+                // =====================================
+
+                const checklistTypeName =
+                    String(
+
+                        row["Checklist Type"] ??
+
+                        row["checklist_type"] ??
+
+                        row["checklistType"] ??
+
+                        ""
+
+                    ).trim();
+
+
+                // =====================================
+                // QUESTION
+                // =====================================
+
+                const questionText =
+                    String(
+
+                        row["Question"] ??
+
+                        row["question"] ??
+
+                        ""
+
+                    ).trim();
+
+
+                // =====================================
+                // SEQUENCE
+                // =====================================
+
+                const sequenceRaw =
+
+                    row["Sequence"] ??
+
+                    row["sequence_no"] ??
+
+                    row["sequence"] ??
+
+                    null;
+
+
+                let sequence = sequenceRaw;
+
+
+                if (
+                    sequence !== null &&
+                    sequence !== undefined &&
+                    String(sequence).trim() !== ""
+                ) {
+
+                    const numericSequence =
+                        Number(sequence);
+
+                    sequence =
+                        Number.isNaN(
+                            numericSequence
+                        )
+                            ? null
+                            : numericSequence;
+
+                } else {
+
+                    sequence = null;
+
+                }
+
+
+                // =====================================
+                // ANSWER TYPE
+                // =====================================
+
+                const answerType =
+                    String(
+
+                        row["Answer Type"] ??
+
+                        row["answer_type"] ??
+
+                        row["answerType"] ??
+
+                        ""
+
+                    ).trim();
+
+
+                // =====================================
+                // ANSWER REQUIRED
+                // =====================================
+
+                const answerRequiredValue =
+                    String(
+
+                        row["Answer Required"] ??
+
+                        row["answer_required"] ??
+
+                        row["answerRequired"] ??
+
+                        ""
+
+                    ).trim();
+
+
+                // =====================================
+                // STATUS
+                // =====================================
+
+                const status =
+                    String(
+
+                        row["Status"] ??
+
+                        row["status"] ??
+
+                        "Active"
+
+                    ).trim() || "Active";
+
+
+                // =====================================
+                // DEPARTMENTS
+                // =====================================
+
+                const departmentsValue =
+                    String(
+
+                        row["Departments"] ??
+
+                        row["departments"] ??
+
+                        ""
+
+                    ).trim();
+
+
+                // =====================================
+                // SLA
+                // =====================================
+
+                const slaRaw =
+
+                    row["SLA"] ??
+
+                    row["sla"] ??
+
+                    "";
+
+
+                // =====================================
+                // REQUIRED FIELD VALIDATION
+                // =====================================
+
+                if (
+
+                    !checklistTypeName ||
+
+                    !questionText ||
+
+                    !answerType
+
+                ) {
+
+                    skippedCount++;
+
+                    skippedRows.push({
+
+                        row: row,
+
+                        question:
+                            questionText ||
+                            "Unknown",
+
+                        reason:
+                            "Checklist Type, Question or Answer Type is missing."
+
+                    });
+
+                    continue;
+
+                }
+
+
+                // =====================================
+                // FIND CHECKLIST TYPE
+                // =====================================
+
+                const [
+                    checklists
+                ] = await db.query(
+
+                    `SELECT id
+                     FROM checklist_types
+                     WHERE checklist_name = ?
+                     LIMIT 1`,
+
+                    [
+                        checklistTypeName
+                    ]
+
                 );
 
-                continue;
 
-            }
+                // =====================================
+                // CHECKLIST NOT FOUND
+                // =====================================
 
-            const checklistTypeId = checklists[0].id;
+                if (
 
-            // =====================================
-            // SLA
-            // =====================================
+                    !checklists ||
 
-            let slaValue = null;
+                    !checklists.length
 
-            let slaUnit = null;
+                ) {
 
-            if (row["SLA"]) {
-
-                const sla = String(row["SLA"])
-                    .trim()
-                    .split(" ");
-
-                slaValue = sla[0];
-
-                slaUnit = sla.slice(1).join(" ");
-
-            }
-
-            // =====================================
-            // INSERT QUESTION
-            // =====================================
-
-            const [questionResult] = await db.promise().query(
-
-                `INSERT INTO questions
-                (
-                    checklist_type_id,
-                    question,
-                    sequence_no,
-                    answer_type,
-                    sla_value,
-                    sla_unit,
-                    answer_required,
-                    status
-                )
-                VALUES
-                (
-                    ?,?,?,?,?,?,?,?
-                )`,
-
-                [
-
-                    checklistTypeId,
-
-                    row["Question"],
-
-                    row["Sequence"],
-
-                    row["Answer Type"],
-
-                    slaValue,
-
-                    slaUnit,
-
-                    String(row["Answer Required"]).toLowerCase() === "yes"
-                        ? 1
-                        : 0,
-
-                    row["Status"] || "Active"
-
-                ]
-
-            );
-
-            const questionId = questionResult.insertId;
-
-            // =====================================
-            // DEPARTMENTS
-            // =====================================
-
-            if (row["Departments"]) {
-
-                const departments = row["Departments"]
-                    .split(",")
-                    .map((d) => d.trim());
-
-                for (const departmentName of departments) {
-
-                    const [department] = await db.promise().query(
-
-                        `SELECT id
-                         FROM departments
-                         WHERE department_name = ?`,
-
-                        [departmentName]
-
+                    console.log(
+                        "Checklist Type Not Found:",
+                        checklistTypeName
                     );
 
-                    if (department.length) {
 
-                        await db.promise().query(
+                    skippedCount++;
 
-                            `INSERT INTO question_departments
-                            (
-                                question_id,
-                                department_id
+
+                    skippedRows.push({
+
+                        row: row,
+
+                        question:
+                            questionText,
+
+                        reason:
+                            `Checklist Type "${checklistTypeName}" not found.`
+
+                    });
+
+
+                    continue;
+
+                }
+
+
+                const checklistTypeId =
+                    checklists[0].id;
+
+
+                // =====================================
+                // SLA PARSING
+                // Example:
+                //
+                // 2 Days
+                // 5 Hours
+                // 1 Day
+                // =====================================
+
+                let slaValue = null;
+
+                let slaUnit = null;
+
+
+                if (
+
+                    slaRaw !== null &&
+
+                    slaRaw !== undefined &&
+
+                    String(slaRaw).trim() !== ""
+
+                ) {
+
+                    const slaParts =
+                        String(slaRaw)
+                            .trim()
+                            .split(/\s+/);
+
+
+                    slaValue =
+                        slaParts[0];
+
+
+                    slaUnit =
+                        slaParts
+                            .slice(1)
+                            .join(" ") ||
+                        null;
+
+                }
+
+
+                // =====================================
+                // ANSWER REQUIRED PARSING
+                //
+                // Yes / TRUE / 1
+                // = 1
+                //
+                // Anything else
+                // = 0
+                // =====================================
+
+                const answerRequired =
+                    [
+
+                        "yes",
+
+                        "true",
+
+                        "1"
+
+                    ].includes(
+
+                        answerRequiredValue
+                            .toLowerCase()
+
+                    )
+                        ? 1
+                        : 0;
+
+
+                // =====================================
+                // INSERT QUESTION
+                // =====================================
+
+                const [
+                    questionResult
+                ] = await db.query(
+
+                    `INSERT INTO questions
+                    (
+                        checklist_type_id,
+                        question,
+                        sequence_no,
+                        answer_type,
+                        sla_value,
+                        sla_unit,
+                        answer_required,
+                        status
+                    )
+                    VALUES
+                    (
+                        ?, ?, ?, ?, ?, ?, ?, ?
+                    )`,
+
+                    [
+
+                        checklistTypeId,
+
+                        questionText,
+
+                        sequence,
+
+                        answerType,
+
+                        slaValue,
+
+                        slaUnit,
+
+                        answerRequired,
+
+                        status
+
+                    ]
+
+                );
+
+
+                const questionId =
+                    questionResult.insertId;
+
+
+                // =====================================
+                // DEPARTMENTS
+                // =====================================
+
+                if (
+                    departmentsValue
+                ) {
+
+                    const departments =
+                        departmentsValue
+
+                            .split(",")
+
+                            .map(
+                                (department) =>
+                                    department.trim()
                             )
-                            VALUES
-                            (
-                                ?,?
-                            )`,
+
+                            .filter(
+                                Boolean
+                            );
+
+
+                    // =====================================
+                    // PROCESS EACH DEPARTMENT
+                    // =====================================
+
+                    for (
+
+                        const departmentName
+                        of departments
+
+                    ) {
+
+                        // =====================================
+                        // FIND DEPARTMENT
+                        // =====================================
+
+                        const [
+                            department
+                        ] = await db.query(
+
+                            `SELECT id
+                             FROM departments
+                             WHERE department_name = ?
+                             LIMIT 1`,
 
                             [
-
-                                questionId,
-
-                                department[0].id
-
+                                departmentName
                             ]
 
                         );
+
+
+                        // =====================================
+                        // SAVE DEPARTMENT LINK
+                        // =====================================
+
+                        if (
+
+                            department &&
+
+                            department.length
+
+                        ) {
+
+                            await db.query(
+
+                                `INSERT INTO question_departments
+                                (
+                                    question_id,
+                                    department_id
+                                )
+                                VALUES
+                                (
+                                    ?, ?
+                                )`,
+
+                                [
+
+                                    questionId,
+
+                                    department[0].id
+
+                                ]
+
+                            );
+
+                        }
+
+                        else {
+
+                            console.log(
+                                "Department Not Found:",
+                                departmentName
+                            );
+
+                        }
 
                     }
 
                 }
 
+
+                // =====================================
+                // ACTIVITY LOG
+                // =====================================
+
+                logActivity({
+
+                    activity_type:
+                        "Question",
+
+                    reference_id:
+                        questionId,
+
+                    title:
+                        "Question Created",
+
+                    description:
+                        `${questionText} question was created through bulk upload`,
+
+                    module_name:
+                        "Questions",
+
+                    status:
+                        "Open",
+
+                    priority:
+                        "Medium",
+
+                    created_by:
+                        req.user?.id || null,
+
+                    assigned_to:
+                        null
+
+                });
+
+
+                // =====================================
+                // SUCCESS
+                // =====================================
+
+                insertedCount++;
+
+
+            } catch (rowError) {
+
+                // =====================================
+                // ROW ERROR
+                // Do not stop entire upload
+                // =====================================
+
+                console.error(
+                    "Error processing row:",
+                    rowError
+                );
+
+
+                skippedCount++;
+
+
+                skippedRows.push({
+
+                    row: row,
+
+                    question:
+                        row["Question"] ||
+                        row["question"] ||
+                        "Unknown",
+
+                    reason:
+                        rowError.message
+
+                });
+
             }
 
         }
+
+
+        // =====================================
+        // FINAL RESPONSE
+        // =====================================
 
         return res.status(201).json({
 
             success: true,
 
-            message: "Questions uploaded successfully."
+            message:
+                `Questions upload completed. ${insertedCount} inserted, ${skippedCount} skipped.`,
+
+            insertedCount:
+
+                insertedCount,
+
+            skippedCount:
+
+                skippedCount,
+
+            skippedRows:
+
+                skippedRows
 
         });
 
-    }
 
-    catch (err) {
+    } catch (err) {
 
-        console.error(err);
+        console.error(
+            "BULK UPLOAD QUESTIONS ERROR:",
+            err
+        );
+
 
         return res.status(500).json({
 
             success: false,
 
-            message: err.message
+            message:
+                err.message
 
         });
 
     }
 
 };
+
+
 // ======================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ======================================================
 
-exports.getQuestions = exports.getQuestions;
+exports.getQuestions =
+    exports.getQuestions;
 
-exports.getQuestionById = exports.getQuestionById;
+exports.getQuestionById =
+    exports.getQuestionById;
 
-exports.createQuestion = exports.createQuestion;
+exports.createQuestion =
+    exports.createQuestion;
 
-exports.updateQuestion = exports.updateQuestion;
+exports.updateQuestion =
+    exports.updateQuestion;
 
-exports.deleteQuestion = exports.deleteQuestion;
+exports.deleteQuestion =
+    exports.deleteQuestion;
 
-exports.deleteAllQuestions = exports.deleteAllQuestions;
+exports.deleteAllQuestions =
+    exports.deleteAllQuestions;
 
 exports.bulkUploadQuestions =
     exports.bulkUploadQuestions;
