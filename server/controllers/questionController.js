@@ -19,16 +19,13 @@ const cleanValue = (value) => {
     return String(value).trim();
 };
 
-
 const normalizeHeader = (value) => {
     return cleanValue(value)
         .replace(/^\uFEFF/, "")
         .trim();
 };
 
-
 const isTrueValue = (value) => {
-
     const normalized = cleanValue(value).toLowerCase();
 
     return [
@@ -38,20 +35,15 @@ const isTrueValue = (value) => {
         "y",
         "required"
     ].includes(normalized);
-
 };
 
-
 const isEmptyValue = (value) => {
-
     return (
         value === null ||
         value === undefined ||
         cleanValue(value) === ""
     );
-
 };
-
 
 // ======================================================
 // GET QUESTIONS
@@ -65,16 +57,18 @@ exports.getQuestions = (req, res) => {
         search
     } = req.query;
 
-    // ==========================================
+    // Prevent unused-variable warnings
+    void department_id;
+    void search;
+
+    // ==================================================
     // CHECKLIST SUBMISSION
-    // ==========================================
+    // ==================================================
 
     if (checklist_type_id) {
 
         return Question.getQuestionsByChecklistType(
-
             checklist_type_id,
-
             (err, rows) => {
 
                 if (err) {
@@ -85,38 +79,25 @@ exports.getQuestions = (req, res) => {
                     );
 
                     return res.status(500).json({
-
                         success: false,
-
                         message: err.message
-
                     });
-
                 }
 
                 return res.status(200).json({
-
                     success: true,
-
                     data: rows
-
                 });
-
             }
-
         );
-
     }
 
-
-    // ==========================================
+    // ==================================================
     // QUESTIONS MANAGEMENT PAGE
-    // ==========================================
+    // ==================================================
 
     Question.getAllQuestions(
-
         req.query,
-
         (err, rows) => {
 
             if (err) {
@@ -127,31 +108,19 @@ exports.getQuestions = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
 
             return res.status(200).json({
-
                 success: true,
-
                 count: rows.length,
-
                 data: rows
-
             });
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // GET QUESTION BY ID
@@ -162,9 +131,7 @@ exports.getQuestionById = (req, res) => {
     const { id } = req.params;
 
     Question.getQuestionById(
-
         id,
-
         (err, rows) => {
 
             if (err) {
@@ -175,57 +142,36 @@ exports.getQuestionById = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
-
 
             if (!rows || rows.length === 0) {
 
                 return res.status(404).json({
-
                     success: false,
-
                     message: "Question not found"
-
                 });
-
             }
-
 
             const question = rows[0];
 
-
             question.department_ids =
                 question.department_ids
-
                     ? String(question.department_ids)
                         .split(",")
                         .map(Number)
                         .filter(Boolean)
-
                     : [];
 
-
             return res.status(200).json({
-
                 success: true,
-
                 data: question
-
             });
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // CREATE QUESTION
@@ -234,103 +180,72 @@ exports.getQuestionById = (req, res) => {
 exports.createQuestion = (req, res) => {
 
     let {
-
         checklist_type_id,
-
         question,
-
         sequence_no,
-
         answer_type,
-
         sla_value,
-
         sla_unit,
-
         answer_required,
-
         status,
-
         departments = []
-
     } = req.body;
 
-
     question = cleanValue(question);
-
     answer_type = cleanValue(answer_type);
+    status = cleanValue(status) || "Active";
 
-    status =
-        cleanValue(status) || "Active";
-
+    // ==================================================
+    // VALIDATION
+    // ==================================================
 
     if (
-
         !checklist_type_id ||
-
         !question ||
-
         !answer_type
-
     ) {
 
         return res.status(400).json({
-
             success: false,
-
             message:
                 "Checklist Type, Question and Answer Type are required."
-
         });
-
     }
 
-
-    // ==========================================
+    // ==================================================
     // NORMALIZE DEPARTMENTS
-    // ==========================================
+    // ==================================================
 
     if (!Array.isArray(departments)) {
 
         if (typeof departments === "string") {
 
-            departments =
-                departments
-                    .split(",")
-                    .map((item) => item.trim())
-                    .filter(Boolean);
+            departments = departments
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean);
 
         } else {
 
             departments = [];
-
         }
-
     }
 
+    // ==================================================
+    // CREATE QUESTION
+    // ==================================================
 
     Question.createQuestion(
-
         {
-
             checklist_type_id,
-
             question,
-
             sequence_no,
-
             answer_type,
-
             sla_value,
-
             sla_unit,
-
             answer_required,
-
             status
-
         },
-
         (err, result) => {
 
             if (err) {
@@ -341,26 +256,20 @@ exports.createQuestion = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
 
+            const questionId = result.insertId;
 
-            const questionId =
-                result.insertId;
-
+            // ==================================================
+            // SAVE DEPARTMENTS
+            // ==================================================
 
             Question.saveDepartments(
-
                 questionId,
-
                 departments,
-
                 (deptErr) => {
 
                     if (deptErr) {
@@ -371,44 +280,29 @@ exports.createQuestion = (req, res) => {
                         );
 
                         return res.status(500).json({
-
                             success: false,
-
                             message: deptErr.message
-
                         });
-
                     }
 
-
-                    // ==========================================
+                    // ==================================================
                     // ACTIVITY LOG
-                    // ==========================================
+                    // ==================================================
 
                     try {
 
                         logActivity({
-
                             activity_type: "Question",
-
                             reference_id: questionId,
-
                             title: "Question Created",
-
                             description:
                                 `${question} question was created`,
-
                             module_name: "Questions",
-
                             status: "Open",
-
                             priority: "Medium",
-
                             created_by:
                                 req.user?.id || null,
-
                             assigned_to: null
-
                         });
 
                     } catch (logError) {
@@ -417,31 +311,19 @@ exports.createQuestion = (req, res) => {
                             "Activity log error:",
                             logError
                         );
-
                     }
 
-
                     return res.status(201).json({
-
                         success: true,
-
                         message:
                             "Question created successfully.",
-
                         id: questionId
-
                     });
-
                 }
-
             );
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // UPDATE QUESTION
@@ -452,101 +334,73 @@ exports.updateQuestion = (req, res) => {
     const { id } = req.params;
 
     let {
-
         checklist_type_id,
-
         question,
-
         sequence_no,
-
         answer_type,
-
         sla_value,
-
         sla_unit,
-
         answer_required,
-
         status,
-
         departments = []
-
     } = req.body;
 
-
     question = cleanValue(question);
-
     answer_type = cleanValue(answer_type);
+    status = cleanValue(status) || "Active";
 
-    status =
-        cleanValue(status) || "Active";
-
+    // ==================================================
+    // VALIDATION
+    // ==================================================
 
     if (
-
         !checklist_type_id ||
-
         !question ||
-
         !answer_type
-
     ) {
 
         return res.status(400).json({
-
             success: false,
-
             message:
                 "Checklist Type, Question and Answer Type are required."
-
         });
-
     }
 
+    // ==================================================
+    // NORMALIZE DEPARTMENTS
+    // ==================================================
 
     if (!Array.isArray(departments)) {
 
         if (typeof departments === "string") {
 
-            departments =
-                departments
-                    .split(",")
-                    .map((item) => item.trim())
-                    .filter(Boolean);
+            departments = departments
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean);
 
         } else {
 
             departments = [];
-
         }
-
     }
 
+    // ==================================================
+    // UPDATE QUESTION
+    // ==================================================
 
     Question.updateQuestion(
-
         id,
-
         {
-
             checklist_type_id,
-
             question,
-
             sequence_no,
-
             answer_type,
-
             sla_value,
-
             sla_unit,
-
             answer_required,
-
             status
-
         },
-
         (err) => {
 
             if (err) {
@@ -557,20 +411,17 @@ exports.updateQuestion = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
 
+            // ==================================================
+            // DELETE OLD DEPARTMENTS
+            // ==================================================
 
             Question.deleteDepartments(
-
                 id,
-
                 (deleteErr) => {
 
                     if (deleteErr) {
@@ -581,22 +432,18 @@ exports.updateQuestion = (req, res) => {
                         );
 
                         return res.status(500).json({
-
                             success: false,
-
                             message: deleteErr.message
-
                         });
-
                     }
 
+                    // ==================================================
+                    // SAVE NEW DEPARTMENTS
+                    // ==================================================
 
                     Question.saveDepartments(
-
                         id,
-
                         departments,
-
                         (saveErr) => {
 
                             if (saveErr) {
@@ -607,40 +454,29 @@ exports.updateQuestion = (req, res) => {
                                 );
 
                                 return res.status(500).json({
-
                                     success: false,
-
                                     message: saveErr.message
-
                                 });
-
                             }
 
+                            // ==================================================
+                            // ACTIVITY LOG
+                            // ==================================================
 
                             try {
 
                                 logActivity({
-
                                     activity_type: "Question",
-
                                     reference_id: id,
-
                                     title: "Question Updated",
-
                                     description:
                                         `${question} question was updated`,
-
                                     module_name: "Questions",
-
                                     status: "Open",
-
                                     priority: "Medium",
-
                                     created_by:
                                         req.user?.id || null,
-
                                     assigned_to: null
-
                                 });
 
                             } catch (logError) {
@@ -649,33 +485,20 @@ exports.updateQuestion = (req, res) => {
                                     "Activity log error:",
                                     logError
                                 );
-
                             }
 
-
                             return res.status(200).json({
-
                                 success: true,
-
                                 message:
                                     "Question updated successfully."
-
                             });
-
                         }
-
                     );
-
                 }
-
             );
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // DELETE QUESTION
@@ -685,11 +508,8 @@ exports.deleteQuestion = (req, res) => {
 
     const { id } = req.params;
 
-
     Question.getQuestionById(
-
         id,
-
         (err, rows) => {
 
             if (err) {
@@ -700,37 +520,27 @@ exports.deleteQuestion = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
-
 
             if (!rows || rows.length === 0) {
 
                 return res.status(404).json({
-
                     success: false,
-
                     message: "Question not found."
-
                 });
-
             }
 
+            const questionData = rows[0];
 
-            const questionData =
-                rows[0];
-
+            // ==================================================
+            // DELETE DEPARTMENT LINKS
+            // ==================================================
 
             Question.deleteDepartments(
-
                 id,
-
                 (deleteDeptErr) => {
 
                     if (deleteDeptErr) {
@@ -741,20 +551,17 @@ exports.deleteQuestion = (req, res) => {
                         );
 
                         return res.status(500).json({
-
                             success: false,
-
                             message: deleteDeptErr.message
-
                         });
-
                     }
 
+                    // ==================================================
+                    // DELETE QUESTION
+                    // ==================================================
 
                     Question.deleteQuestion(
-
                         id,
-
                         (deleteErr) => {
 
                             if (deleteErr) {
@@ -765,47 +572,29 @@ exports.deleteQuestion = (req, res) => {
                                 );
 
                                 return res.status(500).json({
-
                                     success: false,
-
                                     message: deleteErr.message
-
                                 });
-
                             }
 
+                            // ==================================================
+                            // ACTIVITY LOG
+                            // ==================================================
 
                             try {
 
                                 logActivity({
-
-                                    activity_type:
-                                        "Question",
-
-                                    reference_id:
-                                        id,
-
-                                    title:
-                                        "Question Deleted",
-
+                                    activity_type: "Question",
+                                    reference_id: id,
+                                    title: "Question Deleted",
                                     description:
                                         `${questionData.question} question was deleted`,
-
-                                    module_name:
-                                        "Questions",
-
-                                    status:
-                                        "Closed",
-
-                                    priority:
-                                        "High",
-
+                                    module_name: "Questions",
+                                    status: "Closed",
+                                    priority: "High",
                                     created_by:
                                         req.user?.id || null,
-
-                                    assigned_to:
-                                        null
-
+                                    assigned_to: null
                                 });
 
                             } catch (logError) {
@@ -814,33 +603,20 @@ exports.deleteQuestion = (req, res) => {
                                     "Activity log error:",
                                     logError
                                 );
-
                             }
 
-
                             return res.status(200).json({
-
                                 success: true,
-
                                 message:
                                     "Question deleted successfully."
-
                             });
-
                         }
-
                     );
-
                 }
-
             );
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // DELETE ALL QUESTIONS
@@ -849,7 +625,6 @@ exports.deleteQuestion = (req, res) => {
 exports.deleteAllQuestions = (req, res) => {
 
     Question.deleteAllQuestions(
-
         (err) => {
 
             if (err) {
@@ -860,47 +635,29 @@ exports.deleteAllQuestions = (req, res) => {
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message: err.message
-
                 });
-
             }
 
+            // ==================================================
+            // ACTIVITY LOG
+            // ==================================================
 
             try {
 
                 logActivity({
-
-                    activity_type:
-                        "Question",
-
-                    reference_id:
-                        0,
-
-                    title:
-                        "All Questions Deleted",
-
+                    activity_type: "Question",
+                    reference_id: 0,
+                    title: "All Questions Deleted",
                     description:
                         "All questions were deleted from the Questions module",
-
-                    module_name:
-                        "Questions",
-
-                    status:
-                        "Closed",
-
-                    priority:
-                        "High",
-
+                    module_name: "Questions",
+                    status: "Closed",
+                    priority: "High",
                     created_by:
                         req.user?.id || null,
-
-                    assigned_to:
-                        null
-
+                    assigned_to: null
                 });
 
             } catch (logError) {
@@ -909,30 +666,26 @@ exports.deleteAllQuestions = (req, res) => {
                     "Activity log error:",
                     logError
                 );
-
             }
 
-
             return res.status(200).json({
-
                 success: true,
-
                 message:
                     "All Questions deleted successfully."
-
             });
-
         }
-
     );
-
 };
-
 
 // ======================================================
 // BULK UPLOAD QUESTIONS
 //
-// CSV FORMAT:
+// SUPPORTED FILES:
+// CSV
+// XLSX
+// XLS
+//
+// EXPECTED COLUMNS:
 //
 // checklistTypeName
 // questionText
@@ -953,7 +706,6 @@ exports.deleteAllQuestions = (req, res) => {
 // linkedQuestionDateOffset
 // sequence
 //
-// XLSX / XLS ALSO SUPPORTED
 // ======================================================
 
 exports.bulkUploadQuestions = async (req, res) => {
@@ -962,7 +714,6 @@ exports.bulkUploadQuestions = async (req, res) => {
     console.log("==========================================");
     console.log("QUESTION BULK UPLOAD STARTED");
     console.log("==========================================");
-
 
     try {
 
@@ -973,16 +724,11 @@ exports.bulkUploadQuestions = async (req, res) => {
         if (!req.file) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "Please upload a CSV, XLSX or XLS file."
-
             });
-
         }
-
 
         console.log(
             "File:",
@@ -994,21 +740,16 @@ exports.bulkUploadQuestions = async (req, res) => {
             req.file.size
         );
 
-
         // ==================================================
         // FILE EXTENSION
         // ==================================================
 
         const extension =
             path
-                .extname(
-                    req.file.originalname
-                )
+                .extname(req.file.originalname)
                 .toLowerCase();
 
-
         let rows = [];
-
 
         // ==================================================
         // CSV
@@ -1020,7 +761,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                 (resolve, reject) => {
 
                     const parsedRows = [];
-
 
                     Readable
                         .from(req.file.buffer)
@@ -1034,7 +774,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                                     return normalizeHeader(
                                         header
                                     );
-
                                 }
                             })
                         )
@@ -1042,101 +781,69 @@ exports.bulkUploadQuestions = async (req, res) => {
                         .on(
                             "data",
                             (row) => {
-
                                 parsedRows.push(row);
-
                             }
                         )
 
                         .on(
                             "end",
                             () => {
-
-                                resolve(
-                                    parsedRows
-                                );
-
+                                resolve(parsedRows);
                             }
                         )
 
                         .on(
                             "error",
                             (error) => {
-
                                 reject(error);
-
                             }
                         );
-
                 }
             );
-
         }
-
 
         // ==================================================
         // XLSX / XLS
         // ==================================================
 
         else if (
-
             extension === ".xlsx" ||
-
             extension === ".xls"
-
         ) {
 
             const workbook =
                 XLSX.read(
-
                     req.file.buffer,
-
                     {
                         type: "buffer"
                     }
-
                 );
 
-
             if (
-
                 !workbook.SheetNames ||
-
                 workbook.SheetNames.length === 0
-
             ) {
 
                 return res.status(400).json({
-
                     success: false,
-
                     message:
                         "Excel file does not contain a worksheet."
-
                 });
-
             }
-
 
             const sheet =
                 workbook.Sheets[
                     workbook.SheetNames[0]
                 ];
 
-
             rows =
                 XLSX.utils.sheet_to_json(
-
                     sheet,
-
                     {
                         defval: ""
                     }
-
                 );
-
         }
-
 
         // ==================================================
         // INVALID EXTENSION
@@ -1145,22 +852,16 @@ exports.bulkUploadQuestions = async (req, res) => {
         else {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "Only CSV, XLSX and XLS files are supported."
-
             });
-
         }
-
 
         console.log(
             "Rows found:",
             rows.length
         );
-
 
         // ==================================================
         // NO ROWS
@@ -1169,19 +870,14 @@ exports.bulkUploadQuestions = async (req, res) => {
         if (!rows.length) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "The uploaded file contains no data."
-
             });
-
         }
 
-
         // ==================================================
-        // SHOW HEADERS
+        // HEADERS
         // ==================================================
 
         console.log(
@@ -1189,17 +885,14 @@ exports.bulkUploadQuestions = async (req, res) => {
             Object.keys(rows[0])
         );
 
-
         // ==================================================
         // COUNTERS
         // ==================================================
 
         let insertedCount = 0;
-
         let skippedCount = 0;
 
         const skippedRows = [];
-
 
         // ==================================================
         // PROCESS EVERY ROW
@@ -1216,11 +909,10 @@ exports.bulkUploadQuestions = async (req, res) => {
             const excelRowNumber =
                 index + 2;
 
-
             try {
 
                 // ==================================================
-                // ACTUAL CSV COLUMN NAMES
+                // READ CSV COLUMNS
                 // ==================================================
 
                 const checklistTypeName =
@@ -1228,52 +920,37 @@ exports.bulkUploadQuestions = async (req, res) => {
                         row["checklistTypeName"]
                     );
 
-
                 const questionText =
                     cleanValue(
                         row["questionText"]
                     );
-
 
                 const answerType =
                     cleanValue(
                         row["answerType"]
                     );
 
-
                 const answerRequiredRaw =
                     row["answerRequired"];
 
-
                 const slaValueRaw =
                     row["slaValue"];
-
 
                 const slaUnit =
                     cleanValue(
                         row["slaUnit"]
                     );
 
-
                 const sequenceRaw =
                     row["sequence"];
-
 
                 const questionDepartmentName =
                     cleanValue(
                         row["questionDepartmentName"]
                     );
 
-
                 // ==================================================
                 // OPTIONAL RULE FIELDS
-                //
-                // We read these fields so they are not lost from
-                // the uploaded row.
-                //
-                // They are NOT inserted into questions because the
-                // current questions table/model does not contain
-                // these columns.
                 // ==================================================
 
                 const commentRuleType =
@@ -1281,63 +958,52 @@ exports.bulkUploadQuestions = async (req, res) => {
                         row["commentRuleType"]
                     );
 
-
                 const attachmentRuleType =
                     cleanValue(
                         row["attachmentRuleType"]
                     );
-
 
                 const actionPointRuleType =
                     cleanValue(
                         row["actionPointRuleType"]
                     );
 
-
                 const actionPointComparisonValue =
                     cleanValue(
                         row["actionPointComparisonValue"]
                     );
-
 
                 const allowDuplicateActionPoints =
                     cleanValue(
                         row["allowDuplicateActionPoints"]
                     );
 
-
                 const actionDepartments =
                     cleanValue(
                         row["actionDepartments"]
                     );
-
 
                 const linkedChecklistTypeName =
                     cleanValue(
                         row["linkedChecklistTypeName"]
                     );
 
-
                 const linkedQuestionText =
                     cleanValue(
                         row["linkedQuestionText"]
                     );
-
 
                 const comparisonType =
                     cleanValue(
                         row["comparisonType"]
                     );
 
-
                 const linkedQuestionDateOffset =
                     cleanValue(
                         row["linkedQuestionDateOffset"]
                     );
 
-
-                // Prevent unused-variable issues while keeping
-                // the CSV fields available for future rule linking.
+                // Keep these available for future rule handling.
                 void commentRuleType;
                 void attachmentRuleType;
                 void actionPointRuleType;
@@ -1349,9 +1015,8 @@ exports.bulkUploadQuestions = async (req, res) => {
                 void comparisonType;
                 void linkedQuestionDateOffset;
 
-
                 // ==================================================
-                // REQUIRED FIELD VALIDATION
+                // REQUIRED VALIDATION
                 // ==================================================
 
                 if (!checklistTypeName) {
@@ -1359,79 +1024,68 @@ exports.bulkUploadQuestions = async (req, res) => {
                     skippedCount++;
 
                     skippedRows.push({
-
                         rowNumber:
                             excelRowNumber,
-
                         question:
                             questionText,
-
                         reason:
                             "checklistTypeName is missing."
-
                     });
 
                     continue;
-
                 }
-
 
                 if (!questionText) {
 
                     skippedCount++;
 
                     skippedRows.push({
-
                         rowNumber:
                             excelRowNumber,
-
                         question:
                             "Unknown",
-
                         reason:
                             "questionText is missing."
-
                     });
 
                     continue;
-
                 }
-
 
                 if (!answerType) {
 
                     skippedCount++;
 
                     skippedRows.push({
-
                         rowNumber:
                             excelRowNumber,
-
                         question:
                             questionText,
-
                         reason:
                             "answerType is missing."
-
                     });
 
                     continue;
-
                 }
-
 
                 // ==================================================
                 // FIND CHECKLIST TYPE
                 //
-                // We support:
-                // 1. Numeric ID
-                // 2. checklist_name
-                // 3. checklist_type_name
-                // 4. name
+                // IMPORTANT:
+                // Your actual database column is:
+                //
+                // checklist_name
+                //
+                // NOT:
+                //
+                // checklist_type_name
+                //
                 // ==================================================
 
                 let checklistRows = [];
 
+                // ==================================================
+                // OPTION 1: NUMERIC CHECKLIST TYPE ID
+                // ==================================================
 
                 if (
                     /^\d+$/.test(
@@ -1442,26 +1096,32 @@ exports.bulkUploadQuestions = async (req, res) => {
                     const [
                         rowsById
                     ] = await db.query(
-
-                        `SELECT id
-                         FROM checklist_types
-                         WHERE id = ?
-                         LIMIT 1`,
-
+                        `
+                        SELECT id
+                        FROM checklist_types
+                        WHERE id = ?
+                        LIMIT 1
+                        `,
                         [
                             Number(
                                 checklistTypeName
                             )
                         ]
-
                     );
-
 
                     checklistRows =
                         rowsById;
-
                 }
 
+                // ==================================================
+                // OPTION 2: CHECKLIST NAME
+                //
+                // THIS IS THE IMPORTANT FIX
+                //
+                // Database:
+                // checklist_types.checklist_name
+                //
+                // ==================================================
 
                 if (
                     !checklistRows.length
@@ -1470,36 +1130,23 @@ exports.bulkUploadQuestions = async (req, res) => {
                     const [
                         rowsByName
                     ] = await db.query(
-
-                        `SELECT id
-                         FROM checklist_types
-                         WHERE
-                            checklist_name = ?
-                            OR checklist_type_name = ?
-                            OR name = ?
-                         LIMIT 1`,
-
+                        `
+                        SELECT id
+                        FROM checklist_types
+                        WHERE checklist_name = ?
+                        LIMIT 1
+                        `,
                         [
-
-                            checklistTypeName,
-
-                            checklistTypeName,
-
                             checklistTypeName
-
                         ]
-
                     );
-
 
                     checklistRows =
                         rowsByName;
-
                 }
 
-
                 // ==================================================
-                // CHECKLIST NOT FOUND
+                // CHECKLIST TYPE NOT FOUND
                 // ==================================================
 
                 if (
@@ -1509,7 +1156,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                     skippedCount++;
 
                     skippedRows.push({
-
                         rowNumber:
                             excelRowNumber,
 
@@ -1521,24 +1167,19 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                         reason:
                             `Checklist Type "${checklistTypeName}" was not found in checklist_types.`
-
                     });
 
                     continue;
-
                 }
-
 
                 const checklistTypeId =
                     checklistRows[0].id;
-
 
                 // ==================================================
                 // SEQUENCE
                 // ==================================================
 
                 let sequenceNo = null;
-
 
                 if (
                     !isEmptyValue(
@@ -1551,7 +1192,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                             sequenceRaw
                         );
 
-
                     if (
                         !Number.isNaN(
                             parsedSequence
@@ -1560,18 +1200,14 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                         sequenceNo =
                             parsedSequence;
-
                     }
-
                 }
-
 
                 // ==================================================
                 // SLA
                 // ==================================================
 
                 let slaValue = null;
-
 
                 if (
                     !isEmptyValue(
@@ -1583,7 +1219,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                         Number(
                             slaValueRaw
                         );
-
 
                     if (
                         !Number.isNaN(
@@ -1600,11 +1235,8 @@ exports.bulkUploadQuestions = async (req, res) => {
                             cleanValue(
                                 slaValueRaw
                             );
-
                     }
-
                 }
-
 
                 // ==================================================
                 // ANSWER REQUIRED
@@ -1617,14 +1249,11 @@ exports.bulkUploadQuestions = async (req, res) => {
                         ? 1
                         : 0;
 
-
                 // ==================================================
                 // STATUS
                 // ==================================================
 
-                const status =
-                    "Active";
-
+                const status = "Active";
 
                 // ==================================================
                 // INSERT QUESTION
@@ -1633,8 +1262,8 @@ exports.bulkUploadQuestions = async (req, res) => {
                 const [
                     insertResult
                 ] = await db.query(
-
-                    `INSERT INTO questions
+                    `
+                    INSERT INTO questions
                     (
                         checklist_type_id,
                         question,
@@ -1655,43 +1284,32 @@ exports.bulkUploadQuestions = async (req, res) => {
                         ?,
                         ?,
                         ?
-                    )`,
-
+                    )
+                    `,
                     [
-
                         checklistTypeId,
-
                         questionText,
-
                         sequenceNo,
-
                         answerType,
-
                         slaValue,
-
                         slaUnit || null,
-
                         answerRequired,
-
                         status
-
                     ]
-
                 );
-
 
                 const questionId =
                     insertResult.insertId;
 
-
                 // ==================================================
                 // DEPARTMENT LINK
                 //
-                // questionDepartmentName can be:
+                // Supports:
                 //
-                // "Safety"
-                // "Safety, Operations"
-                // "3"
+                // Safety
+                // Safety, Operations
+                // 3
+                //
                 // ==================================================
 
                 if (
@@ -1707,15 +1325,12 @@ exports.bulkUploadQuestions = async (req, res) => {
                             )
                             .filter(Boolean);
 
-
                     for (
                         const departmentValue
                         of departmentNames
                     ) {
 
-                        let departmentRows =
-                            [];
-
+                        let departmentRows = [];
 
                         // ==========================================
                         // DEPARTMENT ID
@@ -1730,29 +1345,27 @@ exports.bulkUploadQuestions = async (req, res) => {
                             const [
                                 rowsById
                             ] = await db.query(
-
-                                `SELECT id
-                                 FROM departments
-                                 WHERE id = ?
-                                 LIMIT 1`,
-
+                                `
+                                SELECT id
+                                FROM departments
+                                WHERE id = ?
+                                LIMIT 1
+                                `,
                                 [
                                     Number(
                                         departmentValue
                                     )
                                 ]
-
                             );
-
 
                             departmentRows =
                                 rowsById;
-
                         }
-
 
                         // ==========================================
                         // DEPARTMENT NAME
+                        //
+                        // Uses department_name.
                         // ==========================================
 
                         if (
@@ -1762,33 +1375,23 @@ exports.bulkUploadQuestions = async (req, res) => {
                             const [
                                 rowsByName
                             ] = await db.query(
-
-                                `SELECT id
-                                 FROM departments
-                                 WHERE
-                                    department_name = ?
-                                    OR name = ?
-                                 LIMIT 1`,
-
+                                `
+                                SELECT id
+                                FROM departments
+                                WHERE department_name = ?
+                                LIMIT 1
+                                `,
                                 [
-
-                                    departmentValue,
-
                                     departmentValue
-
                                 ]
-
                             );
-
 
                             departmentRows =
                                 rowsByName;
-
                         }
 
-
                         // ==========================================
-                        // INSERT LINK
+                        // INSERT DEPARTMENT LINK
                         // ==========================================
 
                         if (
@@ -1796,8 +1399,8 @@ exports.bulkUploadQuestions = async (req, res) => {
                         ) {
 
                             await db.query(
-
-                                `INSERT INTO question_departments
+                                `
+                                INSERT INTO question_departments
                                 (
                                     question_id,
                                     department_id
@@ -1806,32 +1409,22 @@ exports.bulkUploadQuestions = async (req, res) => {
                                 (
                                     ?,
                                     ?
-                                )`,
-
+                                )
+                                `,
                                 [
-
                                     questionId,
-
                                     departmentRows[0].id
-
                                 ]
-
                             );
 
                         } else {
 
                             console.warn(
-
                                 `Row ${excelRowNumber}: Department "${departmentValue}" not found.`
-
                             );
-
                         }
-
                     }
-
                 }
-
 
                 // ==================================================
                 // ACTIVITY LOG
@@ -1840,7 +1433,6 @@ exports.bulkUploadQuestions = async (req, res) => {
                 try {
 
                     logActivity({
-
                         activity_type:
                             "Question",
 
@@ -1867,7 +1459,6 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                         assigned_to:
                             null
-
                     });
 
                 } catch (logError) {
@@ -1876,16 +1467,13 @@ exports.bulkUploadQuestions = async (req, res) => {
                         "Activity log error:",
                         logError
                     );
-
                 }
 
-
                 // ==================================================
-                // INSERT SUCCESS
+                // SUCCESS
                 // ==================================================
 
                 insertedCount++;
-
 
             } catch (rowError) {
 
@@ -1894,12 +1482,9 @@ exports.bulkUploadQuestions = async (req, res) => {
                     rowError
                 );
 
-
                 skippedCount++;
 
-
                 skippedRows.push({
-
                     rowNumber:
                         excelRowNumber,
 
@@ -1915,13 +1500,9 @@ exports.bulkUploadQuestions = async (req, res) => {
 
                     reason:
                         rowError.message
-
                 });
-
             }
-
         }
-
 
         // ==================================================
         // FINAL RESPONSE
@@ -1955,7 +1536,6 @@ exports.bulkUploadQuestions = async (req, res) => {
             "=========================================="
         );
 
-
         return res.status(201).json({
 
             success: true,
@@ -1974,9 +1554,7 @@ exports.bulkUploadQuestions = async (req, res) => {
 
             skippedRows:
                 skippedRows
-
         });
-
 
     } catch (error) {
 
@@ -1989,14 +1567,11 @@ exports.bulkUploadQuestions = async (req, res) => {
             "QUESTION BULK UPLOAD FAILED"
         );
 
-        console.error(
-            error
-        );
+        console.error(error);
 
         console.error(
             "=========================================="
         );
-
 
         return res.status(500).json({
 
@@ -2005,9 +1580,6 @@ exports.bulkUploadQuestions = async (req, res) => {
             message:
                 error.message ||
                 "Question bulk upload failed."
-
         });
-
     }
-
 };
