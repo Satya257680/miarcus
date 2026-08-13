@@ -306,7 +306,9 @@ ChecklistSubmission.create = async (
 
         const submissionValues = [
 
-            submission.new_store_opening_id || null,
+            // Legacy column retained only for database compatibility.
+            // Checklist Submission no longer accepts or requires New Store Opening.
+            null,
 
             submission.checklist_type_id,
 

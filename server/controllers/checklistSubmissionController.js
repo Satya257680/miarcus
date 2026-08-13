@@ -1,7 +1,10 @@
 const ChecklistSubmission = require(
     "../models/checklistSubmissionModel"
 );
-const inspectionService = require("../services/inspectionService");
+
+const inspectionService = require(
+    "../services/inspectionService"
+);
 
 // ======================================================
 // ACTIVITY + AUDIT
@@ -11,25 +14,50 @@ const Activity = require(
     "../models/activityModel"
 );
 
-
 const Audit = require(
     "../models/auditModel"
 );
-
 
 
 // ======================================================
 // CREATE CHECKLIST SUBMISSION
 // POST /api/checklist-submissions
 // ======================================================
+//
+// IMPORTANT
+// ------------------------------------------------------
+// Checklist Submission is completely independent from
+// New Store Opening.
+//
+// new_store_opening_id is intentionally NOT required.
+// The database column can remain for legacy records,
+// but new checklist submissions store NULL.
+//
+// Workflow:
+//
+// 1. User selects Checklist Type
+// 2. User selects Store
+// 3. User selects Date
+// 4. User answers questions
+// 5. Optional attachment can be uploaded
+// 6. Submission is saved
+// 7. Inspection engine checks answers
+// 8. Existing NSO rule is matched OR
+//    automatic NSO rule is created when a problem is found
+// 9. Action Point is created when required
+// 10. Notification/activity is created
+// 11. Report/Dashboard can use the submission
+// ======================================================
 
 exports.createSubmission = async (req, res) => {
 
     try {
 
-        const {
+        // ==================================================
+        // REQUEST DATA
+        // ==================================================
 
-            new_store_opening_id,
+        const {
 
             checklist_type_id,
 
@@ -45,115 +73,114 @@ exports.createSubmission = async (req, res) => {
 
         } = req.body;
 
+
+        // ==================================================
+        // PARSE ANSWERS
+        // ==================================================
+
         let answers = [];
 
         try {
 
             answers = JSON.parse(
-
                 req.body.answers || "[]"
-
             );
 
-        }
+        } catch (error) {
 
-        catch (error) {
+            console.error(
+                "ANSWER PARSE ERROR:",
+                error
+            );
 
             answers = [];
 
         }
 
+
+        // ==================================================
+        // ATTACHMENT
+        // OPTIONAL
+        // ==================================================
+
         const attachment =
-
             req.file
-
                 ? req.file.path
-
                 : null;
 
+
+        // ==================================================
+        // DEVICE
+        // ==================================================
+
         const finalDevice =
-
             device ||
-
             req.headers["user-agent"] ||
-
             "Unknown Device";
 
-        // ======================================
-        // VALIDATION
-        // ======================================
 
+        // ==================================================
+        // VALIDATION
+        // ==================================================
+
+        // Checklist Type
         if (!checklist_type_id) {
 
             return res.status(400).json({
 
                 success: false,
 
-                message: "Checklist Type is required."
+                message:
+                    "Checklist Type is required."
 
             });
 
         }
 
+
+        // Store
         if (!store_id) {
 
             return res.status(400).json({
 
                 success: false,
 
-                message: "Store is required."
+                message:
+                    "Store is required."
 
             });
 
         }
 
-        if (!new_store_opening_id) {
 
-            return res.status(400).json({
-
-                success: false,
-
-                message: "New Store Opening project is required."
-
-            });
-
-        }
-
-        const projectRows = await new Promise((resolve, reject) => {
-            ChecklistSubmission.getNewStoreOpeningById(
-                new_store_opening_id,
-                (err, rows) => err ? reject(err) : resolve(rows)
-            );
-        });
-
-        if (!projectRows.length) {
-            return res.status(400).json({
-                success: false,
-                message: "Selected New Store Opening project was not found."
-            });
-        }
-
+        // Submission Date
         if (!submission_date) {
 
             return res.status(400).json({
 
                 success: false,
 
-                message: "Submission date is required."
+                message:
+                    "Submission date is required."
 
             });
 
         }
 
-        const validAnswers = answers.filter(
 
-            (item) =>
+        // ==================================================
+        // VALIDATE ANSWERS
+        // ==================================================
 
-                item &&
+        const validAnswers =
+            answers.filter(
 
-                item.question_id
+                (item) =>
+                    item &&
+                    item.question_id
 
-        );
+            );
+
 
         if (validAnswers.length === 0) {
 
@@ -161,35 +188,66 @@ exports.createSubmission = async (req, res) => {
 
                 success: false,
 
-                message: "Checklist answers required."
+                message:
+                    "Checklist answers required."
 
             });
 
         }
 
+
+        // ==================================================
+        // SUBMISSION DATA
+        // ==================================================
+        //
+        // IMPORTANT:
+        //
+        // DO NOT require:
+        //
+        // new_store_opening_id
+        //
+        // The checklist is independent.
+        //
+        // We keep the database column as NULL for
+        // backward compatibility with old records.
+        // ==================================================
+
         const submissionData = {
 
-            new_store_opening_id: Number(new_store_opening_id),
+            new_store_opening_id:
+                null,
 
-            checklist_type_id,
+            checklist_type_id:
+                Number(checklist_type_id),
 
-            store_id,
+            store_id:
+                Number(store_id),
 
-            submitted_by: req.user.id,
+            submitted_by:
+                req.user.id,
 
             submission_date,
 
-            latitude: latitude || null,
+            latitude:
+                latitude || null,
 
-            longitude: longitude || null,
+            longitude:
+                longitude || null,
 
-            device: finalDevice,
+            device:
+                finalDevice,
 
             attachment,
 
-            status: "Submitted"
+            status:
+                "Submitted"
 
         };
+
+
+        // ==================================================
+        // CREATE CHECKLIST SUBMISSION
+        // ==================================================
 
         ChecklistSubmission.create(
 
@@ -199,40 +257,68 @@ exports.createSubmission = async (req, res) => {
 
             async (err, result) => {
 
+                // ==================================================
+                // DATABASE ERROR
+                // ==================================================
+
                 if (err) {
 
-                    console.error(err);
+                    console.error(
+                        "CHECKLIST CREATE ERROR:",
+                        err
+                    );
 
                     return res.status(500).json({
 
                         success: false,
 
-                        message: "Checklist submission failed."
+                        message:
+                            "Checklist submission failed."
 
                     });
 
                 }
 
-                const submissionId =
 
+                // ==================================================
+                // SUBMISSION ID
+                // ==================================================
+
+                const submissionId =
                     result.submissionId;
 
-                // ======================================
-                // RUN INSPECTION
-                // ======================================
+
+                // ==================================================
+                // AUTOMATIC INSPECTION
+                // ==================================================
+                //
+                // The inspection service is responsible for:
+                //
+                // 1. Loading answers
+                // 2. Loading active NSO rules
+                // 3. Detecting problems
+                // 4. Matching existing rules
+                // 5. Creating automatic NSO rules
+                // 6. Creating Action Points
+                // 7. Creating notifications/activity
+                // 8. Updating checklist NSO status
+                //
+                // New Store Opening is NOT required.
+                // ==================================================
 
                 let inspectionResult = {
 
                     score: 0,
 
-                    nso_status: "Closed"
+                    nso_status:
+                        "Closed"
 
                 };
+
 
                 try {
 
                     inspectionResult =
-
                         await inspectionService.runInspection(
 
                             submissionId,
@@ -241,23 +327,41 @@ exports.createSubmission = async (req, res) => {
 
                         );
 
-                }
-
-                catch (inspectionError) {
+                } catch (inspectionError) {
 
                     console.error(
-
                         "Inspection Error:",
-
                         inspectionError
-
                     );
+
+                    // IMPORTANT:
+                    // The checklist itself has already been saved.
+                    //
+                    // Therefore inspection failure should not
+                    // make the submission disappear.
+                    //
+                    // The record remains available for reporting.
+                    //
+                    // We keep a safe default status.
+
+                    inspectionResult = {
+
+                        score: 0,
+
+                        nso_status:
+                            "Closed",
+
+                        inspection_error:
+                            inspectionError.message
+
+                    };
 
                 }
 
-                // ======================================
+
+                // ==================================================
                 // UPDATE INSPECTION RESULT
-                // ======================================
+                // ==================================================
 
                 ChecklistSubmission.updateInspectionResult(
 
@@ -265,7 +369,8 @@ exports.createSubmission = async (req, res) => {
 
                     inspectionResult.score || 0,
 
-                    inspectionResult.nso_status || "Closed",
+                    inspectionResult.nso_status ||
+                        "Closed",
 
                     req.user.id,
 
@@ -274,9 +379,8 @@ exports.createSubmission = async (req, res) => {
                         if (updateError) {
 
                             console.error(
-
+                                "INSPECTION RESULT UPDATE ERROR:",
                                 updateError
-
                             );
 
                         }
@@ -285,98 +389,112 @@ exports.createSubmission = async (req, res) => {
 
                 );
 
-                // ======================================
+
+                // ==================================================
                 // ACTIVITY CENTER
-                // ======================================
+                // ==================================================
 
                 Activity.create({
 
                     title:
-
                         "Checklist Submitted",
 
                     description:
-
-                        `Checklist submitted for NSO #${new_store_opening_id}, store ${store_id}`,
+                        `Checklist submitted for store ${store_id}`,
 
                     module_name:
-
                         "Checklist Submission",
 
                     status:
-
                         "Open",
 
                     priority:
-
                         "Medium",
 
                     created_by:
-
                         req.user.id,
 
                     assigned_to:
-
                         null
 
-                }, () => {});
+                }, (activityError) => {
 
-                // ======================================
+                    if (activityError) {
+
+                        console.error(
+                            "ACTIVITY CREATE ERROR:",
+                            activityError
+                        );
+
+                    }
+
+                });
+
+
+                // ==================================================
                 // AUDIT TRAIL
-                // ======================================
+                // ==================================================
 
                 Audit.create({
 
                     module_name:
-
                         "Checklist Submission",
 
                     reference_id:
-
                         submissionId,
 
                     action:
-
                         "CREATE",
 
                     old_data:
-
                         null,
 
                     new_data: {
 
                         ...submissionData,
 
-                        inspection: inspectionResult
+                        inspection:
+                            inspectionResult
 
                     },
 
                     changed_by:
-
                         req.user.id
 
-                }, () => {});
+                }, (auditError) => {
+
+                    if (auditError) {
+
+                        console.error(
+                            "AUDIT CREATE ERROR:",
+                            auditError
+                        );
+
+                    }
+
+                });
+
+
+                // ==================================================
+                // RESPONSE
+                // ==================================================
 
                 return res.status(201).json({
 
                     success: true,
 
                     message:
-
                         "Checklist submitted successfully.",
 
                     data: {
 
                         submission_id:
-
                             submissionId,
 
                         new_store_opening_id:
-
-                            Number(new_store_opening_id),
+                            null,
 
                         inspection:
-
                             inspectionResult
 
                     }
@@ -387,23 +505,27 @@ exports.createSubmission = async (req, res) => {
 
         );
 
-    }
+    } catch (error) {
 
-    catch (error) {
-
-        console.error(error);
+        console.error(
+            "CHECKLIST SUBMISSION ERROR:",
+            error
+        );
 
         return res.status(500).json({
 
             success: false,
 
-            message: "Internal Server Error"
+            message:
+                "Internal Server Error"
 
         });
 
     }
 
 };
+
+
 // ======================================================
 // GET ALL CHECKLIST SUBMISSIONS
 // SEARCH + PAGINATION
@@ -415,18 +537,16 @@ exports.getAllSubmissions = (req, res) => {
     const filters = {
 
         search:
-
             req.query.search || "",
 
         page:
-
             Number(req.query.page) || 1,
 
         limit:
-
             Number(req.query.limit) || 10
 
     };
+
 
     ChecklistSubmission.getAll(
 
@@ -437,22 +557,21 @@ exports.getAllSubmissions = (req, res) => {
             if (err) {
 
                 console.error(
-
                     "GET SUBMISSIONS ERROR:",
-
                     err
-
                 );
 
                 return res.status(500).json({
 
                     success: false,
 
-                    message: err.message
+                    message:
+                        err.message
 
                 });
 
             }
+
 
             ChecklistSubmission.countAll(
 
@@ -463,53 +582,47 @@ exports.getAllSubmissions = (req, res) => {
                     if (countErr) {
 
                         console.error(
-
                             "COUNT ERROR:",
-
                             countErr
-
                         );
 
                         return res.status(500).json({
 
                             success: false,
 
-                            message: countErr.message
+                            message:
+                                countErr.message
 
                         });
 
                     }
 
-                    const total =
 
+                    const total =
                         countResult[0].total;
+
 
                     return res.status(200).json({
 
                         success: true,
 
-                        data: results,
+                        data:
+                            results,
 
                         pagination: {
 
                             page:
-
                                 filters.page,
 
                             limit:
-
                                 filters.limit,
 
                             total,
 
                             totalPages:
-
                                 Math.ceil(
-
                                     total /
-
                                     filters.limit
-
                                 )
 
                         }
@@ -525,6 +638,8 @@ exports.getAllSubmissions = (req, res) => {
     );
 
 };
+
+
 // ======================================================
 // GET SINGLE CHECKLIST SUBMISSION
 // GET /api/checklist-submissions/:id
@@ -532,7 +647,9 @@ exports.getAllSubmissions = (req, res) => {
 
 exports.getSubmissionById = (req, res) => {
 
-    const id = req.params.id;
+    const id =
+        req.params.id;
+
 
     ChecklistSubmission.getById(
 
@@ -543,29 +660,25 @@ exports.getSubmissionById = (req, res) => {
             if (err) {
 
                 console.error(
-
                     "GET SUBMISSION ERROR:",
-
                     err
-
                 );
 
                 return res.status(500).json({
 
                     success: false,
 
-                    message: err.message
+                    message:
+                        err.message
 
                 });
 
             }
 
+
             if (
-
                 !submission ||
-
                 submission.length === 0
-
             ) {
 
                 return res.status(404).json({
@@ -573,12 +686,12 @@ exports.getSubmissionById = (req, res) => {
                     success: false,
 
                     message:
-
                         "Checklist submission not found."
 
                 });
 
             }
+
 
             ChecklistSubmission.getAnswers(
 
@@ -589,11 +702,8 @@ exports.getSubmissionById = (req, res) => {
                     if (answerErr) {
 
                         console.error(
-
                             "GET ANSWERS ERROR:",
-
                             answerErr
-
                         );
 
                         return res.status(500).json({
@@ -601,12 +711,12 @@ exports.getSubmissionById = (req, res) => {
                             success: false,
 
                             message:
-
                                 answerErr.message
 
                         });
 
                     }
+
 
                     const data = {
 
@@ -617,28 +727,29 @@ exports.getSubmissionById = (req, res) => {
                         inspection: {
 
                             score:
-
-                                submission[0].inspection_score,
+                                submission[0]
+                                    .inspection_score,
 
                             nso_status:
-
-                                submission[0].nso_status,
+                                submission[0]
+                                    .nso_status,
 
                             processed_at:
-
-                                submission[0].processed_at,
+                                submission[0]
+                                    .processed_at,
 
                             processed_by:
-
-                                submission[0].processed_by,
+                                submission[0]
+                                    .processed_by,
 
                             processed_by_name:
-
-                                submission[0].processed_by_name
+                                submission[0]
+                                    .processed_by_name
 
                         }
 
                     };
+
 
                     return res.status(200).json({
 
@@ -657,6 +768,8 @@ exports.getSubmissionById = (req, res) => {
     );
 
 };
+
+
 // ======================================================
 // UPDATE CHECKLIST SUBMISSION STATUS
 // PUT /api/checklist-submissions/:id/status
@@ -664,17 +777,17 @@ exports.getSubmissionById = (req, res) => {
 
 exports.updateStatus = (req, res) => {
 
-    const id = req.params.id;
+    const id =
+        req.params.id;
 
     const {
-
         status
-
     } = req.body;
 
-    // ======================================
+
+    // ==================================================
     // VALIDATION
-    // ======================================
+    // ==================================================
 
     if (!status) {
 
@@ -682,11 +795,13 @@ exports.updateStatus = (req, res) => {
 
             success: false,
 
-            message: "Status is required."
+            message:
+                "Status is required."
 
         });
 
     }
+
 
     const validStatus = [
 
@@ -702,25 +817,26 @@ exports.updateStatus = (req, res) => {
 
     ];
 
+
     if (
-
         !validStatus.includes(status)
-
     ) {
 
         return res.status(400).json({
 
             success: false,
 
-            message: "Invalid status."
+            message:
+                "Invalid status."
 
         });
 
     }
 
-    // ======================================
+
+    // ==================================================
     // GET OLD DATA
-    // ======================================
+    // ==================================================
 
     ChecklistSubmission.getById(
 
@@ -736,33 +852,34 @@ exports.updateStatus = (req, res) => {
 
                     success: false,
 
-                    message: oldErr.message
+                    message:
+                        oldErr.message
 
                 });
 
             }
 
+
             if (
-
                 !oldData ||
-
                 oldData.length === 0
-
             ) {
 
                 return res.status(404).json({
 
                     success: false,
 
-                    message: "Submission not found."
+                    message:
+                        "Submission not found."
 
                 });
 
             }
 
-            // ======================================
+
+            // ==================================================
             // UPDATE STATUS
-            // ======================================
+            // ==================================================
 
             ChecklistSubmission.updateStatus(
 
@@ -780,68 +897,60 @@ exports.updateStatus = (req, res) => {
 
                             success: false,
 
-                            message: err.message
+                            message:
+                                err.message
 
                         });
 
                     }
 
-                    // ======================================
-                    // ACTIVITY CENTER
-                    // ======================================
+
+                    // ==================================================
+                    // ACTIVITY
+                    // ==================================================
 
                     Activity.create({
 
                         title:
-
                             "Checklist Status Updated",
 
                         description:
-
                             `Checklist submission ${id} status changed to ${status}`,
 
                         module_name:
-
                             "Checklist Submission",
 
                         status:
-
                             "Open",
 
                         priority:
-
                             "Medium",
 
                         created_by:
-
                             req.user.id,
 
                         assigned_to:
-
                             null
 
                     }, () => {});
 
-                    // ======================================
-                    // AUDIT TRAIL
-                    // ======================================
+
+                    // ==================================================
+                    // AUDIT
+                    // ==================================================
 
                     Audit.create({
 
                         module_name:
-
                             "Checklist Submission",
 
                         reference_id:
-
                             id,
 
                         action:
-
                             "UPDATE_STATUS",
 
                         old_data:
-
                             oldData[0],
 
                         new_data: {
@@ -849,27 +958,26 @@ exports.updateStatus = (req, res) => {
                             status,
 
                             inspection_score:
-
-                                oldData[0].inspection_score,
+                                oldData[0]
+                                    .inspection_score,
 
                             nso_status:
-
-                                oldData[0].nso_status
+                                oldData[0]
+                                    .nso_status
 
                         },
 
                         changed_by:
-
                             req.user.id
 
                     }, () => {});
+
 
                     return res.status(200).json({
 
                         success: true,
 
                         message:
-
                             "Checklist status updated successfully."
 
                     });
@@ -883,6 +991,7 @@ exports.updateStatus = (req, res) => {
     );
 
 };
+
 
 // ======================================================
 // EXPORT CHECKLIST SUBMISSIONS
@@ -898,154 +1007,140 @@ exports.exportSubmissions = (req, res) => {
             if (err) {
 
                 console.error(
-
                     "EXPORT ERROR:",
-
                     err
-
                 );
 
                 return res.status(500).json({
 
                     success: false,
 
-                    message: err.message
+                    message:
+                        err.message
 
                 });
 
             }
 
+
             let csv =
 
                 "ID," +
-
                 "Checklist Type," +
-
                 "Store," +
-
                 "Submitted By," +
-
                 "Submission Date," +
-
                 "Status," +
-
                 "Inspection Score," +
-
                 "NSO Status," +
-
                 "Processed At," +
-
                 "Processed By," +
-
                 "Created At\n";
 
-            results.forEach((item) => {
 
-                csv +=
+            results.forEach(
 
-                    `"${item.id}",` +
+                (item) => {
 
-                    `"${item.checklist_type}",` +
+                    csv +=
 
-                    `"${item.store_name}",` +
+                        `"${item.id}",` +
 
-                    `"${item.submitted_by}",` +
+                        `"${item.checklist_type}",` +
 
-                    `"${item.submission_date}",` +
+                        `"${item.store_name}",` +
 
-                    `"${item.status}",` +
+                        `"${item.submitted_by}",` +
 
-                    `"${item.inspection_score}",` +
+                        `"${item.submission_date}",` +
 
-                    `"${item.nso_status}",` +
+                        `"${item.status}",` +
 
-                    `"${item.processed_at || ""}",` +
+                        `"${item.inspection_score}",` +
 
-                    `"${item.processed_by || ""}",` +
+                        `"${item.nso_status}",` +
 
-                    `"${item.created_at}"\n`;
+                        `"${item.processed_at || ""}",` +
 
-            });
+                        `"${item.processed_by || ""}",` +
 
-            // ======================================
-            // ACTIVITY CENTER
-            // ======================================
+                        `"${item.created_at}"\n`;
+
+                }
+
+            );
+
+
+            // ==================================================
+            // ACTIVITY
+            // ==================================================
 
             Activity.create({
 
                 title:
-
                     "Checklist Submissions Exported",
 
                 description:
-
                     "Checklist submissions exported as CSV",
 
                 module_name:
-
                     "Checklist Submission",
 
                 status:
-
                     "Closed",
 
                 priority:
-
                     "Low",
 
                 created_by:
-
                     req.user.id,
 
                 assigned_to:
-
                     null
 
             }, () => {});
 
-            // ======================================
-            // AUDIT TRAIL
-            // ======================================
+
+            // ==================================================
+            // AUDIT
+            // ==================================================
 
             Audit.create({
 
                 module_name:
-
                     "Checklist Submission",
 
                 reference_id:
-
                     null,
 
                 action:
-
                     "EXPORT",
 
                 old_data:
-
                     null,
 
                 new_data: {
 
                     total_records:
-
                         results.length
 
                 },
 
                 changed_by:
-
                     req.user.id
 
             }, () => {});
 
+
+            // ==================================================
+            // CSV RESPONSE
+            // ==================================================
+
             res.setHeader(
-
                 "Content-Type",
-
                 "text/csv"
-
             );
+
 
             res.setHeader(
 
@@ -1055,7 +1150,10 @@ exports.exportSubmissions = (req, res) => {
 
             );
 
-            return res.status(200).send(csv);
+
+            return res
+                .status(200)
+                .send(csv);
 
         }
 
@@ -1063,16 +1161,22 @@ exports.exportSubmissions = (req, res) => {
 
 };
 
+
 // ======================================================
 // CONTROLLER EXPORT
 // ======================================================
 
-module.exports.createSubmission = exports.createSubmission;
+module.exports.createSubmission =
+    exports.createSubmission;
 
-module.exports.getAllSubmissions = exports.getAllSubmissions;
+module.exports.getAllSubmissions =
+    exports.getAllSubmissions;
 
-module.exports.getSubmissionById = exports.getSubmissionById;
+module.exports.getSubmissionById =
+    exports.getSubmissionById;
 
-module.exports.updateStatus = exports.updateStatus;
+module.exports.updateStatus =
+    exports.updateStatus;
 
-module.exports.exportSubmissions = exports.exportSubmissions;
+module.exports.exportSubmissions =
+    exports.exportSubmissions;

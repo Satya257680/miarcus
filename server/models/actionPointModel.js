@@ -888,6 +888,7 @@ ActionPoint.create = (
 
     const values = [
 
+        // Legacy NSO project link is optional and normally NULL for checklist/manual APs.
         data.new_store_opening_id || null,
 
         submissionId,

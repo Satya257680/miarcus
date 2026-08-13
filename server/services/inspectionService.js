@@ -12,167 +12,188 @@ const Activity = require("../models/activityModel");
 
 const Audit = require("../models/auditModel");
 
-const nsoStatusService = require("./nsoStatusService");
-const { logActivity } = require("../utils/activityLogger");
+const {
+    logActivity
+} = require("../utils/activityLogger");
+
 
 // ======================================================
 // GET SUBMISSION
 // ======================================================
 
-const getSubmission = (submissionId) => {
+const getSubmission = (
+    submissionId
+) => {
 
-    return new Promise((resolve, reject) => {
+    return new Promise(
 
-        const sql = `
+        (resolve, reject) => {
 
-            SELECT *
+            const sql = `
 
-            FROM checklist_submissions
+                SELECT *
 
-            WHERE id = ?
+                FROM checklist_submissions
 
-            LIMIT 1
+                WHERE id = ?
 
-        `;
+                LIMIT 1
 
-        db.query(
+            `;
 
-            sql,
+            db.query(
 
-            [
+                sql,
 
-                submissionId
+                [
+                    submissionId
+                ],
 
-            ],
+                (err, rows) => {
 
-            (err, rows) => {
+                    if (err) {
 
-                if (err) {
+                        return reject(err);
 
-                    return reject(err);
+                    }
 
-                }
+                    if (
+                        rows.length === 0
+                    ) {
 
-                if (
+                        return reject(
 
-                    rows.length === 0
+                            new Error(
+                                "Checklist submission not found."
+                            )
 
-                ) {
+                        );
 
-                    return reject(
+                    }
 
-                        new Error(
-
-                            "Checklist submission not found."
-
-                        )
-
+                    resolve(
+                        rows[0]
                     );
 
                 }
 
-                resolve(rows[0]);
+            );
 
-            }
+        }
 
-        );
-
-    });
+    );
 
 };
+
 
 // ======================================================
 // GET SUBMISSION ANSWERS
 // ======================================================
 
 const getSubmissionAnswers = (
-
     submissionId
-
 ) => {
 
-    return new Promise((resolve, reject) => {
+    return new Promise(
 
-        const sql = `
+        (resolve, reject) => {
 
-            SELECT
+            const sql = `
 
-                csa.id,
+                SELECT
 
-                csa.question_id,
+                    csa.id,
 
-                csa.answer,
+                    csa.question_id,
 
-                csa.remarks,
+                    csa.answer,
 
-                q.question,
+                    csa.remarks,
 
-                q.checklist_type_id,
+                    q.question,
 
-                q.answer_type,
+                    q.checklist_type_id,
 
-                q.sla_value AS question_sla_value,
+                    q.answer_type,
 
-                q.sla_unit AS question_sla_unit,
+                    q.sla_value AS question_sla_value,
 
-                GROUP_CONCAT(
-                    DISTINCT qd.department_id
-                    ORDER BY qd.department_id
-                    SEPARATOR ','
-                ) AS department_ids
+                    q.sla_unit AS question_sla_unit,
 
-            FROM checklist_submission_answers csa
+                    GROUP_CONCAT(
 
-            INNER JOIN questions q
-                ON q.id = csa.question_id
+                        DISTINCT qd.department_id
 
-            LEFT JOIN question_departments qd
-                ON qd.question_id = q.id
+                        ORDER BY qd.department_id
 
-            WHERE csa.submission_id = ?
+                        SEPARATOR ','
 
-            GROUP BY
-                csa.id,
-                csa.question_id,
-                csa.answer,
-                csa.remarks,
-                q.question,
-                q.checklist_type_id,
-                q.answer_type,
-                q.sla_value,
-                q.sla_unit
+                    ) AS department_ids
 
-            ORDER BY q.sequence_no
+                FROM checklist_submission_answers csa
 
-        `;
+                INNER JOIN questions q
 
-        db.query(
+                    ON q.id = csa.question_id
 
-            sql,
+                LEFT JOIN question_departments qd
 
-            [
+                    ON qd.question_id = q.id
 
-                submissionId
+                WHERE csa.submission_id = ?
 
-            ],
+                GROUP BY
 
-            (err, rows) => {
+                    csa.id,
 
-                if (err) {
+                    csa.question_id,
 
-                    return reject(err);
+                    csa.answer,
+
+                    csa.remarks,
+
+                    q.question,
+
+                    q.checklist_type_id,
+
+                    q.answer_type,
+
+                    q.sla_value,
+
+                    q.sla_unit
+
+                ORDER BY q.sequence_no
+
+            `;
+
+            db.query(
+
+                sql,
+
+                [
+                    submissionId
+                ],
+
+                (err, rows) => {
+
+                    if (err) {
+
+                        return reject(err);
+
+                    }
+
+                    resolve(rows);
 
                 }
 
-                resolve(rows);
+            );
 
-            }
+        }
 
-        );
-
-    });
+    );
 
 };
+
 
 // ======================================================
 // LOAD ACTIVE NSO RULES
@@ -180,68 +201,69 @@ const getSubmissionAnswers = (
 
 const getActiveRules = () => {
 
-    return new Promise((resolve, reject) => {
+    return new Promise(
 
-        const sql = `
+        (resolve, reject) => {
 
-            SELECT
+            const sql = `
 
-                nr.*,
+                SELECT
 
-                GROUP_CONCAT(
+                    nr.*,
 
-                    nrd.department_id
+                    GROUP_CONCAT(
 
-                ) AS department_ids
+                        nrd.department_id
 
-            FROM nso_rules nr
+                    ) AS department_ids
 
-            LEFT JOIN nso_rule_departments nrd
+                FROM nso_rules nr
 
-                ON nr.id = nrd.rule_id
+                LEFT JOIN nso_rule_departments nrd
 
-            WHERE nr.is_active = 1
+                    ON nr.id = nrd.rule_id
 
-            GROUP BY nr.id
+                WHERE nr.is_active = 1
 
-        `;
+                GROUP BY nr.id
 
-        db.query(
+            `;
 
-            sql,
+            db.query(
 
-            (err, rows) => {
+                sql,
 
-                if (err) {
+                (err, rows) => {
 
-                    return reject(err);
+                    if (err) {
+
+                        return reject(err);
+
+                    }
+
+                    resolve(rows);
 
                 }
 
-                resolve(rows);
+            );
 
-            }
+        }
 
-        );
-
-    });
+    );
 
 };
+
 
 // ======================================================
 // CALCULATE SCORE
 // ======================================================
 
 const calculateScore = (
-
     answers
-
 ) => {
 
     if (
-
         answers.length === 0
-
     ) {
 
         return 0;
@@ -255,9 +277,11 @@ const calculateScore = (
         (answer) => {
 
             if (
-
-                answer.answer === "Yes"
-
+                String(
+                    answer.answer || ""
+                ).trim().toLowerCase()
+                ===
+                "yes"
             ) {
 
                 score++;
@@ -284,8 +308,9 @@ const calculateScore = (
 
 };
 
+
 // ======================================================
-// MAIN SERVICE
+// MAIN INSPECTION PROCESS
 // ======================================================
 
 const processInspection = async (
@@ -297,32 +322,26 @@ const processInspection = async (
 ) => {
 
     const submission =
-
         await getSubmission(
-
             submissionId
-
         );
+
 
     const answers =
-
         await getSubmissionAnswers(
-
             submissionId
-
         );
+
 
     const rules =
-
         await getActiveRules();
 
+
     const score =
-
         calculateScore(
-
             answers
-
         );
+
 
     return {
 
@@ -337,465 +356,1229 @@ const processInspection = async (
     };
 
 };
+
+
 // ======================================================
-// EVALUATE NSO RULES
+// NORMALIZE TEXT
+// ======================================================
+
+const normalizeText = (
+    value
+) => {
+
+    return String(
+        value ?? ""
+    )
+        .trim()
+        .replace(
+            /\s+/g,
+            " "
+        )
+        .toLowerCase();
+
+};
+
+
+// ======================================================
+// EVALUATE MANUAL NSO RULES
 // ======================================================
 
 const evaluateRules = (
+
     answers,
+
     rules
+
 ) => {
 
     const matchedRules = [];
 
-    answers.forEach((answer) => {
-        const questionText = normalizeText(answer.question);
-        if (!questionText) return;
 
-        const rule = rules.find((item) => {
-            const triggerColumn = normalizeText(item.trigger_column);
-            return triggerColumn === questionText;
-        });
+    answers.forEach(
 
-        if (!rule) return;
+        (answer) => {
 
-        const submittedAnswer = String(answer.answer ?? "").trim();
-        const expectedAnswer = String(rule.expected_answer ?? "").trim();
+            const questionText =
+                normalizeText(
+                    answer.question
+                );
 
-        if (
-            submittedAnswer.toLowerCase() !==
-            expectedAnswer.toLowerCase()
-        ) {
-            matchedRules.push({
-                answer_id: answer.id,
-                question_id: answer.question_id,
-                question: answer.question,
-                answer: answer.answer,
-                expected_answer: rule.expected_answer,
-                remarks: answer.remarks,
-                department_ids: answer.department_ids,
-                rule
-            });
+
+            if (!questionText) {
+
+                return;
+
+            }
+
+
+            const rule =
+                rules.find(
+
+                    (item) => {
+
+                        const triggerColumn =
+                            normalizeText(
+                                item.trigger_column
+                            );
+
+                        return (
+                            triggerColumn ===
+                            questionText
+                        );
+
+                    }
+
+                );
+
+
+            if (!rule) {
+
+                return;
+
+            }
+
+
+            const submittedAnswer =
+                String(
+                    answer.answer ?? ""
+                ).trim();
+
+
+            const expectedAnswer =
+                String(
+                    rule.expected_answer ?? ""
+                ).trim();
+
+
+            if (
+
+                submittedAnswer
+                    .toLowerCase() !==
+                expectedAnswer
+                    .toLowerCase()
+
+            ) {
+
+                matchedRules.push({
+
+                    answer_id:
+                        answer.id,
+
+                    question_id:
+                        answer.question_id,
+
+                    question:
+                        answer.question,
+
+                    answer:
+                        answer.answer,
+
+                    expected_answer:
+                        rule.expected_answer,
+
+                    remarks:
+                        answer.remarks,
+
+                    department_ids:
+                        answer.department_ids,
+
+                    rule
+
+                });
+
+            }
+
         }
-    });
+
+    );
+
 
     return matchedRules;
+
 };
 
+
 // ======================================================
-// BUILD AUTOMATIC RULES FOR NEW PROBLEMS
+// AUTOMATIC PROBLEM DETECTION
+// ======================================================
+//
+// Checklist does NOT need an NSO Rule before submission.
+//
+// If a manual rule exists:
+//      use the manual rule.
+//
+// If no manual rule exists:
+//      inspect the answer automatically.
+//
+// If the answer indicates a problem:
+//      create an NSO Rule automatically.
+//
+// ======================================================
+
+const isAutomaticProblem = (
+    answer
+) => {
+
+    const value =
+        normalizeText(
+            answer.answer
+        );
+
+
+    const remarks =
+        normalizeText(
+            answer.remarks
+        );
+
+
+    const type =
+        normalizeText(
+            answer.answer_type
+        );
+
+
+    // Empty answer
+    if (!value) {
+
+        return true;
+
+    }
+
+
+    // Yes / No questions
+    if (
+
+        [
+            "yes/no",
+            "yes_no",
+            "boolean"
+        ].includes(type)
+
+    ) {
+
+        return value === "no";
+
+    }
+
+
+    // ==================================================
+    // PROBLEM PHRASES
+    // ==================================================
+
+    const problemPhrases = [
+
+        "no",
+
+        "not available",
+
+        "unavailable",
+
+        "missing",
+
+        "not working",
+
+        "broken",
+
+        "damaged",
+
+        "defective",
+
+        "failed",
+
+        "failure",
+
+        "error",
+
+        "issue",
+
+        "problem",
+
+        "in progress",
+
+        "progress",
+
+        "ongoing",
+
+        "continue",
+
+        "continuing",
+
+        "pending",
+
+        "not started",
+
+        "not complete",
+
+        "not completed",
+
+        "incomplete",
+
+        "unfinished",
+
+        "partially complete",
+
+        "partial",
+
+        "blocked",
+
+        "rejected",
+
+        "overdue",
+
+        "delay",
+
+        "delayed"
+
+    ];
+
+
+    // ==================================================
+    // POSITIVE PHRASES
+    // ==================================================
+
+    const positivePhrases = [
+
+        "yes",
+
+        "completed",
+
+        "complete",
+
+        "done",
+
+        "available",
+
+        "working",
+
+        "ok",
+
+        "okay",
+
+        "pass",
+
+        "passed",
+
+        "satisfactory",
+
+        "no issue",
+
+        "no problem",
+
+        "not applicable",
+
+        "n/a",
+
+        "na"
+
+    ];
+
+
+    if (
+        positivePhrases.includes(value)
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+
+        problemPhrases.some(
+
+            (phrase) =>
+                value.includes(phrase)
+
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+    if (
+
+        problemPhrases.some(
+
+            (phrase) =>
+                remarks.includes(phrase)
+
+        ) &&
+
+        !positivePhrases.some(
+
+            (phrase) =>
+                value.includes(phrase)
+
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
+
+};
+
+
+// ======================================================
+// INFER EXPECTED ANSWER
+// ======================================================
+
+const inferExpectedAnswer = (
+    answer
+) => {
+
+    const value =
+        normalizeText(
+            answer.answer
+        );
+
+
+    if (
+        value === "no"
+    ) {
+
+        return "Yes";
+
+    }
+
+
+    if (
+        value === "na" ||
+        value === "n/a"
+    ) {
+
+        return "Yes";
+
+    }
+
+
+    return "Yes";
+
+};
+
+
+// ======================================================
+// GET DEPARTMENT IDS
+// ======================================================
+
+const getRuleDepartmentIds = (
+    answer
+) => {
+
+    if (
+        !answer.department_ids
+    ) {
+
+        return [];
+
+    }
+
+
+    return String(
+        answer.department_ids
+    )
+
+        .split(",")
+
+        .map(Number)
+
+        .filter(
+
+            (id) =>
+
+                Number.isInteger(id) &&
+                id > 0
+
+        );
+
+};
+
+
+// ======================================================
+// CREATE AUTOMATIC NSO RULE
+// ======================================================
+
+const createAutomaticNSORule = async (
+
+    answer,
+
+    submission,
+
+    userId
+
+) => {
+
+    const departments =
+        getRuleDepartmentIds(
+            answer
+        );
+
+
+    const priority =
+        answer.priority ||
+        "High";
+
+
+    const questionSlaValue =
+        Number(
+            answer.question_sla_value
+        );
+
+
+    const questionSlaUnit =
+        normalizeText(
+            answer.question_sla_unit
+        );
+
+
+    const slaDays =
+
+        questionSlaValue > 0
+
+            ? Math.max(
+
+                1,
+
+                questionSlaUnit.includes(
+                    "hour"
+                )
+
+                    ? Math.ceil(
+                        questionSlaValue / 24
+                    )
+
+                    : Math.ceil(
+                        questionSlaValue
+                    )
+
+            )
+
+            : 3;
+
+
+    const rule = {
+
+        trigger_column:
+            answer.question,
+
+        expected_answer:
+            inferExpectedAnswer(
+                answer
+            ),
+
+        priority,
+
+        sla_days:
+            slaDays,
+
+        create_action_point:
+            1,
+
+        mandatory:
+            1,
+
+        is_active:
+            1,
+
+        created_by:
+            userId,
+
+        departments
+
+    };
+
+
+    const result =
+
+        await new Promise(
+
+            (resolve, reject) => {
+
+                NSORule.createRuleWithDepartments(
+
+                    rule,
+
+                    (err, created) => {
+
+                        if (err) {
+
+                            return reject(err);
+
+                        }
+
+                        resolve(
+                            created
+                        );
+
+                    }
+
+                );
+
+            }
+
+        );
+
+
+    return {
+
+        ...rule,
+
+        id:
+            result.insertId,
+
+        department_ids:
+            departments.join(",")
+
+    };
+
+};
+
+
+// ======================================================
+// CREATE AUTOMATIC PROBLEMS
 // ======================================================
 
 const buildAutomaticProblems = async (
+
     answers,
+
     rules,
+
     submission,
+
     userId
+
 ) => {
+
     const problems = [];
 
-    for (const answer of answers) {
-        const questionText = normalizeText(answer.question);
-        if (!questionText) continue;
 
-        // A manually configured active rule always wins.
-        const existingRule = rules.find(
-            (item) => normalizeText(item.trigger_column) === questionText
-        );
+    for (
+        const answer of answers
+    ) {
 
-        if (existingRule) continue;
-        if (!isAutomaticProblem(answer)) continue;
+        const questionText =
+            normalizeText(
+                answer.question
+            );
+
+
+        if (!questionText) {
+
+            continue;
+
+        }
+
+
+        // ==================================================
+        // MANUAL RULE TAKES PRIORITY
+        // ==================================================
+
+        const existingRule =
+            rules.find(
+
+                (item) =>
+
+                    normalizeText(
+                        item.trigger_column
+                    ) === questionText
+
+            );
+
+
+        if (existingRule) {
+
+            continue;
+
+        }
+
+
+        // ==================================================
+        // AUTOMATIC PROBLEM CHECK
+        // ==================================================
+
+        if (
+            !isAutomaticProblem(
+                answer
+            )
+        ) {
+
+            continue;
+
+        }
+
 
         try {
-            const automaticRule = await createAutomaticNSORule(
-                answer,
-                submission,
-                userId
-            );
+
+            const automaticRule =
+
+                await createAutomaticNSORule(
+
+                    answer,
+
+                    submission,
+
+                    userId
+
+                );
+
 
             problems.push({
-                answer_id: answer.id,
-                question_id: answer.question_id,
-                question: answer.question,
-                answer: answer.answer,
-                expected_answer: automaticRule.expected_answer,
-                remarks: answer.remarks,
-                department_ids: answer.department_ids,
-                rule: automaticRule,
-                automatic: true
+
+                answer_id:
+                    answer.id,
+
+                question_id:
+                    answer.question_id,
+
+                question:
+                    answer.question,
+
+                answer:
+                    answer.answer,
+
+                expected_answer:
+                    automaticRule.expected_answer,
+
+                remarks:
+                    answer.remarks,
+
+                department_ids:
+                    answer.department_ids,
+
+                rule:
+                    automaticRule,
+
+                automatic:
+                    true
+
             });
-        } catch (error) {
-            console.error(
-                `Automatic NSO Rule creation failed for question #${answer.question_id}:`,
-                error
-            );
+
         }
+
+        catch (error) {
+
+            console.error(
+
+                `Automatic NSO Rule creation failed for question #${answer.question_id}:`,
+
+                error
+
+            );
+
+        }
+
     }
 
+
     return problems;
+
 };
+
 
 // ======================================================
 // TRUTHY FLAG HELPER
 // ======================================================
 
-// ------------------------------------------------------
-// nso_rules boolean-ish columns (create_action_point,
-// mandatory, is_active) can come back from mysql2 as a
-// plain number (TINYINT), a string ("1"/"0"), a boolean, or
-// a Buffer (BIT(1) columns default to a Buffer, e.g. <01>).
-// `Number(buffer) !== 1` is always true, which silently
-// skipped action-point creation on any BIT(1) rule column —
-// this normalizes all of those shapes to a real boolean.
-// ------------------------------------------------------
+const isFlagEnabled = (
+    value
+) => {
 
-const isFlagEnabled = (value) => {
+    if (
+        Buffer.isBuffer(value)
+    ) {
 
-    if (Buffer.isBuffer(value)) {
-        return value.length > 0 && value[0] === 1;
+        return (
+
+            value.length > 0 &&
+
+            value[0] === 1
+
+        );
+
     }
 
-    if (typeof value === "boolean") {
+
+    if (
+        typeof value === "boolean"
+    ) {
+
         return value;
+
     }
+
 
     return Number(value) === 1;
 
 };
 
+
 // ======================================================
-// AUTOMATIC PROBLEM DETECTION
-//
-// A checklist does not need an NSO Rule to be submitted.
-// The inspection engine first detects an obvious problem.
-// If no matching manual rule exists, an NSO Rule is then
-// generated automatically and used for the Action Point.
+// FIND RESPONSIBLE USER
 // ======================================================
 
-const normalizeText = (value) =>
-    String(value ?? "")
-        .trim()
-        .replace(/\s+/g, " ")
-        .toLowerCase();
+const findResponsibleUser = async (
 
-const isAutomaticProblem = (answer) => {
-    const value = normalizeText(answer.answer);
-    const remarks = normalizeText(answer.remarks);
-    const type = normalizeText(answer.answer_type);
+    departmentIds
 
-    if (!value) {
-        return true;
-    }
-
-    // Yes/No questions: only an explicit No is automatically a problem.
-    if (["yes/no", "yes_no", "boolean"].includes(type)) {
-        return value === "no";
-    }
-
-    const problemPhrases = [
-        "no",
-        "not available",
-        "unavailable",
-        "missing",
-        "not working",
-        "broken",
-        "damaged",
-        "defective",
-        "failed",
-        "failure",
-        "error",
-        "issue",
-        "problem",
-        "in progress",
-        "progress",
-        "ongoing",
-        "continue",
-        "continuing",
-        "pending",
-        "not started",
-        "not complete",
-        "not completed",
-        "incomplete",
-        "unfinished",
-        "partially complete",
-        "partial",
-        "blocked",
-        "rejected",
-        "overdue",
-        "delay",
-        "delayed"
-    ];
-
-    const positivePhrases = [
-        "yes",
-        "completed",
-        "complete",
-        "done",
-        "available",
-        "working",
-        "ok",
-        "okay",
-        "pass",
-        "passed",
-        "satisfactory",
-        "no issue",
-        "no problem",
-        "not applicable",
-        "n/a",
-        "na"
-    ];
-
-    if (positivePhrases.includes(value)) {
-        return false;
-    }
-
-    if (problemPhrases.some((phrase) => value.includes(phrase))) {
-        return true;
-    }
+) => {
 
     if (
-        problemPhrases.some((phrase) => remarks.includes(phrase)) &&
-        !positivePhrases.some((phrase) => value.includes(phrase))
+
+        !departmentIds ||
+
+        departmentIds.length === 0
+
     ) {
-        return true;
-    }
 
-    return false;
-};
-
-const inferExpectedAnswer = (answer) => {
-    const value = normalizeText(answer.answer);
-
-    if (value === "no") return "Yes";
-    if (value === "na" || value === "n/a") return "Yes";
-
-    // Existing NSO rules currently support Yes / No / NA as their
-    // expected-answer values. For an automatically detected textual
-    // problem, Yes means "the requirement should be satisfactory".
-    return "Yes";
-};
-
-const getRuleDepartmentIds = (answer) => {
-    if (!answer.department_ids) return [];
-
-    return String(answer.department_ids)
-        .split(",")
-        .map(Number)
-        .filter((id) => Number.isInteger(id) && id > 0);
-};
-
-const createAutomaticNSORule = async (
-    answer,
-    submission,
-    userId
-) => {
-    const departments = getRuleDepartmentIds(answer);
-
-    const priority =
-        answer.priority || "High";
-
-    const questionSlaValue = Number(answer.question_sla_value);
-    const questionSlaUnit = normalizeText(answer.question_sla_unit);
-
-    const slaDays =
-        questionSlaValue > 0
-            ? Math.max(
-                1,
-                questionSlaUnit.includes("hour")
-                    ? Math.ceil(questionSlaValue / 24)
-                    : Math.ceil(questionSlaValue)
-              )
-            : 3;
-
-    const rule = {
-        trigger_column: answer.question,
-        expected_answer: inferExpectedAnswer(answer),
-        priority,
-        sla_days: slaDays,
-        create_action_point: 1,
-        mandatory: 1,
-        is_active: 1,
-        created_by: userId,
-        departments
-    };
-
-    const result = await new Promise((resolve, reject) => {
-        NSORule.createRuleWithDepartments(
-            rule,
-            (err, created) => err ? reject(err) : resolve(created)
-        );
-    });
-
-    return {
-        ...rule,
-        id: result.insertId,
-        department_ids: departments.join(",")
-    };
-};
-
-const findResponsibleUser = async (departmentIds) => {
-    if (!departmentIds || departmentIds.length === 0) {
         return null;
+
     }
 
-    return new Promise((resolve, reject) => {
-        const placeholders = departmentIds.map(() => "?").join(",");
-        db.query(
-            `SELECT id, name, email\n             FROM users\n             WHERE department_id IN (${placeholders})\n               AND (status = 'Active' OR status IS NULL)\n             ORDER BY id ASC\n             LIMIT 1`,
-            departmentIds,
-            (err, rows) => {
-                if (err) return reject(err);
-                resolve(rows?.[0] || null);
-            }
-        );
-    });
+
+    return new Promise(
+
+        (resolve, reject) => {
+
+            const placeholders =
+                departmentIds
+                    .map(
+                        () => "?"
+                    )
+                    .join(",");
+
+
+            db.query(
+
+                `
+                SELECT
+                    id,
+                    name,
+                    email
+
+                FROM users
+
+                WHERE department_id IN (${placeholders})
+
+                AND (
+                    status = 'Active'
+                    OR status IS NULL
+                )
+
+                ORDER BY id ASC
+
+                LIMIT 1
+                `,
+
+                departmentIds,
+
+                (err, rows) => {
+
+                    if (err) {
+
+                        return reject(err);
+
+                    }
+
+
+                    resolve(
+                        rows?.[0] || null
+                    );
+
+                }
+
+            );
+
+        }
+
+    );
+
 };
+
+
+// ======================================================
+// NOTIFY ACTION POINT
+// ======================================================
 
 const notifyActionPoint = async ({
+
     actionPointId,
+
     submissionId,
+
     question,
+
     priority,
+
     departmentIds,
+
     userId,
+
     automatic = true
+
 }) => {
+
     try {
-        const responsibleUser = await findResponsibleUser(departmentIds);
+
+        const responsibleUser =
+
+            await findResponsibleUser(
+                departmentIds
+            );
+
 
         await logActivity({
-            activity_type: automatic ? "Automatic Action Point" : "Action Point",
-            reference_id: actionPointId,
-            title: "Action Point Created",
+
+            activity_type:
+
+                automatic
+
+                    ? "Automatic Action Point"
+
+                    : "Action Point",
+
+
+            reference_id:
+                actionPointId,
+
+
+            title:
+                "Action Point Created",
+
+
             description:
+
                 `Action Point #${actionPointId} was created${automatic ? " automatically" : ""} for checklist submission #${submissionId}. Problem: ${question}`,
-            module_name: "Action Points",
-            status: "Open",
-            priority: priority || "Medium",
-            created_by: userId,
-            assigned_to: responsibleUser?.id || null
+
+
+            module_name:
+                "Action Points",
+
+
+            status:
+                "Open",
+
+
+            priority:
+                priority || "Medium",
+
+
+            created_by:
+                userId,
+
+
+            assigned_to:
+                responsibleUser?.id || null
+
         });
 
+
         return responsibleUser;
-    } catch (error) {
-        console.error("Action Point notification error:", error);
-        return null;
+
     }
+
+    catch (error) {
+
+        console.error(
+
+            "Action Point notification error:",
+
+            error
+
+        );
+
+
+        return null;
+
+    }
+
 };
+
 
 // ======================================================
 // CREATE ACTION POINTS
 // ======================================================
 
 const createActionPoints = (
+
     submission,
+
     matchedRules,
+
     userId
+
 ) => {
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise(
 
-        if (!matchedRules || matchedRules.length === 0) {
-            return resolve([]);
-        }
+        async (resolve, reject) => {
 
-        const createdActionPoints = [];
+            if (
 
-        try {
+                !matchedRules ||
 
-            for (const item of matchedRules) {
+                matchedRules.length === 0
 
-                const rule = item.rule;
+            ) {
 
-                if (!isFlagEnabled(rule.create_action_point)) {
-                    continue;
-                }
+                return resolve([]);
 
-                if (!item.answer_id) {
-                    throw new Error(
-                        `Missing checklist submission answer ID for question ${item.question_id}.`
-                    );
-                }
+            }
 
-                const departmentIds = rule.department_ids
-                    ? String(rule.department_ids)
-                        .split(",")
-                        .map((id) => Number(id))
-                        .filter(Boolean)
-                    : [];
 
-                const actionPointData = {
-                    new_store_opening_id: submission.new_store_opening_id || null,
-                    submission_id: submission.id,
-                    submission_answer_id: item.answer_id,
-                    rule_id: rule.id || null,
-                    store_id: submission.store_id,
-                    department_id: departmentIds[0] || null,
-                    question_id: item.question_id,
-                    assigned_to: null,
-                    priority: rule.priority || "Medium",
-                    sla_value: Number(rule.sla_days) || 0,
-                    status: "Open",
-                    remarks: item.remarks || null,
-                    attachment: null,
-                    created_by: userId || null
-                };
+            const createdActionPoints = [];
 
-                const result = await new Promise((resolveCreate, rejectCreate) => {
 
-                    ActionPoint.create(
-                        actionPointData,
-                        (err, result) => {
-                            if (err) {
-                                return rejectCreate(err);
+            try {
+
+                for (
+
+                    const item of matchedRules
+
+                ) {
+
+                    const rule =
+                        item.rule;
+
+
+                    if (
+
+                        !isFlagEnabled(
+                            rule.create_action_point
+                        )
+
+                    ) {
+
+                        continue;
+
+                    }
+
+
+                    if (!item.answer_id) {
+
+                        throw new Error(
+
+                            `Missing checklist submission answer ID for question ${item.question_id}.`
+
+                        );
+
+                    }
+
+
+                    const departmentIds =
+
+                        rule.department_ids
+
+                            ? String(
+                                rule.department_ids
+                            )
+
+                                .split(",")
+
+                                .map(Number)
+
+                                .filter(Boolean)
+
+                            : [];
+
+
+                    // ==================================================
+                    // ACTION POINT DATA
+                    // ==================================================
+                    //
+                    // New Store Opening is NOT required.
+                    //
+                    // Keep the legacy column NULL.
+                    //
+                    // ==================================================
+
+                    const actionPointData = {
+
+                        new_store_opening_id:
+                            null,
+
+                        submission_id:
+                            submission.id,
+
+                        submission_answer_id:
+                            item.answer_id,
+
+                        rule_id:
+                            rule.id || null,
+
+                        store_id:
+                            submission.store_id,
+
+                        department_id:
+                            departmentIds[0] || null,
+
+                        question_id:
+                            item.question_id,
+
+                        assigned_to:
+                            null,
+
+                        priority:
+                            rule.priority ||
+                            "Medium",
+
+                        sla_value:
+                            Number(
+                                rule.sla_days
+                            ) || 0,
+
+                        status:
+                            "Open",
+
+                        remarks:
+                            item.remarks ||
+                            null,
+
+                        attachment:
+                            null,
+
+                        created_by:
+                            userId ||
+                            null
+
+                    };
+
+
+                    const result =
+
+                        await new Promise(
+
+                            (
+                                resolveCreate,
+                                rejectCreate
+                            ) => {
+
+                                ActionPoint.create(
+
+                                    actionPointData,
+
+                                    (
+                                        err,
+                                        result
+                                    ) => {
+
+                                        if (err) {
+
+                                            return rejectCreate(
+                                                err
+                                            );
+
+                                        }
+
+                                        resolveCreate(
+                                            result
+                                        );
+
+                                    }
+
+                                );
+
                             }
-                            resolveCreate(result);
-                        }
+
+                        );
+
+
+                    createdActionPoints.push({
+
+                        id:
+                            result.insertId,
+
+                        submission_id:
+                            submission.id,
+
+                        submission_answer_id:
+                            item.answer_id,
+
+                        rule_id:
+                            rule.id ||
+                            null,
+
+                        question_id:
+                            item.question_id
+
+                    });
+
+
+                    // ==================================================
+                    // NOTIFICATION
+                    // ==================================================
+
+                    await notifyActionPoint({
+
+                        actionPointId:
+                            result.insertId,
+
+                        submissionId:
+                            submission.id,
+
+                        question:
+                            item.question,
+
+                        priority:
+                            actionPointData.priority,
+
+                        departmentIds,
+
+                        userId,
+
+                        automatic:
+                            Boolean(
+                                item.automatic
+                            )
+
+                    });
+
+
+                    console.log(
+
+                        `[Inspection] Action Point #${result.insertId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
+
                     );
 
-                });
+                }
 
-                createdActionPoints.push({
-                    id: result.insertId,
-                    submission_id: submission.id,
-                    submission_answer_id: item.answer_id,
-                    rule_id: rule.id || null,
-                    question_id: item.question_id
-                });
 
-                await notifyActionPoint({
-                    actionPointId: result.insertId,
-                    submissionId: submission.id,
-                    question: item.question,
-                    priority: actionPointData.priority,
-                    departmentIds,
-                    userId,
-                    automatic: Boolean(item.automatic)
-                });
-
-                console.log(
-                    `[Inspection] Action Point #${result.insertId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
+                resolve(
+                    createdActionPoints
                 );
 
             }
 
-            resolve(createdActionPoints);
+            catch (error) {
+
+                console.error(
+
+                    "[Inspection] Failed to create Action Point(s):",
+
+                    error
+
+                );
+
+
+                reject(
+                    error
+                );
+
+            }
 
         }
-        catch (error) {
 
-            console.error(
-                "[Inspection] Failed to create Action Point(s):",
-                error
-            );
-
-            reject(error);
-
-        }
-
-    });
+    );
 
 };
+
 
 // ======================================================
 // SAVE ACTIVITY
@@ -816,7 +1599,6 @@ const saveActivity = (
         {
 
             title:
-
                 "Inspection Processed",
 
             description:
@@ -824,23 +1606,18 @@ const saveActivity = (
                 `${matchedRules.length} rule(s) matched during inspection`,
 
             module_name:
-
                 "Checklist Reports",
 
             status:
-
                 "Closed",
 
             priority:
-
                 "Medium",
 
             created_by:
-
                 userId,
 
             assigned_to:
-
                 null
 
         },
@@ -850,6 +1627,7 @@ const saveActivity = (
     );
 
 };
+
 
 // ======================================================
 // SAVE AUDIT
@@ -872,19 +1650,15 @@ const saveAudit = (
         {
 
             module_name:
-
                 "Checklist Reports",
 
             reference_id:
-
                 submissionId,
 
             action:
-
                 "PROCESS",
 
             old_data:
-
                 null,
 
             new_data: {
@@ -892,13 +1666,11 @@ const saveAudit = (
                 score,
 
                 matched_rules:
-
                     matchedRules
 
             },
 
             changed_by:
-
                 userId
 
         },
@@ -909,40 +1681,133 @@ const saveAudit = (
 
 };
 
+
 // ======================================================
-// UPDATE NSO STATUS
+// UPDATE CHECKLIST NSO STATUS
+// ======================================================
+//
+// Checklist Submission is independent of the
+// New Store Opening module.
+//
+// The checklist still stores `nso_status` for reporting
+// compatibility:
+//
+// Problem found  -> Open
+// No problem     -> Closed
+//
+// No New Store Opening project is required.
 // ======================================================
 
 const updateNSOStatus = async (
+
     submission,
+
     matchedRules,
+
     userId
+
 ) => {
 
     if (!submission) {
-        throw new Error("Checklist submission is required for NSO status update.");
+
+        throw new Error(
+            "Checklist submission is required for status update."
+        );
+
     }
 
-    const checklistStatus = matchedRules.length > 0 ? "Open" : "Closed";
 
-    // Keep the checklist-level result for backward compatibility.
-    await new Promise((resolve, reject) => {
-        db.query(
-            `UPDATE checklist_submissions SET nso_status = ? WHERE id = ?`,
-            [checklistStatus, submission.id],
-            (err) => err ? reject(err) : resolve()
-        );
-    });
+    const checklistStatus =
 
-    // The NSO project is the authoritative business record.  All status
-    // decisions go through one service so controllers, inspections and future
-    // workflows cannot drift apart.
-    return nsoStatusService.applyInspectionResult(
-        submission.new_store_opening_id,
-        matchedRules,
-        userId
+        matchedRules.length > 0
+
+            ? "Open"
+
+            : "Closed";
+
+
+    await new Promise(
+
+        (resolve, reject) => {
+
+            db.query(
+
+                `
+                UPDATE checklist_submissions
+
+                SET
+
+                    nso_status = ?,
+
+                    processed_at =
+                        CURRENT_TIMESTAMP,
+
+                    processed_by = ?
+
+                WHERE id = ?
+                `,
+
+                [
+
+                    checklistStatus,
+
+                    userId || null,
+
+                    submission.id
+
+                ],
+
+                (err) => {
+
+                    if (err) {
+
+                        return reject(
+                            err
+                        );
+
+                    }
+
+                    resolve();
+
+                }
+
+            );
+
+        }
+
     );
+
+
+    return {
+
+        changed:
+
+            submission.nso_status !==
+            checklistStatus,
+
+
+        project_id:
+            null,
+
+
+        old_status:
+
+            submission.nso_status ||
+            null,
+
+
+        status:
+            checklistStatus,
+
+
+        reason:
+
+            "Checklist inspection completed independently of New Store Opening."
+
+    };
+
 };
+
 
 // ======================================================
 // COMPLETE INSPECTION
@@ -976,61 +1841,91 @@ const runInspection = async (
 
         );
 
-        // ======================================
+
+        // ==================================================
         // RULE ENGINE
-        // ======================================
+        // ==================================================
 
         const matchedRules =
+
             evaluateRules(
+
                 answers,
+
                 rules
+
             );
 
-        // ======================================
+
+        // ==================================================
         // AUTOMATIC PROBLEM DETECTION
-        // ======================================
+        // ==================================================
 
         const automaticProblems =
+
             await buildAutomaticProblems(
+
                 answers,
+
                 rules,
+
                 submission,
+
                 userId
+
             );
+
+
+        // ==================================================
+        // COMBINE RULES
+        // ==================================================
 
         const allMatchedRules = [
+
             ...matchedRules,
+
             ...automaticProblems
+
         ];
 
-        // ======================================
+
+        // ==================================================
         // CREATE ACTION POINTS
-        // ======================================
+        // ==================================================
 
         const createdActionPoints =
+
             await createActionPoints(
+
                 submission,
+
                 allMatchedRules,
+
                 userId
+
             );
 
-        // ======================================
-        // UPDATE NSO STATUS
-        // ======================================
 
-        const nsoStatusResult = await updateNSOStatus(
+        // ==================================================
+        // UPDATE CHECKLIST NSO STATUS
+        // ==================================================
 
-            submission,
+        const nsoStatusResult =
 
-            allMatchedRules,
+            await updateNSOStatus(
 
-            userId
+                submission,
 
-        );
+                allMatchedRules,
 
-        // ======================================
+                userId
+
+            );
+
+
+        // ==================================================
         // ACTIVITY
-        // ======================================
+        // ==================================================
 
         saveActivity(
 
@@ -1042,9 +1937,10 @@ const runInspection = async (
 
         );
 
-        // ======================================
+
+        // ==================================================
         // AUDIT
-        // ======================================
+        // ==================================================
 
         saveAudit(
 
@@ -1058,52 +1954,88 @@ const runInspection = async (
 
         );
 
+
+        // ==================================================
+        // RESULT
+        // ==================================================
+
         return {
 
-            success: true,
+            success:
+                true,
 
-            nso_status: nsoStatusResult?.status || submission.nso_status || (allMatchedRules.length > 0 ? "Open" : "Closed"),
 
-            nso_status_changed: Boolean(nsoStatusResult?.changed),
+            nso_status:
+
+                nsoStatusResult?.status ||
+
+                submission.nso_status ||
+
+                (
+
+                    allMatchedRules.length > 0
+
+                        ? "Open"
+
+                        : "Closed"
+
+                ),
+
+
+            nso_status_changed:
+
+                Boolean(
+                    nsoStatusResult?.changed
+                ),
+
 
             submission_id:
-
                 submissionId,
+
 
             score,
 
-            total_answers:
 
+            total_answers:
                 answers.length,
 
-            matched_rules:
 
+            matched_rules:
                 allMatchedRules.length,
+
 
             action_points:
                 createdActionPoints.length,
 
+
             created_action_points:
                 createdActionPoints,
 
+
             automatic_rules:
-                automaticProblems.length,
+                automaticProblems.length
 
         };
 
     }
 
-    catch (
+    catch (err) {
 
-        err
+        console.error(
 
-    ) {
+            "[Inspection] Inspection failed:",
+
+            err
+
+        );
+
 
         throw err;
 
     }
 
 };
+
 
 // ======================================================
 // EXPORTS
