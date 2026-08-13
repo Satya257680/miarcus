@@ -28,6 +28,7 @@ function CreatePointModal({
     remarks: "",
     sla_value: "",
     sla_type: "Hours",
+    priority: "Medium",
   });
 
   // ==========================================================
@@ -148,6 +149,7 @@ function CreatePointModal({
       remarks: "",
       sla_value: "",
       sla_type: "Hours",
+      priority: "Medium",
     });
 
     setFile(null);
@@ -289,6 +291,15 @@ function CreatePointModal({
       );
 
       // ------------------------------------------------------
+      // PRIORITY
+      // ------------------------------------------------------
+
+      data.append(
+        "priority",
+        formData.priority || "Medium"
+      );
+
+      // ------------------------------------------------------
       // SLA BACKEND COMPATIBILITY
       // ------------------------------------------------------
 
@@ -355,6 +366,9 @@ function CreatePointModal({
 
         sla_type:
           formData.sla_type,
+
+        priority:
+          formData.priority,
 
         attachment:
           file?.name || null,
@@ -814,6 +828,33 @@ function CreatePointModal({
                       </select>
 
                     </div>
+
+                  </div>
+
+                  {/* PRIORITY */}
+
+                  <div className="action-form-group">
+
+                    <label htmlFor="action-priority">
+                      Priority
+                      <span className="required-star">
+                        *
+                      </span>
+                    </label>
+
+                    <select
+                      id="action-priority"
+                      name="priority"
+                      value={formData.priority}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
 
                   </div>
 
