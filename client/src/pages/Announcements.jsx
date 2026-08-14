@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     FaBullhorn,
     FaCalendarAlt,
     FaChevronLeft,
     FaChevronRight,
     FaDownload,
-    FaFilePdf,
+    FaEdit,
+    FaFile,
+    FaImage,
     FaPaperclip,
-    FaPlus,
     FaPrint,
     FaSearch,
     FaThumbtack,
@@ -16,16 +17,37 @@ import {
     FaUsers,
 } from "react-icons/fa";
 import announcementService from "../services/announcementService";
+import PageToolbar from "../components/common/PageToolbar";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 import "../styles/Announcements.css";
 
 const PAGE_SIZE = 8;
+const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
+const API_BASE = (
+    import.meta.env.VITE_API_URL?.trim() ||
+    (import.meta.env.PROD
+        ? "https://miarcus-backend.onrender.com"
+        : "http://localhost:5000")
+).replace(/\/+$/, "");
+
+const isImage = name => IMAGE_RE.test(String(name || ""));
+const isPdf = name => String(name || "").toLowerCase().endsWith(".pdf");
 
 function Announcements() {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const isAdmin = user?.administrator === true;
+    const isAdmin =
+        user?.administrator === true ||
+        user?.administrator === 1 ||
+        user?.is_admin === true ||
+        user?.is_admin === 1;
+
     const permissions = JSON.parse(localStorage.getItem("permissions") || "{}");
-    const canAdd = isAdmin || ["Add", "Edit", "Full"].includes(permissions["Announcements"]);
-    const canDelete = isAdmin || permissions["Announcements"] === "Full";
+    const announcementPermission = permissions["Announcements"] || "None";
+
+    const canView = isAdmin || ["View", "Add", "Edit", "Full"].includes(announcementPermission);
+    const canAdd = isAdmin || ["Add", "Edit", "Full"].includes(announcementPermission);
+    const canEdit = isAdmin || ["Edit", "Full"].includes(announcementPermission);
+    const canDelete = isAdmin || announcementPermission === "Full";
 
     const [announcements, setAnnouncements] = useState([]);
     const [search, setSearch] = useState("");
@@ -34,7 +56,9 @@ function Announcements() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState(null);
+    const [editing, setEditing] = useState(null);
     const [showCreate, setShowCreate] = useState(false);
+    const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     const load = async () => {
         try {
@@ -43,7 +67,7 @@ function Announcements() {
             setAnnouncements(data.announcements || []);
             setPage(1);
         } catch (error) {
-            console.error(error);
+            console.error("Announcements load:", error);
         } finally {
             setLoading(false);
         }
@@ -51,6 +75,8 @@ function Announcements() {
 
     useEffect(() => {
         load();
+        // Search/date filtering is intentionally server-side for this module.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search, startDate, endDate]);
 
     const pinned = announcements.find(a => Number(a.is_pinned) === 1);
@@ -58,90 +84,171 @@ function Announcements() {
     const totalPages = Math.max(1, Math.ceil(latest.length / PAGE_SIZE));
     const visible = latest.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-    const openAnnouncement = async (item) => {
+    const fileUrl = item => {
+        if (!item?.attachment_path) return null;
+        return `${API_BASE}/uploads/${encodeURIComponent(
+            String(item.attachment_path).split("/").pop()
+        )}`;
+    };
+
+    const openAnnouncement = async item => {
         setSelected(item);
         if (item.in_app_status !== "read") {
             try {
                 await announcementService.markRead(item.id);
                 setAnnouncements(prev =>
-                    prev.map(a => a.id === item.id
-                        ? { ...a, in_app_status: "read", read_at: new Date().toISOString() }
-                        : a
+                    prev.map(a =>
+                        a.id === item.id
+                            ? { ...a, in_app_status: "read", read_at: new Date().toISOString() }
+                            : a
                     )
                 );
             } catch (error) {
-                console.error(error);
+                console.error("Mark announcement read:", error);
             }
         }
     };
 
-    const fileUrl = (item) => {
-        if (!item?.attachment_path) return null;
-        const base = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") || "http://localhost:5000";
-        return `${base}/uploads/${encodeURIComponent(item.attachment_path.split("/").pop())}`;
+    const openEdit = item => {
+        if (!canEdit) return;
+        setSelected(null);
+        setEditing(item);
     };
 
-    const printAnnouncement = (item) => {
+    const printAnnouncement = item => {
         const w = window.open("", "_blank", "width=900,height=700");
         if (!w) return;
+        const safeTitle = String(item.title || "Announcement").replace(/</g, "&lt;");
+        const safeContent = String(item.content || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br/>");
+
         w.document.write(`
-            <html><head><title>${item.title}</title></head>
-            <body style="font-family:Arial;padding:40px">
-                <h1>${item.title}</h1>
-                <p>${String(item.content || "").replace(/\n/g, "<br/>")}</p>
-            </body></html>
+            <html>
+                <head><title>${safeTitle}</title></head>
+                <body style="font-family:Arial;padding:40px;color:#294851">
+                    <h1>${safeTitle}</h1>
+                    <p>${safeContent}</p>
+                </body>
+            </html>
         `);
         w.document.close();
         w.focus();
         w.print();
     };
 
-    const deleteAnnouncement = async (id) => {
+    const deleteAnnouncement = async id => {
+        if (!canDelete) return;
         if (!window.confirm("Delete this announcement?")) return;
         try {
             await announcementService.delete(id);
             setSelected(null);
-            load();
+            await load();
         } catch (error) {
             alert(error.response?.data?.message || "Unable to delete announcement");
         }
     };
 
+    const handleDeleteAll = async () => {
+        if (!canDelete) return;
+        if (!announcements.length) {
+            alert("There are no announcements to delete.");
+            return;
+        }
+        if (!window.confirm("Are you sure you want to delete ALL announcements? This cannot be undone.")) return;
+
+        try {
+            await announcementService.deleteAll();
+            setSelected(null);
+            setEditing(null);
+            await load();
+            alert("All announcements deleted successfully.");
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to delete all announcements.");
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const response = await announcementService.export();
+            const url = window.URL.createObjectURL(
+                new Blob([response.data], { type: "text/csv;charset=utf-8;" })
+            );
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "Announcements.csv";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to export announcements.");
+        }
+    };
+
+    const clearFilters = () => {
+        setSearch("");
+        setStartDate("");
+        setEndDate("");
+        setPage(1);
+    };
+
+    if (!canView) {
+        return (
+            <div className="announcements-page">
+                <div className="announcement-empty">
+                    <FaBullhorn />
+                    <h3>Announcements</h3>
+                    <p>You don't have permission to view announcements.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="announcements-page">
             <div className="announcement-header">
-                <div>
-                    <div className="announcement-title-row">
-                        <div className="announcement-title-icon"><FaBullhorn /></div>
-                        <div>
-                            <h1>Announcements</h1>
-                            <p>Share important updates with the right people.</p>
-                        </div>
+                <div className="announcement-title-row">
+                    <div className="announcement-title-icon"><FaBullhorn /></div>
+                    <div>
+                        <h1>Announcements</h1>
+                        <p>Share important updates with the right people.</p>
                     </div>
                 </div>
-
-                {canAdd && (
-                    <button className="announcement-primary-btn" onClick={() => setShowCreate(true)}>
-                        <FaPlus /> New Announcement
-                    </button>
-                )}
             </div>
 
-            <div className="announcement-filters">
-                <div className="announcement-search">
-                    <FaSearch />
-                    <input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search announcement history..."
-                    />
-                </div>
+            <PageToolbar
+                search={search}
+                setSearch={value => { setSearch(value); setPage(1); }}
+                searchPlaceholder="Search announcement history..."
+                showAdd={canAdd}
+                addText="New Announcement"
+                onAdd={() => setShowCreate(true)}
+                showExport={canView}
+                onExport={handleExport}
+                showBulk={canAdd}
+                onBulk={() => setShowBulkUpload(true)}
+                showDeleteAll={canDelete}
+                onDeleteAll={handleDeleteAll}
+            >
+                <button
+                    type="button"
+                    className="toolbar-btn announcement-clear-toolbar-btn"
+                    onClick={clearFilters}
+                    disabled={!search && !startDate && !endDate}
+                >
+                    <FaTimes /> Clear Filters
+                </button>
+            </PageToolbar>
 
+            <div className="announcement-filters">
                 <label>
                     <span>Start Date</span>
                     <div className="date-field">
                         <FaCalendarAlt />
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
                     </div>
                 </label>
 
@@ -149,22 +256,9 @@ function Announcements() {
                     <span>End Date</span>
                     <div className="date-field">
                         <FaCalendarAlt />
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }} />
                     </div>
                 </label>
-
-                {(search || startDate || endDate) && (
-                    <button
-                        className="announcement-clear-btn"
-                        onClick={() => {
-                            setSearch("");
-                            setStartDate("");
-                            setEndDate("");
-                        }}
-                    >
-                        <FaTimes /> Clear
-                    </button>
-                )}
             </div>
 
             {loading ? (
@@ -180,14 +274,16 @@ function Announcements() {
                     {pinned && (
                         <section className="announcement-section">
                             <div className="section-heading">
-                                <span><FaThumbtack /> Pinned</span>
+                                <span><FaThumbtack /> Pinned Announcement</span>
                             </div>
                             <AnnouncementCard
                                 item={pinned}
                                 featured
                                 fileUrl={fileUrl(pinned)}
+                                canEdit={canEdit}
                                 onOpen={openAnnouncement}
                                 onPrint={printAnnouncement}
+                                onEdit={openEdit}
                             />
                         </section>
                     )}
@@ -204,8 +300,10 @@ function Announcements() {
                                     key={item.id}
                                     item={item}
                                     fileUrl={fileUrl(item)}
+                                    canEdit={canEdit}
                                     onOpen={openAnnouncement}
                                     onPrint={printAnnouncement}
+                                    onEdit={openEdit}
                                 />
                             ))}
                         </div>
@@ -226,22 +324,23 @@ function Announcements() {
                     <section className="announcement-section">
                         <div className="section-heading">
                             <span>History</span>
+                            <small>{announcements.length} total</small>
                         </div>
                         <div className="announcement-history">
                             {announcements.map(item => (
                                 <button key={item.id} className="history-row" onClick={() => openAnnouncement(item)}>
                                     <span className="history-icon">
-                                        {item.attachment_path ? <FaFilePdf /> : <FaBullhorn />}
+                                        {isImage(item.attachment_original_name) ? <FaImage /> : item.attachment_path ? <FaFile /> : <FaBullhorn />}
                                     </span>
                                     <span className="history-main">
                                         <strong>{item.title}</strong>
-                                        <small>
-                                            {new Date(item.published_at || item.created_at).toLocaleString()}
-                                        </small>
+                                        <small>{new Date(item.published_at || item.created_at).toLocaleString()}</small>
                                     </span>
+                                    <span className="history-audience">{formatAudience(item.audience)}</span>
                                     <span className={`read-state ${item.in_app_status === "read" ? "read" : ""}`}>
                                         {item.in_app_status === "read" ? "Read" : "Unread"}
                                     </span>
+                                    {item.is_pinned === 1 && <FaThumbtack className="history-pin" title="Pinned" />}
                                 </button>
                             ))}
                         </div>
@@ -253,35 +352,73 @@ function Announcements() {
                 <AnnouncementView
                     item={selected}
                     fileUrl={fileUrl(selected)}
+                    canEdit={canEdit}
                     canDelete={canDelete}
                     onClose={() => setSelected(null)}
                     onPrint={() => printAnnouncement(selected)}
+                    onEdit={() => openEdit(selected)}
                     onDelete={() => deleteAnnouncement(selected.id)}
                 />
             )}
 
-            {showCreate && (
+            {(showCreate || editing) && (
                 <CreateAnnouncementModal
-                    onClose={() => setShowCreate(false)}
-                    onSuccess={() => {
+                    editingItem={editing}
+                    onClose={() => {
                         setShowCreate(false);
-                        load();
+                        setEditing(null);
                     }}
+                    onSuccess={async () => {
+                        setShowCreate(false);
+                        setEditing(null);
+                        await load();
+                    }}
+                />
+            )}
+
+            {canAdd && (
+                <BulkUploadModal
+                    isOpen={showBulkUpload}
+                    onClose={() => setShowBulkUpload(false)}
+                    onSuccess={async () => {
+                        setShowBulkUpload(false);
+                        await load();
+                    }}
+                    uploadFunction={announcementService.bulkUpload}
+                    title="Bulk Upload Announcements"
+                    acceptedFile=".csv,.xlsx,.xls"
+                    sampleFile="/announcement-bulk-template.csv"
                 />
             )}
         </div>
     );
 }
 
-function AnnouncementCard({ item, featured, fileUrl, onOpen, onPrint }) {
+function formatAudience(audience) {
+    const map = {
+        everyone: "Everyone",
+        managers: "Managers",
+        users: "Users",
+        specific: "Specific Users"
+    };
+    return map[audience] || audience || "Everyone";
+}
+
+function AnnouncementCard({ item, featured, fileUrl, canEdit, onOpen, onPrint, onEdit }) {
     return (
         <article className={`announcement-card ${featured ? "featured" : ""} ${item.in_app_status !== "read" ? "unread" : ""}`}>
             <div className="announcement-card-preview">
-                {fileUrl && String(item.attachment_original_name || "").toLowerCase().endsWith(".pdf") ? (
-                    <iframe title={item.title} src={`${fileUrl}#toolbar=0&navpanes=0`} />
+                {fileUrl && isImage(item.attachment_original_name) ? (
+                    <img
+                        className="announcement-image-preview"
+                        src={fileUrl}
+                        alt={item.attachment_original_name || item.title}
+                    />
+                ) : fileUrl && isPdf(item.attachment_original_name) ? (
+                    <iframe title={item.title} src={`${fileUrl}#toolbar=1&navpanes=0`} />
                 ) : (
                     <div className="announcement-document">
-                        {fileUrl ? <FaFilePdf /> : <FaBullhorn />}
+                        {fileUrl ? <FaFile /> : <FaBullhorn />}
                         <span>{item.attachment_original_name || "Announcement"}</span>
                     </div>
                 )}
@@ -289,30 +426,44 @@ function AnnouncementCard({ item, featured, fileUrl, onOpen, onPrint }) {
 
             <div className="announcement-card-body">
                 <div className="announcement-card-top">
-                    {item.is_pinned === 1 && <span className="pinned-badge"><FaThumbtack /> Pinned</span>}
+                    {Number(item.is_pinned) === 1 && (
+                        <span className="pinned-badge"><FaThumbtack /> Pinned</span>
+                    )}
                     {item.in_app_status !== "read" && <span className="new-badge">New</span>}
                 </div>
+
                 <h3>{item.title}</h3>
                 <p>{item.content || "No description provided."}</p>
+
                 <div className="announcement-meta">
                     <span>{new Date(item.published_at || item.created_at).toLocaleDateString()}</span>
+                    <span>{formatAudience(item.audience)}</span>
                     <span>{item.created_by_name || "MIARCUS"}</span>
                 </div>
+
                 <div className="announcement-actions">
-                    <button onClick={() => onOpen(item)}>View</button>
+                    <button className="primary-action" onClick={() => onOpen(item)}>View</button>
+
                     {fileUrl && (
-                        <a href={fileUrl} target="_blank" rel="noreferrer">
+                        <a href={fileUrl} target="_blank" rel="noreferrer" download={item.attachment_original_name || true}>
                             <FaDownload /> Download
                         </a>
                     )}
+
                     <button onClick={() => onPrint(item)}><FaPrint /> Print</button>
+
+                    {canEdit && (
+                        <button className="edit-action" onClick={() => onEdit(item)}>
+                            <FaEdit /> Edit
+                        </button>
+                    )}
                 </div>
             </div>
         </article>
     );
 }
 
-function AnnouncementView({ item, fileUrl, canDelete, onClose, onPrint, onDelete }) {
+function AnnouncementView({ item, fileUrl, canEdit, canDelete, onClose, onPrint, onEdit, onDelete }) {
     return (
         <div className="announcement-overlay" onMouseDown={onClose}>
             <div className="announcement-view-modal" onMouseDown={e => e.stopPropagation()}>
@@ -320,28 +471,59 @@ function AnnouncementView({ item, fileUrl, canDelete, onClose, onPrint, onDelete
                     <div>
                         <span className="modal-eyebrow"><FaBullhorn /> Announcement</span>
                         <h2>{item.title}</h2>
+                        <div className="view-submeta">
+                            <span>{formatAudience(item.audience)}</span>
+                            <span>{new Date(item.published_at || item.created_at).toLocaleString()}</span>
+                        </div>
                     </div>
-                    <button onClick={onClose}><FaTimes /></button>
+                    <button type="button" onClick={onClose}><FaTimes /></button>
                 </div>
 
-                {fileUrl && String(item.attachment_original_name || "").toLowerCase().endsWith(".pdf") && (
+                {fileUrl && isImage(item.attachment_original_name) && (
+                    <div className="announcement-full-image-wrap">
+                        <img
+                            className="announcement-full-image"
+                            src={fileUrl}
+                            alt={item.attachment_original_name || item.title}
+                        />
+                    </div>
+                )}
+
+                {fileUrl && isPdf(item.attachment_original_name) && (
                     <iframe className="announcement-full-pdf" title={item.title} src={fileUrl} />
                 )}
 
                 <div className="announcement-view-content">
                     <p>{item.content || "No description provided."}</p>
-                    {item.attachment_original_name && (
+
+                    {item.attachment_original_name && fileUrl && (
                         <a className="attachment-chip" href={fileUrl} target="_blank" rel="noreferrer">
-                            <FaPaperclip /> {item.attachment_original_name}
+                            {isImage(item.attachment_original_name) ? <FaImage /> : <FaPaperclip />}
+                            {item.attachment_original_name}
                         </a>
                     )}
                 </div>
 
                 <div className="announcement-view-footer">
-                    <span>Published {new Date(item.published_at || item.created_at).toLocaleString()}</span>
+                    <span>Published by {item.created_by_name || "MIARCUS"}</span>
                     <div>
-                        {fileUrl && <a className="secondary-btn" href={fileUrl} target="_blank" rel="noreferrer"><FaDownload /> Download</a>}
+                        {fileUrl && (
+                            <a
+                                className="secondary-btn"
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={item.attachment_original_name || true}
+                            >
+                                <FaDownload /> Download
+                            </a>
+                        )}
                         <button className="secondary-btn" onClick={onPrint}><FaPrint /> Print</button>
+                        {canEdit && (
+                            <button className="secondary-btn edit-view-btn" onClick={onEdit}>
+                                <FaEdit /> Edit / Unpin
+                            </button>
+                        )}
                         {canDelete && <button className="danger-btn" onClick={onDelete}>Delete</button>}
                     </div>
                 </div>
@@ -350,16 +532,35 @@ function AnnouncementView({ item, fileUrl, canDelete, onClose, onPrint, onDelete
     );
 }
 
-function CreateAnnouncementModal({ onClose, onSuccess }) {
-    const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
-    const [audience, setAudience] = useState("everyone");
+function CreateAnnouncementModal({ editingItem, onClose, onSuccess }) {
+    const isEditing = Boolean(editingItem);
+    const [title, setTitle] = useState(editingItem?.title || "");
+    const [content, setContent] = useState(editingItem?.content || "");
+    const [audience, setAudience] = useState(editingItem?.audience || "everyone");
     const [specificUsers, setSpecificUsers] = useState([]);
     const [userSearch, setUserSearch] = useState("");
     const [users, setUsers] = useState([]);
     const [file, setFile] = useState(null);
-    const [isPinned, setIsPinned] = useState(false);
+    const [removeAttachment, setRemoveAttachment] = useState(false);
+    const [isPinned, setIsPinned] = useState(Number(editingItem?.is_pinned) === 1);
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadSelectedUsers = async () => {
+            if (!editingItem || editingItem.audience !== "specific") return;
+            try {
+                const data = await announcementService.getRecipients(editingItem.id);
+                if (active) setSpecificUsers(data.users || []);
+            } catch (error) {
+                console.error("Announcement recipients:", error);
+            }
+        };
+
+        loadSelectedUsers();
+        return () => { active = false; };
+    }, [editingItem]);
 
     useEffect(() => {
         if (audience !== "specific") return;
@@ -368,24 +569,27 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
                 const data = await announcementService.getUsers(userSearch);
                 setUsers(data.users || []);
             } catch (error) {
-                console.error(error);
+                console.error("Announcement users:", error);
             }
         }, 250);
         return () => clearTimeout(timer);
     }, [audience, userSearch]);
 
-    const toggleUser = user => {
+    const toggleUser = selectedUser => {
         setSpecificUsers(prev =>
-            prev.some(u => u.id === user.id)
-                ? prev.filter(u => u.id !== user.id)
-                : [...prev, user]
+            prev.some(u => u.id === selectedUser.id)
+                ? prev.filter(u => u.id !== selectedUser.id)
+                : [...prev, selectedUser]
         );
     };
 
     const submit = async e => {
         e.preventDefault();
+
         if (!title.trim()) return alert("Title is required");
-        if (audience === "specific" && !specificUsers.length) return alert("Select at least one user");
+        if (audience === "specific" && !specificUsers.length) {
+            return alert("Select at least one user");
+        }
 
         const form = new FormData();
         form.append("title", title);
@@ -393,14 +597,19 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
         form.append("audience", audience);
         form.append("specificUserIds", JSON.stringify(specificUsers.map(u => u.id)));
         form.append("isPinned", String(isPinned));
+        form.append("removeAttachment", String(removeAttachment));
         if (file) form.append("attachment", file);
 
         try {
             setSaving(true);
-            await announcementService.create(form);
+            if (isEditing) {
+                await announcementService.update(editingItem.id, form);
+            } else {
+                await announcementService.create(form);
+            }
             onSuccess();
         } catch (error) {
-            alert(error.response?.data?.message || "Unable to publish announcement");
+            alert(error.response?.data?.message || (isEditing ? "Unable to update announcement" : "Unable to publish announcement"));
         } finally {
             setSaving(false);
         }
@@ -411,8 +620,8 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
             <form className="announcement-create-modal" onSubmit={submit} onMouseDown={e => e.stopPropagation()}>
                 <div className="announcement-view-header">
                     <div>
-                        <span className="modal-eyebrow"><FaBullhorn /> New Announcement</span>
-                        <h2>Create Announcement</h2>
+                        <span className="modal-eyebrow"><FaBullhorn /> {isEditing ? "Edit Announcement" : "New Announcement"}</span>
+                        <h2>{isEditing ? "Edit Announcement" : "Create Announcement"}</h2>
                     </div>
                     <button type="button" onClick={onClose}><FaTimes /></button>
                 </div>
@@ -439,14 +648,39 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
                     </label>
 
                     <label>
-                        <span>Attachment</span>
+                        <span>{isEditing ? "Replace Attachment" : "Attachment"}</span>
                         <input
                             type="file"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
-                            onChange={e => setFile(e.target.files?.[0] || null)}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
+                            onChange={e => {
+                                setFile(e.target.files?.[0] || null);
+                                setRemoveAttachment(false);
+                            }}
                         />
                     </label>
                 </div>
+
+                {isEditing && editingItem?.attachment_original_name && !file && (
+                    <div className="current-attachment-box">
+                        <div>
+                            <span className="current-attachment-icon">
+                                {isImage(editingItem.attachment_original_name) ? <FaImage /> : <FaPaperclip />}
+                            </span>
+                            <div>
+                                <strong>Current attachment</strong>
+                                <small>{editingItem.attachment_original_name}</small>
+                            </div>
+                        </div>
+                        <label className="remove-attachment-check">
+                            <input
+                                type="checkbox"
+                                checked={removeAttachment}
+                                onChange={e => setRemoveAttachment(e.target.checked)}
+                            />
+                            Remove attachment
+                        </label>
+                    </div>
+                )}
 
                 {audience === "specific" && (
                     <div className="specific-users-box">
@@ -483,13 +717,19 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
 
                 <label className="pin-checkbox">
                     <input type="checkbox" checked={isPinned} onChange={e => setIsPinned(e.target.checked)} />
-                    <span><FaThumbtack /> Pin this announcement</span>
+                    <span><FaThumbtack /> {isEditing && Number(editingItem?.is_pinned) === 1 ? "Keep this announcement pinned" : "Pin this announcement"}</span>
                 </label>
+
+                {isEditing && Number(editingItem?.is_pinned) === 1 && (
+                    <div className="unpin-hint">
+                        Uncheck the pin option and save to <strong>unpin</strong> this announcement.
+                    </div>
+                )}
 
                 <div className="create-footer">
                     <button type="button" className="secondary-btn" onClick={onClose}>Cancel</button>
                     <button type="submit" className="announcement-primary-btn" disabled={saving}>
-                        {saving ? "Publishing..." : "Publish Announcement"}
+                        {saving ? "Saving..." : isEditing ? "Save Changes" : "Publish Announcement"}
                     </button>
                 </div>
             </form>
