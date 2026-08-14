@@ -271,18 +271,59 @@ user.reports_to = user.reports_to || null;
 
                                     .catch((mailErr) => {
 
-                                        console.log(mailErr);
+    console.error(
+        "❌ Invitation email failed:",
+        mailErr?.message || mailErr
+    );
 
-                                        return res.status(500).json({
+    try {
 
-                                            success: false,
+        logActivity({
 
-                                            message: "User created but invitation email failed"
+            activity_type: "User",
 
-                                        });
+            reference_id: userId,
 
-                                    });
+            title: "User Created - Invitation Email Failed",
 
+            description:
+                `${user.fullName || user.name} was added but invitation email failed`,
+
+            module_name: "Users",
+
+            status: "Open",
+
+            priority: "High",
+
+            created_by: req.user.id,
+
+            assigned_to: userId
+
+        });
+
+    } catch (activityErr) {
+
+        console.error(
+            "❌ Activity log failed:",
+            activityErr
+        );
+
+    }
+
+    return res.status(201).json({
+
+        success: true,
+
+        warning: true,
+
+        emailSent: false,
+
+        message:
+            "User created successfully, but invitation email could not be sent."
+
+    });
+
+});
                                 }
 
                             );
@@ -1635,19 +1676,25 @@ const resendInvitation = (req, res) => {
 
                     })
 
-                    .catch((mailErr) => {
+                   .catch((mailErr) => {
 
-                        console.log(mailErr);
+    console.error(
+        "❌ Resend invitation failed:",
+        mailErr?.message || mailErr
+    );
 
-                        return res.status(500).json({
+    return res.status(500).json({
 
-                            success: false,
+        success: false,
 
-                            message: "Unable to Send Email"
+        emailSent: false,
 
-                        });
+        message:
+            "Unable to send invitation email"
 
-                    });
+    });
+
+});
 
                 }
 

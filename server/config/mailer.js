@@ -7,30 +7,29 @@ require("dotenv").config();
 
 const { Resend } = require("resend");
 
+
 // ======================================================
 // ENVIRONMENT
 // ======================================================
 
-const RESEND_API_KEY =
-    String(
-        process.env.RESEND_API_KEY || ""
-    ).trim();
+const RESEND_API_KEY = String(
+    process.env.RESEND_API_KEY || ""
+).trim();
 
-const EMAIL_FROM =
-    String(
-        process.env.EMAIL_FROM || ""
-    ).trim();
+const EMAIL_FROM = String(
+    process.env.EMAIL_FROM || ""
+).trim();
 
-const FRONTEND_URL =
-    String(
-        process.env.FRONTEND_URL ||
-        "http://localhost:5173"
-    )
-        .trim()
-        .replace(/\/$/, "");
+const FRONTEND_URL = String(
+    process.env.FRONTEND_URL ||
+    "http://localhost:5173"
+)
+    .trim()
+    .replace(/\/$/, "");
+
 
 // ======================================================
-// VALIDATION
+// STARTUP VALIDATION
 // ======================================================
 
 if (!RESEND_API_KEY) {
@@ -49,14 +48,31 @@ if (!EMAIL_FROM) {
 
 }
 
+
 // ======================================================
 // RESEND CLIENT
 // ======================================================
 
-const resend =
-    RESEND_API_KEY
-        ? new Resend(RESEND_API_KEY)
-        : null;
+const resend = RESEND_API_KEY
+    ? new Resend(RESEND_API_KEY)
+    : null;
+
+
+// ======================================================
+// HTML ESCAPE
+// ======================================================
+
+function escapeHtml(value = "") {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
 
 // ======================================================
 // VERIFY MAILER
@@ -71,6 +87,7 @@ async function verifyMailer() {
         );
 
         return false;
+
     }
 
     if (!EMAIL_FROM) {
@@ -80,6 +97,7 @@ async function verifyMailer() {
         );
 
         return false;
+
     }
 
     if (!resend) {
@@ -89,20 +107,14 @@ async function verifyMailer() {
         );
 
         return false;
+
     }
 
     try {
 
-        /*
-         * Resend does not require an SMTP-style
-         * transporter.verify().
-         *
-         * The actual API request is performed when
-         * an email is sent.
-         *
-         * Therefore this function only validates
-         * the required configuration.
-         */
+        console.log(
+            "=========================================="
+        );
 
         console.log(
             "✅ Resend Mailer Ready"
@@ -111,6 +123,10 @@ async function verifyMailer() {
         console.log(
             "📧 From:",
             EMAIL_FROM
+        );
+
+        console.log(
+            "=========================================="
         );
 
         return true;
@@ -123,17 +139,20 @@ async function verifyMailer() {
 
         console.error(
             "Code:",
-            error.code || "N/A"
+            error?.code || "N/A"
         );
 
         console.error(
             "Message:",
-            error.message || error
+            error?.message || error
         );
 
         return false;
+
     }
+
 }
+
 
 // ======================================================
 // SEND MAIL
@@ -142,15 +161,14 @@ async function verifyMailer() {
 async function sendMail(options = {}) {
 
     // --------------------------------------------------
-    // VALIDATION
+    // RESEND CONFIGURATION
     // --------------------------------------------------
 
     if (!resend) {
 
-        const error =
-            new Error(
-                "Resend is not configured. Missing RESEND_API_KEY."
-            );
+        const error = new Error(
+            "Resend is not configured. Missing RESEND_API_KEY."
+        );
 
         console.error(
             "❌ Email Send Failed"
@@ -161,14 +179,19 @@ async function sendMail(options = {}) {
         );
 
         throw error;
+
     }
+
+
+    // --------------------------------------------------
+    // SENDER
+    // --------------------------------------------------
 
     if (!EMAIL_FROM) {
 
-        const error =
-            new Error(
-                "EMAIL_FROM is not configured."
-            );
+        const error = new Error(
+            "EMAIL_FROM is not configured."
+        );
 
         console.error(
             "❌ Email Send Failed"
@@ -179,7 +202,13 @@ async function sendMail(options = {}) {
         );
 
         throw error;
+
     }
+
+
+    // --------------------------------------------------
+    // RECIPIENT
+    // --------------------------------------------------
 
     if (!options.to) {
 
@@ -189,6 +218,11 @@ async function sendMail(options = {}) {
 
     }
 
+
+    // --------------------------------------------------
+    // SUBJECT
+    // --------------------------------------------------
+
     if (!options.subject) {
 
         throw new Error(
@@ -197,6 +231,11 @@ async function sendMail(options = {}) {
 
     }
 
+
+    // --------------------------------------------------
+    // CONTENT
+    // --------------------------------------------------
+
     if (!options.html && !options.text) {
 
         throw new Error(
@@ -204,6 +243,37 @@ async function sendMail(options = {}) {
         );
 
     }
+
+
+    // --------------------------------------------------
+    // NORMALIZE RECIPIENT
+    // --------------------------------------------------
+
+    let recipients = options.to;
+
+    if (Array.isArray(recipients)) {
+
+        recipients = recipients
+            .map(email =>
+                String(email).trim()
+            )
+            .filter(Boolean);
+
+        if (!recipients.length) {
+
+            throw new Error(
+                "At least one valid recipient email is required."
+            );
+
+        }
+
+    } else {
+
+        recipients =
+            String(recipients).trim();
+
+    }
+
 
     // --------------------------------------------------
     // PREPARE EMAIL
@@ -216,10 +286,10 @@ async function sendMail(options = {}) {
             `"miarcus" <${EMAIL_FROM}>`,
 
         to:
-            options.to,
+            recipients,
 
         subject:
-            options.subject,
+            String(options.subject).trim(),
 
         ...(options.html
             ? {
@@ -233,9 +303,10 @@ async function sendMail(options = {}) {
                 text:
                     options.text
             }
-            : {}),
+            : {})
 
     };
+
 
     // --------------------------------------------------
     // SEND USING RESEND
@@ -244,26 +315,36 @@ async function sendMail(options = {}) {
     try {
 
         console.log(
-            "📧 Sending email..."
+            "=========================================="
         );
 
         console.log(
-            "To:",
-            options.to
+            "📧 Sending email through Resend..."
         );
 
         console.log(
-            "Subject:",
+            "📧 To:",
+            recipients
+        );
+
+        console.log(
+            "📧 Subject:",
             options.subject
         );
+
+        console.log(
+            "📧 From:",
+            emailData.from
+        );
+
 
         const {
             data,
             error
-        } =
-            await resend.emails.send(
-                emailData
-            );
+        } = await resend.emails.send(
+            emailData
+        );
+
 
         // ------------------------------------------------
         // RESEND ERROR
@@ -272,14 +353,11 @@ async function sendMail(options = {}) {
         if (error) {
 
             console.error(
-                "❌ Email Send Failed"
+                "❌ Resend Email Error"
             );
 
             console.error(
-                "Resend Error:"
-            );
-
-            console.error(
+                "Error:",
                 error
             );
 
@@ -297,7 +375,9 @@ async function sendMail(options = {}) {
                 error;
 
             throw resendError;
+
         }
+
 
         // ------------------------------------------------
         // SUCCESS
@@ -308,42 +388,73 @@ async function sendMail(options = {}) {
         );
 
         console.log(
-            "Message ID:",
-            data?.id ||
-            "N/A"
+            "📧 Message ID:",
+            data?.id || "N/A"
         );
+
+        console.log(
+            "=========================================="
+        );
+
 
         return {
 
-            ...data,
+            ...(data || {}),
 
             messageId:
-                data?.id ||
-                null,
+                data?.id || null
 
         };
 
     } catch (error) {
 
         console.error(
-            "❌ Email Send Failed"
+            "=========================================="
         );
 
         console.error(
-            "Code:",
-            error.code ||
-            "N/A"
+            "❌ EMAIL SEND FAILED"
         );
 
         console.error(
-            "Message:",
-            error.message ||
-            error
+            "📧 To:",
+            recipients
+        );
+
+        console.error(
+            "📧 Subject:",
+            options.subject
+        );
+
+        console.error(
+            "❌ Code:",
+            error?.code || "N/A"
+        );
+
+        console.error(
+            "❌ Message:",
+            error?.message || error
+        );
+
+        if (error?.resendError) {
+
+            console.error(
+                "❌ Resend Response:",
+                error.resendError
+            );
+
+        }
+
+        console.error(
+            "=========================================="
         );
 
         throw error;
+
     }
+
 }
+
 
 // ======================================================
 // PASSWORD RESET OTP
@@ -353,10 +464,6 @@ async function sendPasswordResetOTP(
     email,
     otp
 ) {
-
-    // --------------------------------------------------
-    // VALIDATION
-    // --------------------------------------------------
 
     if (!email) {
 
@@ -374,9 +481,10 @@ async function sendPasswordResetOTP(
 
     }
 
-    // --------------------------------------------------
-    // EMAIL HTML
-    // --------------------------------------------------
+
+    const safeOtp =
+        escapeHtml(otp);
+
 
     const html = `
 
@@ -398,6 +506,7 @@ async function sendPasswordResetOTP(
     </title>
 
 </head>
+
 
 <body
     style="
@@ -471,17 +580,18 @@ async function sendPasswordResetOTP(
                 Password Reset
             </h2>
 
+
             <p
                 style="
                     color:#555555;
                     font-size:15px;
                     line-height:1.7;
-                    margin-bottom:25px;
                 "
             >
-                We received a request to reset the password
-                for your miarcus account.
+                We received a request to reset the
+                password for your miarcus account.
             </p>
+
 
             <p
                 style="
@@ -515,7 +625,7 @@ async function sendPasswordResetOTP(
                         color:#3f6b78;
                     "
                 >
-                    ${otp}
+                    ${safeOtp}
                 </span>
 
             </div>
@@ -531,6 +641,7 @@ async function sendPasswordResetOTP(
                 Please enter this OTP on the miarcus
                 password reset page to continue.
             </p>
+
 
             <p
                 style="
@@ -577,9 +688,6 @@ async function sendPasswordResetOTP(
 
 `;
 
-    // --------------------------------------------------
-    // SEND
-    // --------------------------------------------------
 
     return sendMail({
 
@@ -593,10 +701,12 @@ async function sendPasswordResetOTP(
             html,
 
         text:
-            `Your Miarcus password reset OTP is ${otp}. Please enter this OTP on the password reset page.`,
+            `Your Miarcus password reset OTP is ${otp}. Please enter this OTP on the password reset page.`
 
     });
+
 }
+
 
 // ======================================================
 // ACCOUNT ACTIVATED
@@ -605,10 +715,6 @@ async function sendPasswordResetOTP(
 async function sendAccountActivatedEmail(
     user
 ) {
-
-    // --------------------------------------------------
-    // VALIDATION
-    // --------------------------------------------------
 
     if (
         !user ||
@@ -621,14 +727,16 @@ async function sendAccountActivatedEmail(
 
     }
 
+
     const name =
         user.fullName ||
         user.name ||
         "User";
 
-    // --------------------------------------------------
-    // EMAIL HTML
-    // --------------------------------------------------
+
+    const safeName =
+        escapeHtml(name);
+
 
     const html = `
 
@@ -650,6 +758,7 @@ async function sendAccountActivatedEmail(
     </title>
 
 </head>
+
 
 <body
     style="
@@ -706,15 +815,6 @@ async function sendAccountActivatedEmail(
                 Account Activated
             </h2>
 
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Hello ${name},
-            </p>
 
             <p
                 style="
@@ -723,9 +823,21 @@ async function sendAccountActivatedEmail(
                     line-height:1.7;
                 "
             >
-                Your miarcus account has been successfully
-                activated.
+                Hello ${safeName},
             </p>
+
+
+            <p
+                style="
+                    color:#555555;
+                    font-size:15px;
+                    line-height:1.7;
+                "
+            >
+                Your miarcus account has been
+                successfully activated.
+            </p>
+
 
             <div
                 style="
@@ -783,9 +895,6 @@ async function sendAccountActivatedEmail(
 
 `;
 
-    // --------------------------------------------------
-    // SEND
-    // --------------------------------------------------
 
     return sendMail({
 
@@ -799,10 +908,12 @@ async function sendAccountActivatedEmail(
             html,
 
         text:
-            `Hello ${name}, your miarcus account has been successfully activated. Login here: ${FRONTEND_URL}/`,
+            `Hello ${name}, your miarcus account has been successfully activated. Login here: ${FRONTEND_URL}/`
 
     });
+
 }
+
 
 // ======================================================
 // ACCOUNT DEACTIVATED
@@ -811,10 +922,6 @@ async function sendAccountActivatedEmail(
 async function sendAccountDeactivatedEmail(
     user
 ) {
-
-    // --------------------------------------------------
-    // VALIDATION
-    // --------------------------------------------------
 
     if (
         !user ||
@@ -827,14 +934,16 @@ async function sendAccountDeactivatedEmail(
 
     }
 
+
     const name =
         user.fullName ||
         user.name ||
         "User";
 
-    // --------------------------------------------------
-    // EMAIL HTML
-    // --------------------------------------------------
+
+    const safeName =
+        escapeHtml(name);
+
 
     const html = `
 
@@ -856,6 +965,7 @@ async function sendAccountDeactivatedEmail(
     </title>
 
 </head>
+
 
 <body
     style="
@@ -912,15 +1022,6 @@ async function sendAccountDeactivatedEmail(
                 Account Deactivated
             </h2>
 
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Hello ${name},
-            </p>
 
             <p
                 style="
@@ -929,8 +1030,21 @@ async function sendAccountDeactivatedEmail(
                     line-height:1.7;
                 "
             >
-                Your miarcus account has been deactivated.
+                Hello ${safeName},
             </p>
+
+
+            <p
+                style="
+                    color:#555555;
+                    font-size:15px;
+                    line-height:1.7;
+                "
+            >
+                Your miarcus account has been
+                deactivated.
+            </p>
+
 
             <p
                 style="
@@ -975,9 +1089,6 @@ async function sendAccountDeactivatedEmail(
 
 `;
 
-    // --------------------------------------------------
-    // SEND
-    // --------------------------------------------------
 
     return sendMail({
 
@@ -991,10 +1102,12 @@ async function sendAccountDeactivatedEmail(
             html,
 
         text:
-            `Hello ${name}, your miarcus account has been deactivated. If you believe this was done in error, please contact your system administrator.`,
+            `Hello ${name}, your miarcus account has been deactivated. If you believe this was done in error, please contact your system administrator.`
 
     });
+
 }
+
 
 // ======================================================
 // EXPORT
@@ -1012,6 +1125,6 @@ module.exports = {
 
     sendAccountActivatedEmail,
 
-    sendAccountDeactivatedEmail,
+    sendAccountDeactivatedEmail
 
 };

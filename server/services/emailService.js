@@ -1,187 +1,608 @@
-const transporter = require("../config/mailer");
-
-// =============================
-// Email Templates
-// =============================
-
-const invitationEmail = require("../utils/emailTemplates/invitationEmail");
-const accountUpdated = require("../utils/emailTemplates/accountUpdated");
-const accountActivated = require("../utils/emailTemplates/accountActivated");
-const accountDisabled = require("../utils/emailTemplates/accountDisabled");
-const accountEnabled = require("../utils/emailTemplates/accountEnabled");
-const accountDeleted = require("../utils/emailTemplates/accountDeleted");
-const forgotPasswordOTP = require("../utils/emailTemplates/forgotPasswordOTP");
-const resetPassword = require("../utils/emailTemplates/resetPassword");
+const mailer = require("../config/mailer");
 
 // ======================================================
-// Common Sender
+// EMAIL TEMPLATES
 // ======================================================
 
-const EMAIL_FROM =
-    process.env.EMAIL_FROM || process.env.EMAIL_USER;
+const invitationEmail = require(
+    "../utils/emailTemplates/invitationEmail"
+);
+
+const accountUpdated = require(
+    "../utils/emailTemplates/accountUpdated"
+);
+
+const accountActivated = require(
+    "../utils/emailTemplates/accountActivated"
+);
+
+const accountDisabled = require(
+    "../utils/emailTemplates/accountDisabled"
+);
+
+const accountEnabled = require(
+    "../utils/emailTemplates/accountEnabled"
+);
+
+const accountDeleted = require(
+    "../utils/emailTemplates/accountDeleted"
+);
+
+const forgotPasswordOTP = require(
+    "../utils/emailTemplates/forgotPasswordOTP"
+);
+
+const resetPassword = require(
+    "../utils/emailTemplates/resetPassword"
+);
+
 
 // ======================================================
-// Invitation Email
+// EMAIL CONFIGURATION
 // ======================================================
 
-const sendInvitationEmail = async (user, activationLink) => {
+const EMAIL_FROM = String(
+    process.env.EMAIL_FROM || ""
+).trim();
 
-    return transporter.sendMail({
 
-        from: EMAIL_FROM,
+// ======================================================
+// COMMON EMAIL SENDER
+// ======================================================
+
+const sendEmail = async ({
+    to,
+    subject,
+    html
+}) => {
+
+    // --------------------------------------------------
+    // Validate recipient
+    // --------------------------------------------------
+
+    if (!to) {
+
+        throw new Error(
+            "Recipient email address is required."
+        );
+
+    }
+
+
+    // --------------------------------------------------
+    // Validate sender
+    // --------------------------------------------------
+
+    if (!EMAIL_FROM) {
+
+        throw new Error(
+            "EMAIL_FROM environment variable is not configured."
+        );
+
+    }
+
+
+    // --------------------------------------------------
+    // Validate content
+    // --------------------------------------------------
+
+    if (!html) {
+
+        throw new Error(
+            "Email HTML content is required."
+        );
+
+    }
+
+
+    try {
+
+        console.log(
+            "------------------------------------------"
+        );
+
+        console.log(
+            "📧 Sending MIARCUS email"
+        );
+
+        console.log(
+            "📧 From:",
+            EMAIL_FROM
+        );
+
+        console.log(
+            "📧 To:",
+            to
+        );
+
+        console.log(
+            "📧 Subject:",
+            subject
+        );
+
+
+        // ------------------------------------------------
+        // Send through central mailer
+        // ------------------------------------------------
+
+        const result = await mailer.sendMail({
+
+            from: EMAIL_FROM,
+
+            to: String(to).trim(),
+
+            subject: String(subject || "").trim(),
+
+            html
+
+        });
+
+
+        // ------------------------------------------------
+        // Success
+        // ------------------------------------------------
+
+        console.log(
+            "✅ MIARCUS email sent successfully"
+        );
+
+        if (result?.messageId) {
+
+            console.log(
+                "📧 Message ID:",
+                result.messageId
+            );
+
+        }
+
+        if (result?.id) {
+
+            console.log(
+                "📧 Email ID:",
+                result.id
+            );
+
+        }
+
+        console.log(
+            "------------------------------------------"
+        );
+
+
+        return result;
+
+    }
+    catch (error) {
+
+        // ------------------------------------------------
+        // Detailed error logging
+        // ------------------------------------------------
+
+        console.error(
+            "------------------------------------------"
+        );
+
+        console.error(
+            "❌ MIARCUS EMAIL FAILED"
+        );
+
+        console.error(
+            "❌ From:",
+            EMAIL_FROM
+        );
+
+        console.error(
+            "❌ To:",
+            to
+        );
+
+        console.error(
+            "❌ Subject:",
+            subject
+        );
+
+        console.error(
+            "❌ Error:",
+            error?.message || error
+        );
+
+        if (error?.code) {
+
+            console.error(
+                "❌ Error Code:",
+                error.code
+            );
+
+        }
+
+        if (error?.statusCode) {
+
+            console.error(
+                "❌ Status Code:",
+                error.statusCode
+            );
+
+        }
+
+        if (error?.response) {
+
+            console.error(
+                "❌ Response:",
+                error.response
+            );
+
+        }
+
+        console.error(
+            "------------------------------------------"
+        );
+
+
+        // ------------------------------------------------
+        // Re-throw so controller can handle it
+        // ------------------------------------------------
+
+        throw error;
+
+    }
+
+};
+
+
+// ======================================================
+// INVITATION EMAIL
+// ======================================================
+
+const sendInvitationEmail = async (
+    user,
+    activationLink
+) => {
+
+    if (!user) {
+
+        throw new Error(
+            "User information is required for invitation email."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required for invitation email."
+        );
+
+    }
+
+
+    if (!activationLink) {
+
+        throw new Error(
+            "Activation link is required for invitation email."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
         subject: "Welcome to miarcus",
 
-        html: invitationEmail(user, activationLink)
+        html: invitationEmail(
+            user,
+            activationLink
+        )
 
     });
 
 };
 
+
 // ======================================================
-// Account Updated
+// ACCOUNT UPDATED EMAIL
 // ======================================================
 
-const sendAccountUpdatedEmail = async (user) => {
+const sendAccountUpdatedEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your miarcus Account Has Been Updated",
+        subject:
+            "Your miarcus Account Has Been Updated",
 
-        html: accountUpdated(user)
+        html:
+            accountUpdated(user)
 
     });
 
 };
 
+
 // ======================================================
-// Account Activated
+// ACCOUNT ACTIVATED EMAIL
 // ======================================================
 
-const sendAccountActivatedEmail = async (user) => {
+const sendAccountActivatedEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your miarcus Account Has Been Activated",
+        subject:
+            "Your miarcus Account Has Been Activated",
 
-        html: accountActivated(user)
+        html:
+            accountActivated(user)
 
     });
 
 };
 
+
 // ======================================================
-// Account Disabled
+// ACCOUNT DISABLED EMAIL
 // ======================================================
 
-const sendAccountDisabledEmail = async (user) => {
+const sendAccountDisabledEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your miarcus Account Has Been Disabled",
+        subject:
+            "Your miarcus Account Has Been Disabled",
 
-        html: accountDisabled(user)
+        html:
+            accountDisabled(user)
 
     });
 
 };
 
+
 // ======================================================
-// Account Enabled
+// ACCOUNT ENABLED EMAIL
 // ======================================================
 
-const sendAccountEnabledEmail = async (user) => {
+const sendAccountEnabledEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your miarcus Account Has Been Reactivated",
+        subject:
+            "Your miarcus Account Has Been Reactivated",
 
-        html: accountEnabled(user)
+        html:
+            accountEnabled(user)
 
     });
 
 };
 
+
 // ======================================================
-// Account Deleted
+// ACCOUNT DELETED EMAIL
 // ======================================================
 
-const sendAccountDeletedEmail = async (user) => {
+const sendAccountDeletedEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your miarcus Account Has Been Deleted",
+        subject:
+            "Your miarcus Account Has Been Deleted",
 
-        html: accountDeleted(user)
+        html:
+            accountDeleted(user)
 
     });
 
 };
 
+
 // ======================================================
-// Forgot Password OTP
+// FORGOT PASSWORD OTP EMAIL
 // ======================================================
 
-const sendForgotPasswordOTPEmail = async (user, otp) => {
+const sendForgotPasswordOTPEmail = async (
+    user,
+    otp
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required for OTP email."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required for OTP email."
+        );
+
+    }
+
+
+    if (!otp) {
+
+        throw new Error(
+            "OTP is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your Password Reset OTP",
+        subject:
+            "Your Password Reset OTP",
 
-        html: forgotPasswordOTP(user, otp)
+        html:
+            forgotPasswordOTP(
+                user,
+                otp
+            )
 
     });
 
 };
 
+
 // ======================================================
-// Password Reset Confirmation
+// PASSWORD RESET CONFIRMATION EMAIL
 // ======================================================
 
-const sendResetPasswordEmail = async (user) => {
+const sendResetPasswordEmail = async (
+    user
+) => {
 
-    return transporter.sendMail({
+    if (!user) {
 
-        from: EMAIL_FROM,
+        throw new Error(
+            "User information is required."
+        );
+
+    }
+
+
+    if (!user.email) {
+
+        throw new Error(
+            "User email is required."
+        );
+
+    }
+
+
+    return sendEmail({
 
         to: user.email,
 
-        subject: "Your Password Has Been Reset Successfully",
+        subject:
+            "Your Password Has Been Reset Successfully",
 
-        html: resetPassword(user)
+        html:
+            resetPassword(user)
 
     });
 
 };
 
+
 // ======================================================
-// Export
+// EXPORT
 // ======================================================
 
 module.exports = {
