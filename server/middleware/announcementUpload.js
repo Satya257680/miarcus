@@ -3,25 +3,15 @@ const path = require("path");
 const fs = require("fs");
 
 // ======================================================
-// UPLOAD FOLDER
+// ANNOUNCEMENT UPLOAD FOLDER
 // ======================================================
 
-const uploadFolder = path.join(
-    process.cwd(),
-    "uploads"
-);
-
-// ======================================================
-// CREATE UPLOAD FOLDER
-// ======================================================
+const uploadFolder = "uploads";
 
 if (!fs.existsSync(uploadFolder)) {
-    fs.mkdirSync(
-        uploadFolder,
-        {
-            recursive: true
-        }
-    );
+    fs.mkdirSync(uploadFolder, {
+        recursive: true
+    });
 }
 
 // ======================================================
@@ -41,17 +31,11 @@ const storage = multer.diskStorage({
 
     filename: (req, file, cb) => {
 
-        const extension = path.extname(
-            file.originalname
-        );
-
         const uniqueName =
             Date.now() +
             "-" +
-            Math.round(
-                Math.random() * 1000000000
-            ) +
-            extension;
+            Math.round(Math.random() * 1000000000) +
+            path.extname(file.originalname);
 
         cb(
             null,
@@ -64,22 +48,13 @@ const storage = multer.diskStorage({
 
 // ======================================================
 // FILE FILTER
-//
-// Supported:
-// Images
-// PDF
-// Word
-// Excel
-// CSV
 // ======================================================
 
 const fileFilter = (req, file, cb) => {
 
     const extension =
         path
-            .extname(
-                file.originalname
-            )
+            .extname(file.originalname)
             .toLowerCase();
 
     const allowedExtensions = [
@@ -94,7 +69,7 @@ const fileFilter = (req, file, cb) => {
         // PDF
         ".pdf",
 
-        // Word
+        // Documents
         ".doc",
         ".docx",
 
@@ -103,15 +78,14 @@ const fileFilter = (req, file, cb) => {
         ".xlsx",
 
         // CSV
-        ".csv"
+        ".csv",
+
+        // Text
+        ".txt"
 
     ];
 
-    if (
-        allowedExtensions.includes(
-            extension
-        )
-    ) {
+    if (allowedExtensions.includes(extension)) {
 
         cb(
             null,
@@ -122,7 +96,7 @@ const fileFilter = (req, file, cb) => {
 
         cb(
             new Error(
-                "Only image, PDF, Word, Excel and CSV files are allowed."
+                "Only image, PDF, document, Excel, CSV and text files are allowed."
             )
         );
 
@@ -131,12 +105,15 @@ const fileFilter = (req, file, cb) => {
 };
 
 // ======================================================
-// MULTER SETUP
+// MULTER
+// ======================================================
 //
 // IMPORTANT:
-// NO fileSize LIMIT HERE.
+// No fileSize limit is configured here.
 //
-// This allows files larger than 10MB.
+// This middleware is ONLY for Announcements,
+// so other modules can continue using their own
+// upload limits.
 // ======================================================
 
 const upload = multer({
@@ -146,9 +123,5 @@ const upload = multer({
     fileFilter
 
 });
-
-// ======================================================
-// EXPORT
-// ======================================================
 
 module.exports = upload;
