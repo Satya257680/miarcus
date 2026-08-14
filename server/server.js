@@ -81,6 +81,7 @@ const db = require("./config/db");
 
 const ActionPoint = require("./models/actionPointModel");
 const ChecklistSubmission = require("./models/checklistSubmissionModel");
+const Announcement = require("./models/announcementModel");
 
 function createTablesAsync(model, label) {
     return new Promise((resolve) => {
@@ -114,6 +115,7 @@ async function initializeDatabase() {
 
     await createTablesAsync(ActionPoint, "action_points");
     await createTablesAsync(ChecklistSubmission, "checklist_submissions");
+    await createTablesAsync(Announcement, "announcements");
 
     // Existing databases need explicit migrations because CREATE TABLE IF NOT EXISTS
     // does not modify an already-created table.
@@ -708,6 +710,21 @@ loadRoute(
     "Action Point Routes"
 
 );
+
+// ------------------------------------------------------
+// ANNOUNCEMENTS
+// ------------------------------------------------------
+
+loadRoute(
+
+    "./routes/announcementRoutes",
+
+    "/api/announcements",
+
+    "Announcement Routes"
+
+);
+
 
 
 // ------------------------------------------------------
