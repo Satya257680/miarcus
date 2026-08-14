@@ -9,6 +9,7 @@ import {
   FaBell,
   FaStore,
   FaUserCircle,
+  FaBullhorn,
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -66,6 +67,26 @@ function Sidebar({ collapsed }) {
 
             {!collapsed && (
               <span>Dashboard</span>
+            )}
+
+          </NavLink>
+
+        )}
+
+        {/* ==========================================
+            ANNOUNCEMENTS
+        ========================================== */}
+
+        {hasPermission("Announcements") && (
+
+          <NavLink
+            to="/announcements"
+            className="menu-item"
+          >
+            <FaBullhorn />
+
+            {!collapsed && (
+              <span>Announcements</span>
             )}
 
           </NavLink>

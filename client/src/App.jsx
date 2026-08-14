@@ -27,6 +27,7 @@ import DashboardAnalytics from "./pages/Dashboard/Dashboard/DashboardAnalytics";
 import ChecklistSubmission from "./pages/ChecklistSubmission";
 import ChecklistReports from "./pages/ChecklistReports";
 import ActionPoints from "./pages/ActionPoints";
+import Announcements from "./pages/Announcements";
 
 // ======================================================
 // ADMIN
@@ -155,6 +156,15 @@ function App() {
                     <Route
                         path="/action-points"
                         element={<ActionPoints />}
+                    />
+
+                    {/* ==================================================
+                        ANNOUNCEMENTS
+                    ================================================== */}
+
+                    <Route
+                        path="/announcements"
+                        element={<Announcements />}
                     />
 
                     {/* ==================================================

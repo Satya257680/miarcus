@@ -132,6 +132,7 @@ function AddUserModal({
     "Reports To",
     "NSO Rules",
     "New Store Openings",
+    "Announcements",
     "Profile",
     "Settings",
   ];
