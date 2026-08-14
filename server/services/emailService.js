@@ -52,7 +52,31 @@ const EMAIL_FROM = String(
 ).trim();
 
 // ==========================================================
-// COMMON VALIDATION
+// EMAIL CONFIGURATION VALIDATION
+// ==========================================================
+
+if (!EMAIL_FROM) {
+
+    console.error(
+        "=================================================="
+    );
+
+    console.error(
+        "❌ EMAIL_FROM / EMAIL_USER IS NOT CONFIGURED"
+    );
+
+    console.error(
+        "Email sending will not work."
+    );
+
+    console.error(
+        "=================================================="
+    );
+
+}
+
+// ==========================================================
+// COMMON USER EMAIL VALIDATION
 // ==========================================================
 
 const validateUserEmail = (user) => {
@@ -73,6 +97,17 @@ const validateUserEmail = (user) => {
 
     }
 
+    const email =
+        String(user.email).trim();
+
+    if (!email) {
+
+        throw new Error(
+            "User email is empty."
+        );
+
+    }
+
 };
 
 // ==========================================================
@@ -86,6 +121,10 @@ const sendEmail = async ({
     text
 }) => {
 
+    // ======================================================
+    // VALIDATE RECIPIENT
+    // ======================================================
+
     if (!to) {
 
         throw new Error(
@@ -93,6 +132,10 @@ const sendEmail = async ({
         );
 
     }
+
+    // ======================================================
+    // VALIDATE SUBJECT
+    // ======================================================
 
     if (!subject) {
 
@@ -102,6 +145,10 @@ const sendEmail = async ({
 
     }
 
+    // ======================================================
+    // VALIDATE CONTENT
+    // ======================================================
+
     if (!html && !text) {
 
         throw new Error(
@@ -110,28 +157,90 @@ const sendEmail = async ({
 
     }
 
+    // ======================================================
+    // VALIDATE SENDER
+    // ======================================================
+
+    if (!EMAIL_FROM) {
+
+        throw new Error(
+            "EMAIL_FROM or EMAIL_USER is not configured."
+        );
+
+    }
+
+    // ======================================================
+    // SEND EMAIL
+    // ======================================================
+
     try {
 
-        const result = await mailer.sendMail({
-
-            from: EMAIL_FROM,
-
-            to,
-
-            subject,
-
-            html,
-
-            text
-
-        });
-
         console.log(
-            "=========================================="
+            "=================================================="
         );
 
         console.log(
-            "EMAIL SENT SUCCESSFULLY"
+            "📧 MIARCUS EMAIL SERVICE"
+        );
+
+        console.log(
+            "Sending email using Gmail SMTP..."
+        );
+
+        console.log(
+            "From:",
+            EMAIL_FROM
+        );
+
+        console.log(
+            "To:",
+            to
+        );
+
+        console.log(
+            "Subject:",
+            subject
+        );
+
+        console.log(
+            "=================================================="
+        );
+
+        const result =
+            await mailer.sendMail({
+
+                from:
+                    EMAIL_FROM,
+
+                to,
+
+                subject,
+
+                html,
+
+                ...(text
+                    ? {
+                        text
+                    }
+                    : {})
+
+            });
+
+        // ==================================================
+        // SUCCESS
+        // ==================================================
+
+        console.log(
+            "=================================================="
+        );
+
+        console.log(
+            "✅ EMAIL SENT SUCCESSFULLY"
+        );
+
+        console.log(
+            "From:",
+            EMAIL_FROM
         );
 
         console.log(
@@ -146,11 +255,24 @@ const sendEmail = async ({
 
         console.log(
             "Message ID:",
-            result?.messageId || "N/A"
+            result?.messageId ||
+            "N/A"
         );
 
         console.log(
-            "=========================================="
+            "Accepted:",
+            result?.accepted ||
+            []
+        );
+
+        console.log(
+            "Rejected:",
+            result?.rejected ||
+            []
+        );
+
+        console.log(
+            "=================================================="
         );
 
         return result;
@@ -158,12 +280,21 @@ const sendEmail = async ({
     }
     catch (error) {
 
+        // ==================================================
+        // EMAIL ERROR
+        // ==================================================
+
         console.error(
-            "=========================================="
+            "=================================================="
         );
 
         console.error(
-            "EMAIL SEND FAILED"
+            "❌ EMAIL SEND FAILED"
+        );
+
+        console.error(
+            "From:",
+            EMAIL_FROM
         );
 
         console.error(
@@ -177,13 +308,44 @@ const sendEmail = async ({
         );
 
         console.error(
-            "Error:",
-            error?.message || error
+            "Error Code:",
+            error?.code ||
+            "N/A"
         );
 
         console.error(
-            "=========================================="
+            "Command:",
+            error?.command ||
+            "N/A"
         );
+
+        console.error(
+            "Response Code:",
+            error?.responseCode ||
+            "N/A"
+        );
+
+        console.error(
+            "Response:",
+            error?.response ||
+            "N/A"
+        );
+
+        console.error(
+            "Message:",
+            error?.message ||
+            error
+        );
+
+        console.error(
+            "=================================================="
+        );
+
+        // ==================================================
+        // IMPORTANT
+        // Re-throw the error so the controller knows that
+        // the email failed.
+        // ==================================================
 
         throw error;
 
@@ -212,7 +374,8 @@ const sendInvitationEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Welcome to miarcus",
@@ -239,7 +402,8 @@ const sendAccountUpdatedEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your miarcus Account Has Been Updated",
@@ -263,7 +427,8 @@ const sendAccountActivatedEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your miarcus Account Has Been Activated",
@@ -287,7 +452,8 @@ const sendAccountDisabledEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your miarcus Account Has Been Disabled",
@@ -311,7 +477,8 @@ const sendAccountEnabledEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your miarcus Account Has Been Reactivated",
@@ -335,7 +502,8 @@ const sendAccountDeletedEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your miarcus Account Has Been Deleted",
@@ -368,7 +536,8 @@ const sendForgotPasswordOTPEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your Password Reset OTP",
@@ -395,7 +564,8 @@ const sendResetPasswordEmail = async (
 
     return sendEmail({
 
-        to: user.email,
+        to:
+            user.email,
 
         subject:
             "Your Password Has Been Reset Successfully",
@@ -409,7 +579,7 @@ const sendResetPasswordEmail = async (
 
 // ==========================================================
 // GENERIC EMAIL
-// Useful for announcements and future modules
+// Used by Announcements and future modules
 // ==========================================================
 
 const sendGenericEmail = async ({
@@ -439,10 +609,16 @@ const sendGenericEmail = async ({
 
 module.exports = {
 
-    // User invitation
+    // ======================================================
+    // USER INVITATION
+    // ======================================================
+
     sendInvitationEmail,
 
-    // User account lifecycle
+    // ======================================================
+    // USER ACCOUNT LIFECYCLE
+    // ======================================================
+
     sendAccountUpdatedEmail,
 
     sendAccountActivatedEmail,
@@ -453,12 +629,18 @@ module.exports = {
 
     sendAccountDeletedEmail,
 
-    // Password
+    // ======================================================
+    // PASSWORD
+    // ======================================================
+
     sendForgotPasswordOTPEmail,
 
     sendResetPasswordEmail,
 
-    // Generic email
+    // ======================================================
+    // GENERIC / ANNOUNCEMENTS
+    // ======================================================
+
     sendGenericEmail
 
 };

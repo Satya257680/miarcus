@@ -1,15 +1,13 @@
-// ======================================================
+// ==========================================================
 // MIARCUS MAILER
 // Gmail SMTP / Nodemailer
-// ======================================================
-
-require("dotenv").config();
+// ==========================================================
 
 const nodemailer = require("nodemailer");
 
-// ======================================================
+// ==========================================================
 // ENVIRONMENT VARIABLES
-// ======================================================
+// ==========================================================
 
 const EMAIL_USER = String(
     process.env.EMAIL_USER || ""
@@ -24,45 +22,65 @@ const EMAIL_FROM = String(
     EMAIL_USER
 ).trim();
 
-// ======================================================
-// STARTUP VALIDATION
-// ======================================================
+// ==========================================================
+// VALIDATION
+// ==========================================================
 
 if (!EMAIL_USER) {
 
-    console.warn(
-        "⚠️ EMAIL_USER is not configured."
+    console.error(
+        "=================================================="
+    );
+
+    console.error(
+        "❌ EMAIL_USER IS NOT CONFIGURED"
+    );
+
+    console.error(
+        "=================================================="
     );
 
 }
 
 if (!EMAIL_PASS) {
 
-    console.warn(
-        "⚠️ EMAIL_PASS is not configured."
+    console.error(
+        "=================================================="
+    );
+
+    console.error(
+        "❌ EMAIL_PASS IS NOT CONFIGURED"
+    );
+
+    console.error(
+        "=================================================="
     );
 
 }
 
 if (!EMAIL_FROM) {
 
-    console.warn(
-        "⚠️ EMAIL_FROM is not configured."
+    console.error(
+        "=================================================="
+    );
+
+    console.error(
+        "❌ EMAIL_FROM IS NOT CONFIGURED"
+    );
+
+    console.error(
+        "=================================================="
     );
 
 }
 
-// ======================================================
-// GMAIL SMTP TRANSPORTER
-// ======================================================
+// ==========================================================
+// CREATE GMAIL TRANSPORTER
+// ==========================================================
 
 const transporter = nodemailer.createTransport({
 
-    host: "smtp.gmail.com",
-
-    port: 587,
-
-    secure: false,
+    service: "gmail",
 
     auth: {
 
@@ -70,70 +88,35 @@ const transporter = nodemailer.createTransport({
 
         pass: EMAIL_PASS
 
-    },
-
-    requireTLS: true,
-
-    tls: {
-
-        minVersion: "TLSv1.2",
-
-        rejectUnauthorized: false
-
     }
 
 });
 
-// ======================================================
-// VERIFY SMTP CONNECTION
-// ======================================================
+// ==========================================================
+// VERIFY GMAIL CONNECTION
+// ==========================================================
 
 const verifyMailer = async () => {
-
-    if (!EMAIL_USER) {
-
-        console.error(
-            "❌ Gmail SMTP verification failed: EMAIL_USER missing."
-        );
-
-        return false;
-
-    }
-
-    if (!EMAIL_PASS) {
-
-        console.error(
-            "❌ Gmail SMTP verification failed: EMAIL_PASS missing."
-        );
-
-        return false;
-
-    }
 
     try {
 
         await transporter.verify();
 
         console.log(
-            "=========================================="
+            "=================================================="
         );
 
         console.log(
-            "✅ Gmail SMTP connection successful"
+            "✅ GMAIL SMTP CONNECTION SUCCESSFUL"
         );
 
         console.log(
-            "📧 SMTP User:",
+            "Email account:",
             EMAIL_USER
         );
 
         console.log(
-            "📧 From:",
-            EMAIL_FROM
-        );
-
-        console.log(
-            "=========================================="
+            "=================================================="
         );
 
         return true;
@@ -142,187 +125,11 @@ const verifyMailer = async () => {
     catch (error) {
 
         console.error(
-            "=========================================="
+            "=================================================="
         );
 
         console.error(
-            "❌ Gmail SMTP connection failed"
-        );
-
-        console.error(
-            "Code:",
-            error?.code || "N/A"
-        );
-
-        console.error(
-            "Command:",
-            error?.command || "N/A"
-        );
-
-        console.error(
-            "Message:",
-            error?.message || error
-        );
-
-        console.error(
-            "=========================================="
-        );
-
-        return false;
-
-    }
-
-};
-
-// ======================================================
-// SEND MAIL
-// ======================================================
-
-const sendMail = async (options = {}) => {
-
-    // --------------------------------------------------
-    // CHECK EMAIL USER
-    // --------------------------------------------------
-
-    if (!EMAIL_USER) {
-
-        throw new Error(
-            "EMAIL_USER is not configured."
-        );
-
-    }
-
-    // --------------------------------------------------
-    // CHECK EMAIL PASSWORD
-    // --------------------------------------------------
-
-    if (!EMAIL_PASS) {
-
-        throw new Error(
-            "EMAIL_PASS is not configured."
-        );
-
-    }
-
-    // --------------------------------------------------
-    // CHECK RECIPIENT
-    // --------------------------------------------------
-
-    if (!options.to) {
-
-        throw new Error(
-            "Recipient email is required."
-        );
-
-    }
-
-    // --------------------------------------------------
-    // CHECK SUBJECT
-    // --------------------------------------------------
-
-    if (!options.subject) {
-
-        throw new Error(
-            "Email subject is required."
-        );
-
-    }
-
-    // --------------------------------------------------
-    // EMAIL DATA
-    // --------------------------------------------------
-
-    const mailOptions = {
-
-        from: EMAIL_FROM,
-
-        to: options.to,
-
-        subject: options.subject,
-
-        html: options.html || undefined,
-
-        text: options.text || undefined,
-
-        cc: options.cc || undefined,
-
-        bcc: options.bcc || undefined,
-
-        replyTo: options.replyTo || undefined,
-
-        attachments:
-            options.attachments || undefined
-
-    };
-
-    // --------------------------------------------------
-    // SEND EMAIL
-    // --------------------------------------------------
-
-    try {
-
-        console.log(
-            "=========================================="
-        );
-
-        console.log(
-            "📧 Sending email..."
-        );
-
-        console.log(
-            "From:",
-            EMAIL_FROM
-        );
-
-        console.log(
-            "To:",
-            options.to
-        );
-
-        console.log(
-            "Subject:",
-            options.subject
-        );
-
-        const result =
-            await transporter.sendMail(
-                mailOptions
-            );
-
-        console.log(
-            "✅ Email sent successfully"
-        );
-
-        console.log(
-            "Message ID:",
-            result.messageId
-        );
-
-        console.log(
-            "Accepted:",
-            result.accepted
-        );
-
-        console.log(
-            "Rejected:",
-            result.rejected
-        );
-
-        console.log(
-            "=========================================="
-        );
-
-        return result;
-
-    }
-    catch (error) {
-
-        console.error(
-            "=========================================="
-        );
-
-        console.error(
-            "❌ Email sending failed"
+            "❌ GMAIL SMTP CONNECTION FAILED"
         );
 
         console.error(
@@ -346,8 +153,280 @@ const sendMail = async (options = {}) => {
         );
 
         console.error(
-            "=========================================="
+            "=================================================="
         );
+
+        return false;
+
+    }
+
+};
+
+// ==========================================================
+// SEND MAIL
+// ==========================================================
+
+const sendMail = async (
+    mailOptions = {}
+) => {
+
+    try {
+
+        // ==================================================
+        // VALIDATE EMAIL CONFIGURATION
+        // ==================================================
+
+        if (!EMAIL_USER) {
+
+            throw new Error(
+                "EMAIL_USER is missing"
+            );
+
+        }
+
+        if (!EMAIL_PASS) {
+
+            throw new Error(
+                "EMAIL_PASS is missing"
+            );
+
+        }
+
+        // ==================================================
+        // VALIDATE RECIPIENT
+        // ==================================================
+
+        if (!mailOptions.to) {
+
+            throw new Error(
+                "Email recipient is missing"
+            );
+
+        }
+
+        // ==================================================
+        // VALIDATE SUBJECT
+        // ==================================================
+
+        if (!mailOptions.subject) {
+
+            throw new Error(
+                "Email subject is missing"
+            );
+
+        }
+
+        // ==================================================
+        // VALIDATE CONTENT
+        // ==================================================
+
+        if (
+            !mailOptions.html &&
+            !mailOptions.text
+        ) {
+
+            throw new Error(
+                "Email content is missing"
+            );
+
+        }
+
+        // ==================================================
+        // PREPARE MAIL
+        // ==================================================
+
+        const message = {
+
+            from:
+                mailOptions.from ||
+                EMAIL_FROM,
+
+            to:
+                mailOptions.to,
+
+            subject:
+                mailOptions.subject,
+
+            html:
+                mailOptions.html,
+
+            ...(mailOptions.text
+                ? {
+                    text:
+                        mailOptions.text
+                }
+                : {})
+
+        };
+
+        // ==================================================
+        // LOG BEFORE SENDING
+        // ==================================================
+
+        console.log(
+            "=================================================="
+        );
+
+        console.log(
+            "📧 SENDING EMAIL USING GMAIL SMTP"
+        );
+
+        console.log(
+            "From:",
+            message.from
+        );
+
+        console.log(
+            "To:",
+            message.to
+        );
+
+        console.log(
+            "Subject:",
+            message.subject
+        );
+
+        console.log(
+            "=================================================="
+        );
+
+        // ==================================================
+        // SEND EMAIL
+        // ==================================================
+
+        const result =
+            await transporter.sendMail(
+                message
+            );
+
+        // ==================================================
+        // SUCCESS
+        // ==================================================
+
+        console.log(
+            "=================================================="
+        );
+
+        console.log(
+            "✅ EMAIL SENT SUCCESSFULLY"
+        );
+
+        console.log(
+            "From:",
+            message.from
+        );
+
+        console.log(
+            "To:",
+            message.to
+        );
+
+        console.log(
+            "Subject:",
+            message.subject
+        );
+
+        console.log(
+            "Message ID:",
+            result?.messageId ||
+            "N/A"
+        );
+
+        console.log(
+            "Accepted:",
+            result?.accepted ||
+            []
+        );
+
+        console.log(
+            "Rejected:",
+            result?.rejected ||
+            []
+        );
+
+        console.log(
+            "=================================================="
+        );
+
+        // ==================================================
+        // RETURN RESULT
+        // ==================================================
+
+        return result;
+
+    }
+    catch (error) {
+
+        // ==================================================
+        // EMAIL ERROR
+        // ==================================================
+
+        console.error(
+            "=================================================="
+        );
+
+        console.error(
+            "❌ EMAIL SENDING FAILED"
+        );
+
+        console.error(
+            "From:",
+            mailOptions.from ||
+            EMAIL_FROM
+        );
+
+        console.error(
+            "To:",
+            mailOptions.to ||
+            "N/A"
+        );
+
+        console.error(
+            "Subject:",
+            mailOptions.subject ||
+            "N/A"
+        );
+
+        console.error(
+            "Code:",
+            error?.code ||
+            "N/A"
+        );
+
+        console.error(
+            "Command:",
+            error?.command ||
+            "N/A"
+        );
+
+        console.error(
+            "Response:",
+            error?.response ||
+            "N/A"
+        );
+
+        console.error(
+            "Response Code:",
+            error?.responseCode ||
+            "N/A"
+        );
+
+        console.error(
+            "Message:",
+            error?.message ||
+            error
+        );
+
+        console.error(
+            "=================================================="
+        );
+
+        // ==================================================
+        // IMPORTANT
+        // ==================================================
+        // Re-throw the error so emailService.js and the
+        // controller know that the email actually failed.
+        // ==================================================
 
         throw error;
 
@@ -355,22 +434,31 @@ const sendMail = async (options = {}) => {
 
 };
 
-// ======================================================
-// VERIFY ON SERVER START
-// ======================================================
+// ==========================================================
+// STARTUP VERIFICATION
+// ==========================================================
+//
+// This verifies the Gmail configuration when the backend
+// starts. It does NOT send an email.
+// ==========================================================
 
-verifyMailer();
+if (
+    EMAIL_USER &&
+    EMAIL_PASS
+) {
 
-// ======================================================
+    verifyMailer();
+
+}
+
+// ==========================================================
 // EXPORT
-// ======================================================
+// ==========================================================
 
 module.exports = {
 
     sendMail,
 
-    verifyMailer,
-
-    transporter
+    verifyMailer
 
 };
