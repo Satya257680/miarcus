@@ -27,60 +27,42 @@ const EMAIL_FROM = String(
 // ==========================================================
 
 if (!EMAIL_USER) {
-
     console.error(
-        "=================================================="
+        "❌ EMAIL_USER is not configured."
     );
-
-    console.error(
-        "❌ EMAIL_USER IS NOT CONFIGURED"
-    );
-
-    console.error(
-        "=================================================="
-    );
-
 }
 
 if (!EMAIL_PASS) {
-
     console.error(
-        "=================================================="
+        "❌ EMAIL_PASS is not configured."
     );
-
-    console.error(
-        "❌ EMAIL_PASS IS NOT CONFIGURED"
-    );
-
-    console.error(
-        "=================================================="
-    );
-
 }
 
 if (!EMAIL_FROM) {
-
     console.error(
-        "=================================================="
+        "❌ EMAIL_FROM is not configured."
     );
-
-    console.error(
-        "❌ EMAIL_FROM IS NOT CONFIGURED"
-    );
-
-    console.error(
-        "=================================================="
-    );
-
 }
 
 // ==========================================================
-// CREATE GMAIL TRANSPORTER
+// GMAIL SMTP TRANSPORTER
+// IMPORTANT:
+// Port 587 + STARTTLS
+// IPv4 is forced because Render was attempting IPv6
+// and returning ENETUNREACH / connection timeout.
 // ==========================================================
 
 const transporter = nodemailer.createTransport({
 
-    service: "gmail",
+    host: "smtp.gmail.com",
+
+    port: 587,
+
+    secure: false,
+
+    requireTLS: true,
+
+    family: 4,
 
     auth: {
 
@@ -88,22 +70,83 @@ const transporter = nodemailer.createTransport({
 
         pass: EMAIL_PASS
 
-    }
+    },
+
+    tls: {
+
+        minVersion: "TLSv1.2",
+
+        servername: "smtp.gmail.com"
+
+    },
+
+    connectionTimeout: 30000,
+
+    greetingTimeout: 30000,
+
+    socketTimeout: 60000
 
 });
 
 // ==========================================================
-// VERIFY GMAIL CONNECTION
+// VERIFY SMTP CONNECTION
 // ==========================================================
 
 const verifyMailer = async () => {
 
+    if (!EMAIL_USER || !EMAIL_PASS) {
+
+        console.error(
+            "❌ Gmail SMTP cannot be verified."
+        );
+
+        console.error(
+            "EMAIL_USER or EMAIL_PASS is missing."
+        );
+
+        return false;
+
+    }
+
     try {
+
+        console.log(
+            "=========================================="
+        );
+
+        console.log(
+            "📧 VERIFYING GMAIL SMTP CONNECTION"
+        );
+
+        console.log(
+            "Host: smtp.gmail.com"
+        );
+
+        console.log(
+            "Port: 587"
+        );
+
+        console.log(
+            "Security: STARTTLS"
+        );
+
+        console.log(
+            "IPv4: Enabled"
+        );
+
+        console.log(
+            "From:",
+            EMAIL_FROM
+        );
+
+        console.log(
+            "=========================================="
+        );
 
         await transporter.verify();
 
         console.log(
-            "=================================================="
+            "=========================================="
         );
 
         console.log(
@@ -111,12 +154,7 @@ const verifyMailer = async () => {
         );
 
         console.log(
-            "Email account:",
-            EMAIL_USER
-        );
-
-        console.log(
-            "=================================================="
+            "=========================================="
         );
 
         return true;
@@ -125,7 +163,7 @@ const verifyMailer = async () => {
     catch (error) {
 
         console.error(
-            "=================================================="
+            "=========================================="
         );
 
         console.error(
@@ -143,17 +181,12 @@ const verifyMailer = async () => {
         );
 
         console.error(
-            "Response:",
-            error?.response || "N/A"
-        );
-
-        console.error(
             "Message:",
             error?.message || error
         );
 
         console.error(
-            "=================================================="
+            "=========================================="
         );
 
         return false;
@@ -166,76 +199,78 @@ const verifyMailer = async () => {
 // SEND MAIL
 // ==========================================================
 
-const sendMail = async (
-    mailOptions = {}
-) => {
+const sendMail = async (mailOptions = {}) => {
+
+    if (!EMAIL_USER) {
+
+        throw new Error(
+            "EMAIL_USER is missing."
+        );
+
+    }
+
+    if (!EMAIL_PASS) {
+
+        throw new Error(
+            "EMAIL_PASS is missing."
+        );
+
+    }
+
+    if (!mailOptions.to) {
+
+        throw new Error(
+            "Email recipient is missing."
+        );
+
+    }
+
+    if (!mailOptions.subject) {
+
+        throw new Error(
+            "Email subject is missing."
+        );
+
+    }
+
+    if (!mailOptions.html && !mailOptions.text) {
+
+        throw new Error(
+            "Email content is missing."
+        );
+
+    }
 
     try {
 
-        // ==================================================
-        // VALIDATE EMAIL CONFIGURATION
-        // ==================================================
+        console.log(
+            "=========================================="
+        );
 
-        if (!EMAIL_USER) {
+        console.log(
+            "📧 SENDING EMAIL USING GMAIL SMTP"
+        );
 
-            throw new Error(
-                "EMAIL_USER is missing"
-            );
+        console.log(
+            "From:",
+            mailOptions.from || EMAIL_FROM
+        );
 
-        }
+        console.log(
+            "To:",
+            mailOptions.to
+        );
 
-        if (!EMAIL_PASS) {
+        console.log(
+            "Subject:",
+            mailOptions.subject
+        );
 
-            throw new Error(
-                "EMAIL_PASS is missing"
-            );
+        console.log(
+            "=========================================="
+        );
 
-        }
-
-        // ==================================================
-        // VALIDATE RECIPIENT
-        // ==================================================
-
-        if (!mailOptions.to) {
-
-            throw new Error(
-                "Email recipient is missing"
-            );
-
-        }
-
-        // ==================================================
-        // VALIDATE SUBJECT
-        // ==================================================
-
-        if (!mailOptions.subject) {
-
-            throw new Error(
-                "Email subject is missing"
-            );
-
-        }
-
-        // ==================================================
-        // VALIDATE CONTENT
-        // ==================================================
-
-        if (
-            !mailOptions.html &&
-            !mailOptions.text
-        ) {
-
-            throw new Error(
-                "Email content is missing"
-            );
-
-        }
-
-        // ==================================================
-        // PREPARE MAIL
-        // ==================================================
-
-        const message = {
+        const result = await transporter.sendMail({
 
             from:
                 mailOptions.from ||
@@ -250,61 +285,13 @@ const sendMail = async (
             html:
                 mailOptions.html,
 
-            ...(mailOptions.text
-                ? {
-                    text:
-                        mailOptions.text
-                }
-                : {})
+            text:
+                mailOptions.text
 
-        };
-
-        // ==================================================
-        // LOG BEFORE SENDING
-        // ==================================================
+        });
 
         console.log(
-            "=================================================="
-        );
-
-        console.log(
-            "📧 SENDING EMAIL USING GMAIL SMTP"
-        );
-
-        console.log(
-            "From:",
-            message.from
-        );
-
-        console.log(
-            "To:",
-            message.to
-        );
-
-        console.log(
-            "Subject:",
-            message.subject
-        );
-
-        console.log(
-            "=================================================="
-        );
-
-        // ==================================================
-        // SEND EMAIL
-        // ==================================================
-
-        const result =
-            await transporter.sendMail(
-                message
-            );
-
-        // ==================================================
-        // SUCCESS
-        // ==================================================
-
-        console.log(
-            "=================================================="
+            "=========================================="
         );
 
         console.log(
@@ -312,144 +299,91 @@ const sendMail = async (
         );
 
         console.log(
-            "From:",
-            message.from
-        );
-
-        console.log(
-            "To:",
-            message.to
-        );
-
-        console.log(
-            "Subject:",
-            message.subject
-        );
-
-        console.log(
             "Message ID:",
-            result?.messageId ||
-            "N/A"
+            result?.messageId || "N/A"
         );
 
         console.log(
             "Accepted:",
-            result?.accepted ||
-            []
+            result?.accepted || []
         );
 
         console.log(
             "Rejected:",
-            result?.rejected ||
-            []
+            result?.rejected || []
         );
 
         console.log(
-            "=================================================="
+            "Response:",
+            result?.response || "N/A"
         );
 
-        // ==================================================
-        // RETURN RESULT
-        // ==================================================
+        console.log(
+            "=========================================="
+        );
 
         return result;
 
     }
     catch (error) {
 
-        // ==================================================
-        // EMAIL ERROR
-        // ==================================================
-
         console.error(
-            "=================================================="
+            "=========================================="
         );
 
         console.error(
-            "❌ EMAIL SENDING FAILED"
+            "❌ GMAIL SMTP EMAIL SEND FAILED"
         );
 
         console.error(
             "From:",
-            mailOptions.from ||
-            EMAIL_FROM
+            mailOptions.from || EMAIL_FROM
         );
 
         console.error(
             "To:",
-            mailOptions.to ||
-            "N/A"
+            mailOptions.to
         );
 
         console.error(
             "Subject:",
-            mailOptions.subject ||
-            "N/A"
+            mailOptions.subject
         );
 
         console.error(
             "Code:",
-            error?.code ||
-            "N/A"
+            error?.code || "N/A"
         );
 
         console.error(
             "Command:",
-            error?.command ||
-            "N/A"
-        );
-
-        console.error(
-            "Response:",
-            error?.response ||
-            "N/A"
+            error?.command || "N/A"
         );
 
         console.error(
             "Response Code:",
-            error?.responseCode ||
-            "N/A"
+            error?.responseCode || "N/A"
+        );
+
+        console.error(
+            "Response:",
+            error?.response || "N/A"
         );
 
         console.error(
             "Message:",
-            error?.message ||
-            error
+            error?.message || error
         );
 
         console.error(
-            "=================================================="
+            "=========================================="
         );
-
-        // ==================================================
-        // IMPORTANT
-        // ==================================================
-        // Re-throw the error so emailService.js and the
-        // controller know that the email actually failed.
-        // ==================================================
 
         throw error;
 
     }
 
 };
-
-// ==========================================================
-// STARTUP VERIFICATION
-// ==========================================================
-//
-// This verifies the Gmail configuration when the backend
-// starts. It does NOT send an email.
-// ==========================================================
-
-if (
-    EMAIL_USER &&
-    EMAIL_PASS
-) {
-
-    verifyMailer();
-
-}
 
 // ==========================================================
 // EXPORT
@@ -459,6 +393,8 @@ module.exports = {
 
     sendMail,
 
-    verifyMailer
+    verifyMailer,
+
+    transporter
 
 };
