@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+const XLSX = require("xlsx");
+const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
 const transporter = require("../config/mailer");
 
@@ -175,10 +177,206 @@ const createAnnouncement = (req, res) => {
     });
 };
 
+
+// ======================================================
+// UPDATE ANNOUNCEMENT
+// Supports:
+// - Edit title/message
+// - Change audience
+// - Replace/remove attachment
+// - Pin / unpin
+// Only this announcement module is affected.
+// ======================================================
+const updateAnnouncement = (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ success: false, message: "Invalid announcement id" });
+    }
+
+    const title = String(req.body.title || "").trim();
+    const content = String(req.body.content || "").trim();
+    const audience = String(req.body.audience || "everyone").toLowerCase();
+    const isPinned = ["true", "1", 1, true, "yes", "on"].includes(req.body.isPinned);
+    const removeAttachment = ["true", "1", 1, true, "yes", "on"].includes(req.body.removeAttachment);
+
+    let specificIds = [];
+    try {
+        specificIds = Array.isArray(req.body.specificUserIds)
+            ? req.body.specificUserIds
+            : JSON.parse(req.body.specificUserIds || "[]");
+    } catch {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ success: false, message: "Invalid selected users" });
+    }
+
+    if (!title) {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    if (!["everyone", "managers", "users", "specific"].includes(audience)) {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ success: false, message: "Invalid audience" });
+    }
+
+    if (audience === "specific" && !specificIds.length) {
+        if (req.file?.path) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ success: false, message: "Select at least one user" });
+    }
+
+    Announcement.getById(id, (findErr, existing) => {
+        if (findErr) {
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            console.error("Announcement getById:", findErr);
+            return res.status(500).json({ success: false, message: "Unable to load announcement" });
+        }
+
+        if (!existing) {
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            return res.status(404).json({ success: false, message: "Announcement not found" });
+        }
+
+        const audienceChanged = String(existing.audience) !== audience;
+        const oldAttachment = existing.attachment_path;
+        const newAttachmentPath = req.file?.filename ||
+            (removeAttachment ? null : existing.attachment_path);
+        const newAttachmentName = req.file?.originalname ||
+            (removeAttachment ? null : existing.attachment_original_name);
+
+        const saveUpdate = () => {
+            Announcement.update(id, {
+                title,
+                content,
+                audience,
+                isPinned,
+                attachmentOriginalName: newAttachmentName,
+                attachmentPath: newAttachmentPath
+            }, (updateErr) => {
+                if (updateErr) {
+                    if (req.file?.path) fs.unlink(req.file.path, () => {});
+                    console.error("Announcement update:", updateErr);
+                    return res.status(500).json({ success: false, message: "Unable to update announcement" });
+                }
+
+                const cleanupOldAttachment = () => {
+                    if (
+                        oldAttachment &&
+                        (req.file || removeAttachment) &&
+                        oldAttachment !== newAttachmentPath
+                    ) {
+                        fs.unlink(
+                            path.join(process.cwd(), "uploads", path.basename(oldAttachment)),
+                            () => {}
+                        );
+                    }
+                };
+
+                const finish = () => {
+                    cleanupOldAttachment();
+                    return res.json({
+                        success: true,
+                        message: isPinned
+                            ? "Announcement updated and pinned successfully"
+                            : "Announcement updated successfully"
+                    });
+                };
+
+                if (!audienceChanged) {
+                    return finish();
+                }
+
+                Announcement.getUsersForAudience(audience, specificIds, (usersErr, users) => {
+                    if (usersErr) {
+                        return res.status(500).json({
+                            success: false,
+                            message: "Announcement updated but recipients could not be loaded"
+                        });
+                    }
+
+                    if (!users.length) {
+                        return res.status(400).json({
+                            success: false,
+                            message: "Announcement updated but no active recipients were found"
+                        });
+                    }
+
+                    Announcement.deleteRecipients(id, deleteErr => {
+                        if (deleteErr) {
+                            return res.status(500).json({
+                                success: false,
+                                message: "Announcement updated but old recipients could not be replaced"
+                            });
+                        }
+
+                        Announcement.addRecipients(id, users, addErr => {
+                            if (addErr) {
+                                return res.status(500).json({
+                                    success: false,
+                                    message: "Announcement updated but new recipients could not be created"
+                                });
+                            }
+
+                            // Email the newly selected audience. Errors are recorded per recipient
+                            // and do not make the announcement update fail.
+                            Announcement.getRecipientsForEmail(id, async (emailLookupErr, recipients) => {
+                                if (!emailLookupErr) {
+                                    for (const recipient of recipients) {
+                                        try {
+                                            await sendAnnouncementEmail(recipient);
+                                            Announcement.updateEmailStatus(
+                                                recipient.recipient_id,
+                                                "sent",
+                                                null,
+                                                () => {}
+                                            );
+                                        } catch (mailErr) {
+                                            Announcement.updateEmailStatus(
+                                                recipient.recipient_id,
+                                                "failed",
+                                                mailErr.message,
+                                                () => {}
+                                            );
+                                        }
+                                    }
+                                }
+                                finish();
+                            });
+                        });
+                    });
+                });
+            });
+        };
+
+        if (isPinned) {
+            Announcement.unpinOthers(unpinErr => {
+                if (unpinErr) {
+                    if (req.file?.path) fs.unlink(req.file.path, () => {});
+                    console.error("Unpin before update:", unpinErr);
+                    return res.status(500).json({ success: false, message: "Unable to update pinned announcement" });
+                }
+                saveUpdate();
+            });
+        } else {
+            saveUpdate();
+        }
+    });
+};
+
 const markRead = (req, res) => {
     Announcement.markRead(req.params.id, req.user.id, err => {
         if (err) return res.status(500).json({ success: false, message: "Unable to mark as read" });
         res.json({ success: true });
+    });
+};
+
+const getRecipientUsers = (req, res) => {
+    Announcement.getRecipientUsers(req.params.id, (err, users) => {
+        if (err) {
+            console.error("Announcement recipients:", err);
+            return res.status(500).json({ success: false, message: "Unable to load announcement recipients" });
+        }
+        return res.json({ success: true, users });
     });
 };
 
@@ -203,12 +401,234 @@ const deleteAnnouncement = (req, res) => {
     });
 };
 
+
+// ======================================================
+// BULK UPLOAD / EXPORT / DELETE ALL
+// These endpoints use the existing global BulkUploadModal
+// and global toolbar pattern. No other module is changed.
+// ======================================================
+
+const normalizeBulkAudience = (value = "everyone") => {
+    const v = String(value).trim().toLowerCase();
+    const map = {
+        all: "everyone",
+        everyone: "everyone",
+        manager: "managers",
+        managers: "managers",
+        user: "users",
+        users: "users",
+        specific: "specific",
+        "specific users": "specific",
+        "specific_users": "specific"
+    };
+    return map[v] || v;
+};
+
+const parseBulkIds = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(Number).filter(Number.isInteger);
+    try {
+        const parsed = JSON.parse(String(value));
+        if (Array.isArray(parsed)) return parsed.map(Number).filter(Number.isInteger);
+    } catch (_) {}
+    return String(value)
+        .split(/[;,|]/)
+        .map(v => Number(v.trim()))
+        .filter(Number.isInteger);
+};
+
+const readAnnouncementBulkFile = (filePath) => {
+    const workbook = XLSX.readFile(filePath, { cellDates: true });
+    const sheet = workbook.SheetNames[0];
+    if (!sheet) return [];
+    return XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { defval: "" });
+};
+
+const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
+    const title = String(row.title ?? row.Title ?? "").trim();
+    const content = String(row.content ?? row.Content ?? row.message ?? "").trim();
+    const audience = normalizeBulkAudience(row.audience ?? row.Audience ?? row.send_to ?? "everyone");
+    const isPinned = ["1", "true", "yes", "y", "on"].includes(String(row.is_pinned ?? row.pinned ?? "").trim().toLowerCase());
+    const specificIds = parseBulkIds(row.specific_user_ids ?? row.specificUserIds ?? row.user_ids ?? "");
+
+    if (!title) return reject(new Error("Title is required"));
+    if (!["everyone", "managers", "users", "specific"].includes(audience)) {
+        return reject(new Error("Audience must be everyone, managers, users or specific"));
+    }
+    if (audience === "specific" && !specificIds.length) {
+        return reject(new Error("specific_user_ids is required for specific audience"));
+    }
+
+    Announcement.getUsersForAudience(audience, specificIds, async (userErr, users) => {
+        if (userErr) return reject(userErr);
+        if (!users.length) return reject(new Error("No active recipients found"));
+
+        const insert = () => Announcement.create({
+            title,
+            content,
+            audience,
+            isPinned,
+            createdBy: req.user.id
+        }, async (createErr, result) => {
+            if (createErr) return reject(createErr);
+            const announcementId = result.insertId;
+
+            Announcement.addRecipients(announcementId, users, async recipientErr => {
+                if (recipientErr) return reject(recipientErr);
+
+                Announcement.getRecipientsForEmail(announcementId, async (emailLookupErr, recipients) => {
+                    let emailSent = 0;
+                    let emailFailed = 0;
+
+                    if (!emailLookupErr) {
+                        for (const recipient of recipients) {
+                            try {
+                                await sendAnnouncementEmail(recipient);
+                                await new Promise((resolveUpdate, rejectUpdate) => {
+                                    Announcement.updateEmailStatus(
+                                        recipient.recipient_id,
+                                        "sent",
+                                        null,
+                                        err => err ? rejectUpdate(err) : resolveUpdate()
+                                    );
+                                });
+                                emailSent++;
+                            } catch (mailErr) {
+                                emailFailed++;
+                                Announcement.updateEmailStatus(
+                                    recipient.recipient_id,
+                                    "failed",
+                                    mailErr.message,
+                                    () => {}
+                                );
+                            }
+                        }
+                    } else {
+                        emailFailed = users.length;
+                    }
+
+                    resolve({ announcementId, recipients: users.length, emailSent, emailFailed });
+                });
+            });
+        });
+
+        if (isPinned) {
+            Announcement.unpinOthers(err => {
+                if (err) return reject(err);
+                insert();
+            });
+        } else {
+            insert();
+        }
+    });
+});
+
+const bulkUploadAnnouncements = async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: "Please upload a CSV, XLSX or XLS file" });
+    }
+
+    try {
+        const rows = readAnnouncementBulkFile(req.file.path);
+        if (!rows.length) {
+            return res.status(400).json({ success: false, message: "The uploaded file contains no rows" });
+        }
+
+        let created = 0;
+        let failed = 0;
+        let emailSent = 0;
+        let emailFailed = 0;
+        const errors = [];
+
+        for (let i = 0; i < rows.length; i++) {
+            try {
+                const result = await createBulkAnnouncement(req, rows[i]);
+                created++;
+                emailSent += result.emailSent || 0;
+                emailFailed += result.emailFailed || 0;
+            } catch (err) {
+                failed++;
+                errors.push({ row: i + 2, message: err.message || "Unable to create announcement" });
+            }
+        }
+
+        fs.unlink(req.file.path, () => {});
+
+        return res.status(201).json({
+            success: created > 0,
+            message: `${created} announcement(s) uploaded successfully${failed ? `, ${failed} row(s) failed` : ""}.`,
+            processed: rows.length,
+            created,
+            failed,
+            emailSent,
+            emailFailed,
+            errors
+        });
+    } catch (err) {
+        fs.unlink(req.file.path, () => {});
+        console.error("Announcement bulk upload:", err);
+        return res.status(400).json({ success: false, message: "Unable to read the uploaded file" });
+    }
+};
+
+const exportAnnouncements = (req, res) => {
+    Announcement.getAllForExport((err, rows) => {
+        if (err) {
+            console.error("Announcement export:", err);
+            return res.status(500).json({ success: false, message: "Unable to export announcements" });
+        }
+
+        try {
+            const parser = new Parser({
+                fields: [
+                    "id", "title", "content", "audience", "status", "is_pinned",
+                    "attachment_original_name", "published_at", "created_at", "created_by_name"
+                ]
+            });
+            const csv = parser.parse(rows || []);
+            res.setHeader("Content-Type", "text/csv; charset=utf-8");
+            res.setHeader("Content-Disposition", 'attachment; filename="Announcements.csv"');
+            return res.status(200).send(csv);
+        } catch (exportErr) {
+            console.error("Announcement CSV:", exportErr);
+            return res.status(500).json({ success: false, message: "Unable to generate announcement export" });
+        }
+    });
+};
+
+const deleteAllAnnouncements = (req, res) => {
+    Announcement.getAttachmentPaths((pathErr, rows) => {
+        if (pathErr) {
+            return res.status(500).json({ success: false, message: "Unable to prepare announcements for deletion" });
+        }
+
+        Announcement.deleteAllAnnouncements(err => {
+            if (err) {
+                console.error("Delete all announcements:", err);
+                return res.status(500).json({ success: false, message: "Unable to delete all announcements" });
+            }
+
+            for (const row of rows || []) {
+                if (!row.attachment_path) continue;
+                fs.unlink(path.join(process.cwd(), "uploads", path.basename(row.attachment_path)), () => {});
+            }
+
+            return res.json({ success: true, message: "All announcements deleted successfully" });
+        });
+    });
+};
+
 module.exports = {
     getAnnouncements,
     getUsers,
     createAnnouncement,
+    updateAnnouncement,
+    getRecipientUsers,
     markRead,
     getCounts,
     markEmailDelivered,
-    deleteAnnouncement
+    deleteAnnouncement,
+    bulkUploadAnnouncements,
+    exportAnnouncements,
+    deleteAllAnnouncements
 };

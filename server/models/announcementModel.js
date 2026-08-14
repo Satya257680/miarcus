@@ -168,6 +168,48 @@ const create = (data, callback) => {
     ], callback);
 };
 
+
+const getById = (id, callback) => {
+    db.query(`
+        SELECT id, title, content, attachment_original_name, attachment_path,
+               audience, status, is_pinned, published_at, created_by, created_at
+        FROM announcements
+        WHERE id=?
+        LIMIT 1
+    `, [id], (err, rows) => {
+        if (err) return callback(err);
+        callback(null, rows[0] || null);
+    });
+};
+
+const update = (id, data, callback) => {
+    const sql = `
+        UPDATE announcements
+        SET title=?,
+            content=?,
+            attachment_original_name=?,
+            attachment_path=?,
+            audience=?,
+            is_pinned=?,
+            updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    `;
+
+    db.query(sql, [
+        data.title,
+        data.content || null,
+        data.attachmentOriginalName || null,
+        data.attachmentPath || null,
+        data.audience,
+        data.isPinned ? 1 : 0,
+        id
+    ], callback);
+};
+
+const deleteRecipients = (announcementId, callback) => {
+    db.query(`DELETE FROM announcement_recipients WHERE announcement_id=?`, [announcementId], callback);
+};
+
 const addRecipients = (announcementId, users, callback) => {
     if (!users.length) return callback(null);
     const values = users.map(u => [
@@ -226,6 +268,18 @@ const getUsers = (search, callback) => {
     `, [q, q], callback);
 };
 
+const getRecipientUsers = (announcementId, callback) => {
+    db.query(`
+        SELECT u.id, u.name, u.email,
+               dg.designation_name AS designation
+        FROM announcement_recipients ar
+        INNER JOIN users u ON u.id=ar.user_id
+        LEFT JOIN designations dg ON dg.id=u.designation_id
+        WHERE ar.announcement_id=?
+        ORDER BY u.name ASC
+    `, [announcementId], callback);
+};
+
 const getCounts = (announcementId, callback) => {
     db.query(`
         SELECT
@@ -248,8 +302,28 @@ const deleteAnnouncement = (id, callback) => {
     db.query(`DELETE FROM announcements WHERE id=?`, [id], callback);
 };
 
+const getAllForExport = (callback) => {
+    db.query(`
+        SELECT a.id, a.title, a.content, a.audience, a.status, a.is_pinned,
+               a.attachment_original_name, a.attachment_path,
+               a.published_at, a.created_at, u.name AS created_by_name
+        FROM announcements a
+        LEFT JOIN users u ON u.id=a.created_by
+        ORDER BY COALESCE(a.published_at,a.created_at) DESC, a.id DESC
+    `, callback);
+};
+
+const getAttachmentPaths = (callback) => {
+    db.query(`SELECT attachment_path FROM announcements WHERE attachment_path IS NOT NULL AND attachment_path <> ''`, callback);
+};
+
+const deleteAllAnnouncements = (callback) => {
+    db.query(`DELETE FROM announcements`, callback);
+};
+
 module.exports = {
-    createTables, getAll, getUsersForAudience, create, addRecipients,
-    markRead, getRecipientsForEmail, updateEmailStatus, getUsers,
-    getCounts, unpinOthers, deleteAnnouncement
+    createTables, getAll, getById, getUsersForAudience, create, update,
+    addRecipients, deleteRecipients, markRead, getRecipientsForEmail,
+    updateEmailStatus, getUsers, getRecipientUsers, getCounts, unpinOthers, deleteAnnouncement,
+    getAllForExport, getAttachmentPaths, deleteAllAnnouncements
 };

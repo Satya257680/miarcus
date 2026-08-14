@@ -9,10 +9,15 @@ const {
     getAnnouncements,
     getUsers,
     createAnnouncement,
+    updateAnnouncement,
+    getRecipientUsers,
     markRead,
     getCounts,
     markEmailDelivered,
-    deleteAnnouncement
+    deleteAnnouncement,
+    bulkUploadAnnouncements,
+    exportAnnouncements,
+    deleteAllAnnouncements
 } = require("../controllers/announcementController");
 
 router.get(
@@ -30,11 +35,49 @@ router.get(
 );
 
 router.post(
+    "/bulk-upload",
+    authMiddleware,
+    permissionMiddleware("Announcements", "Add"),
+    upload.single("file"),
+    bulkUploadAnnouncements
+);
+
+router.get(
+    "/export",
+    authMiddleware,
+    permissionMiddleware("Announcements", "View"),
+    exportAnnouncements
+);
+
+router.delete(
+    "/delete-all",
+    authMiddleware,
+    permissionMiddleware("Announcements", "Full"),
+    deleteAllAnnouncements
+);
+
+router.post(
     "/",
     authMiddleware,
     permissionMiddleware("Announcements", "Add"),
     upload.single("attachment"),
     createAnnouncement
+);
+
+// Edit announcement, including pin/unpin and optional attachment replacement.
+router.put(
+    "/:id",
+    authMiddleware,
+    permissionMiddleware("Announcements", "Edit"),
+    upload.single("attachment"),
+    updateAnnouncement
+);
+
+router.get(
+    "/:id/recipients",
+    authMiddleware,
+    permissionMiddleware("Announcements", "Edit"),
+    getRecipientUsers
 );
 
 router.put(
@@ -51,7 +94,6 @@ router.get(
     getCounts
 );
 
-// This endpoint is for a future email-provider webhook/manual delivery confirmation.
 router.put(
     "/email/:recipientId/delivered",
     authMiddleware,
