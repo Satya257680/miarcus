@@ -21,6 +21,7 @@
     "dotenv": "^17.4.2",
     "exceljs": "^3.4.0",
     "express": "^5.2.1",
+    "googleapis": "^174.0.1",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",

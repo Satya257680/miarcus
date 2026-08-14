@@ -1,40 +1,49 @@
 // ==========================================================
 // MIARCUS MAILER
-// Gmail SMTP / Nodemailer
+// Gmail API / OAuth2
 // ==========================================================
 
-const nodemailer = require("nodemailer");
+const { google } = require("googleapis");
 
 // ==========================================================
 // ENVIRONMENT VARIABLES
 // ==========================================================
 
-const EMAIL_USER = String(
-    process.env.EMAIL_USER || ""
+const GMAIL_CLIENT_ID = String(
+    process.env.GMAIL_CLIENT_ID || ""
 ).trim();
 
-const EMAIL_PASS = String(
-    process.env.EMAIL_PASS || ""
+const GMAIL_CLIENT_SECRET = String(
+    process.env.GMAIL_CLIENT_SECRET || ""
+).trim();
+
+const GMAIL_REFRESH_TOKEN = String(
+    process.env.GMAIL_REFRESH_TOKEN || ""
 ).trim();
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM ||
-    EMAIL_USER
+    process.env.EMAIL_FROM || ""
 ).trim();
 
 // ==========================================================
 // VALIDATION
 // ==========================================================
 
-if (!EMAIL_USER) {
+if (!GMAIL_CLIENT_ID) {
     console.error(
-        "❌ EMAIL_USER is not configured."
+        "❌ GMAIL_CLIENT_ID is not configured."
     );
 }
 
-if (!EMAIL_PASS) {
+if (!GMAIL_CLIENT_SECRET) {
     console.error(
-        "❌ EMAIL_PASS is not configured."
+        "❌ GMAIL_CLIENT_SECRET is not configured."
+    );
+}
+
+if (!GMAIL_REFRESH_TOKEN) {
+    console.error(
+        "❌ GMAIL_REFRESH_TOKEN is not configured."
     );
 }
 
@@ -45,63 +54,236 @@ if (!EMAIL_FROM) {
 }
 
 // ==========================================================
-// GMAIL SMTP TRANSPORTER
-// IMPORTANT:
-// Port 587 + STARTTLS
-// IPv4 is forced because Render was attempting IPv6
-// and returning ENETUNREACH / connection timeout.
+// GOOGLE OAUTH2 CLIENT
 // ==========================================================
 
-const transporter = nodemailer.createTransport({
+const oauth2Client = new google.auth.OAuth2(
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET
+);
 
-    host: "smtp.gmail.com",
+// ==========================================================
+// SET REFRESH TOKEN
+// ==========================================================
 
-    port: 587,
+if (GMAIL_REFRESH_TOKEN) {
 
-    secure: false,
+    oauth2Client.setCredentials({
+        refresh_token: GMAIL_REFRESH_TOKEN
+    });
 
-    requireTLS: true,
+}
 
-    family: 4,
+// ==========================================================
+// GMAIL API
+// ==========================================================
 
-    auth: {
-
-        user: EMAIL_USER,
-
-        pass: EMAIL_PASS
-
-    },
-
-    tls: {
-
-        minVersion: "TLSv1.2",
-
-        servername: "smtp.gmail.com"
-
-    },
-
-    connectionTimeout: 30000,
-
-    greetingTimeout: 30000,
-
-    socketTimeout: 60000
-
+const gmail = google.gmail({
+    version: "v1",
+    auth: oauth2Client
 });
 
 // ==========================================================
-// VERIFY SMTP CONNECTION
+// BASE64URL ENCODER
+// Gmail API requires URL-safe Base64
+// ==========================================================
+
+function encodeBase64Url(value) {
+
+    return Buffer
+        .from(value, "utf8")
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+}
+
+// ==========================================================
+// MIME HEADER ENCODER
+// Handles special characters in subject/from
+// ==========================================================
+
+function encodeHeader(value) {
+
+    if (!value) {
+        return "";
+    }
+
+    // ASCII-safe headers can be returned directly
+    if (/^[\x00-\x7F]*$/.test(value)) {
+        return value;
+    }
+
+    return "=?UTF-8?B?" +
+        Buffer
+            .from(value, "utf8")
+            .toString("base64") +
+        "?=";
+
+}
+
+// ==========================================================
+// CREATE MIME MESSAGE
+// ==========================================================
+
+function createMimeMessage({
+
+    from,
+
+    to,
+
+    subject,
+
+    html,
+
+    text
+
+}) {
+
+    const lines = [];
+
+    lines.push(
+        `From: ${from}`
+    );
+
+    lines.push(
+        `To: ${to}`
+    );
+
+    lines.push(
+        `Subject: ${encodeHeader(subject)}`
+    );
+
+    lines.push(
+        "MIME-Version: 1.0"
+    );
+
+    // ------------------------------------------------------
+    // HTML + TEXT
+    // ------------------------------------------------------
+
+    if (html && text) {
+
+        const boundary =
+            "----=_MiarcusBoundary_" +
+            Date.now();
+
+        lines.push(
+            `Content-Type: multipart/alternative; boundary="${boundary}"`
+        );
+
+        lines.push("");
+
+        // TEXT PART
+
+        lines.push(
+            `--${boundary}`
+        );
+
+        lines.push(
+            "Content-Type: text/plain; charset=UTF-8"
+        );
+
+        lines.push(
+            "Content-Transfer-Encoding: 8bit"
+        );
+
+        lines.push("");
+
+        lines.push(text);
+
+        lines.push("");
+
+        // HTML PART
+
+        lines.push(
+            `--${boundary}`
+        );
+
+        lines.push(
+            "Content-Type: text/html; charset=UTF-8"
+        );
+
+        lines.push(
+            "Content-Transfer-Encoding: 8bit"
+        );
+
+        lines.push("");
+
+        lines.push(html);
+
+        lines.push("");
+
+        lines.push(
+            `--${boundary}--`
+        );
+
+    }
+
+    // ------------------------------------------------------
+    // HTML ONLY
+    // ------------------------------------------------------
+
+    else if (html) {
+
+        lines.push(
+            "Content-Type: text/html; charset=UTF-8"
+        );
+
+        lines.push(
+            "Content-Transfer-Encoding: 8bit"
+        );
+
+        lines.push("");
+
+        lines.push(html);
+
+    }
+
+    // ------------------------------------------------------
+    // TEXT ONLY
+    // ------------------------------------------------------
+
+    else {
+
+        lines.push(
+            "Content-Type: text/plain; charset=UTF-8"
+        );
+
+        lines.push(
+            "Content-Transfer-Encoding: 8bit"
+        );
+
+        lines.push("");
+
+        lines.push(text);
+
+    }
+
+    return lines.join("\r\n");
+
+}
+
+// ==========================================================
+// VERIFY GMAIL API CONNECTION
 // ==========================================================
 
 const verifyMailer = async () => {
 
-    if (!EMAIL_USER || !EMAIL_PASS) {
+    if (
+        !GMAIL_CLIENT_ID ||
+        !GMAIL_CLIENT_SECRET ||
+        !GMAIL_REFRESH_TOKEN ||
+        !EMAIL_FROM
+    ) {
 
         console.error(
-            "❌ Gmail SMTP cannot be verified."
+            "❌ Gmail API cannot be verified."
         );
 
         console.error(
-            "EMAIL_USER or EMAIL_PASS is missing."
+            "Required environment variables are missing."
         );
 
         return false;
@@ -115,23 +297,15 @@ const verifyMailer = async () => {
         );
 
         console.log(
-            "📧 VERIFYING GMAIL SMTP CONNECTION"
+            "📧 VERIFYING GMAIL API CONNECTION"
         );
 
         console.log(
-            "Host: smtp.gmail.com"
+            "Authentication: OAuth2"
         );
 
         console.log(
-            "Port: 587"
-        );
-
-        console.log(
-            "Security: STARTTLS"
-        );
-
-        console.log(
-            "IPv4: Enabled"
+            "Gmail API: Enabled"
         );
 
         console.log(
@@ -143,14 +317,28 @@ const verifyMailer = async () => {
             "=========================================="
         );
 
-        await transporter.verify();
+        // --------------------------------------------------
+        // Ask Google for a fresh access token.
+        // This automatically uses the refresh token.
+        // --------------------------------------------------
+
+        const accessTokenResponse =
+            await oauth2Client.getAccessToken();
+
+        if (!accessTokenResponse?.token) {
+
+            throw new Error(
+                "Google did not return an access token."
+            );
+
+        }
 
         console.log(
             "=========================================="
         );
 
         console.log(
-            "✅ GMAIL SMTP CONNECTION SUCCESSFUL"
+            "✅ GMAIL OAUTH2 CONNECTION SUCCESSFUL"
         );
 
         console.log(
@@ -167,17 +355,12 @@ const verifyMailer = async () => {
         );
 
         console.error(
-            "❌ GMAIL SMTP CONNECTION FAILED"
+            "❌ GMAIL OAUTH2 CONNECTION FAILED"
         );
 
         console.error(
             "Code:",
             error?.code || "N/A"
-        );
-
-        console.error(
-            "Command:",
-            error?.command || "N/A"
         );
 
         console.error(
@@ -201,21 +384,45 @@ const verifyMailer = async () => {
 
 const sendMail = async (mailOptions = {}) => {
 
-    if (!EMAIL_USER) {
+    // ------------------------------------------------------
+    // CONFIGURATION CHECK
+    // ------------------------------------------------------
+
+    if (!GMAIL_CLIENT_ID) {
 
         throw new Error(
-            "EMAIL_USER is missing."
+            "GMAIL_CLIENT_ID is missing."
         );
 
     }
 
-    if (!EMAIL_PASS) {
+    if (!GMAIL_CLIENT_SECRET) {
 
         throw new Error(
-            "EMAIL_PASS is missing."
+            "GMAIL_CLIENT_SECRET is missing."
         );
 
     }
+
+    if (!GMAIL_REFRESH_TOKEN) {
+
+        throw new Error(
+            "GMAIL_REFRESH_TOKEN is missing."
+        );
+
+    }
+
+    if (!EMAIL_FROM) {
+
+        throw new Error(
+            "EMAIL_FROM is missing."
+        );
+
+    }
+
+    // ------------------------------------------------------
+    // MAIL VALIDATION
+    // ------------------------------------------------------
 
     if (!mailOptions.to) {
 
@@ -241,6 +448,39 @@ const sendMail = async (mailOptions = {}) => {
 
     }
 
+    // ------------------------------------------------------
+    // SENDER
+    // ------------------------------------------------------
+
+    const from =
+        mailOptions.from ||
+        EMAIL_FROM;
+
+    // ------------------------------------------------------
+    // MIME MESSAGE
+    // ------------------------------------------------------
+
+    const rawMessage = createMimeMessage({
+
+        from,
+
+        to: mailOptions.to,
+
+        subject: mailOptions.subject,
+
+        html: mailOptions.html,
+
+        text: mailOptions.text
+
+    });
+
+    // ------------------------------------------------------
+    // ENCODE MESSAGE
+    // ------------------------------------------------------
+
+    const encodedMessage =
+        encodeBase64Url(rawMessage);
+
     try {
 
         console.log(
@@ -248,12 +488,12 @@ const sendMail = async (mailOptions = {}) => {
         );
 
         console.log(
-            "📧 SENDING EMAIL USING GMAIL SMTP"
+            "📧 SENDING EMAIL USING GMAIL API"
         );
 
         console.log(
             "From:",
-            mailOptions.from || EMAIL_FROM
+            from
         );
 
         console.log(
@@ -270,25 +510,22 @@ const sendMail = async (mailOptions = {}) => {
             "=========================================="
         );
 
-        const result = await transporter.sendMail({
+        // --------------------------------------------------
+        // SEND THROUGH GMAIL API
+        // --------------------------------------------------
 
-            from:
-                mailOptions.from ||
-                EMAIL_FROM,
+        const result =
+            await gmail.users.messages.send({
 
-            to:
-                mailOptions.to,
+                userId: "me",
 
-            subject:
-                mailOptions.subject,
+                requestBody: {
 
-            html:
-                mailOptions.html,
+                    raw: encodedMessage
 
-            text:
-                mailOptions.text
+                }
 
-        });
+            });
 
         console.log(
             "=========================================="
@@ -299,30 +536,20 @@ const sendMail = async (mailOptions = {}) => {
         );
 
         console.log(
-            "Message ID:",
-            result?.messageId || "N/A"
+            "Gmail Message ID:",
+            result?.data?.id || "N/A"
         );
 
         console.log(
-            "Accepted:",
-            result?.accepted || []
-        );
-
-        console.log(
-            "Rejected:",
-            result?.rejected || []
-        );
-
-        console.log(
-            "Response:",
-            result?.response || "N/A"
+            "Thread ID:",
+            result?.data?.threadId || "N/A"
         );
 
         console.log(
             "=========================================="
         );
 
-        return result;
+        return result?.data;
 
     }
     catch (error) {
@@ -332,12 +559,12 @@ const sendMail = async (mailOptions = {}) => {
         );
 
         console.error(
-            "❌ GMAIL SMTP EMAIL SEND FAILED"
+            "❌ GMAIL API EMAIL SEND FAILED"
         );
 
         console.error(
             "From:",
-            mailOptions.from || EMAIL_FROM
+            from
         );
 
         console.error(
@@ -356,24 +583,27 @@ const sendMail = async (mailOptions = {}) => {
         );
 
         console.error(
-            "Command:",
-            error?.command || "N/A"
-        );
-
-        console.error(
-            "Response Code:",
-            error?.responseCode || "N/A"
-        );
-
-        console.error(
-            "Response:",
-            error?.response || "N/A"
+            "Status:",
+            error?.response?.status || "N/A"
         );
 
         console.error(
             "Message:",
             error?.message || error
         );
+
+        if (error?.response?.data) {
+
+            console.error(
+                "Google API Error:",
+                JSON.stringify(
+                    error.response.data,
+                    null,
+                    2
+                )
+            );
+
+        }
 
         console.error(
             "=========================================="
@@ -395,6 +625,8 @@ module.exports = {
 
     verifyMailer,
 
-    transporter
+    gmail,
+
+    oauth2Client
 
 };

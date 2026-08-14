@@ -1,6 +1,6 @@
 // ==========================================================
 // MIARCUS EMAIL SERVICE
-// Gmail SMTP / Nodemailer
+// Gmail API / OAuth2
 // ==========================================================
 
 const mailer = require("../config/mailer");
@@ -42,41 +42,25 @@ const resetPassword = require(
 );
 
 // ==========================================================
-// COMMON SENDER
+// EMAIL CONFIGURATION
+// ==========================================================
+//
+// Gmail OAuth2 is handled inside:
+// ../config/mailer.js
+//
+// EMAIL_FROM is the Gmail account that sends the emails.
+//
+// Example:
+// EMAIL_FROM=nayaksatyajit372@gmail.com
+//
 // ==========================================================
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM ||
-    process.env.EMAIL_USER ||
-    ""
+    process.env.EMAIL_FROM || ""
 ).trim();
 
 // ==========================================================
-// EMAIL CONFIGURATION VALIDATION
-// ==========================================================
-
-if (!EMAIL_FROM) {
-
-    console.error(
-        "=================================================="
-    );
-
-    console.error(
-        "❌ EMAIL_FROM / EMAIL_USER IS NOT CONFIGURED"
-    );
-
-    console.error(
-        "Email sending will not work."
-    );
-
-    console.error(
-        "=================================================="
-    );
-
-}
-
-// ==========================================================
-// COMMON USER EMAIL VALIDATION
+// COMMON VALIDATION
 // ==========================================================
 
 const validateUserEmail = (user) => {
@@ -97,13 +81,14 @@ const validateUserEmail = (user) => {
 
     }
 
-    const email =
-        String(user.email).trim();
+    const email = String(
+        user.email
+    ).trim();
 
     if (!email) {
 
         throw new Error(
-            "User email is empty."
+            "User email is required."
         );
 
     }
@@ -111,7 +96,14 @@ const validateUserEmail = (user) => {
 };
 
 // ==========================================================
-// COMMON SEND FUNCTION
+// COMMON EMAIL SEND FUNCTION
+// ==========================================================
+//
+// Every Miarcus email goes through this function.
+//
+// Gmail OAuth2 authentication is handled by:
+// server/config/mailer.js
+//
 // ==========================================================
 
 const sendEmail = async ({
@@ -121,9 +113,9 @@ const sendEmail = async ({
     text
 }) => {
 
-    // ======================================================
-    // VALIDATE RECIPIENT
-    // ======================================================
+    // ------------------------------------------------------
+    // Validate recipient
+    // ------------------------------------------------------
 
     if (!to) {
 
@@ -133,9 +125,9 @@ const sendEmail = async ({
 
     }
 
-    // ======================================================
-    // VALIDATE SUBJECT
-    // ======================================================
+    // ------------------------------------------------------
+    // Validate subject
+    // ------------------------------------------------------
 
     if (!subject) {
 
@@ -145,9 +137,9 @@ const sendEmail = async ({
 
     }
 
-    // ======================================================
-    // VALIDATE CONTENT
-    // ======================================================
+    // ------------------------------------------------------
+    // Validate content
+    // ------------------------------------------------------
 
     if (!html && !text) {
 
@@ -157,26 +149,22 @@ const sendEmail = async ({
 
     }
 
-    // ======================================================
-    // VALIDATE SENDER
-    // ======================================================
+    // ------------------------------------------------------
+    // Validate sender
+    // ------------------------------------------------------
 
     if (!EMAIL_FROM) {
 
         throw new Error(
-            "EMAIL_FROM or EMAIL_USER is not configured."
+            "EMAIL_FROM is not configured."
         );
 
     }
 
-    // ======================================================
-    // SEND EMAIL
-    // ======================================================
-
     try {
 
         console.log(
-            "=================================================="
+            "=========================================="
         );
 
         console.log(
@@ -184,7 +172,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "Sending email using Gmail SMTP..."
+            "Authentication: Gmail OAuth2"
         );
 
         console.log(
@@ -203,39 +191,42 @@ const sendEmail = async ({
         );
 
         console.log(
-            "=================================================="
+            "=========================================="
         );
 
-        const result =
-            await mailer.sendMail({
+        // --------------------------------------------------
+        // SEND THROUGH GMAIL OAUTH2 MAILER
+        // --------------------------------------------------
 
-                from:
-                    EMAIL_FROM,
+        const result = await mailer.sendMail({
 
+            from:
+                EMAIL_FROM,
+
+            to:
                 to,
 
+            subject:
                 subject,
 
+            html:
                 html,
 
-                ...(text
-                    ? {
-                        text
-                    }
-                    : {})
+            text:
+                text
 
-            });
+        });
 
-        // ==================================================
-        // SUCCESS
-        // ==================================================
+        // --------------------------------------------------
+        // SUCCESS LOG
+        // --------------------------------------------------
 
         console.log(
-            "=================================================="
+            "=========================================="
         );
 
         console.log(
-            "✅ EMAIL SENT SUCCESSFULLY"
+            "✅ MIARCUS EMAIL SENT SUCCESSFULLY"
         );
 
         console.log(
@@ -255,24 +246,13 @@ const sendEmail = async ({
 
         console.log(
             "Message ID:",
+            result?.id ||
             result?.messageId ||
             "N/A"
         );
 
         console.log(
-            "Accepted:",
-            result?.accepted ||
-            []
-        );
-
-        console.log(
-            "Rejected:",
-            result?.rejected ||
-            []
-        );
-
-        console.log(
-            "=================================================="
+            "=========================================="
         );
 
         return result;
@@ -280,16 +260,16 @@ const sendEmail = async ({
     }
     catch (error) {
 
-        // ==================================================
+        // --------------------------------------------------
         // EMAIL ERROR
-        // ==================================================
+        // --------------------------------------------------
 
         console.error(
-            "=================================================="
+            "=========================================="
         );
 
         console.error(
-            "❌ EMAIL SEND FAILED"
+            "❌ MIARCUS EMAIL SEND FAILED"
         );
 
         console.error(
@@ -314,38 +294,34 @@ const sendEmail = async ({
         );
 
         console.error(
-            "Command:",
-            error?.command ||
+            "Status:",
+            error?.response?.status ||
+            error?.statusCode ||
             "N/A"
         );
 
         console.error(
-            "Response Code:",
-            error?.responseCode ||
-            "N/A"
-        );
-
-        console.error(
-            "Response:",
-            error?.response ||
-            "N/A"
-        );
-
-        console.error(
-            "Message:",
+            "Error Message:",
             error?.message ||
             error
         );
 
-        console.error(
-            "=================================================="
-        );
+        if (error?.response?.data) {
 
-        // ==================================================
-        // IMPORTANT
-        // Re-throw the error so the controller knows that
-        // the email failed.
-        // ==================================================
+            console.error(
+                "Google API Response:",
+                JSON.stringify(
+                    error.response.data,
+                    null,
+                    2
+                )
+            );
+
+        }
+
+        console.error(
+            "=========================================="
+        );
 
         throw error;
 
@@ -355,6 +331,11 @@ const sendEmail = async ({
 
 // ==========================================================
 // USER INVITATION
+// ==========================================================
+//
+// Used when a new user is created and an invitation
+// activation link needs to be sent.
+//
 // ==========================================================
 
 const sendInvitationEmail = async (
@@ -579,7 +560,18 @@ const sendResetPasswordEmail = async (
 
 // ==========================================================
 // GENERIC EMAIL
-// Used by Announcements and future modules
+// ==========================================================
+//
+// Useful for announcements and future modules.
+//
+// Example:
+//
+// await sendGenericEmail({
+//     to: "user@gmail.com",
+//     subject: "Announcement",
+//     html: "<h1>Hello</h1>"
+// });
+//
 // ==========================================================
 
 const sendGenericEmail = async ({
@@ -609,15 +601,15 @@ const sendGenericEmail = async ({
 
 module.exports = {
 
-    // ======================================================
-    // USER INVITATION
-    // ======================================================
+    // ------------------------------------------------------
+    // User invitation
+    // ------------------------------------------------------
 
     sendInvitationEmail,
 
-    // ======================================================
-    // USER ACCOUNT LIFECYCLE
-    // ======================================================
+    // ------------------------------------------------------
+    // User account lifecycle
+    // ------------------------------------------------------
 
     sendAccountUpdatedEmail,
 
@@ -629,17 +621,17 @@ module.exports = {
 
     sendAccountDeletedEmail,
 
-    // ======================================================
-    // PASSWORD
-    // ======================================================
+    // ------------------------------------------------------
+    // Password
+    // ------------------------------------------------------
 
     sendForgotPasswordOTPEmail,
 
     sendResetPasswordEmail,
 
-    // ======================================================
-    // GENERIC / ANNOUNCEMENTS
-    // ======================================================
+    // ------------------------------------------------------
+    // Generic email
+    // ------------------------------------------------------
 
     sendGenericEmail
 
