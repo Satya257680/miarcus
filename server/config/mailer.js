@@ -1,41 +1,45 @@
 // ======================================================
 // MIARCUS MAILER
-// Resend Email API
+// Gmail SMTP / Nodemailer
 // ======================================================
 
 require("dotenv").config();
 
-const { Resend } = require("resend");
-
+const nodemailer = require("nodemailer");
 
 // ======================================================
-// ENVIRONMENT
+// ENVIRONMENT VARIABLES
 // ======================================================
 
-const RESEND_API_KEY = String(
-    process.env.RESEND_API_KEY || ""
+const EMAIL_USER = String(
+    process.env.EMAIL_USER || ""
+).trim();
+
+const EMAIL_PASS = String(
+    process.env.EMAIL_PASS || ""
 ).trim();
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM || ""
+    process.env.EMAIL_FROM ||
+    EMAIL_USER
 ).trim();
-
-const FRONTEND_URL = String(
-    process.env.FRONTEND_URL ||
-    "http://localhost:5173"
-)
-    .trim()
-    .replace(/\/$/, "");
-
 
 // ======================================================
 // STARTUP VALIDATION
 // ======================================================
 
-if (!RESEND_API_KEY) {
+if (!EMAIL_USER) {
 
     console.warn(
-        "⚠️ RESEND_API_KEY is not configured."
+        "⚠️ EMAIL_USER is not configured."
+    );
+
+}
+
+if (!EMAIL_PASS) {
+
+    console.warn(
+        "⚠️ EMAIL_PASS is not configured."
     );
 
 }
@@ -48,62 +52,58 @@ if (!EMAIL_FROM) {
 
 }
 
-
 // ======================================================
-// RESEND CLIENT
-// ======================================================
-
-const resend = RESEND_API_KEY
-    ? new Resend(RESEND_API_KEY)
-    : null;
-
-
-// ======================================================
-// HTML ESCAPE
+// GMAIL SMTP TRANSPORTER
 // ======================================================
 
-function escapeHtml(value = "") {
+const transporter = nodemailer.createTransport({
 
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    host: "smtp.gmail.com",
 
-}
+    port: 587,
 
+    secure: false,
+
+    auth: {
+
+        user: EMAIL_USER,
+
+        pass: EMAIL_PASS
+
+    },
+
+    requireTLS: true,
+
+    tls: {
+
+        minVersion: "TLSv1.2",
+
+        rejectUnauthorized: false
+
+    }
+
+});
 
 // ======================================================
-// VERIFY MAILER
+// VERIFY SMTP CONNECTION
 // ======================================================
 
-async function verifyMailer() {
+const verifyMailer = async () => {
 
-    if (!RESEND_API_KEY) {
+    if (!EMAIL_USER) {
 
-        console.warn(
-            "⚠️ Resend verification skipped."
+        console.error(
+            "❌ Gmail SMTP verification failed: EMAIL_USER missing."
         );
 
         return false;
 
     }
 
-    if (!EMAIL_FROM) {
+    if (!EMAIL_PASS) {
 
-        console.warn(
-            "⚠️ Resend verification skipped because EMAIL_FROM is missing."
-        );
-
-        return false;
-
-    }
-
-    if (!resend) {
-
-        console.warn(
-            "⚠️ Resend client is not initialized."
+        console.error(
+            "❌ Gmail SMTP verification failed: EMAIL_PASS missing."
         );
 
         return false;
@@ -112,12 +112,19 @@ async function verifyMailer() {
 
     try {
 
+        await transporter.verify();
+
         console.log(
             "=========================================="
         );
 
         console.log(
-            "✅ Resend Mailer Ready"
+            "✅ Gmail SMTP connection successful"
+        );
+
+        console.log(
+            "📧 SMTP User:",
+            EMAIL_USER
         );
 
         console.log(
@@ -131,10 +138,15 @@ async function verifyMailer() {
 
         return true;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
-            "❌ Resend Mailer Error"
+            "=========================================="
+        );
+
+        console.error(
+            "❌ Gmail SMTP connection failed"
         );
 
         console.error(
@@ -143,71 +155,57 @@ async function verifyMailer() {
         );
 
         console.error(
+            "Command:",
+            error?.command || "N/A"
+        );
+
+        console.error(
             "Message:",
             error?.message || error
+        );
+
+        console.error(
+            "=========================================="
         );
 
         return false;
 
     }
 
-}
-
+};
 
 // ======================================================
 // SEND MAIL
 // ======================================================
 
-async function sendMail(options = {}) {
+const sendMail = async (options = {}) => {
 
     // --------------------------------------------------
-    // RESEND CONFIGURATION
+    // CHECK EMAIL USER
     // --------------------------------------------------
 
-    if (!resend) {
+    if (!EMAIL_USER) {
 
-        const error = new Error(
-            "Resend is not configured. Missing RESEND_API_KEY."
+        throw new Error(
+            "EMAIL_USER is not configured."
         );
-
-        console.error(
-            "❌ Email Send Failed"
-        );
-
-        console.error(
-            error.message
-        );
-
-        throw error;
 
     }
 
-
     // --------------------------------------------------
-    // SENDER
+    // CHECK EMAIL PASSWORD
     // --------------------------------------------------
 
-    if (!EMAIL_FROM) {
+    if (!EMAIL_PASS) {
 
-        const error = new Error(
-            "EMAIL_FROM is not configured."
+        throw new Error(
+            "EMAIL_PASS is not configured."
         );
-
-        console.error(
-            "❌ Email Send Failed"
-        );
-
-        console.error(
-            error.message
-        );
-
-        throw error;
 
     }
 
-
     // --------------------------------------------------
-    // RECIPIENT
+    // CHECK RECIPIENT
     // --------------------------------------------------
 
     if (!options.to) {
@@ -218,9 +216,8 @@ async function sendMail(options = {}) {
 
     }
 
-
     // --------------------------------------------------
-    // SUBJECT
+    // CHECK SUBJECT
     // --------------------------------------------------
 
     if (!options.subject) {
@@ -231,85 +228,35 @@ async function sendMail(options = {}) {
 
     }
 
-
     // --------------------------------------------------
-    // CONTENT
-    // --------------------------------------------------
-
-    if (!options.html && !options.text) {
-
-        throw new Error(
-            "Email content is required."
-        );
-
-    }
-
-
-    // --------------------------------------------------
-    // NORMALIZE RECIPIENT
+    // EMAIL DATA
     // --------------------------------------------------
 
-    let recipients = options.to;
+    const mailOptions = {
 
-    if (Array.isArray(recipients)) {
+        from: EMAIL_FROM,
 
-        recipients = recipients
-            .map(email =>
-                String(email).trim()
-            )
-            .filter(Boolean);
+        to: options.to,
 
-        if (!recipients.length) {
+        subject: options.subject,
 
-            throw new Error(
-                "At least one valid recipient email is required."
-            );
+        html: options.html || undefined,
 
-        }
+        text: options.text || undefined,
 
-    } else {
+        cc: options.cc || undefined,
 
-        recipients =
-            String(recipients).trim();
+        bcc: options.bcc || undefined,
 
-    }
+        replyTo: options.replyTo || undefined,
 
-
-    // --------------------------------------------------
-    // PREPARE EMAIL
-    // --------------------------------------------------
-
-    const emailData = {
-
-        from:
-            options.from ||
-            `"miarcus" <${EMAIL_FROM}>`,
-
-        to:
-            recipients,
-
-        subject:
-            String(options.subject).trim(),
-
-        ...(options.html
-            ? {
-                html:
-                    options.html
-            }
-            : {}),
-
-        ...(options.text
-            ? {
-                text:
-                    options.text
-            }
-            : {})
+        attachments:
+            options.attachments || undefined
 
     };
 
-
     // --------------------------------------------------
-    // SEND USING RESEND
+    // SEND EMAIL
     // --------------------------------------------------
 
     try {
@@ -319,131 +266,84 @@ async function sendMail(options = {}) {
         );
 
         console.log(
-            "📧 Sending email through Resend..."
+            "📧 Sending email..."
         );
 
         console.log(
-            "📧 To:",
-            recipients
+            "From:",
+            EMAIL_FROM
         );
 
         console.log(
-            "📧 Subject:",
+            "To:",
+            options.to
+        );
+
+        console.log(
+            "Subject:",
             options.subject
         );
 
-        console.log(
-            "📧 From:",
-            emailData.from
-        );
-
-
-        const {
-            data,
-            error
-        } = await resend.emails.send(
-            emailData
-        );
-
-
-        // ------------------------------------------------
-        // RESEND ERROR
-        // ------------------------------------------------
-
-        if (error) {
-
-            console.error(
-                "❌ Resend Email Error"
+        const result =
+            await transporter.sendMail(
+                mailOptions
             );
 
-            console.error(
-                "Error:",
-                error
-            );
-
-            const resendError =
-                new Error(
-                    error.message ||
-                    "Resend failed to send the email."
-                );
-
-            resendError.code =
-                error.name ||
-                "RESEND_ERROR";
-
-            resendError.resendError =
-                error;
-
-            throw resendError;
-
-        }
-
-
-        // ------------------------------------------------
-        // SUCCESS
-        // ------------------------------------------------
-
         console.log(
-            "✅ Email Sent Successfully"
+            "✅ Email sent successfully"
         );
 
         console.log(
-            "📧 Message ID:",
-            data?.id || "N/A"
+            "Message ID:",
+            result.messageId
+        );
+
+        console.log(
+            "Accepted:",
+            result.accepted
+        );
+
+        console.log(
+            "Rejected:",
+            result.rejected
         );
 
         console.log(
             "=========================================="
         );
 
+        return result;
 
-        return {
-
-            ...(data || {}),
-
-            messageId:
-                data?.id || null
-
-        };
-
-    } catch (error) {
+    }
+    catch (error) {
 
         console.error(
             "=========================================="
         );
 
         console.error(
-            "❌ EMAIL SEND FAILED"
+            "❌ Email sending failed"
         );
 
         console.error(
-            "📧 To:",
-            recipients
-        );
-
-        console.error(
-            "📧 Subject:",
-            options.subject
-        );
-
-        console.error(
-            "❌ Code:",
+            "Code:",
             error?.code || "N/A"
         );
 
         console.error(
-            "❌ Message:",
-            error?.message || error
+            "Command:",
+            error?.command || "N/A"
         );
 
-        if (error?.resendError) {
+        console.error(
+            "Response:",
+            error?.response || "N/A"
+        );
 
-            console.error(
-                "❌ Resend Response:",
-                error.resendError
-            );
-
-        }
+        console.error(
+            "Message:",
+            error?.message || error
+        );
 
         console.error(
             "=========================================="
@@ -453,661 +353,13 @@ async function sendMail(options = {}) {
 
     }
 
-}
-
+};
 
 // ======================================================
-// PASSWORD RESET OTP
+// VERIFY ON SERVER START
 // ======================================================
 
-async function sendPasswordResetOTP(
-    email,
-    otp
-) {
-
-    if (!email) {
-
-        throw new Error(
-            "Recipient email is required."
-        );
-
-    }
-
-    if (!otp) {
-
-        throw new Error(
-            "OTP is required."
-        );
-
-    }
-
-
-    const safeOtp =
-        escapeHtml(otp);
-
-
-    const html = `
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Miarcus Password Reset
-    </title>
-
-</head>
-
-
-<body
-    style="
-        margin:0;
-        padding:0;
-        background:#edf3f5;
-        font-family:Arial,Helvetica,sans-serif;
-    "
->
-
-    <div
-        style="
-            max-width:600px;
-            margin:40px auto;
-            background:#ffffff;
-            border-radius:14px;
-            overflow:hidden;
-            box-shadow:0 8px 30px rgba(0,0,0,0.08);
-        "
-    >
-
-        <!-- HEADER -->
-
-        <div
-            style="
-                background:#3f6b78;
-                padding:28px 20px;
-                text-align:center;
-            "
-        >
-
-            <h1
-                style="
-                    margin:0;
-                    color:#ffffff;
-                    font-size:28px;
-                    font-weight:700;
-                "
-            >
-                miarcus
-            </h1>
-
-            <p
-                style="
-                    margin:8px 0 0;
-                    color:#e8f1f3;
-                    font-size:14px;
-                "
-            >
-                ERP Management System
-            </p>
-
-        </div>
-
-
-        <!-- CONTENT -->
-
-        <div
-            style="
-                padding:35px 30px;
-            "
-        >
-
-            <h2
-                style="
-                    margin:0 0 15px;
-                    color:#3f6b78;
-                    font-size:24px;
-                "
-            >
-                Password Reset
-            </h2>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                We received a request to reset the
-                password for your miarcus account.
-            </p>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Your verification OTP is:
-            </p>
-
-
-            <!-- OTP -->
-
-            <div
-                style="
-                    text-align:center;
-                    margin:30px 0;
-                "
-            >
-
-                <span
-                    style="
-                        display:inline-block;
-                        font-size:32px;
-                        font-weight:bold;
-                        letter-spacing:8px;
-                        background:#edf3f5;
-                        padding:18px 28px;
-                        border-radius:10px;
-                        color:#3f6b78;
-                    "
-                >
-                    ${safeOtp}
-                </span>
-
-            </div>
-
-
-            <p
-                style="
-                    color:#777777;
-                    font-size:14px;
-                    line-height:1.6;
-                "
-            >
-                Please enter this OTP on the miarcus
-                password reset page to continue.
-            </p>
-
-
-            <p
-                style="
-                    color:#777777;
-                    font-size:14px;
-                    line-height:1.6;
-                "
-            >
-                If you did not request a password reset,
-                you can safely ignore this email.
-            </p>
-
-        </div>
-
-
-        <!-- FOOTER -->
-
-        <div
-            style="
-                border-top:1px solid #eeeeee;
-                padding:20px;
-                text-align:center;
-            "
-        >
-
-            <p
-                style="
-                    margin:0;
-                    color:#999999;
-                    font-size:12px;
-                "
-            >
-                © 2026 Miarcus.
-                All rights reserved.
-            </p>
-
-        </div>
-
-    </div>
-
-</body>
-
-</html>
-
-`;
-
-
-    return sendMail({
-
-        to:
-            email,
-
-        subject:
-            "Miarcus ERP Password Reset OTP",
-
-        html:
-            html,
-
-        text:
-            `Your Miarcus password reset OTP is ${otp}. Please enter this OTP on the password reset page.`
-
-    });
-
-}
-
-
-// ======================================================
-// ACCOUNT ACTIVATED
-// ======================================================
-
-async function sendAccountActivatedEmail(
-    user
-) {
-
-    if (
-        !user ||
-        !user.email
-    ) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
-
-    const name =
-        user.fullName ||
-        user.name ||
-        "User";
-
-
-    const safeName =
-        escapeHtml(name);
-
-
-    const html = `
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Account Activated
-    </title>
-
-</head>
-
-
-<body
-    style="
-        margin:0;
-        padding:0;
-        background:#edf3f5;
-        font-family:Arial,Helvetica,sans-serif;
-    "
->
-
-    <div
-        style="
-            max-width:600px;
-            margin:40px auto;
-            background:#ffffff;
-            border-radius:14px;
-            overflow:hidden;
-        "
-    >
-
-        <div
-            style="
-                background:#3f6b78;
-                padding:28px;
-                text-align:center;
-            "
-        >
-
-            <h1
-                style="
-                    margin:0;
-                    color:#ffffff;
-                    font-size:28px;
-                "
-            >
-                miarcus
-            </h1>
-
-        </div>
-
-
-        <div
-            style="
-                padding:35px 30px;
-            "
-        >
-
-            <h2
-                style="
-                    color:#3f6b78;
-                    margin-top:0;
-                "
-            >
-                Account Activated
-            </h2>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Hello ${safeName},
-            </p>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Your miarcus account has been
-                successfully activated.
-            </p>
-
-
-            <div
-                style="
-                    text-align:center;
-                    margin:30px 0;
-                "
-            >
-
-                <a
-                    href="${FRONTEND_URL}/"
-                    style="
-                        display:inline-block;
-                        background:#3f6b78;
-                        color:#ffffff;
-                        padding:14px 28px;
-                        text-decoration:none;
-                        border-radius:7px;
-                        font-weight:bold;
-                    "
-                >
-                    Login to miarcus
-                </a>
-
-            </div>
-
-        </div>
-
-
-        <div
-            style="
-                border-top:1px solid #eeeeee;
-                padding:20px;
-                text-align:center;
-            "
-        >
-
-            <p
-                style="
-                    margin:0;
-                    color:#999999;
-                    font-size:12px;
-                "
-            >
-                © 2026 Miarcus.
-                All rights reserved.
-            </p>
-
-        </div>
-
-    </div>
-
-</body>
-
-</html>
-
-`;
-
-
-    return sendMail({
-
-        to:
-            user.email,
-
-        subject:
-            "miarcus - Account Activated",
-
-        html:
-            html,
-
-        text:
-            `Hello ${name}, your miarcus account has been successfully activated. Login here: ${FRONTEND_URL}/`
-
-    });
-
-}
-
-
-// ======================================================
-// ACCOUNT DEACTIVATED
-// ======================================================
-
-async function sendAccountDeactivatedEmail(
-    user
-) {
-
-    if (
-        !user ||
-        !user.email
-    ) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
-
-    const name =
-        user.fullName ||
-        user.name ||
-        "User";
-
-
-    const safeName =
-        escapeHtml(name);
-
-
-    const html = `
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Account Deactivated
-    </title>
-
-</head>
-
-
-<body
-    style="
-        margin:0;
-        padding:0;
-        background:#edf3f5;
-        font-family:Arial,Helvetica,sans-serif;
-    "
->
-
-    <div
-        style="
-            max-width:600px;
-            margin:40px auto;
-            background:#ffffff;
-            border-radius:14px;
-            overflow:hidden;
-        "
-    >
-
-        <div
-            style="
-                background:#3f6b78;
-                padding:28px;
-                text-align:center;
-            "
-        >
-
-            <h1
-                style="
-                    margin:0;
-                    color:#ffffff;
-                    font-size:28px;
-                "
-            >
-                miarcus
-            </h1>
-
-        </div>
-
-
-        <div
-            style="
-                padding:35px 30px;
-            "
-        >
-
-            <h2
-                style="
-                    color:#3f6b78;
-                    margin-top:0;
-                "
-            >
-                Account Deactivated
-            </h2>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Hello ${safeName},
-            </p>
-
-
-            <p
-                style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.7;
-                "
-            >
-                Your miarcus account has been
-                deactivated.
-            </p>
-
-
-            <p
-                style="
-                    color:#777777;
-                    font-size:14px;
-                    line-height:1.7;
-                "
-            >
-                If you believe this was done in error,
-                please contact your system administrator.
-            </p>
-
-        </div>
-
-
-        <div
-            style="
-                border-top:1px solid #eeeeee;
-                padding:20px;
-                text-align:center;
-            "
-        >
-
-            <p
-                style="
-                    margin:0;
-                    color:#999999;
-                    font-size:12px;
-                "
-            >
-                © 2026 Miarcus.
-                All rights reserved.
-            </p>
-
-        </div>
-
-    </div>
-
-</body>
-
-</html>
-
-`;
-
-
-    return sendMail({
-
-        to:
-            user.email,
-
-        subject:
-            "miarcus - Account Deactivated",
-
-        html:
-            html,
-
-        text:
-            `Hello ${name}, your miarcus account has been deactivated. If you believe this was done in error, please contact your system administrator.`
-
-    });
-
-}
-
+verifyMailer();
 
 // ======================================================
 // EXPORT
@@ -1115,16 +367,10 @@ async function sendAccountDeactivatedEmail(
 
 module.exports = {
 
-    resend,
+    sendMail,
 
     verifyMailer,
 
-    sendMail,
-
-    sendPasswordResetOTP,
-
-    sendAccountActivatedEmail,
-
-    sendAccountDeactivatedEmail
+    transporter
 
 };

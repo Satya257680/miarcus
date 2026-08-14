@@ -1,8 +1,13 @@
+// ==========================================================
+// MIARCUS EMAIL SERVICE
+// Gmail SMTP / Nodemailer
+// ==========================================================
+
 const mailer = require("../config/mailer");
 
-// ======================================================
+// ==========================================================
 // EMAIL TEMPLATES
-// ======================================================
+// ==========================================================
 
 const invitationEmail = require(
     "../utils/emailTemplates/invitationEmail"
@@ -36,278 +41,21 @@ const resetPassword = require(
     "../utils/emailTemplates/resetPassword"
 );
 
-
-// ======================================================
-// EMAIL CONFIGURATION
-// ======================================================
+// ==========================================================
+// COMMON SENDER
+// ==========================================================
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM || ""
+    process.env.EMAIL_FROM ||
+    process.env.EMAIL_USER ||
+    ""
 ).trim();
 
-
-// ======================================================
-// COMMON EMAIL SENDER
-// ======================================================
-
-const sendEmail = async ({
-    to,
-    subject,
-    html
-}) => {
-
-    // --------------------------------------------------
-    // Validate recipient
-    // --------------------------------------------------
-
-    if (!to) {
-
-        throw new Error(
-            "Recipient email address is required."
-        );
-
-    }
-
-
-    // --------------------------------------------------
-    // Validate sender
-    // --------------------------------------------------
-
-    if (!EMAIL_FROM) {
-
-        throw new Error(
-            "EMAIL_FROM environment variable is not configured."
-        );
-
-    }
-
-
-    // --------------------------------------------------
-    // Validate content
-    // --------------------------------------------------
-
-    if (!html) {
-
-        throw new Error(
-            "Email HTML content is required."
-        );
-
-    }
-
-
-    try {
-
-        console.log(
-            "------------------------------------------"
-        );
-
-        console.log(
-            "📧 Sending MIARCUS email"
-        );
-
-        console.log(
-            "📧 From:",
-            EMAIL_FROM
-        );
-
-        console.log(
-            "📧 To:",
-            to
-        );
-
-        console.log(
-            "📧 Subject:",
-            subject
-        );
-
-
-        // ------------------------------------------------
-        // Send through central mailer
-        // ------------------------------------------------
-
-        const result = await mailer.sendMail({
-
-            from: EMAIL_FROM,
-
-            to: String(to).trim(),
-
-            subject: String(subject || "").trim(),
-
-            html
-
-        });
-
-
-        // ------------------------------------------------
-        // Success
-        // ------------------------------------------------
-
-        console.log(
-            "✅ MIARCUS email sent successfully"
-        );
-
-        if (result?.messageId) {
-
-            console.log(
-                "📧 Message ID:",
-                result.messageId
-            );
-
-        }
-
-        if (result?.id) {
-
-            console.log(
-                "📧 Email ID:",
-                result.id
-            );
-
-        }
-
-        console.log(
-            "------------------------------------------"
-        );
-
-
-        return result;
-
-    }
-    catch (error) {
-
-        // ------------------------------------------------
-        // Detailed error logging
-        // ------------------------------------------------
-
-        console.error(
-            "------------------------------------------"
-        );
-
-        console.error(
-            "❌ MIARCUS EMAIL FAILED"
-        );
-
-        console.error(
-            "❌ From:",
-            EMAIL_FROM
-        );
-
-        console.error(
-            "❌ To:",
-            to
-        );
-
-        console.error(
-            "❌ Subject:",
-            subject
-        );
-
-        console.error(
-            "❌ Error:",
-            error?.message || error
-        );
-
-        if (error?.code) {
-
-            console.error(
-                "❌ Error Code:",
-                error.code
-            );
-
-        }
-
-        if (error?.statusCode) {
-
-            console.error(
-                "❌ Status Code:",
-                error.statusCode
-            );
-
-        }
-
-        if (error?.response) {
-
-            console.error(
-                "❌ Response:",
-                error.response
-            );
-
-        }
-
-        console.error(
-            "------------------------------------------"
-        );
-
-
-        // ------------------------------------------------
-        // Re-throw so controller can handle it
-        // ------------------------------------------------
-
-        throw error;
-
-    }
-
-};
-
-
-// ======================================================
-// INVITATION EMAIL
-// ======================================================
-
-const sendInvitationEmail = async (
-    user,
-    activationLink
-) => {
-
-    if (!user) {
-
-        throw new Error(
-            "User information is required for invitation email."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required for invitation email."
-        );
-
-    }
-
-
-    if (!activationLink) {
-
-        throw new Error(
-            "Activation link is required for invitation email."
-        );
-
-    }
-
-
-    return sendEmail({
-
-        to: user.email,
-
-        subject: "Welcome to miarcus",
-
-        html: invitationEmail(
-            user,
-            activationLink
-        )
-
-    });
-
-};
-
-
-// ======================================================
-// ACCOUNT UPDATED EMAIL
-// ======================================================
-
-const sendAccountUpdatedEmail = async (
-    user
-) => {
+// ==========================================================
+// COMMON VALIDATION
+// ==========================================================
+
+const validateUserEmail = (user) => {
 
     if (!user) {
 
@@ -317,7 +65,6 @@ const sendAccountUpdatedEmail = async (
 
     }
 
-
     if (!user.email) {
 
         throw new Error(
@@ -326,6 +73,169 @@ const sendAccountUpdatedEmail = async (
 
     }
 
+};
+
+// ==========================================================
+// COMMON SEND FUNCTION
+// ==========================================================
+
+const sendEmail = async ({
+    to,
+    subject,
+    html,
+    text
+}) => {
+
+    if (!to) {
+
+        throw new Error(
+            "Recipient email is required."
+        );
+
+    }
+
+    if (!subject) {
+
+        throw new Error(
+            "Email subject is required."
+        );
+
+    }
+
+    if (!html && !text) {
+
+        throw new Error(
+            "Email content is required."
+        );
+
+    }
+
+    try {
+
+        const result = await mailer.sendMail({
+
+            from: EMAIL_FROM,
+
+            to,
+
+            subject,
+
+            html,
+
+            text
+
+        });
+
+        console.log(
+            "=========================================="
+        );
+
+        console.log(
+            "EMAIL SENT SUCCESSFULLY"
+        );
+
+        console.log(
+            "To:",
+            to
+        );
+
+        console.log(
+            "Subject:",
+            subject
+        );
+
+        console.log(
+            "Message ID:",
+            result?.messageId || "N/A"
+        );
+
+        console.log(
+            "=========================================="
+        );
+
+        return result;
+
+    }
+    catch (error) {
+
+        console.error(
+            "=========================================="
+        );
+
+        console.error(
+            "EMAIL SEND FAILED"
+        );
+
+        console.error(
+            "To:",
+            to
+        );
+
+        console.error(
+            "Subject:",
+            subject
+        );
+
+        console.error(
+            "Error:",
+            error?.message || error
+        );
+
+        console.error(
+            "=========================================="
+        );
+
+        throw error;
+
+    }
+
+};
+
+// ==========================================================
+// USER INVITATION
+// ==========================================================
+
+const sendInvitationEmail = async (
+    user,
+    activationLink
+) => {
+
+    validateUserEmail(user);
+
+    if (!activationLink) {
+
+        throw new Error(
+            "Activation link is required."
+        );
+
+    }
+
+    return sendEmail({
+
+        to: user.email,
+
+        subject:
+            "Welcome to miarcus",
+
+        html:
+            invitationEmail(
+                user,
+                activationLink
+            )
+
+    });
+
+};
+
+// ==========================================================
+// ACCOUNT UPDATED
+// ==========================================================
+
+const sendAccountUpdatedEmail = async (
+    user
+) => {
+
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -341,32 +251,15 @@ const sendAccountUpdatedEmail = async (
 
 };
 
-
-// ======================================================
-// ACCOUNT ACTIVATED EMAIL
-// ======================================================
+// ==========================================================
+// ACCOUNT ACTIVATED
+// ==========================================================
 
 const sendAccountActivatedEmail = async (
     user
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -382,32 +275,15 @@ const sendAccountActivatedEmail = async (
 
 };
 
-
-// ======================================================
-// ACCOUNT DISABLED EMAIL
-// ======================================================
+// ==========================================================
+// ACCOUNT DISABLED
+// ==========================================================
 
 const sendAccountDisabledEmail = async (
     user
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -423,32 +299,15 @@ const sendAccountDisabledEmail = async (
 
 };
 
-
-// ======================================================
-// ACCOUNT ENABLED EMAIL
-// ======================================================
+// ==========================================================
+// ACCOUNT ENABLED
+// ==========================================================
 
 const sendAccountEnabledEmail = async (
     user
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -464,32 +323,15 @@ const sendAccountEnabledEmail = async (
 
 };
 
-
-// ======================================================
-// ACCOUNT DELETED EMAIL
-// ======================================================
+// ==========================================================
+// ACCOUNT DELETED
+// ==========================================================
 
 const sendAccountDeletedEmail = async (
     user
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -505,33 +347,16 @@ const sendAccountDeletedEmail = async (
 
 };
 
-
-// ======================================================
-// FORGOT PASSWORD OTP EMAIL
-// ======================================================
+// ==========================================================
+// FORGOT PASSWORD OTP
+// ==========================================================
 
 const sendForgotPasswordOTPEmail = async (
     user,
     otp
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required for OTP email."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required for OTP email."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     if (!otp) {
 
@@ -540,7 +365,6 @@ const sendForgotPasswordOTPEmail = async (
         );
 
     }
-
 
     return sendEmail({
 
@@ -559,32 +383,15 @@ const sendForgotPasswordOTPEmail = async (
 
 };
 
-
-// ======================================================
-// PASSWORD RESET CONFIRMATION EMAIL
-// ======================================================
+// ==========================================================
+// PASSWORD RESET CONFIRMATION
+// ==========================================================
 
 const sendResetPasswordEmail = async (
     user
 ) => {
 
-    if (!user) {
-
-        throw new Error(
-            "User information is required."
-        );
-
-    }
-
-
-    if (!user.email) {
-
-        throw new Error(
-            "User email is required."
-        );
-
-    }
-
+    validateUserEmail(user);
 
     return sendEmail({
 
@@ -600,15 +407,42 @@ const sendResetPasswordEmail = async (
 
 };
 
+// ==========================================================
+// GENERIC EMAIL
+// Useful for announcements and future modules
+// ==========================================================
 
-// ======================================================
+const sendGenericEmail = async ({
+    to,
+    subject,
+    html,
+    text
+}) => {
+
+    return sendEmail({
+
+        to,
+
+        subject,
+
+        html,
+
+        text
+
+    });
+
+};
+
+// ==========================================================
 // EXPORT
-// ======================================================
+// ==========================================================
 
 module.exports = {
 
+    // User invitation
     sendInvitationEmail,
 
+    // User account lifecycle
     sendAccountUpdatedEmail,
 
     sendAccountActivatedEmail,
@@ -619,8 +453,12 @@ module.exports = {
 
     sendAccountDeletedEmail,
 
+    // Password
     sendForgotPasswordOTPEmail,
 
-    sendResetPasswordEmail
+    sendResetPasswordEmail,
+
+    // Generic email
+    sendGenericEmail
 
 };
