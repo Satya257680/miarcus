@@ -60,6 +60,15 @@ import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
 import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
 import Signup from "./pages/Signup";
 
+// ==================================================
+// QUIZ
+// ==================================================
+import QuizSetup from "./pages/Quiz/QuizSetup";
+import TakeQuiz from "./pages/Quiz/TakeQuiz";
+import TrainingReport from "./pages/Quiz/TrainingReport";
+import EmailSettings from "./pages/Quiz/EmailSettings";
+import PublicQuiz from "./pages/Quiz/PublicQuiz";
+
 function App() {
     return (
         <BrowserRouter>
@@ -97,6 +106,12 @@ function App() {
                 <Route
                     path="/activate-account/:token"
                     element={<ActivateAccount />}
+                />
+
+                {/* Public reusable Quiz link */}
+                <Route
+                    path="/quiz/:token"
+                    element={<PublicQuiz />}
                 />
 
                 {/* ==================================================
@@ -223,6 +238,30 @@ function App() {
                     <Route
                         path="/nso-tracking"
                         element={<NSOTracking />}
+                    />
+
+                    {/* ==================================================
+                        QUIZ
+                    ================================================== */}
+
+                    <Route
+                        path="/quiz/take"
+                        element={<TakeQuiz />}
+                    />
+
+                    <Route
+                        path="/quiz/setup"
+                        element={<QuizSetup />}
+                    />
+
+                    <Route
+                        path="/quiz/report"
+                        element={<TrainingReport />}
+                    />
+
+                    <Route
+                        path="/quiz/email"
+                        element={<EmailSettings />}
                     />
 
                     {/* ==================================================

@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import { useState } from "react";
 
 import {
   FaHome,
@@ -10,11 +11,19 @@ import {
   FaStore,
   FaUserCircle,
   FaBullhorn,
+  FaQuestionCircle,
+  FaEnvelope,
+  FaChartBar,
+  FaChevronDown,
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
 
 function Sidebar({ collapsed }) {
+
+  const location = useLocation();
+  const quizOpenByPath = location.pathname.startsWith("/quiz/");
+  const [quizOpen, setQuizOpen] = useState(quizOpenByPath);
 
   // ==========================================
   // RBAC
@@ -191,6 +200,45 @@ function Sidebar({ collapsed }) {
 
           </NavLink>
 
+        )}
+
+        {/* ==========================================
+            QUIZ
+        ========================================== */}
+
+        {hasPermission("Quiz") && (
+          <div className={`sidebar-group ${quizOpen || quizOpenByPath ? "open" : ""}`}>
+            <button
+              type="button"
+              className={`menu-item sidebar-group-toggle ${quizOpenByPath ? "active" : ""}`}
+              onClick={() => setQuizOpen((prev) => !prev)}
+            >
+              <FaQuestionCircle />
+              {!collapsed && <span>Quiz</span>}
+              {!collapsed && <FaChevronDown className="submenu-chevron" />}
+            </button>
+
+            {!collapsed && (quizOpen || quizOpenByPath) && (
+              <div className="sidebar-submenu">
+                <NavLink to="/quiz/take" className="menu-item submenu-item">
+                  <FaClipboardCheck />
+                  <span>Take Quiz</span>
+                </NavLink>
+                <NavLink to="/quiz/setup" className="menu-item submenu-item">
+                  <FaCog />
+                  <span>Quiz Setup</span>
+                </NavLink>
+                <NavLink to="/quiz/report" className="menu-item submenu-item">
+                  <FaChartBar />
+                  <span>Training Report</span>
+                </NavLink>
+                <NavLink to="/quiz/email" className="menu-item submenu-item">
+                  <FaEnvelope />
+                  <span>Email Setting</span>
+                </NavLink>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ==========================================

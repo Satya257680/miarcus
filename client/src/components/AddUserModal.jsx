@@ -119,24 +119,24 @@ function AddUserModal({
   // =====================================================
 
   const modules = [
-    "Dashboard",
-    "Action Points",
-    "Checklist Reports",
-    "Checklist Submit",
-    "Checklist Types",
-    "Questions",
-    "Departments",
-    "Designations",
-    "Store Management",
-    "Users",
-    "Reports To",
-    "NSO Rules",
-    "New Store Openings",
-    "Announcements",
-    "Profile",
-    "Settings",
-  ];
-
+  "Dashboard",
+  "Action Points",
+  "Quiz",
+  "Checklist Reports",
+  "Checklist Submit",
+  "Checklist Types",
+  "Questions",
+  "Departments",
+  "Designations",
+  "Store Management",
+  "Users",
+  "Reports To",
+  "NSO Rules",
+  "New Store Openings",
+  "Announcements",
+  "Profile",
+  "Settings",
+];
   const permissionTypes = [
     "None",
     "View",
