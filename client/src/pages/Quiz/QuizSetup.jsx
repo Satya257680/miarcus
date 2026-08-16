@@ -1,67 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../axiosConfig";
-
 import {
-    FaCopy,
-    FaEdit,
-    FaLink,
     FaPlus,
-    FaQuestionCircle,
-    FaSave,
+    FaEdit,
     FaTrash,
     FaTimes,
-    FaEnvelope,
-    FaPaperPlane,
     FaMagic,
     FaSearch,
+    FaLink,
+    FaSave,
     FaChevronDown,
-    FaUpload,
 } from "react-icons/fa";
-
 import "../../styles/pages/Quiz.css";
 
-/*
-|--------------------------------------------------------------------------
-| AI ENDPOINT
-|--------------------------------------------------------------------------
-|
-| Change ONLY this value if your backend uses another AI route.
-|
-| Expected request:
-|
-| POST /api/quiz/ai/generate-question
-|
-| Example body:
-|
-| {
-|   "question_text": "...",
-|   "question_type": "single_choice",
-|   "options": ["", ""],
-|   "guideline": "..."
-| }
-|
-| The response can contain:
-|
-| {
-|   question_text: "...",
-|   question_type: "single_choice",
-|   options: ["A", "B", "C", "D"],
-|   correct_answer: "A",
-|   points: 1,
-|   guideline: "..."
-| }
-|
-|--------------------------------------------------------------------------
-*/
-
-const AI_GENERATE_ENDPOINT =
-    "/api/quiz/ai/generate-question";
-
-
-/* ==========================================================================
-   EMPTY QUIZ
-========================================================================== */
+// ======================================================
+// DEFAULT QUIZ
+// ======================================================
 
 const emptyQuiz = {
     name: "",
@@ -75,15 +30,15 @@ const emptyQuiz = {
     require_email_consent: true,
 };
 
-
-/* ==========================================================================
-   EMPTY QUESTION
-========================================================================== */
+// ======================================================
+// DEFAULT QUESTION
+// ======================================================
 
 const emptyQuestion = {
     question_text: "",
     question_type: "single_choice",
     options: ["", ""],
+    option_scores: [0, 0],
     correct_answer: "",
     points: 1,
     is_mandatory: true,
@@ -92,159 +47,613 @@ const emptyQuestion = {
     video_url: "",
 };
 
+// ======================================================
+// QUESTION TYPE LABEL
+// ======================================================
 
-/* ==========================================================================
-   QUESTION TYPE LABEL
-========================================================================== */
-
-const questionTypeLabel = (type) => {
-    switch (type) {
-        case "single_choice":
-            return "Single Choice (Radio)";
-
-        case "multiple_choice":
-            return "Multiple Choice (Checkbox)";
-
-        case "text":
-            return "Text Input (Manual scoring in Training Report)";
-
-        case "true_false":
-            return "True / False";
-
-        default:
-            return String(type || "")
-                .replaceAll("_", " ");
+const typeLabel = (type) => {
+    if (type === "single_choice") {
+        return "Single Choice (Radio)";
     }
+
+    if (type === "multiple_choice") {
+        return "Multiple Choice (Checkbox)";
+    }
+
+    if (type === "text") {
+        return "Text Input (Manual scoring in Training Report)";
+    }
+
+    return String(type || "").replaceAll("_", " ");
 };
 
+// ======================================================
+// RESPONSE HELPER
+// ======================================================
 
-/* ==========================================================================
-   SAFE RESPONSE DATA
-========================================================================== */
+const responseData = (response) =>
+    response?.data?.data ??
+    response?.data ??
+    null;
 
-const getResponseData = (response) => {
+// ======================================================
+// NORMALIZE CORRECT ANSWER
+// ======================================================
+
+const parseStoredCorrectAnswer = (value) => {
+    if (value === null || value === undefined) return value;
+
+    let parsed = value;
+
+    // Backends commonly return JSON arrays/strings as serialized JSON.
+    // Decode them so the edit modal can restore the selected option.
+    for (let i = 0; i < 3; i += 1) {
+        if (typeof parsed !== "string") break;
+
+        const text = parsed.trim();
+        if (!text) return "";
+
+        try {
+            const next = JSON.parse(text);
+            if (next === parsed) break;
+            parsed = next;
+        } catch {
+            break;
+        }
+    }
+
+    // Support objects returned by some API/model implementations.
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        if (parsed.correct_answer !== undefined) {
+            return parseStoredCorrectAnswer(parsed.correct_answer);
+        }
+        if (parsed.answers !== undefined) {
+            return parseStoredCorrectAnswer(parsed.answers);
+        }
+        if (parsed.answer !== undefined) {
+            return parseStoredCorrectAnswer(parsed.answer);
+        }
+        if (parsed.value !== undefined) {
+            return parseStoredCorrectAnswer(parsed.value);
+        }
+    }
+
+    return parsed;
+};
+
+const getStoredCorrectAnswer = (question) => {
+    if (!question) return "";
+
+    const candidates = [
+        question.correct_answer,
+        question.correct_answer_json,
+        question.correct_answer_value,
+        question.correct_answers,
+        question.correct_options
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined) continue;
+
+        const parsed = parseStoredCorrectAnswer(candidate);
+
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+        if (!Array.isArray(parsed) && String(parsed ?? "").trim()) {
+            return parsed;
+        }
+    }
+
+    return "";
+};
+
+const normalizeCorrectAnswer = (
+    questionType,
+    correctAnswer
+) => {
+    const parsed = parseStoredCorrectAnswer(correctAnswer);
+
+    if (questionType === "multiple_choice") {
+        if (Array.isArray(parsed)) {
+            return parsed
+                .map((x) => String(x ?? "").trim())
+                .filter(Boolean);
+        }
+
+        const text = String(parsed ?? "").trim();
+        if (!text) return [];
+
+        return text
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean);
+    }
+
+    if (Array.isArray(parsed)) {
+        return String(parsed[0] ?? "").trim();
+    }
+
+    return String(parsed ?? "").trim();
+};
+
+// ======================================================
+// CASE-INSENSITIVE OPTION MATCH
+// ======================================================
+
+const optionMatchesAnswer = (
+    option,
+    answer
+) => {
+
     return (
-        response?.data?.data ??
-        response?.data ??
-        null
+        String(option || "")
+            .trim()
+            .toLowerCase() ===
+        String(answer || "")
+            .trim()
+            .toLowerCase()
     );
 };
 
+// ======================================================
+// BUILD OPTION SCORES
+//
+// IMPORTANT:
+//
+// If question points = 1
+//
+// Correct option:
+//     1
+//
+// Wrong option:
+//     0
+//
+// This prevents:
+//     correct_answer = Peacock
+//     option_scores = [0,0,0]
+//
+// which was causing 0 / 1 even when Peacock
+// was selected.
+// ======================================================
 
-/* ==========================================================================
-   COMPONENT
-========================================================================== */
+const buildOptionScores = (
+    questionType,
+    options,
+    correctAnswer,
+    points
+) => {
 
-function QuizSetup() {
+    if (
+        questionType ===
+        "text"
+    ) {
+        return [];
+    }
 
-    const navigate = useNavigate();
-
-
-    /* ======================================================================
-       STATE
-    ====================================================================== */
-
-    const [quizzes, setQuizzes] = useState([]);
-
-    const [selected, setSelected] =
-        useState(null);
-
-    const [quizForm, setQuizForm] =
-        useState(emptyQuiz);
-
-    const [questionForm, setQuestionForm] =
-        useState(emptyQuestion);
-
-    const [showQuiz, setShowQuiz] =
-        useState(false);
-
-    const [showQuestion, setShowQuestion] =
-        useState(false);
-
-    const [editingQuestion, setEditingQuestion] =
-        useState(null);
-
-    const [loading, setLoading] =
-        useState(true);
-
-    const [saving, setSaving] =
-        useState(false);
-
-    const [message, setMessage] =
-        useState("");
-
-    const [searchQuiz, setSearchQuiz] =
-        useState("");
-
-    const [searchQuestion, setSearchQuestion] =
-        useState("");
-
-    const [generatingAI, setGeneratingAI] =
-        useState(false);
-
-    const [bulkGenerating, setBulkGenerating] =
-        useState(false);
-
-    const [bulkText, setBulkText] =
-        useState("");
-
-    const [showBulkModal, setShowBulkModal] =
-        useState(false);
-
-    const [imageFile, setImageFile] =
-        useState(null);
-
-    const [videoFile, setVideoFile] =
-        useState(null);
-
-
-    /* ======================================================================
-       MESSAGE HELPER
-    ====================================================================== */
-
-    const showMessage = (text) => {
-
-        setMessage(text);
-
-        window.clearTimeout(
-            window.__quizMessageTimer
+    const correct =
+        normalizeCorrectAnswer(
+            questionType,
+            correctAnswer
         );
 
-        window.__quizMessageTimer =
-            window.setTimeout(() => {
-                setMessage("");
-            }, 4000);
+    const pointValue =
+        Math.min(
+            5,
+            Math.max(
+                0,
+                Number(
+                    points || 0
+                )
+            )
+        );
+
+    return options.map(
+        (option) => {
+
+            const value =
+                String(
+                    option || ""
+                ).trim();
+
+            if (!value) {
+                return 0;
+            }
+
+            if (
+                questionType ===
+                "multiple_choice"
+            ) {
+
+                return correct.some(
+                    (answer) =>
+                        optionMatchesAnswer(
+                            value,
+                            answer
+                        )
+                )
+                    ? pointValue
+                    : 0;
+            }
+
+            return optionMatchesAnswer(
+                value,
+                correct
+            )
+                ? pointValue
+                : 0;
+        }
+    );
+};
+
+// ======================================================
+// FIND AI CORRECT ANSWER
+//
+// AI may return:
+//     "Peacock"
+//     "peacock"
+//     "A"
+//     "A) Peacock"
+//     "Option A"
+// ======================================================
+
+const resolveGeneratedCorrectAnswer = (
+    generatedCorrect,
+    options,
+    questionType
+) => {
+
+    if (
+        questionType ===
+        "text"
+    ) {
+        return "";
+    }
+
+    const raw =
+        normalizeCorrectAnswer(
+            questionType,
+            generatedCorrect
+        );
+
+    if (
+        questionType ===
+        "multiple_choice"
+    ) {
+
+        return raw
+            .map((answer) => {
+
+                const index =
+                    options.findIndex(
+                        (option) =>
+                            optionMatchesAnswer(
+                                option,
+                                answer
+                            )
+                    );
+
+                if (
+                    index >= 0
+                ) {
+                    return options[index];
+                }
+
+                const upper =
+                    String(
+                        answer || ""
+                    )
+                        .trim()
+                        .toUpperCase();
+
+                const letterIndex =
+                    upper.match(
+                        /^[A-Z]$/
+                    );
+
+                if (
+                    letterIndex
+                ) {
+
+                    const idx =
+                        upper.charCodeAt(
+                            0
+                        ) -
+                        65;
+
+                    return (
+                        options[idx] ||
+                        answer
+                    );
+                }
+
+                const prefixed =
+                    upper.match(
+                        /^OPTION\s*([A-Z])/
+                    );
+
+                if (
+                    prefixed
+                ) {
+
+                    const idx =
+                        prefixed[1]
+                            .charCodeAt(
+                                0
+                            ) -
+                        65;
+
+                    return (
+                        options[idx] ||
+                        answer
+                    );
+                }
+
+                return answer;
+            })
+            .filter(Boolean);
+    }
+
+    const exactIndex =
+        options.findIndex(
+            (option) =>
+                optionMatchesAnswer(
+                    option,
+                    raw
+                )
+        );
+
+    if (
+        exactIndex >= 0
+    ) {
+
+        return options[
+            exactIndex
+        ];
+    }
+
+    const upper =
+        String(
+            raw || ""
+        )
+            .trim()
+            .toUpperCase();
+
+    if (
+        /^[A-Z]$/.test(
+            upper
+        )
+    ) {
+
+        const index =
+            upper.charCodeAt(
+                0
+            ) -
+            65;
+
+        if (
+            options[index]
+        ) {
+
+            return options[
+                index
+            ];
+        }
+    }
+
+    const prefixed =
+        upper.match(
+            /^OPTION\s*([A-Z])/
+        );
+
+    if (
+        prefixed
+    ) {
+
+        const index =
+            prefixed[1]
+                .charCodeAt(
+                    0
+                ) -
+            65;
+
+        if (
+            options[index]
+        ) {
+
+            return options[
+                index
+            ];
+        }
+    }
+
+    return "";
+};
+
+// ======================================================
+// COMPONENT
+// ======================================================
+
+const QuizSetup = () => {
+
+    const navigate =
+        useNavigate();
+
+    // ==================================================
+    // QUIZ STATE
+    // ==================================================
+
+    const [
+        quizzes,
+        setQuizzes
+    ] = useState([]);
+
+    const [
+        selected,
+        setSelected
+    ] = useState(null);
+
+    const [
+        loading,
+        setLoading
+    ] = useState(true);
+
+    const [
+        saving,
+        setSaving
+    ] = useState(false);
+
+    const [
+        message,
+        setMessage
+    ] = useState("");
+
+    // ==================================================
+    // SEARCH
+    // ==================================================
+
+    const [
+        categorySearch,
+        setCategorySearch
+    ] = useState("");
+
+    const [
+        globalSearch,
+        setGlobalSearch
+    ] = useState("");
+
+    const [
+        questionSearch,
+        setQuestionSearch
+    ] = useState("");
+
+    // ==================================================
+    // QUIZ MODAL
+    // ==================================================
+
+    const [
+        showQuiz,
+        setShowQuiz
+    ] = useState(false);
+
+    const [
+        quizForm,
+        setQuizForm
+    ] = useState({
+        ...emptyQuiz
+    });
+
+    // ==================================================
+    // QUESTION MODAL
+    // ==================================================
+
+    const [
+        showQuestion,
+        setShowQuestion
+    ] = useState(false);
+
+    const [
+        editingQuestion,
+        setEditingQuestion
+    ] = useState(null);
+
+    const [
+        questionForm,
+        setQuestionForm
+    ] = useState({
+        ...emptyQuestion
+    });
+
+    const [
+        imageFile,
+        setImageFile
+    ] = useState(null);
+
+    const [
+        videoFile,
+        setVideoFile
+    ] = useState(null);
+
+    // ==================================================
+    // AI
+    // ==================================================
+
+    const [
+        generatingAI,
+        setGeneratingAI
+    ] = useState(false);
+
+    // ==================================================
+    // BULK
+    // ==================================================
+
+    const [
+        showBulk,
+        setShowBulk
+    ] = useState(false);
+
+    const [
+        bulkText,
+        setBulkText
+    ] = useState("");
+
+    const [
+        bulkGenerating,
+        setBulkGenerating
+    ] = useState(false);
+
+    // ==================================================
+    // FLASH MESSAGE
+    // ==================================================
+
+    const flash = (
+        text
+    ) => {
+
+        setMessage(
+            text
+        );
+
+        window.setTimeout(
+            () =>
+                setMessage(""),
+            3500
+        );
     };
 
+    // ==================================================
+    // LOAD QUIZZES
+    // ==================================================
 
-    /* ======================================================================
-       LOAD QUIZZES
-    ====================================================================== */
-
-    const load = async () => {
+    const loadQuizzes = async (
+        keepSelected = true
+    ) => {
 
         setLoading(true);
 
         try {
 
             const response =
-                await axios.get("/api/quiz");
+                await axios.get(
+                    "/api/quiz"
+                );
 
-            const quizList =
-                response?.data?.data || [];
+            const data =
+                responseData(
+                    response
+                );
+
+            const list =
+                Array.isArray(data)
+                    ? data
+                    : [];
 
             setQuizzes(
-                Array.isArray(quizList)
-                    ? quizList
-                    : []
+                list
             );
 
-
-            /*
-             * Refresh currently selected quiz.
-             */
-
-            if (selected?.id) {
+            if (
+                keepSelected &&
+                selected?.id
+            ) {
 
                 try {
 
@@ -254,14 +663,14 @@ function QuizSetup() {
                         );
 
                     setSelected(
-                        getResponseData(detail)
+                        responseData(
+                            detail
+                        )
                     );
 
-                } catch (detailError) {
-
-                    console.error(
-                        "Unable to refresh quiz:",
-                        detailError
+                } catch {
+                    setSelected(
+                        null
                     );
                 }
             }
@@ -269,119 +678,32 @@ function QuizSetup() {
         } catch (error) {
 
             console.error(
-                "Quiz load error:",
+                "loadQuizzes:",
                 error
             );
 
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to load quizzes"
+            flash(
+                error?.response
+                    ?.data
+                    ?.message ||
+                "Unable to load quizzes."
             );
 
         } finally {
 
-            setLoading(false);
+            setLoading(
+                false
+            );
         }
     };
 
+    // ==================================================
+    // OPEN QUIZ
+    // ==================================================
 
-    /* ======================================================================
-       INITIAL LOAD
-    ====================================================================== */
-
-    useEffect(() => {
-
-        load();
-
-    }, []);
-
-
-    /* ======================================================================
-       FILTERED QUIZZES
-    ====================================================================== */
-
-    const filteredQuizzes =
-        useMemo(() => {
-
-            const search =
-                searchQuiz
-                    .trim()
-                    .toLowerCase();
-
-            if (!search) {
-                return quizzes;
-            }
-
-            return quizzes.filter((quiz) => {
-
-                return (
-                    String(
-                        quiz?.name || ""
-                    )
-                        .toLowerCase()
-                        .includes(search)
-                    ||
-                    String(
-                        quiz?.description || ""
-                    )
-                        .toLowerCase()
-                        .includes(search)
-                );
-
-            });
-
-        }, [quizzes, searchQuiz]);
-
-
-    /* ======================================================================
-       FILTERED QUESTIONS
-    ====================================================================== */
-
-    const filteredQuestions =
-        useMemo(() => {
-
-            const questions =
-                selected?.questions || [];
-
-            const search =
-                searchQuestion
-                    .trim()
-                    .toLowerCase();
-
-            if (!search) {
-                return questions;
-            }
-
-            return questions.filter(
-                (question) => {
-
-                    return (
-                        String(
-                            question?.question_text ||
-                            ""
-                        )
-                            .toLowerCase()
-                            .includes(search)
-                        ||
-                        String(
-                            question?.question_type ||
-                            ""
-                        )
-                            .toLowerCase()
-                            .includes(search)
-                    );
-
-                }
-            );
-
-        }, [selected, searchQuestion]);
-
-
-    /* ======================================================================
-       OPEN QUIZ
-    ====================================================================== */
-
-    const openQuiz = async (id) => {
+    const openQuiz = async (
+        id
+    ) => {
 
         try {
 
@@ -390,1129 +712,1885 @@ function QuizSetup() {
                     `/api/quiz/${id}`
                 );
 
-            const quiz =
-                getResponseData(response);
+            setSelected(
+                responseData(
+                    response
+                )
+            );
 
-            setSelected(quiz);
-
-            setSearchQuestion("");
+            setQuestionSearch("");
 
         } catch (error) {
 
             console.error(
-                "Unable to open quiz:",
+                "openQuiz:",
                 error
             );
 
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to open quiz"
+            flash(
+                error?.response
+                    ?.data
+                    ?.message ||
+                "Unable to open quiz."
             );
         }
     };
 
+    // ==================================================
+    // INITIAL LOAD
+    // ==================================================
 
-    /* ======================================================================
-       COPY PUBLIC LINK
-    ====================================================================== */
+    useEffect(
+        () => {
 
-    const copyLink = async (quiz) => {
-
-        if (!quiz?.public_token) {
-
-            showMessage(
-                "This quiz does not have a public link."
+            loadQuizzes(
+                false
             );
 
-            return;
-        }
+        },
+        []
+    );
 
-        const link =
-            `${window.location.origin}/quiz/${quiz.public_token}`;
+    // ==================================================
+    // FILTER QUIZZES
+    // ==================================================
 
+    const filteredQuizzes =
+        useMemo(
+            () => {
 
-        try {
+                const query =
+                    `${categorySearch} ${globalSearch}`
+                        .trim()
+                        .toLowerCase();
 
-            await navigator.clipboard.writeText(
-                link
-            );
+                if (!query) {
+                    return quizzes;
+                }
 
-            showMessage(
-                "Reusable quiz link copied successfully."
-            );
-
-        } catch {
-
-            try {
-
-                const textarea =
-                    document.createElement(
-                        "textarea"
-                    );
-
-                textarea.value = link;
-
-                textarea.style.position =
-                    "fixed";
-
-                textarea.style.opacity =
-                    "0";
-
-                document.body.appendChild(
-                    textarea
+                return quizzes.filter(
+                    (quiz) =>
+                        `${quiz?.name || ""} ${
+                            quiz?.description || ""
+                        }`
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
                 );
-
-                textarea.focus();
-
-                textarea.select();
-
-                document.execCommand(
-                    "copy"
-                );
-
-                textarea.remove();
-
-                showMessage(
-                    "Reusable quiz link copied successfully."
-                );
-
-            } catch {
-
-                showMessage(
-                    "Unable to copy quiz link."
-                );
-            }
-        }
-    };
-
-
-    /* ======================================================================
-       EMAIL SETTINGS
-    ====================================================================== */
-
-    const openEmailSettings = () => {
-
-        if (!selected?.id) {
-
-            showMessage(
-                "Please select a quiz first."
-            );
-
-            return;
-        }
-
-        navigate(
-            `/quiz/email-settings?quizId=${selected.id}`
+            },
+            [
+                quizzes,
+                categorySearch,
+                globalSearch
+            ]
         );
-    };
 
+    // ==================================================
+    // FILTER QUESTIONS
+    // ==================================================
 
-    const sendQuizEmail = () => {
+    const filteredQuestions =
+        useMemo(
+            () => {
 
-        if (!selected?.id) {
+                const query =
+                    `${questionSearch} ${globalSearch}`
+                        .trim()
+                        .toLowerCase();
 
-            showMessage(
-                "Please select a quiz first."
-            );
+                const questions =
+                    selected?.questions ||
+                    [];
 
-            return;
-        }
+                if (!query) {
+                    return questions;
+                }
 
-        openEmailSettings();
-    };
+                return questions.filter(
+                    (question) =>
+                        `${question?.question_text || ""} ${
+                            question?.question_type || ""
+                        }`
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+                );
+            },
+            [
+                selected,
+                questionSearch,
+                globalSearch
+            ]
+        );
 
+    // ==================================================
+    // TOTAL POINTS
+    // ==================================================
 
-    /* ======================================================================
-       CREATE / EDIT QUIZ
-    ====================================================================== */
+    const totalPoints =
+        useMemo(
+            () =>
+                (
+                    selected?.questions ||
+                    []
+                ).reduce(
+                    (
+                        sum,
+                        question
+                    ) =>
+                        sum +
+                        Number(
+                            question.points ||
+                            0
+                        ),
+                    0
+                ),
+            [
+                selected
+            ]
+        );
 
-    const saveQuiz = async (event) => {
+    // ==================================================
+    // CREATE CATEGORY
+    // ==================================================
 
-        event.preventDefault();
-
-        setSaving(true);
-
-        try {
-
-            let response;
-
-            if (quizForm?.id) {
-
-                response =
-                    await axios.put(
-                        `/api/quiz/${quizForm.id}`,
-                        quizForm
-                    );
-
-            } else {
-
-                response =
-                    await axios.post(
-                        "/api/quiz",
-                        quizForm
-                    );
-            }
-
-
-            const savedQuiz =
-                getResponseData(response);
-
-
-            setShowQuiz(false);
+    const createCategory =
+        () => {
 
             setQuizForm({
                 ...emptyQuiz
             });
 
-
-            await load();
-
-
-            if (savedQuiz?.id) {
-
-                await openQuiz(
-                    savedQuiz.id
-                );
-            }
-
-
-            showMessage(
-                "Quiz saved successfully."
+            setShowQuiz(
+                true
             );
-
-        } catch (error) {
-
-            console.error(
-                "Save quiz error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to save quiz"
-            );
-
-        } finally {
-
-            setSaving(false);
-        }
-    };
-
-
-    /* ======================================================================
-       DELETE QUIZ
-    ====================================================================== */
-
-    const deleteQuiz = async (id) => {
-
-        if (
-            !window.confirm(
-                "Delete this quiz and all of its questions/submissions?"
-            )
-        ) {
-            return;
-        }
-
-        try {
-
-            await axios.delete(
-                `/api/quiz/${id}`
-            );
-
-            setSelected(null);
-
-            await load();
-
-            showMessage(
-                "Quiz deleted successfully."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Delete quiz error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to delete quiz"
-            );
-        }
-    };
-
-
-    /* ======================================================================
-       OPEN ADD QUESTION
-    ====================================================================== */
-
-    const openAddQuestion = () => {
-
-        setEditingQuestion(null);
-
-        setImageFile(null);
-
-        setVideoFile(null);
-
-        setQuestionForm({
-            ...emptyQuestion,
-            options: [
-                "",
-                ""
-            ]
-        });
-
-        setShowQuestion(true);
-    };
-
-
-    /* ======================================================================
-       QUESTION TYPE CHANGE
-    ====================================================================== */
-
-    const changeQuestionType = (type) => {
-
-        let options =
-            questionForm.options || [];
-
-        let correctAnswer =
-            questionForm.correct_answer || "";
-
-
-        if (type === "true_false") {
-
-            options = [
-                "True",
-                "False"
-            ];
-
-            correctAnswer = "";
-
-        } else if (type === "text") {
-
-            options = [];
-
-            correctAnswer = "";
-
-        } else {
-
-            if (!options.length) {
-
-                options = [
-                    "",
-                    ""
-                ];
-            }
-        }
-
-
-        setQuestionForm({
-            ...questionForm,
-            question_type: type,
-            options,
-            correct_answer:
-                correctAnswer
-        });
-    };
-
-
-    /* ======================================================================
-       UPDATE OPTION
-    ====================================================================== */
-
-    const updateOption = (
-        index,
-        value
-    ) => {
-
-        const options = [
-            ...(questionForm.options || [])
-        ];
-
-        options[index] = value;
-
-        setQuestionForm({
-            ...questionForm,
-            options
-        });
-    };
-
-
-    /* ======================================================================
-       ADD OPTION
-    ====================================================================== */
-
-    const addOption = () => {
-
-        setQuestionForm({
-            ...questionForm,
-            options: [
-                ...(questionForm.options || []),
-                ""
-            ]
-        });
-    };
-
-
-    /* ======================================================================
-       REMOVE OPTION
-    ====================================================================== */
-
-    const removeOption = (index) => {
-
-        const options =
-            (questionForm.options || [])
-                .filter(
-                    (_, optionIndex) =>
-                        optionIndex !== index
-                );
-
-        setQuestionForm({
-            ...questionForm,
-            options
-        });
-    };
-
-
-    /* ======================================================================
-       SAVE QUESTION
-    ====================================================================== */
-
-    const saveQuestion = async (event) => {
-
-        event.preventDefault();
-
-        if (!selected?.id) {
-
-            showMessage(
-                "Please select a quiz first."
-            );
-
-            return;
-        }
-
-
-        const cleanedOptions =
-            questionForm.question_type === "text"
-                ? []
-                : (
-                    questionForm.options || []
-                )
-                    .map((value) =>
-                        String(value).trim()
-                    )
-                    .filter(Boolean);
-
-
-        if (
-            questionForm.question_type !== "text" &&
-            questionForm.question_type !== "true_false" &&
-            cleanedOptions.length < 2
-        ) {
-
-            showMessage(
-                "Please add at least two options."
-            );
-
-            return;
-        }
-
-
-        let correctAnswer =
-            questionForm.correct_answer;
-
-
-        if (
-            questionForm.question_type ===
-            "multiple_choice"
-        ) {
-
-            correctAnswer =
-                String(
-                    questionForm.correct_answer ||
-                    ""
-                )
-                    .split(",")
-                    .map((value) =>
-                        value.trim()
-                    )
-                    .filter(Boolean);
-        }
-
-
-        const payload = {
-
-            ...questionForm,
-
-            options:
-                cleanedOptions,
-
-            correct_answer:
-                correctAnswer,
-
         };
 
+    // ==================================================
+    // EDIT CATEGORY
+    // ==================================================
 
-        /*
-         * Image / video file information.
-         *
-         * The existing API accepts URL fields.
-         * If your backend already has upload endpoints,
-         * connect those endpoints here.
-         */
+    const editCategory =
+        (quiz) => {
 
-        if (imageFile) {
+            setQuizForm({
+                ...emptyQuiz,
+                ...quiz,
+                time_limit_minutes:
+                    quiz.time_limit_minutes ||
+                    ""
+            });
 
-            payload.image_file_name =
-                imageFile.name;
-        }
+            setShowQuiz(
+                true
+            );
+        };
 
-        if (videoFile) {
+    // ==================================================
+    // SAVE QUIZ
+    // ==================================================
 
-            payload.video_file_name =
-                videoFile.name;
-        }
+    const saveQuiz =
+        async (
+            event
+        ) => {
 
+            event.preventDefault();
 
-        setSaving(true);
+            setSaving(
+                true
+            );
 
-        try {
+            try {
 
-            if (editingQuestion) {
+                let response;
 
-                await axios.put(
-                    `/api/quiz/${selected.id}/questions/${editingQuestion.id}`,
-                    payload
+                if (
+                    quizForm.id
+                ) {
+
+                    response =
+                        await axios.put(
+                            `/api/quiz/${quizForm.id}`,
+                            quizForm
+                        );
+
+                } else {
+
+                    response =
+                        await axios.post(
+                            "/api/quiz",
+                            quizForm
+                        );
+                }
+
+                const saved =
+                    responseData(
+                        response
+                    );
+
+                setShowQuiz(
+                    false
                 );
+
+                setQuizForm({
+                    ...emptyQuiz
+                });
+
+                await loadQuizzes(
+                    false
+                );
+
+                if (
+                    saved?.id
+                ) {
+
+                    await openQuiz(
+                        saved.id
+                    );
+                }
+
+                flash(
+                    "Quiz saved successfully."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "saveQuiz:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to save quiz."
+                );
+
+            } finally {
+
+                setSaving(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // DELETE QUIZ
+    // ==================================================
+
+    const deleteQuiz =
+        async (
+            id
+        ) => {
+
+            if (
+                !window.confirm(
+                    "Delete this quiz and all of its questions/submissions?"
+                )
+            ) {
+                return;
+            }
+
+            try {
+
+                await axios.delete(
+                    `/api/quiz/${id}`
+                );
+
+                if (
+                    Number(
+                        selected?.id
+                    ) ===
+                    Number(id)
+                ) {
+
+                    setSelected(
+                        null
+                    );
+                }
+
+                await loadQuizzes(
+                    false
+                );
+
+                flash(
+                    "Quiz deleted successfully."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "deleteQuiz:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to delete quiz."
+                );
+            }
+        };
+
+    // ==================================================
+    // DELETE ALL QUIZZES
+    // ==================================================
+
+    const deleteAllQuizzes =
+        async () => {
+
+            if (
+                !quizzes.length
+            ) {
+
+                flash(
+                    "There are no categories to delete."
+                );
+
+                return;
+            }
+
+            if (
+                !window.confirm(
+                    `Delete all ${quizzes.length} quizzes and their data?`
+                )
+            ) {
+
+                return;
+            }
+
+            setSaving(
+                true
+            );
+
+            try {
+
+                await axios.delete(
+                    "/api/quiz/bulk/all"
+                );
+
+                setSelected(
+                    null
+                );
+
+                await loadQuizzes(
+                    false
+                );
+
+                flash(
+                    "All quizzes deleted successfully."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "deleteAllQuizzes:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to delete all quizzes."
+                );
+
+            } finally {
+
+                setSaving(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // RESET QUESTION
+    // ==================================================
+
+    const resetQuestion =
+        () => {
+
+            setEditingQuestion(
+                null
+            );
+
+            setQuestionForm({
+                ...emptyQuestion,
+                options: [
+                    "",
+                    ""
+                ],
+                option_scores: [
+                    0,
+                    0
+                ]
+            });
+
+            setImageFile(
+                null
+            );
+
+            setVideoFile(
+                null
+            );
+        };
+
+    // ==================================================
+    // ADD QUESTION
+    // ==================================================
+
+    const openAddQuestion =
+        () => {
+
+            resetQuestion();
+
+            setShowQuestion(
+                true
+            );
+        };
+
+    // ==================================================
+    // CHANGE QUESTION TYPE
+    // ==================================================
+
+    const changeQuestionType =
+        (type) => {
+
+            if (
+                type ===
+                "text"
+            ) {
+
+                setQuestionForm(
+                    (prev) => ({
+                        ...prev,
+                        question_type:
+                            type,
+                        options: [],
+                        option_scores: [],
+                        correct_answer:
+                            ""
+                    })
+                );
+
+                return;
+            }
+
+            const options =
+                type ===
+                "true_false"
+                    ? [
+                        "True",
+                        "False"
+                    ]
+                    : (
+                        questionForm.options
+                            ?.length >=
+                        2
+                    )
+                        ? questionForm.options
+                        : [
+                            "",
+                            ""
+                        ];
+
+            const correct =
+                type ===
+                "multiple_choice"
+                    ? []
+                    : "";
+
+            setQuestionForm(
+                (prev) => ({
+                    ...prev,
+                    question_type:
+                        type,
+                    options,
+                    option_scores:
+                        buildOptionScores(
+                            type,
+                            options,
+                            correct,
+                            prev.points
+                        ),
+                    correct_answer:
+                        correct
+                })
+            );
+        };
+
+    // ==================================================
+    // UPDATE OPTION
+    //
+    // If the option text changes and it was the
+    // correct answer, update correct_answer too.
+    // ==================================================
+
+    const updateOption =
+        (
+            index,
+            value
+        ) => {
+
+            setQuestionForm(
+                (prev) => {
+
+                    const previousOption =
+                        String(
+                            prev.options?.[
+                                index
+                            ] ||
+                            ""
+                        ).trim();
+
+                    const options =
+                        [
+                            ...(prev.options ||
+                                [])
+                        ];
+
+                    options[
+                        index
+                    ] = value;
+
+                    let correct_answer =
+                        prev.correct_answer;
+
+                    if (
+                        prev.question_type ===
+                        "multiple_choice"
+                    ) {
+
+                        const current =
+                            normalizeCorrectAnswer(
+                                prev.question_type,
+                                prev.correct_answer
+                            );
+
+                        if (
+                            current.some(
+                                (answer) =>
+                                    optionMatchesAnswer(
+                                        answer,
+                                        previousOption
+                                    )
+                            )
+                        ) {
+
+                            correct_answer =
+                                current.map(
+                                    (answer) =>
+                                        optionMatchesAnswer(
+                                            answer,
+                                            previousOption
+                                        )
+                                            ? String(
+                                                value
+                                            ).trim()
+                                            : answer
+                                );
+                        }
+
+                    } else if (
+                        optionMatchesAnswer(
+                            prev.correct_answer,
+                            previousOption
+                        )
+                    ) {
+
+                        correct_answer =
+                            String(
+                                value
+                            ).trim();
+                    }
+
+                    return {
+                        ...prev,
+                        options,
+                        correct_answer,
+                        option_scores:
+                            buildOptionScores(
+                                prev.question_type,
+                                options,
+                                correct_answer,
+                                prev.points
+                            )
+                    };
+                }
+            );
+        };
+
+    // ==================================================
+    // UPDATE OPTION SCORE
+    //
+    // Manual score is still allowed, but selecting
+    // the correct answer automatically sets its score.
+    // ==================================================
+
+    const updateOptionScore =
+        (
+            index,
+            value
+        ) => {
+
+            setQuestionForm(
+                (prev) => {
+
+                    const option_scores =
+                        [
+                            ...(prev.option_scores ||
+                                [])
+                        ];
+
+                    option_scores[
+                        index
+                    ] = Math.min(
+                        5,
+                        Math.max(
+                            0,
+                            Number(
+                                value ||
+                                0
+                            )
+                        )
+                    );
+
+                    return {
+                        ...prev,
+                        option_scores
+                    };
+                }
+            );
+        };
+
+    // ==================================================
+    // ADD OPTION
+    // ==================================================
+
+    const addOption =
+        () => {
+
+            setQuestionForm(
+                (prev) => ({
+                    ...prev,
+                    options: [
+                        ...(prev.options ||
+                            []),
+                        ""
+                    ],
+                    option_scores: [
+                        ...(prev.option_scores ||
+                            []),
+                        0
+                    ]
+                })
+            );
+        };
+
+    // ==================================================
+    // REMOVE OPTION
+    // ==================================================
+
+    const removeOption =
+        (index) => {
+
+            setQuestionForm(
+                (prev) => {
+
+                    const options =
+                        [
+                            ...(prev.options ||
+                                [])
+                        ];
+
+                    const scores =
+                        [
+                            ...(prev.option_scores ||
+                                [])
+                        ];
+
+                    const removed =
+                        options[
+                            index
+                        ];
+
+                    options.splice(
+                        index,
+                        1
+                    );
+
+                    scores.splice(
+                        index,
+                        1
+                    );
+
+                    let correct =
+                        prev.correct_answer;
+
+                    if (
+                        Array.isArray(
+                            correct
+                        )
+                    ) {
+
+                        correct =
+                            correct.filter(
+                                (x) =>
+                                    !optionMatchesAnswer(
+                                        x,
+                                        removed
+                                    )
+                            );
+
+                    } else if (
+                        optionMatchesAnswer(
+                            correct,
+                            removed
+                        )
+                    ) {
+
+                        correct =
+                            "";
+                    }
+
+                    return {
+                        ...prev,
+                        options,
+                        option_scores:
+                            buildOptionScores(
+                                prev.question_type,
+                                options,
+                                correct,
+                                prev.points
+                            ),
+                        correct_answer:
+                            correct
+                    };
+                }
+            );
+        };
+
+    // ==================================================
+    // TOGGLE CORRECT ANSWER
+    //
+    // THIS IS THE MAIN FIX.
+    //
+    // When Peacock is selected:
+    //
+    // correct_answer = Peacock
+    // option_scores = [1,0,0]
+    //
+    // ==================================================
+
+    const toggleCorrect =
+        (option) => {
+
+            setQuestionForm(
+                (prev) => {
+
+                    const optionValue =
+                        String(
+                            option ||
+                            ""
+                        ).trim();
+
+                    if (
+                        !optionValue
+                    ) {
+                        return prev;
+                    }
+
+                    let correct_answer;
+
+                    if (
+                        prev.question_type ===
+                        "multiple_choice"
+                    ) {
+
+                        const current =
+                            normalizeCorrectAnswer(
+                                prev.question_type,
+                                prev.correct_answer
+                            );
+
+                        const alreadySelected =
+                            current.some(
+                                (answer) =>
+                                    optionMatchesAnswer(
+                                        answer,
+                                        optionValue
+                                    )
+                            );
+
+                        correct_answer =
+                            alreadySelected
+                                ? current.filter(
+                                    (answer) =>
+                                        !optionMatchesAnswer(
+                                            answer,
+                                            optionValue
+                                        )
+                                )
+                                : [
+                                    ...current,
+                                    optionValue
+                                ];
+
+                    } else {
+
+                        correct_answer =
+                            optionValue;
+                    }
+
+                    return {
+                        ...prev,
+                        correct_answer,
+                        option_scores:
+                            buildOptionScores(
+                                prev.question_type,
+                                prev.options ||
+                                    [],
+                                correct_answer,
+                                prev.points
+                            )
+                    };
+                }
+            );
+        };
+
+    // ==================================================
+    // EDIT QUESTION
+    //
+    // Also repairs old questions where correct_answer
+    // exists but option_scores are all zero.
+    // ==================================================
+
+    const openEditQuestion =
+        (question) => {
+
+            const options =
+                Array.isArray(
+                    question.options
+                ) &&
+                question.options.length
+                    ? question.options.map(
+                        (x) =>
+                            String(
+                                x ??
+                                ""
+                            )
+                    )
+                    : question.question_type ===
+                        "text"
+                        ? []
+                        : [
+                            "",
+                            ""
+                        ];
+
+            // IMPORTANT: restore the answer from whichever field the API returns.
+            // Older records may have it in correct_answer_json, while newer
+            // records may use correct_answer. Both JSON strings and arrays are supported.
+            const correct_answer =
+                normalizeCorrectAnswer(
+                    question.question_type,
+                    getStoredCorrectAnswer(question)
+                );
+
+            const points =
+                Number(
+                    question.points ||
+                    1
+                );
+
+            const option_scores =
+                buildOptionScores(
+                    question.question_type,
+                    options,
+                    correct_answer,
+                    points
+                );
+
+            setEditingQuestion(
+                question
+            );
+
+            setQuestionForm({
+                ...emptyQuestion,
+                ...question,
+                options,
+                option_scores,
+                correct_answer,
+                points
+            });
+
+            setImageFile(
+                null
+            );
+
+            setVideoFile(
+                null
+            );
+
+            setShowQuestion(
+                true
+            );
+        };
+
+    // ==================================================
+    // UPLOAD QUESTION FILES
+    // ==================================================
+
+    const uploadQuestionFiles =
+        async (
+            questionId
+        ) => {
+
+            if (
+                !imageFile &&
+                !videoFile
+            ) {
+
+                return;
+            }
+
+            const formData =
+                new FormData();
+
+            if (
+                imageFile
+            ) {
+
+                formData.append(
+                    "image",
+                    imageFile
+                );
+            }
+
+            if (
+                videoFile
+            ) {
+
+                formData.append(
+                    "video",
+                    videoFile
+                );
+            }
+
+            await axios.post(
+                `/api/quiz/${selected.id}/questions/${questionId}/upload`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type":
+                            "multipart/form-data"
+                    }
+                }
+            );
+        };
+
+    // ==================================================
+    // SAVE QUESTION
+    //
+    // MAIN BACKEND PAYLOAD FIX
+    // ==================================================
+
+    const saveQuestion =
+        async (
+            event
+        ) => {
+
+            event.preventDefault();
+
+            if (
+                !selected?.id
+            ) {
+
+                flash(
+                    "Please select a category first."
+                );
+
+                return;
+            }
+
+            const type =
+                questionForm.question_type;
+
+            const options =
+                type === "text"
+                    ? []
+                    : (
+                        questionForm.options ||
+                        []
+                    )
+                        .map(
+                            (x) =>
+                                String(
+                                    x
+                                ).trim()
+                        )
+                        .filter(Boolean);
+
+            if (
+                type !==
+                    "text" &&
+                options.length <
+                    2
+            ) {
+
+                flash(
+                    "Please add at least two options."
+                );
+
+                return;
+            }
+
+            const points =
+                Math.min(
+                    5,
+                    Math.max(
+                        0,
+                        Number(
+                            questionForm.points ||
+                            1
+                        )
+                    )
+                );
+
+            let correct_answer =
+                normalizeCorrectAnswer(
+                    type,
+                    questionForm.correct_answer
+                );
+
+            // ==========================================
+            // VALIDATE CORRECT ANSWER AGAINST OPTIONS
+            // ==========================================
+
+            if (
+                type !==
+                "text"
+            ) {
+
+                if (
+                    type ===
+                    "multiple_choice"
+                ) {
+
+                    correct_answer =
+                        correct_answer.filter(
+                            (answer) =>
+                                options.some(
+                                    (option) =>
+                                        optionMatchesAnswer(
+                                            option,
+                                            answer
+                                        )
+                                )
+                        );
+
+                    correct_answer =
+                        correct_answer.map(
+                            (answer) => {
+
+                                const match =
+                                    options.find(
+                                        (option) =>
+                                            optionMatchesAnswer(
+                                                option,
+                                                answer
+                                            )
+                                    );
+
+                                return (
+                                    match ||
+                                    answer
+                                );
+                            }
+                        );
+
+                } else {
+
+                    const match =
+                        options.find(
+                            (option) =>
+                                optionMatchesAnswer(
+                                    option,
+                                    correct_answer
+                                )
+                        );
+
+                    correct_answer =
+                        match ||
+                        "";
+                }
 
             } else {
 
-                await axios.post(
-                    `/api/quiz/${selected.id}/questions`,
-                    payload
-                );
+                correct_answer =
+                    "";
             }
 
-
-            const detail =
-                await axios.get(
-                    `/api/quiz/${selected.id}`
-                );
-
-
-            setSelected(
-                getResponseData(detail)
-            );
-
-
-            setShowQuestion(false);
-
-            setEditingQuestion(null);
-
-            setImageFile(null);
-
-            setVideoFile(null);
-
-            setQuestionForm({
-                ...emptyQuestion
-            });
-
-
-            showMessage(
-                "Question saved successfully."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Save question error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to save question"
-            );
-
-        } finally {
-
-            setSaving(false);
-        }
-    };
-
-
-    /* ======================================================================
-       EDIT QUESTION
-    ====================================================================== */
-
-    const editQuestion = (question) => {
-
-        setEditingQuestion(
-            question
-        );
-
-        setImageFile(null);
-
-        setVideoFile(null);
-
-
-        setQuestionForm({
-
-            ...emptyQuestion,
-
-            ...question,
-
-            options:
-                question?.options?.length
-                    ? question.options
-                    : (
-                        question?.question_type ===
-                        "text"
-                            ? []
-                            : [
-                                "",
-                                ""
-                            ]
-                    ),
-
-            correct_answer:
-                Array.isArray(
-                    question?.correct_answer
-                )
-                    ? question.correct_answer.join(
-                        ", "
-                    )
-                    : (
-                        question?.correct_answer ||
-                        ""
-                    ),
-
-        });
-
-
-        setShowQuestion(true);
-    };
-
-
-    /* ======================================================================
-       DELETE QUESTION
-    ====================================================================== */
-
-    const deleteQuestion = async (id) => {
-
-        if (
-            !window.confirm(
-                "Delete this question?"
-            )
-        ) {
-            return;
-        }
-
-
-        try {
-
-            await axios.delete(
-                `/api/quiz/${selected.id}/questions/${id}`
-            );
-
-
-            const detail =
-                await axios.get(
-                    `/api/quiz/${selected.id}`
-                );
-
-
-            setSelected(
-                getResponseData(detail)
-            );
-
-
-            showMessage(
-                "Question deleted successfully."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Delete question error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to delete question"
-            );
-        }
-    };
-
-
-    /* ======================================================================
-       DELETE ALL QUESTIONS
-    ====================================================================== */
-
-    const deleteAllQuestions = async () => {
-
-        if (!selected?.id) {
-            return;
-        }
-
-        const questions =
-            selected.questions || [];
-
-        if (!questions.length) {
-
-            showMessage(
-                "There are no questions to delete."
-            );
-
-            return;
-        }
-
-
-        if (
-            !window.confirm(
-                `Delete all ${questions.length} questions from this quiz?`
-            )
-        ) {
-            return;
-        }
-
-
-        setSaving(true);
-
-        try {
-
-            /*
-             * Delete individually because the existing
-             * route already supports:
-             *
-             * DELETE /api/quiz/:id/questions/:questionId
-             */
-
-            for (
-                const question
-                of questions
-            ) {
-
-                await axios.delete(
-                    `/api/quiz/${selected.id}/questions/${question.id}`
-                );
-            }
-
-
-            const detail =
-                await axios.get(
-                    `/api/quiz/${selected.id}`
-                );
-
-
-            setSelected(
-                getResponseData(detail)
-            );
-
-
-            showMessage(
-                "All questions deleted successfully."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Delete all questions error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Unable to delete all questions"
-            );
-
-        } finally {
-
-            setSaving(false);
-        }
-    };
-
-
-    /* ======================================================================
-       GENERATE QUESTION WITH AI
-    ====================================================================== */
-
-    const generateWithAI = async () => {
-
-        if (
-            !questionForm.question_text?.trim()
-        ) {
-
-            showMessage(
-                "Enter a question/topic first so AI can generate the content."
-            );
-
-            return;
-        }
-
-
-        setGeneratingAI(true);
-
-
-        try {
-
-            const response =
-                await axios.post(
-                    AI_GENERATE_ENDPOINT,
-                    {
-                        question_text:
-                            questionForm.question_text,
-
-                        question_type:
-                            questionForm.question_type,
-
-                        options:
-                            questionForm.options,
-
-                        guideline:
-                            questionForm.guideline,
-
-                        points:
-                            questionForm.points,
-
-                        quiz_id:
-                            selected?.id,
-                    }
-                );
-
-
-            const result =
-                getResponseData(response) || {};
-
-
-            const generatedQuestion =
-                result?.question ||
-                result;
-
-
-            const generatedOptions =
-                Array.isArray(
-                    generatedQuestion?.options
-                )
-                    ? generatedQuestion.options
-                    : questionForm.options;
-
-
-            let generatedCorrect =
-                generatedQuestion?.correct_answer ??
-                questionForm.correct_answer;
-
+            // ==========================================
+            // CORRECT ANSWER REQUIRED
+            // ==========================================
 
             if (
-                Array.isArray(
-                    generatedCorrect
+                type !==
+                "text" &&
+                (
+                    !correct_answer ||
+                    (
+                        Array.isArray(
+                            correct_answer
+                        ) &&
+                        !correct_answer.length
+                    )
                 )
             ) {
 
-                generatedCorrect =
-                    generatedCorrect.join(
-                        ", "
-                    );
+                flash(
+                    "Please select the correct answer before saving."
+                );
+
+                return;
             }
 
+            // ==========================================
+            // BUILD CORRECT SCORES
+            //
+            // Example:
+            //
+            // options:
+            //   Peacock
+            //   Eagle
+            //   Sparrow
+            //
+            // correct:
+            //   Peacock
+            //
+            // points:
+            //   1
+            //
+            // result:
+            //   [1, 0, 0]
+            // ==========================================
 
-            setQuestionForm({
+            const option_scores =
+                buildOptionScores(
+                    type,
+                    options,
+                    correct_answer,
+                    points
+                );
 
-                ...questionForm,
-
+            const payload = {
                 question_text:
-                    generatedQuestion?.question_text ||
-                    questionForm.question_text,
+                    String(
+                        questionForm.question_text ||
+                        ""
+                    ).trim(),
 
                 question_type:
-                    generatedQuestion?.question_type ||
-                    questionForm.question_type,
+                    type,
 
-                options:
-                    questionForm.question_type ===
-                    "text"
-                        ? []
-                        : generatedOptions,
+                options,
 
-                correct_answer:
-                    generatedCorrect,
+                option_scores,
 
-                points:
-                    generatedQuestion?.points ??
-                    questionForm.points,
+                // Primary field
+                correct_answer,
+
+                // Compatibility field for backend. Keep this as valid JSON so
+                // MySQL JSON columns and older controllers can both read it.
+                correct_answer_json:
+                    JSON.stringify(correct_answer),
+
+                points,
+
+                is_mandatory:
+                    !!questionForm.is_mandatory,
 
                 guideline:
-                    generatedQuestion?.guideline ??
-                    questionForm.guideline,
+                    questionForm.guideline ||
+                    "",
 
-            });
+                image_url:
+                    questionForm.image_url ||
+                    "",
 
+                video_url:
+                    questionForm.video_url ||
+                    ""
+            };
 
-            showMessage(
-                "Question generated with AI."
+            console.log(
+                "QUIZ QUESTION SAVE PAYLOAD:",
+                payload
             );
 
-        } catch (error) {
-
-            console.error(
-                "AI generation error:",
-                error
+            setSaving(
+                true
             );
 
-            showMessage(
-                error?.response?.data?.message ||
-                "AI generation failed. Check the AI API endpoint."
-            );
+            try {
 
-        } finally {
+                let response;
 
-            setGeneratingAI(false);
-        }
-    };
+                if (
+                    editingQuestion
+                ) {
 
+                    response =
+                        await axios.put(
+                            `/api/quiz/${selected.id}/questions/${editingQuestion.id}`,
+                            payload
+                        );
 
-    /* ======================================================================
-       BULK GENERATE
-    ====================================================================== */
+                } else {
 
-    const openBulkGenerate = () => {
+                    response =
+                        await axios.post(
+                            `/api/quiz/${selected.id}/questions`,
+                            payload
+                        );
+                }
 
-        setBulkText("");
+                const savedId =
+                    response?.data?.id ||
+                    response?.data?.data?.id ||
+                    editingQuestion?.id;
 
-        setShowBulkModal(true);
-    };
+                if (
+                    savedId
+                ) {
 
+                    await uploadQuestionFiles(
+                        savedId
+                    );
+                }
 
-    const bulkGenerateQuestions = async () => {
+                const detail =
+                    await axios.get(
+                        `/api/quiz/${selected.id}`
+                    );
 
-        if (!selected?.id) {
+                setSelected(
+                    responseData(
+                        detail
+                    )
+                );
 
-            showMessage(
-                "Please select a quiz first."
-            );
+                setShowQuestion(
+                    false
+                );
 
-            return;
-        }
+                resetQuestion();
 
+                flash(
+                    "Question saved successfully. Correct answer and scoring are ready."
+                );
 
-        const lines =
-            bulkText
-                .split("\n")
-                .map((line) =>
-                    line.trim()
+            } catch (error) {
+
+                console.error(
+                    "saveQuestion:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to save question."
+                );
+
+            } finally {
+
+                setSaving(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // DELETE QUESTION
+    // ==================================================
+
+    const deleteQuestion =
+        async (
+            id
+        ) => {
+
+            if (
+                !window.confirm(
+                    "Delete this question?"
                 )
-                .filter(Boolean);
-
-
-        if (!lines.length) {
-
-            showMessage(
-                "Enter at least one question."
-            );
-
-            return;
-        }
-
-
-        setBulkGenerating(true);
-
-
-        try {
-
-            for (
-                const questionText
-                of lines
             ) {
 
-                await axios.post(
-                    `/api/quiz/${selected.id}/questions`,
+                return;
+            }
+
+            try {
+
+                await axios.delete(
+                    `/api/quiz/${selected.id}/questions/${id}`
+                );
+
+                const detail =
+                    await axios.get(
+                        `/api/quiz/${selected.id}`
+                    );
+
+                setSelected(
+                    responseData(
+                        detail
+                    )
+                );
+
+                flash(
+                    "Question deleted successfully."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "deleteQuestion:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to delete question."
+                );
+            }
+        };
+
+    // ==================================================
+    // DELETE ALL QUESTIONS
+    // ==================================================
+
+    const deleteAllQuestions =
+        async () => {
+
+            if (
+                !selected?.id ||
+                !selected.questions?.length
+            ) {
+
+                flash(
+                    "There are no questions to delete."
+                );
+
+                return;
+            }
+
+            if (
+                !window.confirm(
+                    `Delete all ${selected.questions.length} questions from this category?`
+                )
+            ) {
+
+                return;
+            }
+
+            setSaving(
+                true
+            );
+
+            try {
+
+                await axios.delete(
+                    `/api/quiz/${selected.id}/questions/bulk/all`
+                );
+
+                const detail =
+                    await axios.get(
+                        `/api/quiz/${selected.id}`
+                    );
+
+                setSelected(
+                    responseData(
+                        detail
+                    )
+                );
+
+                flash(
+                    "All questions deleted successfully."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "deleteAllQuestions:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Unable to delete all questions."
+                );
+
+            } finally {
+
+                setSaving(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // GENERATE QUESTION WITH AI
+    //
+    // MAIN AI FIX
+    //
+    // AI answer is converted into the actual option
+    // and the correct option receives question points.
+    // ==================================================
+
+    const generateWithAI =
+        async () => {
+
+            if (
+                !questionForm.question_text.trim()
+            ) {
+
+                flash(
+                    "Enter a question topic or full text first."
+                );
+
+                return;
+            }
+
+            setGeneratingAI(
+                true
+            );
+
+            try {
+
+                const response =
+                    await axios.post(
+                        "/api/quiz/ai/generate-question",
+                        {
+                            question_text:
+                                questionForm.question_text,
+
+                            question_type:
+                                questionForm.question_type,
+
+                            options:
+                                questionForm.options,
+
+                            guideline:
+                                questionForm.guideline,
+
+                            points:
+                                questionForm.points,
+
+                            quiz_id:
+                                selected?.id
+                        }
+                    );
+
+                const generated =
+                    responseData(
+                        response
+                    )?.question ||
+                    responseData(
+                        response
+                    ) ||
+                    {};
+
+                const generatedType =
+                    generated.question_type ||
+                    questionForm.question_type;
+
+                const generatedOptions =
+                    Array.isArray(
+                        generated.options
+                    )
+                        ? generated.options
+                            .map(
+                                (x) =>
+                                    String(
+                                        x ??
+                                        ""
+                                    ).trim()
+                            )
+                            .filter(Boolean)
+                        : (
+                            questionForm.options ||
+                            []
+                        )
+                            .map(
+                                (x) =>
+                                    String(
+                                        x ??
+                                        ""
+                                    ).trim()
+                            )
+                            .filter(Boolean);
+
+                const generatedPoints =
+                    Math.min(
+                        5,
+                        Math.max(
+                            0,
+                            Number(
+                                generated.points ??
+                                questionForm.points ??
+                                1
+                            )
+                        )
+                    );
+
+                const generatedCorrectRaw =
+                    generated.correct_answer ??
+                    "";
+
+                const finalCorrect =
+                    resolveGeneratedCorrectAnswer(
+                        generatedCorrectRaw,
+                        generatedOptions,
+                        generatedType
+                    );
+
+                const finalScores =
+                    generatedType ===
+                        "text"
+                        ? []
+                        : buildOptionScores(
+                            generatedType,
+                            generatedOptions,
+                            finalCorrect,
+                            generatedPoints
+                        );
+
+                console.log(
+                    "AI GENERATED QUESTION:",
                     {
-                        ...emptyQuestion,
+                        generated,
+                        finalCorrect,
+                        finalScores
+                    }
+                );
+
+                setQuestionForm(
+                    (prev) => ({
+                        ...prev,
 
                         question_text:
-                            questionText,
+                            generated.question_text ||
+                            prev.question_text,
 
                         question_type:
-                            "single_choice",
+                            generatedType,
 
-                        options: [
-                            "",
-                            ""
-                        ],
+                        options:
+                            generatedType ===
+                                "text"
+                                ? []
+                                : generatedOptions,
+
+                        option_scores:
+                            finalScores,
 
                         correct_answer:
-                            "",
+                            finalCorrect,
 
                         points:
-                            1,
-
-                        is_mandatory:
-                            true,
+                            generatedPoints,
 
                         guideline:
-                            "",
+                            generated.guideline ??
+                            prev.guideline
+                    })
+                );
+
+                if (
+                    generatedType !==
+                        "text" &&
+                    finalCorrect
+                ) {
+
+                    flash(
+                        "Question generated with AI. Correct answer and scoring are set automatically."
+                    );
+
+                } else {
+
+                    flash(
+                        "Question generated with AI. Please select the correct answer before saving."
+                    );
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "generateWithAI:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "AI generation failed."
+                );
+
+            } finally {
+
+                setGeneratingAI(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // BULK GENERATE
+    // ==================================================
+
+    const bulkGenerate =
+        async () => {
+
+            const questions =
+                bulkText
+                    .split("\n")
+                    .map(
+                        (x) =>
+                            x.trim()
+                    )
+                    .filter(Boolean);
+
+            if (
+                !selected?.id
+            ) {
+
+                return;
+            }
+
+            if (
+                !questions.length
+            ) {
+
+                flash(
+                    "Enter at least one question."
+                );
+
+                return;
+            }
+
+            setBulkGenerating(
+                true
+            );
+
+            try {
+
+                await axios.post(
+                    `/api/quiz/${selected.id}/questions/bulk`,
+                    {
+                        questions:
+                            questions.map(
+                                (
+                                    question_text
+                                ) => ({
+                                    question_text,
+
+                                    question_type:
+                                        "single_choice",
+
+                                    options: [
+                                        "",
+                                        ""
+                                    ],
+
+                                    option_scores: [
+                                        0,
+                                        0
+                                    ],
+
+                                    correct_answer:
+                                        "",
+
+                                    correct_answer_json:
+                                        "",
+
+                                    points:
+                                        1,
+
+                                    is_mandatory:
+                                        true
+                                })
+                            )
                     }
+                );
+
+                const detail =
+                    await axios.get(
+                        `/api/quiz/${selected.id}`
+                    );
+
+                setSelected(
+                    responseData(
+                        detail
+                    )
+                );
+
+                setShowBulk(
+                    false
+                );
+
+                setBulkText(
+                    ""
+                );
+
+                flash(
+                    `${questions.length} questions added successfully.`
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "bulkGenerate:",
+                    error
+                );
+
+                flash(
+                    error?.response
+                        ?.data
+                        ?.message ||
+                    "Bulk generation failed."
+                );
+
+            } finally {
+
+                setBulkGenerating(
+                    false
+                );
+            }
+        };
+
+    // ==================================================
+    // COPY LINK
+    // ==================================================
+
+    const copyLink =
+        async () => {
+
+            if (
+                !selected?.public_token
+            ) {
+
+                return;
+            }
+
+            const link =
+                `${window.location.origin}/quiz/${selected.public_token}`;
+
+            try {
+
+                await navigator.clipboard.writeText(
+                    link
+                );
+
+                flash(
+                    "Reusable quiz link copied."
+                );
+
+            } catch {
+
+                flash(
+                    "Unable to copy quiz link."
+                );
+            }
+        };
+
+    // ==================================================
+    // CHECK CORRECT OPTION
+    // ==================================================
+
+    const isCorrectOption =
+        (option) => {
+
+            if (
+                questionForm.question_type ===
+                "multiple_choice"
+            ) {
+
+                const answers =
+                    normalizeCorrectAnswer(
+                        questionForm.question_type,
+                        questionForm.correct_answer
+                    );
+
+                return answers.some(
+                    (answer) =>
+                        optionMatchesAnswer(
+                            answer,
+                            option
+                        )
                 );
             }
 
-
-            const detail =
-                await axios.get(
-                    `/api/quiz/${selected.id}`
-                );
-
-
-            setSelected(
-                getResponseData(detail)
+            return optionMatchesAnswer(
+                questionForm.correct_answer,
+                option
             );
+        };
 
-
-            setShowBulkModal(false);
-
-            setBulkText("");
-
-
-            showMessage(
-                `${lines.length} questions generated successfully.`
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Bulk generate error:",
-                error
-            );
-
-            showMessage(
-                error?.response?.data?.message ||
-                "Bulk generation failed."
-            );
-
-        } finally {
-
-            setBulkGenerating(false);
-        }
-    };
-
-
-    /* ======================================================================
-       TOTAL POINTS
-    ====================================================================== */
-
-    const totalPoints =
-        useMemo(() => {
-
-            return (
-                selected?.questions || []
-            ).reduce(
-                (sum, question) =>
-                    sum +
-                    Number(
-                        question?.points || 0
-                    ),
-                0
-            );
-
-        }, [selected]);
-
-
-    /* ======================================================================
-       RENDER
-    ====================================================================== */
+    // ==================================================
+    // RENDER
+    // ==================================================
 
     return (
+        <div className="quiz-page quiz-setup-v2">
 
-        <div className="quiz-page">
-
-
-            {/* ==============================================================
+            {/* ==========================================
                 PAGE HEADER
-            ============================================================== */}
+            ========================================== */}
 
-            <div
-                className="quiz-page-header"
-                style={{
-                    marginBottom: "18px"
-                }}
-            >
+            <div className="quiz-setup-top">
 
-                <div>
+                <h1>
+                    Quiz Setup
+                </h1>
 
-                    <div className="quiz-eyebrow">
-                        TRAINING & ASSESSMENT
-                    </div>
+                <div className="quiz-global-search">
 
-                    <h1>
-                        Quiz Setup
-                    </h1>
+                    <FaSearch />
 
-                    <p>
-                        Create reusable assessments,
-                        manage questions and control access.
-                    </p>
-
-                </div>
-
-
-                <div
-                    style={{
-                        display: "flex",
-                        gap: "10px",
-                        alignItems: "center",
-                        flexWrap: "wrap"
-                    }}
-                >
-
-                    <button
-                        type="button"
-                        className="quiz-secondary"
-                        onClick={() =>
-                            navigate(
-                                "/quiz/email-settings"
-                            )
+                    <input
+                        value={
+                            globalSearch
                         }
-                    >
-
-                        <FaEnvelope />
-
-                        Email Settings
-
-                    </button>
-
-
-                    <button
-                        type="button"
-                        className="quiz-primary"
-                        onClick={() => {
-
-                            setQuizForm({
-                                ...emptyQuiz
-                            });
-
-                            setShowQuiz(true);
-
-                        }}
-                    >
-
-                        <FaPlus />
-
-                        Create Quiz
-
-                    </button>
+                        onChange={
+                            (e) =>
+                                setGlobalSearch(
+                                    e.target.value
+                                )
+                        }
+                        placeholder="Search all categories and questions..."
+                    />
 
                 </div>
 
             </div>
 
-
-            {/* ==============================================================
-                MESSAGE
-            ============================================================== */}
+            {/* ==========================================
+                TOAST
+            ========================================== */}
 
             {message && (
-
-                <div className="quiz-toast">
+                <div className="quiz-setup-toast">
 
                     <span>
                         {message}
@@ -1521,177 +2599,57 @@ function QuizSetup() {
                     <button
                         type="button"
                         onClick={() =>
-                            setMessage("")
+                            setMessage(
+                                ""
+                            )
                         }
                     >
-
                         <FaTimes />
-
                     </button>
 
                 </div>
-
             )}
 
+            {/* ==========================================
+                MAIN GRID
+            ========================================== */}
 
-            {/* ==============================================================
-                GLOBAL SEARCH
-            ============================================================== */}
+            <div className="quiz-setup-grid">
 
-            <div
-                style={{
-                    marginBottom: "14px",
-                    display: "flex",
-                    justifyContent: "flex-end"
-                }}
-            >
+                {/* ======================================
+                    CATEGORY PANEL
+                ====================================== */}
 
-                <div
-                    style={{
-                        position: "relative",
-                        width: "430px",
-                        maxWidth: "100%"
-                    }}
-                >
+                <section className="quiz-category-panel">
 
-                    <FaSearch
-                        style={{
-                            position: "absolute",
-                            left: "14px",
-                            top: "50%",
-                            transform:
-                                "translateY(-50%)",
-                            opacity: 0.5
-                        }}
-                    />
-
-                    <input
-                        value={searchQuestion}
-                        onChange={(e) =>
-                            setSearchQuestion(
-                                e.target.value
-                            )
-                        }
-                        placeholder="Search all categories and questions..."
-                        style={{
-                            width: "100%",
-                            padding:
-                                "12px 14px 12px 40px",
-                            border:
-                                "1px solid #d7d3e5",
-                            borderRadius:
-                                "5px",
-                            outline: "none",
-                            boxSizing:
-                                "border-box"
-                        }}
-                    />
-
-                </div>
-
-            </div>
-
-
-            {/* ==============================================================
-                MAIN SCREEN
-            ============================================================== */}
-
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                        "310px minmax(0, 1fr)",
-                    gap: "18px",
-                    alignItems: "start"
-                }}
-            >
-
-
-                {/* ==========================================================
-                    CATEGORIES
-                ========================================================== */}
-
-                <section
-                    className="quiz-panel"
-                    style={{
-                        minHeight: "620px"
-                    }}
-                >
-
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent:
-                                "space-between",
-                            alignItems: "center",
-                            padding:
-                                "14px 14px 10px",
-                            borderBottom:
-                                "1px solid #ece9f2"
-                        }}
-                    >
+                    <div className="quiz-category-head">
 
                         <strong>
                             Categories
                         </strong>
 
-
-                        <div
-                            style={{
-                                display: "flex",
-                                gap: "6px"
-                            }}
-                        >
+                        <div>
 
                             <button
                                 type="button"
-                                className="quiz-danger ghost"
-                                style={{
-                                    fontSize:
-                                        "12px",
-                                    padding:
-                                        "7px 9px"
-                                }}
-                                onClick={() => {
-
-                                    if (!selected) {
-
-                                        showMessage(
-                                            "Select a quiz first."
-                                        );
-
-                                        return;
-                                    }
-
-                                    deleteQuiz(
-                                        selected.id
-                                    );
-
-                                }}
+                                className="quiz-danger-small"
+                                onClick={
+                                    deleteAllQuizzes
+                                }
+                                disabled={
+                                    saving
+                                }
                             >
                                 Delete All
                             </button>
 
-
                             <button
                                 type="button"
-                                className="quiz-primary"
-                                style={{
-                                    minWidth:
-                                        "36px",
-                                    padding:
-                                        "7px 10px"
-                                }}
-                                onClick={() => {
-
-                                    setQuizForm({
-                                        ...emptyQuiz
-                                    });
-
-                                    setShowQuiz(true);
-
-                                }}
-                                title="Create category / quiz"
+                                className="quiz-icon-add"
+                                onClick={
+                                    createCategory
+                                }
+                                title="Add category"
                             >
                                 <FaPlus />
                             </button>
@@ -1700,276 +2658,155 @@ function QuizSetup() {
 
                     </div>
 
+                    <div className="quiz-category-search">
 
-                    {/* CATEGORY SEARCH */}
-
-                    <div
-                        style={{
-                            padding:
-                                "10px 14px"
-                        }}
-                    >
-
-                        <div
-                            style={{
-                                position:
-                                    "relative"
-                            }}
-                        >
-
-                            <FaSearch
-                                style={{
-                                    position:
-                                        "absolute",
-                                    left: "11px",
-                                    top: "50%",
-                                    transform:
-                                        "translateY(-50%)",
-                                    opacity: 0.5,
-                                    fontSize:
-                                        "13px"
-                                }}
-                            />
-
-                            <input
-                                value={searchQuiz}
-                                onChange={(e) =>
-                                    setSearchQuiz(
+                        <input
+                            value={
+                                categorySearch
+                            }
+                            onChange={
+                                (e) =>
+                                    setCategorySearch(
                                         e.target.value
                                     )
-                                }
-                                placeholder="Search categories..."
-                                style={{
-                                    width: "100%",
-                                    boxSizing:
-                                        "border-box",
-                                    padding:
-                                        "9px 10px 9px 32px",
-                                    border:
-                                        "1px solid #ddd8e8",
-                                    borderRadius:
-                                        "4px"
-                                }}
-                            />
-
-                        </div>
+                            }
+                            placeholder="Search categories..."
+                        />
 
                     </div>
 
-
-                    {/* CATEGORY LIST */}
-
-                    <div
-                        style={{
-                            padding:
-                                "0 8px 12px",
-                            maxHeight:
-                                "540px",
-                            overflowY:
-                                "auto"
-                        }}
-                    >
+                    <div className="quiz-category-list">
 
                         {loading ? (
 
-                            <div
-                                className="quiz-empty"
-                            >
+                            <div className="quiz-list-loading">
                                 Loading...
                             </div>
 
-                        ) : filteredQuizzes.length === 0 ? (
-
-                            <div
-                                className="quiz-empty"
-                            >
-
-                                <FaQuestionCircle />
-
-                                <strong>
-                                    No categories
-                                </strong>
-
-                                <span>
-                                    Create your first assessment.
-                                </span>
-
-                            </div>
-
-                        ) : (
+                        ) : filteredQuizzes.length ? (
 
                             filteredQuizzes.map(
                                 (quiz) => (
 
                                     <div
-                                        key={quiz.id}
+                                        key={
+                                            quiz.id
+                                        }
+                                        className={`quiz-category-item ${
+                                            Number(
+                                                selected?.id
+                                            ) ===
+                                            Number(
+                                                quiz.id
+                                            )
+                                                ? "active"
+                                                : ""
+                                        }`}
                                         onClick={() =>
                                             openQuiz(
                                                 quiz.id
                                             )
                                         }
-                                        style={{
-                                            cursor:
-                                                "pointer",
-                                            padding:
-                                                "12px 10px",
-                                            marginBottom:
-                                                "5px",
-                                            borderRadius:
-                                                "4px",
-                                            background:
-                                                selected?.id ===
-                                                quiz.id
-                                                    ? "#a696d0"
-                                                    : "#fff",
-                                            color:
-                                                selected?.id ===
-                                                quiz.id
-                                                    ? "#fff"
-                                                    : "#20202a",
-                                            border:
-                                                "1px solid " +
-                                                (
-                                                    selected?.id ===
-                                                    quiz.id
-                                                        ? "#9482c5"
-                                                        : "#eeeaf4"
-                                                )
-                                        }}
                                     >
 
-                                        <div
-                                            style={{
-                                                display:
-                                                    "flex",
-                                                justifyContent:
-                                                    "space-between",
-                                                gap:
-                                                    "8px"
-                                            }}
-                                        >
+                                        <div className="quiz-category-title">
 
-                                            <div
-                                                style={{
-                                                    minWidth:
-                                                        0
+                                            <span>
+                                                {
+                                                    quiz.name
+                                                }
+                                            </span>
+
+                                            {Number(
+                                                selected?.id
+                                            ) ===
+                                                Number(
+                                                    quiz.id
+                                                ) && (
+                                                    <FaChevronDown />
+                                                )}
+
+                                        </div>
+
+                                        <div className="quiz-category-meta">
+
+                                            {
+                                                quiz.description ||
+                                                "All Stores"
+                                            }
+
+                                        </div>
+
+                                        <div className="quiz-category-actions">
+
+                                            <button
+                                                type="button"
+                                                className="quiz-link-icon"
+                                                title="Copy quiz link"
+                                                onClick={(
+                                                    e
+                                                ) => {
+
+                                                    e.stopPropagation();
+
+                                                    const link =
+                                                        `${window.location.origin}/quiz/${quiz.public_token}`;
+
+                                                    navigator.clipboard?.writeText(
+                                                        link
+                                                    );
+
+                                                    flash(
+                                                        "Quiz link copied."
+                                                    );
                                                 }}
                                             >
+                                                <FaLink />
+                                            </button>
 
-                                                <strong
-                                                    style={{
-                                                        display:
-                                                            "block",
-                                                        whiteSpace:
-                                                            "nowrap",
-                                                        overflow:
-                                                            "hidden",
-                                                        textOverflow:
-                                                            "ellipsis"
-                                                    }}
-                                                >
-                                                    {quiz.name}
-                                                </strong>
+                                            <button
+                                                type="button"
+                                                onClick={(
+                                                    e
+                                                ) => {
 
+                                                    e.stopPropagation();
 
-                                                <small
-                                                    style={{
-                                                        opacity:
-                                                            0.8
-                                                    }}
-                                                >
-                                                    {
-                                                        quiz.question_count ??
-                                                        0
-                                                    }{" "}
-                                                    Questions
-                                                </small>
-
-                                            </div>
-
-
-                                            <div
-                                                style={{
-                                                    display:
-                                                        "flex",
-                                                    gap:
-                                                        "5px",
-                                                    alignItems:
-                                                        "center"
+                                                    editCategory(
+                                                        quiz
+                                                    );
                                                 }}
                                             >
+                                                Edit
+                                            </button>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
+                                            <button
+                                                type="button"
+                                                onClick={(
+                                                    e
+                                                ) => {
 
-                                                        e.stopPropagation();
+                                                    e.stopPropagation();
 
-                                                        setQuizForm({
-                                                            ...quiz
-                                                        });
-
-                                                        setShowQuiz(
-                                                            true
-                                                        );
-
-                                                    }}
-                                                    style={{
-                                                        border:
-                                                            "none",
-                                                        background:
-                                                            "transparent",
-                                                        color:
-                                                            selected?.id ===
-                                                            quiz.id
-                                                                ? "#fff"
-                                                                : "#2969d8",
-                                                        cursor:
-                                                            "pointer"
-                                                    }}
-                                                    title="Edit"
-                                                >
-                                                    <FaEdit />
-                                                </button>
-
-
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-
-                                                        e.stopPropagation();
-
-                                                        deleteQuiz(
-                                                            quiz.id
-                                                        );
-
-                                                    }}
-                                                    style={{
-                                                        border:
-                                                            "none",
-                                                        background:
-                                                            "transparent",
-                                                        color:
-                                                            selected?.id ===
-                                                            quiz.id
-                                                                ? "#fff"
-                                                                : "#e53935",
-                                                        cursor:
-                                                            "pointer"
-                                                    }}
-                                                    title="Delete"
-                                                >
-                                                    <FaTrash />
-                                                </button>
-
-                                            </div>
+                                                    deleteQuiz(
+                                                        quiz.id
+                                                    );
+                                                }}
+                                            >
+                                                Delete
+                                            </button>
 
                                         </div>
 
                                     </div>
-
                                 )
                             )
+
+                        ) : (
+
+                            <div className="quiz-list-empty">
+                                No categories found.
+                            </div>
 
                         )}
 
@@ -1977,39 +2814,34 @@ function QuizSetup() {
 
                 </section>
 
+                {/* ======================================
+                    QUESTION PANEL
+                ====================================== */}
 
-                {/* ==========================================================
-                    QUESTIONS PANEL
-                ========================================================== */}
-
-                <section
-                    className="quiz-panel"
-                    style={{
-                        minHeight: "620px"
-                    }}
-                >
+                <section className="quiz-question-panel">
 
                     {!selected ? (
 
-                        <div
-                            className="quiz-empty large"
-                            style={{
-                                minHeight:
-                                    "580px"
-                            }}
-                        >
-
-                            <FaQuestionCircle />
+                        <div className="quiz-no-selection">
 
                             <h2>
-                                Select an assessment
+                                Select a category
                             </h2>
 
                             <p>
-                                Choose a quiz from the
-                                left to manage its
-                                settings and questions.
+                                Choose a category from the left to manage its questions.
                             </p>
+
+                            <button
+                                type="button"
+                                className="quiz-primary"
+                                onClick={
+                                    createCategory
+                                }
+                            >
+                                <FaPlus />
+                                Add Category
+                            </button>
 
                         </div>
 
@@ -2017,81 +2849,25 @@ function QuizSetup() {
 
                         <>
 
-                            {/* ==================================================
-                                QUESTIONS HEADER
-                            ================================================== */}
-
-                            <div
-                                style={{
-                                    display:
-                                        "flex",
-                                    justifyContent:
-                                        "space-between",
-                                    alignItems:
-                                        "center",
-                                    gap:
-                                        "12px",
-                                    padding:
-                                        "16px",
-                                    borderBottom:
-                                        "1px solid #e7e3ef",
-                                    flexWrap:
-                                        "wrap"
-                                }}
-                            >
+                            <div className="quiz-question-head">
 
                                 <div>
 
-                                    <h2
-                                        style={{
-                                            margin:
-                                                0,
-                                            fontSize:
-                                                "17px"
-                                        }}
-                                    >
+                                    <h2>
 
                                         Questions for:{" "}
 
-                                        <span
-                                            style={{
-                                                color:
-                                                    "#e95b29"
-                                            }}
-                                        >
-                                            {selected.name}
+                                        <span>
+                                            {
+                                                selected.name
+                                            }
                                         </span>
 
                                     </h2>
 
-                                    <small
-                                        style={{
-                                            color:
-                                                "#777"
-                                        }}
-                                    >
-                                        {
-                                            selected.questions
-                                                ?.length ||
-                                            0
-                                        }{" "}
-                                        questions ·{" "}
-                                        {totalPoints} total points
-                                    </small>
-
                                 </div>
 
-
-                                <div
-                                    style={{
-                                        display:
-                                            "flex",
-                                        gap:
-                                            "7px",
-                                        flexWrap:
-                                            "wrap"
-                                    }}
-                                >
+                                <div className="quiz-question-actions">
 
                                     <button
                                         type="button"
@@ -2099,23 +2875,25 @@ function QuizSetup() {
                                         onClick={
                                             deleteAllQuestions
                                         }
+                                        disabled={
+                                            saving
+                                        }
                                     >
                                         Delete All Questions
                                     </button>
 
-
                                     <button
                                         type="button"
                                         className="quiz-secondary"
-                                        onClick={
-                                            openBulkGenerate
+                                        onClick={() =>
+                                            setShowBulk(
+                                                true
+                                            )
                                         }
                                     >
                                         <FaMagic />
-
                                         Bulk Generate
                                     </button>
-
 
                                     <button
                                         type="button"
@@ -2125,7 +2903,6 @@ function QuizSetup() {
                                         }
                                     >
                                         <FaPlus />
-
                                         Add Question
                                     </button>
 
@@ -2133,120 +2910,28 @@ function QuizSetup() {
 
                             </div>
 
+                            <div className="quiz-question-search">
 
-                            {/* ==================================================
-                                QUESTION SEARCH
-                            ================================================== */}
+                                <FaSearch />
 
-                            <div
-                                style={{
-                                    padding:
-                                        "12px 16px 4px"
-                                }}
-                            >
-
-                                <div
-                                    style={{
-                                        position:
-                                            "relative"
-                                    }}
-                                >
-
-                                    <FaSearch
-                                        style={{
-                                            position:
-                                                "absolute",
-                                            left:
-                                                "12px",
-                                            top:
-                                                "50%",
-                                            transform:
-                                                "translateY(-50%)",
-                                            opacity:
-                                                0.5
-                                        }}
-                                    />
-
-                                    <input
-                                        value={
-                                            searchQuestion
-                                        }
-                                        onChange={(e) =>
-                                            setSearchQuestion(
+                                <input
+                                    value={
+                                        questionSearch
+                                    }
+                                    onChange={
+                                        (e) =>
+                                            setQuestionSearch(
                                                 e.target.value
                                             )
-                                        }
-                                        placeholder="Search questions..."
-                                        style={{
-                                            width:
-                                                "100%",
-                                            boxSizing:
-                                                "border-box",
-                                            padding:
-                                                "10px 12px 10px 35px",
-                                            border:
-                                                "1px solid #ddd8e8",
-                                            borderRadius:
-                                                "5px"
-                                        }}
-                                    />
-
-                                </div>
+                                    }
+                                    placeholder="Search questions..."
+                                />
 
                             </div>
 
+                            <div className="quiz-question-list">
 
-                            {/* ==================================================
-                                QUESTION LIST
-                            ================================================== */}
-
-                            <div
-                                style={{
-                                    padding:
-                                        "10px 16px 18px"
-                                }}
-                            >
-
-                                {filteredQuestions.length ===
-                                0 ? (
-
-                                    <div
-                                        className="quiz-empty"
-                                        style={{
-                                            minHeight:
-                                                "400px"
-                                        }}
-                                    >
-
-                                        <FaQuestionCircle />
-
-                                        <strong>
-                                            No questions yet
-                                        </strong>
-
-                                        <span>
-                                            Add your first
-                                            question.
-                                        </span>
-
-                                        <button
-                                            type="button"
-                                            className="quiz-primary"
-                                            onClick={
-                                                openAddQuestion
-                                            }
-                                            style={{
-                                                marginTop:
-                                                    "10px"
-                                            }}
-                                        >
-                                            <FaPlus />
-                                            Add Question
-                                        </button>
-
-                                    </div>
-
-                                ) : (
+                                {filteredQuestions.length ? (
 
                                     filteredQuestions.map(
                                         (
@@ -2255,205 +2940,38 @@ function QuizSetup() {
                                         ) => (
 
                                             <div
+                                                className="quiz-question-card"
                                                 key={
                                                     question.id
                                                 }
-                                                style={{
-                                                    display:
-                                                        "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems:
-                                                        "center",
-                                                    gap:
-                                                        "15px",
-                                                    padding:
-                                                        "14px",
-                                                    marginBottom:
-                                                        "8px",
-                                                    border:
-                                                        "1px solid #e5e2eb",
-                                                    borderRadius:
-                                                        "7px",
-                                                    background:
-                                                        "#fff"
-                                                }}
                                             >
 
-                                                <div
-                                                    style={{
-                                                        minWidth:
-                                                            0,
-                                                        flex:
-                                                            1
-                                                    }}
-                                                >
+                                                <div className="quiz-question-number">
+                                                    {index + 1}.
+                                                </div>
 
-                                                    <h4
-                                                        style={{
-                                                            margin:
-                                                                0,
-                                                            lineHeight:
-                                                                1.5,
-                                                            fontSize:
-                                                                "14px"
-                                                        }}
-                                                    >
+                                                <div className="quiz-question-text">
 
-                                                        {index + 1}.{" "}
-
-                                                        {question.question_text}
-
-                                                    </h4>
-
-
-                                                    <div
-                                                        style={{
-                                                            display:
-                                                                "flex",
-                                                            gap:
-                                                                "8px",
-                                                            flexWrap:
-                                                                "wrap",
-                                                            marginTop:
-                                                                "7px"
-                                                        }}
-                                                    >
-
-                                                        <span
-                                                            style={{
-                                                                fontSize:
-                                                                    "11px",
-                                                                color:
-                                                                    "#666"
-                                                            }}
-                                                        >
-                                                            {questionTypeLabel(
-                                                                question.question_type
-                                                            )}
-                                                        </span>
-
-
-                                                        <span
-                                                            style={{
-                                                                fontSize:
-                                                                    "11px",
-                                                                color:
-                                                                    "#666"
-                                                            }}
-                                                        >
-                                                            {question.points ||
-                                                                0}{" "}
-                                                            point
-                                                        </span>
-
-
-                                                        {question.is_mandatory ? (
-
-                                                            <span
-                                                                style={{
-                                                                    fontSize:
-                                                                        "11px",
-                                                                    color:
-                                                                        "#e53935",
-                                                                    fontWeight:
-                                                                        600
-                                                                }}
-                                                            >
-                                                                Mandatory
-                                                            </span>
-
-                                                        ) : null}
-
-                                                    </div>
-
-
-                                                    {question.options
-                                                        ?.length ? (
-
-                                                        <div
-                                                            style={{
-                                                                display:
-                                                                    "flex",
-                                                                flexWrap:
-                                                                    "wrap",
-                                                                gap:
-                                                                    "5px",
-                                                                marginTop:
-                                                                    "8px"
-                                                            }}
-                                                        >
-
-                                                            {question.options.map(
-                                                                (
-                                                                    option,
-                                                                    optionIndex
-                                                                ) => (
-
-                                                                    <span
-                                                                        key={
-                                                                            optionIndex
-                                                                        }
-                                                                        style={{
-                                                                            padding:
-                                                                                "4px 8px",
-                                                                            border:
-                                                                                "1px solid #e5e1ed",
-                                                                            borderRadius:
-                                                                                "4px",
-                                                                            fontSize:
-                                                                                "11px",
-                                                                            background:
-                                                                                "#faf9fc"
-                                                                        }}
-                                                                    >
-                                                                        {
-                                                                            option
-                                                                        }
-                                                                    </span>
-
-                                                                )
-                                                            )}
-
-                                                        </div>
-
-                                                    ) : null}
+                                                    <strong>
+                                                        {
+                                                            question.question_text
+                                                        }
+                                                    </strong>
 
                                                 </div>
 
-
-                                                <div
-                                                    style={{
-                                                        display:
-                                                            "flex",
-                                                        gap:
-                                                            "8px",
-                                                        flexShrink:
-                                                            0
-                                                    }}
-                                                >
+                                                <div className="quiz-question-card-actions">
 
                                                     <button
                                                         type="button"
                                                         onClick={() =>
-                                                            editQuestion(
+                                                            openEditQuestion(
                                                                 question
                                                             )
                                                         }
-                                                        style={{
-                                                            border:
-                                                                "none",
-                                                            background:
-                                                                "transparent",
-                                                            color:
-                                                                "#2563eb",
-                                                            cursor:
-                                                                "pointer"
-                                                        }}
                                                     >
                                                         Edit
                                                     </button>
-
 
                                                     <button
                                                         type="button"
@@ -2462,16 +2980,6 @@ function QuizSetup() {
                                                                 question.id
                                                             )
                                                         }
-                                                        style={{
-                                                            border:
-                                                                "none",
-                                                            background:
-                                                                "transparent",
-                                                            color:
-                                                                "#e53935",
-                                                            cursor:
-                                                                "pointer"
-                                                        }}
                                                     >
                                                         Delete
                                                     </button>
@@ -2479,33 +2987,55 @@ function QuizSetup() {
                                                 </div>
 
                                             </div>
-
                                         )
                                     )
+
+                                ) : (
+
+                                    <div className="quiz-empty-question">
+
+                                        <strong>
+                                            No questions yet.
+                                        </strong>
+
+                                        <span>
+                                            Add your first question.
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="quiz-primary"
+                                            onClick={
+                                                openAddQuestion
+                                            }
+                                        >
+                                            <FaPlus />
+                                            Add Question
+                                        </button>
+
+                                    </div>
 
                                 )}
 
                             </div>
 
                         </>
-
                     )}
 
                 </section>
 
             </div>
 
-
-            {/* =================================================================
+            {/* ==========================================
                 CREATE / EDIT QUIZ MODAL
-            ================================================================= */}
+            ========================================== */}
 
             {showQuiz && (
 
                 <div className="quiz-modal-backdrop">
 
                     <form
-                        className="quiz-modal"
+                        className="quiz-modal quiz-category-modal"
                         onSubmit={
                             saveQuiz
                         }
@@ -2516,17 +3046,18 @@ function QuizSetup() {
                             <div>
 
                                 <span>
-                                    ASSESSMENT CONFIGURATION
+                                    CATEGORY / QUIZ
                                 </span>
 
                                 <h2>
-                                    {quizForm?.id
-                                        ? "Edit Quiz"
-                                        : "Create Quiz"}
+                                    {
+                                        quizForm.id
+                                            ? "Edit Category"
+                                            : "Add Category"
+                                    }
                                 </h2>
 
                             </div>
-
 
                             <button
                                 type="button"
@@ -2541,52 +3072,51 @@ function QuizSetup() {
 
                         </div>
 
-
                         <div className="quiz-form-grid">
 
                             <label className="full">
 
-                                Quiz Name
+                                Category / Quiz Name
 
                                 <input
                                     required
                                     value={
                                         quizForm.name
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            name:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                name:
+                                                    e.target.value
+                                            })
                                     }
                                     placeholder="e.g. Mi Arcus EOSS & BOGO Offer Quiz"
                                 />
 
                             </label>
 
-
                             <label className="full">
 
-                                Description
+                                Scope / Description
 
-                                <textarea
+                                <input
                                     value={
                                         quizForm.description ||
                                         ""
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            description:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                description:
+                                                    e.target.value
+                                            })
                                     }
-                                    placeholder="Briefly describe the assessment"
+                                    placeholder="e.g. All Stores"
                                 />
 
                             </label>
-
 
                             <label>
 
@@ -2599,17 +3129,17 @@ function QuizSetup() {
                                     value={
                                         quizForm.passing_score
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            passing_score:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                passing_score:
+                                                    e.target.value
+                                            })
                                     }
                                 />
 
                             </label>
-
 
                             <label>
 
@@ -2622,18 +3152,17 @@ function QuizSetup() {
                                         quizForm.time_limit_minutes ||
                                         ""
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            time_limit_minutes:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                time_limit_minutes:
+                                                    e.target.value
+                                            })
                                     }
-                                    placeholder="Unlimited"
                                 />
 
                             </label>
-
 
                             <label>
 
@@ -2645,17 +3174,17 @@ function QuizSetup() {
                                     value={
                                         quizForm.attempts_allowed
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            attempts_allowed:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                attempts_allowed:
+                                                    e.target.value
+                                            })
                                     }
                                 />
 
                             </label>
-
 
                             <label>
 
@@ -2665,12 +3194,13 @@ function QuizSetup() {
                                     value={
                                         quizForm.status
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            status:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                status:
+                                                    e.target.value
+                                            })
                                     }
                                 >
 
@@ -2688,7 +3218,6 @@ function QuizSetup() {
 
                         </div>
 
-
                         <div className="quiz-checks">
 
                             <label>
@@ -2698,19 +3227,19 @@ function QuizSetup() {
                                     checked={
                                         !!quizForm.require_camera
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            require_camera:
-                                                e.target.checked
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                require_camera:
+                                                    e.target.checked
+                                            })
                                     }
                                 />
 
                                 Camera verification
 
                             </label>
-
 
                             <label>
 
@@ -2719,19 +3248,19 @@ function QuizSetup() {
                                     checked={
                                         !!quizForm.require_location
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            require_location:
-                                                e.target.checked
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                require_location:
+                                                    e.target.checked
+                                            })
                                     }
                                 />
 
                                 Location verification
 
                             </label>
-
 
                             <label>
 
@@ -2740,12 +3269,13 @@ function QuizSetup() {
                                     checked={
                                         !!quizForm.require_email_consent
                                     }
-                                    onChange={(e) =>
-                                        setQuizForm({
-                                            ...quizForm,
-                                            require_email_consent:
-                                                e.target.checked
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuizForm({
+                                                ...quizForm,
+                                                require_email_consent:
+                                                    e.target.checked
+                                            })
                                     }
                                 />
 
@@ -2754,7 +3284,6 @@ function QuizSetup() {
                             </label>
 
                         </div>
-
 
                         <div className="quiz-modal-footer">
 
@@ -2770,7 +3299,6 @@ function QuizSetup() {
                                 Cancel
                             </button>
 
-
                             <button
                                 className="quiz-primary"
                                 disabled={
@@ -2780,9 +3308,11 @@ function QuizSetup() {
 
                                 <FaSave />
 
-                                {saving
-                                    ? "Saving..."
-                                    : "Save Quiz"}
+                                {
+                                    saving
+                                        ? "Saving..."
+                                        : "Save Category"
+                                }
 
                             </button>
 
@@ -2791,42 +3321,22 @@ function QuizSetup() {
                     </form>
 
                 </div>
-
             )}
 
-
-            {/* =================================================================
-                ADD / EDIT QUESTION MODAL
-            ================================================================= */}
+            {/* ==========================================
+                QUESTION MODAL
+            ========================================== */}
 
             {showQuestion && (
 
-                <div
-                    className="quiz-modal-backdrop"
-                    style={{
-                        alignItems:
-                            "flex-start",
-                        paddingTop:
-                            "25px"
-                    }}
-                >
+                <div className="quiz-modal-backdrop quiz-question-modal-backdrop">
 
                     <form
-                        className="quiz-modal wide"
+                        className="quiz-modal wide quiz-question-modal"
                         onSubmit={
                             saveQuestion
                         }
-                        style={{
-                            maxHeight:
-                                "92vh",
-                            overflowY:
-                                "auto"
-                        }}
                     >
-
-                        {/* =====================================================
-                            MODAL HEADER
-                        ===================================================== */}
 
                         <div className="quiz-modal-head">
 
@@ -2837,13 +3347,14 @@ function QuizSetup() {
                                 </span>
 
                                 <h2>
-                                    {editingQuestion
-                                        ? "Edit Question"
-                                        : "Add Question"}
+                                    {
+                                        editingQuestion
+                                            ? "Edit Question"
+                                            : "Add Question"
+                                    }
                                 </h2>
 
                             </div>
-
 
                             <button
                                 type="button"
@@ -2853,253 +3364,127 @@ function QuizSetup() {
                                     )
                                 }
                             >
-
                                 <FaTimes />
-
                             </button>
 
                         </div>
 
+                        <div className="quiz-question-form-body">
 
-                        {/* =====================================================
-                            QUESTION TYPE
-                        ===================================================== */}
+                            {/* QUESTION TYPE */}
 
-                        <div
-                            style={{
-                                padding:
-                                    "0 0 5px"
-                            }}
-                        >
+                            <label>
 
-                            <label
-                                style={{
-                                    display:
-                                        "block",
-                                    fontWeight:
-                                        600,
-                                    marginBottom:
-                                        "8px"
-                                }}
-                            >
                                 Question Type
-                            </label>
 
-
-                            <select
-                                value={
-                                    questionForm.question_type
-                                }
-                                onChange={(e) =>
-                                    changeQuestionType(
-                                        e.target.value
-                                    )
-                                }
-                                style={{
-                                    width:
-                                        "100%",
-                                    padding:
-                                        "11px",
-                                    border:
-                                        "1px solid #d8d4e2",
-                                    borderRadius:
-                                        "5px",
-                                    fontSize:
-                                        "15px"
-                                }}
-                            >
-
-                                <option value="single_choice">
-                                    Single Choice (Radio)
-                                </option>
-
-                                <option value="multiple_choice">
-                                    Multiple Choice (Checkbox)
-                                </option>
-
-                                <option value="text">
-                                    Text Input (Manual scoring in Training Report)
-                                </option>
-
-                                <option value="true_false">
-                                    True / False
-                                </option>
-
-                            </select>
-
-                        </div>
-
-
-                        {/* =====================================================
-                            QUESTION TEXT
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                marginTop:
-                                    "15px"
-                            }}
-                        >
-
-                            <label
-                                style={{
-                                    display:
-                                        "block",
-                                    fontWeight:
-                                        600,
-                                    marginBottom:
-                                        "8px"
-                                }}
-                            >
-                                Question
-                            </label>
-
-
-                            <textarea
-                                required
-                                value={
-                                    questionForm.question_text
-                                }
-                                onChange={(e) =>
-                                    setQuestionForm({
-                                        ...questionForm,
-                                        question_text:
-                                            e.target.value
-                                    })
-                                }
-                                placeholder="Enter the question text..."
-                                rows={4}
-                                style={{
-                                    width:
-                                        "100%",
-                                    boxSizing:
-                                        "border-box",
-                                    resize:
-                                        "vertical",
-                                    padding:
-                                        "11px",
-                                    border:
-                                        "1px solid #d8d4e2",
-                                    borderRadius:
-                                        "5px"
-                                }}
-                            />
-
-                        </div>
-
-
-                        {/* =====================================================
-                            AI GENERATE
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                display:
-                                    "flex",
-                                justifyContent:
-                                    "flex-end",
-                                marginTop:
-                                    "10px"
-                            }}
-                        >
-
-                            <button
-                                type="button"
-                                onClick={
-                                    generateWithAI
-                                }
-                                disabled={
-                                    generatingAI
-                                }
-                                style={{
-                                    display:
-                                        "inline-flex",
-                                    alignItems:
-                                        "center",
-                                    gap:
-                                        "7px",
-                                    padding:
-                                        "8px 14px",
-                                    border:
-                                        "2px solid #9a82c9",
-                                    borderRadius:
-                                        "7px",
-                                    background:
-                                        "#fff",
-                                    color:
-                                        "#8064b8",
-                                    fontWeight:
-                                        600,
-                                    cursor:
-                                        generatingAI
-                                            ? "not-allowed"
-                                            : "pointer"
-                                }}
-                            >
-
-                                <FaMagic />
-
-                                {generatingAI
-                                    ? "Generating..."
-                                    : "Generate with AI"}
-
-                            </button>
-
-                        </div>
-
-
-                        {/* =====================================================
-                            OPTIONS & SCORING
-                        ===================================================== */}
-
-                        {questionForm.question_type !==
-                            "text" && (
-
-                            <div
-                                style={{
-                                    marginTop:
-                                        "20px"
-                                }}
-                            >
-
-                                <h3
-                                    style={{
-                                        margin:
-                                            "0 0 10px",
-                                        fontSize:
-                                            "16px"
-                                    }}
+                                <select
+                                    value={
+                                        questionForm.question_type
+                                    }
+                                    onChange={
+                                        (e) =>
+                                            changeQuestionType(
+                                                e.target.value
+                                            )
+                                    }
                                 >
-                                    Options & Scoring (0-5)
-                                </h3>
 
+                                    <option value="single_choice">
+                                        Single Choice (Radio)
+                                    </option>
 
-                                {(questionForm.options || [])
-                                    .map(
+                                    <option value="multiple_choice">
+                                        Multiple Choice (Checkbox)
+                                    </option>
+
+                                    <option value="text">
+                                        Text Input (Manual scoring in Training Report)
+                                    </option>
+
+                                </select>
+
+                            </label>
+
+                            {/* QUESTION */}
+
+                            <label className="question-text-label">
+
+                                Question
+
+                                <textarea
+                                    required
+                                    rows={4}
+                                    value={
+                                        questionForm.question_text
+                                    }
+                                    onChange={
+                                        (e) =>
+                                            setQuestionForm({
+                                                ...questionForm,
+                                                question_text:
+                                                    e.target.value
+                                            })
+                                    }
+                                    placeholder="Enter question topic or full text..."
+                                />
+
+                            </label>
+
+                            {/* AI BUTTON */}
+
+                            <div className="quiz-ai-row">
+
+                                <button
+                                    type="button"
+                                    className="quiz-ai-button"
+                                    onClick={
+                                        generateWithAI
+                                    }
+                                    disabled={
+                                        generatingAI
+                                    }
+                                >
+
+                                    <FaMagic />
+
+                                    {
+                                        generatingAI
+                                            ? "Generating..."
+                                            : "Generate with AI"
+                                    }
+
+                                </button>
+
+                            </div>
+
+                            {/* OPTIONS */}
+
+                            {questionForm.question_type !==
+                                "text" && (
+
+                                <div className="quiz-options-section">
+
+                                    <h3>
+                                        Options &amp; Scoring (0-5)
+                                    </h3>
+
+                                    {(
+                                        questionForm.options ||
+                                        []
+                                    ).map(
                                         (
                                             option,
                                             index
                                         ) => (
 
                                             <div
+                                                className="quiz-option-row"
                                                 key={
                                                     index
                                                 }
-                                                style={{
-                                                    display:
-                                                        "grid",
-                                                    gridTemplateColumns:
-                                                        "20px minmax(0,1fr) 80px 25px",
-                                                    gap:
-                                                        "8px",
-                                                    alignItems:
-                                                        "center",
-                                                    marginBottom:
-                                                        "9px"
-                                                }}
                                             >
 
-                                                {/* RADIO / CHECKBOX */}
+                                                {/* CORRECT ANSWER */}
 
                                                 <input
                                                     type={
@@ -3111,214 +3496,87 @@ function QuizSetup() {
                                                     name={
                                                         questionForm.question_type ===
                                                         "multiple_choice"
-                                                            ? `correct-${index}`
+                                                            ? `correct-option-${editingQuestion?.id || "new"}`
                                                             : "correct-option"
                                                     }
                                                     checked={
-                                                        questionForm.question_type ===
-                                                        "multiple_choice"
-                                                            ? String(
-                                                                questionForm.correct_answer ||
-                                                                ""
-                                                            )
-                                                                .split(
-                                                                    ","
-                                                                )
-                                                                .map(
-                                                                    x =>
-                                                                        x.trim()
-                                                                )
-                                                                .includes(
-                                                                    option
-                                                                )
-                                                            : questionForm.correct_answer ===
-                                                                option
+                                                        isCorrectOption(
+                                                            option
+                                                        )
                                                     }
-                                                    onChange={() => {
-
-                                                        if (
-                                                            questionForm.question_type ===
-                                                            "multiple_choice"
-                                                        ) {
-
-                                                            const existing =
-                                                                String(
-                                                                    questionForm.correct_answer ||
-                                                                    ""
-                                                                )
-                                                                    .split(
-                                                                        ","
-                                                                    )
-                                                                    .map(
-                                                                        x =>
-                                                                            x.trim()
-                                                                    )
-                                                                    .filter(
-                                                                        Boolean
-                                                                    );
-
-
-                                                            const next =
-                                                                existing.includes(
-                                                                    option
-                                                                )
-                                                                    ? existing.filter(
-                                                                        x =>
-                                                                            x !==
-                                                                            option
-                                                                    )
-                                                                    : [
-                                                                        ...existing,
-                                                                        option
-                                                                    ];
-
-
-                                                            setQuestionForm({
-                                                                ...questionForm,
-                                                                correct_answer:
-                                                                    next.join(
-                                                                        ", "
-                                                                    )
-                                                            });
-
-                                                        } else {
-
-                                                            setQuestionForm({
-                                                                ...questionForm,
-                                                                correct_answer:
-                                                                    option
-                                                            });
-
-                                                        }
-
-                                                    }}
+                                                    onChange={() =>
+                                                        toggleCorrect(
+                                                            option
+                                                        )
+                                                    }
+                                                    title="Mark as correct answer"
                                                 />
 
-
-                                                {/* OPTION */}
+                                                {/* OPTION TEXT */}
 
                                                 <input
                                                     value={
                                                         option
                                                     }
-                                                    onChange={(e) =>
-                                                        updateOption(
-                                                            index,
-                                                            e.target.value
-                                                        )
+                                                    onChange={
+                                                        (e) =>
+                                                            updateOption(
+                                                                index,
+                                                                e.target.value
+                                                            )
                                                     }
-                                                    placeholder={`Option ${
-                                                        index + 1
-                                                    }`}
-                                                    disabled={
-                                                        questionForm.question_type ===
-                                                        "true_false"
-                                                    }
-                                                    style={{
-                                                        width:
-                                                            "100%",
-                                                        boxSizing:
-                                                            "border-box",
-                                                        padding:
-                                                            "10px",
-                                                        border:
-                                                            "1px solid #d8d4e2",
-                                                        borderRadius:
-                                                            "5px"
-                                                    }}
+                                                    placeholder={`Option ${index + 1}`}
                                                 />
-
 
                                                 {/* SCORE */}
 
                                                 <input
+                                                    className="quiz-score-input"
                                                     type="number"
                                                     min="0"
                                                     max="5"
                                                     step="1"
                                                     value={
-                                                        index ===
+                                                        questionForm.option_scores?.[
+                                                            index
+                                                        ] ??
                                                         0
-                                                            ? questionForm.points
-                                                            : 0
                                                     }
-                                                    onChange={(e) => {
-
-                                                        if (
-                                                            index ===
-                                                            0
-                                                        ) {
-
-                                                            setQuestionForm({
-                                                                ...questionForm,
-                                                                points:
-                                                                    e.target.value
-                                                            });
-
-                                                        }
-
-                                                    }}
-                                                    title="Question score"
-                                                    style={{
-                                                        width:
-                                                            "100%",
-                                                        boxSizing:
-                                                            "border-box",
-                                                        padding:
-                                                            "10px 7px",
-                                                        border:
-                                                            "1px solid #d8d4e2",
-                                                        borderRadius:
-                                                            "5px"
-                                                    }}
+                                                    onChange={
+                                                        (e) =>
+                                                            updateOptionScore(
+                                                                index,
+                                                                e.target.value
+                                                            )
+                                                    }
                                                 />
 
+                                                {/* REMOVE */}
 
-                                                {/* DELETE OPTION */}
-
-                                                {questionForm.question_type !==
-                                                    "true_false" &&
-                                                    (questionForm.options ||
-                                                        []).length >
-                                                        2 ? (
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeOption(
-                                                                index
-                                                            )
-                                                        }
-                                                        style={{
-                                                            border:
-                                                                "none",
-                                                            background:
-                                                                "transparent",
-                                                            color:
-                                                                "#f08080",
-                                                            fontSize:
-                                                                "18px",
-                                                            cursor:
-                                                                "pointer"
-                                                        }}
-                                                    >
-                                                        <FaTimes />
-                                                    </button>
-
-                                                ) : (
-
-                                                    <span />
-
-                                                )}
+                                                <button
+                                                    type="button"
+                                                    className="quiz-option-remove"
+                                                    onClick={() =>
+                                                        removeOption(
+                                                            index
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        (
+                                                            questionForm.options ||
+                                                            []
+                                                        ).length <=
+                                                        2
+                                                    }
+                                                >
+                                                    <FaTimes />
+                                                </button>
 
                                             </div>
-
                                         )
                                     )}
 
-
-                                {questionForm.question_type !==
-                                    "true_false" && (
+                                    {/* ADD OPTION */}
 
                                     <button
                                         type="button"
@@ -3330,398 +3588,201 @@ function QuizSetup() {
                                         + Add Option
                                     </button>
 
-                                )}
+                                    {/* CORRECT ANSWER DISPLAY */}
 
-                            </div>
+                                    <div className="quiz-correct-answer-hint">
 
-                        )}
+                                        <strong>
+                                            Correct answer:
+                                        </strong>{" "}
 
+                                        {
+                                            questionForm.question_type ===
+                                            "multiple_choice"
+                                                ? (
+                                                    Array.isArray(
+                                                        questionForm.correct_answer
+                                                    )
+                                                        ? questionForm.correct_answer.join(
+                                                            ", "
+                                                        )
+                                                        : ""
+                                                )
+                                                : (
+                                                    questionForm.correct_answer ||
+                                                    "Not selected"
+                                                )
+                                        }
 
-                        {/* =====================================================
-                            TEXT INPUT INFO
-                        ===================================================== */}
+                                        <span>
+                                            Correct option(s) automatically receive{" "}
+                                            {
+                                                Number(
+                                                    questionForm.points ||
+                                                    1
+                                                )
+                                            }{" "}
+                                            point(s).
+                                        </span>
 
-                        {questionForm.question_type ===
-                            "text" && (
+                                    </div>
 
-                            <div
-                                style={{
-                                    marginTop:
-                                        "18px",
-                                    padding:
-                                        "12px",
-                                    background:
-                                        "#f7f4fc",
-                                    border:
-                                        "1px solid #e2daf0",
-                                    borderRadius:
-                                        "6px"
-                                }}
-                            >
+                                </div>
+                            )}
 
-                                <strong>
-                                    Text Input Question
-                                </strong>
+                            {/* MANDATORY */}
 
-                                <p
-                                    style={{
-                                        margin:
-                                            "5px 0 0",
-                                        fontSize:
-                                            "12px",
-                                        color:
-                                            "#666"
-                                    }}
-                                >
-                                    Participants will type
-                                    their answer manually.
-                                    Scoring can be completed
-                                    from the Training Report.
-                                </p>
-
-                            </div>
-
-                        )}
-
-
-                        {/* =====================================================
-                            POINTS / CORRECT ANSWER
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                display:
-                                    "grid",
-                                gridTemplateColumns:
-                                    "1fr 1fr",
-                                gap:
-                                    "14px",
-                                marginTop:
-                                    "18px"
-                            }}
-                        >
-
-                            <label>
-
-                                Points
+                            <label className="quiz-mandatory-row">
 
                                 <input
-                                    type="number"
-                                    min="0"
-                                    max="5"
-                                    step="1"
-                                    value={
-                                        questionForm.points
+                                    type="checkbox"
+                                    checked={
+                                        !!questionForm.is_mandatory
                                     }
-                                    onChange={(e) =>
-                                        setQuestionForm({
-                                            ...questionForm,
-                                            points:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuestionForm({
+                                                ...questionForm,
+                                                is_mandatory:
+                                                    e.target.checked
+                                            })
                                     }
                                 />
 
+                                <span>
+
+                                    <strong>
+                                        Answer is Mandatory
+                                    </strong>
+
+                                    <small>
+                                        If enabled, users must provide an answer before they can move to the next question.
+                                    </small>
+
+                                </span>
+
                             </label>
 
+                            {/* GUIDELINE */}
 
-                            {questionForm.question_type !==
-                                "text" && (
-
-                                <label>
-
-                                    Correct Answer
-
-                                    <input
-                                        value={
-                                            questionForm.correct_answer
-                                        }
-                                        onChange={(e) =>
-                                            setQuestionForm({
-                                                ...questionForm,
-                                                correct_answer:
-                                                    e.target.value
-                                            })
-                                        }
-                                        placeholder={
-                                            questionForm.question_type ===
-                                            "multiple_choice"
-                                                ? "Option 1, Option 2"
-                                                : "Select an option or type answer"
-                                        }
-                                    />
-
-                                </label>
-
-                            )}
-
-                        </div>
-
-
-                        {/* =====================================================
-                            MANDATORY
-                        ===================================================== */}
-
-                        <label
-                            style={{
-                                display:
-                                    "flex",
-                                alignItems:
-                                    "center",
-                                gap:
-                                    "9px",
-                                marginTop:
-                                    "18px",
-                                fontWeight:
-                                    500
-                            }}
-                        >
-
-                            <input
-                                type="checkbox"
-                                checked={
-                                    !!questionForm.is_mandatory
-                                }
-                                onChange={(e) =>
-                                    setQuestionForm({
-                                        ...questionForm,
-                                        is_mandatory:
-                                            e.target.checked
-                                    })
-                                }
-                            />
-
-                            Answer is Mandatory
-
-                        </label>
-
-
-                        <p
-                            style={{
-                                margin:
-                                    "5px 0 15px 25px",
-                                fontSize:
-                                    "12px",
-                                color:
-                                    "#777"
-                            }}
-                        >
-                            If enabled, users must provide an
-                            answer before they can move to the
-                            next question.
-                        </p>
-
-
-                        {/* =====================================================
-                            GUIDELINE
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                padding:
-                                    "14px",
-                                background:
-                                    "#eef6ff",
-                                border:
-                                    "1px solid #bcd8ff",
-                                borderRadius:
-                                    "7px",
-                                marginTop:
-                                    "5px"
-                            }}
-                        >
-
-                            <label>
+                            <div className="quiz-guideline-box">
 
                                 <strong>
-                                    Assessment guidelines
-                                    (optional)
+                                    Assessment guidelines (optional)
                                 </strong>
 
                                 <textarea
+                                    rows={3}
                                     value={
                                         questionForm.guideline ||
                                         ""
                                     }
-                                    onChange={(e) =>
-                                        setQuestionForm({
-                                            ...questionForm,
-                                            guideline:
-                                                e.target.value
-                                        })
+                                    onChange={
+                                        (e) =>
+                                            setQuestionForm({
+                                                ...questionForm,
+                                                guideline:
+                                                    e.target.value
+                                            })
                                     }
-                                    rows={3}
                                     placeholder="e.g., Focus on customer empathy and clarity of reasoning. Or: Evaluate for retail relevance and prioritisation."
-                                    style={{
-                                        marginTop:
-                                            "8px",
-                                        width:
-                                            "100%",
-                                        boxSizing:
-                                            "border-box"
-                                    }}
                                 />
 
-                            </label>
+                                <small>
+                                    Helps reviewers and AI identify focus areas when assessing this question. Questions can be outside retail; guidelines steer the analysis. If left empty, assess based on the response only.
+                                </small>
 
+                            </div>
 
-                            <p
-                                style={{
-                                    fontSize:
-                                        "12px",
-                                    color:
-                                        "#666",
-                                    margin:
-                                        "7px 0 0"
-                                }}
-                            >
-                                Helps reviewers and AI identify
-                                focus areas when assessing this
-                                question. Questions can be outside
-                                retail; guidelines steer the analysis.
-                            </p>
+                            {/* IMAGE */}
 
-                        </div>
+                            <div className="quiz-attachment-box">
 
-
-                        {/* =====================================================
-                            IMAGE
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                marginTop:
-                                    "15px",
-                                padding:
-                                    "14px",
-                                border:
-                                    "1px solid #ddd",
-                                borderRadius:
-                                    "7px"
-                            }}
-                        >
-
-                            <strong>
-                                Attach Image (Optional)
-                            </strong>
-
-
-                            <div
-                                style={{
-                                    marginTop:
-                                        "9px"
-                                }}
-                            >
+                                <strong>
+                                    Attach Image (Optional)
+                                </strong>
 
                                 <input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
-                                    onChange={(e) =>
-                                        setImageFile(
-                                            e.target.files?.[0] ||
-                                            null
-                                        )
+                                    onChange={
+                                        (e) =>
+                                            setImageFile(
+                                                e.target.files?.[
+                                                    0
+                                                ] ||
+                                                null
+                                            )
                                     }
                                 />
 
+                                {questionForm.image_url && (
+                                    <small>
+                                        Existing:{" "}
+                                        {
+                                            questionForm.image_url
+                                        }
+                                    </small>
+                                )}
+
                             </div>
 
+                            {/* VIDEO */}
 
-                            {imageFile && (
+                            <div className="quiz-attachment-box">
 
-                                <small>
-                                    Selected:{" "}
-                                    {imageFile.name}
-                                </small>
+                                <strong>
+                                    Attach Video (Optional)
+                                </strong>
 
-                            )}
+                                <input
+                                    value={
+                                        questionForm.video_url ||
+                                        ""
+                                    }
+                                    onChange={
+                                        (e) =>
+                                            setQuestionForm({
+                                                ...questionForm,
+                                                video_url:
+                                                    e.target.value
+                                            })
+                                    }
+                                    placeholder="Paste YouTube link here"
+                                />
+
+                                <div className="quiz-or">
+                                    OR
+                                </div>
+
+                                <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={
+                                        (e) =>
+                                            setVideoFile(
+                                                e.target.files?.[
+                                                    0
+                                                ] ||
+                                                null
+                                            )
+                                    }
+                                />
+
+                                {questionForm.video_url && (
+                                    <small>
+                                        Existing:{" "}
+                                        {
+                                            questionForm.video_url
+                                        }
+                                    </small>
+                                )}
+
+                            </div>
 
                         </div>
 
-
-                        {/* =====================================================
-                            VIDEO
-                        ===================================================== */}
-
-                        <div
-                            style={{
-                                marginTop:
-                                    "15px",
-                                padding:
-                                    "14px",
-                                border:
-                                    "1px solid #ddd",
-                                borderRadius:
-                                    "7px"
-                            }}
-                        >
-
-                            <strong>
-                                Attach Video (Optional)
-                            </strong>
-
-
-                            <input
-                                value={
-                                    questionForm.video_url ||
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setQuestionForm({
-                                        ...questionForm,
-                                        video_url:
-                                            e.target.value
-                                    })
-                                }
-                                placeholder="Paste YouTube link here"
-                                style={{
-                                    marginTop:
-                                        "9px"
-                                }}
-                            />
-
-
-                            <div
-                                style={{
-                                    textAlign:
-                                        "center",
-                                    margin:
-                                        "12px 0",
-                                    color:
-                                        "#777"
-                                }}
-                            >
-                                OR
-                            </div>
-
-
-                            <input
-                                type="file"
-                                accept="video/*"
-                                onChange={(e) =>
-                                    setVideoFile(
-                                        e.target.files?.[0] ||
-                                        null
-                                    )
-                                }
-                            />
-
-
-                            {videoFile && (
-
-                                <small>
-                                    Selected:{" "}
-                                    {videoFile.name}
-                                </small>
-
-                            )}
-
-                        </div>
-
-
-                        {/* =====================================================
-                            FOOTER
-                        ===================================================== */}
+                        {/* FOOTER */}
 
                         <div className="quiz-modal-footer">
 
@@ -3737,7 +3798,6 @@ function QuizSetup() {
                                 Cancel
                             </button>
 
-
                             <button
                                 type="submit"
                                 className="quiz-primary"
@@ -3748,9 +3808,11 @@ function QuizSetup() {
 
                                 <FaSave />
 
-                                {saving
-                                    ? "Saving..."
-                                    : "Save Question"}
+                                {
+                                    saving
+                                        ? "Saving..."
+                                        : "Save Question"
+                                }
 
                             </button>
 
@@ -3759,32 +3821,24 @@ function QuizSetup() {
                     </form>
 
                 </div>
-
             )}
 
-
-            {/* =================================================================
+            {/* ==========================================
                 BULK GENERATE MODAL
-            ================================================================= */}
+            ========================================== */}
 
-            {showBulkModal && (
+            {showBulk && (
 
                 <div className="quiz-modal-backdrop">
 
-                    <div
-                        className="quiz-modal"
-                        style={{
-                            maxWidth:
-                                "650px"
-                        }}
-                    >
+                    <div className="quiz-modal quiz-bulk-modal">
 
                         <div className="quiz-modal-head">
 
                             <div>
 
                                 <span>
-                                    QUESTION GENERATOR
+                                    BULK QUESTION IMPORT
                                 </span>
 
                                 <h2>
@@ -3793,66 +3847,40 @@ function QuizSetup() {
 
                             </div>
 
-
                             <button
                                 type="button"
                                 onClick={() =>
-                                    setShowBulkModal(
+                                    setShowBulk(
                                         false
                                     )
                                 }
                             >
-
                                 <FaTimes />
-
                             </button>
 
                         </div>
 
+                        <label>
 
-                        <p
-                            style={{
-                                color:
-                                    "#666",
-                                fontSize:
-                                    "13px"
-                            }}
-                        >
-                            Enter one question per line.
-                            Each line will be added to the
-                            selected assessment.
-                        </p>
+                            One question per line
 
+                            <textarea
+                                rows={12}
+                                value={
+                                    bulkText
+                                }
+                                onChange={
+                                    (e) =>
+                                        setBulkText(
+                                            e.target.value
+                                        )
+                                }
+                                placeholder={
+                                    "Question one...\nQuestion two...\nQuestion three..."
+                                }
+                            />
 
-                        <textarea
-                            rows={10}
-                            value={
-                                bulkText
-                            }
-                            onChange={(e) =>
-                                setBulkText(
-                                    e.target.value
-                                )
-                            }
-                            placeholder={
-                                "Question 1\nQuestion 2\nQuestion 3"
-                            }
-                            style={{
-                                width:
-                                    "100%",
-                                boxSizing:
-                                    "border-box",
-                                padding:
-                                    "12px",
-                                border:
-                                    "1px solid #d8d4e2",
-                                borderRadius:
-                                    "6px",
-                                resize:
-                                    "vertical"
-                            }}
-                        />
-
+                        </label>
 
                         <div className="quiz-modal-footer">
 
@@ -3860,14 +3888,13 @@ function QuizSetup() {
                                 type="button"
                                 className="quiz-secondary"
                                 onClick={() =>
-                                    setShowBulkModal(
+                                    setShowBulk(
                                         false
                                     )
                                 }
                             >
                                 Cancel
                             </button>
-
 
                             <button
                                 type="button"
@@ -3876,15 +3903,17 @@ function QuizSetup() {
                                     bulkGenerating
                                 }
                                 onClick={
-                                    bulkGenerateQuestions
+                                    bulkGenerate
                                 }
                             >
 
                                 <FaMagic />
 
-                                {bulkGenerating
-                                    ? "Generating..."
-                                    : "Bulk Generate"}
+                                {
+                                    bulkGenerating
+                                        ? "Generating..."
+                                        : "Generate Questions"
+                                }
 
                             </button>
 
@@ -3893,12 +3922,10 @@ function QuizSetup() {
                     </div>
 
                 </div>
-
             )}
 
         </div>
     );
-}
-
+};
 
 export default QuizSetup;

@@ -60,16 +60,21 @@ function TakeQuiz() {
                     await axios.get("/api/quiz");
 
                 const list =
-                    response?.data?.data || [];
+                    Array.isArray(response?.data?.data)
+                        ? response.data.data
+                        : Array.isArray(response?.data)
+                            ? response.data
+                            : [];
 
                 const activeQuizzes =
-                    Array.isArray(list)
-                        ? list.filter(
-                            quiz =>
-                                quiz.status ===
-                                "Active"
+                    list.filter((quiz) =>
+                        String(
+                            quiz?.status || ""
                         )
-                        : [];
+                            .trim()
+                            .toLowerCase() ===
+                        "active"
+                    );
 
                 if (mounted) {
 
@@ -155,13 +160,17 @@ function TakeQuiz() {
 
     const getQuizLink = quiz => {
 
-        if (!quiz?.public_token) {
+        const token = String(
+            quiz?.public_token || ""
+        ).trim();
 
+        if (!token) {
             return "";
-
         }
 
-        return `${window.location.origin}/quiz/${quiz.public_token}`;
+        return `${window.location.origin}/quiz/${encodeURIComponent(
+            token
+        )}`;
 
     };
 
@@ -286,11 +295,18 @@ function TakeQuiz() {
 
         }
 
-        window.open(
-            publicLink,
-            "_blank",
-            "noopener,noreferrer"
-        );
+        const newWindow =
+            window.open(
+                publicLink,
+                "_blank",
+                "noopener,noreferrer"
+            );
+
+        if (!newWindow) {
+            setMessage(
+                "The quiz could not be opened. Please allow pop-ups for this site."
+            );
+        }
 
     };
 
@@ -558,10 +574,11 @@ function TakeQuiz() {
                                                 <FaQuestionCircle />
 
                                                 {
-                                                    quiz.question_count ||
-                                                    quiz.questions
-                                                        ?.length ||
-                                                    0
+                                                    Number(
+                                                        quiz?.question_count ??
+                                                        quiz?.questions?.length ??
+                                                        0
+                                                    ) || 0
                                                 }{" "}
                                                 questions
 
@@ -604,8 +621,10 @@ function TakeQuiz() {
                                                 {" "}
 
                                                 {
-                                                    quiz.passing_score ??
-                                                    70
+                                                    Number(
+                                                        quiz?.passing_score ??
+                                                        70
+                                                    ) || 0
                                                 }%
 
                                             </span>
@@ -765,7 +784,8 @@ function TakeQuiz() {
                                             <FaLink />
 
                                             <span>
-                                                {publicLink}
+                                                {publicLink ||
+                                                    "Public link unavailable"}
                                             </span>
 
                                         </div>

@@ -17,6 +17,21 @@ import {
 
 import "../../styles/pages/Quiz.css";
 
+const mediaUrl = (value) => {
+    if (!value) return "";
+
+    if (/^https?:\/\//i.test(String(value))) {
+        return String(value);
+    }
+
+    const api = (
+        import.meta.env.VITE_API_URL ||
+        "http://localhost:5000"
+    ).replace(/\/+$/, "");
+
+    return `${api}/${String(value).replace(/^\/+/, "")}`;
+};
+
 function PublicQuiz() {
     const { token } = useParams();
 
@@ -59,8 +74,50 @@ function PublicQuiz() {
     // ============================================================
 
     const [session, setSession] = useState(null);
+
     const [answers, setAnswers] = useState({});
+
+    /*
+     * IMPORTANT FIX
+     *
+     * React state updates are asynchronous.
+     *
+     * If a participant selects an answer and immediately clicks
+     * "Save & Continue" or "Submit Assessment", the state update
+     * may not have completed yet.
+     *
+     * answersRef always contains the latest answer object.
+     */
+    const answersRef = useRef({});
+
     const [index, setIndex] = useState(0);
+
+    /*
+     * Central answer updater.
+     *
+     * Every answer change goes through this function so both:
+     *
+     *   answers state
+     *   answersRef
+     *
+     * stay synchronized immediately.
+     */
+    const updateAnswers = (updater) => {
+        const previous = answersRef.current || {};
+
+        const next =
+            typeof updater === "function"
+                ? updater(previous)
+                : updater;
+
+        // IMPORTANT:
+        // Update the ref FIRST. React state updates are asynchronous,
+        // so the submit handler must never depend on React finishing
+        // a render before the latest answer is available.
+        answersRef.current = next;
+
+        setAnswers(next);
+    };
 
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState(null);
@@ -69,7 +126,8 @@ function PublicQuiz() {
     // TIMER
     // ============================================================
 
-    const [remainingSeconds, setRemainingSeconds] = useState(null);
+    const [remainingSeconds, setRemainingSeconds] =
+        useState(null);
 
     // ============================================================
     // LOAD PUBLIC QUIZ
@@ -91,24 +149,36 @@ function PublicQuiz() {
                     return;
                 }
 
-                const quizData = response?.data?.data;
+                const quizData =
+                    response?.data?.data;
 
                 if (!quizData) {
-                    throw new Error("Quiz data was not found.");
+                    throw new Error(
+                        "Quiz data was not found."
+                    );
                 }
 
                 setQuiz(quizData);
 
                 // ----------------------------------------------------
-                // Initialize timer if configured
+                // INITIALIZE TIMER
                 // ----------------------------------------------------
 
-                if (quizData.time_limit_minutes) {
+                if (
+                    quizData.time_limit_minutes
+                ) {
                     const seconds =
-                        Number(quizData.time_limit_minutes) * 60;
+                        Number(
+                            quizData.time_limit_minutes
+                        ) * 60;
 
-                    if (Number.isFinite(seconds) && seconds > 0) {
-                        setRemainingSeconds(seconds);
+                    if (
+                        Number.isFinite(seconds) &&
+                        seconds > 0
+                    ) {
+                        setRemainingSeconds(
+                            seconds
+                        );
                     }
                 }
             } catch (err) {
@@ -146,12 +216,16 @@ function PublicQuiz() {
     }, []);
 
     // ============================================================
-    // ATTACH CAMERA STREAM TO VIDEO
+    // ATTACH CAMERA STREAM
     // ============================================================
 
     useEffect(() => {
-        if (videoRef.current && streamRef.current) {
-            videoRef.current.srcObject = streamRef.current;
+        if (
+            videoRef.current &&
+            streamRef.current
+        ) {
+            videoRef.current.srcObject =
+                streamRef.current;
         }
     }, [cameraConsent]);
 
@@ -174,22 +248,28 @@ function PublicQuiz() {
         }
 
         const timer = setInterval(() => {
-            setRemainingSeconds((current) => {
-                if (current === null) {
-                    return null;
-                }
+            setRemainingSeconds(
+                (current) => {
+                    if (current === null) {
+                        return null;
+                    }
 
-                if (current <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                }
+                    if (current <= 1) {
+                        clearInterval(timer);
+                        return 0;
+                    }
 
-                return current - 1;
-            });
+                    return current - 1;
+                }
+            );
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [step, remainingSeconds, submitting]);
+    }, [
+        step,
+        remainingSeconds,
+        submitting,
+    ]);
 
     // ============================================================
     // STOP CAMERA
@@ -197,13 +277,15 @@ function PublicQuiz() {
 
     const stopCamera = () => {
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => {
-                try {
-                    track.stop();
-                } catch {
-                    // Ignore cleanup errors
-                }
-            });
+            streamRef.current
+                .getTracks()
+                .forEach((track) => {
+                    try {
+                        track.stop();
+                    } catch {
+                        // Ignore cleanup errors
+                    }
+                });
 
             streamRef.current = null;
         }
@@ -224,7 +306,8 @@ function PublicQuiz() {
         try {
             if (
                 !navigator.mediaDevices ||
-                !navigator.mediaDevices.getUserMedia
+                !navigator.mediaDevices
+                    .getUserMedia
             ) {
                 throw new Error(
                     "Camera access is not supported by this browser."
@@ -234,25 +317,30 @@ function PublicQuiz() {
             stopCamera();
 
             const mediaStream =
-                await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "user",
-                        width: {
-                            ideal: 1280,
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        video: {
+                            facingMode: "user",
+                            width: {
+                                ideal: 1280,
+                            },
+                            height: {
+                                ideal: 720,
+                            },
                         },
-                        height: {
-                            ideal: 720,
-                        },
-                    },
-                    audio: false,
-                });
+                        audio: false,
+                    });
 
-            streamRef.current = mediaStream;
+            streamRef.current =
+                mediaStream;
 
             setCameraConsent(true);
 
             setTimeout(() => {
-                if (videoRef.current && streamRef.current) {
+                if (
+                    videoRef.current &&
+                    streamRef.current
+                ) {
                     videoRef.current.srcObject =
                         streamRef.current;
                 }
@@ -275,11 +363,14 @@ function PublicQuiz() {
 
     const capturePhoto = () => {
         if (!videoRef.current) {
-            setError("Camera is not ready.");
+            setError(
+                "Camera is not ready."
+            );
             return;
         }
 
-        const video = videoRef.current;
+        const video =
+            videoRef.current;
 
         if (
             !video.videoWidth ||
@@ -292,15 +383,24 @@ function PublicQuiz() {
             return;
         }
 
-        const canvas = document.createElement("canvas");
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width =
+            video.videoWidth;
 
-        const context = canvas.getContext("2d");
+        canvas.height =
+            video.videoHeight;
+
+        const context =
+            canvas.getContext("2d");
 
         if (!context) {
-            setError("Unable to capture photo.");
+            setError(
+                "Unable to capture photo."
+            );
             return;
         }
 
@@ -315,7 +415,9 @@ function PublicQuiz() {
         canvas.toBlob(
             (blob) => {
                 if (!blob) {
-                    setError("Unable to create photo.");
+                    setError(
+                        "Unable to create photo."
+                    );
                     return;
                 }
 
@@ -408,19 +510,27 @@ function PublicQuiz() {
 
     const validateParticipant = () => {
         if (!name.trim()) {
-            setError("Please enter your full name.");
+            setError(
+                "Please enter your full name."
+            );
             return false;
         }
 
         if (!email.trim()) {
-            setError("Please enter your email address.");
+            setError(
+                "Please enter your email address."
+            );
             return false;
         }
 
         const emailPattern =
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!emailPattern.test(email.trim())) {
+        if (
+            !emailPattern.test(
+                email.trim()
+            )
+        ) {
             setError(
                 "Please enter a valid email address."
             );
@@ -475,7 +585,8 @@ function PublicQuiz() {
             return;
         }
 
-        const formData = new FormData();
+        const formData =
+            new FormData();
 
         formData.append(
             "participant_name",
@@ -505,17 +616,23 @@ function PublicQuiz() {
         if (location) {
             formData.append(
                 "latitude",
-                String(location.latitude)
+                String(
+                    location.latitude
+                )
             );
 
             formData.append(
                 "longitude",
-                String(location.longitude)
+                String(
+                    location.longitude
+                )
             );
 
             formData.append(
                 "location_accuracy",
-                String(location.accuracy)
+                String(
+                    location.accuracy
+                )
             );
         }
 
@@ -527,16 +644,17 @@ function PublicQuiz() {
         }
 
         try {
-            const response = await axios.post(
-                `/api/quiz/public/${token}/start`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type":
-                            "multipart/form-data",
-                    },
-                }
-            );
+            const response =
+                await axios.post(
+                    `/api/quiz/public/${token}/start`,
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type":
+                                "multipart/form-data",
+                        },
+                    }
+                );
 
             const sessionData =
                 response?.data?.data ||
@@ -548,9 +666,16 @@ function PublicQuiz() {
                 );
             }
 
-            setSession(sessionData);
+            setSession(
+                sessionData
+            );
+
             setStep("quiz");
             setIndex(0);
+
+            // IMPORTANT:
+            // Reset both state and ref.
+            answersRef.current = {};
             setAnswers({});
 
             stopCamera();
@@ -566,87 +691,119 @@ function PublicQuiz() {
     // NORMALIZE OPTIONS
     // ============================================================
 
-    const getQuestionOptions = (question) => {
-        if (!question) {
-            return [];
-        }
-
-        if (
-            question.question_type ===
-            "true_false"
-        ) {
-            return ["True", "False"];
-        }
-
-        if (Array.isArray(question.options)) {
-            return question.options;
-        }
-
-        if (typeof question.options === "string") {
-            try {
-                const parsed =
-                    JSON.parse(question.options);
-
-                if (Array.isArray(parsed)) {
-                    return parsed;
-                }
-            } catch {
-                // Ignore invalid JSON
+    const getQuestionOptions =
+        (question) => {
+            if (!question) {
+                return [];
             }
 
-            return question.options
-                .split(",")
-                .map((item) => item.trim())
-                .filter(Boolean);
-        }
+            if (
+                question.question_type ===
+                "true_false"
+            ) {
+                return [
+                    "True",
+                    "False",
+                ];
+            }
 
-        return [];
-    };
+            if (
+                Array.isArray(
+                    question.options
+                )
+            ) {
+                return question.options;
+            }
+
+            if (
+                typeof question.options ===
+                "string"
+            ) {
+                try {
+                    const parsed =
+                        JSON.parse(
+                            question.options
+                        );
+
+                    if (
+                        Array.isArray(
+                            parsed
+                        )
+                    ) {
+                        return parsed;
+                    }
+                } catch {
+                    // Ignore invalid JSON
+                }
+
+                return question.options
+                    .split(",")
+                    .map(
+                        (item) =>
+                            item.trim()
+                    )
+                    .filter(Boolean);
+            }
+
+            return [];
+        };
 
     // ============================================================
-    // GET CURRENT QUESTION
+    // CURRENT QUESTION
     // ============================================================
 
     const currentQuestion =
-        quiz?.questions?.[index] || null;
+        quiz?.questions?.[index] ||
+        null;
 
     // ============================================================
     // CHECK REQUIRED QUESTION
     // ============================================================
 
-    const isQuestionRequired = (question) => {
-        if (!question) {
-            return false;
-        }
+    const isQuestionRequired =
+        (question) => {
+            if (!question) {
+                return false;
+            }
 
-        return Boolean(
-            question.is_mandatory ??
-            question.required ??
-            question.mandatory
-        );
-    };
+            return Boolean(
+                question.is_mandatory ??
+                question.required ??
+                question.mandatory
+            );
+        };
 
     // ============================================================
     // CHECK ANSWER
     // ============================================================
 
-    const hasAnswer = (question) => {
-        if (!question) {
-            return false;
-        }
+    const hasAnswer =
+        (question) => {
+            if (!question) {
+                return false;
+            }
 
-        const answer = answers[question.id];
+            /*
+             * Read from the ref so validation always sees the
+             * latest answer, even before React renders again.
+             */
+            const answer =
+                answersRef.current?.[
+                    question.id
+                ];
 
-        if (Array.isArray(answer)) {
-            return answer.length > 0;
-        }
+            if (
+                Array.isArray(answer)
+            ) {
+                return answer.length > 0;
+            }
 
-        return (
-            answer !== undefined &&
-            answer !== null &&
-            String(answer).trim() !== ""
-        );
-    };
+            return (
+                answer !== undefined &&
+                answer !== null &&
+                String(answer).trim() !== ""
+            );
+        };
 
     // ============================================================
     // SET ANSWER
@@ -660,38 +817,82 @@ function PublicQuiz() {
             return;
         }
 
+        const questionId = Number(
+            question.id
+        );
+
+        if (
+            !Number.isInteger(questionId) ||
+            questionId <= 0
+        ) {
+            return;
+        }
+
+        const previous =
+            answersRef.current || {};
+
+        // --------------------------------------------------------
+        // MULTIPLE CHOICE
+        // --------------------------------------------------------
+
         if (
             question.question_type ===
             "multiple_choice"
         ) {
             const current =
                 Array.isArray(
-                    answers[question.id]
+                    previous[questionId]
                 )
-                    ? [...answers[question.id]]
+                    ? [
+                        ...previous[questionId],
+                    ]
                     : [];
 
             const exists =
-                current.includes(option);
+                current.includes(
+                    option
+                );
 
-            const next = exists
+            const nextAnswer = exists
                 ? current.filter(
-                    (item) => item !== option
+                    (item) =>
+                        item !== option
                 )
-                : [...current, option];
+                : [
+                    ...current,
+                    option,
+                ];
 
-            setAnswers((previous) => ({
+            const next = {
                 ...previous,
-                [question.id]: next,
-            }));
+                [questionId]:
+                    nextAnswer,
+            };
+
+            // Synchronously store the answer.
+            answersRef.current = next;
+
+            // Then update React state for the UI.
+            setAnswers(next);
 
             return;
         }
 
-        setAnswers((previous) => ({
+        // --------------------------------------------------------
+        // SINGLE CHOICE / TRUE-FALSE
+        // --------------------------------------------------------
+
+        const next = {
             ...previous,
-            [question.id]: option,
-        }));
+            [questionId]:
+                option,
+        };
+
+        // Synchronously store the answer.
+        answersRef.current = next;
+
+        // Then update React state for the UI.
+        setAnswers(next);
     };
 
     // ============================================================
@@ -703,8 +904,12 @@ function PublicQuiz() {
 
         if (
             currentQuestion &&
-            isQuestionRequired(currentQuestion) &&
-            !hasAnswer(currentQuestion)
+            isQuestionRequired(
+                currentQuestion
+            ) &&
+            !hasAnswer(
+                currentQuestion
+            )
         ) {
             setError(
                 "This question is mandatory. Please provide an answer before continuing."
@@ -715,9 +920,14 @@ function PublicQuiz() {
 
         if (
             index <
-            (quiz?.questions?.length || 1) - 1
+            (quiz?.questions
+                ?.length || 1) - 1
         ) {
-            setIndex((current) => current + 1);
+            setIndex(
+                (current) =>
+                    current + 1
+            );
+
             window.scrollTo({
                 top: 0,
                 behavior: "smooth",
@@ -729,142 +939,301 @@ function PublicQuiz() {
     // PREVIOUS QUESTION
     // ============================================================
 
-    const previousQuestion = () => {
-        setError("");
+    const previousQuestion =
+        () => {
+            setError("");
 
-        if (index > 0) {
-            setIndex((current) => current - 1);
+            if (index > 0) {
+                setIndex(
+                    (current) =>
+                        current - 1
+                );
 
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth",
-            });
-        }
-    };
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth",
+                });
+            }
+        };
 
     // ============================================================
     // BUILD SUBMISSION PAYLOAD
     // ============================================================
 
-    const buildSubmissionPayload = () => {
-        return {
-            answers: Object.entries(answers).map(
-                ([questionId, answer]) => ({
-                    question_id: Number(questionId),
-                    answer,
-                })
-            ),
+    const buildSubmissionPayload =
+        () => {
+            /*
+             * IMPORTANT FIX:
+             *
+             * Use answersRef instead of the possibly stale React
+             * state value.
+             */
+            const latestAnswers =
+                answersRef.current || {};
+
+            /*
+             * IMPORTANT FIX:
+             *
+             * Build answers from the COMPLETE question list.
+             *
+             * Before:
+             *
+             *     Object.entries(answers)
+             *
+             * only sent questions that happened to exist in the
+             * React state object.
+             *
+             * Now:
+             *
+             *     quiz.questions
+             *
+             * is the source of truth.
+             *
+             * This guarantees that the backend receives one
+             * answer object for every question.
+             */
+            const submittedAnswers =
+                (
+                    quiz?.questions ||
+                    []
+                )
+                    .map(
+                        (question) => {
+                            const questionId =
+                                Number(
+                                    question?.id
+                                );
+
+                            if (
+                                !Number.isFinite(
+                                    questionId
+                                ) ||
+                                questionId <= 0
+                            ) {
+                                return null;
+                            }
+
+                            const hasStoredAnswer =
+                                Object.prototype.hasOwnProperty.call(
+                                    latestAnswers,
+                                    questionId
+                                ) ||
+                                Object.prototype.hasOwnProperty.call(
+                                    latestAnswers,
+                                    String(questionId)
+                                );
+
+                            const answer =
+                                hasStoredAnswer
+                                    ? latestAnswers[
+                                        questionId
+                                    ]
+                                    : null;
+
+                            return {
+                                question_id:
+                                    questionId,
+
+                                /*
+                                 * Backend expects this exact
+                                 * property name.
+                                 */
+                                answer,
+                            };
+                        }
+                    )
+                    .filter(Boolean);
+
+            return {
+                answers:
+                    submittedAnswers,
+            };
         };
-    };
 
     // ============================================================
     // SUBMIT QUIZ
     // ============================================================
 
-    const handleSubmit = async (
-        automaticSubmit = false
-    ) => {
-        if (submitting) {
-            return;
-        }
+    const handleSubmit =
+        async (
+            automaticSubmit = false
+        ) => {
+            if (submitting) {
+                return;
+            }
 
-        setError("");
+            setError("");
 
-        // --------------------------------------------------------
-        // Validate mandatory questions
-        // --------------------------------------------------------
+            // ----------------------------------------------------
+            // VALIDATE MANDATORY QUESTIONS
+            // ----------------------------------------------------
 
-        if (!automaticSubmit) {
-            const mandatoryQuestion =
-                quiz?.questions?.find(
-                    (question) =>
-                        isQuestionRequired(question) &&
-                        !hasAnswer(question)
-                );
-
-            if (mandatoryQuestion) {
-                setError(
-                    "Please answer all mandatory questions before submitting."
-                );
-
-                const mandatoryIndex =
-                    quiz.questions.findIndex(
+            if (!automaticSubmit) {
+                const mandatoryQuestion =
+                    quiz?.questions?.find(
                         (question) =>
-                            question.id ===
-                            mandatoryQuestion.id
+                            isQuestionRequired(
+                                question
+                            ) &&
+                            !hasAnswer(
+                                question
+                            )
                     );
 
-                if (mandatoryIndex >= 0) {
-                    setIndex(mandatoryIndex);
+                if (
+                    mandatoryQuestion
+                ) {
+                    setError(
+                        "Please answer all mandatory questions before submitting."
+                    );
+
+                    const mandatoryIndex =
+                        quiz.questions.findIndex(
+                            (question) =>
+                                question.id ===
+                                mandatoryQuestion.id
+                        );
+
+                    if (
+                        mandatoryIndex >= 0
+                    ) {
+                        setIndex(
+                            mandatoryIndex
+                        );
+                    }
+
+                    return;
                 }
+            }
+
+            if (
+                !session?.session_token
+            ) {
+                setError(
+                    "Your assessment session is unavailable. Please restart the assessment."
+                );
 
                 return;
             }
-        }
 
-        if (!session?.session_token) {
-            setError(
-                "Your assessment session is unavailable. Please restart the assessment."
-            );
+            setSubmitting(true);
 
-            return;
-        }
+            try {
+                /*
+                 * Build the payload immediately before the request.
+                 *
+                 * This ensures the latest answersRef value is used.
+                 */
+                const payload =
+                    buildSubmissionPayload();
 
-        setSubmitting(true);
+                // Never submit an empty answer collection when the
+                // participant has actually selected an answer.
+                const submittedCount =
+                    Array.isArray(payload.answers)
+                        ? payload.answers.filter(
+                            (item) => {
+                                const answer =
+                                    item?.answer;
 
-        try {
-            const response = await axios.post(
-                `/api/quiz/public/session/${session.session_token}/submit`,
-                buildSubmissionPayload()
-            );
+                                if (
+                                    Array.isArray(answer)
+                                ) {
+                                    return answer.length > 0;
+                                }
 
-            const resultData =
-                response?.data?.data ||
-                response?.data;
+                                return (
+                                    answer !== null &&
+                                    answer !== undefined &&
+                                    String(answer).trim() !== ""
+                                );
+                            }
+                        ).length
+                        : 0;
 
-            setResult(resultData);
-            setStep("result");
+                if (
+                    !automaticSubmit &&
+                    submittedCount === 0
+                ) {
+                    setError(
+                        "No answer was captured. Please select an answer and try again."
+                    );
+                    return;
+                }
 
-            stopCamera();
-        } catch (err) {
-            setError(
-                err?.response?.data?.message ||
-                "Unable to submit assessment."
-            );
-        } finally {
-            setSubmitting(false);
-        }
-    };
+                const response =
+                    await axios.post(
+                        `/api/quiz/public/session/${session.session_token}/submit`,
+                        payload,
+                        {
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                            },
+                        }
+                    );
+
+                const resultData =
+                    response?.data?.data ||
+                    response?.data;
+
+                setResult(
+                    resultData
+                );
+
+                setStep("result");
+
+                stopCamera();
+            } catch (err) {
+                setError(
+                    err?.response?.data
+                        ?.message ||
+                    "Unable to submit assessment."
+                );
+            } finally {
+                setSubmitting(false);
+            }
+        };
 
     // ============================================================
     // FORMAT TIMER
     // ============================================================
 
-    const formatTime = (seconds) => {
-        if (
-            seconds === null ||
-            seconds === undefined
-        ) {
-            return "No time limit";
-        }
+    const formatTime =
+        (seconds) => {
+            if (
+                seconds === null ||
+                seconds === undefined
+            ) {
+                return "No time limit";
+            }
 
-        const safeSeconds = Math.max(
-            0,
-            Number(seconds)
-        );
+            const safeSeconds =
+                Math.max(
+                    0,
+                    Number(seconds)
+                );
 
-        const minutes = Math.floor(
-            safeSeconds / 60
-        );
+            const minutes =
+                Math.floor(
+                    safeSeconds / 60
+                );
 
-        const remaining =
-            safeSeconds % 60;
+            const remaining =
+                safeSeconds % 60;
 
-        return `${String(minutes).padStart(
-            2,
-            "0"
-        )}:${String(remaining).padStart(2, "0")}`;
-    };
+            return `${String(
+                minutes
+            ).padStart(
+                2,
+                "0"
+            )}:${String(
+                remaining
+            ).padStart(
+                2,
+                "0"
+            )}`;
+        };
 
     // ============================================================
     // LOADING SCREEN
@@ -928,7 +1297,9 @@ function PublicQuiz() {
                             Assessment unavailable
                         </h1>
 
-                        <p>{error}</p>
+                        <p>
+                            {error}
+                        </p>
                     </div>
                 </main>
             </div>
@@ -941,7 +1312,9 @@ function PublicQuiz() {
 
     if (
         !quiz ||
-        !Array.isArray(quiz.questions) ||
+        !Array.isArray(
+            quiz.questions
+        ) ||
         quiz.questions.length === 0
     ) {
         return (
@@ -982,7 +1355,18 @@ function PublicQuiz() {
 
     const currentAnswer =
         currentQuestion
-            ? answers[currentQuestion.id]
+            ? (
+                Object.prototype.hasOwnProperty.call(
+                    answersRef.current || {},
+                    Number(currentQuestion.id)
+                )
+                    ? answersRef.current[
+                        Number(currentQuestion.id)
+                    ]
+                    : answers[
+                        currentQuestion.id
+                    ]
+            )
             : undefined;
 
     // ============================================================
@@ -1014,7 +1398,10 @@ function PublicQuiz() {
                 {error && (
                     <div className="public-error-banner">
                         <FaShieldAlt />
-                        <span>{error}</span>
+
+                        <span>
+                            {error}
+                        </span>
 
                         <button
                             type="button"
@@ -1050,7 +1437,10 @@ function PublicQuiz() {
 
                             <div className="public-meta">
                                 <span>
-                                    {quiz.questions.length}{" "}
+                                    {
+                                        quiz.questions
+                                            .length
+                                    }{" "}
                                     Questions
                                 </span>
 
@@ -1062,15 +1452,17 @@ function PublicQuiz() {
 
                                 <span>
                                     Pass{" "}
-                                    {quiz.passing_score}%
+                                    {
+                                        quiz.passing_score
+                                    }%
                                 </span>
                             </div>
                         </div>
 
                         <div className="verification-grid">
-                            {/* ==========================================
+                            {/* ==================================================
                                 PARTICIPANT DETAILS
-                            ========================================== */}
+                            ================================================== */}
 
                             <section>
                                 <div className="section-heading">
@@ -1104,8 +1496,7 @@ function PublicQuiz() {
                                         value={name}
                                         onChange={(event) =>
                                             setName(
-                                                event
-                                                    .target
+                                                event.target
                                                     .value
                                             )
                                         }
@@ -1124,8 +1515,12 @@ function PublicQuiz() {
 
                                         <input
                                             type="email"
-                                            value={email}
-                                            onChange={(event) =>
+                                            value={
+                                                email
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
                                                 setEmail(
                                                     event
                                                         .target
@@ -1169,9 +1564,9 @@ function PublicQuiz() {
                                 )}
                             </section>
 
-                            {/* ==========================================
+                            {/* ==================================================
                                 VERIFICATION
-                            ========================================== */}
+                            ================================================== */}
 
                             <section>
                                 <div className="section-heading">
@@ -1285,12 +1680,10 @@ function PublicQuiz() {
 
                                                 <small>
                                                     {locationConsent
-                                                        ? `Accuracy ${
-                                                            Math.round(
-                                                                location?.accuracy ||
-                                                                0
-                                                            )
-                                                        }m`
+                                                        ? `Accuracy ${Math.round(
+                                                            location?.accuracy ||
+                                                            0
+                                                        )}m`
                                                         : "Required before starting"}
                                                 </small>
                                             </span>
@@ -1339,9 +1732,9 @@ function PublicQuiz() {
                             </section>
                         </div>
 
-                        {/* ==========================================
+                        {/* ==================================================
                             FOOTER ACTION
-                        ========================================== */}
+                        ================================================== */}
 
                         <div className="public-actions">
                             <span>
@@ -1356,7 +1749,9 @@ function PublicQuiz() {
                             <button
                                 type="button"
                                 className="public-primary"
-                                onClick={startQuiz}
+                                onClick={
+                                    startQuiz
+                                }
                             >
                                 Proceed to Assessment
                                 <FaArrowRight />
@@ -1369,395 +1764,411 @@ function PublicQuiz() {
                     QUIZ PLAYER
                 ================================================== */}
 
-                {step === "quiz" && currentQuestion && (
-                    <div className="public-card wide quiz-player">
-                        {/* ==============================================
-                            PLAYER HEADER
-                        ============================================== */}
+                {step === "quiz" &&
+                    currentQuestion && (
+                        <div className="public-card wide quiz-player">
+                            {/* ==================================================
+                                PLAYER HEADER
+                            ================================================== */}
 
-                        <div className="player-head">
-                            <div>
-                                <span>
-                                    QUESTION{" "}
-                                    {index + 1} OF{" "}
+                            <div className="player-head">
+                                <div>
+                                    <span>
+                                        QUESTION{" "}
+                                        {index + 1} OF{" "}
+                                        {
+                                            quiz.questions
+                                                .length
+                                        }
+                                    </span>
+
+                                    <h1>
+                                        {quiz.name}
+                                    </h1>
+                                </div>
+
+                                <div className="player-status">
+                                    {remainingSeconds !==
+                                        null && (
+                                            <div
+                                                className={
+                                                    remainingSeconds <=
+                                                        60
+                                                        ? "quiz-timer danger"
+                                                        : "quiz-timer"
+                                                }
+                                            >
+                                                <FaClock />
+
+                                                <strong>
+                                                    {formatTime(
+                                                        remainingSeconds
+                                                    )}
+                                                </strong>
+
+                                                <small>
+                                                    Remaining
+                                                </small>
+                                            </div>
+                                        )}
+
+                                    <div className="player-progress">
+                                        {Math.round(
+                                            ((index + 1) /
+                                                quiz
+                                                    .questions
+                                                    .length) *
+                                            100
+                                        )}
+                                        %
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ==================================================
+                                PROGRESS
+                            ================================================== */}
+
+                            <div className="progress-track">
+                                <i
+                                    style={{
+                                        width: `${
+                                            ((index + 1) /
+                                                quiz
+                                                    .questions
+                                                    .length) *
+                                            100
+                                        }%`,
+                                    }}
+                                />
+                            </div>
+
+                            {/* ==================================================
+                                QUESTION
+                            ================================================== */}
+
+                            <div className="player-question">
+                                <div className="question-badge">
+                                    {String(
+                                        index + 1
+                                    ).padStart(
+                                        2,
+                                        "0"
+                                    )}
+                                </div>
+
+                                <div className="question-body">
+                                    <div className="question-label">
+                                        {currentQuestion.question_type ||
+                                            "Question"}
+
+                                        {isQuestionRequired(
+                                            currentQuestion
+                                        ) && (
+                                                <span>
+                                                    Required
+                                                </span>
+                                            )}
+                                    </div>
+
+                                    <h2>
+                                        {
+                                            currentQuestion.question_text
+                                        }
+                                    </h2>
+
+                                    {/* IMAGE */}
+
+                                    {currentQuestion.image_url && (
+                                        <div className="question-media">
+                                            <img
+                                                src={mediaUrl(
+                                                    currentQuestion.image_url
+                                                )}
+                                                alt="Question reference"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* VIDEO */}
+
+                                    {currentQuestion.video_url && (
+                                        <div className="question-video">
+                                            <a
+                                                href={mediaUrl(
+                                                    currentQuestion.video_url
+                                                )}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Open video
+                                                reference
+                                                <FaArrowRight />
+                                            </a>
+                                        </div>
+                                    )}
+
+                                    {/* TEXT QUESTION */}
+
+                                    {currentQuestion.question_type ===
+                                        "text" && (
+                                            <textarea
+                                                value={
+                                                    currentAnswer ||
+                                                    ""
+                                                }
+                                                onChange={(
+                                                    event
+                                                ) => {
+                                                    const questionId =
+                                                        Number(
+                                                            currentQuestion.id
+                                                        );
+
+                                                    const next = {
+                                                        ...(answersRef.current || {}),
+                                                        [questionId]:
+                                                            event
+                                                                .target
+                                                                .value,
+                                                    };
+
+                                                    // Keep the latest text answer
+                                                    // available immediately.
+                                                    answersRef.current = next;
+                                                    setAnswers(next);
+                                                }}
+                                                placeholder="Type your answer..."
+                                            />
+                                        )}
+
+                                    {/* SINGLE / MULTIPLE / TRUE-FALSE */}
+
+                                    {currentQuestion.question_type !==
+                                        "text" && (
+                                            <div className="answer-options">
+                                                {questionOptions.map(
+                                                    (
+                                                        option,
+                                                        optionIndex
+                                                    ) => {
+                                                        const selected =
+                                                            Array.isArray(
+                                                                currentAnswer
+                                                            )
+                                                                ? currentAnswer.includes(
+                                                                    option
+                                                                )
+                                                                : currentAnswer ===
+                                                                option;
+
+                                                        return (
+                                                            <label
+                                                                key={`${currentQuestion.id}-${optionIndex}`}
+                                                                className={
+                                                                    selected
+                                                                        ? "selected"
+                                                                        : ""
+                                                                }
+                                                            >
+                                                                <input
+                                                                    type={
+                                                                        currentQuestion.question_type ===
+                                                                            "multiple_choice"
+                                                                            ? "checkbox"
+                                                                            : "radio"
+                                                                    }
+                                                                    name={`question-${currentQuestion.id}`}
+                                                                    checked={
+                                                                        selected
+                                                                    }
+                                                                    onChange={() =>
+                                                                        setQuestionAnswer(
+                                                                            currentQuestion,
+                                                                            option
+                                                                        )
+                                                                    }
+                                                                />
+
+                                                                <span className="answer-letter">
+                                                                    {String.fromCharCode(
+                                                                        65 +
+                                                                        optionIndex
+                                                                    )}
+                                                                </span>
+
+                                                                <span className="answer-text">
+                                                                    {
+                                                                        option
+                                                                    }
+                                                                </span>
+
+                                                                {selected && (
+                                                                    <FaCheckCircle className="answer-check" />
+                                                                )}
+                                                            </label>
+                                                        );
+                                                    }
+                                                )}
+                                            </div>
+                                        )}
+                                </div>
+                            </div>
+
+                            {/* ==================================================
+                                PLAYER FOOTER
+                            ================================================== */}
+
+                            <div className="player-footer">
+                                <button
+                                    type="button"
+                                    className="quiz-secondary"
+                                    disabled={
+                                        index ===
+                                        0
+                                    }
+                                    onClick={
+                                        previousQuestion
+                                    }
+                                >
+                                    <FaArrowLeft />
+                                    Previous
+                                </button>
+
+                                <span className="question-counter">
+                                    {index + 1} /{" "}
                                     {
                                         quiz.questions
                                             .length
                                     }
                                 </span>
 
-                                <h1>
-                                    {quiz.name}
-                                </h1>
-                            </div>
-
-                            <div className="player-status">
-                                {remainingSeconds !==
-                                    null && (
-                                    <div
-                                        className={
-                                            remainingSeconds <=
-                                                60
-                                                ? "quiz-timer danger"
-                                                : "quiz-timer"
+                                {index <
+                                    quiz.questions
+                                        .length -
+                                    1 ? (
+                                    <button
+                                        type="button"
+                                        className="public-primary"
+                                        onClick={
+                                            nextQuestion
                                         }
                                     >
-                                        <FaClock />
-
-                                        <strong>
-                                            {formatTime(
-                                                remainingSeconds
-                                            )}
-                                        </strong>
-
-                                        <small>
-                                            Remaining
-                                        </small>
-                                    </div>
-                                )}
-
-                                <div className="player-progress">
-                                    {Math.round(
-                                        ((index + 1) /
-                                            quiz
-                                                .questions
-                                                .length) *
-                                        100
-                                    )}
-                                    %
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ==============================================
-                            PROGRESS
-                        ============================================== */}
-
-                        <div className="progress-track">
-                            <i
-                                style={{
-                                    width: `${
-                                        ((index + 1) /
-                                            quiz
-                                                .questions
-                                                .length) *
-                                        100
-                                    }%`,
-                                }}
-                            />
-                        </div>
-
-                        {/* ==============================================
-                            QUESTION
-                        ============================================== */}
-
-                        <div className="player-question">
-                            <div className="question-badge">
-                                {String(
-                                    index + 1
-                                ).padStart(2, "0")}
-                            </div>
-
-                            <div className="question-body">
-                                <div className="question-label">
-                                    {currentQuestion.question_type ||
-                                        "Question"}
-
-                                    {isQuestionRequired(
-                                        currentQuestion
-                                    ) && (
-                                        <span>
-                                            Required
-                                        </span>
-                                    )}
-                                </div>
-
-                                <h2>
-                                    {
-                                        currentQuestion.question_text
-                                    }
-                                </h2>
-
-                                {/* IMAGE */}
-
-                                {currentQuestion.image_url && (
-                                    <div className="question-media">
-                                        <img
-                                            src={
-                                                currentQuestion.image_url
-                                            }
-                                            alt="Question reference"
-                                        />
-                                    </div>
-                                )}
-
-                                {/* VIDEO */}
-
-                                {currentQuestion.video_url && (
-                                    <div className="question-video">
-                                        <a
-                                            href={
-                                                currentQuestion.video_url
-                                            }
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            Open video
-                                            reference
-                                            <FaArrowRight />
-                                        </a>
-                                    </div>
-                                )}
-
-                                {/* TEXT QUESTION */}
-
-                                {currentQuestion.question_type ===
-                                    "text" && (
-                                    <textarea
-                                        value={
-                                            currentAnswer ||
-                                            ""
+                                        Save & Continue
+                                        <FaArrowRight />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="public-primary"
+                                        disabled={
+                                            submitting
                                         }
-                                        onChange={(
-                                            event
-                                        ) =>
-                                            setAnswers(
-                                                (
-                                                    previous
-                                                ) => ({
-                                                    ...previous,
-                                                    [currentQuestion.id]:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                })
+                                        onClick={() =>
+                                            handleSubmit(
+                                                false
                                             )
                                         }
-                                        placeholder="Type your answer..."
-                                    />
-                                )}
+                                    >
+                                        {submitting
+                                            ? "Submitting..."
+                                            : "Submit Assessment"}
 
-                                {/* SINGLE / MULTIPLE / TRUE FALSE */}
-
-                                {currentQuestion.question_type !==
-                                    "text" && (
-                                    <div className="answer-options">
-                                        {questionOptions.map(
-                                            (
-                                                option,
-                                                optionIndex
-                                            ) => {
-                                                const selected =
-                                                    Array.isArray(
-                                                        currentAnswer
-                                                    )
-                                                        ? currentAnswer.includes(
-                                                            option
-                                                        )
-                                                        : currentAnswer ===
-                                                        option;
-
-                                                return (
-                                                    <label
-                                                        key={`${currentQuestion.id}-${optionIndex}`}
-                                                        className={
-                                                            selected
-                                                                ? "selected"
-                                                                : ""
-                                                        }
-                                                    >
-                                                        <input
-                                                            type={
-                                                                currentQuestion.question_type ===
-                                                                    "multiple_choice"
-                                                                    ? "checkbox"
-                                                                    : "radio"
-                                                            }
-                                                            name={`question-${currentQuestion.id}`}
-                                                            checked={
-                                                                selected
-                                                            }
-                                                            onChange={() =>
-                                                                setQuestionAnswer(
-                                                                    currentQuestion,
-                                                                    option
-                                                                )
-                                                            }
-                                                        />
-
-                                                        <span className="answer-letter">
-                                                            {String.fromCharCode(
-                                                                65 +
-                                                                optionIndex
-                                                            )}
-                                                        </span>
-
-                                                        <span className="answer-text">
-                                                            {
-                                                                option
-                                                            }
-                                                        </span>
-
-                                                        {selected && (
-                                                            <FaCheckCircle className="answer-check" />
-                                                        )}
-                                                    </label>
-                                                );
-                                            }
+                                        {!submitting && (
+                                            <FaCheckCircle />
                                         )}
-                                    </div>
+                                    </button>
                                 )}
                             </div>
                         </div>
-
-                        {/* ==============================================
-                            PLAYER FOOTER
-                        ============================================== */}
-
-                        <div className="player-footer">
-                            <button
-                                type="button"
-                                className="quiz-secondary"
-                                disabled={
-                                    index === 0
-                                }
-                                onClick={
-                                    previousQuestion
-                                }
-                            >
-                                <FaArrowLeft />
-                                Previous
-                            </button>
-
-                            <span className="question-counter">
-                                {index + 1} /{" "}
-                                {
-                                    quiz.questions
-                                        .length
-                                }
-                            </span>
-
-                            {index <
-                                quiz.questions
-                                    .length -
-                                1 ? (
-                                <button
-                                    type="button"
-                                    className="public-primary"
-                                    onClick={
-                                        nextQuestion
-                                    }
-                                >
-                                    Save & Continue
-                                    <FaArrowRight />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    className="public-primary"
-                                    disabled={
-                                        submitting
-                                    }
-                                    onClick={() =>
-                                        handleSubmit(
-                                            false
-                                        )
-                                    }
-                                >
-                                    {submitting
-                                        ? "Submitting..."
-                                        : "Submit Assessment"}
-
-                                    {!submitting && (
-                                        <FaCheckCircle />
-                                    )}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
+                    )}
 
                 {/* ==================================================
                     RESULT
                 ================================================== */}
 
-                {step === "result" && result && (
-                    <div className="public-card result-card">
-                        <div className="result-icon">
-                            <FaCheckCircle />
-                        </div>
-
-                        <span>
-                            ASSESSMENT COMPLETE
-                        </span>
-
-                        <h1>
-                            {result.result ||
-                                "Assessment Submitted"}
-                        </h1>
-
-                        <p>
-                            Thank you,{" "}
-                            <strong>
-                                {name}
-                            </strong>
-                            . Your assessment has
-                            been securely recorded.
-                        </p>
-
-                        <div className="result-score">
-                            <strong>
-                                {Number(
-                                    result.percentage ||
-                                    0
-                                ).toFixed(1)}
-                                %
-                            </strong>
+                {step === "result" &&
+                    result && (
+                        <div className="public-card result-card">
+                            <div className="result-icon">
+                                <FaCheckCircle />
+                            </div>
 
                             <span>
-                                {result.score || 0} /{" "}
-                                {result.max_score ||
-                                    0}{" "}
-                                points
+                                ASSESSMENT COMPLETE
                             </span>
-                        </div>
 
-                        {result.participant_id && (
-                            <div className="participant-id">
-                                <span>
-                                    Participant ID
-                                </span>
+                            <h1>
+                                {result.result ||
+                                    "Assessment Submitted"}
+                            </h1>
 
+                            <p>
+                                Thank you,{" "}
                                 <strong>
-                                    {
-                                        result.participant_id
-                                    }
+                                    {name}
                                 </strong>
-                            </div>
-                        )}
+                                . Your assessment has
+                                been securely recorded.
+                            </p>
 
-                        <div className="result-security">
-                            <FaShieldAlt />
-
-                            <div>
+                            <div className="result-score">
                                 <strong>
-                                    Assessment
-                                    recorded
-                                    successfully
+                                    {Number(
+                                        result.percentage ||
+                                        0
+                                    ).toFixed(
+                                        1
+                                    )}
+                                    %
                                 </strong>
 
                                 <span>
-                                    Your training
-                                    report is
-                                    available to the
-                                    authorized
-                                    Miarcus training
-                                    team.
+                                    {result.score ||
+                                        0}{" "}
+                                    /{" "}
+                                    {result.max_score ||
+                                        0}{" "}
+                                    points
                                 </span>
                             </div>
+
+                            {result.participant_id && (
+                                <div className="participant-id">
+                                    <span>
+                                        Participant ID
+                                    </span>
+
+                                    <strong>
+                                        {
+                                            result.participant_id
+                                        }
+                                    </strong>
+                                </div>
+                            )}
+
+                            <div className="result-security">
+                                <FaShieldAlt />
+
+                                <div>
+                                    <strong>
+                                        Assessment
+                                        recorded
+                                        successfully
+                                    </strong>
+
+                                    <span>
+                                        Your training
+                                        report is
+                                        available to the
+                                        authorized
+                                        Miarcus training
+                                        team.
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
             </main>
         </div>
     );
