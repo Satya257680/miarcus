@@ -90,6 +90,806 @@ const safeBoolean = (value, defaultValue = false) => {
 
 
 // ======================================================
+// QUESTION SCORING HELPERS
+// ======================================================
+// The quiz stores:
+//
+// options_json
+// correct_answer_json
+// option_scores_json
+//
+// These values MUST stay synchronized.
+//
+// Example:
+//
+// options        = ["Peacock", "Eagle", "Sparrow"]
+// correct_answer = "Peacock"
+// points         = 1
+//
+// Automatically:
+//
+// option_scores  = [1, 0, 0]
+//
+// This prevents the problem where the correct answer is
+// selected but every option has score 0.
+// ======================================================
+
+const normalizeQuestionType = (value) => {
+    const type = String(
+        value || "single_choice"
+    ).trim();
+
+    if (
+        type === "multiple_choice" ||
+        type === "text" ||
+        type === "single_choice"
+    ) {
+        return type;
+    }
+
+    return type;
+};
+
+
+// ======================================================
+// NORMALIZE OPTIONS
+// ======================================================
+
+const normalizeQuestionOptions = (value) => {
+
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((item) => {
+            if (
+                item === null ||
+                item === undefined
+            ) {
+                return "";
+            }
+
+            if (
+                typeof item === "object"
+            ) {
+                return String(
+                    item.label ??
+                    item.value ??
+                    item.text ??
+                    ""
+                ).trim();
+            }
+
+            return String(item).trim();
+        })
+        .filter(Boolean);
+};
+
+
+// ======================================================
+// NORMALIZE ANSWER
+// ======================================================
+
+const normalizeAnswerValue = (value) => {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+    if (Array.isArray(value)) {
+
+        return value
+            .map((item) =>
+                String(
+                    item ?? ""
+                )
+                    .trim()
+                    .toLowerCase()
+            )
+            .filter(Boolean)
+            .sort();
+    }
+
+    return String(value)
+        .trim()
+        .toLowerCase();
+};
+
+
+// ======================================================
+// ANSWER EQUALITY
+// ======================================================
+
+const answersEqual = (
+    actual,
+    expected
+) => {
+
+    const a =
+        normalizeAnswerValue(
+            actual
+        );
+
+    const b =
+        normalizeAnswerValue(
+            expected
+        );
+
+    if (
+        Array.isArray(a) &&
+        Array.isArray(b)
+    ) {
+
+        if (a.length !== b.length) {
+            return false;
+        }
+
+        return a.every(
+            (value, index) =>
+                value === b[index]
+        );
+    }
+
+    if (
+        Array.isArray(a) ||
+        Array.isArray(b)
+    ) {
+        return false;
+    }
+
+    return a === b;
+};
+
+
+// ======================================================
+// FIND OPTION INDEX
+// ======================================================
+
+const findOptionIndex = (
+    options,
+    answer
+) => {
+
+    if (!Array.isArray(options)) {
+        return -1;
+    }
+
+    const normalizedAnswer =
+        normalizeAnswerValue(
+            answer
+        );
+
+    if (
+        Array.isArray(
+            normalizedAnswer
+        )
+    ) {
+        return -1;
+    }
+
+    return options.findIndex(
+        (option, index) => {
+
+            const normalizedOption =
+                normalizeAnswerValue(
+                    option
+                );
+
+            if (
+                normalizedOption ===
+                normalizedAnswer
+            ) {
+                return true;
+            }
+
+            // Support A / B / C style answers.
+            const letter =
+                String.fromCharCode(
+                    97 + index
+                );
+
+            if (
+                normalizedAnswer ===
+                letter
+            ) {
+                return true;
+            }
+
+            // Support "Option A", "Option B", etc.
+            if (
+                normalizedAnswer ===
+                `option ${letter}`
+            ) {
+                return true;
+            }
+
+            return false;
+        }
+    );
+};
+
+
+// ======================================================
+// GET CORRECT ANSWER
+// ======================================================
+
+const getCorrectAnswer = (
+    question
+) => {
+
+    if (!question) {
+        return null;
+    }
+
+    return parseJson(
+        question.correct_answer_json ??
+        question.correct_answer,
+        null
+    );
+};
+
+
+// ======================================================
+// GET OPTIONS
+// ======================================================
+
+const getOptions = (
+    question
+) => {
+
+    if (!question) {
+        return [];
+    }
+
+    return normalizeQuestionOptions(
+        question.options ??
+        parseJson(
+            question.options_json,
+            []
+        )
+    );
+};
+
+
+// ======================================================
+// GET QUESTION POINTS
+// ======================================================
+
+const getQuestionPoints = (
+    question
+) => {
+
+    const points =
+        safeNumber(
+            question?.points,
+            1
+        );
+
+    return Math.max(
+        0,
+        points
+    );
+};
+
+
+// ======================================================
+// BUILD OPTION SCORES
+// ======================================================
+// This is the main fix.
+//
+// If:
+//   points = 1
+//   correct = Peacock
+//
+// then:
+//
+//   Peacock = 1
+//   Eagle   = 0
+//   Sparrow = 0
+//
+// If points = 5:
+//
+//   Peacock = 5
+//   Eagle   = 0
+//   Sparrow = 0
+//
+// For multiple choice, every correct option receives
+// an equal share of the available points.
+// ======================================================
+
+const buildOptionScores = (
+    options,
+    correctAnswer,
+    points,
+    questionType = "single_choice"
+) => {
+
+    const cleanOptions =
+        normalizeQuestionOptions(
+            options
+        );
+
+    const maxPoints =
+        Math.max(
+            0,
+            safeNumber(
+                points,
+                1
+            )
+        );
+
+    if (!cleanOptions.length) {
+        return [];
+    }
+
+    const scores =
+        cleanOptions.map(
+            () => 0
+        );
+
+    if (
+        correctAnswer === null ||
+        correctAnswer === undefined ||
+        correctAnswer === ""
+    ) {
+        return scores;
+    }
+
+    // --------------------------------------------------
+    // MULTIPLE CHOICE
+    // --------------------------------------------------
+
+    if (
+        questionType ===
+        "multiple_choice"
+    ) {
+
+        const correctValues =
+            Array.isArray(
+                correctAnswer
+            )
+                ? correctAnswer
+                : [correctAnswer];
+
+        const indexes = [];
+
+        for (
+            const value
+            of correctValues
+        ) {
+
+            const index =
+                findOptionIndex(
+                    cleanOptions,
+                    value
+                );
+
+            if (
+                index >= 0 &&
+                !indexes.includes(index)
+            ) {
+                indexes.push(index);
+            }
+        }
+
+        if (!indexes.length) {
+            return scores;
+        }
+
+        const pointsPerOption =
+            maxPoints /
+            indexes.length;
+
+        indexes.forEach(
+            (index) => {
+                scores[index] =
+                    Number(
+                        pointsPerOption.toFixed(
+                            4
+                        )
+                    );
+            }
+        );
+
+        return scores;
+    }
+
+    // --------------------------------------------------
+    // SINGLE CHOICE
+    // --------------------------------------------------
+
+    const correctIndex =
+        findOptionIndex(
+            cleanOptions,
+            correctAnswer
+        );
+
+    if (
+        correctIndex >= 0
+    ) {
+        scores[correctIndex] =
+            maxPoints;
+    }
+
+    return scores;
+};
+
+
+// ======================================================
+// NORMALIZE QUESTION DATA
+// ======================================================
+
+const prepareQuestionData = (
+    data = {},
+    existing = null
+) => {
+
+    const questionType =
+        normalizeQuestionType(
+            data.question_type ??
+            existing?.question_type ??
+            "single_choice"
+        );
+
+    const options =
+        data.options !== undefined
+            ? normalizeQuestionOptions(
+                data.options
+            )
+            : getOptions(
+                existing
+            );
+
+    const correctAnswer =
+        data.correct_answer !== undefined
+            ? data.correct_answer
+            : getCorrectAnswer(
+                existing
+            );
+
+    const points =
+        Math.max(
+            0,
+            safeNumber(
+                data.points,
+                existing?.points ?? 1
+            )
+        );
+
+    const optionScores =
+        buildOptionScores(
+            options,
+            correctAnswer,
+            points,
+            questionType
+        );
+
+    return {
+        questionType,
+        options,
+        correctAnswer,
+        points,
+        optionScores
+    };
+};
+
+
+// ======================================================
+// CHECK ANSWER
+// ======================================================
+
+const isAnswerCorrect = (
+    question,
+    answer
+) => {
+
+    if (!question) {
+        return false;
+    }
+
+    const questionType =
+        normalizeQuestionType(
+            question.question_type
+        );
+
+    const correctAnswer =
+        getCorrectAnswer(
+            question
+        );
+
+    if (
+        correctAnswer === null ||
+        correctAnswer === undefined
+    ) {
+        return false;
+    }
+
+    // --------------------------------------------------
+    // MULTIPLE CHOICE
+    // --------------------------------------------------
+
+    if (
+        questionType ===
+        "multiple_choice"
+    ) {
+
+        const actual =
+            Array.isArray(answer)
+                ? answer
+                : [answer];
+
+        const expected =
+            Array.isArray(
+                correctAnswer
+            )
+                ? correctAnswer
+                : [correctAnswer];
+
+        const normalizedActual =
+            actual
+                .map((value) =>
+                    String(
+                        value ?? ""
+                    )
+                        .trim()
+                        .toLowerCase()
+                )
+                .filter(Boolean)
+                .sort();
+
+        const normalizedExpected =
+            expected
+                .map((value) =>
+                    String(
+                        value ?? ""
+                    )
+                        .trim()
+                        .toLowerCase()
+                )
+                .filter(Boolean)
+                .sort();
+
+        if (
+            normalizedActual.length !==
+            normalizedExpected.length
+        ) {
+            return false;
+        }
+
+        return normalizedActual.every(
+            (value, index) =>
+                value ===
+                normalizedExpected[index]
+        );
+    }
+
+    // --------------------------------------------------
+    // SINGLE CHOICE
+    // --------------------------------------------------
+
+    const options =
+        getOptions(
+            question
+        );
+
+    const answerIndex =
+        findOptionIndex(
+            options,
+            answer
+        );
+
+    const correctIndex =
+        findOptionIndex(
+            options,
+            correctAnswer
+        );
+
+    if (
+        answerIndex >= 0 &&
+        correctIndex >= 0
+    ) {
+        return (
+            answerIndex ===
+            correctIndex
+        );
+    }
+
+    return answersEqual(
+        answer,
+        correctAnswer
+    );
+};
+
+
+// ======================================================
+// CALCULATE QUESTION SCORE
+// ======================================================
+
+const calculateQuestionScore = (
+    question,
+    answer
+) => {
+
+    const points =
+        getQuestionPoints(
+            question
+        );
+
+    const correct =
+        isAnswerCorrect(
+            question,
+            answer
+        );
+
+    if (!correct) {
+        return 0;
+    }
+
+    return points;
+};
+
+
+// ======================================================
+// REPAIR QUESTION OPTION SCORES
+// ======================================================
+// Repairs existing questions created before the scoring
+// fix was added.
+//
+// Example:
+//
+// correct_answer = "Peacock"
+// points = 1
+// option_scores = [0,0,0]
+//
+// becomes:
+//
+// option_scores = [1,0,0]
+// ======================================================
+
+const repairQuestionOptionScores = async (
+    questionId
+) => {
+
+    const id =
+        normalizeId(
+            questionId
+        );
+
+    if (!id) {
+        return false;
+    }
+
+    const rows =
+        await db.query(
+            `
+            SELECT
+                id,
+                question_type,
+                options_json,
+                correct_answer_json,
+                option_scores_json,
+                points
+            FROM quiz_questions
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [id]
+        );
+
+    if (!rows.length) {
+        return false;
+    }
+
+    const question =
+        rows[0];
+
+    const prepared =
+        prepareQuestionData(
+            question
+        );
+
+    await db.query(
+        `
+        UPDATE quiz_questions
+        SET
+            option_scores_json = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [
+            JSON.stringify(
+                prepared.optionScores
+            ),
+            id
+        ]
+    );
+
+    return true;
+};
+
+
+// ======================================================
+// REPAIR ALL QUESTION SCORES
+// ======================================================
+
+const repairAllQuestionOptionScores =
+    async () => {
+
+        const questions =
+            await db.query(
+                `
+                SELECT
+                    id,
+                    question_type,
+                    options_json,
+                    correct_answer_json,
+                    option_scores_json,
+                    points
+                FROM quiz_questions
+                `
+            );
+
+        let repaired = 0;
+
+        for (
+            const question
+            of questions
+        ) {
+
+            const prepared =
+                prepareQuestionData(
+                    question
+                );
+
+            const existingScores =
+                parseJson(
+                    question.option_scores_json,
+                    []
+                );
+
+            const old =
+                JSON.stringify(
+                    existingScores
+                );
+
+            const next =
+                JSON.stringify(
+                    prepared.optionScores
+                );
+
+            if (old !== next) {
+
+                await db.query(
+                    `
+                    UPDATE quiz_questions
+                    SET
+                        option_scores_json = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    `,
+                    [
+                        next,
+                        question.id
+                    ]
+                );
+
+                repaired += 1;
+            }
+        }
+
+        return {
+            checked:
+                questions.length,
+            repaired
+        };
+    };
+
+
+// ======================================================
 // TABLE CREATION
 // ======================================================
 
@@ -157,6 +957,7 @@ const createTables = (callback) => {
 
         `
         CREATE TABLE IF NOT EXISTS quiz_questions (
+
             id INT AUTO_INCREMENT PRIMARY KEY,
 
             quiz_id INT NOT NULL,
@@ -169,6 +970,8 @@ const createTables = (callback) => {
             options_json JSON NULL,
 
             correct_answer_json JSON NULL,
+
+            option_scores_json JSON NULL,
 
             points DECIMAL(8,2)
                 NOT NULL DEFAULT 1,
@@ -197,7 +1000,8 @@ const createTables = (callback) => {
                 REFERENCES quizzes(id)
                 ON DELETE CASCADE,
 
-            INDEX idx_quiz_questions_quiz (quiz_id),
+            INDEX idx_quiz_questions_quiz
+                (quiz_id),
 
             INDEX idx_quiz_questions_sequence
                 (quiz_id, sequence_no)
@@ -213,6 +1017,7 @@ const createTables = (callback) => {
 
         `
         CREATE TABLE IF NOT EXISTS quiz_submissions (
+
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
             quiz_id INT NOT NULL,
@@ -300,6 +1105,7 @@ const createTables = (callback) => {
 
         `
         CREATE TABLE IF NOT EXISTS quiz_submission_answers (
+
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
             submission_id BIGINT NOT NULL,
@@ -347,6 +1153,7 @@ const createTables = (callback) => {
 
         `
         CREATE TABLE IF NOT EXISTS quiz_email_logs (
+
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
             quiz_id INT NOT NULL,
@@ -393,17 +1200,103 @@ const createTables = (callback) => {
     ];
 
 
+    // --------------------------------------------------
+    // SAFE MIGRATIONS
+    // --------------------------------------------------
+
+    const migrations = [
+
+        `
+        ALTER TABLE quiz_questions
+        ADD COLUMN option_scores_json JSON NULL
+        AFTER correct_answer_json
+        `
+
+    ];
+
+
+    const runMigration = (
+        migrationIndex,
+        done
+    ) => {
+
+        if (
+            migrationIndex >=
+            migrations.length
+        ) {
+            return done(null);
+        }
+
+        db.query(
+            migrations[
+                migrationIndex
+            ],
+            [],
+            (error) => {
+
+                if (
+                    error &&
+                    error.code !==
+                    "ER_DUP_FIELDNAME"
+                ) {
+                    return done(error);
+                }
+
+                runMigration(
+                    migrationIndex + 1,
+                    done
+                );
+            }
+        );
+    };
+
+
     let index = 0;
 
 
-    const next = (error) => {
+    const next = (
+        error
+    ) => {
 
         if (error) {
             return callback(error);
         }
 
-        if (index >= statements.length) {
-            return callback(null);
+        if (
+            index >=
+            statements.length
+        ) {
+
+            return runMigration(
+                0,
+                async (migrationError) => {
+
+                    if (migrationError) {
+                        return callback(
+                            migrationError
+                        );
+                    }
+
+                    try {
+
+                        const repairResult =
+                            await repairAllQuestionOptionScores();
+
+                        console.log(
+                            "Quiz scoring repair:",
+                            repairResult
+                        );
+
+                        callback(null);
+
+                    } catch (repairError) {
+
+                        callback(
+                            repairError
+                        );
+                    }
+                }
+            );
         }
 
         db.query(
@@ -424,35 +1317,37 @@ const createTables = (callback) => {
 
 const getQuizzes = async () => {
 
-    const rows = await db.query(`
-        SELECT
-            q.*,
+    const rows =
+        await db.query(
+            `
+            SELECT
+                q.*,
 
-            COALESCE(
-                COUNT(DISTINCT qq.id),
-                0
-            ) AS question_count,
+                COALESCE(
+                    COUNT(DISTINCT qq.id),
+                    0
+                ) AS question_count,
 
-            COALESCE(
-                COUNT(DISTINCT qs.id),
-                0
-            ) AS submission_count
+                COALESCE(
+                    COUNT(DISTINCT qs.id),
+                    0
+                ) AS submission_count
 
-        FROM quizzes q
+            FROM quizzes q
 
-        LEFT JOIN quiz_questions qq
-            ON qq.quiz_id = q.id
+            LEFT JOIN quiz_questions qq
+                ON qq.quiz_id = q.id
 
-        LEFT JOIN quiz_submissions qs
-            ON qs.quiz_id = q.id
+            LEFT JOIN quiz_submissions qs
+                ON qs.quiz_id = q.id
 
-        GROUP BY q.id
+            GROUP BY q.id
 
-        ORDER BY
-            q.updated_at DESC,
-            q.id DESC
-    `);
-
+            ORDER BY
+                q.updated_at DESC,
+                q.id DESC
+            `
+        );
 
     return rows;
 };
@@ -467,92 +1362,96 @@ const getQuizById = async (
     includeAnswers = true
 ) => {
 
-    const quizId = normalizeId(id);
+    const quizId =
+        normalizeId(id);
 
     if (!quizId) {
         return null;
     }
 
-
-    const rows = await db.query(
-        `
-        SELECT *
-        FROM quizzes
-        WHERE id = ?
-        LIMIT 1
-        `,
-        [quizId]
-    );
-
+    const rows =
+        await db.query(
+            `
+            SELECT *
+            FROM quizzes
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [quizId]
+        );
 
     if (!rows.length) {
         return null;
     }
 
+    const quiz =
+        rows[0];
 
-    const quiz = rows[0];
+    const questions =
+        await db.query(
+            `
+            SELECT
+                id,
+                quiz_id,
+                question_text,
+                question_type,
+                options_json,
+                correct_answer_json,
+                option_scores_json,
+                points,
+                is_mandatory,
+                sequence_no,
+                guideline,
+                image_url,
+                video_url
 
+            FROM quiz_questions
 
-    const questions = await db.query(
-        `
-        SELECT
-            id,
-            quiz_id,
-            question_text,
-            question_type,
-            options_json,
-            correct_answer_json,
-            points,
-            is_mandatory,
-            sequence_no,
-            guideline,
-            image_url,
-            video_url
+            WHERE quiz_id = ?
 
-        FROM quiz_questions
+            ORDER BY
+                sequence_no ASC,
+                id ASC
+            `,
+            [quizId]
+        );
 
-        WHERE quiz_id = ?
+    quiz.questions =
+        questions.map(
+            (question) => {
 
-        ORDER BY
-            sequence_no ASC,
-            id ASC
-        `,
-        [quizId]
-    );
+                const prepared =
+                    prepareQuestionData(
+                        question
+                    );
 
+                const item = {
+                    ...question,
 
-    quiz.questions = questions.map((question) => {
+                    options:
+                        prepared.options,
 
-        const item = {
-            ...question,
+                    option_scores:
+                        prepared.optionScores
+                };
 
-            options: parseJson(
-                question.options_json,
-                []
-            )
-        };
+                if (
+                    includeAnswers
+                ) {
 
+                    item.correct_answer =
+                        prepared.correctAnswer;
+                }
 
-        if (includeAnswers) {
-            item.correct_answer =
-                parseJson(
-                    question.correct_answer_json,
-                    null
-                );
-        }
+                delete item.options_json;
 
+                delete item.correct_answer_json;
 
-        return item;
-    });
+                delete item.option_scores_json;
 
-
-    delete quiz.options_json;
-
-
-    if (!includeAnswers) {
-        delete quiz.correct_answer_json;
-    }
-
+                return item;
+            }
+        );
 
     return quiz;
 };
@@ -562,83 +1461,91 @@ const getQuizById = async (
 // GET PUBLIC QUIZ
 // ======================================================
 // IMPORTANT:
-// Same public_token can be used by many participants.
-// Completion of one participant DOES NOT invalidate it.
+//
+// Public participants NEVER receive
+// correct_answer or option_scores.
 // ======================================================
 
-const getQuizByToken = async (token) => {
+const getQuizByToken = async (
+    token
+) => {
 
-    const cleanToken = String(token || "").trim();
+    const cleanToken =
+        String(
+            token || ""
+        ).trim();
 
     if (!cleanToken) {
         return null;
     }
 
+    const rows =
+        await db.query(
+            `
+            SELECT *
+            FROM quizzes
 
-    const rows = await db.query(
-        `
-        SELECT *
-        FROM quizzes
+            WHERE public_token = ?
 
-        WHERE public_token = ?
+            AND status = 'Active'
 
-        AND status = 'Active'
-
-        LIMIT 1
-        `,
-        [cleanToken]
-    );
-
+            LIMIT 1
+            `,
+            [cleanToken]
+        );
 
     if (!rows.length) {
         return null;
     }
 
+    const quiz =
+        rows[0];
 
-    const quiz = rows[0];
+    const questions =
+        await db.query(
+            `
+            SELECT
+                id,
+                question_text,
+                question_type,
+                options_json,
+                points,
+                is_mandatory,
+                sequence_no,
+                guideline,
+                image_url,
+                video_url
 
+            FROM quiz_questions
 
-    const questions = await db.query(
-        `
-        SELECT
-            id,
-            question_text,
-            question_type,
-            options_json,
-            points,
-            is_mandatory,
-            sequence_no,
-            guideline,
-            image_url,
-            video_url
+            WHERE quiz_id = ?
 
-        FROM quiz_questions
+            ORDER BY
+                sequence_no ASC,
+                id ASC
+            `,
+            [quiz.id]
+        );
 
-        WHERE quiz_id = ?
+    quiz.questions =
+        questions.map(
+            (question) => {
 
-        ORDER BY
-            sequence_no ASC,
-            id ASC
-        `,
-        [quiz.id]
-    );
+                const options =
+                    normalizeQuestionOptions(
+                        parseJson(
+                            question.options_json,
+                            []
+                        )
+                    );
 
+                return {
+                    ...question,
 
-    quiz.questions = questions.map(
-        (question) => ({
-            ...question,
-
-            options: parseJson(
-                question.options_json,
-                []
-            )
-        })
-    );
-
-
-    // Never expose correct answers publicly.
-    delete quiz.correct_answer_json;
-
+                    options
+                };
+            }
+        );
 
     return quiz;
 };
@@ -648,12 +1555,14 @@ const getQuizByToken = async (token) => {
 // CREATE QUIZ
 // ======================================================
 
-const createQuiz = async (data = {}) => {
+const createQuiz = async (
+    data = {}
+) => {
 
-    const name = String(
-        data.name || ""
-    ).trim();
-
+    const name =
+        String(
+            data.name || ""
+        ).trim();
 
     if (!name) {
         throw new Error(
@@ -661,26 +1570,24 @@ const createQuiz = async (data = {}) => {
         );
     }
 
+    let token =
+        makeToken();
 
-    let token = makeToken();
-
-
-    // Extremely unlikely collision protection.
-    let tokenExists = true;
-
+    let tokenExists =
+        true;
 
     while (tokenExists) {
 
-        const existing = await db.query(
-            `
-            SELECT id
-            FROM quizzes
-            WHERE public_token = ?
-            LIMIT 1
-            `,
-            [token]
-        );
-
+        const existing =
+            await db.query(
+                `
+                SELECT id
+                FROM quizzes
+                WHERE public_token = ?
+                LIMIT 1
+                `,
+                [token]
+            );
 
         if (!existing.length) {
             tokenExists = false;
@@ -688,7 +1595,6 @@ const createQuiz = async (data = {}) => {
             token = makeToken();
         }
     }
-
 
     const passingScore =
         Math.min(
@@ -702,7 +1608,6 @@ const createQuiz = async (data = {}) => {
             )
         );
 
-
     const attemptsAllowed =
         Math.max(
             0,
@@ -714,81 +1619,85 @@ const createQuiz = async (data = {}) => {
             )
         );
 
+    const result =
+        await db.query(
+            `
+            INSERT INTO quizzes
+            (
+                name,
+                description,
+                public_token,
+                status,
+                passing_score,
+                time_limit_minutes,
+                attempts_allowed,
+                require_camera,
+                require_location,
+                require_email_consent,
+                created_by
+            )
 
-    const result = await db.query(
-        `
-        INSERT INTO quizzes
-        (
-            name,
-            description,
-            public_token,
-            status,
-            passing_score,
-            time_limit_minutes,
-            attempts_allowed,
-            require_camera,
-            require_location,
-            require_email_consent,
-            created_by
-        )
+            VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+                name,
 
-        VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-            name,
+                data.description
+                    ? String(
+                        data.description
+                    ).trim()
+                    : null,
 
-            data.description
-                ? String(data.description).trim()
-                : null,
+                token,
 
-            token,
+                data.status ===
+                "Inactive"
+                    ? "Inactive"
+                    : "Active",
 
-            data.status === "Inactive"
-                ? "Inactive"
-                : "Active",
+                passingScore,
 
-            passingScore,
-
-            data.time_limit_minutes
-                ? Math.max(
-                    1,
-                    Math.floor(
-                        safeNumber(
-                            data.time_limit_minutes,
-                            0
+                data.time_limit_minutes
+                    ? Math.max(
+                        1,
+                        Math.floor(
+                            safeNumber(
+                                data.time_limit_minutes,
+                                0
+                            )
                         )
                     )
+                    : null,
+
+                attemptsAllowed,
+
+                safeBoolean(
+                    data.require_camera,
+                    true
                 )
-                : null,
+                    ? 1
+                    : 0,
 
-            attemptsAllowed,
+                safeBoolean(
+                    data.require_location,
+                    true
+                )
+                    ? 1
+                    : 0,
 
-            safeBoolean(
-                data.require_camera,
-                true
-            )
-                ? 1
-                : 0,
+                safeBoolean(
+                    data.require_email_consent,
+                    true
+                )
+                    ? 1
+                    : 0,
 
-            safeBoolean(
-                data.require_location,
-                true
-            )
-                ? 1
-                : 0,
-
-            safeBoolean(
-                data.require_email_consent,
-                true
-            )
-                ? 1
-                : 0,
-
-            normalizeId(data.created_by)
-        ]
-    );
-
+                normalizeId(
+                    data.created_by
+                )
+            ]
+        );
 
     return getQuizById(
         result.insertId,
@@ -806,7 +1715,8 @@ const updateQuiz = async (
     data = {}
 ) => {
 
-    const quizId = normalizeId(id);
+    const quizId =
+        normalizeId(id);
 
     if (!quizId) {
         throw new Error(
@@ -814,12 +1724,11 @@ const updateQuiz = async (
         );
     }
 
-
-    const existing = await getQuizById(
-        quizId,
-        false
-    );
-
+    const existing =
+        await getQuizById(
+            quizId,
+            false
+        );
 
     if (!existing) {
         throw new Error(
@@ -827,18 +1736,17 @@ const updateQuiz = async (
         );
     }
 
-
-    const name = String(
-        data.name ?? existing.name
-    ).trim();
-
+    const name =
+        String(
+            data.name ??
+            existing.name
+        ).trim();
 
     if (!name) {
         throw new Error(
             "Quiz name is required"
         );
     }
-
 
     const passingScore =
         Math.min(
@@ -852,7 +1760,6 @@ const updateQuiz = async (
             )
         );
 
-
     const attemptsAllowed =
         Math.max(
             0,
@@ -863,7 +1770,6 @@ const updateQuiz = async (
                 )
             )
         );
-
 
     await db.query(
         `
@@ -885,15 +1791,19 @@ const updateQuiz = async (
         [
             name,
 
-            data.description !== undefined
+            data.description !==
+            undefined
                 ? (
                     data.description
-                        ? String(data.description).trim()
+                        ? String(
+                            data.description
+                        ).trim()
                         : null
                 )
                 : existing.description,
 
-            data.status === "Inactive"
+            data.status ===
+            "Inactive"
                 ? "Inactive"
                 : "Active",
 
@@ -915,21 +1825,27 @@ const updateQuiz = async (
 
             safeBoolean(
                 data.require_camera,
-                Boolean(existing.require_camera)
+                Boolean(
+                    existing.require_camera
+                )
             )
                 ? 1
                 : 0,
 
             safeBoolean(
                 data.require_location,
-                Boolean(existing.require_location)
+                Boolean(
+                    existing.require_location
+                )
             )
                 ? 1
                 : 0,
 
             safeBoolean(
                 data.require_email_consent,
-                Boolean(existing.require_email_consent)
+                Boolean(
+                    existing.require_email_consent
+                )
             )
                 ? 1
                 : 0,
@@ -937,7 +1853,6 @@ const updateQuiz = async (
             quizId
         ]
     );
-
 
     return getQuizById(
         quizId,
@@ -950,9 +1865,12 @@ const updateQuiz = async (
 // DELETE QUIZ
 // ======================================================
 
-const deleteQuiz = async (id) => {
+const deleteQuiz = async (
+    id
+) => {
 
-    const quizId = normalizeId(id);
+    const quizId =
+        normalizeId(id);
 
     if (!quizId) {
         throw new Error(
@@ -960,18 +1878,18 @@ const deleteQuiz = async (id) => {
         );
     }
 
-
-    const result = await db.query(
-        `
-        DELETE FROM quizzes
-        WHERE id = ?
-        `,
-        [quizId]
-    );
-
+    const result =
+        await db.query(
+            `
+            DELETE FROM quizzes
+            WHERE id = ?
+            `,
+            [quizId]
+        );
 
     return {
-        deleted: result.affectedRows > 0
+        deleted:
+            result.affectedRows > 0
     };
 };
 
@@ -985,7 +1903,10 @@ const createQuestion = async (
     data = {}
 ) => {
 
-    const id = normalizeId(quizId);
+    const id =
+        normalizeId(
+            quizId
+        );
 
     if (!id) {
         throw new Error(
@@ -993,12 +1914,11 @@ const createQuestion = async (
         );
     }
 
-
-    const quiz = await getQuizById(
-        id,
-        false
-    );
-
+    const quiz =
+        await getQuizById(
+            id,
+            false
+        );
 
     if (!quiz) {
         throw new Error(
@@ -1006,11 +1926,10 @@ const createQuestion = async (
         );
     }
 
-
-    const questionText = String(
-        data.question_text || ""
-    ).trim();
-
+    const questionText =
+        String(
+            data.question_text || ""
+        ).trim();
 
     if (!questionText) {
         throw new Error(
@@ -1018,83 +1937,110 @@ const createQuestion = async (
         );
     }
 
+    const prepared =
+        prepareQuestionData(
+            data
+        );
 
-    const points = Math.max(
-        0,
-        safeNumber(
-            data.points,
-            1
-        )
-    );
-
-
-    const sequenceNo = Math.max(
-        1,
-        Math.floor(
-            safeNumber(
-                data.sequence_no,
-                1
+    let sequenceNo =
+        Math.max(
+            1,
+            Math.floor(
+                safeNumber(
+                    data.sequence_no,
+                    0
+                )
             )
-        )
-    );
+        );
 
+    if (!data.sequence_no) {
 
-    const result = await db.query(
-        `
-        INSERT INTO quiz_questions
-        (
-            quiz_id,
-            question_text,
-            question_type,
-            options_json,
-            correct_answer_json,
-            points,
-            is_mandatory,
-            sequence_no,
-            guideline,
-            image_url,
-            video_url
-        )
+        const sequenceRows =
+            await db.query(
+                `
+                SELECT
+                    COALESCE(
+                        MAX(sequence_no),
+                        0
+                    ) AS max_sequence
 
-        VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-            id,
+                FROM quiz_questions
 
-            questionText,
+                WHERE quiz_id = ?
+                `,
+                [id]
+            );
 
-            data.question_type ||
-                "single_choice",
+        sequenceNo =
+            Number(
+                sequenceRows[0]
+                    ?.max_sequence || 0
+            ) + 1;
+    }
 
-            JSON.stringify(
-                Array.isArray(data.options)
-                    ? data.options
-                    : []
-            ),
+    const result =
+        await db.query(
+            `
+            INSERT INTO quiz_questions
+            (
+                quiz_id,
+                question_text,
+                question_type,
+                options_json,
+                correct_answer_json,
+                option_scores_json,
+                points,
+                is_mandatory,
+                sequence_no,
+                guideline,
+                image_url,
+                video_url
+            )
 
-            JSON.stringify(
-                data.correct_answer ?? null
-            ),
+            VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+                id,
 
-            points,
+                questionText,
 
-            data.is_mandatory === false
-                ? 0
-                : 1,
+                prepared.questionType,
 
-            sequenceNo,
+                JSON.stringify(
+                    prepared.options
+                ),
 
-            data.guideline
-                ? String(data.guideline).trim()
-                : null,
+                JSON.stringify(
+                    prepared.correctAnswer
+                ),
 
-            data.image_url || null,
+                JSON.stringify(
+                    prepared.optionScores
+                ),
 
-            data.video_url || null
-        ]
-    );
+                prepared.points,
 
+                data.is_mandatory ===
+                false
+                    ? 0
+                    : 1,
+
+                sequenceNo,
+
+                data.guideline
+                    ? String(
+                        data.guideline
+                    ).trim()
+                    : null,
+
+                data.image_url ||
+                    null,
+
+                data.video_url ||
+                    null
+            ]
+        );
 
     return result.insertId;
 };
@@ -1112,24 +2058,22 @@ const updateQuestion = async (
     const questionId =
         normalizeId(id);
 
-
     if (!questionId) {
         throw new Error(
             "Invalid question ID"
         );
     }
 
-
-    const existingRows = await db.query(
-        `
-        SELECT *
-        FROM quiz_questions
-        WHERE id = ?
-        LIMIT 1
-        `,
-        [questionId]
-    );
-
+    const existingRows =
+        await db.query(
+            `
+            SELECT *
+            FROM quiz_questions
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [questionId]
+        );
 
     if (!existingRows.length) {
         throw new Error(
@@ -1137,10 +2081,8 @@ const updateQuestion = async (
         );
     }
 
-
     const existing =
         existingRows[0];
-
 
     const questionText =
         String(
@@ -1149,13 +2091,17 @@ const updateQuestion = async (
             ""
         ).trim();
 
-
     if (!questionText) {
         throw new Error(
             "Question text is required"
         );
     }
 
+    const prepared =
+        prepareQuestionData(
+            data,
+            existing
+        );
 
     await db.query(
         `
@@ -1166,6 +2112,7 @@ const updateQuestion = async (
             question_type = ?,
             options_json = ?,
             correct_answer_json = ?,
+            option_scores_json = ?,
             points = ?,
             is_mandatory = ?,
             sequence_no = ?,
@@ -1178,39 +2125,27 @@ const updateQuestion = async (
         [
             questionText,
 
-            data.question_type ||
-                existing.question_type ||
-                "single_choice",
+            prepared.questionType,
 
             JSON.stringify(
-                Array.isArray(data.options)
-                    ? data.options
-                    : parseJson(
-                        existing.options_json,
-                        []
-                    )
+                prepared.options
             ),
 
             JSON.stringify(
-                data.correct_answer !== undefined
-                    ? data.correct_answer
-                    : parseJson(
-                        existing.correct_answer_json,
-                        null
-                    )
+                prepared.correctAnswer
             ),
 
-            Math.max(
-                0,
-                safeNumber(
-                    data.points,
-                    existing.points
-                )
+            JSON.stringify(
+                prepared.optionScores
             ),
 
-            data.is_mandatory === undefined
+            prepared.points,
+
+            data.is_mandatory ===
+            undefined
                 ? existing.is_mandatory
-                : data.is_mandatory === false
+                : data.is_mandatory ===
+                  false
                     ? 0
                     : 1,
 
@@ -1224,7 +2159,8 @@ const updateQuestion = async (
                 )
             ),
 
-            data.guideline !== undefined
+            data.guideline !==
+            undefined
                 ? (
                     data.guideline
                         ? String(
@@ -1234,21 +2170,25 @@ const updateQuestion = async (
                 )
                 : existing.guideline,
 
-            data.image_url !== undefined
-                ? data.image_url || null
+            data.image_url !==
+            undefined
+                ? data.image_url ||
+                  null
                 : existing.image_url,
 
-            data.video_url !== undefined
-                ? data.video_url || null
+            data.video_url !==
+            undefined
+                ? data.video_url ||
+                  null
                 : existing.video_url,
 
             questionId
         ]
     );
 
-
     return {
-        id: questionId
+        id:
+            questionId
     };
 };
 
@@ -1264,28 +2204,229 @@ const deleteQuestion = async (
     const questionId =
         normalizeId(id);
 
-
     if (!questionId) {
         throw new Error(
             "Invalid question ID"
         );
     }
 
-
-    const result = await db.query(
-        `
-        DELETE FROM quiz_questions
-        WHERE id = ?
-        `,
-        [questionId]
-    );
-
+    const result =
+        await db.query(
+            `
+            DELETE FROM quiz_questions
+            WHERE id = ?
+            `,
+            [questionId]
+        );
 
     return {
         deleted:
             result.affectedRows > 0
     };
 };
+
+
+// ======================================================
+// DELETE ALL QUESTIONS
+// ======================================================
+
+const deleteAllQuestions =
+    async (
+        quizId
+    ) => {
+
+        const id =
+            normalizeId(
+                quizId
+            );
+
+        if (!id) {
+            throw new Error(
+                "Invalid quiz ID"
+            );
+        }
+
+        const result =
+            await db.query(
+                `
+                DELETE FROM quiz_questions
+                WHERE quiz_id = ?
+                `,
+                [id]
+            );
+
+        return {
+            deleted:
+                Number(
+                    result.affectedRows ||
+                    0
+                )
+        };
+    };
+
+
+// ======================================================
+// BULK CREATE QUESTIONS
+// ======================================================
+
+const createQuestionsBulk =
+    async (
+        quizId,
+        questions = []
+    ) => {
+
+        const id =
+            normalizeId(
+                quizId
+            );
+
+        if (!id) {
+            throw new Error(
+                "Invalid quiz ID"
+            );
+        }
+
+        const quiz =
+            await getQuizById(
+                id,
+                false
+            );
+
+        if (!quiz) {
+            throw new Error(
+                "Quiz not found"
+            );
+        }
+
+        const rows =
+            Array.isArray(
+                questions
+            )
+                ? questions
+                : [];
+
+        if (!rows.length) {
+            return {
+                created: 0
+            };
+        }
+
+        const sequenceRows =
+            await db.query(
+                `
+                SELECT
+                    COALESCE(
+                        MAX(sequence_no),
+                        0
+                    ) AS max_sequence
+
+                FROM quiz_questions
+
+                WHERE quiz_id = ?
+                `,
+                [id]
+            );
+
+        let sequence =
+            Number(
+                sequenceRows[0]
+                    ?.max_sequence || 0
+            );
+
+        let created = 0;
+
+        for (
+            const data
+            of rows
+        ) {
+
+            const questionText =
+                String(
+                    data?.question_text ||
+                    ""
+                ).trim();
+
+            if (!questionText) {
+                continue;
+            }
+
+            const prepared =
+                prepareQuestionData(
+                    data
+                );
+
+            sequence += 1;
+
+            await db.query(
+                `
+                INSERT INTO quiz_questions
+                (
+                    quiz_id,
+                    question_text,
+                    question_type,
+                    options_json,
+                    correct_answer_json,
+                    option_scores_json,
+                    points,
+                    is_mandatory,
+                    sequence_no,
+                    guideline,
+                    image_url,
+                    video_url
+                )
+
+                VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `,
+                [
+                    id,
+
+                    questionText,
+
+                    prepared.questionType,
+
+                    JSON.stringify(
+                        prepared.options
+                    ),
+
+                    JSON.stringify(
+                        prepared.correctAnswer
+                    ),
+
+                    JSON.stringify(
+                        prepared.optionScores
+                    ),
+
+                    prepared.points,
+
+                    data.is_mandatory ===
+                    false
+                        ? 0
+                        : 1,
+
+                    sequence,
+
+                    data.guideline
+                        ? String(
+                            data.guideline
+                        ).trim()
+                        : null,
+
+                    data.image_url ||
+                        null,
+
+                    data.video_url ||
+                        null
+                ]
+            );
+
+            created += 1;
+        }
+
+        return {
+            created
+        };
+    };
 
 
 // ======================================================
@@ -1299,7 +2440,6 @@ const getRecipients = async ({
 } = {}) => {
 
     const params = [];
-
 
     let sql = `
         SELECT DISTINCT
@@ -1323,17 +2463,16 @@ const getRecipients = async ({
             AND TRIM(u.email) <> ''
     `;
 
-
     if (
         mode === "users" &&
         Array.isArray(ids) &&
         ids.length
     ) {
 
-        const cleanIds = ids
-            .map(normalizeId)
-            .filter(Boolean);
-
+        const cleanIds =
+            ids
+                .map(normalizeId)
+                .filter(Boolean);
 
         if (cleanIds.length) {
 
@@ -1351,17 +2490,16 @@ const getRecipients = async ({
         }
     }
 
-
     if (
         mode === "departments" &&
         Array.isArray(ids) &&
         ids.length
     ) {
 
-        const cleanIds = ids
-            .map(normalizeId)
-            .filter(Boolean);
-
+        const cleanIds =
+            ids
+                .map(normalizeId)
+                .filter(Boolean);
 
         if (cleanIds.length) {
 
@@ -1379,17 +2517,16 @@ const getRecipients = async ({
         }
     }
 
-
     if (
         mode === "designations" &&
         Array.isArray(ids) &&
         ids.length
     ) {
 
-        const cleanIds = ids
-            .map(normalizeId)
-            .filter(Boolean);
-
+        const cleanIds =
+            ids
+                .map(normalizeId)
+                .filter(Boolean);
 
         if (cleanIds.length) {
 
@@ -1407,17 +2544,16 @@ const getRecipients = async ({
         }
     }
 
-
     if (
         mode === "stores" &&
         Array.isArray(ids) &&
         ids.length
     ) {
 
-        const cleanIds = ids
-            .map(normalizeId)
-            .filter(Boolean);
-
+        const cleanIds =
+            ids
+                .map(normalizeId)
+                .filter(Boolean);
 
         if (cleanIds.length) {
 
@@ -1435,17 +2571,16 @@ const getRecipients = async ({
         }
     }
 
-
     if (mode === "custom") {
         return [];
     }
 
-
     if (search) {
 
         const searchValue =
-            `%${String(search).trim()}%`;
-
+            `%${String(
+                search
+            ).trim()}%`;
 
         sql += `
             AND (
@@ -1455,7 +2590,6 @@ const getRecipients = async ({
             )
         `;
 
-
         params.push(
             searchValue,
             searchValue,
@@ -1463,20 +2597,17 @@ const getRecipients = async ({
         );
     }
 
-
     sql += `
         ORDER BY
             u.name ASC
     `;
 
+    const rows =
+        await db.query(
+            sql,
+            params
+        );
 
-    const rows = await db.query(
-        sql,
-        params
-    );
-
-
-    // Remove invalid emails.
     return rows.filter(
         (user) =>
             isValidEmail(
@@ -1498,7 +2629,6 @@ const getSubmissions = async (
 
     const params = [];
 
-
     let sql = `
         SELECT
             s.*,
@@ -1512,10 +2642,10 @@ const getSubmissions = async (
         WHERE 1 = 1
     `;
 
-
     const quizId =
-        normalizeId(filters.quiz_id);
-
+        normalizeId(
+            filters.quiz_id
+        );
 
     if (quizId) {
 
@@ -1528,14 +2658,12 @@ const getSubmissions = async (
         );
     }
 
-
     if (filters.search) {
 
         const searchValue =
             `%${String(
                 filters.search
             ).trim()}%`;
-
 
         sql += `
             AND (
@@ -1545,14 +2673,12 @@ const getSubmissions = async (
             )
         `;
 
-
         params.push(
             searchValue,
             searchValue,
             searchValue
         );
     }
-
 
     if (filters.result) {
 
@@ -1565,7 +2691,6 @@ const getSubmissions = async (
         );
     }
 
-
     if (filters.status) {
 
         sql += `
@@ -1577,13 +2702,11 @@ const getSubmissions = async (
         );
     }
 
-
     sql += `
         ORDER BY
             s.submitted_at DESC,
             s.id DESC
     `;
-
 
     return db.query(
         sql,
@@ -1603,75 +2726,73 @@ const getSubmission = async (
     const submissionId =
         normalizeId(id);
 
-
     if (!submissionId) {
         return null;
     }
 
+    const rows =
+        await db.query(
+            `
+            SELECT
+                s.*,
+                q.name AS quiz_name,
+                q.passing_score
 
-    const rows = await db.query(
-        `
-        SELECT
-            s.*,
-            q.name AS quiz_name,
-            q.passing_score
+            FROM quiz_submissions s
 
-        FROM quiz_submissions s
+            INNER JOIN quizzes q
+                ON q.id = s.quiz_id
 
-        INNER JOIN quizzes q
-            ON q.id = s.quiz_id
+            WHERE s.id = ?
 
-        WHERE s.id = ?
-
-        LIMIT 1
-        `,
-        [submissionId]
-    );
-
+            LIMIT 1
+            `,
+            [submissionId]
+        );
 
     if (!rows.length) {
         return null;
     }
 
+    const answers =
+        await db.query(
+            `
+            SELECT
+                a.*,
+                qq.question_text,
+                qq.question_type,
+                qq.points
 
-    const answers = await db.query(
-        `
-        SELECT
-            a.*,
-            qq.question_text,
-            qq.question_type,
-            qq.points
+            FROM quiz_submission_answers a
 
-        FROM quiz_submission_answers a
+            INNER JOIN quiz_questions qq
+                ON qq.id = a.question_id
 
-        INNER JOIN quiz_questions qq
-            ON qq.id = a.question_id
+            WHERE
+                a.submission_id = ?
 
-        WHERE
-            a.submission_id = ?
-
-        ORDER BY
-            qq.sequence_no ASC,
-            qq.id ASC
-        `,
-        [submissionId]
-    );
-
+            ORDER BY
+                qq.sequence_no ASC,
+                qq.id ASC
+            `,
+            [submissionId]
+        );
 
     return {
         ...rows[0],
 
-        answers: answers.map(
-            (answer) => ({
-                ...answer,
+        answers:
+            answers.map(
+                (answer) => ({
+                    ...answer,
 
-                answer:
-                    parseJson(
-                        answer.answer_json,
-                        null
-                    )
-            })
-        )
+                    answer:
+                        parseJson(
+                            answer.answer_json,
+                            null
+                        )
+                })
+            )
     };
 };
 
@@ -1680,101 +2801,100 @@ const getSubmission = async (
 // EMAIL LOG - CREATE
 // ======================================================
 
-const createEmailLog = async ({
-    quiz_id,
-    recipient_name = null,
-    recipient_email,
-    email_type = "quiz_invitation",
-    sent_by = null,
-    status,
-    message_id = null,
-    error_message = null
-} = {}) => {
+const createEmailLog =
+    async ({
+        quiz_id,
+        recipient_name = null,
+        recipient_email,
+        email_type =
+            "quiz_invitation",
+        sent_by = null,
+        status,
+        message_id = null,
+        error_message = null
+    } = {}) => {
 
-    const quizId =
-        normalizeId(quiz_id);
-
-
-    const email =
-        normalizeEmail(
-            recipient_email
-        );
-
-
-    if (!quizId) {
-        throw new Error(
-            "Invalid quiz ID"
-        );
-    }
-
-
-    if (!isValidEmail(email)) {
-        throw new Error(
-            "Invalid recipient email"
-        );
-    }
-
-
-    const normalizedStatus =
-        status === "Sent"
-            ? "Sent"
-            : "Failed";
-
-
-    const result = await db.query(
-        `
-        INSERT INTO quiz_email_logs
-        (
-            quiz_id,
-            recipient_name,
-            recipient_email,
-            email_type,
-            sent_by,
-            status,
-            message_id,
-            error_message
-        )
-
-        VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-            quizId,
-
-            recipient_name
-                ? String(
-                    recipient_name
-                ).trim()
-                : null,
-
-            email,
-
-            email_type ||
-                "quiz_invitation",
-
+        const quizId =
             normalizeId(
-                sent_by
-            ),
+                quiz_id
+            );
 
-            normalizedStatus,
+        const email =
+            normalizeEmail(
+                recipient_email
+            );
 
-            message_id
-                ? String(
-                    message_id
-                )
-                : null,
+        if (!quizId) {
+            throw new Error(
+                "Invalid quiz ID"
+            );
+        }
 
-            error_message
-                ? String(
+        if (!isValidEmail(email)) {
+            throw new Error(
+                "Invalid recipient email"
+            );
+        }
+
+        const normalizedStatus =
+            status === "Sent"
+                ? "Sent"
+                : "Failed";
+
+        const result =
+            await db.query(
+                `
+                INSERT INTO quiz_email_logs
+                (
+                    quiz_id,
+                    recipient_name,
+                    recipient_email,
+                    email_type,
+                    sent_by,
+                    status,
+                    message_id,
                     error_message
                 )
-                : null
-        ]
-    );
 
+                VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?)
+                `,
+                [
+                    quizId,
 
-    return result.insertId;
-};
+                    recipient_name
+                        ? String(
+                            recipient_name
+                        ).trim()
+                        : null,
+
+                    email,
+
+                    email_type ||
+                        "quiz_invitation",
+
+                    normalizeId(
+                        sent_by
+                    ),
+
+                    normalizedStatus,
+
+                    message_id
+                        ? String(
+                            message_id
+                        )
+                        : null,
+
+                    error_message
+                        ? String(
+                            error_message
+                        )
+                        : null
+                ]
+            );
+
+        return result.insertId;
+    };
 
 
 // ======================================================
@@ -1786,13 +2906,13 @@ const getEmailLogs = async (
 ) => {
 
     const id =
-        normalizeId(quizId);
-
+        normalizeId(
+            quizId
+        );
 
     if (!id) {
         return [];
     }
-
 
     return db.query(
         `
@@ -1830,8 +2950,9 @@ const getEmailStats = async (
 ) => {
 
     const id =
-        normalizeId(quizId);
-
+        normalizeId(
+            quizId
+        );
 
     if (!id) {
         return {
@@ -1841,49 +2962,53 @@ const getEmailStats = async (
         };
     }
 
+    const rows =
+        await db.query(
+            `
+            SELECT
+                COUNT(*) AS total,
 
-    const rows = await db.query(
-        `
-        SELECT
-            COUNT(*) AS total,
+                SUM(
+                    CASE
+                        WHEN status = 'Sent'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS sent,
 
-            SUM(
-                CASE
-                    WHEN status = 'Sent'
-                    THEN 1
-                    ELSE 0
-                END
-            ) AS sent,
+                SUM(
+                    CASE
+                        WHEN status = 'Failed'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS failed
 
-            SUM(
-                CASE
-                    WHEN status = 'Failed'
-                    THEN 1
-                    ELSE 0
-                END
-            ) AS failed
+            FROM quiz_email_logs
 
-        FROM quiz_email_logs
-
-        WHERE quiz_id = ?
-        `,
-        [id]
-    );
-
+            WHERE quiz_id = ?
+            `,
+            [id]
+        );
 
     const row =
         rows[0] || {};
 
-
     return {
         total:
-            Number(row.total || 0),
+            Number(
+                row.total || 0
+            ),
 
         sent:
-            Number(row.sent || 0),
+            Number(
+                row.sent || 0
+            ),
 
         failed:
-            Number(row.failed || 0)
+            Number(
+                row.failed || 0
+            )
     };
 };
 
@@ -1891,239 +3016,258 @@ const getEmailStats = async (
 // ======================================================
 // CHECK PARTICIPANT ATTEMPTS
 // ======================================================
-// IMPORTANT:
 // Attempts are counted per participant email.
 // They are NOT counted per public link.
-//
-// Therefore:
-//
-// Person A completes link
-// Person B can still use same link.
 // ======================================================
 
-const getParticipantAttemptCount = async (
-    quizId,
-    participantEmail
-) => {
+const getParticipantAttemptCount =
+    async (
+        quizId,
+        participantEmail
+    ) => {
 
-    const id =
-        normalizeId(quizId);
+        const id =
+            normalizeId(
+                quizId
+            );
 
+        const email =
+            normalizeEmail(
+                participantEmail
+            );
 
-    const email =
-        normalizeEmail(
-            participantEmail
+        if (
+            !id ||
+            !isValidEmail(
+                email
+            )
+        ) {
+            return 0;
+        }
+
+        const rows =
+            await db.query(
+                `
+                SELECT
+                    COUNT(*) AS total
+
+                FROM quiz_submissions
+
+                WHERE
+                    quiz_id = ?
+
+                    AND LOWER(
+                        TRIM(
+                            participant_email
+                        )
+                    ) = ?
+
+                    AND status =
+                        'Submitted'
+                `,
+                [
+                    id,
+                    email
+                ]
+            );
+
+        return Number(
+            rows[0]?.total || 0
         );
-
-
-    if (!id || !isValidEmail(email)) {
-        return 0;
-    }
-
-
-    const rows = await db.query(
-        `
-        SELECT
-            COUNT(*) AS total
-
-        FROM quiz_submissions
-
-        WHERE
-            quiz_id = ?
-
-            AND LOWER(
-                TRIM(participant_email)
-            ) = ?
-
-            AND status = 'Submitted'
-        `,
-        [
-            id,
-            email
-        ]
-    );
-
-
-    return Number(
-        rows[0]?.total || 0
-    );
-};
+    };
 
 
 // ======================================================
 // GET PARTICIPANT ACTIVE SESSION
 // ======================================================
 
-const getActiveParticipantSession = async (
-    quizId,
-    participantEmail
-) => {
+const getActiveParticipantSession =
+    async (
+        quizId,
+        participantEmail
+    ) => {
 
-    const id =
-        normalizeId(quizId);
+        const id =
+            normalizeId(
+                quizId
+            );
 
+        const email =
+            normalizeEmail(
+                participantEmail
+            );
 
-    const email =
-        normalizeEmail(
-            participantEmail
-        );
+        if (
+            !id ||
+            !isValidEmail(
+                email
+            )
+        ) {
+            return null;
+        }
 
+        const rows =
+            await db.query(
+                `
+                SELECT *
 
-    if (!id || !isValidEmail(email)) {
-        return null;
-    }
+                FROM quiz_submissions
 
+                WHERE
+                    quiz_id = ?
 
-    const rows = await db.query(
-        `
-        SELECT *
+                    AND LOWER(
+                        TRIM(
+                            participant_email
+                        )
+                    ) = ?
 
-        FROM quiz_submissions
+                    AND status =
+                        'In Progress'
 
-        WHERE
-            quiz_id = ?
+                ORDER BY
+                    started_at DESC,
+                    id DESC
 
-            AND LOWER(
-                TRIM(participant_email)
-            ) = ?
+                LIMIT 1
+                `,
+                [
+                    id,
+                    email
+                ]
+            );
 
-            AND status = 'In Progress'
-
-        ORDER BY
-            started_at DESC,
-            id DESC
-
-        LIMIT 1
-        `,
-        [
-            id,
-            email
-        ]
-    );
-
-
-    return rows[0] || null;
-};
+        return rows[0] || null;
+    };
 
 
 // ======================================================
 // CHECK PUBLIC QUIZ AVAILABILITY
 // ======================================================
 
-const checkPublicQuizAvailability = async (
-    token
-) => {
+const checkPublicQuizAvailability =
+    async (
+        token
+    ) => {
 
-    const quiz =
-        await getQuizByToken(token);
+        const quiz =
+            await getQuizByToken(
+                token
+            );
 
+        if (!quiz) {
 
-    if (!quiz) {
+            return {
+                available: false,
+                reason:
+                    "Quiz not found or inactive"
+            };
+        }
 
         return {
-            available: false,
-            reason: "Quiz not found or inactive"
+            available: true,
+
+            quiz_id:
+                quiz.id,
+
+            name:
+                quiz.name,
+
+            public_token:
+                quiz.public_token,
+
+            status:
+                quiz.status
         };
-    }
-
-
-    return {
-        available: true,
-
-        quiz_id: quiz.id,
-
-        name: quiz.name,
-
-        public_token: quiz.public_token,
-
-        status: quiz.status
     };
-};
 
 
 // ======================================================
 // GET QUIZ SUMMARY
 // ======================================================
 
-const getQuizSummary = async (
-    quizId
-) => {
+const getQuizSummary =
+    async (
+        quizId
+    ) => {
 
-    const id =
-        normalizeId(quizId);
+        const id =
+            normalizeId(
+                quizId
+            );
 
+        if (!id) {
+            return null;
+        }
 
-    if (!id) {
-        return null;
-    }
+        const rows =
+            await db.query(
+                `
+                SELECT
 
+                    q.id,
 
-    const rows = await db.query(
-        `
-        SELECT
+                    q.name,
 
-            q.id,
+                    q.public_token,
 
-            q.name,
+                    q.status,
 
-            q.public_token,
+                    q.passing_score,
 
-            q.status,
+                    q.time_limit_minutes,
 
-            q.passing_score,
+                    q.attempts_allowed,
 
-            q.time_limit_minutes,
+                    q.require_camera,
 
-            q.attempts_allowed,
+                    q.require_location,
 
-            q.require_camera,
+                    q.require_email_consent,
 
-            q.require_location,
+                    COUNT(
+                        DISTINCT qq.id
+                    ) AS question_count,
 
-            q.require_email_consent,
+                    COUNT(
+                        DISTINCT qs.id
+                    ) AS submission_count,
 
-            COUNT(
-                DISTINCT qq.id
-            ) AS question_count,
+                    COUNT(
+                        DISTINCT CASE
+                            WHEN qs.result =
+                                'Passed'
+                            THEN qs.id
+                        END
+                    ) AS passed_count,
 
-            COUNT(
-                DISTINCT qs.id
-            ) AS submission_count,
+                    COUNT(
+                        DISTINCT CASE
+                            WHEN qs.result =
+                                'Failed'
+                            THEN qs.id
+                        END
+                    ) AS failed_count
 
-            COUNT(
-                DISTINCT CASE
-                    WHEN qs.result = 'Passed'
-                    THEN qs.id
-                END
-            ) AS passed_count,
+                FROM quizzes q
 
-            COUNT(
-                DISTINCT CASE
-                    WHEN qs.result = 'Failed'
-                    THEN qs.id
-                END
-            ) AS failed_count
+                LEFT JOIN quiz_questions qq
+                    ON qq.quiz_id = q.id
 
-        FROM quizzes q
+                LEFT JOIN quiz_submissions qs
+                    ON qs.quiz_id = q.id
 
-        LEFT JOIN quiz_questions qq
-            ON qq.quiz_id = q.id
+                WHERE q.id = ?
 
-        LEFT JOIN quiz_submissions qs
-            ON qs.quiz_id = q.id
+                GROUP BY q.id
 
-        WHERE q.id = ?
+                LIMIT 1
+                `,
+                [id]
+            );
 
-        GROUP BY q.id
-
-        LIMIT 1
-        `,
-        [id]
-    );
-
-
-    return rows[0] || null;
-};
+        return rows[0] || null;
+    };
 
 
 // ======================================================
@@ -2147,8 +3291,17 @@ module.exports = {
 
     // Questions
     createQuestion,
+    createQuestionsBulk,
     updateQuestion,
     deleteQuestion,
+    deleteAllQuestions,
+
+    // Scoring helpers
+    buildOptionScores,
+    isAnswerCorrect,
+    calculateQuestionScore,
+    repairQuestionOptionScores,
+    repairAllQuestionOptionScores,
 
     // Recipients
     getRecipients,

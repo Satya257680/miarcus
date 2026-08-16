@@ -4,6 +4,7 @@ const path = require("path");
 
 const Quiz = require("../models/quizModel");
 const db = require("../config/db");
+
 const {
     sendGenericEmail
 } = require("../services/emailService");
@@ -14,11 +15,13 @@ const {
 // ======================================================
 
 const frontendUrl = () => {
+
     return String(
         process.env.CLIENT_URL ||
         process.env.FRONTEND_URL ||
         "http://localhost:5173"
     ).replace(/\/+$/, "");
+
 };
 
 
@@ -45,12 +48,21 @@ const parseMaybeJson = (
     }
 
     try {
+
         return JSON.parse(value);
+
     } catch {
+
         return fallback;
+
     }
+
 };
 
+
+// ======================================================
+// NORMALIZE ID
+// ======================================================
 
 const normalizeId = (value) => {
 
@@ -64,24 +76,39 @@ const normalizeId = (value) => {
     }
 
     return id;
+
 };
 
+
+// ======================================================
+// NORMALIZE EMAIL
+// ======================================================
 
 const normalizeEmail = (value) => {
 
     return String(value || "")
         .trim()
         .toLowerCase();
+
 };
 
+
+// ======================================================
+// VALID EMAIL
+// ======================================================
 
 const isValidEmail = (email) => {
 
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
         email
     );
+
 };
 
+
+// ======================================================
+// NORMALIZE ANSWER
+// ======================================================
 
 const normalizeAnswer = (
     answer
@@ -96,7 +123,9 @@ const normalizeAnswer = (
                     .toLowerCase()
             )
             .sort();
+
     }
+
 
     if (
         answer === null ||
@@ -105,11 +134,455 @@ const normalizeAnswer = (
         return "";
     }
 
+
     return String(answer)
         .trim()
         .toLowerCase();
+
 };
 
+
+// ======================================================
+// CLEAN OPTION TEXT
+// ======================================================
+
+const cleanOptionText = (value) => {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+    return String(value)
+        .trim()
+        .replace(
+            /^[A-Z]\s*[\.\)\-:]\s*/i,
+            ""
+        )
+        .replace(
+            /^\d+\s*[\.\)\-:]\s*/,
+            ""
+        )
+        .trim();
+
+};
+
+
+// ======================================================
+// GET QUESTION OPTIONS
+// ======================================================
+
+const getQuestionOptions = (
+    question
+) => {
+
+    let options =
+        parseMaybeJson(
+            question?.options_json,
+            null
+        );
+
+
+    if (
+        options === null ||
+        options === undefined
+    ) {
+
+        options =
+            parseMaybeJson(
+                question?.options,
+                null
+            );
+
+    }
+
+
+    if (
+        options === null ||
+        options === undefined
+    ) {
+
+        options =
+            parseMaybeJson(
+                question?.option_json,
+                null
+            );
+
+    }
+
+
+    if (
+        options === null ||
+        options === undefined
+    ) {
+
+        options =
+            parseMaybeJson(
+                question?.choices,
+                null
+            );
+
+    }
+
+
+    if (Array.isArray(options)) {
+
+        return options
+            .map((option) => {
+
+                if (
+                    option &&
+                    typeof option === "object"
+                ) {
+
+                    return (
+                        option.text ??
+                        option.label ??
+                        option.value ??
+                        option.option ??
+                        ""
+                    );
+
+                }
+
+                return option;
+
+            })
+            .map(cleanOptionText)
+            .filter(Boolean);
+
+    }
+
+
+    if (
+        options &&
+        typeof options === "object"
+    ) {
+
+        return Object.values(options)
+            .map((option) => {
+
+                if (
+                    option &&
+                    typeof option === "object"
+                ) {
+
+                    return (
+                        option.text ??
+                        option.label ??
+                        option.value ??
+                        option.option ??
+                        ""
+                    );
+
+                }
+
+                return option;
+
+            })
+            .map(cleanOptionText)
+            .filter(Boolean);
+
+    }
+
+
+    return [];
+
+};
+
+
+// ======================================================
+// GET CORRECT ANSWER
+// ======================================================
+
+const getCorrectAnswer = (
+    question
+) => {
+
+    let expected =
+        parseMaybeJson(
+            question?.correct_answer_json,
+            undefined
+        );
+
+
+    if (
+        expected === undefined ||
+        expected === null ||
+        expected === ""
+    ) {
+
+        expected =
+            parseMaybeJson(
+                question?.correct_answer,
+                undefined
+            );
+
+    }
+
+
+    if (
+        expected === undefined ||
+        expected === null ||
+        expected === ""
+    ) {
+
+        expected =
+            parseMaybeJson(
+                question?.answer,
+                undefined
+            );
+
+    }
+
+
+    if (
+        expected === undefined ||
+        expected === null ||
+        expected === ""
+    ) {
+
+        expected =
+            parseMaybeJson(
+                question?.correct_option,
+                undefined
+            );
+
+    }
+
+
+    return expected;
+
+};
+
+
+// ======================================================
+// RESOLVE ANSWER VALUE
+// ======================================================
+//
+// Supports:
+//
+// "Peacock"
+// 0
+// 1
+// "A"
+// "B"
+// "Option A"
+// "Option B"
+// { value: "Peacock" }
+// { text: "Peacock" }
+// { label: "Peacock" }
+//
+// This is important for normal questions and
+// AI-generated questions because different generators
+// can store the correct answer in different formats.
+// ======================================================
+
+const resolveAnswerValue = (
+    question,
+    answer
+) => {
+
+    if (
+        answer === null ||
+        answer === undefined
+    ) {
+        return "";
+    }
+
+
+    if (
+        typeof answer === "object" &&
+        !Array.isArray(answer)
+    ) {
+
+        const objectValue =
+            answer.value ??
+            answer.text ??
+            answer.label ??
+            answer.answer ??
+            answer.option;
+
+
+        if (
+            objectValue !== undefined &&
+            objectValue !== null
+        ) {
+
+            return resolveAnswerValue(
+                question,
+                objectValue
+            );
+
+        }
+
+    }
+
+
+    const options =
+        getQuestionOptions(question);
+
+
+    if (Array.isArray(answer)) {
+
+        return answer.map((item) =>
+            resolveAnswerValue(
+                question,
+                item
+            )
+        );
+
+    }
+
+
+    const raw =
+        String(answer).trim();
+
+
+    if (!raw) {
+        return "";
+    }
+
+
+    // --------------------------------------------------
+    // Exact option text
+    // --------------------------------------------------
+
+    const exactIndex =
+        options.findIndex(
+            (option) =>
+                normalizeAnswer(option) ===
+                normalizeAnswer(raw)
+        );
+
+
+    if (exactIndex >= 0) {
+
+        return options[exactIndex];
+
+    }
+
+
+    // --------------------------------------------------
+    // Numeric option index
+    // --------------------------------------------------
+
+    if (
+        /^\d+$/.test(raw)
+    ) {
+
+        const numericIndex =
+            Number(raw);
+
+
+        if (
+            numericIndex >= 0 &&
+            numericIndex < options.length
+        ) {
+
+            return options[numericIndex];
+
+        }
+
+
+        // Some frontends use 1-based indexes.
+        const oneBasedIndex =
+            numericIndex - 1;
+
+
+        if (
+            oneBasedIndex >= 0 &&
+            oneBasedIndex < options.length
+        ) {
+
+            return options[oneBasedIndex];
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // A / B / C / D option format
+    // --------------------------------------------------
+
+    const letterMatch =
+        raw.match(
+            /^option\s*([a-z])$/i
+        ) ||
+        raw.match(
+            /^([a-z])$/i
+        );
+
+
+    if (letterMatch) {
+
+        const letter =
+            letterMatch[1]
+                .toUpperCase();
+
+
+        const letterIndex =
+            letter.charCodeAt(0) -
+            "A".charCodeAt(0);
+
+
+        if (
+            letterIndex >= 0 &&
+            letterIndex < options.length
+        ) {
+
+            return options[letterIndex];
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // "Option 1", "Option 2", etc.
+    // --------------------------------------------------
+
+    const optionNumber =
+        raw.match(
+            /^option\s*(\d+)$/i
+        );
+
+
+    if (optionNumber) {
+
+        const index =
+            Number(
+                optionNumber[1]
+            ) - 1;
+
+
+        if (
+            index >= 0 &&
+            index < options.length
+        ) {
+
+            return options[index];
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // Return original value if no mapping required
+    // --------------------------------------------------
+
+    return raw;
+
+};
+
+
+// ======================================================
+// CHECK ANSWER
+// ======================================================
 
 const isCorrect = (
     question,
@@ -117,9 +590,8 @@ const isCorrect = (
 ) => {
 
     const expected =
-        parseMaybeJson(
-            question.correct_answer_json,
-            question.correct_answer
+        getCorrectAnswer(
+            question
         );
 
 
@@ -128,32 +600,170 @@ const isCorrect = (
         expected === undefined ||
         expected === ""
     ) {
+
         return false;
+
     }
 
+
+    // --------------------------------------------------
+    // MULTIPLE CHOICE
+    // --------------------------------------------------
 
     if (
         question.question_type ===
         "multiple_choice"
     ) {
 
+        const actualArray =
+            Array.isArray(answer)
+                ? answer
+                : String(answer || "")
+                    .split(",")
+                    .map((x) =>
+                        x.trim()
+                    )
+                    .filter(Boolean);
+
+
+        const expectedArray =
+            Array.isArray(expected)
+                ? expected
+                : String(expected || "")
+                    .split(",")
+                    .map((x) =>
+                        x.trim()
+                    )
+                    .filter(Boolean);
+
+
+        const actualResolved =
+            actualArray.map((item) =>
+                resolveAnswerValue(
+                    question,
+                    item
+                )
+            );
+
+
+        const expectedResolved =
+            expectedArray.map((item) =>
+                resolveAnswerValue(
+                    question,
+                    item
+                )
+            );
+
+
+        const actualNormalized =
+            normalizeAnswer(
+                actualResolved
+            );
+
+
+        const expectedNormalized =
+            normalizeAnswer(
+                expectedResolved
+            );
+
+
         return (
             JSON.stringify(
-                normalizeAnswer(answer)
+                actualNormalized
             ) ===
             JSON.stringify(
-                normalizeAnswer(expected)
+                expectedNormalized
             )
         );
+
     }
 
 
+    // --------------------------------------------------
+    // SINGLE CHOICE / TRUE FALSE / TEXT
+    // --------------------------------------------------
+
+    const actualResolved =
+        resolveAnswerValue(
+            question,
+            answer
+        );
+
+
+    const expectedResolved =
+        resolveAnswerValue(
+            question,
+            expected
+        );
+
+
     return (
-        normalizeAnswer(answer) ===
-        normalizeAnswer(expected)
+        normalizeAnswer(
+            actualResolved
+        ) ===
+        normalizeAnswer(
+            expectedResolved
+        )
     );
+
 };
 
+
+// ======================================================
+// QUESTION SCORING
+// ======================================================
+//
+// Correct answer always receives the question points.
+//
+// option_scores_json is NOT used for normal
+// single-choice scoring.
+//
+// This fixes the situation where:
+//
+// Correct answer = Peacock
+// points = 1
+// option_scores_json = { "Peacock": 0 }
+//
+// Previously that could result in 0 points.
+// Now Peacock receives 1 point because it is the
+// configured correct answer.
+// ======================================================
+
+const getQuestionScore = (
+    question,
+    answer
+) => {
+
+    const points =
+        Number(
+            question.points || 0
+        );
+
+
+    const correct =
+        isCorrect(
+            question,
+            answer
+        );
+
+
+    return {
+
+        max: points,
+
+        awarded:
+            correct
+                ? points
+                : 0
+
+    };
+
+};
+
+
+// ======================================================
+// CURRENT USER
+// ======================================================
 
 const getCurrentUserId = (
     req
@@ -164,6 +774,7 @@ const getCurrentUserId = (
             req?.user?.id
         ) || null
     );
+
 };
 
 
@@ -183,8 +794,12 @@ exports.getAll = async (
 
 
         return res.json({
+
             success: true,
-            data: quizzes
+
+            data:
+                quizzes
+
         });
 
     } catch (error) {
@@ -196,11 +811,16 @@ exports.getAll = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load quizzes"
+
         });
+
     }
+
 };
 
 
@@ -224,10 +844,14 @@ exports.getOne = async (
         if (!id) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -241,16 +865,24 @@ exports.getOne = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
-            data: quiz
+
+            data:
+                quiz
+
         });
 
     } catch (error) {
@@ -262,11 +894,16 @@ exports.getOne = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load quiz"
+
         });
+
     }
+
 };
 
 
@@ -290,28 +927,38 @@ exports.create = async (
         if (!name) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Quiz name is required"
+
             });
+
         }
 
 
         const quiz =
             await Quiz.createQuiz({
+
                 ...req.body,
 
                 created_by:
                     getCurrentUserId(req)
+
             });
 
 
         return res.status(201).json({
+
             success: true,
-            data: quiz,
+
+            data:
+                quiz,
 
             link:
                 `${frontendUrl()}/quiz/${quiz.public_token}`
+
         });
 
     } catch (error) {
@@ -323,12 +970,17 @@ exports.create = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to create quiz"
+
         });
+
     }
+
 };
 
 
@@ -352,10 +1004,14 @@ exports.update = async (
         if (!id) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -369,19 +1025,27 @@ exports.update = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
-            data: quiz,
+
+            data:
+                quiz,
 
             link:
                 `${frontendUrl()}/quiz/${quiz.public_token}`
+
         });
 
     } catch (error) {
@@ -393,12 +1057,17 @@ exports.update = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to update quiz"
+
         });
+
     }
+
 };
 
 
@@ -422,10 +1091,14 @@ exports.remove = async (
         if (!id) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -441,17 +1114,24 @@ exports.remove = async (
         ) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
+
             message:
                 "Quiz deleted"
+
         });
 
     } catch (error) {
@@ -463,11 +1143,16 @@ exports.remove = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to delete quiz"
+
         });
+
     }
+
 };
 
 
@@ -491,10 +1176,14 @@ exports.addQuestion = async (
         if (!quizId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -508,10 +1197,14 @@ exports.addQuestion = async (
         if (!questionText) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Question text is required"
+
             });
+
         }
 
 
@@ -525,10 +1218,14 @@ exports.addQuestion = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz not found"
+
             });
+
         }
 
 
@@ -540,10 +1237,15 @@ exports.addQuestion = async (
 
 
         return res.status(201).json({
+
             success: true,
-            id: questionId,
+
+            id:
+                questionId,
+
             message:
                 "Question added"
+
         });
 
     } catch (error) {
@@ -555,12 +1257,17 @@ exports.addQuestion = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to add question"
+
         });
+
     }
+
 };
 
 
@@ -584,10 +1291,88 @@ exports.updateQuestion = async (
         if (!questionId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid question ID"
+
             });
+
+        }
+
+
+        const quizId =
+            normalizeId(
+                req.params.id
+            );
+
+
+        if (!quizId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid quiz ID"
+
+            });
+
+        }
+
+
+        const quiz =
+            await Quiz.getQuizById(
+                quizId,
+                false
+            );
+
+
+        if (!quiz) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Quiz not found"
+
+            });
+
+        }
+
+
+        const question =
+            await db.query(
+                `
+                SELECT id
+                FROM quiz_questions
+
+                WHERE
+                    id = ?
+                    AND quiz_id = ?
+
+                LIMIT 1
+                `,
+                [
+                    questionId,
+                    quizId
+                ]
+            );
+
+
+        if (!question.length) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Question not found in this quiz"
+
+            });
+
         }
 
 
@@ -598,9 +1383,12 @@ exports.updateQuestion = async (
 
 
         return res.json({
+
             success: true,
+
             message:
                 "Question updated"
+
         });
 
     } catch (error) {
@@ -612,12 +1400,17 @@ exports.updateQuestion = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to update question"
+
         });
+
     }
+
 };
 
 
@@ -641,10 +1434,67 @@ exports.removeQuestion = async (
         if (!questionId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid question ID"
+
             });
+
+        }
+
+
+        const quizId =
+            normalizeId(
+                req.params.id
+            );
+
+
+        if (!quizId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid quiz ID"
+
+            });
+
+        }
+
+
+        const question =
+            await db.query(
+                `
+                SELECT id
+                FROM quiz_questions
+
+                WHERE
+                    id = ?
+                    AND quiz_id = ?
+
+                LIMIT 1
+                `,
+                [
+                    questionId,
+                    quizId
+                ]
+            );
+
+
+        if (!question.length) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Question not found in this quiz"
+
+            });
+
         }
 
 
@@ -660,17 +1510,24 @@ exports.removeQuestion = async (
         ) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Question not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
+
             message:
                 "Question deleted"
+
         });
 
     } catch (error) {
@@ -682,11 +1539,16 @@ exports.removeQuestion = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to delete question"
+
         });
+
     }
+
 };
 
 
@@ -727,15 +1589,22 @@ exports.getRecipients = async (
 
         const data =
             await Quiz.getRecipients({
+
                 mode,
+
                 ids,
+
                 search
+
             });
 
 
         return res.json({
+
             success: true,
+
             data
+
         });
 
     } catch (error) {
@@ -747,11 +1616,16 @@ exports.getRecipients = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load recipients"
+
         });
+
     }
+
 };
 
 
@@ -775,10 +1649,14 @@ exports.sendEmails = async (
         if (!quizId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Quiz is required"
+
             });
+
         }
 
 
@@ -792,10 +1670,14 @@ exports.sendEmails = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz not found"
+
             });
+
         }
 
 
@@ -805,10 +1687,14 @@ exports.sendEmails = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Only active quizzes can be emailed"
+
             });
+
         }
 
 
@@ -822,11 +1708,10 @@ exports.sendEmails = async (
         let recipients = [];
 
 
-        // --------------------------------------------------
-        // CUSTOM EMAILS
-        // --------------------------------------------------
-
-        if (mode === "custom") {
+        if (
+            mode ===
+            "custom"
+        ) {
 
             const customRecipients =
                 Array.isArray(
@@ -838,24 +1723,29 @@ exports.sendEmails = async (
 
             recipients =
                 customRecipients
-                    .map((recipient) => {
+                    .map(
+                        (recipient) => {
 
-                        const email =
-                            normalizeEmail(
-                                recipient?.email
-                            );
+                            const email =
+                                normalizeEmail(
+                                    recipient?.email
+                                );
 
 
-                        return {
-                            name:
-                                String(
-                                    recipient?.name ||
-                                    ""
-                                ).trim(),
+                            return {
 
-                            email
-                        };
-                    })
+                                name:
+                                    String(
+                                        recipient?.name ||
+                                        ""
+                                    ).trim(),
+
+                                email
+
+                            };
+
+                        }
+                    )
                     .filter(
                         (recipient) =>
                             isValidEmail(
@@ -863,12 +1753,7 @@ exports.sendEmails = async (
                             )
                     );
 
-
         } else {
-
-            // --------------------------------------------------
-            // EVERYONE / USERS / DEPARTMENTS / DESIGNATIONS / STORES
-            // --------------------------------------------------
 
             const ids =
                 Array.isArray(
@@ -882,25 +1767,29 @@ exports.sendEmails = async (
 
             recipients =
                 await Quiz.getRecipients({
+
                     mode,
+
                     ids
+
                 });
+
         }
 
 
         if (!recipients.length) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "No valid recipients found"
+
             });
+
         }
 
-
-        // --------------------------------------------------
-        // REMOVE DUPLICATE EMAILS
-        // --------------------------------------------------
 
         const uniqueMap =
             new Map();
@@ -929,13 +1818,21 @@ exports.sendEmails = async (
             ) {
 
                 uniqueMap.set(
+
                     email,
+
                     {
+
                         ...recipient,
+
                         email
+
                     }
+
                 );
+
             }
+
         }
 
 
@@ -948,10 +1845,14 @@ exports.sendEmails = async (
         if (!recipients.length) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "No valid recipients found"
+
             });
+
         }
 
 
@@ -977,10 +1878,6 @@ exports.sendEmails = async (
 
         let failed = 0;
 
-
-        // --------------------------------------------------
-        // SEND ONE EMAIL AT A TIME
-        // --------------------------------------------------
 
         for (
             const recipient
@@ -1150,6 +2047,7 @@ ${link}`;
 
                 const emailResult =
                     await sendGenericEmail({
+
                         to:
                             recipient.email,
 
@@ -1158,10 +2056,12 @@ ${link}`;
                         html,
 
                         text
+
                     });
 
 
                 await Quiz.createEmailLog({
+
                     quiz_id:
                         quiz.id,
 
@@ -1185,10 +2085,12 @@ ${link}`;
                         emailResult?.id ||
                         emailResult?.messageId ||
                         null
+
                 });
 
 
                 sent++;
+
 
             } catch (error) {
 
@@ -1204,6 +2106,7 @@ ${link}`;
                 try {
 
                     await Quiz.createEmailLog({
+
                         quiz_id:
                             quiz.id,
 
@@ -1228,6 +2131,7 @@ ${link}`;
                                 error.message ||
                                 error
                             )
+
                     });
 
                 } catch (
@@ -1238,8 +2142,11 @@ ${link}`;
                         "Unable to save email failure log:",
                         logError
                     );
+
                 }
+
             }
+
         }
 
 
@@ -1256,7 +2163,9 @@ ${link}`;
 
             total:
                 recipients.length
+
         });
+
 
     } catch (error) {
 
@@ -1267,12 +2176,17 @@ ${link}`;
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to send quiz emails"
+
         });
+
     }
+
 };
 
 
@@ -1296,10 +2210,14 @@ exports.getEmailLogs = async (
         if (!quizId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -1310,8 +2228,12 @@ exports.getEmailLogs = async (
 
 
         return res.json({
+
             success: true,
-            data: rows
+
+            data:
+                rows
+
         });
 
     } catch (error) {
@@ -1323,11 +2245,16 @@ exports.getEmailLogs = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load email history"
+
         });
+
     }
+
 };
 
 
@@ -1351,10 +2278,14 @@ exports.getEmailStats = async (
         if (!quizId) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid quiz ID"
+
             });
+
         }
 
 
@@ -1365,8 +2296,12 @@ exports.getEmailStats = async (
 
 
         return res.json({
+
             success: true,
-            data: stats
+
+            data:
+                stats
+
         });
 
     } catch (error) {
@@ -1378,11 +2313,16 @@ exports.getEmailStats = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load email statistics"
+
         });
+
     }
+
 };
 
 
@@ -1404,8 +2344,11 @@ exports.getReports = async (
 
 
         return res.json({
+
             success: true,
+
             data
+
         });
 
     } catch (error) {
@@ -1417,11 +2360,16 @@ exports.getReports = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load training report"
+
         });
+
     }
+
 };
 
 
@@ -1445,10 +2393,14 @@ exports.getReport = async (
         if (!id) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid submission ID"
+
             });
+
         }
 
 
@@ -1461,16 +2413,23 @@ exports.getReport = async (
         if (!data) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Submission not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
+
             data
+
         });
 
     } catch (error) {
@@ -1482,11 +2441,16 @@ exports.getReport = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load submission"
+
         });
+
     }
+
 };
 
 
@@ -1510,10 +2474,14 @@ exports.deleteReport = async (
         if (!id) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Invalid submission ID"
+
             });
+
         }
 
 
@@ -1521,9 +2489,12 @@ exports.deleteReport = async (
             await db.query(
                 `
                 DELETE FROM quiz_submissions
+
                 WHERE id = ?
                 `,
-                [id]
+                [
+                    id
+                ]
             );
 
 
@@ -1533,17 +2504,24 @@ exports.deleteReport = async (
         ) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Submission not found"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
+
             message:
                 "Submission deleted"
+
         });
 
     } catch (error) {
@@ -1555,16 +2533,21 @@ exports.deleteReport = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to delete submission"
+
         });
+
     }
+
 };
 
 
 // ======================================================
-// PUBLIC QUIZ
+// GET PUBLIC QUIZ
 // ======================================================
 
 exports.getPublicQuiz = async (
@@ -1584,10 +2567,14 @@ exports.getPublicQuiz = async (
         if (!token) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Quiz token is required"
+
             });
+
         }
 
 
@@ -1600,16 +2587,24 @@ exports.getPublicQuiz = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz link is invalid or the quiz is inactive"
+
             });
+
         }
 
 
         return res.json({
+
             success: true,
-            data: quiz
+
+            data:
+                quiz
+
         });
 
     } catch (error) {
@@ -1621,11 +2616,16 @@ exports.getPublicQuiz = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 "Unable to load quiz"
+
         });
+
     }
+
 };
 
 
@@ -1650,10 +2650,14 @@ exports.startPublicQuiz = async (
         if (!token) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Quiz token is required"
+
             });
+
         }
 
 
@@ -1666,10 +2670,14 @@ exports.startPublicQuiz = async (
         if (!quiz) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz link is invalid or the quiz is inactive"
+
             });
+
         }
 
 
@@ -1692,10 +2700,14 @@ exports.startPublicQuiz = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Name and email are required"
+
             });
+
         }
 
 
@@ -1704,16 +2716,16 @@ exports.startPublicQuiz = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Enter a valid email address"
+
             });
+
         }
 
-
-        // --------------------------------------------------
-        // CONSENTS
-        // --------------------------------------------------
 
         const emailConsent =
             Boolean(
@@ -1739,10 +2751,14 @@ exports.startPublicQuiz = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Email consent is required"
+
             });
+
         }
 
 
@@ -1752,10 +2768,14 @@ exports.startPublicQuiz = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Camera permission is required"
+
             });
+
         }
 
 
@@ -1765,16 +2785,16 @@ exports.startPublicQuiz = async (
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Location permission is required"
+
             });
+
         }
 
-
-        // --------------------------------------------------
-        // ATTEMPT LIMIT
-        // --------------------------------------------------
 
         if (
             Number(
@@ -1797,17 +2817,18 @@ exports.startPublicQuiz = async (
             ) {
 
                 return res.status(409).json({
+
                     success: false,
+
                     message:
                         "Maximum attempts reached for this email"
+
                 });
+
             }
+
         }
 
-
-        // --------------------------------------------------
-        // EXISTING ACTIVE SESSION
-        // --------------------------------------------------
 
         const activeSession =
             await Quiz.getActiveParticipantSession(
@@ -1819,22 +2840,25 @@ exports.startPublicQuiz = async (
         if (activeSession) {
 
             return res.status(409).json({
+
                 success: false,
+
                 message:
                     "You already have an active quiz session",
+
                 session_token:
                     activeSession.session_token,
+
                 submission_id:
                     activeSession.id,
+
                 participant_id:
                     activeSession.participant_id
+
             });
+
         }
 
-
-        // --------------------------------------------------
-        // SESSION
-        // --------------------------------------------------
 
         const sessionToken =
             crypto.randomBytes(
@@ -1850,10 +2874,6 @@ exports.startPublicQuiz = async (
                 .toString("hex")
                 .toUpperCase()}`;
 
-
-        // --------------------------------------------------
-        // PHOTO
-        // --------------------------------------------------
 
         let photoPath = null;
 
@@ -1921,17 +2941,15 @@ exports.startPublicQuiz = async (
                     req.file.path,
                     fullPath
                 );
+
             }
 
 
             photoPath =
                 `/uploads/quiz/${fileName}`;
+
         }
 
-
-        // --------------------------------------------------
-        // MAX SCORE
-        // --------------------------------------------------
 
         const maxScore =
             quiz.questions.reduce(
@@ -1952,10 +2970,6 @@ exports.startPublicQuiz = async (
                 0
             );
 
-
-        // --------------------------------------------------
-        // CREATE SUBMISSION
-        // --------------------------------------------------
 
         const result =
             await db.query(
@@ -2019,6 +3033,7 @@ exports.startPublicQuiz = async (
                     "In Progress",
 
                     maxScore
+
                 ]
             );
 
@@ -2037,6 +3052,7 @@ exports.startPublicQuiz = async (
                 participantId,
 
             quiz
+
         });
 
     } catch (error) {
@@ -2048,12 +3064,17 @@ exports.startPublicQuiz = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to start quiz"
+
         });
+
     }
+
 };
 
 
@@ -2078,22 +3099,28 @@ exports.submitPublicQuiz = async (
         if (!sessionToken) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "Quiz session token is required"
+
             });
+
         }
 
 
-        // --------------------------------------------------
+        // ==================================================
         // GET SESSION
-        // --------------------------------------------------
+        // ==================================================
 
         const rows =
             await db.query(
                 `
                 SELECT
                     s.*,
+
+                    q.name AS quiz_name,
 
                     q.passing_score,
 
@@ -2111,17 +3138,26 @@ exports.submitPublicQuiz = async (
 
                 LIMIT 1
                 `,
-                [sessionToken]
+                [
+                    sessionToken
+                ]
             );
 
 
-        if (!rows.length) {
+        if (
+            !rows ||
+            !rows.length
+        ) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Quiz session not found"
+
             });
+
         }
 
 
@@ -2129,52 +3165,88 @@ exports.submitPublicQuiz = async (
             rows[0];
 
 
-        // --------------------------------------------------
+        // ==================================================
         // ALREADY SUBMITTED
-        // --------------------------------------------------
+        // ==================================================
 
         if (
-            submission.status !==
+            String(
+                submission.status
+            ) !==
             "In Progress"
         ) {
 
             return res.status(409).json({
+
                 success: false,
+
                 message:
                     "This quiz session has already been submitted"
+
             });
+
         }
 
 
-        // --------------------------------------------------
+        // ==================================================
         // QUIZ ACTIVE
-        // --------------------------------------------------
+        // ==================================================
 
         if (
-            submission.quiz_status !==
+            String(
+                submission.quiz_status
+            ) !==
             "Active"
         ) {
 
             return res.status(409).json({
+
                 success: false,
+
                 message:
                     "This quiz is no longer active"
+
             });
+
         }
 
 
-        // --------------------------------------------------
+        // ==================================================
         // TIME LIMIT
-        // --------------------------------------------------
+        // ==================================================
 
         if (
-            submission.time_limit_minutes
+            submission.time_limit_minutes !==
+                null &&
+            submission.time_limit_minutes !==
+                undefined &&
+            Number(
+                submission.time_limit_minutes
+            ) > 0
         ) {
 
             const startedAt =
                 new Date(
                     submission.started_at
                 ).getTime();
+
+
+            if (
+                Number.isNaN(
+                    startedAt
+                )
+            ) {
+
+                return res.status(409).json({
+
+                    success: false,
+
+                    message:
+                        "Invalid quiz start time"
+
+                });
+
+            }
 
 
             const elapsed =
@@ -2190,24 +3262,29 @@ exports.submitPublicQuiz = async (
                 1000;
 
 
-            // 30-second grace period.
             if (
                 elapsed >
-                allowed + 30000
+                allowed +
+                30000
             ) {
 
                 return res.status(409).json({
+
                     success: false,
+
                     message:
                         "Quiz time limit has expired"
+
                 });
+
             }
+
         }
 
 
-        // --------------------------------------------------
+        // ==================================================
         // QUESTIONS
-        // --------------------------------------------------
+        // ==================================================
 
         const questions =
             await db.query(
@@ -2215,33 +3292,43 @@ exports.submitPublicQuiz = async (
                 SELECT *
                 FROM quiz_questions
 
-                WHERE quiz_id = ?
+                WHERE
+                    quiz_id = ?
 
                 ORDER BY
                     sequence_no ASC,
                     id ASC
                 `,
-                [submission.quiz_id]
+                [
+                    submission.quiz_id
+                ]
             );
 
 
-        if (!questions.length) {
+        if (
+            !questions ||
+            !questions.length
+        ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
                     "This quiz has no questions"
+
             });
+
         }
 
 
-        // --------------------------------------------------
+        // ==================================================
         // ANSWERS
-        // --------------------------------------------------
+        // ==================================================
 
         const answers =
             Array.isArray(
-                req.body.answers
+                req.body?.answers
             )
                 ? req.body.answers
                 : [];
@@ -2271,30 +3358,78 @@ exports.submitPublicQuiz = async (
                 questionId,
                 item?.answer
             );
+
         }
 
 
-        let score = 0;
+        // ==================================================
+        // MANDATORY QUESTIONS
+        // ==================================================
 
-        let maxScore = 0;
+        const emptyAnswer = (
+            answer
+        ) => {
+
+            if (
+                answer === null ||
+                answer === undefined
+            ) {
+
+                return true;
+
+            }
 
 
-        // --------------------------------------------------
-        // PROCESS EVERY QUESTION
-        // --------------------------------------------------
+            if (
+                Array.isArray(answer)
+            ) {
+
+                return (
+                    answer.length === 0
+                );
+
+            }
+
+
+            return (
+                String(answer)
+                    .trim()
+                    .length ===
+                0
+            );
+
+        };
+
+
+        const mandatoryQuestions = [];
+
 
         for (
             const question
             of questions
         ) {
 
-            const points =
-                Number(
-                    question.points || 0
-                );
+            const mandatoryValue =
+                question.is_mandatory ??
+                question.is_required ??
+                question.required ??
+                question.answer_mandatory ??
+                0;
 
 
-            maxScore += points;
+            const isMandatory =
+                Boolean(
+                    Number(
+                        mandatoryValue
+                    )
+                ) ||
+                mandatoryValue === true ||
+                mandatoryValue === "true";
+
+
+            if (!isMandatory) {
+                continue;
+            }
 
 
             const answer =
@@ -2305,6 +3440,125 @@ exports.submitPublicQuiz = async (
                 );
 
 
+            if (
+                emptyAnswer(
+                    answer
+                )
+            ) {
+
+                mandatoryQuestions.push({
+
+                    question_id:
+                        question.id,
+
+                    question:
+                        String(
+                            question.question_text ||
+                            question.question ||
+                            `Question ${question.id}`
+                        ).trim()
+
+                });
+
+            }
+
+        }
+
+
+        if (
+            mandatoryQuestions.length
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Please answer all mandatory questions before submitting the quiz.",
+
+                missing_required_questions:
+                    mandatoryQuestions.map(
+                        (item) => ({
+
+                            question_id:
+                                item.question_id,
+
+                            question:
+                                item.question
+
+                        })
+                    )
+
+            });
+
+        }
+
+
+        // ==================================================
+        // SCORE
+        // ==================================================
+
+        let score = 0;
+
+        let maxScore = 0;
+
+        const answerResults = [];
+
+
+        for (
+            const question
+            of questions
+        ) {
+
+            const questionId =
+                Number(
+                    question.id
+                );
+
+
+            const answer =
+                answerMap.get(
+                    questionId
+                );
+
+
+            // --------------------------------------------------
+            // SCORE QUESTION
+            // --------------------------------------------------
+
+            const scoring =
+                getQuestionScore(
+                    question,
+                    answer
+                );
+
+
+            const points =
+                Number(
+                    scoring?.max ||
+                    0
+                );
+
+
+            const awarded =
+                Number(
+                    scoring?.awarded ||
+                    0
+                );
+
+
+            maxScore +=
+                points;
+
+
+            score +=
+                awarded;
+
+
+            // --------------------------------------------------
+            // CORRECT
+            // --------------------------------------------------
+
             const correct =
                 isCorrect(
                     question,
@@ -2312,13 +3566,15 @@ exports.submitPublicQuiz = async (
                 );
 
 
-            const awarded =
-                correct
-                    ? points
-                    : 0;
+            // --------------------------------------------------
+            // SAVE ANSWER
+            // --------------------------------------------------
 
-
-            score += awarded;
+            const answerForDb =
+                answer !== undefined &&
+                answer !== null
+                    ? answer
+                    : null;
 
 
             await db.query(
@@ -2350,11 +3606,10 @@ exports.submitPublicQuiz = async (
 
                     submission.id,
 
-                    question.id,
+                    questionId,
 
                     JSON.stringify(
-                        answer ??
-                        null
+                        answerForDb
                     ),
 
                     correct
@@ -2362,21 +3617,81 @@ exports.submitPublicQuiz = async (
                         : 0,
 
                     awarded
+
                 ]
             );
+
+
+            answerResults.push({
+
+                question_id:
+                    questionId,
+
+                answer:
+                    answerForDb,
+
+                is_correct:
+                    Boolean(
+                        correct
+                    ),
+
+                points_awarded:
+                    awarded,
+
+                max_points:
+                    points
+
+            });
+
         }
 
 
-        // --------------------------------------------------
-        // RESULT
-        // --------------------------------------------------
+        // ==================================================
+        // SCORE PROTECTION
+        // ==================================================
+
+        if (
+            score < 0
+        ) {
+
+            score = 0;
+
+        }
+
+
+        if (
+            maxScore < 0
+        ) {
+
+            maxScore = 0;
+
+        }
+
+
+        if (
+            score >
+            maxScore
+        ) {
+
+            score =
+                maxScore;
+
+        }
+
+
+        // ==================================================
+        // PERCENTAGE
+        // ==================================================
 
         const percentage =
             maxScore > 0
+
                 ? (
                     score /
                     maxScore
-                ) * 100
+                ) *
+                100
+
                 : 0;
 
 
@@ -2386,60 +3701,109 @@ exports.submitPublicQuiz = async (
             );
 
 
-        const result =
-            finalPercentage >=
+        // ==================================================
+        // PASS / FAIL
+        // ==================================================
+
+        const passingScore =
             Number(
                 submission.passing_score
-            )
+            ) || 0;
+
+
+        const result =
+            finalPercentage >=
+            passingScore
+
                 ? "Passed"
+
                 : "Failed";
 
 
-        // --------------------------------------------------
+        // ==================================================
         // UPDATE SUBMISSION
-        // --------------------------------------------------
+        // ==================================================
 
-        await db.query(
-            `
-            UPDATE quiz_submissions
+        const updateResult =
+            await db.query(
+                `
+                UPDATE quiz_submissions
 
-            SET
-                status = 'Submitted',
+                SET
 
-                score = ?,
+                    status =
+                        'Submitted',
 
-                max_score = ?,
+                    score =
+                        ?,
 
-                percentage = ?,
+                    max_score =
+                        ?,
 
-                result = ?,
+                    percentage =
+                        ?,
 
-                submitted_at = NOW()
+                    result =
+                        ?,
 
-            WHERE id = ?
-            `,
-            [
+                    submitted_at =
+                        NOW()
 
-                score,
+                WHERE
 
-                maxScore,
+                    id = ?
 
-                finalPercentage,
+                    AND status =
+                        'In Progress'
+                `,
+                [
 
-                result,
+                    score,
 
-                submission.id
-            ]
-        );
+                    maxScore,
+
+                    finalPercentage,
+
+                    result,
+
+                    submission.id
+
+                ]
+            );
 
 
-        // --------------------------------------------------
-        // RESPONSE
-        // --------------------------------------------------
+        // ==================================================
+        // DOUBLE SUBMISSION PROTECTION
+        // ==================================================
+
+        if (
+            updateResult &&
+            updateResult.affectedRows ===
+            0
+        ) {
+
+            return res.status(409).json({
+
+                success: false,
+
+                message:
+                    "This quiz session has already been submitted"
+
+            });
+
+        }
+
+
+        // ==================================================
+        // FINAL RESPONSE
+        // ==================================================
 
         return res.json({
 
             success: true,
+
+            message:
+                "Quiz submitted successfully",
 
             submission_id:
                 submission.id,
@@ -2447,7 +3811,20 @@ exports.submitPublicQuiz = async (
             participant_id:
                 submission.participant_id,
 
-            score,
+            participant_name:
+                submission.participant_name,
+
+            participant_email:
+                submission.participant_email,
+
+            quiz_id:
+                submission.quiz_id,
+
+            quiz_name:
+                submission.quiz_name,
+
+            score:
+                score,
 
             max_score:
                 maxScore,
@@ -2455,7 +3832,21 @@ exports.submitPublicQuiz = async (
             percentage:
                 finalPercentage,
 
-            result
+            passing_score:
+                passingScore,
+
+            result:
+                result,
+
+            total_questions:
+                questions.length,
+
+            answered_questions:
+                answerMap.size,
+
+            answer_results:
+                answerResults
+
         });
 
     } catch (error) {
@@ -2467,10 +3858,25 @@ exports.submitPublicQuiz = async (
 
 
         return res.status(500).json({
+
             success: false,
+
             message:
                 error.message ||
                 "Unable to submit quiz"
+
         });
+
     }
+
 };
+
+
+// ======================================================
+// EXPORTS
+// ======================================================
+//
+// All controller methods are exported above using
+// exports.<method>, so no additional module.exports
+// object is required.
+// ======================================================
