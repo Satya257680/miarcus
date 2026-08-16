@@ -1,10 +1,101 @@
 const db = require("../config/db");
 
 // ==========================================================
+// QUIZ / RBAC PERMISSION CONFIGURATION
+// ==========================================================
+//
+// The Quiz module must use the exact key "Quiz" because the
+// Quiz routes check:
+//
+//     permissionMiddleware("Quiz", level)
+//
+// ==========================================================
+
+const RBAC_MODULES = [
+    "Dashboard",
+    "Action Points",
+    "Quiz",
+    "Checklist Reports",
+    "Checklist Submit",
+    "Checklist Types",
+    "Questions",
+    "Departments",
+    "Designations",
+    "Store Management",
+    "Users",
+    "Reports To",
+    "NSO Rules",
+    "New Store Openings",
+    "Announcements",
+    "Profile",
+    "Settings"
+];
+
+const RBAC_LEVELS = new Set([
+    "None",
+    "View",
+    "Add",
+    "Edit",
+    "Full"
+]);
+
+
+// ==========================================================
+// NORMALIZE PERMISSIONS
+// ==========================================================
+
+const normalizePermissions = (
+    permissions = {},
+    administrator = false
+) => {
+
+    const input =
+        permissions &&
+        typeof permissions === "object"
+            ? permissions
+            : {};
+
+    const normalized = {};
+
+    RBAC_MODULES.forEach(
+        (moduleName) => {
+
+            const requested =
+                input[moduleName];
+
+            if (administrator) {
+
+                normalized[moduleName] =
+                    "Full";
+
+            } else if (
+                RBAC_LEVELS.has(
+                    requested
+                )
+            ) {
+
+                normalized[moduleName] =
+                    requested;
+
+            } else {
+
+                normalized[moduleName] =
+                    "None";
+            }
+        }
+    );
+
+    return normalized;
+};
+
+
+// ==========================================================
 // GET ALL USERS
 // ==========================================================
 
-const getAllUsers = (callback) => {
+const getAllUsers = (
+    callback
+) => {
 
     const sql = `
 
@@ -47,23 +138,18 @@ const getAllUsers = (callback) => {
             u.activated_at,
 
             GROUP_CONCAT(
-
                 DISTINCT us.store_id
-
             ) AS store_ids
 
         FROM users u
 
         LEFT JOIN departments d
-
             ON u.department_id = d.id
 
         LEFT JOIN designations dg
-
             ON u.designation_id = dg.id
 
         LEFT JOIN user_stores us
-
             ON u.id = us.user_id
 
         GROUP BY u.id
@@ -72,101 +158,135 @@ const getAllUsers = (callback) => {
 
     `;
 
+
     db.query(
 
         sql,
 
-        (err, users) => {
+        (
+            err,
+            users
+        ) => {
 
             if (err) {
 
                 return callback(err);
-
             }
 
-            // ======================================
-            // Restore Stores Array
-            // ======================================
-
-            users.forEach((user) => {
-
-                user.stores = user.store_ids
-
-                    ? user.store_ids
-                        .split(",")
-                        .map(Number)
-
-                    : [];
-
-                delete user.store_ids;
-
-                user.permissions = {};
-
-            });
 
             // ======================================
-            // Load User Permissions
+            // RESTORE STORES ARRAY
+            // ======================================
+
+            users.forEach(
+                (user) => {
+
+                    user.stores =
+                        user.store_ids
+
+                            ? user.store_ids
+                                .split(",")
+                                .map(Number)
+
+                            : [];
+
+                    delete user.store_ids;
+
+                    user.permissions = {};
+                }
+            );
+
+
+            // ======================================
+            // LOAD USER PERMISSIONS
             // ======================================
 
             db.query(
 
                 `
-                SELECT
 
-                    user_id,
+                    SELECT
 
-                    module_name,
+                        user_id,
 
-                    permission
+                        module_name,
 
-                FROM user_permissions
+                        permission
+
+                    FROM user_permissions
+
                 `,
 
-                (permissionErr, permissions) => {
+                (
+                    permissionErr,
+                    permissions
+                ) => {
 
                     if (permissionErr) {
 
-                        return callback(permissionErr);
-
+                        return callback(
+                            permissionErr
+                        );
                     }
 
-                    permissions.forEach((row) => {
 
-                        const user = users.find(
+                    permissions.forEach(
+                        (row) => {
 
-                            (u) => u.id === row.user_id
+                            const user =
+                                users.find(
+                                    (u) =>
+                                        u.id ===
+                                        row.user_id
+                                );
 
-                        );
 
-                        if (user) {
+                            if (user) {
 
-                            user.permissions[row.module_name] =
-                                row.permission;
-
+                                user.permissions[
+                                    row.module_name
+                                ] =
+                                    row.permission;
+                            }
                         }
-
-                    });
-
-                    return callback(
-
-                        null,
-
-                        users
-
                     );
 
+
+                    // ======================================
+                    // NORMALIZE RETURNED PERMISSIONS
+                    // ======================================
+
+                    users.forEach(
+                        (user) => {
+
+                            const administrator =
+                                user.is_admin === 1 ||
+                                user.is_admin === true;
+
+
+                            user.permissions =
+                                normalizePermissions(
+                                    user.permissions,
+                                    administrator
+                                );
+                        }
+                    );
+
+
+                    return callback(
+                        null,
+                        users
+                    );
                 }
-
             );
-
         }
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // CHECK EXISTING EMAIL
-// ==========================
+// ==========================================================
 
 const checkEmailExists = (
 
@@ -179,23 +299,29 @@ const checkEmailExists = (
     db.query(
 
         `
-        SELECT id
-        FROM users
-        WHERE email = ?
-        LIMIT 1
+
+            SELECT id
+
+            FROM users
+
+            WHERE email = ?
+
+            LIMIT 1
+
         `,
 
-        [email],
+        [
+            email
+        ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // CHECK EXISTING EMPLOYEE ID
-// ==========================
+// ==========================================================
 
 const checkEmployeeIdExists = (
 
@@ -208,23 +334,29 @@ const checkEmployeeIdExists = (
     db.query(
 
         `
-        SELECT id
-        FROM users
-        WHERE employee_id = ?
-        LIMIT 1
+
+            SELECT id
+
+            FROM users
+
+            WHERE employee_id = ?
+
+            LIMIT 1
+
         `,
 
-        [employeeId],
+        [
+            employeeId
+        ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // ADD USER
-// ==========================
+// ==========================================================
 
 const addUser = (
 
@@ -273,6 +405,7 @@ const addUser = (
 
     `;
 
+
     db.query(
 
         sql,
@@ -297,29 +430,33 @@ const addUser = (
 
             user.reportsTo
 
-                ? user.reportsTo.name || user.reportsTo
+                ? user.reportsTo.name ||
+                  user.reportsTo
 
                 : "",
 
             user.active
-
                 ? "Active"
-
                 : "Inactive",
 
             0
 
         ],
 
-        (err, result) => {
+        (
+            err,
+            result
+        ) => {
 
             if (err) {
 
                 return callback(err);
-
             }
 
-            const userId = result.insertId;
+
+            const userId =
+                result.insertId;
+
 
             // ======================================
             // SAVE USER STORES
@@ -331,13 +468,17 @@ const addUser = (
 
                 user.stores || [],
 
-                (storeErr) => {
+                (
+                    storeErr
+                ) => {
 
                     if (storeErr) {
 
-                        return callback(storeErr);
-
+                        return callback(
+                            storeErr
+                        );
                     }
+
 
                     // ======================================
                     // SAVE USER PERMISSIONS
@@ -349,38 +490,36 @@ const addUser = (
 
                         user.permissions || {},
 
-                        (permissionErr) => {
+                        (
+                            permissionErr
+                        ) => {
 
-                            if (permissionErr) {
+                            if (
+                                permissionErr
+                            ) {
 
-                                return callback(permissionErr);
-
+                                return callback(
+                                    permissionErr
+                                );
                             }
 
+
                             return callback(
-
                                 null,
-
                                 result
-
                             );
-
                         }
-
                     );
-
                 }
-
             );
-
         }
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // SAVE USER STORES
-// ==========================
+// ==========================================================
 
 const saveUserStores = (
 
@@ -396,54 +535,56 @@ const saveUserStores = (
     // NO STORES TO SAVE
     // ======================================
 
-    if (!stores || stores.length === 0) {
+    if (
+        !stores ||
+        stores.length === 0
+    ) {
 
         return callback(null);
-
     }
 
-    const values = stores.map(
 
-        (storeId) => [
+    const values =
+        stores.map(
+            (storeId) => [
 
-            userId,
+                userId,
 
-            storeId
+                storeId
 
-        ]
+            ]
+        );
 
-    );
 
     db.query(
 
         `
-        INSERT INTO user_stores
-        (
 
-            user_id,
+            INSERT INTO user_stores
+            (
 
-            store_id
+                user_id,
 
-        )
+                store_id
 
-        VALUES ?
+            )
+
+            VALUES ?
 
         `,
 
         [
-
             values
-
         ],
 
         callback
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // SAVE USER PERMISSIONS
-// ==========================
+// ==========================================================
 
 const saveUserPermissions = (
 
@@ -455,72 +596,65 @@ const saveUserPermissions = (
 
 ) => {
 
-    // ======================================
-    // NO PERMISSIONS TO SAVE
-    // ======================================
+    const normalized =
+        normalizePermissions(
+            permissions || {},
+            false
+        );
 
-    if (
 
-        !permissions ||
+    const values =
+        Object.entries(
+            normalized
+        ).map(
+            (
+                [
+                    moduleName,
+                    permission
+                ]
+            ) => [
 
-        Object.keys(permissions).length === 0
+                userId,
 
-    ) {
+                moduleName,
 
-        return callback(null);
+                permission
 
-    }
+            ]
+        );
 
-    const values = Object.entries(
-
-        permissions
-
-    ).map(
-
-        ([moduleName, permission]) => [
-
-            userId,
-
-            moduleName,
-
-            permission
-
-        ]
-
-    );
 
     db.query(
 
         `
-        INSERT INTO user_permissions
-        (
 
-            user_id,
+            INSERT INTO user_permissions
+            (
 
-            module_name,
+                user_id,
 
-            permission
+                module_name,
 
-        )
+                permission
 
-        VALUES ?
+            )
+
+            VALUES ?
 
         `,
 
         [
-
             values
-
         ],
 
         callback
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // SAVE ACTIVATION TOKEN
-// ==========================
+// ==========================================================
 
 const saveActivationToken = (
 
@@ -551,6 +685,7 @@ const saveActivationToken = (
 
     `;
 
+
     db.query(
 
         sql,
@@ -566,14 +701,13 @@ const saveActivationToken = (
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // GET ACTIVATION TOKEN
-// ==========================
+// ==========================================================
 
 const getActivationToken = (
 
@@ -597,25 +731,23 @@ const getActivationToken = (
 
     `;
 
+
     db.query(
 
         sql,
 
         [
-
             token
-
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // ACTIVATE USER
-// ==========================
+// ==========================================================
 
 const activateUser = (
 
@@ -643,6 +775,7 @@ const activateUser = (
 
     `;
 
+
     db.query(
 
         sql,
@@ -656,14 +789,13 @@ const activateUser = (
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // MARK TOKEN AS USED
-// ==========================
+// ==========================================================
 
 const markTokenUsed = (
 
@@ -677,28 +809,26 @@ const markTokenUsed = (
 
         `
 
-        UPDATE user_activation_tokens
+            UPDATE user_activation_tokens
 
-        SET used = 1
+            SET used = 1
 
-        WHERE token = ?
+            WHERE token = ?
 
         `,
 
         [
-
             token
-
         ],
 
         callback
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // GET DEPARTMENT ID BY NAME
-// ==========================
+// ==========================================================
 
 const getDepartmentIdByName = (
 
@@ -722,25 +852,23 @@ const getDepartmentIdByName = (
 
     `;
 
+
     db.query(
 
         sql,
 
         [
-
             departmentName
-
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // GET DESIGNATION ID BY NAME
-// ==========================
+// ==========================================================
 
 const getDesignationIdByName = (
 
@@ -764,24 +892,23 @@ const getDesignationIdByName = (
 
     `;
 
+
     db.query(
 
         sql,
 
         [
-
             designationName
-
         ],
 
         callback
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // UPDATE USER
-// ==========================
+// ==========================================================
 
 const updateUser = (
 
@@ -823,6 +950,7 @@ const updateUser = (
 
     `;
 
+
     db.query(
 
         sql,
@@ -845,29 +973,32 @@ const updateUser = (
 
             user.reportsTo
 
-                ? user.reportsTo.name || user.reportsTo
+                ? user.reportsTo.name ||
+                  user.reportsTo
 
                 : "",
 
             user.active
-
                 ? "Active"
-
                 : "Inactive",
 
-            user.administrator ? 1 : 0,
+            user.administrator
+                ? 1
+                : 0,
 
             id
 
         ],
 
-        (err) => {
+        (
+            err
+        ) => {
 
             if (err) {
 
                 return callback(err);
-
             }
+
 
             // ======================================
             // UPDATE USER STORES
@@ -879,13 +1010,17 @@ const updateUser = (
 
                 user.stores || [],
 
-                (storeErr) => {
+                (
+                    storeErr
+                ) => {
 
                     if (storeErr) {
 
-                        return callback(storeErr);
-
+                        return callback(
+                            storeErr
+                        );
                     }
+
 
                     // ======================================
                     // UPDATE USER PERMISSIONS
@@ -897,22 +1032,22 @@ const updateUser = (
 
                         user.permissions || {},
 
+                        user.administrator === true ||
+                        user.administrator === 1 ||
+                        user.administrator === "1",
+
                         callback
-
                     );
-
                 }
-
             );
-
         }
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // UPDATE USER STORES
-// ==========================
+// ==========================================================
 
 const updateUserStores = (
 
@@ -927,94 +1062,95 @@ const updateUserStores = (
     db.query(
 
         `
-        DELETE
-        FROM user_stores
-        WHERE user_id = ?
+
+            DELETE
+
+            FROM user_stores
+
+            WHERE user_id = ?
+
         `,
 
         [
-
             userId
-
         ],
 
-        (err) => {
+        (
+            err
+        ) => {
 
             if (err) {
 
                 return callback(err);
-
             }
+
 
             // ======================================
             // NO STORES TO SAVE
             // ======================================
 
             if (
-
                 !stores ||
-
                 stores.length === 0
-
             ) {
 
                 return callback(null);
-
             }
 
-            const values = stores.map(
 
-                (storeId) => [
+            const values =
+                stores.map(
+                    (
+                        storeId
+                    ) => [
 
-                    userId,
+                        userId,
 
-                    storeId
+                        storeId
 
-                ]
+                    ]
+                );
 
-            );
 
             db.query(
 
                 `
-                INSERT INTO user_stores
-                (
 
-                    user_id,
+                    INSERT INTO user_stores
+                    (
 
-                    store_id
+                        user_id,
 
-                )
+                        store_id
 
-                VALUES ?
+                    )
+
+                    VALUES ?
 
                 `,
 
                 [
-
                     values
-
                 ],
 
                 callback
-
             );
-
         }
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // UPDATE USER PERMISSIONS
-// ==========================
+// ==========================================================
 
 const updateUserPermissions = (
 
     userId,
 
     permissions,
+
+    administrator,
 
     callback
 
@@ -1023,95 +1159,95 @@ const updateUserPermissions = (
     db.query(
 
         `
-        DELETE
-        FROM user_permissions
-        WHERE user_id = ?
+
+            DELETE
+
+            FROM user_permissions
+
+            WHERE user_id = ?
+
         `,
 
         [
-
             userId
-
         ],
 
-        (err) => {
+        (
+            err
+        ) => {
 
             if (err) {
 
                 return callback(err);
-
             }
 
-            // ======================================
-            // NO PERMISSIONS
-            // ======================================
 
-            if (
+            const normalized =
+                normalizePermissions(
 
-                !permissions ||
+                    permissions || {},
 
-                Object.keys(permissions).length === 0
+                    administrator === true ||
+                    administrator === 1 ||
+                    administrator === "1"
 
-            ) {
+                );
 
-                return callback(null);
 
-            }
+            const values =
+                Object.entries(
+                    normalized
+                ).map(
+                    (
+                        [
+                            moduleName,
+                            permission
+                        ]
+                    ) => [
 
-            const values = Object.entries(
+                        userId,
 
-                permissions
+                        moduleName,
 
-            ).map(
+                        permission
 
-                ([moduleName, permission]) => [
+                    ]
+                );
 
-                    userId,
-
-                    moduleName,
-
-                    permission
-
-                ]
-
-            );
 
             db.query(
 
                 `
-                INSERT INTO user_permissions
-                (
 
-                    user_id,
+                    INSERT INTO user_permissions
+                    (
 
-                    module_name,
+                        user_id,
 
-                    permission
+                        module_name,
 
-                )
+                        permission
 
-                VALUES ?
+                    )
+
+                    VALUES ?
 
                 `,
 
                 [
-
                     values
-
                 ],
 
                 callback
-
             );
-
         }
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // DISABLE USER
-// ==========================
+// ==========================================================
 
 const disableUser = (
 
@@ -1124,26 +1260,60 @@ const disableUser = (
     db.query(
 
         `
-        UPDATE users
-        SET status = 'Inactive'
-        WHERE id = ?
+
+            UPDATE users
+
+            SET status = 'Inactive'
+
+            WHERE id = ?
+
         `,
 
         [
-
             id
-
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
+// ENABLE USER
+// ==========================================================
+
+const enableUser = (
+
+    id,
+
+    callback
+
+) => {
+
+    db.query(
+
+        `
+
+            UPDATE users
+
+            SET status = 'Active'
+
+            WHERE id = ?
+
+        `,
+
+        [
+            id
+        ],
+
+        callback
+    );
+};
+
+
+// ==========================================================
 // DELETE USER
-// ==========================
+// ==========================================================
 
 const deleteUser = (
 
@@ -1156,26 +1326,27 @@ const deleteUser = (
     db.query(
 
         `
-        DELETE
-        FROM users
-        WHERE id = ?
+
+            DELETE
+
+            FROM users
+
+            WHERE id = ?
+
         `,
 
         [
-
             id
-
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // DELETE ALL USERS EXCEPT ADMIN
-// ==========================
+// ==========================================================
 
 const deleteAllUsers = (
 
@@ -1186,20 +1357,23 @@ const deleteAllUsers = (
     db.query(
 
         `
-        DELETE
-        FROM users
-        WHERE is_admin = 0
+
+            DELETE
+
+            FROM users
+
+            WHERE is_admin = 0
+
         `,
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // GET USER BY ID
-// ==========================
+// ==========================================================
 
 const getUserById = (
 
@@ -1233,25 +1407,23 @@ const getUserById = (
 
     `;
 
+
     db.query(
 
         sql,
 
         [
-
             id
-
         ],
 
         callback
-
     );
-
 };
 
-// ==========================
+
+// ==========================================================
 // GET USER NAMES
-// ==========================
+// ==========================================================
 
 const getUserNames = (
 
@@ -1275,15 +1447,16 @@ const getUserNames = (
 
     `;
 
+
     db.query(
 
         sql,
 
         callback
-
     );
-
 };
+
+
 // ==========================================================
 // EXPORT MODEL FUNCTIONS
 // ==========================================================
@@ -1300,6 +1473,7 @@ module.exports = {
 
     getUserNames,
 
+
     // ======================================
     // Validation
     // ======================================
@@ -1312,6 +1486,7 @@ module.exports = {
 
     getDesignationIdByName,
 
+
     // ======================================
     // User Creation
     // ======================================
@@ -1322,6 +1497,7 @@ module.exports = {
 
     saveUserPermissions,
 
+
     // ======================================
     // User Update
     // ======================================
@@ -1331,6 +1507,7 @@ module.exports = {
     updateUserStores,
 
     updateUserPermissions,
+
 
     // ======================================
     // Account Activation
@@ -1344,11 +1521,14 @@ module.exports = {
 
     markTokenUsed,
 
+
     // ======================================
     // User Status
     // ======================================
 
     disableUser,
+
+    enableUser,
 
     deleteUser,
 

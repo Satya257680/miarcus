@@ -9,28 +9,13 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
-
 // ======================================================
 // UPLOAD CONFIGURATION
-// ======================================================
-//
-// IMPORTANT:
-// upload.js should read process.env.MAX_UPLOAD_SIZE.
-//
-// Example:
-// MAX_UPLOAD_SIZE=2147483648
-//
-// 2147483648 = 2 GB
-//
-// This is intentionally very large so normal PDF,
-// image and document uploads are not blocked at 10 MB.
-//
 // ======================================================
 
 process.env.MAX_UPLOAD_SIZE =
     process.env.MAX_UPLOAD_SIZE ||
     String(2 * 1024 * 1024 * 1024);
-
 
 // ======================================================
 // APP
@@ -38,62 +23,29 @@ process.env.MAX_UPLOAD_SIZE =
 
 const app = express();
 
-
 // ======================================================
-// PROCESS-LEVEL SAFETY NET
+// PROCESS LEVEL SAFETY NET
 // ======================================================
 
-process.on(
-    "unhandledRejection",
-    (reason) => {
+process.on("unhandledRejection", (reason) => {
 
-        console.error(
-            "================================"
-        );
+    console.error("================================");
+    console.error("🛑 UNHANDLED PROMISE REJECTION");
+    console.error("================================");
+    console.error(reason);
+    console.error("================================");
 
-        console.error(
-            "🛑 UNHANDLED PROMISE REJECTION"
-        );
+});
 
-        console.error(
-            "================================"
-        );
+process.on("uncaughtException", (err) => {
 
-        console.error(reason);
+    console.error("================================");
+    console.error("🛑 UNCAUGHT EXCEPTION");
+    console.error("================================");
+    console.error(err);
+    console.error("================================");
 
-        console.error(
-            "================================"
-        );
-
-    }
-);
-
-
-process.on(
-    "uncaughtException",
-    (err) => {
-
-        console.error(
-            "================================"
-        );
-
-        console.error(
-            "🛑 UNCAUGHT EXCEPTION"
-        );
-
-        console.error(
-            "================================"
-        );
-
-        console.error(err);
-
-        console.error(
-            "================================"
-        );
-
-    }
-);
-
+});
 
 // ======================================================
 // DATABASE
@@ -101,9 +53,8 @@ process.on(
 
 const db = require("./config/db");
 
-
 // ======================================================
-// TABLE INITIALIZATION
+// MODELS
 // ======================================================
 
 const ActionPoint =
@@ -115,48 +66,67 @@ const ChecklistSubmission =
 const Announcement =
     require("./models/announcementModel");
 
+const Quiz =
+    require("./models/quizModel");
 
 // ======================================================
 // CREATE TABLE HELPER
 // ======================================================
 
-function createTablesAsync(
-    model,
-    label
-) {
+function createTablesAsync(model, label) {
 
-    return new Promise(
-        (resolve) => {
+    return new Promise((resolve) => {
 
-            model.createTables(
-                (err) => {
+        try {
 
-                    if (err) {
+            if (
+                !model ||
+                typeof model.createTables !== "function"
+            ) {
 
-                        console.error(
-                            `❌ Failed to create/verify ${label} table(s):`,
-                            err.message
-                        );
+                console.warn(
+                    `⚠️ ${label} model does not expose createTables()`
+                );
 
-                    }
-                    else {
+                return resolve();
 
-                        console.log(
-                            `✅ ${label} table(s) verified`
-                        );
+            }
 
-                    }
+            model.createTables((err) => {
 
-                    resolve();
+                if (err) {
+
+                    console.error(
+                        `❌ Failed to create/verify ${label} table(s):`,
+                        err.message
+                    );
+
+                } else {
+
+                    console.log(
+                        `✅ ${label} table(s) verified`
+                    );
 
                 }
+
+                resolve();
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                `❌ ${label} table initialization error:`,
+                error.message
             );
 
+            resolve();
+
         }
-    );
+
+    });
 
 }
-
 
 // ======================================================
 // DATABASE INITIALIZATION
@@ -164,91 +134,142 @@ function createTablesAsync(
 
 async function initializeDatabase() {
 
-    const connected =
-        await db.connectWithRetry();
-
-
-    if (!connected) {
-
-        console.error(
-            "🛑 Skipping table initialization — no database connection."
-        );
-
-        return;
-
-    }
-
-
-    console.log("");
-    console.log(
-        "=============================================="
-    );
-    console.log(
-        "VERIFYING / CREATING REQUIRED TABLES"
-    );
-    console.log(
-        "=============================================="
-    );
-
-
-    await createTablesAsync(
-        ActionPoint,
-        "action_points"
-    );
-
-
-    await createTablesAsync(
-        ChecklistSubmission,
-        "checklist_submissions"
-    );
-
-
-    await createTablesAsync(
-        Announcement,
-        "announcements"
-    );
-
-
-    // ==================================================
-    // ACTION POINT NSO MIGRATION
-    // ==================================================
-
     try {
 
-        await ActionPoint.ensureParentColumn();
+        const connected =
+            await db.connectWithRetry();
+
+        if (!connected) {
+
+            console.error(
+                "🛑 Skipping table initialization — no database connection."
+            );
+
+            return;
+
+        }
+
+        console.log("");
+        console.log(
+            "=============================================="
+        );
 
         console.log(
-            "✅ action_points NSO parent relationship verified"
+            "VERIFYING / CREATING REQUIRED TABLES"
         );
-
-    }
-    catch (error) {
-
-        console.error(
-            "❌ action_points NSO migration failed:",
-            error.message
-        );
-
-    }
-
-
-    // ==================================================
-    // CHECKLIST SUBMISSION NSO MIGRATION
-    // ==================================================
-
-    try {
-
-        await ChecklistSubmission.ensureParentColumn();
 
         console.log(
-            "✅ checklist_submissions NSO parent relationship verified"
+            "=============================================="
         );
 
-    }
-    catch (error) {
+        // --------------------------------------------------
+        // ACTION POINTS
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            ActionPoint,
+            "action_points"
+        );
+
+        // --------------------------------------------------
+        // CHECKLIST SUBMISSIONS
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            ChecklistSubmission,
+            "checklist_submissions"
+        );
+
+        // --------------------------------------------------
+        // ANNOUNCEMENTS
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            Announcement,
+            "announcements"
+        );
+
+        // --------------------------------------------------
+        // QUIZ
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            Quiz,
+            "quiz"
+        );
+
+        // ==================================================
+        // ACTION POINT NSO MIGRATION
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ActionPoint.ensureParentColumn ===
+                "function"
+            ) {
+
+                await ActionPoint.ensureParentColumn();
+
+                console.log(
+                    "✅ action_points NSO parent relationship verified"
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ action_points NSO migration failed:",
+                error.message
+            );
+
+        }
+
+        // ==================================================
+        // CHECKLIST SUBMISSION NSO MIGRATION
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ChecklistSubmission.ensureParentColumn ===
+                "function"
+            ) {
+
+                await ChecklistSubmission.ensureParentColumn();
+
+                console.log(
+                    "✅ checklist_submissions NSO parent relationship verified"
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ checklist_submissions NSO migration failed:",
+                error.message
+            );
+
+        }
+
+        console.log(
+            "=============================================="
+        );
+
+        console.log(
+            "DATABASE INITIALIZATION COMPLETED"
+        );
+
+        console.log(
+            "=============================================="
+        );
+
+    } catch (error) {
 
         console.error(
-            "❌ checklist_submissions NSO migration failed:",
+            "❌ DATABASE INITIALIZATION ERROR:",
             error.message
         );
 
@@ -256,9 +277,7 @@ async function initializeDatabase() {
 
 }
 
-
 initializeDatabase();
-
 
 // ======================================================
 // CORS CONFIGURATION
@@ -280,13 +299,11 @@ const allowedOrigins = [
 
 ]
     .filter(Boolean)
-    .map(
-        (origin) =>
-            origin
-                .trim()
-                .replace(/\/+$/, "")
+    .map((origin) =>
+        origin
+            .trim()
+            .replace(/\/+$/, "")
     );
-
 
 // ======================================================
 // REMOVE DUPLICATES
@@ -294,7 +311,6 @@ const allowedOrigins = [
 
 const uniqueAllowedOrigins =
     [...new Set(allowedOrigins)];
-
 
 console.log("");
 
@@ -310,25 +326,20 @@ console.log(
     "=============================================="
 );
 
+uniqueAllowedOrigins.forEach((origin) => {
 
-uniqueAllowedOrigins.forEach(
-    (origin) => {
+    console.log(
+        "Allowed Origin :",
+        origin
+    );
 
-        console.log(
-            "Allowed Origin :",
-            origin
-        );
-
-    }
-);
-
+});
 
 console.log(
     "=============================================="
 );
 
 console.log("");
-
 
 // ======================================================
 // CORS
@@ -356,12 +367,10 @@ app.use(
 
             }
 
-
             const normalizedOrigin =
                 origin
                     .trim()
                     .replace(/\/+$/, "");
-
 
             // ------------------------------------------
             // EXACT ORIGIN
@@ -379,7 +388,6 @@ app.use(
                 );
 
             }
-
 
             // ------------------------------------------
             // VERCEL PREVIEW DEPLOYMENTS
@@ -400,7 +408,6 @@ app.use(
 
             }
 
-
             // ------------------------------------------
             // BLOCK UNKNOWN ORIGIN
             // ------------------------------------------
@@ -409,7 +416,6 @@ app.use(
                 "⚠️ CORS BLOCKED ORIGIN:",
                 normalizedOrigin
             );
-
 
             return callback(
 
@@ -420,7 +426,6 @@ app.use(
             );
 
         },
-
 
         // ------------------------------------------
         // HTTP METHODS
@@ -437,7 +442,6 @@ app.use(
 
         ],
 
-
         // ------------------------------------------
         // HEADERS
         // ------------------------------------------
@@ -452,13 +456,11 @@ app.use(
 
         ],
 
-
         // ------------------------------------------
         // PREFLIGHT
         // ------------------------------------------
 
         optionsSuccessStatus: 204,
-
 
         // ------------------------------------------
         // JWT IS STORED IN LOCAL STORAGE
@@ -470,17 +472,8 @@ app.use(
 
 );
 
-
 // ======================================================
 // BODY PARSER
-// ======================================================
-//
-// These are NOT Multer limits.
-// They control JSON / URL encoded requests.
-//
-// Large values prevent unnecessary request-body
-// rejection for normal API operations.
-//
 // ======================================================
 
 app.use(
@@ -492,7 +485,6 @@ app.use(
     })
 
 );
-
 
 app.use(
 
@@ -506,7 +498,6 @@ app.use(
 
 );
 
-
 // ======================================================
 // UPLOAD DIRECTORY
 // ======================================================
@@ -516,7 +507,6 @@ const uploadFolder =
         __dirname,
         "uploads"
     );
-
 
 // ======================================================
 // CREATE UPLOAD DIRECTORY
@@ -538,13 +528,11 @@ if (
 
     );
 
-
     console.log(
         "📂 Upload folder created"
     );
 
 }
-
 
 // ======================================================
 // SERVE UPLOADED FILES
@@ -570,27 +558,13 @@ app.use(
 
 );
 
-
 console.log(
     "📂 Upload Path:",
     uploadFolder
 );
 
-
 // ======================================================
 // BACKWARD COMPATIBILITY
-// ======================================================
-//
-// Old URLs such as:
-//
-// /undefineduploads/file.pdf
-//
-// will continue working.
-//
-// Correct URL:
-//
-// /uploads/file.pdf
-//
 // ======================================================
 
 app.use(
@@ -613,11 +587,9 @@ app.use(
 
 );
 
-
 console.log(
     "📂 Legacy Upload URL Enabled: /undefineduploads"
 );
-
 
 // ======================================================
 // PUBLIC IMAGES
@@ -629,7 +601,6 @@ const publicImages =
         "public",
         "images"
     );
-
 
 // ======================================================
 // CREATE PUBLIC IMAGES DIRECTORY
@@ -653,13 +624,11 @@ if (
 
     );
 
-
     console.log(
         "📂 Public images folder created"
     );
 
 }
-
 
 // ======================================================
 // SERVE PUBLIC IMAGES
@@ -685,12 +654,10 @@ app.use(
 
 );
 
-
 console.log(
     "🖼️ Image Path:",
     publicImages
 );
-
 
 // ======================================================
 // HOME API
@@ -719,7 +686,6 @@ app.get(
 
 );
 
-
 // ======================================================
 // HEALTH CHECK
 // ======================================================
@@ -746,7 +712,6 @@ app.get(
     }
 
 );
-
 
 // ======================================================
 // UPLOAD TEST
@@ -780,6 +745,11 @@ app.get(
 
 );
 
+// ======================================================
+// ROUTE STATUS STORAGE
+// ======================================================
+
+const loadedRoutes = {};
 
 // ======================================================
 // ROUTE LOADER
@@ -797,9 +767,20 @@ const loadRoute = (
 
     try {
 
+        console.log(
+            `🔄 Loading ${routeName}...`
+        );
+
         const route =
             require(routeFile);
 
+        if (!route) {
+
+            throw new Error(
+                `${routeName} returned an empty router`
+            );
+
+        }
 
         app.use(
 
@@ -809,42 +790,51 @@ const loadRoute = (
 
         );
 
+        loadedRoutes[apiPath] = true;
 
         console.log(
-            `✅ ${routeName} Loaded`
+            `✅ ${routeName} Loaded at ${apiPath}`
         );
 
-    }
+        return true;
 
-    catch (error) {
+    } catch (error) {
+
+        loadedRoutes[apiPath] = false;
 
         console.error(
-            `❌ ${routeName} Failed`
+            `❌ ${routeName} FAILED TO LOAD`
         );
-
 
         console.error(
-            error.message
+            `Route File: ${routeFile}`
         );
 
+        console.error(
+            `API Path: ${apiPath}`
+        );
+
+        console.error(
+            `Error: ${error.message}`
+        );
 
         console.error(
             error.stack
         );
 
+        return false;
+
     }
 
 };
-
 
 // ======================================================
 // API ROUTES
 // ======================================================
 
-
-// ------------------------------------------------------
+// ======================================================
 // AUTH
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -856,10 +846,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // STORES
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -871,10 +860,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // ACTION POINTS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -886,10 +874,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // ANNOUNCEMENTS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -901,10 +888,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // PROFILE
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -916,10 +902,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // USERS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -931,10 +916,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // DEPARTMENTS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -946,10 +930,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // DESIGNATIONS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -961,10 +944,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // CHECKLIST TYPES
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -976,10 +958,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // QUESTIONS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -991,10 +972,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // REPORTS TO
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1006,10 +986,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // CHECKLIST SUBMISSIONS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1021,10 +1000,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // CHECKLIST REPORTS
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1036,10 +1014,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // NSO RULES
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1051,10 +1028,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // NEW STORE OPENING
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1066,10 +1042,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // DASHBOARD
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1081,10 +1056,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // ACTIVITY
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1096,10 +1070,9 @@ loadRoute(
 
 );
 
-
-// ------------------------------------------------------
+// ======================================================
 // NSO TRACKING
-// ------------------------------------------------------
+// ======================================================
 
 loadRoute(
 
@@ -1111,9 +1084,173 @@ loadRoute(
 
 );
 
+// ======================================================
+// QUIZ ROUTE TEST
+// ======================================================
+//
+// IMPORTANT:
+//
+// This route MUST be before /api/quiz.
+//
+// quizRoutes.js contains dynamic routes such as:
+//
+//     /:id
+//
+// Therefore:
+//
+//     /api/quiz/route-test
+//
+// must be registered here first.
+//
+// ======================================================
+
+app.get(
+
+    "/api/quiz/route-test",
+
+    (req, res) => {
+
+        res.status(200).json({
+
+            success: true,
+
+            message:
+                "Quiz API route is mounted",
+
+            path:
+                "/api/quiz",
+
+            serverTime:
+                new Date().toISOString()
+
+        });
+
+    }
+
+);
 
 // ======================================================
-// TEST API
+// QUIZ ROUTE STATUS
+// ======================================================
+//
+// IMPORTANT:
+//
+// This MUST also be registered BEFORE /api/quiz.
+//
+// Otherwise:
+//
+//     /api/quiz/status
+//
+// can be caught by:
+//
+//     quizRoutes.js -> /:id
+//
+// ======================================================
+
+let quizRoutesLoaded = false;
+
+app.get(
+
+    "/api/quiz/status",
+
+    (req, res) => {
+
+        res.status(200).json({
+
+            success: true,
+
+            quizRoutesLoaded:
+
+                quizRoutesLoaded,
+
+            route:
+
+                "/api/quiz",
+
+            routeFile:
+
+                "./routes/quizRoutes"
+
+        });
+
+    }
+
+);
+
+// ======================================================
+// QUIZ
+// ======================================================
+//
+// IMPORTANT:
+//
+// This is the actual Quiz API mount.
+//
+// Frontend:
+//
+//     /api/quiz
+//
+// maps to:
+//
+//     ./routes/quizRoutes
+//
+// ======================================================
+
+quizRoutesLoaded =
+    loadRoute(
+
+        "./routes/quizRoutes",
+
+        "/api/quiz",
+
+        "Quiz Routes"
+
+    );
+
+// ======================================================
+// QUIZ ROUTE LOAD FAILURE CHECK
+// ======================================================
+//
+// If quizRoutes.js fails to load, do NOT silently return
+// the generic 404 response.
+//
+// Return 503 with a clear message.
+//
+// The backend console above will contain the exact
+// require/controller/router error.
+//
+// ======================================================
+
+if (!quizRoutesLoaded) {
+
+    app.all(
+
+        "/api/quiz",
+
+        (req, res) => {
+
+            res.status(503).json({
+
+                success: false,
+
+                message:
+                    "Quiz API is unavailable because quizRoutes.js failed to load.",
+
+                route:
+                    "/api/quiz",
+
+                routeFile:
+                    "./routes/quizRoutes"
+
+            });
+
+        }
+
+    );
+
+}
+
+// ======================================================
+// GENERAL TEST API
 // ======================================================
 
 app.get(
@@ -1135,6 +1272,28 @@ app.get(
 
 );
 
+// ======================================================
+// ALL ROUTES STATUS
+// ======================================================
+
+app.get(
+
+    "/api/routes/status",
+
+    (req, res) => {
+
+        res.json({
+
+            success: true,
+
+            routes:
+                loadedRoutes
+
+        });
+
+    }
+
+);
 
 // ======================================================
 // MULTER / UPLOAD ERROR HANDLER
@@ -1149,19 +1308,23 @@ app.use(
             err
         );
 
-
         // ------------------------------------------
-        // MULTER FILE SIZE ERROR
+        // FILE SIZE
         // ------------------------------------------
 
         if (
+
             err &&
+
             err.code ===
-            "LIMIT_FILE_SIZE"
+                "LIMIT_FILE_SIZE"
+
         ) {
 
             return res
+
                 .status(400)
+
                 .json({
 
                     success: false,
@@ -1179,19 +1342,23 @@ app.use(
 
         }
 
-
         // ------------------------------------------
-        // MULTER FILE COUNT ERROR
+        // FILE COUNT
         // ------------------------------------------
 
         if (
+
             err &&
+
             err.code ===
-            "LIMIT_FILE_COUNT"
+                "LIMIT_FILE_COUNT"
+
         ) {
 
             return res
+
                 .status(400)
+
                 .json({
 
                     success: false,
@@ -1206,19 +1373,23 @@ app.use(
 
         }
 
-
         // ------------------------------------------
-        // MULTER FIELD ERROR
+        // UNEXPECTED FILE
         // ------------------------------------------
 
         if (
+
             err &&
+
             err.code ===
-            "LIMIT_UNEXPECTED_FILE"
+                "LIMIT_UNEXPECTED_FILE"
+
         ) {
 
             return res
+
                 .status(400)
+
                 .json({
 
                     success: false,
@@ -1233,19 +1404,23 @@ app.use(
 
         }
 
-
         // ------------------------------------------
-        // CUSTOM MULTER ERROR
+        // MULTER ERROR
         // ------------------------------------------
 
         if (
+
             err &&
+
             err.name ===
-            "MulterError"
+                "MulterError"
+
         ) {
 
             return res
+
                 .status(400)
+
                 .json({
 
                     success: false,
@@ -1262,18 +1437,27 @@ app.use(
 
         }
 
-
         // ------------------------------------------
-        // NORMAL ERROR
+        // CORS ERROR
         // ------------------------------------------
 
         if (
+
             err &&
-            err.message
+
+            typeof err.message ===
+                "string" &&
+
+            err.message.startsWith(
+                "CORS blocked origin:"
+            )
+
         ) {
 
             return res
-                .status(400)
+
+                .status(403)
+
                 .json({
 
                     success: false,
@@ -1285,13 +1469,38 @@ app.use(
 
         }
 
+        // ------------------------------------------
+        // NORMAL ERROR
+        // ------------------------------------------
+
+        if (
+
+            err &&
+
+            err.message
+
+        ) {
+
+            return res
+
+                .status(400)
+
+                .json({
+
+                    success: false,
+
+                    message:
+                        err.message
+
+                });
+
+        }
 
         next(err);
 
     }
 
 );
-
 
 // ======================================================
 // 404 HANDLER
@@ -1311,9 +1520,10 @@ app.use(
 
         );
 
-
         res
+
             .status(404)
+
             .json({
 
                 success: false,
@@ -1330,7 +1540,6 @@ app.use(
 
 );
 
-
 // ======================================================
 // GLOBAL ERROR HANDLER
 // ======================================================
@@ -1344,17 +1553,21 @@ app.use(
             err
         );
 
-
         res
+
             .status(500)
+
             .json({
 
                 success: false,
 
                 message:
+
                     err &&
                     err.message
+
                         ? err.message
+
                         : "Internal Server Error"
 
             });
@@ -1363,7 +1576,6 @@ app.use(
 
 );
 
-
 // ======================================================
 // SERVER START
 // ======================================================
@@ -1371,7 +1583,6 @@ app.use(
 const PORT =
     process.env.PORT ||
     5000;
-
 
 // ======================================================
 // LISTEN
@@ -1389,33 +1600,39 @@ app.listen(
             "================================"
         );
 
-
         console.log(
             "🚀 MIARCUS BACKEND STARTED"
         );
-
 
         console.log(
             `🚀 Server Running : http://localhost:${PORT}`
         );
 
-
         console.log(
             `📂 Upload URL : http://localhost:${PORT}/uploads`
         );
-
 
         console.log(
             `🖼️ Images URL : http://localhost:${PORT}/images`
         );
 
+        console.log(
+            `🧪 Quiz Route Test : http://localhost:${PORT}/api/quiz/route-test`
+        );
+
+        console.log(
+            `🧪 Quiz Status : http://localhost:${PORT}/api/quiz/status`
+        );
+
+        console.log(
+            `🧪 Routes Status : http://localhost:${PORT}/api/routes/status`
+        );
 
         console.log(
             "📦 Maximum configured upload size :",
             process.env.MAX_UPLOAD_SIZE,
             "bytes"
         );
-
 
         console.log(
             "================================"

@@ -7,32 +7,195 @@ const User = require("../models/userModel");
 const { logActivity } = require("../utils/activityLogger");
 
 const {
-
     sendInvitationEmail,
-
     sendAccountUpdatedEmail,
-
     sendAccountActivatedEmail,
-
     sendAccountDisabledEmail,
-
     sendAccountEnabledEmail,
-
     sendAccountDeletedEmail
-
 } = require("../services/emailService");
 
 const {
-
     addToQueue
-
 } = require("../utils/emailTemplates/emailQueue");
+
+
+// ==========================================================
+// RBAC CONFIGURATION
+// ==========================================================
+//
+// IMPORTANT:
+//
+// The module name MUST be exactly:
+//
+//     Quiz
+//
+// because the Quiz routes use:
+//
+//     permissionMiddleware("Quiz", level)
+//
+// Permission levels:
+//
+//     None
+//     View
+//     Add
+//     Edit
+//     Full
+//
+// ==========================================================
+
+const RBAC_MODULES = [
+    "Dashboard",
+    "Action Points",
+    "Quiz",
+    "Checklist Reports",
+    "Checklist Submit",
+    "Checklist Types",
+    "Questions",
+    "Departments",
+    "Designations",
+    "Store Management",
+    "Users",
+    "Reports To",
+    "NSO Rules",
+    "New Store Openings",
+    "Announcements",
+    "Profile",
+    "Settings"
+];
+
+const RBAC_LEVELS = new Set([
+    "None",
+    "View",
+    "Add",
+    "Edit",
+    "Full"
+]);
+
+
+// ==========================================================
+// NORMALIZE RBAC PERMISSIONS
+// ==========================================================
+
+const normalizePermissions = (
+    permissions,
+    administrator = false
+) => {
+
+    const input =
+        permissions &&
+        typeof permissions === "object"
+            ? permissions
+            : {};
+
+    const normalized = {};
+
+    RBAC_MODULES.forEach((module) => {
+
+        const requested =
+            input[module];
+
+        if (administrator) {
+
+            normalized[module] = "Full";
+
+        } else if (
+            RBAC_LEVELS.has(requested)
+        ) {
+
+            normalized[module] =
+                requested;
+
+        } else {
+
+            normalized[module] =
+                "None";
+        }
+    });
+
+    return normalized;
+};
+
+
+// ==========================================================
+// CHECK ADMINISTRATOR
+// ==========================================================
+
+const isAdministrator = (
+    body = {}
+) => {
+
+    return (
+        body.administrator === true ||
+        body.administrator === 1 ||
+        body.administrator === "1" ||
+        body.is_admin === true ||
+        body.is_admin === 1 ||
+        body.is_admin === "1"
+    );
+};
+
+
+// ==========================================================
+// PREPARE USER PAYLOAD
+// ==========================================================
+//
+// This function guarantees:
+//
+// permissions.Quiz
+//
+// always exists.
+//
+// Example:
+//
+// permissions: {
+//     Quiz: "View"
+// }
+//
+// ==========================================================
+
+const prepareUserPayload = (
+    body = {}
+) => {
+
+    const administrator =
+        isAdministrator(body);
+
+    return {
+
+        ...body,
+
+        designation_id:
+            body.designation_id ||
+            null,
+
+        department_id:
+            body.department_id ||
+            null,
+
+        reports_to:
+            body.reports_to ||
+            null,
+
+        permissions:
+            normalizePermissions(
+                body.permissions,
+                administrator
+            ),
+
+        administrator
+    };
+};
+
 
 // ==========================================================
 // GET ALL USERS
 // ==========================================================
 
-const getUsers = (req, res) => {
+const getUsers = (
+    req,
+    res
+) => {
 
     User.getAllUsers(
 
@@ -46,46 +209,47 @@ const getUsers = (req, res) => {
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Database Error"
 
                 });
-
             }
 
             return res.json({
 
                 success: true,
 
-                users: result
+                users:
+                    result
 
             });
-
         }
-
     );
-
 };
+
+
 // ==========================================================
 // CREATE USER + SEND INVITATION
 // ==========================================================
 
-const createUser = (req, res) => {
+const createUser = (
+    req,
+    res
+) => {
 
-    const user = req.body;
+    // ------------------------------------------------------
+    // Normalize user payload
+    // ------------------------------------------------------
 
-    // =============================
-// FIX EMPTY INTEGER VALUES
-// =============================
+    const user =
+        prepareUserPayload(
+            req.body
+        );
 
-user.designation_id = user.designation_id || null;
 
-user.department_id = user.department_id || null;
-
-user.reports_to = user.reports_to || null;
-
-    // -------------------------
+    // ------------------------------------------------------
     // Check Duplicate Email
-    // -------------------------
+    // ------------------------------------------------------
 
     User.checkEmailExists(
 
@@ -95,31 +259,38 @@ user.reports_to = user.reports_to || null;
 
             if (emailErr) {
 
+                console.log(emailErr);
+
                 return res.status(500).json({
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Database Error"
 
                 });
-
             }
 
-            if (emailResult.length > 0) {
+
+            if (
+                emailResult &&
+                emailResult.length > 0
+            ) {
 
                 return res.status(400).json({
 
                     success: false,
 
-                    message: "Email already exists"
+                    message:
+                        "Email already exists"
 
                 });
-
             }
 
-            // -------------------------
+
+            // --------------------------------------------------
             // Check Employee ID
-            // -------------------------
+            // --------------------------------------------------
 
             User.checkEmployeeIdExists(
 
@@ -129,31 +300,38 @@ user.reports_to = user.reports_to || null;
 
                     if (empErr) {
 
+                        console.log(empErr);
+
                         return res.status(500).json({
 
                             success: false,
 
-                            message: "Database Error"
+                            message:
+                                "Database Error"
 
                         });
-
                     }
 
-                    if (empResult.length > 0) {
+
+                    if (
+                        empResult &&
+                        empResult.length > 0
+                    ) {
 
                         return res.status(400).json({
 
                             success: false,
 
-                            message: "Employee ID already exists"
+                            message:
+                                "Employee ID already exists"
 
                         });
-
                     }
 
-                    // -------------------------
+
+                    // --------------------------------------------------
                     // Save User
-                    // -------------------------
+                    // --------------------------------------------------
 
                     User.addUser(
 
@@ -169,27 +347,36 @@ user.reports_to = user.reports_to || null;
 
                                     success: false,
 
-                                    message: "Unable to add user"
+                                    message:
+                                        "Unable to add user"
 
                                 });
-
                             }
 
-                            const userId = addResult.insertId;
 
-                            const token = crypto
-                                .randomBytes(32)
-                                .toString("hex");
+                            const userId =
+                                addResult.insertId;
 
-                            const expiresAt = new Date(
 
-                                Date.now() + 24 * 60 * 60 * 1000
+                            const token =
+                                crypto
+                                    .randomBytes(32)
+                                    .toString("hex");
 
-                            );
 
-                            // -------------------------
+                            const expiresAt =
+                                new Date(
+                                    Date.now() +
+                                    24 *
+                                    60 *
+                                    60 *
+                                    1000
+                                );
+
+
+                            // --------------------------------------------------
                             // Save Activation Token
-                            // -------------------------
+                            // --------------------------------------------------
 
                             User.saveActivationToken(
 
@@ -203,23 +390,28 @@ user.reports_to = user.reports_to || null;
 
                                     if (tokenErr) {
 
-                                        console.log(tokenErr);
+                                        console.log(
+                                            tokenErr
+                                        );
 
                                         return res.status(500).json({
 
                                             success: false,
 
-                                            message: "Unable to create activation token"
+                                            message:
+                                                "Unable to create activation token"
 
                                         });
-
                                     }
+
 
                                     const activationLink =
                                         `${process.env.FRONTEND_URL}/activate-account/${token}`;
-                                                                            // -------------------------
+
+
+                                    // --------------------------------------------------
                                     // Send Invitation Email
-                                    // -------------------------
+                                    // --------------------------------------------------
 
                                     sendInvitationEmail(
 
@@ -231,39 +423,48 @@ user.reports_to = user.reports_to || null;
 
                                     .then(() => {
 
-                                        // ======================================
-                                        // Log Activity
-                                        // ======================================
+                                        // ----------------------------------------------
+                                        // Activity Log
+                                        // ----------------------------------------------
 
                                         logActivity({
 
-                                            activity_type: "User",
+                                            activity_type:
+                                                "User",
 
-                                            reference_id: userId,
+                                            reference_id:
+                                                userId,
 
-                                            title: "User Created",
+                                            title:
+                                                "User Created",
 
-                                            description: `${user.fullName || user.name} was added`,
+                                            description:
+                                                `${user.fullName || user.name} was added`,
 
-                                            module_name: "Users",
+                                            module_name:
+                                                "Users",
 
-                                            status: "Open",
+                                            status:
+                                                "Open",
 
-                                            priority: "Medium",
+                                            priority:
+                                                "Medium",
 
-                                            // Logged-in Administrator
-                                            created_by: req.user.id,
+                                            created_by:
+                                                req.user.id,
 
-                                            // Newly Created User
-                                            assigned_to: userId
+                                            assigned_to:
+                                                userId
 
                                         });
+
 
                                         return res.status(201).json({
 
                                             success: true,
 
-                                            message: "User created and invitation sent successfully"
+                                            message:
+                                                "User created and invitation sent successfully"
 
                                         });
 
@@ -271,89 +472,100 @@ user.reports_to = user.reports_to || null;
 
                                     .catch((mailErr) => {
 
-    console.error(
-        "❌ Invitation email failed:",
-        mailErr?.message || mailErr
-    );
+                                        console.error(
+                                            "Invitation email failed:",
+                                            mailErr?.message ||
+                                            mailErr
+                                        );
 
-    try {
 
-        logActivity({
+                                        try {
 
-            activity_type: "User",
+                                            logActivity({
 
-            reference_id: userId,
+                                                activity_type:
+                                                    "User",
 
-            title: "User Created - Invitation Email Failed",
+                                                reference_id:
+                                                    userId,
 
-            description:
-                `${user.fullName || user.name} was added but invitation email failed`,
+                                                title:
+                                                    "User Created - Invitation Email Failed",
 
-            module_name: "Users",
+                                                description:
+                                                    `${user.fullName || user.name} was added but invitation email failed`,
 
-            status: "Open",
+                                                module_name:
+                                                    "Users",
 
-            priority: "High",
+                                                status:
+                                                    "Open",
 
-            created_by: req.user.id,
+                                                priority:
+                                                    "High",
 
-            assigned_to: userId
+                                                created_by:
+                                                    req.user.id,
 
-        });
+                                                assigned_to:
+                                                    userId
 
-    } catch (activityErr) {
+                                            });
 
-        console.error(
-            "❌ Activity log failed:",
-            activityErr
-        );
+                                        } catch (
+                                            activityErr
+                                        ) {
 
-    }
+                                            console.error(
+                                                "Activity log failed:",
+                                                activityErr
+                                            );
+                                        }
 
-    return res.status(201).json({
 
-        success: true,
+                                        return res.status(201).json({
 
-        warning: true,
+                                            success: true,
 
-        emailSent: false,
+                                            warning: true,
 
-        message:
-            "User created successfully, but invitation email could not be sent."
+                                            emailSent: false,
 
-    });
+                                            message:
+                                                "User created successfully, but invitation email could not be sent."
 
-});
+                                        });
+                                    });
                                 }
-
                             );
-
                         }
-
                     );
-
                 }
-
             );
-
         }
-
     );
-
 };
+
+
 // ==========================================================
 // BULK UPLOAD USERS
 // ==========================================================
 
-const bulkUploadUsers = async (req, res) => {
+const bulkUploadUsers = async (
+    req,
+    res
+) => {
 
-    console.time("Total Upload");
+    console.time(
+        "Total Upload"
+    );
+
 
     try {
 
-        // ======================================================
-        // CHECK FILE
-        // ======================================================
+        // --------------------------------------------------
+        // Check File
+        // --------------------------------------------------
 
         if (!req.file) {
 
@@ -361,69 +573,94 @@ const bulkUploadUsers = async (req, res) => {
 
                 success: false,
 
-                message: "No file uploaded"
+                message:
+                    "No file uploaded"
 
             });
-
         }
 
-        // ======================================================
-        // READ EXCEL
-        // ======================================================
 
-        const workbook = XLSX.readFile(req.file.path);
+        // --------------------------------------------------
+        // Read Excel
+        // --------------------------------------------------
 
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const users = XLSX.utils.sheet_to_json(
-
-            sheet,
-
-            {
-
-                defval: "",
-
-                blankrows: false
-
-            }
-
-        );
-
-        // ======================================================
-        // REMOVE EMPTY ROWS
-        // ======================================================
-
-        const filteredUsers = users.filter((user) => {
-
-            return (
-
-                String(user["Employee ID"] || "").trim() !== "" ||
-
-                String(user["Name"] || "").trim() !== "" ||
-
-                String(user["Email"] || "").trim() !== ""
-
+        const workbook =
+            XLSX.readFile(
+                req.file.path
             );
 
-        });
 
-        if (filteredUsers.length === 0) {
+        const sheet =
+            workbook.Sheets[
+                workbook.SheetNames[0]
+            ];
 
-            fs.unlinkSync(req.file.path);
+
+        const users =
+            XLSX.utils.sheet_to_json(
+                sheet,
+                {
+                    defval: "",
+                    blankrows: false
+                }
+            );
+
+
+        // --------------------------------------------------
+        // Remove Empty Rows
+        // --------------------------------------------------
+
+        const filteredUsers =
+            users.filter(
+                (user) => {
+
+                    return (
+
+                        String(
+                            user["Employee ID"] ||
+                            ""
+                        ).trim() !== ""
+
+                        ||
+
+                        String(
+                            user["Name"] ||
+                            ""
+                        ).trim() !== ""
+
+                        ||
+
+                        String(
+                            user["Email"] ||
+                            ""
+                        ).trim() !== ""
+                    );
+                }
+            );
+
+
+        if (
+            filteredUsers.length === 0
+        ) {
+
+            fs.unlinkSync(
+                req.file.path
+            );
 
             return res.status(400).json({
 
                 success: false,
 
-                message: "No valid users found."
+                message:
+                    "No valid users found."
 
             });
-
         }
 
-        // ======================================================
-        // COUNTERS
-        // ======================================================
+
+        // --------------------------------------------------
+        // Counters
+        // --------------------------------------------------
 
         let imported = 0;
 
@@ -433,279 +670,369 @@ const bulkUploadUsers = async (req, res) => {
 
         const errors = [];
 
-        // ======================================================
-        // LOOP USERS
-        // ======================================================
 
-        for (const row of filteredUsers) {
+        // --------------------------------------------------
+        // Loop Users
+        // --------------------------------------------------
+
+        for (
+            const row
+            of filteredUsers
+        ) {
 
             const user = {
 
-                employeeId: row["Employee ID"],
+                employeeId:
+                    row["Employee ID"],
 
-                fullName: row["Name"],
+                fullName:
+                    row["Name"],
 
-                email: row["Email"],
+                email:
+                    row["Email"],
 
-                callContact: row["Call Contact"],
+                callContact:
+                    row["Call Contact"],
 
-                whatsappContact: row["WhatsApp Contact"],
+                whatsappContact:
+                    row["WhatsApp Contact"],
 
-                department_id: null,
+                department_id:
+                    null,
 
-                designation_id: null,
+                designation_id:
+                    null,
 
-                reportsTo: row["Reports To"],
+                reportsTo:
+                    row["Reports To"],
 
-                active: (row["Status"] || "Active") === "Active",
+                active:
+                    (
+                        row["Status"] ||
+                        "Active"
+                    ) === "Active",
 
-                stores: [],
+                stores:
+                    [],
 
-                permissions: {}
+                // ----------------------------------------------
+                // IMPORTANT:
+                // Bulk imported users have no module access
+                // by default.
+                //
+                // Quiz is explicitly included.
+                // ----------------------------------------------
 
+                permissions:
+                    normalizePermissions(
+                        {},
+                        false
+                    ),
+
+                administrator:
+                    false
             };
 
+
             try {
-                                // ======================================================
-                // CHECK EMAIL
-                // ======================================================
 
-                const emailExists = await new Promise(
+                // --------------------------------------------------
+                // Check Email
+                // --------------------------------------------------
 
-                    (resolve, reject) => {
+                const emailExists =
+                    await new Promise(
+                        (
+                            resolve,
+                            reject
+                        ) => {
 
-                        User.checkEmailExists(
+                            User.checkEmailExists(
 
-                            user.email,
+                                user.email,
 
-                            (err, result) => {
+                                (
+                                    err,
+                                    result
+                                ) => {
 
-                                if (err) {
+                                    if (err) {
 
-                                    return reject(err);
+                                        return reject(
+                                            err
+                                        );
+                                    }
 
+                                    resolve(
+                                        result
+                                    );
                                 }
+                            );
+                        }
+                    );
 
-                                resolve(result);
 
-                            }
-
-                        );
-
-                    }
-
-                );
-
-                if (emailExists.length > 0) {
+                if (
+                    emailExists &&
+                    emailExists.length > 0
+                ) {
 
                     skipped++;
 
                     errors.push(
-
                         `${user.email} - Email already exists`
-
                     );
 
                     continue;
-
                 }
 
-                // ======================================================
-                // CHECK EMPLOYEE ID
-                // ======================================================
 
-                const empExists = await new Promise(
+                // --------------------------------------------------
+                // Check Employee ID
+                // --------------------------------------------------
 
-                    (resolve, reject) => {
+                const empExists =
+                    await new Promise(
+                        (
+                            resolve,
+                            reject
+                        ) => {
 
-                        User.checkEmployeeIdExists(
+                            User.checkEmployeeIdExists(
 
-                            user.employeeId,
+                                user.employeeId,
 
-                            (err, result) => {
+                                (
+                                    err,
+                                    result
+                                ) => {
 
-                                if (err) {
+                                    if (err) {
 
-                                    return reject(err);
+                                        return reject(
+                                            err
+                                        );
+                                    }
 
+                                    resolve(
+                                        result
+                                    );
                                 }
+                            );
+                        }
+                    );
 
-                                resolve(result);
 
-                            }
-
-                        );
-
-                    }
-
-                );
-
-                if (empExists.length > 0) {
+                if (
+                    empExists &&
+                    empExists.length > 0
+                ) {
 
                     skipped++;
 
                     errors.push(
-
                         `${user.employeeId} - Employee ID already exists`
-
                     );
 
                     continue;
-
                 }
 
-                // ======================================================
-                // GET DEPARTMENT
-                // ======================================================
 
-                const department = await new Promise(
+                // --------------------------------------------------
+                // Get Department
+                // --------------------------------------------------
 
-                    (resolve, reject) => {
+                const department =
+                    await new Promise(
+                        (
+                            resolve,
+                            reject
+                        ) => {
 
-                        User.getDepartmentIdByName(
+                            User.getDepartmentIdByName(
 
-                            row["Department"],
+                                row["Department"],
 
-                            (err, result) => {
+                                (
+                                    err,
+                                    result
+                                ) => {
 
-                                if (err) {
+                                    if (err) {
 
-                                    return reject(err);
+                                        return reject(
+                                            err
+                                        );
+                                    }
 
+                                    resolve(
+                                        result
+                                    );
                                 }
+                            );
+                        }
+                    );
 
-                                resolve(result);
 
-                            }
+                // --------------------------------------------------
+                // Get Designation
+                // --------------------------------------------------
 
-                        );
+                const designation =
+                    await new Promise(
+                        (
+                            resolve,
+                            reject
+                        ) => {
 
-                    }
+                            User.getDesignationIdByName(
 
-                );
+                                row["Designation"],
 
-                // ======================================================
-                // GET DESIGNATION
-                // ======================================================
+                                (
+                                    err,
+                                    result
+                                ) => {
 
-                const designation = await new Promise(
+                                    if (err) {
 
-                    (resolve, reject) => {
+                                        return reject(
+                                            err
+                                        );
+                                    }
 
-                        User.getDesignationIdByName(
-
-                            row["Designation"],
-
-                            (err, result) => {
-
-                                if (err) {
-
-                                    return reject(err);
-
+                                    resolve(
+                                        result
+                                    );
                                 }
+                            );
+                        }
+                    );
 
-                                resolve(result);
 
-                            }
+                // --------------------------------------------------
+                // Validate Department
+                // --------------------------------------------------
 
-                        );
-
-                    }
-
-                );
-
-                // ======================================================
-                // VALIDATE DEPARTMENT
-                // ======================================================
-
-                if (!department.length) {
+                if (
+                    !department ||
+                    !department.length
+                ) {
 
                     skipped++;
 
                     errors.push(
-
                         `Department not found: ${row["Department"]}`
-
                     );
 
                     continue;
-
                 }
 
-                // ======================================================
-                // VALIDATE DESIGNATION
-                // ======================================================
 
-                if (!designation.length) {
+                // --------------------------------------------------
+                // Validate Designation
+                // --------------------------------------------------
+
+                if (
+                    !designation ||
+                    !designation.length
+                ) {
 
                     skipped++;
 
                     errors.push(
-
                         `Designation not found: ${row["Designation"]}`
-
                     );
 
                     continue;
-
                 }
 
-                user.department_id = department[0].id;
 
-                user.designation_id = designation[0].id;
-                                // ======================================================
-                // ADD USER
-                // ======================================================
+                user.department_id =
+                    department[0].id;
 
-                const addResult = await new Promise(
 
-                    (resolve, reject) => {
+                user.designation_id =
+                    designation[0].id;
 
-                        User.addUser(
 
-                            user,
+                // --------------------------------------------------
+                // Add User
+                // --------------------------------------------------
 
-                            (err, result) => {
+                const addResult =
+                    await new Promise(
+                        (
+                            resolve,
+                            reject
+                        ) => {
 
-                                if (err) {
+                            User.addUser(
 
-                                    return reject(err);
+                                user,
 
+                                (
+                                    err,
+                                    result
+                                ) => {
+
+                                    if (err) {
+
+                                        return reject(
+                                            err
+                                        );
+                                    }
+
+                                    resolve(
+                                        result
+                                    );
                                 }
+                            );
+                        }
+                    );
 
-                                resolve(result);
 
-                            }
-
-                        );
-
-                    }
-
+                console.log(
+                    "Inserted User:",
+                    addResult
                 );
-                console.log("Inserted User:", addResult);
 
-                const userId = addResult.insertId;
-console.log("New User ID:", userId);
-console.log("Department From Excel:", user.department);
-console.log("Designation From Excel:", user.designation);
 
-                // ======================================================
-                // CREATE ACTIVATION TOKEN
-                // ======================================================
+                const userId =
+                    addResult.insertId;
 
-                const token = crypto
-                    .randomBytes(32)
-                    .toString("hex");
 
-                const expiresAt = new Date(
-
-                    Date.now() + 24 * 60 * 60 * 1000
-
+                console.log(
+                    "New User ID:",
+                    userId
                 );
+
+
+                // --------------------------------------------------
+                // Create Activation Token
+                // --------------------------------------------------
+
+                const token =
+                    crypto
+                        .randomBytes(32)
+                        .toString("hex");
+
+
+                const expiresAt =
+                    new Date(
+                        Date.now() +
+                        24 *
+                        60 *
+                        60 *
+                        1000
+                    );
+
 
                 await new Promise(
-
-                    (resolve, reject) => {
+                    (
+                        resolve,
+                        reject
+                    ) => {
 
                         User.saveActivationToken(
 
@@ -719,30 +1046,29 @@ console.log("Designation From Excel:", user.designation);
 
                                 if (err) {
 
-                                    return reject(err);
-
+                                    return reject(
+                                        err
+                                    );
                                 }
 
                                 resolve();
-
                             }
-
                         );
-
                     }
-
                 );
 
-                // ======================================================
-                // ACTIVATION LINK
-                // ======================================================
+
+                // --------------------------------------------------
+                // Activation Link
+                // --------------------------------------------------
 
                 const activationLink =
                     `${process.env.FRONTEND_URL}/activate-account/${token}`;
 
-                // ======================================================
-                // SEND EMAIL
-                // ======================================================
+
+                // --------------------------------------------------
+                // Send Email
+                // --------------------------------------------------
 
                 addToQueue(
 
@@ -757,82 +1083,92 @@ console.log("Designation From Excel:", user.designation);
                         );
 
                         console.log(
-
                             `Invitation email sent to ${user.email}`
-
                         );
-
                     }
-
                 );
 
-                // ======================================================
-                // LOG ACTIVITY
-                // ======================================================
+
+                // --------------------------------------------------
+                // Activity Log
+                // --------------------------------------------------
 
                 logActivity({
 
-                    activity_type: "User",
+                    activity_type:
+                        "User",
 
-                    reference_id: userId,
+                    reference_id:
+                        userId,
 
-                    title: "User Created",
+                    title:
+                        "User Created",
 
-                    description: `${user.fullName} was added`,
+                    description:
+                        `${user.fullName} was added`,
 
-                    module_name: "Users",
+                    module_name:
+                        "Users",
 
-                    status: "Open",
+                    status:
+                        "Open",
 
-                    priority: "Medium",
+                    priority:
+                        "Medium",
 
-                    // Logged-in Administrator
-                    created_by: req.user.id,
+                    created_by:
+                        req.user.id,
 
-                    // Newly Created User
-                    assigned_to: userId
+                    assigned_to:
+                        userId
 
                 });
+
 
                 imported++;
 
                 emailsSent++;
 
-            }
-
-            catch (err) {
+            } catch (err) {
 
                 console.log(err);
 
                 skipped++;
 
                 errors.push(
-
                     `${user.email || user.employeeId} - ${err.message}`
-
                 );
-
             }
-
         }
 
-        // ======================================================
-        // DELETE TEMP FILE
-        // ======================================================
 
-        if (fs.existsSync(req.file.path)) {
+        // --------------------------------------------------
+        // Delete Temporary File
+        // --------------------------------------------------
 
-            fs.unlinkSync(req.file.path);
+        if (
+            fs.existsSync(
+                req.file.path
+            )
+        ) {
 
+            fs.unlinkSync(
+                req.file.path
+            );
         }
 
-        console.timeEnd("Total Upload");
+
+        console.timeEnd(
+            "Total Upload"
+        );
+
 
         return res.json({
 
             success: true,
 
-            message: "Bulk Upload Completed",
+            message:
+                "Bulk Upload Completed",
 
             imported,
 
@@ -844,46 +1180,60 @@ console.log("Designation From Excel:", user.designation);
 
         });
 
-    }
-
-    catch (err) {
+    } catch (err) {
 
         console.log(err);
 
+
         if (
-
             req.file &&
-
-            fs.existsSync(req.file.path)
-
+            fs.existsSync(
+                req.file.path
+            )
         ) {
 
-            fs.unlinkSync(req.file.path);
-
+            fs.unlinkSync(
+                req.file.path
+            );
         }
+
 
         return res.status(500).json({
 
             success: false,
 
-            message: "Upload Error"
+            message:
+                "Upload Error"
 
         });
-
     }
-
 };
-// ==========================
-// UPDATE USER
-// ==========================
 
-const updateUser = (req, res) => {
+
+// ==========================================================
+// UPDATE USER
+// ==========================================================
+
+const updateUser = (
+    req,
+    res
+) => {
+
+    // ------------------------------------------------------
+    // Normalize permissions before updating.
+    // ------------------------------------------------------
+
+    const user =
+        prepareUserPayload(
+            req.body
+        );
+
 
     User.updateUser(
 
         req.params.id,
 
-        req.body,
+        user,
 
         (err) => {
 
@@ -895,72 +1245,88 @@ const updateUser = (req, res) => {
 
                     success: false,
 
-                    message: "Update Failed"
+                    message:
+                        "Update Failed"
 
                 });
-
             }
 
-            const user = req.body;
 
-            // ======================================
+            // --------------------------------------------------
             // Send Account Updated Email
-            // ======================================
+            // --------------------------------------------------
 
-            sendAccountUpdatedEmail(user)
+            sendAccountUpdatedEmail(
+                user
+            )
 
-                .catch((mailErr) => {
+            .catch(
+                (mailErr) => {
 
-                    console.log(mailErr);
+                    console.log(
+                        mailErr
+                    );
+                }
+            );
 
-                });
 
-            // ======================================
+            // --------------------------------------------------
             // Log Activity
-            // ======================================
+            // --------------------------------------------------
 
             logActivity({
 
-                activity_type: "User",
+                activity_type:
+                    "User",
 
-                reference_id: req.params.id,
+                reference_id:
+                    req.params.id,
 
-                title: "User Updated",
+                title:
+                    "User Updated",
 
-                description: `${user.fullName || user.name} was updated`,
+                description:
+                    `${user.fullName || user.name} was updated`,
 
-                module_name: "Users",
+                module_name:
+                    "Users",
 
-                status: "Open",
+                status:
+                    "Open",
 
-                priority: "Medium",
+                priority:
+                    "Medium",
 
-                // Logged-in Administrator
-                created_by: req.user.id,
+                created_by:
+                    req.user.id,
 
-                // Updated User
-                assigned_to: req.params.id
+                assigned_to:
+                    req.params.id
 
             });
+
 
             return res.json({
 
                 success: true,
 
-                message: "User Updated Successfully"
+                message:
+                    "User Updated Successfully"
 
             });
-
         }
-
     );
-
 };
-// ==========================
-// DISABLE USER
-// ==========================
 
-const disableUser = (req, res) => {
+
+// ==========================================================
+// DISABLE USER
+// ==========================================================
+
+const disableUser = (
+    req,
+    res
+) => {
 
     User.disableUser(
 
@@ -976,138 +1342,305 @@ const disableUser = (req, res) => {
 
                     success: false,
 
-                    message: "Unable to Disable User"
+                    message:
+                        "Unable to Disable User"
 
                 });
-
             }
 
-            // ======================================
+
+            // --------------------------------------------------
             // Get User Details
-            // ======================================
+            // --------------------------------------------------
 
             User.getUserById(
 
                 req.params.id,
 
-                (userErr, users) => {
+                (
+                    userErr,
+                    users
+                ) => {
 
                     if (userErr) {
 
-                        console.log(userErr);
+                        console.log(
+                            userErr
+                        );
 
                         return res.status(500).json({
 
                             success: false,
 
-                            message: "Database Error"
+                            message:
+                                "Database Error"
 
                         });
-
                     }
 
-                    if (users.length > 0) {
 
-                        const user = users[0];
+                    if (
+                        users &&
+                        users.length > 0
+                    ) {
 
-                        // ======================================
+                        const user =
+                            users[0];
+
+
+                        // --------------------------------------------------
                         // Send Account Disabled Email
-                        // ======================================
+                        // --------------------------------------------------
 
-                        sendAccountDisabledEmail(user)
+                        sendAccountDisabledEmail(
+                            user
+                        )
 
-                            .catch((mailErr) => {
+                        .catch(
+                            (mailErr) => {
 
-                                console.log(mailErr);
+                                console.log(
+                                    mailErr
+                                );
+                            }
+                        );
 
-                            });
 
-                        // ======================================
-                        // Log Activity
-                        // ======================================
+                        // --------------------------------------------------
+                        // Activity Log
+                        // --------------------------------------------------
 
                         logActivity({
 
-                            activity_type: "User",
+                            activity_type:
+                                "User",
 
-                            reference_id: user.id,
+                            reference_id:
+                                user.id,
 
-                            title: "User Disabled",
+                            title:
+                                "User Disabled",
 
-                            description: `${user.name || user.fullName} was disabled`,
+                            description:
+                                `${user.name || user.fullName} was disabled`,
 
-                            module_name: "Users",
+                            module_name:
+                                "Users",
 
-                            status: "Closed",
+                            status:
+                                "Closed",
 
-                            priority: "High",
+                            priority:
+                                "High",
 
-                            // Administrator performing the action
-                            created_by: req.user.id,
+                            created_by:
+                                req.user.id,
 
-                            // User being disabled
-                            assigned_to: user.id
+                            assigned_to:
+                                user.id
 
                         });
-
                     }
+
 
                     return res.json({
 
                         success: true,
 
-                        message: "User Disabled Successfully"
+                        message:
+                            "User Disabled Successfully"
 
                     });
-
                 }
-
             );
-
         }
-
     );
-
 };
-// ==========================
-// DELETE USER
-// ==========================
 
-const deleteUser = (req, res) => {
 
-    User.getUserById(
+// ==========================================================
+// ENABLE USER
+// ==========================================================
+
+const enableUser = (
+    req,
+    res
+) => {
+
+    User.enableUser(
 
         req.params.id,
 
-        (userErr, users) => {
+        (err) => {
 
-            if (userErr) {
+            if (err) {
 
-                console.log(userErr);
+                console.log(err);
 
                 return res.status(500).json({
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Unable to Enable User"
 
                 });
-
             }
 
-            if (users.length === 0) {
+
+            User.getUserById(
+
+                req.params.id,
+
+                (
+                    userErr,
+                    users
+                ) => {
+
+                    if (
+                        userErr
+                    ) {
+
+                        console.log(
+                            userErr
+                        );
+
+                        return res.status(500).json({
+
+                            success: false,
+
+                            message:
+                                "Database Error"
+
+                        });
+                    }
+
+
+                    if (
+                        users &&
+                        users.length > 0
+                    ) {
+
+                        const user =
+                            users[0];
+
+
+                        sendAccountEnabledEmail(
+                            user
+                        )
+
+                        .catch(
+                            (mailErr) => {
+
+                                console.log(
+                                    mailErr
+                                );
+                            }
+                        );
+
+
+                        logActivity({
+
+                            activity_type:
+                                "User",
+
+                            reference_id:
+                                user.id,
+
+                            title:
+                                "User Enabled",
+
+                            description:
+                                `${user.name || user.fullName} was enabled`,
+
+                            module_name:
+                                "Users",
+
+                            status:
+                                "Open",
+
+                            priority:
+                                "Medium",
+
+                            created_by:
+                                req.user.id,
+
+                            assigned_to:
+                                user.id
+
+                        });
+                    }
+
+
+                    return res.json({
+
+                        success: true,
+
+                        message:
+                            "User Enabled Successfully"
+
+                    });
+                }
+            );
+        }
+    );
+};
+
+
+// ==========================================================
+// DELETE USER
+// ==========================================================
+
+const deleteUser = (
+    req,
+    res
+) => {
+
+    User.getUserById(
+
+        req.params.id,
+
+        (
+            userErr,
+            users
+        ) => {
+
+            if (userErr) {
+
+                console.log(
+                    userErr
+                );
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message:
+                        "Database Error"
+
+                });
+            }
+
+
+            if (
+                !users ||
+                users.length === 0
+            ) {
 
                 return res.status(404).json({
 
                     success: false,
 
-                    message: "User Not Found"
+                    message:
+                        "User Not Found"
 
                 });
-
             }
 
-            const user = users[0];
+
+            const user =
+                users[0];
+
 
             User.deleteUser(
 
@@ -1123,74 +1656,90 @@ const deleteUser = (req, res) => {
 
                             success: false,
 
-                            message: "Unable to Delete User"
+                            message:
+                                "Unable to Delete User"
 
                         });
-
                     }
 
-                    // ======================================
+
+                    // --------------------------------------------------
                     // Send Account Deleted Email
-                    // ======================================
+                    // --------------------------------------------------
 
-                    sendAccountDeletedEmail(user)
+                    sendAccountDeletedEmail(
+                        user
+                    )
 
-                        .catch((mailErr) => {
+                    .catch(
+                        (mailErr) => {
 
-                            console.log(mailErr);
+                            console.log(
+                                mailErr
+                            );
+                        }
+                    );
 
-                        });
 
-                    // ======================================
-                    // Log Activity
-                    // ======================================
+                    // --------------------------------------------------
+                    // Activity Log
+                    // --------------------------------------------------
 
                     logActivity({
 
-                        activity_type: "User",
+                        activity_type:
+                            "User",
 
-                        reference_id: user.id,
+                        reference_id:
+                            user.id,
 
-                        title: "User Deleted",
+                        title:
+                            "User Deleted",
 
-                        description: `${user.name || user.fullName} was deleted`,
+                        description:
+                            `${user.name || user.fullName} was deleted`,
 
-                        module_name: "Users",
+                        module_name:
+                            "Users",
 
-                        status: "Closed",
+                        status:
+                            "Closed",
 
-                        priority: "High",
+                        priority:
+                            "High",
 
-                        // Logged-in Administrator
-                        created_by: req.user.id,
+                        created_by:
+                            req.user.id,
 
-                        // Deleted User
-                        assigned_to: user.id
+                        assigned_to:
+                            user.id
 
                     });
+
 
                     return res.json({
 
                         success: true,
 
-                        message: "User Deleted Successfully"
+                        message:
+                            "User Deleted Successfully"
 
                     });
-
                 }
-
             );
-
         }
-
     );
-
 };
-// ==========================
-// DELETE ALL USERS
-// ==========================
 
-const deleteAllUsers = (req, res) => {
+
+// ==========================================================
+// DELETE ALL USERS
+// ==========================================================
+
+const deleteAllUsers = (
+    req,
+    res
+) => {
 
     User.deleteAllUsers(
 
@@ -1204,58 +1753,70 @@ const deleteAllUsers = (req, res) => {
 
                     success: false,
 
-                    message: "Unable to Delete Users"
+                    message:
+                        "Unable to Delete Users"
 
                 });
-
             }
 
-            // ======================================
-            // Log Activity
-            // ======================================
+
+            // --------------------------------------------------
+            // Activity Log
+            // --------------------------------------------------
 
             logActivity({
 
-                activity_type: "User",
+                activity_type:
+                    "User",
 
-                reference_id: 0,
+                reference_id:
+                    0,
 
-                title: "All Users Deleted",
+                title:
+                    "All Users Deleted",
 
-                description: "All users were deleted",
+                description:
+                    "All users were deleted",
 
-                module_name: "Users",
+                module_name:
+                    "Users",
 
-                status: "Closed",
+                status:
+                    "Closed",
 
-                priority: "High",
+                priority:
+                    "High",
 
-                // Administrator performing the action
-                created_by: req.user.id,
+                created_by:
+                    req.user.id,
 
-                // No single user assigned
-                assigned_to: null
+                assigned_to:
+                    null
 
             });
+
 
             return res.json({
 
                 success: true,
 
-                message: "All Users Deleted Successfully"
+                message:
+                    "All Users Deleted Successfully"
 
             });
-
         }
-
     );
-
 };
-// ==========================
-// GET USER NAMES
-// ==========================
 
-const getUserNames = (req, res) => {
+
+// ==========================================================
+// GET USER NAMES
+// ==========================================================
+
+const getUserNames = (
+    req,
+    res
+) => {
 
     User.getUserNames(
 
@@ -1269,38 +1830,48 @@ const getUserNames = (req, res) => {
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Database Error"
 
                 });
-
             }
+
 
             return res.json({
 
                 success: true,
 
-                users: result
+                users:
+                    result
 
             });
-
         }
-
     );
-
 };
-// ==========================
+
+
+// ==========================================================
 // VALIDATE ACTIVATION TOKEN
-// ==========================
+// ==========================================================
 
-const validateActivationToken = (req, res) => {
+const validateActivationToken = (
+    req,
+    res
+) => {
 
-    const { token } = req.params;
+    const {
+        token
+    } = req.params;
+
 
     User.getActivationToken(
 
         token,
 
-        (err, result) => {
+        (
+            err,
+            result
+        ) => {
 
             if (err) {
 
@@ -1310,58 +1881,67 @@ const validateActivationToken = (req, res) => {
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Database Error"
 
                 });
-
             }
 
-            if (result.length === 0) {
+
+            if (
+                !result ||
+                result.length === 0
+            ) {
 
                 return res.status(400).json({
 
                     success: false,
 
-                    message: "Invalid or Expired Activation Link"
+                    message:
+                        "Invalid or Expired Activation Link"
 
                 });
-
             }
+
 
             return res.json({
 
                 success: true,
 
-                message: "Activation link is valid"
+                message:
+                    "Activation link is valid"
 
             });
-
         }
-
     );
-
 };
-// ==========================
-// ACTIVATE USER ACCOUNT
-// ==========================
 
-const activateUserAccount = async (req, res) => {
+
+// ==========================================================
+// ACTIVATE USER ACCOUNT
+// ==========================================================
+
+const activateUserAccount = async (
+    req,
+    res
+) => {
 
     try {
 
         const {
-
             token,
-
             password
-
         } = req.body;
+
 
         User.getActivationToken(
 
             token,
 
-            async (err, result) => {
+            async (
+                err,
+                result
+            ) => {
 
                 if (err) {
 
@@ -1371,33 +1951,39 @@ const activateUserAccount = async (req, res) => {
 
                         success: false,
 
-                        message: "Database Error"
+                        message:
+                            "Database Error"
 
                     });
-
                 }
 
-                if (result.length === 0) {
+
+                if (
+                    !result ||
+                    result.length === 0
+                ) {
 
                     return res.status(400).json({
 
                         success: false,
 
-                        message: "Invalid or Expired Activation Link"
+                        message:
+                            "Invalid or Expired Activation Link"
 
                     });
-
                 }
 
-                const activation = result[0];
 
-                const hashedPassword = await bcrypt.hash(
+                const activation =
+                    result[0];
 
-                    password,
 
-                    10
+                const hashedPassword =
+                    await bcrypt.hash(
+                        password,
+                        10
+                    );
 
-                );
 
                 User.activateUser(
 
@@ -1409,116 +1995,140 @@ const activateUserAccount = async (req, res) => {
 
                         if (activateErr) {
 
-                            console.log(activateErr);
+                            console.log(
+                                activateErr
+                            );
 
                             return res.status(500).json({
 
                                 success: false,
 
-                                message: "Unable to Activate Account"
+                                message:
+                                    "Unable to Activate Account"
 
                             });
-
                         }
 
-                        // ======================================
+
+                        // --------------------------------------------------
                         // Get User Details
-                        // ======================================
+                        // --------------------------------------------------
 
                         User.getUserById(
 
                             activation.user_id,
 
-                            (userErr, users) => {
+                            (
+                                userErr,
+                                users
+                            ) => {
 
-                                if (!userErr && users.length > 0) {
+                                if (
+                                    !userErr &&
+                                    users &&
+                                    users.length > 0
+                                ) {
 
-                                    const user = users[0];
+                                    const user =
+                                        users[0];
 
-                                    // ======================================
+
+                                    // ------------------------------------------
                                     // Send Activation Email
-                                    // ======================================
+                                    // ------------------------------------------
 
-                                    sendAccountActivatedEmail(user)
+                                    sendAccountActivatedEmail(
+                                        user
+                                    )
 
-                                        .catch((mailErr) => {
+                                    .catch(
+                                        (mailErr) => {
 
-                                            console.log(mailErr);
+                                            console.log(
+                                                mailErr
+                                            );
+                                        }
+                                    );
 
-                                        });
 
-                                    // ======================================
-                                    // Log Activity
-                                    // ======================================
+                                    // ------------------------------------------
+                                    // Activity Log
+                                    // ------------------------------------------
 
                                     logActivity({
 
-                                        activity_type: "User",
+                                        activity_type:
+                                            "User",
 
-                                        reference_id: user.id,
+                                        reference_id:
+                                            user.id,
 
-                                        title: "User Activated",
+                                        title:
+                                            "User Activated",
 
-                                        description: `${user.name || user.fullName} activated the account`,
+                                        description:
+                                            `${user.name || user.fullName} activated the account`,
 
-                                        module_name: "Users",
+                                        module_name:
+                                            "Users",
 
-                                        status: "Closed",
+                                        status:
+                                            "Closed",
 
-                                        priority: "Medium",
+                                        priority:
+                                            "Medium",
 
-                                        // User activates own account
-                                        created_by: user.id,
+                                        created_by:
+                                            user.id,
 
-                                        assigned_to: user.id
+                                        assigned_to:
+                                            user.id
 
                                     });
-
                                 }
 
-                                // ======================================
+
+                                // --------------------------------------------------
                                 // Mark Token Used
-                                // ======================================
+                                // --------------------------------------------------
 
                                 User.markTokenUsed(
 
                                     token,
 
-                                    (tokenErr) => {
+                                    (
+                                        tokenErr
+                                    ) => {
 
-                                        if (tokenErr) {
+                                        if (
+                                            tokenErr
+                                        ) {
 
-                                            console.log(tokenErr);
-
+                                            console.log(
+                                                tokenErr
+                                            );
                                         }
+
 
                                         return res.json({
 
-                                            success: true,
+                                            success:
+                                                true,
 
-                                            message: "Account Activated Successfully"
+                                            message:
+                                                "Account Activated Successfully"
 
                                         });
-
                                     }
-
                                 );
-
                             }
-
                         );
-
                     }
-
                 );
-
             }
-
         );
 
-    }
-
-    catch (err) {
+    } catch (err) {
 
         console.log(err);
 
@@ -1526,26 +2136,35 @@ const activateUserAccount = async (req, res) => {
 
             success: false,
 
-            message: "Server Error"
+            message:
+                "Server Error"
 
         });
-
     }
-
 };
-// ==========================
+
+
+// ==========================================================
 // RESEND INVITATION
-// ==========================
+// ==========================================================
 
-const resendInvitation = (req, res) => {
+const resendInvitation = (
+    req,
+    res
+) => {
 
-    const userId = req.params.id;
+    const userId =
+        req.params.id;
+
 
     User.getUserById(
 
         userId,
 
-        (err, users) => {
+        (
+            err,
+            users
+        ) => {
 
             if (err) {
 
@@ -1555,47 +2174,63 @@ const resendInvitation = (req, res) => {
 
                     success: false,
 
-                    message: "Database Error"
+                    message:
+                        "Database Error"
 
                 });
-
             }
 
-            if (users.length === 0) {
+
+            if (
+                !users ||
+                users.length === 0
+            ) {
 
                 return res.status(404).json({
 
                     success: false,
 
-                    message: "User Not Found"
+                    message:
+                        "User Not Found"
 
                 });
-
             }
 
-            const user = users[0];
 
-            if (user.is_activated) {
+            const user =
+                users[0];
+
+
+            if (
+                user.is_activated
+            ) {
 
                 return res.status(400).json({
 
                     success: false,
 
-                    message: "User Already Activated"
+                    message:
+                        "User Already Activated"
 
                 });
-
             }
 
-            const token = crypto
-                .randomBytes(32)
-                .toString("hex");
 
-            const expiresAt = new Date(
+            const token =
+                crypto
+                    .randomBytes(32)
+                    .toString("hex");
 
-                Date.now() + 24 * 60 * 60 * 1000
 
-            );
+            const expiresAt =
+                new Date(
+                    Date.now() +
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                );
+
 
             User.saveActivationToken(
 
@@ -1609,24 +2244,28 @@ const resendInvitation = (req, res) => {
 
                     if (tokenErr) {
 
-                        console.log(tokenErr);
+                        console.log(
+                            tokenErr
+                        );
 
                         return res.status(500).json({
 
                             success: false,
 
-                            message: "Unable to Generate Token"
+                            message:
+                                "Unable to Generate Token"
 
                         });
-
                     }
+
 
                     const activationLink =
                         `${process.env.FRONTEND_URL}/activate-account/${token}`;
 
-                    // ======================================
-                    // SEND INVITATION EMAIL
-                    // ======================================
+
+                    // --------------------------------------------------
+                    // Send Invitation Email
+                    // --------------------------------------------------
 
                     sendInvitationEmail(
 
@@ -1638,82 +2277,94 @@ const resendInvitation = (req, res) => {
 
                     .then(() => {
 
-                        // ======================================
-                        // LOG ACTIVITY
-                        // ======================================
+                        // ----------------------------------------------
+                        // Activity Log
+                        // ----------------------------------------------
 
                         logActivity({
 
-                            activity_type: "User",
+                            activity_type:
+                                "User",
 
-                            reference_id: user.id,
+                            reference_id:
+                                user.id,
 
-                            title: "Invitation Resent",
+                            title:
+                                "Invitation Resent",
 
-                            description: `Invitation email resent to ${user.name || user.fullName}`,
+                            description:
+                                `Invitation email resent to ${user.name || user.fullName}`,
 
-                            module_name: "Users",
+                            module_name:
+                                "Users",
 
-                            status: "Open",
+                            status:
+                                "Open",
 
-                            priority: "Low",
+                            priority:
+                                "Low",
 
-                            // Administrator performing the action
-                            created_by: req.user.id,
+                            created_by:
+                                req.user.id,
 
-                            // User receiving the invitation
-                            assigned_to: user.id
+                            assigned_to:
+                                user.id
 
                         });
 
+
                         return res.json({
 
-                            success: true,
+                            success:
+                                true,
 
-                            message: "Invitation Sent Successfully"
+                            message:
+                                "Invitation Sent Successfully"
 
                         });
 
                     })
 
-                   .catch((mailErr) => {
+                    .catch(
+                        (mailErr) => {
 
-    console.error(
-        "❌ Resend invitation failed:",
-        mailErr?.message || mailErr
-    );
+                            console.error(
+                                "Resend invitation failed:",
+                                mailErr?.message ||
+                                mailErr
+                            );
 
-    return res.status(500).json({
 
-        success: false,
+                            return res.status(500).json({
 
-        emailSent: false,
+                                success:
+                                    false,
 
-        message:
-            "Unable to send invitation email"
+                                emailSent:
+                                    false,
 
-    });
+                                message:
+                                    "Unable to send invitation email"
 
-});
-
+                            });
+                        }
+                    );
                 }
-
             );
-
         }
-
     );
-
 };
+
+
 // ==========================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ==========================================================
 
 module.exports = {
 
-    // ======================================
+    // ------------------------------------------------------
     // User Management
-    // ======================================
+    // ------------------------------------------------------
 
     getUsers,
 
@@ -1725,19 +2376,23 @@ module.exports = {
 
     disableUser,
 
+    enableUser,
+
     deleteUser,
 
     deleteAllUsers,
 
-    // ======================================
+
+    // ------------------------------------------------------
     // User Lookup
-    // ======================================
+    // ------------------------------------------------------
 
     getUserNames,
 
-    // ======================================
+
+    // ------------------------------------------------------
     // Account Activation
-    // ======================================
+    // ------------------------------------------------------
 
     validateActivationToken,
 
