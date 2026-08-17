@@ -17,19 +17,22 @@ import {
 
 import "../../styles/pages/Quiz.css";
 
+const QUIZ_API_URL = (
+    import.meta.env.VITE_QUIZ_API_URL?.trim() ||
+    import.meta.env.VITE_API_URL?.trim() ||
+    "http://localhost:5000"
+).replace(/\/+$/, "");
+
 const mediaUrl = (value) => {
     if (!value) return "";
 
-    if (/^https?:\/\//i.test(String(value))) {
-        return String(value);
+    const raw = String(value).trim();
+
+    if (/^https?:\/\//i.test(raw)) {
+        return raw;
     }
 
-    const api = (
-        import.meta.env.VITE_API_URL ||
-        "http://localhost:5000"
-    ).replace(/\/+$/, "");
-
-    return `${api}/${String(value).replace(/^\/+/, "")}`;
+    return `${QUIZ_API_URL}/${raw.replace(/^\/+/, "")}`;
 };
 
 
@@ -128,14 +131,32 @@ function PublicQuiz() {
     // ============================================================
 
     const [location, setLocation] = useState(null);
+    const [locationCapturedAt, setLocationCapturedAt] = useState(null);
     const [photo, setPhoto] = useState(null);
-    const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+    const [photoCapturedAt, setPhotoCapturedAt] = useState(null);
 
     const [cameraLoading, setCameraLoading] = useState(false);
     const [locationLoading, setLocationLoading] = useState(false);
 
     const videoRef = useRef(null);
     const streamRef = useRef(null);
+
+    // Browser preview of the exact photo captured before the attempt.
+    const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+
+    useEffect(() => {
+        if (!photo) {
+            setPhotoPreviewUrl("");
+            return undefined;
+        }
+
+        const url = URL.createObjectURL(photo);
+        setPhotoPreviewUrl(url);
+
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [photo]);
 
     // ============================================================
     // SESSION / ANSWERS
@@ -272,24 +293,6 @@ function PublicQuiz() {
             mounted = false;
         };
     }, [token]);
-
-    // ============================================================
-    // CAMERA CLEANUP
-    // ============================================================
-
-    useEffect(() => {
-        if (!photo) {
-            setPhotoPreviewUrl("");
-            return undefined;
-        }
-
-        const objectUrl = URL.createObjectURL(photo);
-        setPhotoPreviewUrl(objectUrl);
-
-        return () => {
-            URL.revokeObjectURL(objectUrl);
-        };
-    }, [photo]);
 
     // ============================================================
     // CAMERA CLEANUP
@@ -516,6 +519,7 @@ function PublicQuiz() {
                 );
 
                 setPhoto(file);
+                setPhotoCapturedAt(new Date().toISOString());
                 setError("");
             },
             "image/jpeg",
@@ -554,6 +558,7 @@ function PublicQuiz() {
                     accuracy,
                 });
 
+                setLocationCapturedAt(new Date().toISOString());
                 setLocationConsent(true);
                 setLocationLoading(false);
                 setError("");
@@ -742,30 +747,19 @@ function PublicQuiz() {
                     }
                 );
 
-            const rawSessionData =
+            const sessionData =
                 response?.data?.data ||
                 response?.data;
 
-            if (!rawSessionData) {
+            if (!sessionData) {
                 throw new Error(
                     "Unable to create assessment session."
                 );
             }
 
-            const sessionData = {
-                ...rawSessionData,
-                verification: {
-                    photoUrl: rawSessionData?.photo_path
-                        ? mediaUrl(rawSessionData.photo_path)
-                        : photoPreviewUrl,
-                    latitude: rawSessionData?.latitude ?? location?.latitude ?? null,
-                    longitude: rawSessionData?.longitude ?? location?.longitude ?? null,
-                    accuracy: rawSessionData?.location_accuracy ?? location?.accuracy ?? null,
-                    capturedAt: rawSessionData?.started_at || new Date().toISOString(),
-                },
-            };
-
-            setSession(sessionData);
+            setSession(
+                sessionData
+            );
 
             setStep("quiz");
             setIndex(0);
@@ -1262,31 +1256,6 @@ function PublicQuiz() {
         };
 
     // ============================================================
-    // VERIFICATION DISPLAY HELPERS
-    // ============================================================
-
-    const verification = session?.verification || {};
-
-    const formatVerificationTime = (value) => {
-        if (!value) return "-";
-
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return String(value);
-
-        return date.toLocaleString(undefined, {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-        });
-    };
-
-    const verificationPhoto =
-        verification.photoUrl || photoPreviewUrl;
-
-    // ============================================================
     // FORMAT TIMER
     // ============================================================
 
@@ -1335,7 +1304,7 @@ function PublicQuiz() {
             <div className="public-quiz-shell">
                 <header className="public-header">
                     <div className="brand-mark">
-                        mi <span>arcus</span>
+                        <img src="/miarcus.png" alt="Mi Arcus" />
                     </div>
 
                     <div className="public-secure">
@@ -1371,7 +1340,7 @@ function PublicQuiz() {
             <div className="public-quiz-shell">
                 <header className="public-header">
                     <div className="brand-mark">
-                        mi <span>arcus</span>
+                        <img src="/miarcus.png" alt="Mi Arcus" />
                     </div>
 
                     <div className="public-secure">
@@ -1412,7 +1381,7 @@ function PublicQuiz() {
             <div className="public-quiz-shell">
                 <header className="public-header">
                     <div className="brand-mark">
-                        mi <span>arcus</span>
+                        <img src="/miarcus.png" alt="Mi Arcus" />
                     </div>
                 </header>
 
@@ -1464,7 +1433,7 @@ function PublicQuiz() {
 
             <header className="public-header">
                 <div className="brand-mark">
-                    mi <span>arcus</span>
+                    <img src="/miarcus.png" alt="Mi Arcus" />
                 </div>
 
                 <div className="public-secure">
@@ -1725,33 +1694,24 @@ function PublicQuiz() {
 
                                         {cameraConsent && (
                                             <div className="camera-preview">
-                                                <video
-                                                    ref={
-                                                        videoRef
-                                                    }
-                                                    autoPlay
-                                                    muted
-                                                    playsInline
-                                                />
-
-                                                {photo && (
-                                                    <>
-                                                        {photoPreviewUrl && (
-                                                            <img
-                                                                src={photoPreviewUrl}
-                                                                alt="Captured participant verification"
-                                                                className="captured-photo-preview"
-                                                            />
-                                                        )}
-
+                                                {photo && photoPreviewUrl ? (
+                                                    <div className="captured-photo-preview">
+                                                        <img
+                                                            src={photoPreviewUrl}
+                                                            alt="Participant verification preview"
+                                                        />
                                                         <div className="verification-success">
                                                             <FaCheckCircle />
-
-                                                            <span>
-                                                                Verification photo captured and ready to be stored.
-                                                            </span>
+                                                            <span>Verification photo captured</span>
                                                         </div>
-                                                    </>
+                                                    </div>
+                                                ) : (
+                                                    <video
+                                                        ref={videoRef}
+                                                        autoPlay
+                                                        muted
+                                                        playsInline
+                                                    />
                                                 )}
                                             </div>
                                         )}
@@ -1917,47 +1877,6 @@ function PublicQuiz() {
                             </div>
 
                             {/* ==================================================
-                                VERIFIED PARTICIPANT SNAPSHOT
-                            ================================================== */}
-
-                            <div className="quiz-verification-strip">
-                                <div className="quiz-verification-photo">
-                                    {verificationPhoto ? (
-                                        <img
-                                            src={verificationPhoto}
-                                            alt="Participant verification"
-                                        />
-                                    ) : (
-                                        <FaCamera />
-                                    )}
-                                </div>
-
-                                <div className="quiz-verification-main">
-                                    <strong>Participant verification</strong>
-                                    <span>Photo captured before assessment</span>
-                                </div>
-
-                                <div className="quiz-verification-meta">
-                                    <span>
-                                        <FaMapMarkerAlt />
-                                        {verification.latitude != null && verification.longitude != null
-                                            ? `${Number(verification.latitude).toFixed(5)}, ${Number(verification.longitude).toFixed(5)}`
-                                            : "Location captured"}
-                                    </span>
-                                    <span>
-                                        <FaClock />
-                                        {formatVerificationTime(verification.capturedAt)}
-                                    </span>
-                                    {verification.accuracy != null && (
-                                        <span>
-                                            <FaLocationArrow />
-                                            ±{Math.round(Number(verification.accuracy))}m
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* ==================================================
                                 PROGRESS
                             ================================================== */}
 
@@ -1973,6 +1892,55 @@ function PublicQuiz() {
                                         }%`,
                                     }}
                                 />
+                            </div>
+
+                            {/* ==================================================
+                                PARTICIPANT VERIFICATION SUMMARY
+                            ================================================== */}
+
+                            <div className="quiz-verification-summary">
+                                <div className="quiz-verification-photo">
+                                    {photoPreviewUrl ? (
+                                        <img
+                                            src={photoPreviewUrl}
+                                            alt="Participant verification"
+                                        />
+                                    ) : (
+                                        <img
+                                            src="/miarcus.png"
+                                            alt="Mi Arcus"
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="quiz-verification-copy">
+                                    <strong>Participant verification</strong>
+                                    <span>Photo captured before assessment</span>
+                                </div>
+
+                                <div className="quiz-verification-meta">
+                                    {location ? (
+                                        <span>
+                                            <FaMapMarkerAlt />
+                                            {Number(location.latitude).toFixed(6)}, {Number(location.longitude).toFixed(6)}
+                                        </span>
+                                    ) : (
+                                        <span>Location not captured</span>
+                                    )}
+
+                                    <span>
+                                        <FaClock />
+                                        {photoCapturedAt || locationCapturedAt || session?.started_at
+                                            ? new Date(photoCapturedAt || locationCapturedAt || session?.started_at).toLocaleString()
+                                            : "Verification time unavailable"}
+                                    </span>
+
+                                    {location?.accuracy !== undefined && (
+                                        <span>
+                                            ± {Math.round(Number(location.accuracy) || 0)}m
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* ==================================================
