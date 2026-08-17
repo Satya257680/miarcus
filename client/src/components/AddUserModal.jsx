@@ -146,14 +146,19 @@ function AddUserModal({
     "Full",
   ];
 
-  const createDefaultPermissions = () =>
+  // =====================================================
+  // GLOBAL ACCESS POLICY
+  // =====================================================
+  // Every user receives Full access to every module.
+  // This is independent of Administrator status.
+  const createFullPermissions = () =>
     modules.reduce((acc, module) => {
-      acc[module] = "None";
+      acc[module] = "Full";
       return acc;
     }, {});
 
   const [modulePermissions, setModulePermissions] =
-    useState(createDefaultPermissions());
+    useState(createFullPermissions());
 
   // =====================================================
   // ACCOUNT SETTINGS
@@ -287,10 +292,10 @@ function AddUserModal({
       Boolean(editingUser.is_admin)
     );
 
-    setModulePermissions({
-      ...createDefaultPermissions(),
-      ...(editingUser.permissions || {}),
-    });
+    // Always load the global Full-access policy for every user.
+    // Do not depend on a possibly incomplete permissions object
+    // returned by the Users API.
+    setModulePermissions(createFullPermissions());
   }, [editingUser]);
 
   // =====================================================
@@ -318,7 +323,7 @@ function AddUserModal({
     setStoreSearch("");
 
     setModulePermissions(
-      createDefaultPermissions()
+      createFullPermissions()
     );
 
     setIsActive(true);
@@ -435,8 +440,10 @@ function AddUserModal({
         fullPermissions
       );
     } else {
+      // Administrator can be switched off, but Full module access
+      // remains enabled for this user.
       setModulePermissions(
-        createDefaultPermissions()
+        createFullPermissions()
       );
     }
   };
@@ -449,11 +456,13 @@ function AddUserModal({
     module,
     permission
   ) => {
-    if (isAdmin) return;
+    // Global policy: every module must remain Full.
+    // Ignore attempts to downgrade an individual module.
+    if (permission !== "Full") return;
 
     setModulePermissions((previous) => ({
       ...previous,
-      [module]: permission,
+      [module]: "Full",
     }));
   };
 
@@ -1529,8 +1538,7 @@ function AddUserModal({
             <h4>Module Permissions</h4>
 
             <p>
-              Select the access level for each
-              module.
+              All users are granted Full access to every module.
             </p>
           </div>
 
@@ -1547,6 +1555,14 @@ function AddUserModal({
                 : "modules configured"}
             </span>
           </div>
+        </div>
+
+        <div className="permission-policy-note">
+          <LuShieldCheck />
+          <span>
+            Full access is enabled for all users and all modules.
+            Individual module access cannot be reduced from this screen.
+          </span>
         </div>
 
         <div className="permission-table-wrap">
@@ -1598,7 +1614,8 @@ function AddUserModal({
                               checked
                             }
                             disabled={
-                              isAdmin
+                              isAdmin ||
+                              type !== "Full"
                             }
                             onChange={() =>
                               handlePermissionChange(
