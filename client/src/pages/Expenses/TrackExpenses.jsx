@@ -8,7 +8,7 @@ import {
     FaShieldAlt,
     FaFilter
 } from "react-icons/fa";
-import ExpenseDetails from "./ExpenseDetails";
+import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
 
 function TrackExpenses() {

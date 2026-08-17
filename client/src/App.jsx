@@ -72,7 +72,7 @@ import PublicQuiz from "./pages/Quiz/PublicQuiz";
 // ==================================================
 // EXPENSES
 // ==================================================
-import ExpenseEntry from "./pages/Expenses/ExpenseEntry";
+import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
 import TrackExpenses from "./pages/Expenses/TrackExpenses";
 import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
 

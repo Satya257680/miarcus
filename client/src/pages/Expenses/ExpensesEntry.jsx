@@ -13,7 +13,7 @@ import {
     FaSearch,
     FaExternalLinkAlt
 } from "react-icons/fa";
-import ExpenseDetails from "./ExpenseDetails";
+import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
 
 const defaultTypes = [

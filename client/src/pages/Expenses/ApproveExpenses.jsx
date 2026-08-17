@@ -8,7 +8,7 @@ import {
     FaShieldAlt,
     FaSearch
 } from "react-icons/fa";
-import ExpenseDetails from "./ExpenseDetails";
+import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
 
 function ApproveExpenses() {
