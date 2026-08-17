@@ -435,36 +435,16 @@ function AddUserModal({
   // =====================================================
 
   const handleAdminChange = (checked) => {
+    // Administrator is an account-level flag. It must NOT lock or
+    // overwrite the user's individual module selections.
+    // This allows an administrator account to still have explicit
+    // module permissions selected and, importantly, lets Expenses
+    // be changed just like every other module.
     setIsAdmin(checked);
 
     if (checked) {
       setIsActive(true);
-
-      // Administrator is a temporary override. Keep the user's
-      // normal module selections underneath it so turning Admin
-      // back OFF restores the exact permissions they had selected.
-      setModulePermissions((previous) => {
-        const next = {
-          ...createDefaultPermissions(),
-          ...previous,
-        };
-
-        // Preserve a possible backend "Expense" key while the UI
-        // consistently uses "Expenses".
-        if (
-          next.Expenses === "None" &&
-          previous.Expense &&
-          previous.Expense !== "None"
-        ) {
-          next.Expenses = previous.Expense;
-        }
-
-        return next;
-      });
     }
-    // IMPORTANT: Do NOT reset permissions when Administrator is
-    // turned OFF. The user should be able to choose permissions
-    // normally, module by module.
   };
 
   // =====================================================
@@ -1546,10 +1526,9 @@ function AddUserModal({
             </strong>
 
             <p>
-              This user automatically receives
-              Full permission for every module.
-              Individual permission controls are
-              disabled.
+              Administrator status is enabled, but module permissions
+              remain selectable individually. Choose None, View, Add,
+              Edit or Full for each module as required.
             </p>
           </div>
         </div>
@@ -1570,16 +1549,10 @@ function AddUserModal({
 
           <div className="permission-count">
             <strong>
-              {isAdmin
-                ? modules.length
-                : selectedPermissionCount}
+              {selectedPermissionCount}
             </strong>
 
-            <span>
-              {isAdmin
-                ? "Full access"
-                : "modules configured"}
-            </span>
+            <span>modules configured</span>
           </div>
         </div>
 
@@ -1631,9 +1604,7 @@ function AddUserModal({
                             checked={
                               checked
                             }
-                            disabled={
-                              isAdmin
-                            }
+                            disabled={false}
                             onChange={() =>
                               handlePermissionChange(
                                 module,
@@ -1894,9 +1865,7 @@ function AddUserModal({
               <span>Module Access</span>
 
               <strong>
-                {isAdmin
-                  ? `${modules.length} Full`
-                  : `${selectedPermissionCount} configured`}
+                {`${selectedPermissionCount} configured`}
               </strong>
             </div>
           </div>
@@ -2038,7 +2007,7 @@ function AddUserModal({
 
             <strong>
               {isAdmin
-                ? "Administrator"
+                ? `Administrator · ${selectedPermissionCount} modules`
                 : `${selectedPermissionCount} modules`}
             </strong>
           </div>
