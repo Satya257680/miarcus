@@ -2732,6 +2732,23 @@ exports.getPublicQuiz = async (
 // START PUBLIC QUIZ
 // ======================================================
 
+const parseFormBoolean = (value) => {
+
+    if (value === true || value === 1) {
+        return true;
+    }
+
+    const normalized =
+        String(value ?? "")
+            .trim()
+            .toLowerCase();
+
+    return ["1", "true", "yes", "on"].includes(
+        normalized
+    );
+};
+
+
 exports.startPublicQuiz = async (
     req,
     res
@@ -2827,19 +2844,19 @@ exports.startPublicQuiz = async (
 
 
         const emailConsent =
-            Boolean(
+            parseFormBoolean(
                 req.body.email_consent
             );
 
 
         const cameraConsent =
-            Boolean(
+            parseFormBoolean(
                 req.body.camera_consent
             );
 
 
         const locationConsent =
-            Boolean(
+            parseFormBoolean(
                 req.body.location_consent
             );
 
@@ -3149,6 +3166,24 @@ exports.startPublicQuiz = async (
 
             participant_id:
                 participantId,
+
+            photo_path:
+                photoPath,
+
+            latitude:
+                req.body.latitude || null,
+
+            longitude:
+                req.body.longitude || null,
+
+            location_accuracy:
+                req.body.location_accuracy || null,
+
+            started_at:
+                new Date().toISOString(),
+
+            verification_captured_at:
+                new Date().toISOString(),
 
             quiz
 
@@ -3922,6 +3957,24 @@ exports.submitPublicQuiz = async (
 
             result:
                 result,
+
+            photo_path:
+                submission.photo_path || null,
+
+            latitude:
+                submission.latitude ?? null,
+
+            longitude:
+                submission.longitude ?? null,
+
+            location_accuracy:
+                submission.location_accuracy ?? null,
+
+            started_at:
+                submission.started_at || null,
+
+            submitted_at:
+                submission.submitted_at || new Date().toISOString(),
 
             total_questions:
                 questions.length,
