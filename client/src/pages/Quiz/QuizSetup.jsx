@@ -61,7 +61,7 @@ const typeLabel = (type) => {
     }
 
     if (type === "text") {
-        return "Text Input (Manual scoring in Training Report)";
+        return "Text Input (Automatic scoring)";
     }
 
     return String(type || "").replaceAll("_", " ");
@@ -305,7 +305,12 @@ const resolveGeneratedCorrectAnswer = (
         questionType ===
         "text"
     ) {
-        return "";
+        // Text questions are automatically scored against the
+        // generated/stored expected answer, so keep it.
+        return String(
+            generatedCorrect ??
+            ""
+        ).trim();
     }
 
     const raw =
@@ -1173,8 +1178,14 @@ const QuizSetup = () => {
                             type,
                         options: [],
                         option_scores: [],
+                        // Text questions use the typed expected answer.
+                        // Preserve an existing answer when switching types
+                        // so it is not silently lost.
                         correct_answer:
-                            ""
+                            normalizeCorrectAnswer(
+                                "text",
+                                prev.correct_answer
+                            )
                     })
                 );
 
@@ -1831,9 +1842,13 @@ const QuizSetup = () => {
                 }
 
             } else {
-
+                // Text questions are automatically scored against
+                // the expected answer entered by the quiz creator.
                 correct_answer =
-                    "";
+                    String(
+                        correct_answer ??
+                        ""
+                    ).trim();
             }
 
             // ==========================================
@@ -1841,21 +1856,19 @@ const QuizSetup = () => {
             // ==========================================
 
             if (
-                type !==
-                "text" &&
+                !correct_answer ||
                 (
-                    !correct_answer ||
-                    (
-                        Array.isArray(
-                            correct_answer
-                        ) &&
-                        !correct_answer.length
-                    )
+                    Array.isArray(
+                        correct_answer
+                    ) &&
+                    !correct_answer.length
                 )
             ) {
 
                 flash(
-                    "Please select the correct answer before saving."
+                    type === "text"
+                        ? "Please enter the correct answer before saving."
+                        : "Please select the correct answer before saving."
                 );
 
                 return;
@@ -2316,20 +2329,20 @@ const QuizSetup = () => {
                     })
                 );
 
-                if (
-                    generatedType !==
-                        "text" &&
-                    finalCorrect
-                ) {
+                if (finalCorrect) {
 
                     flash(
-                        "Question generated with AI. Correct answer and scoring are set automatically."
+                        generatedType === "text"
+                            ? "Question generated with AI. Correct text answer and automatic scoring are set."
+                            : "Question generated with AI. Correct answer and scoring are set automatically."
                     );
 
                 } else {
 
                     flash(
-                        "Question generated with AI. Please select the correct answer before saving."
+                        generatedType === "text"
+                            ? "Question generated with AI. Please enter the correct text answer before saving."
+                            : "Question generated with AI. Please select the correct answer before saving."
                     );
                 }
 
@@ -3398,7 +3411,7 @@ const QuizSetup = () => {
                                     </option>
 
                                     <option value="text">
-                                        Text Input (Manual scoring in Training Report)
+                                        Text Input (Automatic scoring)
                                     </option>
 
                                 </select>
@@ -3457,7 +3470,69 @@ const QuizSetup = () => {
 
                             </div>
 
-                            {/* OPTIONS */}
+                            
+                            {/* TEXT ANSWER / AUTOMATIC SCORING */}
+
+                            {questionForm.question_type ===
+                                "text" && (
+
+                                <div className="quiz-text-answer-section">
+
+                                    <label className="question-text-label">
+
+                                        Correct Answer
+
+                                        <input
+                                            type="text"
+                                            required
+                                            value={
+                                                typeof questionForm.correct_answer ===
+                                                "string"
+                                                    ? questionForm.correct_answer
+                                                    : ""
+                                            }
+                                            onChange={(e) =>
+                                                setQuestionForm({
+                                                    ...questionForm,
+                                                    correct_answer:
+                                                        e.target.value
+                                                })
+                                            }
+                                            placeholder="Enter the expected answer, e.g. Peacock"
+                                            autoComplete="off"
+                                        />
+
+                                        <small>
+                                            Participant answers are checked automatically.
+                                            Matching ignores leading/trailing spaces and letter case.
+                                        </small>
+
+                                    </label>
+
+                                    <div className="quiz-correct-answer-hint">
+
+                                        <strong>
+                                            Automatic scoring:
+                                        </strong>{" "}
+
+                                        A matching text answer receives{" "}
+
+                                        {
+                                            Number(
+                                                questionForm.points ||
+                                                    1
+                                            )
+                                        }{" "}
+
+                                        point(s). A non-matching answer receives 0.
+
+                                    </div>
+
+                                </div>
+
+                            )}
+
+{/* OPTIONS */}
 
                             {questionForm.question_type !==
                                 "text" && (
