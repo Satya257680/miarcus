@@ -644,7 +644,11 @@ function TrainingReport() {
         const logoUrl =
             `${window.location.origin}/miarcus.png`;
 
+        // Prefer the photo data returned by the report API.
+        // This keeps the participant photo available inside the
+        // certificate window without relying on a second image request.
         const participantPhotoUrl =
+            certificateDetail?.photo_data_url ||
             quizMediaUrl(certificateDetail?.photo_path);
 
         const verificationLocation =
@@ -662,9 +666,11 @@ function TrainingReport() {
                 : "-";
 
         const verificationTime =
-            certificateDetail?.started_at
-                ? new Date(certificateDetail.started_at).toLocaleString()
-                : "-";
+            certificateDetail?.photo_captured_at
+                ? new Date(certificateDetail.photo_captured_at).toLocaleString()
+                : certificateDetail?.started_at
+                    ? new Date(certificateDetail.started_at).toLocaleString()
+                    : "-";
 
         const safeParticipantName = escapeHtml(participantName);
         const safeQuizName = escapeHtml(quizName);
@@ -1277,7 +1283,7 @@ body {
 
         <div class="certificate-photo-row">
             ${participantPhotoUrl
-                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="Participant verification photo" />`
+                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="Participant verification photo" decoding="async" />`
                 : `<div class="certificate-photo certificate-photo-placeholder">Participant<br/>photo</div>`}
             <div class="verification-copy">
                 <strong>Participant verification</strong>

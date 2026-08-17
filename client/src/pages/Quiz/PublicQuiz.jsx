@@ -732,6 +732,13 @@ function PublicQuiz() {
                 "photo",
                 photo
             );
+
+            if (photoCapturedAt) {
+                formData.append(
+                    "photo_captured_at",
+                    photoCapturedAt
+                );
+            }
         }
 
         try {
