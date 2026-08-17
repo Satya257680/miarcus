@@ -2875,6 +2875,30 @@ router.post(
 
 
 // ======================================================
+// GET ONE QUESTION
+// ======================================================
+// IMPORTANT:
+// This route is intentionally placed before the PUT/DELETE
+// question routes and uses GET, so it does not interfere with
+// any existing route.
+// ======================================================
+
+router.get(
+
+    "/:id/questions/:questionId",
+
+    authMiddleware,
+
+    quizPermission(
+        "View"
+    ),
+
+    quiz.getQuestion
+
+);
+
+
+// ======================================================
 // UPDATE QUESTION
 // ======================================================
 

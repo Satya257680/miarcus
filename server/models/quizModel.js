@@ -55,7 +55,13 @@ const parseJson = (value, fallback = null) => {
     try {
         return JSON.parse(value);
     } catch {
-        return fallback;
+        // The MySQL driver auto-decodes JSON columns, so scalar values
+        // (e.g. a text/single-choice correct answer like "Tiger") arrive
+        // here already decoded as a plain string, not JSON-encoded text.
+        // JSON.parse() correctly fails on it — but returning the fallback
+        // was wiping the answer out. Return the original value instead so
+        // already-decoded strings are preserved.
+        return value;
     }
 };
 
@@ -120,14 +126,26 @@ const normalizeQuestionType = (value) => {
     ).trim();
 
     if (
-        type === "multiple_choice" ||
         type === "text" ||
-        type === "single_choice"
+        type === "text_input" ||
+        type === "textinput" ||
+        type === "automatic_scoring" ||
+        type === "text_input_automatic_scoring"
     ) {
-        return type;
+        return "text";
     }
 
-    return type;
+    if (
+        type === "multiple_choice" ||
+        type === "multiple" ||
+        type === "checkbox" ||
+        type === "checkboxes" ||
+        type === "multi_choice"
+    ) {
+        return "multiple_choice";
+    }
+
+    return "single_choice";
 };
 
 
@@ -325,11 +343,49 @@ const getCorrectAnswer = (
         return null;
     }
 
-    return parseJson(
-        question.correct_answer_json ??
-        question.correct_answer,
+
+    // Prefer the JSON column.
+    if (
+        question.correct_answer_json !==
+        undefined &&
+        question.correct_answer_json !==
         null
-    );
+    ) {
+
+        const parsed =
+            parseJson(
+                question.correct_answer_json,
+                null
+            );
+
+        if (
+            parsed !== null &&
+            parsed !== undefined
+        ) {
+
+            return parsed;
+
+        }
+    }
+
+
+    // Legacy/fallback column.
+    if (
+        question.correct_answer !==
+        undefined &&
+        question.correct_answer !==
+        null
+    ) {
+
+        return parseJson(
+            question.correct_answer,
+            question.correct_answer
+        );
+
+    }
+
+
+    return null;
 };
 
 
@@ -345,13 +401,49 @@ const getOptions = (
         return [];
     }
 
-    return normalizeQuestionOptions(
-        question.options ??
-        parseJson(
-            question.options_json,
-            []
-        )
-    );
+
+    // Prefer the normal options property when it is
+    // already supplied as an array.
+    if (
+        question.options !==
+        undefined &&
+        question.options !==
+        null
+    ) {
+
+        return normalizeQuestionOptions(
+            Array.isArray(
+                question.options
+            )
+                ? question.options
+                : parseJson(
+                    question.options,
+                    []
+                )
+        );
+
+    }
+
+
+    // Otherwise read the JSON database field.
+    if (
+        question.options_json !==
+        undefined &&
+        question.options_json !==
+        null
+    ) {
+
+        return normalizeQuestionOptions(
+            parseJson(
+                question.options_json,
+                []
+            )
+        );
+
+    }
+
+
+    return [];
 };
 
 
@@ -528,6 +620,10 @@ const prepareQuestionData = (
     existing = null
 ) => {
 
+    // --------------------------------------------------
+    // QUESTION TYPE
+    // --------------------------------------------------
+
     const questionType =
         normalizeQuestionType(
             data.question_type ??
@@ -535,21 +631,197 @@ const prepareQuestionData = (
             "single_choice"
         );
 
-    const options =
+
+    // --------------------------------------------------
+    // OPTIONS
+    // --------------------------------------------------
+    // Accept both:
+    //   options
+    //   options_json
+    //
+    // This is important because the frontend may send
+    // either the parsed array or the JSON field directly.
+    // --------------------------------------------------
+
+    let rawOptions;
+
+    if (
         data.options !== undefined
-            ? normalizeQuestionOptions(
-                data.options
-            )
-            : getOptions(
-                existing
+    ) {
+
+        rawOptions =
+            data.options;
+
+    } else if (
+        data.options_json !== undefined
+    ) {
+
+        rawOptions =
+            parseJson(
+                data.options_json,
+                []
             );
 
-    const correctAnswer =
-        data.correct_answer !== undefined
-            ? data.correct_answer
-            : getCorrectAnswer(
-                existing
+    } else {
+
+        rawOptions =
+            existing
+                ? getOptions(existing)
+                : [];
+
+    }
+
+
+    const options =
+        normalizeQuestionOptions(
+            rawOptions
+        );
+
+
+    // --------------------------------------------------
+    // CORRECT ANSWER
+    // --------------------------------------------------
+    // Accept both:
+    //   correct_answer
+    //   correct_answer_json
+    //
+    // Never silently fall back to the old answer when
+    // the frontend explicitly sends an empty/new value.
+    // --------------------------------------------------
+
+    let rawCorrectAnswer;
+
+    const incomingCorrectAnswer =
+        data.correct_answer;
+
+    const incomingHasValue =
+        incomingCorrectAnswer !== undefined &&
+        incomingCorrectAnswer !== null &&
+        (Array.isArray(incomingCorrectAnswer)
+            ? incomingCorrectAnswer.length > 0
+            : String(incomingCorrectAnswer).trim() !== "");
+
+    if (incomingHasValue) {
+
+        rawCorrectAnswer =
+            incomingCorrectAnswer;
+
+    } else if (
+        data.correct_answer_json !== undefined &&
+        data.correct_answer_json !== null &&
+        String(data.correct_answer_json).trim() !== ""
+    ) {
+
+        rawCorrectAnswer =
+            parseJson(
+                data.correct_answer_json,
+                null
             );
+
+    } else {
+
+        // During an edit, never destroy a previously saved answer just
+        // because an older/stale frontend payload omitted it or sent an
+        // empty value. The UI validates that a new answer is present, so
+        // preserving the existing value here is safe and prevents the
+        // answer from disappearing after reopening Edit.
+        rawCorrectAnswer =
+            existing
+                ? getCorrectAnswer(existing)
+                : (Array.isArray(incomingCorrectAnswer)
+                    ? []
+                    : String(incomingCorrectAnswer ?? "").trim());
+
+    }
+
+
+    // --------------------------------------------------
+    // NORMALIZE CORRECT ANSWER
+    // --------------------------------------------------
+
+    let correctAnswer =
+        rawCorrectAnswer;
+
+
+    // Handle JSON strings that may arrive inside
+    // correct_answer itself.
+    if (
+        typeof correctAnswer ===
+        "string"
+    ) {
+
+        const trimmed =
+            correctAnswer.trim();
+
+        if (
+            trimmed.startsWith("[") ||
+            trimmed.startsWith("{") ||
+            (
+                trimmed.startsWith('"') &&
+                trimmed.endsWith('"')
+            )
+        ) {
+
+            correctAnswer =
+                parseJson(
+                    trimmed,
+                    trimmed
+                );
+
+        } else {
+
+            correctAnswer =
+                trimmed;
+
+        }
+    }
+
+
+    // --------------------------------------------------
+    // MULTIPLE CHOICE NORMALIZATION
+    // --------------------------------------------------
+
+    if (
+        questionType ===
+        "multiple_choice"
+    ) {
+
+        if (
+            correctAnswer ===
+            null ||
+            correctAnswer ===
+            undefined ||
+            correctAnswer === ""
+        ) {
+
+            correctAnswer = [];
+
+        } else if (
+            !Array.isArray(
+                correctAnswer
+            )
+        ) {
+
+            // Accept comma-separated answers.
+            correctAnswer =
+                String(
+                    correctAnswer
+                )
+                    .split(",")
+                    .map(
+                        (item) =>
+                            item.trim()
+                    )
+                    .filter(Boolean);
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // POINTS
+    // --------------------------------------------------
 
     const points =
         Math.max(
@@ -560,20 +832,70 @@ const prepareQuestionData = (
             )
         );
 
-    const optionScores =
-        buildOptionScores(
-            options,
-            correctAnswer,
-            points,
-            questionType
+
+    // --------------------------------------------------
+    // OPTION SCORES
+    // --------------------------------------------------
+    // Preserve scores explicitly entered by the quiz creator.
+    // For new questions, or older rows that have no score array,
+    // calculate the default score from the correct answer.
+    // This prevents Edit -> Save from silently changing custom
+    // scores back to [1, 0, ...].
+    // --------------------------------------------------
+
+    let rawOptionScores;
+
+    if (data.option_scores !== undefined) {
+        rawOptionScores = data.option_scores;
+    } else if (data.option_scores_json !== undefined) {
+        rawOptionScores = parseJson(
+            data.option_scores_json,
+            null
         );
+    } else if (existing) {
+        rawOptionScores = parseJson(
+            existing.option_scores_json,
+            null
+        );
+    }
+
+    const hasStoredScores =
+        Array.isArray(rawOptionScores) &&
+        rawOptionScores.length > 0;
+
+    const optionScores = hasStoredScores
+        ? Array.from(
+              { length: options.length },
+              (_, index) => {
+                  const score = Number(
+                      rawOptionScores[index] ?? 0
+                  );
+
+                  return Number.isFinite(score)
+                      ? Math.min(5, Math.max(0, score))
+                      : 0;
+              }
+          )
+        : buildOptionScores(
+              options,
+              correctAnswer,
+              points,
+              questionType
+          );
+
 
     return {
+
         questionType,
+
         options,
+
         correctAnswer,
+
         points,
+
         optionScores
+
     };
 };
 
@@ -1454,6 +1776,131 @@ const getQuizById = async (
         );
 
     return quiz;
+};
+
+
+// ======================================================
+// GET ONE QUESTION
+// ======================================================
+// Returns the complete persisted question exactly as stored,
+// including parsed options, correct answer and option scores.
+// This endpoint is intentionally separate from getQuizById()
+// so Edit can load one question directly by its ID and never
+// depend on stale/incomplete quiz-level state.
+// ======================================================
+
+const getQuestionById = async (
+    questionId,
+    quizId = null,
+    includeAnswers = true
+) => {
+
+    const normalizedQuestionId =
+        normalizeId(questionId);
+
+    if (!normalizedQuestionId) {
+        return null;
+    }
+
+    const normalizedQuizId =
+        quizId === null ||
+        quizId === undefined ||
+        quizId === ""
+            ? null
+            : normalizeId(quizId);
+
+    if (
+        quizId !== null &&
+        quizId !== undefined &&
+        quizId !== "" &&
+        !normalizedQuizId
+    ) {
+        return null;
+    }
+
+    const rows =
+        await db.query(
+            `
+            SELECT
+                id,
+                quiz_id,
+                question_text,
+                question_type,
+                options_json,
+                correct_answer_json,
+                option_scores_json,
+                points,
+                is_mandatory,
+                sequence_no,
+                guideline,
+                image_url,
+                video_url
+            FROM quiz_questions
+            WHERE id = ?
+            ${
+                normalizedQuizId
+                    ? "AND quiz_id = ?"
+                    : ""
+            }
+            LIMIT 1
+            `,
+            normalizedQuizId
+                ? [
+                    normalizedQuestionId,
+                    normalizedQuizId
+                ]
+                : [
+                    normalizedQuestionId
+                ]
+        );
+
+    if (!rows.length) {
+        return null;
+    }
+
+    const question =
+        rows[0];
+
+    const prepared =
+        prepareQuestionData(
+            question
+        );
+
+    const item = {
+        ...question,
+
+        // Parsed values used directly by the frontend.
+        options:
+            prepared.options,
+
+        option_scores:
+            prepared.optionScores,
+
+        // Keep the raw persisted JSON values too.
+        // This makes Edit compatible with older/newer
+        // frontend payload formats without changing storage.
+        options_json:
+            question.options_json,
+
+        option_scores_json:
+            question.option_scores_json
+    };
+
+    if (includeAnswers) {
+
+        item.correct_answer =
+            prepared.correctAnswer;
+
+        item.correct_answer_json =
+            question.correct_answer_json;
+
+    } else {
+
+        delete item.correct_answer_json;
+
+    }
+
+    return item;
 };
 
 
@@ -3282,6 +3729,7 @@ module.exports = {
     // Quiz
     getQuizzes,
     getQuizById,
+    getQuestionById,
     getQuizByToken,
     createQuiz,
     updateQuiz,

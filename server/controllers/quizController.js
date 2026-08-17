@@ -53,12 +53,15 @@ const parseMaybeJson = (
 
     } catch {
 
-        return fallback;
+        // Same reasoning as quizModel.js's parseJson: MySQL already
+        // decodes JSON columns, so a scalar answer like "Tiger" arrives
+        // here as a plain (already-decoded) string, not JSON text.
+        // Falling back to null here was erasing valid saved answers.
+        return value;
 
     }
 
 };
-
 
 // ======================================================
 // NORMALIZE ID
@@ -126,14 +129,12 @@ const normalizeAnswer = (
 
     }
 
-
     if (
         answer === null ||
         answer === undefined
     ) {
         return "";
     }
-
 
     return String(answer)
         .trim()
@@ -488,6 +489,7 @@ const resolveAnswerValue = (
 
 
         // Some frontends use 1-based indexes.
+
         const oneBasedIndex =
             numericIndex - 1;
 
@@ -543,7 +545,7 @@ const resolveAnswerValue = (
 
     // --------------------------------------------------
     // "Option 1", "Option 2", etc.
-    // --------------------------------------------------
+// --------------------------------------------------
 
     const optionNumber =
         raw.match(
@@ -899,6 +901,107 @@ exports.getOne = async (
 
             message:
                 "Unable to load quiz"
+
+        });
+
+    }
+
+};
+
+
+// ======================================================
+// GET ONE QUESTION
+// ======================================================
+// Dedicated endpoint for Edit.
+// Always reads the persisted question directly from MySQL.
+// ======================================================
+
+exports.getQuestion = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const quizId =
+            normalizeId(
+                req.params.id
+            );
+
+        const questionId =
+            normalizeId(
+                req.params.questionId
+            );
+
+        if (!quizId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid quiz ID"
+
+            });
+
+        }
+
+        if (!questionId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid question ID"
+
+            });
+
+        }
+
+        const question =
+            await Quiz.getQuestionById(
+                questionId,
+                quizId,
+                true
+            );
+
+        if (!question) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Question not found in this quiz"
+
+            });
+
+        }
+
+        return res.json({
+
+            success: true,
+
+            data:
+                question
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Quiz getQuestion error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Unable to load question"
 
         });
 
@@ -1809,7 +1912,9 @@ exports.sendEmails = async (
             if (
                 !isValidEmail(email)
             ) {
+
                 continue;
+
             }
 
 
@@ -1818,17 +1923,11 @@ exports.sendEmails = async (
             ) {
 
                 uniqueMap.set(
-
                     email,
-
                     {
-
                         ...recipient,
-
                         email
-
                     }
-
                 );
 
             }
@@ -3730,7 +3829,6 @@ exports.submitPublicQuiz = async (
                 UPDATE quiz_submissions
 
                 SET
-
                     status =
                         'Submitted',
 
@@ -3750,7 +3848,6 @@ exports.submitPublicQuiz = async (
                         NOW()
 
                 WHERE
-
                     id = ?
 
                     AND status =
@@ -3772,14 +3869,9 @@ exports.submitPublicQuiz = async (
             );
 
 
-        // ==================================================
-        // DOUBLE SUBMISSION PROTECTION
-        // ==================================================
-
         if (
-            updateResult &&
-            updateResult.affectedRows ===
-            0
+            !updateResult ||
+            updateResult.affectedRows === 0
         ) {
 
             return res.status(409).json({
@@ -3787,16 +3879,12 @@ exports.submitPublicQuiz = async (
                 success: false,
 
                 message:
-                    "This quiz session has already been submitted"
+                    "Quiz submission could not be completed"
 
             });
 
         }
 
-
-        // ==================================================
-        // FINAL RESPONSE
-        // ==================================================
 
         return res.json({
 
@@ -3804,9 +3892,6 @@ exports.submitPublicQuiz = async (
 
             message:
                 "Quiz submitted successfully",
-
-            submission_id:
-                submission.id,
 
             participant_id:
                 submission.participant_id,
