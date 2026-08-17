@@ -32,6 +32,73 @@ const mediaUrl = (value) => {
     return `${api}/${String(value).replace(/^\/+/, "")}`;
 };
 
+
+// ============================================================
+// ANSWER NORMALIZATION
+// ============================================================
+//
+// The public quiz submits the participant's selected option text,
+// not an option letter/index. This matches Quiz Setup scoring where
+// correct_answer is stored as the actual option value.
+//
+// ============================================================
+
+const normalizeAnswerValue = (value) => {
+    if (value === undefined || value === null) {
+        return null;
+    }
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => String(item ?? "").trim())
+            .filter(Boolean);
+    }
+
+    return String(value).trim();
+};
+
+const answerIsPresent = (value) => {
+    if (Array.isArray(value)) {
+        return value.length > 0;
+    }
+
+    return (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ""
+    );
+};
+
+const getStoredAnswer = (answersObject, questionId) => {
+    if (!answersObject || questionId === undefined || questionId === null) {
+        return undefined;
+    }
+
+    const numericId = Number(questionId);
+    const stringId = String(questionId);
+
+    if (
+        Number.isFinite(numericId) &&
+        Object.prototype.hasOwnProperty.call(
+            answersObject,
+            numericId
+        )
+    ) {
+        return answersObject[numericId];
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            answersObject,
+            stringId
+        )
+    ) {
+        return answersObject[stringId];
+    }
+
+    return undefined;
+};
+
 function PublicQuiz() {
     const { token } = useParams();
 
@@ -787,22 +854,12 @@ function PublicQuiz() {
              * Read from the ref so validation always sees the
              * latest answer, even before React renders again.
              */
-            const answer =
-                answersRef.current?.[
-                    question.id
-                ];
-
-            if (
-                Array.isArray(answer)
-            ) {
-                return answer.length > 0;
-            }
-
-            return (
-                answer !== undefined &&
-                answer !== null &&
-                String(answer).trim() !== ""
+            const answer = getStoredAnswer(
+                answersRef.current,
+                question.id
             );
+
+            return answerIsPresent(answer);
         };
 
     // ============================================================
@@ -828,6 +885,13 @@ function PublicQuiz() {
             return;
         }
 
+        const selectedOption =
+            String(option ?? "").trim();
+
+        if (!selectedOption) {
+            return;
+        }
+
         const previous =
             answersRef.current || {};
 
@@ -839,28 +903,35 @@ function PublicQuiz() {
             question.question_type ===
             "multiple_choice"
         ) {
+            const existingAnswer =
+                getStoredAnswer(
+                    previous,
+                    questionId
+                );
+
             const current =
-                Array.isArray(
-                    previous[questionId]
-                )
+                Array.isArray(existingAnswer)
                     ? [
-                        ...previous[questionId],
+                        ...existingAnswer,
                     ]
                     : [];
 
             const exists =
-                current.includes(
-                    option
+                current.some(
+                    (item) =>
+                        String(item).trim().toLowerCase() ===
+                        selectedOption.toLowerCase()
                 );
 
             const nextAnswer = exists
                 ? current.filter(
                     (item) =>
-                        item !== option
+                        String(item).trim().toLowerCase() !==
+                        selectedOption.toLowerCase()
                 )
                 : [
                     ...current,
-                    option,
+                    selectedOption,
                 ];
 
             const next = {
@@ -885,7 +956,7 @@ function PublicQuiz() {
         const next = {
             ...previous,
             [questionId]:
-                option,
+                selectedOption,
         };
 
         // Synchronously store the answer.
@@ -963,35 +1034,15 @@ function PublicQuiz() {
     const buildSubmissionPayload =
         () => {
             /*
-             * IMPORTANT FIX:
+             * Use answersRef because it contains the latest answer
+             * synchronously, even before React renders again.
              *
-             * Use answersRef instead of the possibly stale React
-             * state value.
+             * The complete quiz question list is the source of truth,
+             * so every question is represented in the payload.
              */
             const latestAnswers =
                 answersRef.current || {};
 
-            /*
-             * IMPORTANT FIX:
-             *
-             * Build answers from the COMPLETE question list.
-             *
-             * Before:
-             *
-             *     Object.entries(answers)
-             *
-             * only sent questions that happened to exist in the
-             * React state object.
-             *
-             * Now:
-             *
-             *     quiz.questions
-             *
-             * is the source of truth.
-             *
-             * This guarantees that the backend receives one
-             * answer object for every question.
-             */
             const submittedAnswers =
                 (
                     quiz?.questions ||
@@ -1013,31 +1064,28 @@ function PublicQuiz() {
                                 return null;
                             }
 
-                            const hasStoredAnswer =
-                                Object.prototype.hasOwnProperty.call(
+                            const storedAnswer =
+                                getStoredAnswer(
                                     latestAnswers,
                                     questionId
-                                ) ||
-                                Object.prototype.hasOwnProperty.call(
-                                    latestAnswers,
-                                    String(questionId)
                                 );
 
+                            /*
+                             * Send the actual selected option text.
+                             *
+                             * Example:
+                             *   "Peacock"
+                             *
+                             * Multiple-choice answers remain an array.
+                             */
                             const answer =
-                                hasStoredAnswer
-                                    ? latestAnswers[
-                                        questionId
-                                    ]
-                                    : null;
+                                normalizeAnswerValue(
+                                    storedAnswer
+                                );
 
                             return {
                                 question_id:
                                     questionId,
-
-                                /*
-                                 * Backend expects this exact
-                                 * property name.
-                                 */
                                 answer,
                             };
                         }
@@ -1132,22 +1180,10 @@ function PublicQuiz() {
                 const submittedCount =
                     Array.isArray(payload.answers)
                         ? payload.answers.filter(
-                            (item) => {
-                                const answer =
-                                    item?.answer;
-
-                                if (
-                                    Array.isArray(answer)
-                                ) {
-                                    return answer.length > 0;
-                                }
-
-                                return (
-                                    answer !== null &&
-                                    answer !== undefined &&
-                                    String(answer).trim() !== ""
-                                );
-                            }
+                            (item) =>
+                                answerIsPresent(
+                                    item?.answer
+                                )
                         ).length
                         : 0;
 
@@ -1355,17 +1391,9 @@ function PublicQuiz() {
 
     const currentAnswer =
         currentQuestion
-            ? (
-                Object.prototype.hasOwnProperty.call(
-                    answersRef.current || {},
-                    Number(currentQuestion.id)
-                )
-                    ? answersRef.current[
-                        Number(currentQuestion.id)
-                    ]
-                    : answers[
-                        currentQuestion.id
-                    ]
+            ? getStoredAnswer(
+                answersRef.current || answers,
+                currentQuestion.id
             )
             : undefined;
 

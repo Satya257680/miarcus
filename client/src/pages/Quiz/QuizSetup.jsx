@@ -61,7 +61,7 @@ const typeLabel = (type) => {
     }
 
     if (type === "text") {
-        return "Text Input (Automatic scoring)";
+        return "Text Input (Manual scoring in Training Report)";
     }
 
     return String(type || "").replaceAll("_", " ");
@@ -75,6 +75,37 @@ const responseData = (response) =>
     response?.data?.data ??
     response?.data ??
     null;
+
+const parseAnyJson = (value, fallback = value) => {
+    if (value === null || value === undefined) return fallback;
+    if (Array.isArray(value)) return value;
+    if (typeof value === "object") return value;
+    if (typeof value === "string") {
+        const text = value.trim();
+        if (!text) return fallback;
+        try { return JSON.parse(text); } catch { return fallback; }
+    }
+    return fallback;
+};
+
+const normalizeQuestionTypeForEdit = (value) => {
+    const raw = String(value ?? "single_choice")
+        .trim()
+        .toLowerCase()
+        .replace(/[-\s]+/g, "_");
+    if (raw === "text" || raw === "text_input" || raw === "textinput") return "text";
+    if (raw === "multiple_choice" || raw === "multiple" || raw === "checkbox" || raw === "checkboxes" || raw === "multi_choice") return "multiple_choice";
+    return "single_choice";
+};
+
+const normalizeStoredScoresForEdit = (value, count) => {
+    const parsed = parseAnyJson(value, null);
+    if (!Array.isArray(parsed)) return null;
+    return Array.from({ length: count }, (_, i) => {
+        const n = Number(parsed[i] ?? 0);
+        return Number.isFinite(n) ? Math.min(5, Math.max(0, n)) : 0;
+    });
+};
 
 // ======================================================
 // NORMALIZE CORRECT ANSWER
@@ -195,6 +226,82 @@ const optionMatchesAnswer = (
 };
 
 // ======================================================
+// RESOLVE STORED ANSWER AGAINST OPTIONS
+//
+// Converts saved answers such as:
+//   "Peacock"
+//   "peacock"
+//   "A"
+//   "A) Peacock"
+//   "Option A"
+// back to the exact option text stored in the question.
+// ======================================================
+
+const resolveAnswerAgainstOptions = (
+    answer,
+    options = []
+) => {
+    const normalizedAnswer = String(answer ?? "").trim();
+
+    if (!normalizedAnswer || !Array.isArray(options)) {
+        return "";
+    }
+
+    // Exact / case-insensitive option match.
+    const exact = options.find((option) =>
+        optionMatchesAnswer(option, normalizedAnswer)
+    );
+
+    if (exact) {
+        return String(exact).trim();
+    }
+
+    const upper = normalizedAnswer.toUpperCase();
+
+    // "A", "B", "C", ...
+    if (/^[A-Z]$/.test(upper)) {
+        const index = upper.charCodeAt(0) - 65;
+
+        if (options[index]) {
+            return String(options[index]).trim();
+        }
+    }
+
+    // "Option A", "Option B", ...
+    const optionMatch = upper.match(/^OPTION\s*([A-Z])$/);
+
+    if (optionMatch) {
+        const index =
+            optionMatch[1].charCodeAt(0) - 65;
+
+        if (options[index]) {
+            return String(options[index]).trim();
+        }
+    }
+
+    // "A) Peacock", "B. Eagle", etc.
+    const prefixedMatch = normalizedAnswer.match(
+        /^[A-Z]\s*[\)\.\:\-]\s*(.+)$/i
+    );
+
+    if (prefixedMatch) {
+        const optionText = prefixedMatch[1].trim();
+
+        const matchedOption = options.find((option) =>
+            optionMatchesAnswer(option, optionText)
+        );
+
+        if (matchedOption) {
+            return String(matchedOption).trim();
+        }
+    }
+
+    // Last fallback: return the original answer so text questions
+    // and unusual legacy values are not silently lost.
+    return normalizedAnswer;
+};
+
+// ======================================================
 // BUILD OPTION SCORES
 //
 // IMPORTANT:
@@ -305,12 +412,7 @@ const resolveGeneratedCorrectAnswer = (
         questionType ===
         "text"
     ) {
-        // Text questions are automatically scored against the
-        // generated/stored expected answer, so keep it.
-        return String(
-            generatedCorrect ??
-            ""
-        ).trim();
+        return "";
     }
 
     const raw =
@@ -1178,14 +1280,8 @@ const QuizSetup = () => {
                             type,
                         options: [],
                         option_scores: [],
-                        // Text questions use the typed expected answer.
-                        // Preserve an existing answer when switching types
-                        // so it is not silently lost.
                         correct_answer:
-                            normalizeCorrectAnswer(
-                                "text",
-                                prev.correct_answer
-                            )
+                            ""
                     })
                 );
 
@@ -1582,75 +1678,190 @@ const QuizSetup = () => {
     // ==================================================
 
     const openEditQuestion =
-        (question) => {
+        async (question) => {
 
-            const options =
-                Array.isArray(
-                    question.options
-                ) &&
-                question.options.length
-                    ? question.options.map(
-                        (x) =>
-                            String(
-                                x ??
-                                ""
+            // ALWAYS load the exact question directly from the database
+            // before opening Edit. This prevents stale quiz-level state from
+            // replacing the values already saved for this question.
+            let latestQuestion = question || {};
+
+            try {
+                const quizId = selected?.id;
+                const questionId = question?.id;
+
+                if (quizId && questionId) {
+                    const response = await axios.get(
+                        `/api/quiz/${quizId}/questions/${questionId}`
+                    );
+
+                    const found =
+                        responseData(response);
+
+                    if (found) {
+                        latestQuestion = {
+                            ...question,
+                            ...found
+                        };
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    "Unable to load exact question before edit:",
+                    error
+                );
+
+                // Backward-compatible fallback for an older backend that
+                // has not yet received the dedicated question endpoint.
+                try {
+                    const quizId = selected?.id;
+                    const questionId = question?.id;
+
+                    if (quizId && questionId) {
+                        const response = await axios.get(
+                            `/api/quiz/${quizId}`
+                        );
+
+                        const quiz =
+                            responseData(response);
+
+                        const questions =
+                            Array.isArray(
+                                quiz?.questions
                             )
+                                ? quiz.questions
+                                : [];
+
+                        const found =
+                            questions.find(
+                                (item) =>
+                                    Number(item?.id) ===
+                                    Number(questionId)
+                            );
+
+                        if (found) {
+                            latestQuestion = {
+                                ...question,
+                                ...found
+                            };
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.warn(
+                        "Unable to refresh question before edit:",
+                        fallbackError
+                    );
+                }
+            }
+
+            const questionType =
+                normalizeQuestionTypeForEdit(
+                    latestQuestion.question_type
+                );
+
+            // Restore options from parsed `options`, JSON `options_json`,
+            // or the original question object. This prevents Option 1/2
+            // from replacing the values already stored in MySQL.
+            const rawOptions =
+                latestQuestion.options ??
+                latestQuestion.options_json ??
+                question.options ??
+                question.options_json ??
+                [];
+
+            const parsedOptions = parseAnyJson(rawOptions, []);
+
+            const options = Array.isArray(parsedOptions)
+                ? parsedOptions
+                    .map((item) => {
+                        if (item && typeof item === "object") {
+                            return String(
+                                item.label ??
+                                item.value ??
+                                item.text ??
+                                ""
+                            ).trim();
+                        }
+                        return String(item ?? "").trim();
+                    })
+                    .filter(Boolean)
+                : [];
+
+            const finalOptions =
+                questionType === "text"
+                    ? []
+                    : options.length
+                        ? options
+                        : ["", ""];
+
+            let correct_answer = normalizeCorrectAnswer(
+                questionType,
+                getStoredCorrectAnswer(latestQuestion)
+            );
+
+            if (questionType === "multiple_choice") {
+                correct_answer = correct_answer
+                    .map((answer) =>
+                        resolveAnswerAgainstOptions(
+                            answer,
+                            finalOptions
+                        )
                     )
-                    : question.question_type ===
-                        "text"
-                        ? []
-                        : [
-                            "",
-                            ""
-                        ];
-
-            // IMPORTANT: restore the answer from whichever field the API returns.
-            // Older records may have it in correct_answer_json, while newer
-            // records may use correct_answer. Both JSON strings and arrays are supported.
-            const correct_answer =
-                normalizeCorrectAnswer(
-                    question.question_type,
-                    getStoredCorrectAnswer(question)
+                    .filter(Boolean);
+            } else if (questionType !== "text") {
+                correct_answer = resolveAnswerAgainstOptions(
+                    correct_answer,
+                    finalOptions
                 );
+            } else {
+                correct_answer = String(correct_answer ?? "").trim();
+            }
 
-            const points =
-                Number(
-                    question.points ||
-                    1
-                );
+            const points = Number(latestQuestion.points || 1);
+
+            // IMPORTANT: restore the exact scores stored in the database.
+            // Only calculate them when the database has no score array.
+            const storedScores = normalizeStoredScoresForEdit(
+                latestQuestion.option_scores ??
+                    latestQuestion.option_scores_json,
+                finalOptions.length
+            );
 
             const option_scores =
-                buildOptionScores(
-                    question.question_type,
-                    options,
-                    correct_answer,
-                    points
-                );
+                questionType === "text"
+                    ? []
+                    : storedScores ||
+                      buildOptionScores(
+                          questionType,
+                          finalOptions,
+                          correct_answer,
+                          points
+                      );
 
-            setEditingQuestion(
-                question
-            );
+            setEditingQuestion(latestQuestion);
 
             setQuestionForm({
                 ...emptyQuestion,
-                ...question,
-                options,
+                ...latestQuestion,
+                question_type: questionType,
+                question_text: String(
+                    latestQuestion.question_text ?? ""
+                ),
+                options: finalOptions,
                 option_scores,
                 correct_answer,
-                points
+                points,
+                is_mandatory:
+                    latestQuestion.is_mandatory !== undefined
+                        ? Boolean(latestQuestion.is_mandatory)
+                        : true,
+                guideline: latestQuestion.guideline ?? "",
+                image_url: latestQuestion.image_url ?? "",
+                video_url: latestQuestion.video_url ?? ""
             });
 
-            setImageFile(
-                null
-            );
-
-            setVideoFile(
-                null
-            );
-
-            setShowQuestion(
-                true
-            );
+            setImageFile(null);
+            setVideoFile(null);
+            setShowQuestion(true);
         };
 
     // ==================================================
@@ -1842,13 +2053,9 @@ const QuizSetup = () => {
                 }
 
             } else {
-                // Text questions are automatically scored against
-                // the expected answer entered by the quiz creator.
+
                 correct_answer =
-                    String(
-                        correct_answer ??
-                        ""
-                    ).trim();
+                    "";
             }
 
             // ==========================================
@@ -1856,19 +2063,21 @@ const QuizSetup = () => {
             // ==========================================
 
             if (
-                !correct_answer ||
+                type !==
+                "text" &&
                 (
-                    Array.isArray(
-                        correct_answer
-                    ) &&
-                    !correct_answer.length
+                    !correct_answer ||
+                    (
+                        Array.isArray(
+                            correct_answer
+                        ) &&
+                        !correct_answer.length
+                    )
                 )
             ) {
 
                 flash(
-                    type === "text"
-                        ? "Please enter the correct answer before saving."
-                        : "Please select the correct answer before saving."
+                    "Please select the correct answer before saving."
                 );
 
                 return;
@@ -1895,12 +2104,20 @@ const QuizSetup = () => {
             // ==========================================
 
             const option_scores =
-                buildOptionScores(
-                    type,
-                    options,
-                    correct_answer,
-                    points
-                );
+                type === "text"
+                    ? []
+                    : (questionForm.option_scores || [])
+                        .slice(0, options.length)
+                        .map((value) => {
+                            const score = Number(value ?? 0);
+                            return Number.isFinite(score)
+                                ? Math.min(5, Math.max(0, score))
+                                : 0;
+                        });
+
+            while (option_scores.length < options.length) {
+                option_scores.push(0);
+            }
 
             const payload = {
                 question_text:
@@ -2329,20 +2546,20 @@ const QuizSetup = () => {
                     })
                 );
 
-                if (finalCorrect) {
+                if (
+                    generatedType !==
+                        "text" &&
+                    finalCorrect
+                ) {
 
                     flash(
-                        generatedType === "text"
-                            ? "Question generated with AI. Correct text answer and automatic scoring are set."
-                            : "Question generated with AI. Correct answer and scoring are set automatically."
+                        "Question generated with AI. Correct answer and scoring are set automatically."
                     );
 
                 } else {
 
                     flash(
-                        generatedType === "text"
-                            ? "Question generated with AI. Please enter the correct text answer before saving."
-                            : "Question generated with AI. Please select the correct answer before saving."
+                        "Question generated with AI. Please select the correct answer before saving."
                     );
                 }
 
@@ -3411,7 +3628,7 @@ const QuizSetup = () => {
                                     </option>
 
                                     <option value="text">
-                                        Text Input (Automatic scoring)
+                                        Text Input (Manual scoring in Training Report)
                                     </option>
 
                                 </select>
@@ -3470,69 +3687,7 @@ const QuizSetup = () => {
 
                             </div>
 
-                            
-                            {/* TEXT ANSWER / AUTOMATIC SCORING */}
-
-                            {questionForm.question_type ===
-                                "text" && (
-
-                                <div className="quiz-text-answer-section">
-
-                                    <label className="question-text-label">
-
-                                        Correct Answer
-
-                                        <input
-                                            type="text"
-                                            required
-                                            value={
-                                                typeof questionForm.correct_answer ===
-                                                "string"
-                                                    ? questionForm.correct_answer
-                                                    : ""
-                                            }
-                                            onChange={(e) =>
-                                                setQuestionForm({
-                                                    ...questionForm,
-                                                    correct_answer:
-                                                        e.target.value
-                                                })
-                                            }
-                                            placeholder="Enter the expected answer, e.g. Peacock"
-                                            autoComplete="off"
-                                        />
-
-                                        <small>
-                                            Participant answers are checked automatically.
-                                            Matching ignores leading/trailing spaces and letter case.
-                                        </small>
-
-                                    </label>
-
-                                    <div className="quiz-correct-answer-hint">
-
-                                        <strong>
-                                            Automatic scoring:
-                                        </strong>{" "}
-
-                                        A matching text answer receives{" "}
-
-                                        {
-                                            Number(
-                                                questionForm.points ||
-                                                    1
-                                            )
-                                        }{" "}
-
-                                        point(s). A non-matching answer receives 0.
-
-                                    </div>
-
-                                </div>
-
-                            )}
-
-{/* OPTIONS */}
+                            {/* OPTIONS */}
 
                             {questionForm.question_type !==
                                 "text" && (

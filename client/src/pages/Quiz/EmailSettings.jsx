@@ -162,12 +162,26 @@ function EmailSettings() {
 
 
             const quizList =
-                quizResponse?.data?.data ||
-                [];
+                Array.isArray(
+                    quizResponse?.data?.data
+                )
+                    ? quizResponse.data.data
+                    : Array.isArray(
+                        quizResponse?.data
+                    )
+                        ? quizResponse.data
+                        : [];
 
             const userList =
-                usersResponse?.data?.data ||
-                [];
+                Array.isArray(
+                    usersResponse?.data?.data
+                )
+                    ? usersResponse.data.data
+                    : Array.isArray(
+                        usersResponse?.data
+                    )
+                        ? usersResponse.data
+                        : [];
 
 
             const normalizedQuizzes =
@@ -393,6 +407,8 @@ function EmailSettings() {
 
         setSearch("");
 
+        setFeedback("");
+
     }, [
         selectedQuiz,
         quizzes,
@@ -433,9 +449,14 @@ function EmailSettings() {
                     user?.employee_id ||
                     "";
 
+                const userId =
+                    user?.id ??
+                    user?.user_id ??
+                    "";
+
 
                 return (
-                    `${name} ${email} ${employeeId}`
+                    `${name} ${email} ${employeeId} ${userId}`
                         .toLowerCase()
                         .includes(query)
                 );
@@ -614,6 +635,18 @@ function EmailSettings() {
 
 
     // ============================================================
+    // RECIPIENT ID
+    // ============================================================
+
+    const getRecipientId = (user) => {
+        return user?.id ??
+            user?.user_id ??
+            user?.employee_id ??
+            "";
+    };
+
+
+    // ============================================================
     // TOGGLE EMPLOYEE
     // ============================================================
 
@@ -665,8 +698,9 @@ function EmailSettings() {
                 )
                 .map(
                     user =>
-                        user.id
-                );
+                        getRecipientId(user)
+                )
+                .filter(Boolean);
 
 
         setSelectedIds(
@@ -694,14 +728,54 @@ function EmailSettings() {
 
 
     // ============================================================
+    // PUBLIC QUIZ LINK
+    // ============================================================
+
+    const getPublicQuizLink = (quizData = quiz) => {
+
+        if (!quizData) {
+            return "";
+        }
+
+        const backendUrl = String(
+            quizData?.public_url ||
+            quizData?.publicUrl ||
+            ""
+        ).trim();
+
+        if (
+            backendUrl &&
+            /^https?:\/\//i.test(backendUrl)
+        ) {
+            return backendUrl;
+        }
+
+        const token = String(
+            quizData?.public_token ||
+            quizData?.publicToken ||
+            ""
+        ).trim();
+
+        if (!token) {
+            return "";
+        }
+
+        return `${window.location.origin}/quiz/${encodeURIComponent(
+            token
+        )}`;
+    };
+
+
+    // ============================================================
     // COPY LINK
     // ============================================================
 
     const copyLink = async () => {
 
-        if (
-            !quiz?.public_token
-        ) {
+        const link =
+            getPublicQuizLink();
+
+        if (!link) {
 
             showFeedback(
                 "This quiz does not have a reusable public link.",
@@ -711,10 +785,6 @@ function EmailSettings() {
             return;
 
         }
-
-
-        const link =
-            `${window.location.origin}/quiz/${quiz.public_token}`;
 
 
         try {
@@ -794,9 +864,10 @@ function EmailSettings() {
 
     const openQuizLink = () => {
 
-        if (
-            !quiz?.public_token
-        ) {
+        const link =
+            getPublicQuizLink();
+
+        if (!link) {
 
             showFeedback(
                 "This quiz does not have a public link.",
@@ -806,11 +877,6 @@ function EmailSettings() {
             return;
 
         }
-
-
-        const link =
-            `${window.location.origin}/quiz/${quiz.public_token}`;
-
 
         window.open(
             link,
@@ -883,7 +949,7 @@ function EmailSettings() {
 
 
         if (
-            !quiz.public_token
+            !getPublicQuizLink(quiz)
         ) {
 
             showFeedback(
@@ -1054,6 +1120,9 @@ function EmailSettings() {
 
                 message:
                     message.trim(),
+
+                public_url:
+                    getPublicQuizLink(quiz),
 
             };
 
@@ -1352,12 +1421,7 @@ function EmailSettings() {
 
                                 <strong>
                                     {
-                                        window.location
-                                            .origin
-                                    }
-                                    /quiz/
-                                    {
-                                        quiz.public_token
+                                        getPublicQuizLink(quiz)
                                     }
                                 </strong>
 
@@ -1737,9 +1801,18 @@ function EmailSettings() {
                                                 );
 
 
+                                            const recipientId =
+                                                getRecipientId(user);
+
                                             const checked =
-                                                selectedIds.includes(
-                                                    user.id
+                                                selectedIds.some(
+                                                    selectedId =>
+                                                        String(
+                                                            selectedId
+                                                        ) ===
+                                                        String(
+                                                            recipientId
+                                                        )
                                                 );
 
 
@@ -1747,7 +1820,7 @@ function EmailSettings() {
 
                                                 <label
                                                     key={
-                                                        user.id
+                                                        getRecipientId(user)
                                                     }
                                                     className={
                                                         `recipient-row ${
@@ -1769,7 +1842,7 @@ function EmailSettings() {
                                                         }
                                                         onChange={() =>
                                                             toggleEmployee(
-                                                                user.id
+                                                                getRecipientId(user)
                                                             )
                                                         }
                                                     />
@@ -2308,7 +2381,9 @@ third@example.com`
                                             String(
                                                 log?.status ||
                                                 "Unknown"
-                                            ).toLowerCase();
+                                            )
+                                                .trim()
+                                                .toLowerCase();
 
 
                                         const isSent =

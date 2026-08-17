@@ -152,9 +152,7 @@ function TrainingReport() {
     // ============================================================
 
     useEffect(() => {
-
         load();
-
     }, [
         quizId,
         result,
@@ -219,26 +217,36 @@ function TrainingReport() {
         useMemo(() => {
 
             const submitted =
-                rows.filter(
-                    row =>
-                        row?.status ===
-                        "Submitted"
-                );
+                rows.filter((row) => {
+                    const status = String(
+                        row?.status ?? ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                    return status === "submitted";
+                });
 
 
             const passed =
-                submitted.filter(
-                    row =>
-                        row?.result ===
-                        "Passed"
+                submitted.filter((row) =>
+                    String(
+                        row?.result ?? ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "passed"
                 );
 
 
             const failed =
-                submitted.filter(
-                    row =>
-                        row?.result ===
-                        "Failed"
+                submitted.filter((row) =>
+                    String(
+                        row?.result ?? ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    "failed"
                 );
 
 
@@ -433,30 +441,85 @@ function TrainingReport() {
     // FORMAT ANSWER
     // ============================================================
 
-    const formatAnswer = answer => {
+    const parseJsonValue = (value, fallback = null) => {
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return fallback;
+        }
 
         if (
-            Array.isArray(answer)
+            typeof value !== "string"
         ) {
+            return value;
+        }
 
-            return answer.join(
-                ", "
+        try {
+            return JSON.parse(value);
+        } catch {
+            return fallback;
+        }
+    };
+
+
+    const formatAnswer = answer => {
+        const parsed =
+            parseJsonValue(
+                answer,
+                answer
             );
 
+        if (
+            Array.isArray(parsed)
+        ) {
+            return parsed
+                .map(value =>
+                    String(value ?? "").trim()
+                )
+                .filter(Boolean)
+                .join(", ") || "No answer";
         }
 
         if (
-            answer === null ||
-            answer === undefined ||
-            answer === ""
+            parsed === null ||
+            parsed === undefined ||
+            String(parsed).trim() === ""
         ) {
-
             return "No answer";
-
         }
 
-        return String(answer);
+        return String(parsed);
+    };
 
+
+    const formatCorrectAnswer = answer => {
+        const parsed =
+            parseJsonValue(
+                answer,
+                answer
+            );
+
+        if (
+            Array.isArray(parsed)
+        ) {
+            return parsed
+                .map(value =>
+                    String(value ?? "").trim()
+                )
+                .filter(Boolean)
+                .join(", ") || "Not selected";
+        }
+
+        if (
+            parsed === null ||
+            parsed === undefined ||
+            String(parsed).trim() === ""
+        ) {
+            return "Not selected";
+        }
+
+        return String(parsed);
     };
 
 
@@ -470,8 +533,12 @@ function TrainingReport() {
 
         if (
             !certificateDetail ||
-            certificateDetail.result !==
-            "Passed"
+            String(
+                certificateDetail?.result ?? ""
+            )
+                .trim()
+                .toLowerCase() !==
+            "passed"
         ) {
 
             setMessage(
@@ -1993,9 +2060,11 @@ window.onload = function () {
                                 <span
                                     className={`result-badge ${
                                         String(
-                                            detail.result ||
+                                            detail?.result ||
                                             ""
-                                        ).toLowerCase()
+                                        )
+                                            .trim()
+                                            .toLowerCase()
                                     }`}
                                 >
                                     {
@@ -2147,6 +2216,33 @@ window.onload = function () {
 
                                         </div>
 
+                                        {!answer.is_correct &&
+                                            (
+                                                answer.correct_answer !==
+                                                    undefined ||
+                                                answer.correct_answer_json !==
+                                                    undefined
+                                            ) && (
+
+                                                <div
+                                                    className="answer-review-correct"
+                                                    style={{
+                                                        marginTop: "6px",
+                                                        fontSize: "12px",
+                                                        color: "#15803d",
+                                                    }}
+                                                >
+                                                    <strong>
+                                                        Correct answer:
+                                                    </strong>{" "}
+                                                    {formatCorrectAnswer(
+                                                        answer.correct_answer ??
+                                                        answer.correct_answer_json
+                                                    )}
+                                                </div>
+
+                                            )}
+
                                     </div>
 
                                 )
@@ -2188,8 +2284,12 @@ window.onload = function () {
                             </button>
 
 
-                            {detail.result ===
-                                "Passed" && (
+                            {String(
+                                detail?.result ?? ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            "passed" && (
 
                                 <button
                                     type="button"

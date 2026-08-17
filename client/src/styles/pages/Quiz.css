@@ -2508,3 +2508,638 @@ mask-composite: exclude;
         gap: 5px;
     }
 }
+
+
+/* =========================================================
+   MI ARCUS — FINAL PROFESSIONAL UI POLISH
+   Dynamic spacing, hierarchy, responsive layout and motion
+   ========================================================= */
+
+:root{
+  --quiz-space-1:6px;
+  --quiz-space-2:10px;
+  --quiz-space-3:14px;
+  --quiz-space-4:18px;
+  --quiz-space-5:24px;
+  --quiz-space-6:30px;
+  --quiz-space-7:38px;
+  --quiz-control-h:42px;
+}
+
+/* ---------- Global page rhythm ---------- */
+
+.quiz-page{
+  padding:32px 36px 48px;
+  background:
+    radial-gradient(circle at 92% 0%,rgba(121,104,191,.075),transparent 25%),
+    radial-gradient(circle at 0% 100%,rgba(156,191,196,.055),transparent 24%),
+    var(--quiz-bg);
+}
+
+.quiz-page-header{
+  min-height:72px;
+  margin-bottom:28px;
+  padding-bottom:4px;
+}
+
+.quiz-page-header h1{
+  font-size:30px;
+  line-height:1.15;
+  font-weight:800;
+}
+
+.quiz-page-header p{
+  max-width:720px;
+  line-height:1.6;
+  margin-top:8px;
+}
+
+.quiz-eyebrow{
+  font-size:10px;
+  letter-spacing:2.2px;
+}
+
+.quiz-panel{
+  border-radius:16px;
+  box-shadow:0 8px 28px rgba(41,55,78,.055);
+}
+
+.quiz-panel-title{
+  min-height:72px;
+  padding:18px 22px;
+  gap:18px;
+}
+
+.quiz-panel-title small{
+  line-height:1.45;
+}
+
+.quiz-detail-panel{
+  padding:28px;
+}
+
+.quiz-field,
+.quiz-form-grid label{
+  gap:8px;
+}
+
+.quiz-form-grid input,
+.quiz-form-grid textarea,
+.quiz-form-grid select,
+.quiz-field input,
+.quiz-field textarea,
+.quiz-field select,
+.custom-emails{
+  min-height:var(--quiz-control-h);
+  border-radius:10px;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+
+.quiz-form-grid textarea,
+.quiz-field textarea,
+.custom-emails{
+  min-height:110px;
+}
+
+.quiz-primary,
+.quiz-secondary,
+.quiz-danger{
+  min-height:42px;
+  border-radius:10px;
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease;
+}
+
+.quiz-primary:hover:not(:disabled){
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(121,104,191,.22);
+}
+
+.quiz-secondary:hover:not(:disabled){
+  transform:translateY(-1px);
+}
+
+/* ---------- Cards and statistics ---------- */
+
+.quiz-stats{
+  gap:14px;
+  margin:26px 0;
+}
+
+.quiz-stats div,
+.report-stats div{
+  min-height:92px;
+  padding:17px 18px;
+  border-radius:12px;
+  background:linear-gradient(145deg,#fff,#fbfcfd);
+}
+
+.quiz-stats strong,
+.report-stats strong{
+  line-height:1;
+}
+
+/* ---------- Quiz list ---------- */
+
+.quiz-list{
+  padding:12px;
+}
+
+.quiz-list-item{
+  min-height:64px;
+  padding:12px 13px;
+  margin-bottom:4px;
+}
+
+.quiz-list-item:last-child{
+  margin-bottom:0;
+}
+
+.quiz-list-item.active{
+  box-shadow:inset 3px 0 var(--quiz-purple),0 4px 14px rgba(121,104,191,.06);
+}
+
+/* ---------- Question cards ---------- */
+
+.quiz-question-list{
+  gap:12px;
+}
+
+.quiz-question-card{
+  padding:16px;
+  border-radius:12px;
+}
+
+.quiz-question-content{
+  min-width:0;
+}
+
+.quiz-question-content h4{
+  line-height:1.5;
+}
+
+.quiz-option-preview span{
+  line-height:1.35;
+}
+
+/* ---------- Email Settings ---------- */
+
+.email-layout{
+  grid-template-columns:minmax(0,1.65fr) minmax(320px,.72fr);
+  gap:22px;
+  align-items:start;
+}
+
+.email-builder{
+  padding:24px;
+}
+
+.email-history{
+  top:24px;
+  border-radius:16px;
+}
+
+.email-builder .quiz-panel-title,
+.email-history .quiz-panel-title{
+  padding:0 0 18px;
+  min-height:auto;
+  background:transparent;
+}
+
+.email-section,
+.email-content-section{
+  margin-top:24px;
+  padding-top:22px;
+}
+
+.email-section-heading{
+  margin-bottom:16px;
+}
+
+.email-section-heading strong{
+  font-size:15px;
+  line-height:1.3;
+}
+
+.email-section-heading span{
+  line-height:1.45;
+}
+
+.quiz-link-box{
+  margin:18px 0 26px;
+  padding:16px;
+  border-radius:12px;
+}
+
+.quiz-link-content strong{
+  max-width:100%;
+  line-height:1.45;
+}
+
+.recipient-mode{
+  gap:10px;
+  margin:16px 0;
+}
+
+.recipient-mode button{
+  min-height:52px;
+  padding:10px 12px;
+  border-radius:10px;
+}
+
+.recipient-toolbar{
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.recipient-list{
+  max-height:310px;
+  border-radius:12px;
+}
+
+.recipient-row{
+  min-height:62px;
+  padding:11px 13px;
+}
+
+.everyone-state{
+  padding:20px;
+  min-height:86px;
+}
+
+.custom-recipient-box{
+  padding:2px 0;
+}
+
+.custom-emails{
+  line-height:1.55;
+}
+
+.email-fields{
+  gap:18px;
+}
+
+.email-fields input,
+.email-fields textarea{
+  width:100%;
+}
+
+.send-footer{
+  margin-top:22px;
+  padding-top:18px;
+  min-height:66px;
+}
+
+.send-recipient-summary{
+  min-width:0;
+}
+
+.send-recipient-summary > div{
+  min-width:0;
+}
+
+.email-history-summary{
+  padding:16px;
+  gap:9px;
+}
+
+.email-history-list{
+  max-height:520px;
+}
+
+.email-log{
+  min-height:62px;
+  padding:12px 16px;
+}
+
+/* ---------- Empty/loading states ---------- */
+
+.quiz-empty{
+  padding:40px 24px;
+  line-height:1.55;
+}
+
+.quiz-loading-state{
+  min-height:420px;
+  border-radius:16px;
+}
+
+/* ---------- Toast ---------- */
+
+.quiz-toast{
+  max-width:min(440px,calc(100vw - 32px));
+  padding:13px 15px;
+  border-radius:12px;
+  line-height:1.45;
+}
+
+/* ---------- Reports ---------- */
+
+.report-stats{
+  gap:14px;
+  margin-bottom:22px;
+}
+
+.report-panel{
+  padding:20px;
+  border-radius:16px;
+}
+
+.report-filters{
+  gap:10px;
+  margin-bottom:18px;
+}
+
+.quiz-table th,
+.quiz-table td{
+  padding:13px 14px;
+}
+
+/* ---------- Public quiz ---------- */
+
+.public-header{
+  height:74px;
+  padding:0 42px;
+}
+
+.public-main{
+  padding:50px 20px 70px;
+}
+
+.public-card{
+  padding:40px;
+  border-radius:20px;
+}
+
+.public-card-intro{
+  padding-bottom:28px;
+}
+
+.public-card-intro h1{
+  font-size:32px;
+  line-height:1.2;
+}
+
+.verification-grid{
+  gap:34px;
+  padding:30px 0;
+}
+
+.verification-grid input:not([type="checkbox"]){
+  min-height:42px;
+}
+
+.quiz-player{
+  border-radius:20px;
+}
+
+.player-head{
+  padding:26px 30px 18px;
+}
+
+.player-question{
+  padding:42px 48px;
+  min-height:390px;
+}
+
+.question-body h2{
+  line-height:1.5;
+}
+
+.answer-options{
+  gap:12px;
+}
+
+.answer-options label{
+  min-height:52px;
+  padding:14px 15px;
+}
+
+.player-footer{
+  padding:18px 30px;
+}
+
+/* ---------- Certificate ---------- */
+
+.quiz-certificate{
+  border-radius:4px;
+}
+
+/* ---------- Smooth entrance ---------- */
+
+.quiz-page > *,
+.email-layout > *,
+.quiz-card-grid > *,
+.quiz-layout > *{
+  animation:quizContentIn .24s ease-out both;
+}
+
+@keyframes quizContentIn{
+  from{
+    opacity:0;
+    transform:translateY(5px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion:reduce){
+  .quiz-page > *,
+  .email-layout > *,
+  .quiz-card-grid > *,
+  .quiz-layout > *,
+  .quiz-primary,
+  .quiz-secondary,
+  .quiz-danger,
+  .quiz-question-card,
+  .quiz-launch-card,
+  .recipient-row,
+  .answer-options label{
+    animation:none !important;
+    transition:none !important;
+    transform:none !important;
+  }
+}
+
+/* ---------- Tablet ---------- */
+
+@media(max-width:1100px){
+  .quiz-page{
+    padding:26px 24px 42px;
+  }
+
+  .email-layout{
+    grid-template-columns:minmax(0,1fr) 340px;
+  }
+
+  .email-builder{
+    padding:22px;
+  }
+}
+
+/* ---------- Mobile ---------- */
+
+@media(max-width:700px){
+  .quiz-page{
+    padding:20px 14px 34px;
+  }
+
+  .quiz-page-header{
+    margin-bottom:22px;
+  }
+
+  .quiz-page-header h1{
+    font-size:25px;
+  }
+
+  .quiz-detail-panel{
+    padding:20px;
+  }
+
+  .quiz-panel-title{
+    padding:16px 18px;
+  }
+
+  .quiz-stats,
+  .report-stats{
+    gap:10px;
+  }
+
+  .quiz-stats div,
+  .report-stats div{
+    min-height:82px;
+    padding:14px;
+  }
+
+  .email-builder{
+    padding:18px;
+  }
+
+  .email-history{
+    position:static;
+  }
+
+  .email-section,
+  .email-content-section{
+    margin-top:20px;
+    padding-top:18px;
+  }
+
+  .email-section-heading{
+    gap:12px;
+  }
+
+  .recipient-mode button{
+    min-height:48px;
+  }
+
+  .recipient-list{
+    max-height:280px;
+  }
+
+  .send-footer{
+    position:static;
+    padding-bottom:2px;
+  }
+
+  .public-header{
+    height:66px;
+    padding:0 16px;
+  }
+
+  .public-main{
+    padding:26px 12px 42px;
+  }
+
+  .public-card{
+    padding:24px 18px;
+    border-radius:16px;
+  }
+
+  .player-head{
+    padding:20px;
+  }
+
+  .player-question{
+    padding:28px 20px;
+    min-height:340px;
+  }
+
+  .player-footer{
+    padding:15px 20px;
+  }
+
+  .quiz-certificate{
+    min-height:auto;
+    padding:40px 28px;
+  }
+
+  .quiz-certificate h1{
+    font-size:28px;
+  }
+
+  .quiz-certificate-name{
+    width:95%;
+    font-size:24px;
+  }
+}
+
+/* ---------- Small phones ---------- */
+
+@media(max-width:450px){
+  .quiz-page{
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  .quiz-panel{
+    border-radius:13px;
+  }
+
+  .quiz-page-header h1{
+    font-size:23px;
+  }
+
+  .quiz-stats,
+  .report-stats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .email-builder{
+    padding:15px;
+  }
+
+  .quiz-link-box{
+    padding:13px;
+  }
+
+  .quiz-link-actions{
+    justify-content:stretch;
+  }
+
+  .quiz-link-actions button{
+    flex:1;
+  }
+
+  .email-history-summary{
+    padding:11px;
+  }
+
+  .email-history-summary > div{
+    padding:9px 5px;
+  }
+
+  .send-footer .quiz-primary{
+    min-width:0;
+  }
+
+  .public-card-intro h1{
+    font-size:26px;
+  }
+
+  .quiz-certificate{
+    padding:32px 18px;
+  }
+}

@@ -67,14 +67,15 @@ function TakeQuiz() {
                             : [];
 
                 const activeQuizzes =
-                    list.filter((quiz) =>
-                        String(
-                            quiz?.status || ""
+                    list.filter((quiz) => {
+                        const status = String(
+                            quiz?.status ?? ""
                         )
                             .trim()
-                            .toLowerCase() ===
-                        "active"
-                    );
+                            .toLowerCase();
+
+                        return status === "active";
+                    });
 
                 if (mounted) {
 
@@ -280,10 +281,8 @@ function TakeQuiz() {
     // OPEN QUIZ
     // ============================================================
 
-    const openQuiz = quiz => {
-
-        const publicLink =
-            getQuizLink(quiz);
+    const openQuiz = (quiz) => {
+        const publicLink = getQuizLink(quiz);
 
         if (!publicLink) {
 
@@ -526,9 +525,7 @@ function TakeQuiz() {
                             quiz => {
 
                                 const publicLink =
-                                    getQuizLink(
-                                        quiz
-                                    );
+                                    getQuizLink(quiz);
 
 
                                 return (
