@@ -1532,6 +1532,12 @@ const createTables = (callback) => {
         ALTER TABLE quiz_questions
         ADD COLUMN option_scores_json JSON NULL
         AFTER correct_answer_json
+        `,
+
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN photo_captured_at DATETIME NULL
+        AFTER photo_path
         `
 
     ];
@@ -3201,6 +3207,54 @@ const getSubmission = async (
         return null;
     }
 
+    // ------------------------------------------------------
+    // PARTICIPANT PHOTO FOR CERTIFICATE
+    // ------------------------------------------------------
+    // Convert the stored verification image to a data URL so
+    // the certificate can render the exact captured photo even
+    // when it opens in a new browser window.
+    let photo_data_url = null;
+
+    const storedPhotoPath = rows[0]?.photo_path;
+
+    if (storedPhotoPath) {
+        try {
+            const normalizedPath = String(storedPhotoPath)
+                .replace(/^[/\\]+/, "");
+
+            const fullPhotoPath = path.join(
+                __dirname,
+                "..",
+                normalizedPath
+            );
+
+            if (fs.existsSync(fullPhotoPath)) {
+                const extension = path
+                    .extname(fullPhotoPath)
+                    .toLowerCase();
+
+                const mimeType =
+                    extension === ".png"
+                        ? "image/png"
+                        : extension === ".webp"
+                            ? "image/webp"
+                            : "image/jpeg";
+
+                const base64 = fs
+                    .readFileSync(fullPhotoPath)
+                    .toString("base64");
+
+                photo_data_url =
+                    `data:${mimeType};base64,${base64}`;
+            }
+        } catch (photoError) {
+            console.warn(
+                "Unable to load participant verification photo:",
+                photoError?.message || photoError
+            );
+        }
+    }
+
     const answers =
         await db.query(
             `
@@ -3227,6 +3281,8 @@ const getSubmission = async (
 
     return {
         ...rows[0],
+
+        photo_data_url,
 
         answers:
             answers.map(

@@ -2976,6 +2976,26 @@ exports.startPublicQuiz = async (
 
         let photoPath = null;
 
+        let photoCapturedAt = null;
+
+        if (
+            req.body.photo_captured_at
+        ) {
+            const parsedPhotoTime =
+                new Date(
+                    req.body.photo_captured_at
+                );
+
+            if (
+                !Number.isNaN(
+                    parsedPhotoTime.getTime()
+                )
+            ) {
+                photoCapturedAt =
+                    parsedPhotoTime;
+            }
+        }
+
 
         if (req.file) {
 
@@ -3081,6 +3101,7 @@ exports.startPublicQuiz = async (
                     participant_email,
                     session_token,
                     photo_path,
+                    photo_captured_at,
                     latitude,
                     longitude,
                     location_accuracy,
@@ -3092,7 +3113,7 @@ exports.startPublicQuiz = async (
                 )
 
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
 
@@ -3107,6 +3128,8 @@ exports.startPublicQuiz = async (
                     sessionToken,
 
                     photoPath,
+
+                    photoCapturedAt,
 
                     req.body.latitude ||
                         null,
@@ -3152,6 +3175,11 @@ exports.startPublicQuiz = async (
 
             photo_path:
                 photoPath,
+
+            photo_captured_at:
+                photoCapturedAt
+                    ? photoCapturedAt.toISOString()
+                    : null,
 
             latitude:
                 req.body.latitude || null,
