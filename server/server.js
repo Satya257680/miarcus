@@ -69,6 +69,9 @@ const Announcement =
 const Quiz =
     require("./models/quizModel");
 
+const Expense =
+    require("./models/expenseModel");
+
 // ======================================================
 // CREATE TABLE HELPER
 // ======================================================
@@ -92,7 +95,13 @@ function createTablesAsync(model, label) {
 
             }
 
-            model.createTables((err) => {
+            let settled = false;
+
+            const finish = (err) => {
+
+                if (settled) return;
+
+                settled = true;
 
                 if (err) {
 
@@ -111,7 +120,17 @@ function createTablesAsync(model, label) {
 
                 resolve();
 
-            });
+            };
+
+            const result = model.createTables(finish);
+
+            if (result && typeof result.then === "function") {
+
+                result
+                    .then(() => finish())
+                    .catch(finish);
+
+            }
 
         } catch (error) {
 
@@ -196,6 +215,15 @@ async function initializeDatabase() {
         await createTablesAsync(
             Quiz,
             "quiz"
+        );
+
+        // --------------------------------------------------
+        // EXPENSES
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            Expense,
+            "expenses"
         );
 
         // ==================================================
@@ -1081,6 +1109,20 @@ loadRoute(
     "/api/nso-tracking",
 
     "NSO Tracking Routes"
+
+);
+
+// ======================================================
+// EXPENSES
+// ======================================================
+
+loadRoute(
+
+    "./routes/expenseRoutes",
+
+    "/api/expenses",
+
+    "Expense Routes"
 
 );
 
