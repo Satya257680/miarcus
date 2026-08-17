@@ -29,54 +29,6 @@ function AddUserModal({
   editingUser,
 }) {
   // =====================================================
-  // CURRENT USER RBAC
-  // =====================================================
-
-  const currentUser = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
-
-  const currentPermissions = JSON.parse(
-    localStorage.getItem("permissions") || "{}"
-  );
-
-  const currentUserIsAdmin = Boolean(
-    currentUser?.is_admin ||
-      currentUser?.isAdmin ||
-      currentUser?.administrator
-  );
-
-  const currentUsersPermission =
-    currentPermissions["Users"] || "None";
-
-  const permissionRank = {
-    None: 0,
-    View: 1,
-    Add: 2,
-    Edit: 3,
-    Full: 4,
-  };
-
-  const canAddUsers =
-    currentUserIsAdmin ||
-    ["Add", "Edit", "Full"].includes(
-      currentUsersPermission
-    );
-
-  const canEditUsers =
-    currentUserIsAdmin ||
-    ["Edit", "Full"].includes(
-      currentUsersPermission
-    );
-
-  const canManagePermissions =
-    currentUserIsAdmin ||
-    currentUsersPermission === "Full";
-
-  const canManageAdministrator =
-    currentUserIsAdmin;
-
-  // =====================================================
   // STEPS
   // =====================================================
 
@@ -468,13 +420,6 @@ function AddUserModal({
   // =====================================================
 
   const handleAdminChange = (checked) => {
-    if (!canManageAdministrator) {
-      alert(
-        "Only an Administrator can assign Administrator access."
-      );
-      return;
-    }
-
     setIsAdmin(checked);
 
     if (checked) {
@@ -505,26 +450,6 @@ function AddUserModal({
     permission
   ) => {
     if (isAdmin) return;
-
-    if (!canManagePermissions) {
-      alert(
-        "You do not have permission to modify module access."
-      );
-      return;
-    }
-
-    const currentModulePermission =
-      currentPermissions[module] || "None";
-
-    if (
-      permissionRank[permission] >
-      permissionRank[currentModulePermission]
-    ) {
-      alert(
-        `You cannot assign ${permission} access to ${module}. Your own access is ${currentModulePermission}.`
-      );
-      return;
-    }
 
     setModulePermissions((previous) => ({
       ...previous,
@@ -793,54 +718,6 @@ function AddUserModal({
   // =====================================================
 
   const handleCreateUser = async () => {
-    // =====================================================
-    // RBAC SAVE GUARD
-    // =====================================================
-
-    if (editingUser && !canEditUsers) {
-      alert(
-        "You do not have permission to edit users."
-      );
-      return;
-    }
-
-    if (!editingUser && !canAddUsers) {
-      alert(
-        "You do not have permission to add users."
-      );
-      return;
-    }
-
-    if (
-      isAdmin &&
-      !canManageAdministrator
-    ) {
-      alert(
-        "Only an Administrator can create an Administrator account."
-      );
-      return;
-    }
-
-    if (!isAdmin && canManagePermissions) {
-      for (const module of modules) {
-        const assigned =
-          modulePermissions[module] || "None";
-
-        const own =
-          currentPermissions[module] || "None";
-
-        if (
-          permissionRank[assigned] >
-          permissionRank[own]
-        ) {
-          alert(
-            `Invalid permission for ${module}. You cannot assign ${assigned} because your own access is ${own}.`
-          );
-          return;
-        }
-      }
-    }
-
     for (
       let step = 1;
       step <= 4;
@@ -1571,11 +1448,7 @@ function AddUserModal({
                   !isActive
                 )
               }
-              disabled={
-                isAdmin ||
-                (!currentUserIsAdmin &&
-                  !canEditUsers)
-              }
+              disabled={isAdmin}
               aria-label="Toggle account status"
             >
               <span />
@@ -1612,10 +1485,11 @@ function AddUserModal({
                   ? "on"
                   : ""
               }`}
-              onClick={() =>
-                handleAdminChange(!isAdmin)
+              onClick={(e) =>
+                handleAdminChange(
+                  !isAdmin
+                )
               }
-              disabled={!canManageAdministrator}
               aria-label="Toggle administrator"
             >
               <span />
@@ -1623,27 +1497,6 @@ function AddUserModal({
           </div>
         </div>
       </div>
-
-      {!canManagePermissions && !currentUserIsAdmin && (
-        <div className="admin-banner">
-          <div className="admin-banner-icon">
-            <LuLockKeyhole />
-          </div>
-
-          <div>
-            <strong>
-              Permission Management Restricted
-            </strong>
-
-            <p>
-              You can create or edit users according
-              to your Users permission, but only a
-              user with Full Users access or an
-              Administrator can change module permissions.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ADMIN NOTICE */}
 
@@ -1745,13 +1598,7 @@ function AddUserModal({
                               checked
                             }
                             disabled={
-                              isAdmin ||
-                              !canManagePermissions ||
-                              permissionRank[type] >
-                                permissionRank[
-                                  currentPermissions[module] ||
-                                    "None"
-                                ]
+                              isAdmin
                             }
                             onChange={() =>
                               handlePermissionChange(
