@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/AddUserModal.css";
 
 import {
@@ -155,6 +155,14 @@ function AddUserModal({
   const [modulePermissions, setModulePermissions] =
     useState(createDefaultPermissions());
 
+  // Prevent the edit-user data loader from overwriting changes when the
+  // parent re-renders and passes a new editingUser object with the same ID.
+  const initializedUserRef = useRef(null);
+
+  // Keep the user's normal permissions so they can be restored if
+  // Administrator is switched back OFF.
+  const permissionsBeforeAdminRef = useRef(null);
+
   // =====================================================
   // ACCOUNT SETTINGS
   // =====================================================
@@ -200,9 +208,13 @@ function AddUserModal({
       String(designation.id) === String(designationId)
   );
 
-  const selectedPermissionCount = Object.values(
-    modulePermissions
-  ).filter((permission) => permission !== "None").length;
+  const selectedPermissionCount = isAdmin
+    ? modules.length
+    : Object.values(
+        modulePermissions
+      ).filter(
+        (permission) => permission !== "None"
+      ).length;
 
   const completionPercentage = Math.round(
     (currentStep / steps.length) * 100
@@ -224,7 +236,21 @@ function AddUserModal({
   // =====================================================
 
   useEffect(() => {
+    const userKey = editingUser?.id
+      ? `edit-${editingUser.id}`
+      : "new";
+
+    // IMPORTANT:
+    // Do not reload/reset the modal merely because the parent component
+    // re-rendered. This was causing the Access step to jump back to the
+    // initial step and permissions such as Expenses = Full to be replaced.
+    if (initializedUserRef.current === userKey) {
+      return;
+    }
+
+    initializedUserRef.current = userKey;
     setCurrentStep(1);
+    permissionsBeforeAdminRef.current = null;
 
     if (!editingUser) {
       resetForm();
@@ -283,29 +309,111 @@ function AddUserModal({
       editingUser.status === "Active"
     );
 
-    setIsAdmin(
-      Boolean(editingUser.is_admin)
-    );
+    const normalizePermissions = (rawPermissions) => {
+      const normalized = createDefaultPermissions();
 
-    // Keep the normal per-module permissions exactly as saved.
-    // Do not make every module Full unless Administrator is enabled.
-    // Also accept the backend's possible singular Expense key and
-    // normalize it to the UI module name "Expenses".
-    const savedPermissions = editingUser.permissions || {};
-    const normalizedPermissions = {
-      ...createDefaultPermissions(),
-      ...savedPermissions,
+      if (Array.isArray(rawPermissions)) {
+        rawPermissions.forEach((item) => {
+          const moduleName =
+            item?.module_name ||
+            item?.module ||
+            item?.name;
+
+          const permission =
+            item?.permission || "None";
+
+          if (moduleName) {
+            const uiModule =
+              moduleName === "Expense"
+                ? "Expenses"
+                : moduleName;
+
+            if (modules.includes(uiModule)) {
+              const normalizedPermission =
+                String(permission).trim();
+
+              normalized[uiModule] =
+                permissionTypes.includes(
+                  normalizedPermission
+                )
+                  ? normalizedPermission
+                  : "None";
+            }
+          }
+        });
+
+        return normalized;
+      }
+
+      if (
+        rawPermissions &&
+        typeof rawPermissions === "object"
+      ) {
+        Object.entries(rawPermissions).forEach(
+          ([moduleName, permission]) => {
+            const uiModule =
+              moduleName === "Expense"
+                ? "Expenses"
+                : moduleName;
+
+            if (modules.includes(uiModule)) {
+              const normalizedPermission =
+                String(permission).trim();
+
+              normalized[uiModule] =
+                permissionTypes.includes(
+                  normalizedPermission
+                )
+                  ? normalizedPermission
+                  : "None";
+            }
+          }
+        );
+      }
+
+      return normalized;
     };
 
-    if (
-      normalizedPermissions.Expenses === "None" &&
-      savedPermissions.Expense &&
-      savedPermissions.Expense !== "None"
-    ) {
-      normalizedPermissions.Expenses = savedPermissions.Expense;
-    }
+    const normalizedPermissions =
+      normalizePermissions(
+        editingUser.permissions
+      );
 
-    setModulePermissions(normalizedPermissions);
+    const adminValue =
+      editingUser.is_admin ??
+      editingUser.administrator ??
+      false;
+
+    const administrator =
+      adminValue === true ||
+      adminValue === 1 ||
+      adminValue === "1" ||
+      String(adminValue).toLowerCase() === "true" ||
+      String(adminValue).toLowerCase() === "yes";
+
+    setIsAdmin(administrator);
+
+    // Administrator ALWAYS starts with Full access for EVERY module.
+    // The normal permissions are still kept separately so that if the
+    // administrator flag is later switched OFF, the previous selections
+    // can be restored.
+    if (administrator) {
+      permissionsBeforeAdminRef.current =
+        normalizedPermissions;
+
+      setModulePermissions(
+        modules.reduce((acc, module) => {
+          acc[module] = "Full";
+          return acc;
+        }, {})
+      );
+
+      setIsActive(true);
+    } else {
+      setModulePermissions(
+        normalizedPermissions
+      );
+    }
   }, [editingUser]);
 
   // =====================================================
@@ -338,6 +446,7 @@ function AddUserModal({
 
     setIsActive(true);
     setIsAdmin(false);
+    permissionsBeforeAdminRef.current = null;
   };
 
   // =====================================================
@@ -435,16 +544,42 @@ function AddUserModal({
   // =====================================================
 
   const handleAdminChange = (checked) => {
-    // Administrator is an account-level flag. It must NOT lock or
-    // overwrite the user's individual module selections.
-    // This allows an administrator account to still have explicit
-    // module permissions selected and, importantly, lets Expenses
-    // be changed just like every other module.
-    setIsAdmin(checked);
-
     if (checked) {
+      // Save the current normal permissions before switching to Admin.
+      // This lets us restore them if Admin is turned OFF again.
+      permissionsBeforeAdminRef.current = {
+        ...modulePermissions,
+      };
+
+      // ADMIN = FULL ACCESS TO EVERY MODULE.
+      // This is deliberately done in one state update so every radio
+      // immediately moves to Full, including Expenses.
+      const fullPermissions =
+        modules.reduce((acc, module) => {
+          acc[module] = "Full";
+          return acc;
+        }, {});
+
+      setModulePermissions(fullPermissions);
+      setIsAdmin(true);
       setIsActive(true);
+      return;
     }
+
+    // Switching Admin OFF restores the permissions that existed before
+    // Admin was enabled. If there were none, fall back to None.
+    const restoredPermissions =
+      permissionsBeforeAdminRef.current
+        ? {
+            ...createDefaultPermissions(),
+            ...permissionsBeforeAdminRef.current,
+          }
+        : createDefaultPermissions();
+
+    setModulePermissions(
+      restoredPermissions
+    );
+    setIsAdmin(false);
   };
 
   // =====================================================
@@ -455,6 +590,8 @@ function AddUserModal({
     module,
     permission
   ) => {
+    // Administrator already has Full access to every module.
+    // Turn Admin OFF first if individual permissions need to be changed.
     if (isAdmin) return;
 
     setModulePermissions((previous) => ({
@@ -766,14 +903,20 @@ function AddUserModal({
         stores:
           selectedStores,
 
-        // Always send the exact UI module names, including
-        // "Expenses". This prevents the Expenses permission from
-        // being dropped because of an Expense/Expenses mismatch.
+        // Always send every module explicitly.
+        // Administrator is authoritative: every module is Full.
         permissions: modules.reduce((acc, module) => {
-          acc[module] =
-            modulePermissions[module] ||
-            modulePermissions[module === "Expenses" ? "Expense" : module] ||
-            "None";
+          acc[module] = isAdmin
+            ? "Full"
+            : (
+                modulePermissions[module] ||
+                modulePermissions[
+                  module === "Expenses"
+                    ? "Expense"
+                    : module
+                ] ||
+                "None"
+              );
           return acc;
         }, {}),
 
@@ -1526,9 +1669,9 @@ function AddUserModal({
             </strong>
 
             <p>
-              Administrator status is enabled, but module permissions
-              remain selectable individually. Choose None, View, Add,
-              Edit or Full for each module as required.
+              Administrator access is enabled. Every module is automatically
+              set to Full access, including Expenses. Turn Administrator OFF
+              to configure individual module permissions.
             </p>
           </div>
         </div>
@@ -1604,7 +1747,7 @@ function AddUserModal({
                             checked={
                               checked
                             }
-                            disabled={false}
+                            disabled={isAdmin}
                             onChange={() =>
                               handlePermissionChange(
                                 module,
