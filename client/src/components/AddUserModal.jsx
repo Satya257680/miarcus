@@ -146,19 +146,14 @@ function AddUserModal({
     "Full",
   ];
 
-  // =====================================================
-  // GLOBAL ACCESS POLICY
-  // =====================================================
-  // Every user receives Full access to every module.
-  // This is independent of Administrator status.
-  const createFullPermissions = () =>
+  const createDefaultPermissions = () =>
     modules.reduce((acc, module) => {
-      acc[module] = "Full";
+      acc[module] = "None";
       return acc;
     }, {});
 
   const [modulePermissions, setModulePermissions] =
-    useState(createFullPermissions());
+    useState(createDefaultPermissions());
 
   // =====================================================
   // ACCOUNT SETTINGS
@@ -292,10 +287,25 @@ function AddUserModal({
       Boolean(editingUser.is_admin)
     );
 
-    // Always load the global Full-access policy for every user.
-    // Do not depend on a possibly incomplete permissions object
-    // returned by the Users API.
-    setModulePermissions(createFullPermissions());
+    // Keep the normal per-module permissions exactly as saved.
+    // Do not make every module Full unless Administrator is enabled.
+    // Also accept the backend's possible singular Expense key and
+    // normalize it to the UI module name "Expenses".
+    const savedPermissions = editingUser.permissions || {};
+    const normalizedPermissions = {
+      ...createDefaultPermissions(),
+      ...savedPermissions,
+    };
+
+    if (
+      normalizedPermissions.Expenses === "None" &&
+      savedPermissions.Expense &&
+      savedPermissions.Expense !== "None"
+    ) {
+      normalizedPermissions.Expenses = savedPermissions.Expense;
+    }
+
+    setModulePermissions(normalizedPermissions);
   }, [editingUser]);
 
   // =====================================================
@@ -323,7 +333,7 @@ function AddUserModal({
     setStoreSearch("");
 
     setModulePermissions(
-      createFullPermissions()
+      createDefaultPermissions()
     );
 
     setIsActive(true);
@@ -430,22 +440,31 @@ function AddUserModal({
     if (checked) {
       setIsActive(true);
 
-      const fullPermissions = {};
+      // Administrator is a temporary override. Keep the user's
+      // normal module selections underneath it so turning Admin
+      // back OFF restores the exact permissions they had selected.
+      setModulePermissions((previous) => {
+        const next = {
+          ...createDefaultPermissions(),
+          ...previous,
+        };
 
-      modules.forEach((module) => {
-        fullPermissions[module] = "Full";
+        // Preserve a possible backend "Expense" key while the UI
+        // consistently uses "Expenses".
+        if (
+          next.Expenses === "None" &&
+          previous.Expense &&
+          previous.Expense !== "None"
+        ) {
+          next.Expenses = previous.Expense;
+        }
+
+        return next;
       });
-
-      setModulePermissions(
-        fullPermissions
-      );
-    } else {
-      // Administrator can be switched off, but Full module access
-      // remains enabled for this user.
-      setModulePermissions(
-        createFullPermissions()
-      );
     }
+    // IMPORTANT: Do NOT reset permissions when Administrator is
+    // turned OFF. The user should be able to choose permissions
+    // normally, module by module.
   };
 
   // =====================================================
@@ -456,13 +475,11 @@ function AddUserModal({
     module,
     permission
   ) => {
-    // Global policy: every module must remain Full.
-    // Ignore attempts to downgrade an individual module.
-    if (permission !== "Full") return;
+    if (isAdmin) return;
 
     setModulePermissions((previous) => ({
       ...previous,
-      [module]: "Full",
+      [module]: permission,
     }));
   };
 
@@ -769,8 +786,16 @@ function AddUserModal({
         stores:
           selectedStores,
 
-        permissions:
-          modulePermissions,
+        // Always send the exact UI module names, including
+        // "Expenses". This prevents the Expenses permission from
+        // being dropped because of an Expense/Expenses mismatch.
+        permissions: modules.reduce((acc, module) => {
+          acc[module] =
+            modulePermissions[module] ||
+            modulePermissions[module === "Expenses" ? "Expense" : module] ||
+            "None";
+          return acc;
+        }, {}),
 
         active:
           isActive,
@@ -1538,7 +1563,8 @@ function AddUserModal({
             <h4>Module Permissions</h4>
 
             <p>
-              All users are granted Full access to every module.
+              Select the access level for each
+              module.
             </p>
           </div>
 
@@ -1555,14 +1581,6 @@ function AddUserModal({
                 : "modules configured"}
             </span>
           </div>
-        </div>
-
-        <div className="permission-policy-note">
-          <LuShieldCheck />
-          <span>
-            Full access is enabled for all users and all modules.
-            Individual module access cannot be reduced from this screen.
-          </span>
         </div>
 
         <div className="permission-table-wrap">
@@ -1614,8 +1632,7 @@ function AddUserModal({
                               checked
                             }
                             disabled={
-                              isAdmin ||
-                              type !== "Full"
+                              isAdmin
                             }
                             onChange={() =>
                               handlePermissionChange(
