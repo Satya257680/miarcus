@@ -15,6 +15,9 @@ import {
   FaEnvelope,
   FaChartBar,
   FaChevronDown,
+  FaWallet,
+  FaReceipt,
+  FaCheckDouble,
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -23,7 +26,9 @@ function Sidebar({ collapsed }) {
 
   const location = useLocation();
   const quizOpenByPath = location.pathname.startsWith("/quiz/");
+  const expenseOpenByPath = location.pathname.startsWith("/expenses/");
   const [quizOpen, setQuizOpen] = useState(quizOpenByPath);
+  const [expenseOpen, setExpenseOpen] = useState(expenseOpenByPath);
 
   // ==========================================
   // RBAC
@@ -53,6 +58,14 @@ function Sidebar({ collapsed }) {
     ].includes(permission);
 
   };
+
+  const hasAnyPermission = (moduleNames) =>
+    isAdministrator ||
+    moduleNames.some((moduleName) =>
+      ["View", "Add", "Edit", "Full"].includes(
+        permissions[moduleName]
+      )
+    );
 
   return (
 
@@ -200,6 +213,56 @@ function Sidebar({ collapsed }) {
 
           </NavLink>
 
+        )}
+
+        {/* ==========================================
+            EXPENSES
+        ========================================== */}
+
+        {hasAnyPermission([
+          "Expenses",
+          "Expense Entry",
+          "Track Expenses",
+          "Approve Expenses"
+        ]) && (
+          <div
+            className={`sidebar-group ${expenseOpen || expenseOpenByPath ? "open" : ""}`}
+          >
+            <button
+              type="button"
+              className={`menu-item sidebar-group-toggle ${expenseOpenByPath ? "active" : ""}`}
+              onClick={() => setExpenseOpen((prev) => !prev)}
+            >
+              <FaWallet />
+              {!collapsed && <span>Expenses</span>}
+              {!collapsed && <FaChevronDown className="submenu-chevron" />}
+            </button>
+
+            {!collapsed && (expenseOpen || expenseOpenByPath) && (
+              <div className="sidebar-submenu">
+                {hasAnyPermission(["Expenses", "Expense Entry"]) && (
+                  <NavLink to="/expenses/entry" className="menu-item submenu-item">
+                    <FaReceipt />
+                    <span>Expense Entry</span>
+                  </NavLink>
+                )}
+
+                {hasAnyPermission(["Expenses", "Track Expenses"]) && (
+                  <NavLink to="/expenses/track" className="menu-item submenu-item">
+                    <FaReceipt />
+                    <span>Track Expenses</span>
+                  </NavLink>
+                )}
+
+                {hasAnyPermission(["Expenses", "Approve Expenses"]) && (
+                  <NavLink to="/expenses/approve" className="menu-item submenu-item">
+                    <FaCheckDouble />
+                    <span>Approve Expenses</span>
+                  </NavLink>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ==========================================

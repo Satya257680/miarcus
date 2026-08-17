@@ -69,6 +69,13 @@ import TrainingReport from "./pages/Quiz/TrainingReport";
 import EmailSettings from "./pages/Quiz/EmailSettings";
 import PublicQuiz from "./pages/Quiz/PublicQuiz";
 
+// ==================================================
+// EXPENSES
+// ==================================================
+import ExpenseEntry from "./pages/Expenses/ExpenseEntry";
+import TrackExpenses from "./pages/Expenses/TrackExpenses";
+import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
+
 function App() {
     return (
         <BrowserRouter>
@@ -262,6 +269,43 @@ function App() {
                     <Route
                         path="/quiz/email"
                         element={<EmailSettings />}
+                    />
+
+                    {/* ==================================================
+                        EXPENSES
+                    ================================================== */}
+
+                    <Route
+                        path="/expenses/entry"
+                        element={<ExpenseEntry />}
+                    />
+
+                    <Route
+                        path="/expenses/track"
+                        element={<TrackExpenses />}
+                    />
+
+                    <Route
+                        path="/expenses/approve"
+                        element={<ApproveExpenses />}
+                    />
+
+                    {/* Legacy / direct Expense URLs */}
+                    <Route
+                        path="/expense-entry"
+                        element={<ExpenseEntry />}
+                    />
+                    <Route
+                        path="/track-expenses"
+                        element={<TrackExpenses />}
+                    />
+                    <Route
+                        path="/approve-expenses"
+                        element={<ApproveExpenses />}
+                    />
+                    <Route
+                        path="/expenses"
+                        element={<Navigate to="/expenses/entry" replace />}
                     />
 
                     {/* ==================================================
