@@ -27,6 +27,7 @@ const RBAC_MODULES = [
     "NSO Rules",
     "New Store Openings",
     "Announcements",
+    "Expenses",
     "Profile",
     "Settings"
 ];

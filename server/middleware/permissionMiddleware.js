@@ -27,6 +27,30 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
         const userId = req.user.id;
 
         // ======================================================
+        // ADMINISTRATOR BYPASS
+        // ======================================================
+        // Administrator automatically has FULL access
+        // to every module.
+        //
+        // This check is intentionally BEFORE the
+        // user_permissions database lookup.
+        // ======================================================
+
+        const isAdministrator =
+            req.user.is_admin === true ||
+            req.user.is_admin === 1 ||
+            req.user.is_admin === "1" ||
+            req.user.administrator === true ||
+            req.user.administrator === 1 ||
+            req.user.administrator === "1";
+
+        if (isAdministrator) {
+
+            return next();
+
+        }
+
+        // ======================================================
         // LOAD REQUESTED PERMISSION
         // ======================================================
 
@@ -44,7 +68,16 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
             (err, result) => {
 
+                // ======================================================
+                // DATABASE ERROR
+                // ======================================================
+
                 if (err) {
+
+                    console.error(
+                        "Permission Check Failed:",
+                        err
+                    );
 
                     return res.status(500).json({
 
@@ -56,7 +89,11 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 }
 
-                if (result.length === 0) {
+                // ======================================================
+                // NO PERMISSION RECORD
+                // ======================================================
+
+                if (!result || result.length === 0) {
 
                     return res.status(403).json({
 
@@ -88,7 +125,12 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                     requiredPermission === "View" &&
 
-                    ["View", "Add", "Edit", "Full"].includes(permission)
+                    [
+                        "View",
+                        "Add",
+                        "Edit",
+                        "Full"
+                    ].includes(permission)
 
                 ) {
 
@@ -104,7 +146,11 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                     requiredPermission === "Add" &&
 
-                    ["Add", "Edit", "Full"].includes(permission)
+                    [
+                        "Add",
+                        "Edit",
+                        "Full"
+                    ].includes(permission)
 
                 ) {
 
@@ -120,7 +166,10 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                     requiredPermission === "Edit" &&
 
-                    ["Edit", "Full"].includes(permission)
+                    [
+                        "Edit",
+                        "Full"
+                    ].includes(permission)
 
                 ) {
 
@@ -129,7 +178,7 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
                 }
 
                 // ======================================================
-                // DELETE / FULL ACCESS
+                // FULL ACCESS REQUIRED
                 // ======================================================
 
                 if (
@@ -143,6 +192,10 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
                     return next();
 
                 }
+
+                // ======================================================
+                // INSUFFICIENT PERMISSION
+                // ======================================================
 
                 return res.status(403).json({
 
