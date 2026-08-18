@@ -9,38 +9,136 @@ const Billing = {};
 const safeNumber = (value) => {
     const number = Number(value);
 
-    return Number.isFinite(number)
-        ? number
-        : 0;
+    return Number.isFinite(number) ? number : 0;
 };
 
 const safeJson = (value) => {
     try {
-        return JSON.stringify(
-            value ?? null
-        );
+        return JSON.stringify(value ?? null);
     } catch (error) {
         return JSON.stringify(null);
     }
 };
 
-const releaseConnection = (
-    connection
-) => {
+const releaseConnection = (connection) => {
     if (connection) {
         connection.release();
     }
 };
 
+const rollbackAndRelease = (
+    connection,
+    error,
+    callback
+) => {
+    connection.rollback(() => {
+        releaseConnection(connection);
+        callback(error);
+    });
+};
+
+/* ======================================================
+   BILL SNAPSHOT
+   Used for UPDATE / CANCEL audit history
+====================================================== */
+
+const getBillForTransaction = (
+    connection,
+    id,
+    callback
+) => {
+    const billSql = `
+        SELECT
+            b.*,
+            s.store_name,
+            u1.name AS created_by_name,
+            u2.name AS updated_by_name
+        FROM bills b
+        LEFT JOIN stores s
+            ON s.id = b.store_id
+        LEFT JOIN users u1
+            ON u1.id = b.created_by
+        LEFT JOIN users u2
+            ON u2.id = b.updated_by
+        WHERE b.id = ?
+        LIMIT 1
+    `;
+
+    connection.query(
+        billSql,
+        [id],
+        (billError, bills) => {
+            if (billError) {
+                return callback(billError);
+            }
+
+            if (!bills || !bills.length) {
+                return callback(null, null);
+            }
+
+            const bill = bills[0];
+
+            connection.query(
+                `
+                    SELECT
+                        *
+                    FROM bill_items
+                    WHERE bill_id = ?
+                    ORDER BY id ASC
+                `,
+                [id],
+                (itemError, items) => {
+                    if (itemError) {
+                        return callback(itemError);
+                    }
+
+                    connection.query(
+                        `
+                            SELECT
+                                *
+                            FROM payments
+                            WHERE bill_id = ?
+                            ORDER BY id DESC
+                        `,
+                        [id],
+                        (paymentError, payments) => {
+                            if (paymentError) {
+                                return callback(paymentError);
+                            }
+
+                            callback(null, {
+                                ...bill,
+                                items: items || [],
+                                payments: payments || [],
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
+};
+
 /* ======================================================
    AUDIT LOG
+
+   IMPORTANT:
+   Your MySQL audit_logs table uses:
+
+   module_name
+   reference_id
+
+   NOT:
+
+   table_name
+   record_id
 ====================================================== */
 
 const createAuditLog = (
     connection,
     {
-        tableName,
-        recordId,
+        moduleName,
+        referenceId,
         action,
         oldData = null,
         newData = null,
@@ -51,8 +149,8 @@ const createAuditLog = (
     const sql = `
         INSERT INTO audit_logs
         (
-            table_name,
-            record_id,
+            module_name,
+            reference_id,
             action,
             old_data,
             new_data,
@@ -65,124 +163,14 @@ const createAuditLog = (
     connection.query(
         sql,
         [
-            tableName,
-            recordId,
+            moduleName,
+            referenceId,
             action,
             safeJson(oldData),
             safeJson(newData),
-            changedBy,
+            changedBy || null,
         ],
         callback
-    );
-};
-
-/* ======================================================
-   GET CURRENT BILL
-   Used internally for UPDATE / CANCEL / AUDIT
-====================================================== */
-
-const getBillForTransaction = (
-    connection,
-    id,
-    callback
-) => {
-    const billSql = `
-        SELECT
-            b.*,
-
-            s.store_name,
-
-            u1.name AS created_by_name,
-            u2.name AS updated_by_name
-
-        FROM bills b
-
-        LEFT JOIN stores s
-            ON s.id = b.store_id
-
-        LEFT JOIN users u1
-            ON u1.id = b.created_by
-
-        LEFT JOIN users u2
-            ON u2.id = b.updated_by
-
-        WHERE b.id = ?
-
-        LIMIT 1
-    `;
-
-    connection.query(
-        billSql,
-        [id],
-        (billError, bills) => {
-            if (billError) {
-                return callback(
-                    billError
-                );
-            }
-
-            if (!bills.length) {
-                return callback(
-                    null,
-                    null
-                );
-            }
-
-            const bill =
-                bills[0];
-
-            connection.query(
-                `
-                    SELECT *
-                    FROM bill_items
-                    WHERE bill_id = ?
-                    ORDER BY id ASC
-                `,
-                [id],
-                (itemError, items) => {
-                    if (itemError) {
-                        return callback(
-                            itemError
-                        );
-                    }
-
-                    connection.query(
-                        `
-                            SELECT *
-                            FROM payments
-                            WHERE bill_id = ?
-                            ORDER BY id DESC
-                        `,
-                        [id],
-                        (
-                            paymentError,
-                            payments
-                        ) => {
-                            if (
-                                paymentError
-                            ) {
-                                return callback(
-                                    paymentError
-                                );
-                            }
-
-                            callback(
-                                null,
-                                {
-                                    ...bill,
-                                    items:
-                                        items ||
-                                        [],
-                                    payments:
-                                        payments ||
-                                        [],
-                                }
-                            );
-                        }
-                    );
-                }
-            );
-        }
     );
 };
 
@@ -197,28 +185,16 @@ Billing.createBill = (
     callback
 ) => {
     db.getConnection(
-        (
-            connectionError,
-            connection
-        ) => {
+        (connectionError, connection) => {
             if (connectionError) {
-                return callback(
-                    connectionError
-                );
+                return callback(connectionError);
             }
 
             connection.beginTransaction(
                 (transactionError) => {
-                    if (
-                        transactionError
-                    ) {
-                        releaseConnection(
-                            connection
-                        );
-
-                        return callback(
-                            transactionError
-                        );
+                    if (transactionError) {
+                        releaseConnection(connection);
+                        return callback(transactionError);
                     }
 
                     /* ======================================
@@ -240,40 +216,18 @@ Billing.createBill = (
                             created_by,
                             updated_by
                         )
-                        VALUES
-                        (
-                            ?,
-                            ?,
-                            ?,
-                            ?,
-                            ?,
-                            ?,
-                            ?,
-                            ?,
-                            'PAID',
-                            ?,
-                            ?
-                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PAID', ?, ?)
                     `;
 
                     const billValues = [
                         bill.bill_no,
                         bill.store_id,
-                        bill.customer_name ||
-                            null,
-                        bill.bill_date,
-                        safeNumber(
-                            bill.subtotal
-                        ),
-                        safeNumber(
-                            bill.discount
-                        ),
-                        safeNumber(
-                            bill.tax
-                        ),
-                        safeNumber(
-                            bill.grand_total
-                        ),
+                        bill.customer_name || null,
+                        bill.bill_date || new Date(),
+                        safeNumber(bill.subtotal),
+                        safeNumber(bill.discount),
+                        safeNumber(bill.tax),
+                        safeNumber(bill.grand_total),
                         bill.created_by,
                         bill.created_by,
                     ];
@@ -281,334 +235,255 @@ Billing.createBill = (
                     connection.query(
                         billSql,
                         billValues,
-                        (
-                            billError,
-                            result
-                        ) => {
-                            if (
-                                billError
-                            ) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            billError
-                                        );
-                                    }
+                        (billError, result) => {
+                            if (billError) {
+                                return rollbackAndRelease(
+                                    connection,
+                                    billError,
+                                    callback
                                 );
                             }
 
-                            const billId =
-                                result.insertId;
+                            const billId = result.insertId;
+
+                            /* ==================================
+                               PREPARE ITEMS
+                            ================================== */
+
+                            const validItems = (
+                                items || []
+                            ).filter(
+                                (item) =>
+                                    item &&
+                                    item.product_name &&
+                                    String(
+                                        item.product_name
+                                    ).trim()
+                            );
+
+                            const itemRows = validItems.map(
+                                (item) => [
+                                    billId,
+                                    item.product_id || null,
+                                    String(
+                                        item.product_name
+                                    ).trim(),
+                                    safeNumber(item.quantity),
+                                    safeNumber(item.rate),
+                                    safeNumber(item.discount),
+                                    safeNumber(item.amount),
+                                ]
+                            );
 
                             /* ==================================
                                INSERT ITEMS
                             ================================== */
 
-                            const validItems =
-                                (
-                                    items ||
-                                    []
-                                ).filter(
-                                    (item) =>
-                                        item &&
-                                        item.product_name &&
-                                        String(
-                                            item.product_name
-                                        ).trim()
+                            const insertItems = (next) => {
+                                if (!itemRows.length) {
+                                    return next(null);
+                                }
+
+                                const itemSql = `
+                                    INSERT INTO bill_items
+                                    (
+                                        bill_id,
+                                        product_id,
+                                        product_name,
+                                        quantity,
+                                        rate,
+                                        discount,
+                                        amount
+                                    )
+                                    VALUES ?
+                                `;
+
+                                connection.query(
+                                    itemSql,
+                                    [itemRows],
+                                    next
                                 );
+                            };
 
-                            const rows =
-                                validItems.map(
-                                    (item) => [
-                                        billId,
-
-                                        item.product_id ||
-                                            null,
-
-                                        String(
-                                            item.product_name
-                                        ).trim(),
-
-                                        safeNumber(
-                                            item.quantity
-                                        ),
-
-                                        safeNumber(
-                                            item.rate
-                                        ),
-
-                                        safeNumber(
-                                            item.discount
-                                        ),
-
-                                        safeNumber(
-                                            item.amount
-                                        ),
-                                    ]
-                                );
-
-                            const insertItems =
-                                (next) => {
-                                    if (
-                                        !rows.length
-                                    ) {
-                                        return next(
-                                            null
-                                        );
-                                    }
-
-                                    const itemSql = `
-                                        INSERT INTO bill_items
-                                        (
-                                            bill_id,
-                                            product_id,
-                                            product_name,
-                                            quantity,
-                                            rate,
-                                            discount,
-                                            amount
-                                        )
-                                        VALUES ?
-                                    `;
-
-                                    connection.query(
-                                        itemSql,
-                                        [rows],
-                                        next
+                            insertItems((itemError) => {
+                                if (itemError) {
+                                    return rollbackAndRelease(
+                                        connection,
+                                        itemError,
+                                        callback
                                     );
-                                };
+                                }
 
-                            insertItems(
-                                (
-                                    itemError
-                                ) => {
-                                    if (
-                                        itemError
-                                    ) {
-                                        return connection.rollback(
-                                            () => {
-                                                releaseConnection(
-                                                    connection
-                                                );
+                                /* ==================================
+                                   INSERT PAYMENT
+                                ================================== */
 
-                                                callback(
-                                                    itemError
-                                                );
-                                            }
-                                        );
-                                    }
+                                const paymentType =
+                                    payment?.payment_type ||
+                                    "Cash";
 
-                                    /* ==============================
-                                       INSERT PAYMENT
-                                    ============================== */
+                                const paymentAmount =
+                                    safeNumber(
+                                        payment?.amount ??
+                                            bill.grand_total
+                                    );
 
-                                    const paymentSql = `
-                                        INSERT INTO payments
-                                        (
-                                            bill_id,
-                                            payment_type,
-                                            amount,
-                                            transaction_reference,
-                                            status,
-                                            payment_date,
-                                            created_by
-                                        )
-                                        VALUES
-                                        (
-                                            ?,
-                                            ?,
-                                            ?,
-                                            ?,
-                                            'SUCCESS',
-                                            NOW(),
-                                            ?
-                                        )
-                                    `;
+                                const transactionReference =
+                                    payment
+                                        ?.transaction_reference ||
+                                    null;
 
-                                    const paymentValues = [
+                                const paymentSql = `
+                                    INSERT INTO payments
+                                    (
+                                        bill_id,
+                                        payment_type,
+                                        amount,
+                                        transaction_reference,
+                                        status,
+                                        payment_date,
+                                        created_by
+                                    )
+                                    VALUES (?, ?, ?, ?, 'SUCCESS', NOW(), ?)
+                                `;
+
+                                connection.query(
+                                    paymentSql,
+                                    [
                                         billId,
-
-                                        payment?.payment_type ||
-                                            bill.payment_type ||
-                                            "Cash",
-
-                                        safeNumber(
-                                            payment?.amount ??
-                                                bill.payment_amount ??
-                                                bill.grand_total
-                                        ),
-
-                                        payment?.transaction_reference ||
-                                            bill.transaction_reference ||
-                                            null,
-
+                                        paymentType,
+                                        paymentAmount,
+                                        transactionReference,
                                         bill.created_by,
-                                    ];
+                                    ],
+                                    (paymentError) => {
+                                        if (paymentError) {
+                                            return rollbackAndRelease(
+                                                connection,
+                                                paymentError,
+                                                callback
+                                            );
+                                        }
 
-                                    connection.query(
-                                        paymentSql,
-                                        paymentValues,
-                                        (
-                                            paymentError
-                                        ) => {
-                                            if (
-                                                paymentError
-                                            ) {
-                                                return connection.rollback(
-                                                    () => {
+                                        /* ==========================
+                                           CREATE AUDIT
+                                        ========================== */
+
+                                        const auditData = {
+                                            bill_no:
+                                                bill.bill_no,
+
+                                            store_id:
+                                                bill.store_id,
+
+                                            customer_name:
+                                                bill.customer_name ||
+                                                null,
+
+                                            bill_date:
+                                                bill.bill_date,
+
+                                            subtotal:
+                                                safeNumber(
+                                                    bill.subtotal
+                                                ),
+
+                                            discount:
+                                                safeNumber(
+                                                    bill.discount
+                                                ),
+
+                                            tax:
+                                                safeNumber(
+                                                    bill.tax
+                                                ),
+
+                                            grand_total:
+                                                safeNumber(
+                                                    bill.grand_total
+                                                ),
+
+                                            status: "PAID",
+
+                                            items:
+                                                validItems,
+
+                                            payment: {
+                                                payment_type:
+                                                    paymentType,
+
+                                                amount:
+                                                    paymentAmount,
+
+                                                transaction_reference:
+                                                    transactionReference,
+                                            },
+                                        };
+
+                                        createAuditLog(
+                                            connection,
+                                            {
+                                                moduleName:
+                                                    "Billing",
+
+                                                referenceId:
+                                                    billId,
+
+                                                action:
+                                                    "CREATE",
+
+                                                oldData:
+                                                    null,
+
+                                                newData:
+                                                    auditData,
+
+                                                changedBy:
+                                                    bill.created_by,
+                                            },
+                                            (auditError) => {
+                                                if (auditError) {
+                                                    return rollbackAndRelease(
+                                                        connection,
+                                                        auditError,
+                                                        callback
+                                                    );
+                                                }
+
+                                                /* ==================
+                                                   COMMIT
+                                                ================== */
+
+                                                connection.commit(
+                                                    (commitError) => {
+                                                        if (
+                                                            commitError
+                                                        ) {
+                                                            return rollbackAndRelease(
+                                                                connection,
+                                                                commitError,
+                                                                callback
+                                                            );
+                                                        }
+
                                                         releaseConnection(
                                                             connection
                                                         );
 
-                                                        callback(
-                                                            paymentError
+                                                        return callback(
+                                                            null,
+                                                            {
+                                                                id:
+                                                                    billId,
+                                                            }
                                                         );
                                                     }
                                                 );
                                             }
-
-                                            /* ==========================
-                                               AUDIT CREATE
-                                            ========================== */
-
-                                            const auditData = {
-                                                bill_no:
-                                                    bill.bill_no,
-
-                                                store_id:
-                                                    bill.store_id,
-
-                                                customer_name:
-                                                    bill.customer_name ||
-                                                    null,
-
-                                                bill_date:
-                                                    bill.bill_date,
-
-                                                subtotal:
-                                                    safeNumber(
-                                                        bill.subtotal
-                                                    ),
-
-                                                discount:
-                                                    safeNumber(
-                                                        bill.discount
-                                                    ),
-
-                                                tax:
-                                                    safeNumber(
-                                                        bill.tax
-                                                    ),
-
-                                                grand_total:
-                                                    safeNumber(
-                                                        bill.grand_total
-                                                    ),
-
-                                                status:
-                                                    "PAID",
-
-                                                items:
-                                                    validItems,
-
-                                                payment: {
-                                                    payment_type:
-                                                        paymentValues[1],
-
-                                                    amount:
-                                                        paymentValues[2],
-
-                                                    transaction_reference:
-                                                        paymentValues[3],
-                                                },
-                                            };
-
-                                            createAuditLog(
-                                                connection,
-                                                {
-                                                    tableName:
-                                                        "bills",
-
-                                                    recordId:
-                                                        billId,
-
-                                                    action:
-                                                        "CREATE",
-
-                                                    oldData:
-                                                        null,
-
-                                                    newData:
-                                                        auditData,
-
-                                                    changedBy:
-                                                        bill.created_by,
-                                                },
-                                                (
-                                                    auditError
-                                                ) => {
-                                                    if (
-                                                        auditError
-                                                    ) {
-                                                        return connection.rollback(
-                                                            () => {
-                                                                releaseConnection(
-                                                                    connection
-                                                                );
-
-                                                                callback(
-                                                                    auditError
-                                                                );
-                                                            }
-                                                        );
-                                                    }
-
-                                                    /* ======================
-                                                       COMMIT
-                                                    ====================== */
-
-                                                    connection.commit(
-                                                        (
-                                                            commitError
-                                                        ) => {
-                                                            if (
-                                                                commitError
-                                                            ) {
-                                                                return connection.rollback(
-                                                                    () => {
-                                                                        releaseConnection(
-                                                                            connection
-                                                                        );
-
-                                                                        callback(
-                                                                            commitError
-                                                                        );
-                                                                    }
-                                                                );
-                                                            }
-
-                                                            releaseConnection(
-                                                                connection
-                                                            );
-
-                                                            callback(
-                                                                null,
-                                                                {
-                                                                    id: billId,
-                                                                }
-                                                            );
-                                                        }
-                                                    );
-                                                }
-                                            );
-                                        }
-                                    );
-                                }
-                            );
+                                        );
+                                    }
+                                );
+                            });
                         }
                     );
                 }
@@ -637,9 +512,7 @@ Billing.getBills = (
             "DATE(b.bill_date) = ?"
         );
 
-        params.push(
-            filters.date
-        );
+        params.push(filters.date);
     }
 
     /* ======================================
@@ -651,9 +524,7 @@ Billing.getBills = (
             "b.store_id = ?"
         );
 
-        params.push(
-            filters.store_id
-        );
+        params.push(filters.store_id);
     }
 
     /* ======================================
@@ -665,9 +536,7 @@ Billing.getBills = (
             "p.payment_type = ?"
         );
 
-        params.push(
-            filters.payment_type
-        );
+        params.push(filters.payment_type);
     }
 
     /* ======================================
@@ -679,9 +548,7 @@ Billing.getBills = (
             "b.status = ?"
         );
 
-        params.push(
-            filters.status
-        );
+        params.push(filters.status);
     }
 
     /* ======================================
@@ -689,12 +556,12 @@ Billing.getBills = (
     ====================================== */
 
     if (filters.search) {
-        where.push(
-            `(
+        where.push(`
+            (
                 b.bill_no LIKE ?
                 OR b.customer_name LIKE ?
-            )`
-        );
+            )
+        `);
 
         const search =
             `%${filters.search}%`;
@@ -741,9 +608,7 @@ Billing.getBills = (
 
         ${
             where.length
-                ? `WHERE ${where.join(
-                      " AND "
-                  )}`
+                ? `WHERE ${where.join(" AND ")}`
                 : ""
         }
 
@@ -793,21 +658,13 @@ Billing.getBillById = (
     db.query(
         billSql,
         [id],
-        (
-            billError,
-            bills
-        ) => {
+        (billError, bills) => {
             if (billError) {
-                return callback(
-                    billError
-                );
+                return callback(billError);
             }
 
-            if (!bills.length) {
-                return callback(
-                    null,
-                    null
-                );
+            if (!bills || !bills.length) {
+                return callback(null, null);
             }
 
             db.query(
@@ -818,14 +675,9 @@ Billing.getBillById = (
                     ORDER BY id ASC
                 `,
                 [id],
-                (
-                    itemError,
-                    items
-                ) => {
+                (itemError, items) => {
                     if (itemError) {
-                        return callback(
-                            itemError
-                        );
+                        return callback(itemError);
                     }
 
                     db.query(
@@ -840,26 +692,20 @@ Billing.getBillById = (
                             paymentError,
                             payments
                         ) => {
-                            if (
-                                paymentError
-                            ) {
+                            if (paymentError) {
                                 return callback(
                                     paymentError
                                 );
                             }
 
-                            callback(
+                            return callback(
                                 null,
                                 {
                                     ...bills[0],
-
                                     items:
-                                        items ||
-                                        [],
-
+                                        items || [],
                                     payments:
-                                        payments ||
-                                        [],
+                                        payments || [],
                                 }
                             );
                         }
@@ -880,73 +726,46 @@ Billing.updateBill = (
     callback
 ) => {
     db.getConnection(
-        (
-            connectionError,
-            connection
-        ) => {
+        (connectionError, connection) => {
             if (connectionError) {
-                return callback(
-                    connectionError
-                );
+                return callback(connectionError);
             }
 
             connection.beginTransaction(
                 (transactionError) => {
-                    if (
-                        transactionError
-                    ) {
-                        releaseConnection(
-                            connection
-                        );
-
-                        return callback(
-                            transactionError
-                        );
+                    if (transactionError) {
+                        releaseConnection(connection);
+                        return callback(transactionError);
                     }
 
                     /* ======================================
-                       GET OLD DATA
+                       GET OLD BILL
                     ====================================== */
 
                     getBillForTransaction(
                         connection,
                         id,
-                        (
-                            oldError,
-                            oldBill
-                        ) => {
+                        (oldError, oldBill) => {
                             if (oldError) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            oldError
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    oldError,
+                                    callback
                                 );
                             }
 
                             if (!oldBill) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            new Error(
-                                                "Bill not found."
-                                            )
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    new Error(
+                                        "Bill not found."
+                                    ),
+                                    callback
                                 );
                             }
 
                             /* ==================================
-                               DON'T EDIT CANCELLED BILL
+                               CANCELLED BILL CHECK
                             ================================== */
 
                             if (
@@ -955,18 +774,12 @@ Billing.updateBill = (
                                 ).toUpperCase() ===
                                 "CANCELLED"
                             ) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            new Error(
-                                                "Cancelled bills cannot be edited."
-                                            )
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    new Error(
+                                        "Cancelled bills cannot be edited."
+                                    ),
+                                    callback
                                 );
                             }
 
@@ -991,71 +804,31 @@ Billing.updateBill = (
 
                             const billValues = [
                                 data.store_id,
-
-                                data.customer_name ||
-                                    null,
-
-                                data.bill_date,
-
-                                safeNumber(
-                                    data.subtotal
-                                ),
-
-                                safeNumber(
-                                    data.discount
-                                ),
-
-                                safeNumber(
-                                    data.tax
-                                ),
-
-                                safeNumber(
-                                    data.grand_total
-                                ),
-
+                                data.customer_name || null,
+                                data.bill_date || oldBill.bill_date,
+                                safeNumber(data.subtotal),
+                                safeNumber(data.discount),
+                                safeNumber(data.tax),
+                                safeNumber(data.grand_total),
                                 data.updated_by,
-
                                 id,
                             ];
 
                             connection.query(
                                 billSql,
                                 billValues,
-                                (
-                                    billError
-                                ) => {
-                                    if (
-                                        billError
-                                    ) {
-                                        return connection.rollback(
-                                            () => {
-                                                releaseConnection(
-                                                    connection
-                                                );
-
-                                                callback(
-                                                    billError
-                                                );
-                                            }
+                                (billError) => {
+                                    if (billError) {
+                                        return rollbackAndRelease(
+                                            connection,
+                                            billError,
+                                            callback
                                         );
                                     }
 
-                                    /* ==============================
-                                       UPDATE ITEMS
-                                    ============================== */
-
-                                    const newItems =
-                                        (
-                                            data.items ||
-                                            []
-                                        ).filter(
-                                            (item) =>
-                                                item &&
-                                                item.product_name &&
-                                                String(
-                                                    item.product_name
-                                                ).trim()
-                                        );
+                                    /* ==================================
+                                       DELETE OLD ITEMS
+                                    ================================== */
 
                                     connection.query(
                                         `
@@ -1063,61 +836,60 @@ Billing.updateBill = (
                                             WHERE bill_id = ?
                                         `,
                                         [id],
-                                        (
-                                            deleteItemError
-                                        ) => {
-                                            if (
-                                                deleteItemError
-                                            ) {
-                                                return connection.rollback(
-                                                    () => {
-                                                        releaseConnection(
-                                                            connection
-                                                        );
-
-                                                        callback(
-                                                            deleteItemError
-                                                        );
-                                                    }
+                                        (deleteError) => {
+                                            if (deleteError) {
+                                                return rollbackAndRelease(
+                                                    connection,
+                                                    deleteError,
+                                                    callback
                                                 );
                                             }
 
+                                            /* ==============================
+                                               PREPARE NEW ITEMS
+                                            ============================== */
+
+                                            const newItems = (
+                                                data.items || []
+                                            ).filter(
+                                                (item) =>
+                                                    item &&
+                                                    item.product_name &&
+                                                    String(
+                                                        item.product_name
+                                                    ).trim()
+                                            );
+
                                             const itemRows =
                                                 newItems.map(
-                                                    (
-                                                        item
-                                                    ) => [
+                                                    (item) => [
                                                         id,
-
                                                         item.product_id ||
                                                             null,
-
                                                         String(
                                                             item.product_name
                                                         ).trim(),
-
                                                         safeNumber(
                                                             item.quantity
                                                         ),
-
                                                         safeNumber(
                                                             item.rate
                                                         ),
-
                                                         safeNumber(
                                                             item.discount
                                                         ),
-
                                                         safeNumber(
                                                             item.amount
                                                         ),
                                                     ]
                                                 );
 
-                                            const insertUpdatedItems =
-                                                (
-                                                    next
-                                                ) => {
+                                            /* ==============================
+                                               INSERT NEW ITEMS
+                                            ============================== */
+
+                                            const insertItems =
+                                                (next) => {
                                                     if (
                                                         !itemRows.length
                                                     ) {
@@ -1149,29 +921,21 @@ Billing.updateBill = (
                                                     );
                                                 };
 
-                                            insertUpdatedItems(
-                                                (
-                                                    itemError
-                                                ) => {
+                                            insertItems(
+                                                (itemError) => {
                                                     if (
                                                         itemError
                                                     ) {
-                                                        return connection.rollback(
-                                                            () => {
-                                                                releaseConnection(
-                                                                    connection
-                                                                );
-
-                                                                callback(
-                                                                    itemError
-                                                                );
-                                                            }
+                                                        return rollbackAndRelease(
+                                                            connection,
+                                                            itemError,
+                                                            callback
                                                         );
                                                     }
 
-                                                    /* ======================
-                                                       UPDATE PAYMENT
-                                                    ====================== */
+                                                    /* ==========================
+                                                       PAYMENT
+                                                    ========================== */
 
                                                     const paymentType =
                                                         data.payment_type ||
@@ -1193,6 +957,95 @@ Billing.updateBill = (
                                                     const latestPayment =
                                                         oldBill
                                                             .payments?.[0];
+
+                                                    const saveAudit =
+                                                        () => {
+                                                            getBillForTransaction(
+                                                                connection,
+                                                                id,
+                                                                (
+                                                                    newError,
+                                                                    newBill
+                                                                ) => {
+                                                                    if (
+                                                                        newError
+                                                                    ) {
+                                                                        return rollbackAndRelease(
+                                                                            connection,
+                                                                            newError,
+                                                                            callback
+                                                                        );
+                                                                    }
+
+                                                                    createAuditLog(
+                                                                        connection,
+                                                                        {
+                                                                            moduleName:
+                                                                                "Billing",
+
+                                                                            referenceId:
+                                                                                id,
+
+                                                                            action:
+                                                                                "UPDATE",
+
+                                                                            oldData:
+                                                                                oldBill,
+
+                                                                            newData:
+                                                                                newBill,
+
+                                                                            changedBy:
+                                                                                data.updated_by,
+                                                                        },
+                                                                        (
+                                                                            auditError
+                                                                        ) => {
+                                                                            if (
+                                                                                auditError
+                                                                            ) {
+                                                                                return rollbackAndRelease(
+                                                                                    connection,
+                                                                                    auditError,
+                                                                                    callback
+                                                                                );
+                                                                            }
+
+                                                                            connection.commit(
+                                                                                (
+                                                                                    commitError
+                                                                                ) => {
+                                                                                    if (
+                                                                                        commitError
+                                                                                    ) {
+                                                                                        return rollbackAndRelease(
+                                                                                            connection,
+                                                                                            commitError,
+                                                                                            callback
+                                                                                        );
+                                                                                    }
+
+                                                                                    releaseConnection(
+                                                                                        connection
+                                                                                    );
+
+                                                                                    return callback(
+                                                                                        null,
+                                                                                        {
+                                                                                            id,
+                                                                                        }
+                                                                                    );
+                                                                                }
+                                                                            );
+                                                                        }
+                                                                    );
+                                                                }
+                                                            );
+                                                        };
+
+                                                    /* ==========================
+                                                       UPDATE EXISTING PAYMENT
+                                                    ========================== */
 
                                                     if (
                                                         latestPayment
@@ -1221,16 +1074,10 @@ Billing.updateBill = (
                                                                 if (
                                                                     paymentError
                                                                 ) {
-                                                                    return connection.rollback(
-                                                                        () => {
-                                                                            releaseConnection(
-                                                                                connection
-                                                                            );
-
-                                                                            callback(
-                                                                                paymentError
-                                                                            );
-                                                                        }
+                                                                    return rollbackAndRelease(
+                                                                        connection,
+                                                                        paymentError,
+                                                                        callback
                                                                     );
                                                                 }
 
@@ -1238,6 +1085,10 @@ Billing.updateBill = (
                                                             }
                                                         );
                                                     } else {
+                                                        /* ==========================
+                                                           CREATE PAYMENT IF MISSING
+                                                        ========================== */
+
                                                         const paymentSql = `
                                                             INSERT INTO payments
                                                             (
@@ -1250,15 +1101,7 @@ Billing.updateBill = (
                                                                 created_by
                                                             )
                                                             VALUES
-                                                            (
-                                                                ?,
-                                                                ?,
-                                                                ?,
-                                                                ?,
-                                                                'SUCCESS',
-                                                                NOW(),
-                                                                ?
-                                                            )
+                                                            (?, ?, ?, ?, 'SUCCESS', NOW(), ?)
                                                         `;
 
                                                         connection.query(
@@ -1276,126 +1119,14 @@ Billing.updateBill = (
                                                                 if (
                                                                     paymentError
                                                                 ) {
-                                                                    return connection.rollback(
-                                                                        () => {
-                                                                            releaseConnection(
-                                                                                connection
-                                                                            );
-
-                                                                            callback(
-                                                                                paymentError
-                                                                            );
-                                                                        }
+                                                                    return rollbackAndRelease(
+                                                                        connection,
+                                                                        paymentError,
+                                                                        callback
                                                                     );
                                                                 }
 
                                                                 saveAudit();
-                                                            }
-                                                        );
-                                                    }
-
-                                                    /* ======================
-                                                       AUDIT
-                                                    ====================== */
-
-                                                    function saveAudit() {
-                                                        getBillForTransaction(
-                                                            connection,
-                                                            id,
-                                                            (
-                                                                newError,
-                                                                newBill
-                                                            ) => {
-                                                                if (
-                                                                    newError
-                                                                ) {
-                                                                    return connection.rollback(
-                                                                        () => {
-                                                                            releaseConnection(
-                                                                                connection
-                                                                            );
-
-                                                                            callback(
-                                                                                newError
-                                                                            );
-                                                                        }
-                                                                    );
-                                                                }
-
-                                                                createAuditLog(
-                                                                    connection,
-                                                                    {
-                                                                        tableName:
-                                                                            "bills",
-
-                                                                        recordId:
-                                                                            id,
-
-                                                                        action:
-                                                                            "UPDATE",
-
-                                                                        oldData:
-                                                                            oldBill,
-
-                                                                        newData:
-                                                                            newBill,
-
-                                                                        changedBy:
-                                                                            data.updated_by,
-                                                                    },
-                                                                    (
-                                                                        auditError
-                                                                    ) => {
-                                                                        if (
-                                                                            auditError
-                                                                        ) {
-                                                                            return connection.rollback(
-                                                                                () => {
-                                                                                    releaseConnection(
-                                                                                        connection
-                                                                                    );
-
-                                                                                    callback(
-                                                                                        auditError
-                                                                                    );
-                                                                                }
-                                                                            );
-                                                                        }
-
-                                                                        connection.commit(
-                                                                            (
-                                                                                commitError
-                                                                            ) => {
-                                                                                if (
-                                                                                    commitError
-                                                                                ) {
-                                                                                    return connection.rollback(
-                                                                                        () => {
-                                                                                            releaseConnection(
-                                                                                                connection
-                                                                                            );
-
-                                                                                            callback(
-                                                                                                commitError
-                                                                                            );
-                                                                                        }
-                                                                                    );
-                                                                                }
-
-                                                                                releaseConnection(
-                                                                                    connection
-                                                                                );
-
-                                                                                callback(
-                                                                                    null,
-                                                                                    {
-                                                                                        id,
-                                                                                    }
-                                                                                );
-                                                                            }
-                                                                        );
-                                                                    }
-                                                                );
                                                             }
                                                         );
                                                     }
@@ -1423,64 +1154,37 @@ Billing.cancelBill = (
     callback
 ) => {
     db.getConnection(
-        (
-            connectionError,
-            connection
-        ) => {
+        (connectionError, connection) => {
             if (connectionError) {
-                return callback(
-                    connectionError
-                );
+                return callback(connectionError);
             }
 
             connection.beginTransaction(
                 (transactionError) => {
-                    if (
-                        transactionError
-                    ) {
-                        releaseConnection(
-                            connection
-                        );
-
-                        return callback(
-                            transactionError
-                        );
+                    if (transactionError) {
+                        releaseConnection(connection);
+                        return callback(transactionError);
                     }
 
                     getBillForTransaction(
                         connection,
                         id,
-                        (
-                            oldError,
-                            oldBill
-                        ) => {
+                        (oldError, oldBill) => {
                             if (oldError) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            oldError
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    oldError,
+                                    callback
                                 );
                             }
 
                             if (!oldBill) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            new Error(
-                                                "Bill not found."
-                                            )
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    new Error(
+                                        "Bill not found."
+                                    ),
+                                    callback
                                 );
                             }
 
@@ -1490,24 +1194,18 @@ Billing.cancelBill = (
                                 ).toUpperCase() ===
                                 "CANCELLED"
                             ) {
-                                return connection.rollback(
-                                    () => {
-                                        releaseConnection(
-                                            connection
-                                        );
-
-                                        callback(
-                                            new Error(
-                                                "Bill is already cancelled."
-                                            )
-                                        );
-                                    }
+                                return rollbackAndRelease(
+                                    connection,
+                                    new Error(
+                                        "Bill is already cancelled."
+                                    ),
+                                    callback
                                 );
                             }
 
-                            /* ==============================
-                               CANCEL
-                            ============================== */
+                            /* ==================================
+                               CANCEL BILL
+                            ================================== */
 
                             connection.query(
                                 `
@@ -1522,28 +1220,18 @@ Billing.cancelBill = (
                                     userId,
                                     id,
                                 ],
-                                (
-                                    updateError
-                                ) => {
-                                    if (
-                                        updateError
-                                    ) {
-                                        return connection.rollback(
-                                            () => {
-                                                releaseConnection(
-                                                    connection
-                                                );
-
-                                                callback(
-                                                    updateError
-                                                );
-                                            }
+                                (updateError) => {
+                                    if (updateError) {
+                                        return rollbackAndRelease(
+                                            connection,
+                                            updateError,
+                                            callback
                                         );
                                     }
 
-                                    /* ==========================
-                                       AUDIT
-                                    ========================== */
+                                    /* ==============================
+                                       GET NEW BILL STATE
+                                    ============================== */
 
                                     getBillForTransaction(
                                         connection,
@@ -1552,29 +1240,25 @@ Billing.cancelBill = (
                                             newError,
                                             newBill
                                         ) => {
-                                            if (
-                                                newError
-                                            ) {
-                                                return connection.rollback(
-                                                    () => {
-                                                        releaseConnection(
-                                                            connection
-                                                        );
-
-                                                        callback(
-                                                            newError
-                                                        );
-                                                    }
+                                            if (newError) {
+                                                return rollbackAndRelease(
+                                                    connection,
+                                                    newError,
+                                                    callback
                                                 );
                                             }
+
+                                            /* ==========================
+                                               AUDIT CANCEL
+                                            ========================== */
 
                                             createAuditLog(
                                                 connection,
                                                 {
-                                                    tableName:
-                                                        "bills",
+                                                    moduleName:
+                                                        "Billing",
 
-                                                    recordId:
+                                                    referenceId:
                                                         id,
 
                                                     action:
@@ -1595,16 +1279,10 @@ Billing.cancelBill = (
                                                     if (
                                                         auditError
                                                     ) {
-                                                        return connection.rollback(
-                                                            () => {
-                                                                releaseConnection(
-                                                                    connection
-                                                                );
-
-                                                                callback(
-                                                                    auditError
-                                                                );
-                                                            }
+                                                        return rollbackAndRelease(
+                                                            connection,
+                                                            auditError,
+                                                            callback
                                                         );
                                                     }
 
@@ -1615,16 +1293,10 @@ Billing.cancelBill = (
                                                             if (
                                                                 commitError
                                                             ) {
-                                                                return connection.rollback(
-                                                                    () => {
-                                                                        releaseConnection(
-                                                                            connection
-                                                                        );
-
-                                                                        callback(
-                                                                            commitError
-                                                                        );
-                                                                    }
+                                                                return rollbackAndRelease(
+                                                                    connection,
+                                                                    commitError,
+                                                                    callback
                                                                 );
                                                             }
 
@@ -1632,7 +1304,7 @@ Billing.cancelBill = (
                                                                 connection
                                                             );
 
-                                                            callback(
+                                                            return callback(
                                                                 null,
                                                                 {
                                                                     id,
@@ -1670,7 +1342,7 @@ Billing.dailyReport = (
             .toISOString()
             .slice(0, 10);
 
-    const params = [date];
+    const summaryParams = [date];
 
     let storeClause = "";
 
@@ -1678,7 +1350,7 @@ Billing.dailyReport = (
         storeClause =
             " AND b.store_id = ?";
 
-        params.push(
+        summaryParams.push(
             filters.store_id
         );
     }
@@ -1788,7 +1460,7 @@ Billing.dailyReport = (
 
     db.query(
         summarySql,
-        params,
+        summaryParams,
         (
             summaryError,
             summaryRows
@@ -1803,12 +1475,9 @@ Billing.dailyReport = (
                DETAILS
             ================================== */
 
-            const detailParams = [
-                date,
-            ];
+            const detailParams = [date];
 
-            let detailStoreClause =
-                "";
+            let detailStoreClause = "";
 
             if (filters.store_id) {
                 detailStoreClause =
@@ -1885,7 +1554,7 @@ Billing.dailyReport = (
                         );
                     }
 
-                    callback(
+                    return callback(
                         null,
                         {
                             summary:
@@ -1904,8 +1573,7 @@ Billing.dailyReport = (
                                 },
 
                             details:
-                                details ||
-                                [],
+                                details || [],
                         }
                     );
                 }
@@ -1926,8 +1594,8 @@ Billing.getBillingAudit = (
         SELECT
 
             a.id,
-            a.table_name,
-            a.record_id,
+            a.module_name,
+            a.reference_id,
             a.action,
             a.old_data,
             a.new_data,
@@ -1943,9 +1611,9 @@ Billing.getBillingAudit = (
             ON u.id = a.changed_by
 
         WHERE
-            a.table_name = 'bills'
+            a.module_name = 'Billing'
 
-            AND a.record_id = ?
+            AND a.reference_id = ?
 
         ORDER BY
             a.created_at DESC,
