@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import axios from "../../axiosConfig";
+import axios from "./expenseApi";
 import {
     FaCloudUploadAlt,
     FaRobot,
@@ -68,6 +68,8 @@ function ExpenseEntry() {
 
     const [file, setFile] = useState(null);
     const [expenseType, setExpenseType] = useState("");
+    const [storeId, setStoreId] = useState("");
+    const [stores, setStores] = useState([]);
     const [types, setTypes] = useState(DEFAULT_TYPES);
     const [loading, setLoading] = useState(false);
     const [expense, setExpense] = useState(null);
@@ -78,13 +80,40 @@ function ExpenseEntry() {
     useEffect(() => {
         let active = true;
 
-        axios.get("/api/expenses/types")
-            .then(({ data }) => {
+        Promise.all([
+            axios.get("/api/expenses/types"),
+            axios.get("/api/stores")
+        ])
+            .then(([typesResponse, storesResponse]) => {
                 if (!active) return;
-                const incoming = Array.isArray(data.types) ? data.types : [];
-                setTypes([...new Set([...DEFAULT_TYPES, ...incoming.filter(Boolean)])]);
+
+                const incoming = Array.isArray(typesResponse.data?.types)
+                    ? typesResponse.data.types
+                    : [];
+
+                setTypes([
+                    ...new Set([
+                        ...DEFAULT_TYPES,
+                        ...incoming.filter(Boolean)
+                    ])
+                ]);
+
+                const incomingStores = Array.isArray(storesResponse.data?.data)
+                    ? storesResponse.data.data
+                    : [];
+
+                setStores(
+                    incomingStores.filter((store) =>
+                        String(store.status || "Active").toLowerCase() !== "inactive"
+                    )
+                );
             })
-            .catch(() => {});
+            .catch((err) => {
+                console.error("Expense setup load error:", err);
+                if (active) {
+                    setStores([]);
+                }
+            });
 
         return () => {
             active = false;
@@ -141,6 +170,11 @@ function ExpenseEntry() {
             return;
         }
 
+        if (!storeId) {
+            setError("Select a store.");
+            return;
+        }
+
         if (!file) {
             setError("Choose a JPG, PNG, WEBP or PDF bill.");
             return;
@@ -148,6 +182,7 @@ function ExpenseEntry() {
 
         const formData = new FormData();
         formData.append("expense_type", expenseType);
+        formData.append("store_id", storeId);
         formData.append("bill", file);
 
         try {
@@ -178,6 +213,8 @@ function ExpenseEntry() {
     const reset = () => {
         setFile(null);
         setExpense(null);
+        setExpenseType("");
+        setStoreId("");
         setError("");
         if (fileRef.current) fileRef.current.value = "";
     };
@@ -240,12 +277,35 @@ function ExpenseEntry() {
                         value={expenseType}
                         onChange={(e) => setExpenseType(e.target.value)}
                         disabled={loading}
+                        required
                     >
-                        <option value="">Select a type</option>
+                        <option value="">Select a type *</option>
                         {types.map((type) => (
                             <option key={type} value={type}>{type}</option>
                         ))}
                     </select>
+
+                    <label className="expense-field-label expense-field-label-spaced">Store</label>
+                    <select
+                        className="expense-input"
+                        value={storeId}
+                        onChange={(e) => setStoreId(e.target.value)}
+                        disabled={loading}
+                        required
+                    >
+                        <option value="">Select a store *</option>
+                        {stores.map((store) => (
+                            <option key={store.id} value={store.id}>
+                                {store.store_name}{store.store_code ? ` (${store.store_code})` : ""}
+                            </option>
+                        ))}
+                    </select>
+
+                    {stores.length === 0 && (
+                        <div className="expense-helper-error">
+                            No active stores are available. Add a store in Store Management first.
+                        </div>
+                    )}
 
                     <div
                         className={`expense-dropzone ${file ? "has-file" : ""} ${dragging ? "dragging" : ""}`}
@@ -289,7 +349,7 @@ function ExpenseEntry() {
                     <button
                         type="submit"
                         className="expense-primary-btn"
-                        disabled={loading}
+                        disabled={loading || !expenseType || !storeId || !file}
                     >
                         {loading ? (
                             <>

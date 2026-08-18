@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "../../axiosConfig";
+import axios from "./expenseApi";
 import {
     FaSearch,
     FaFileExport,
@@ -10,7 +10,8 @@ import {
     FaClock,
     FaCheckCircle,
     FaExclamationTriangle,
-    FaTimesCircle
+    FaTimesCircle,
+    FaTrash
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
@@ -27,6 +28,15 @@ const money = (value) =>
         maximumFractionDigits: 2
     })}`;
 
+function hasFullExpenseAccess() {
+    try {
+        const permissions = JSON.parse(localStorage.getItem("permissions") || "{}");
+        return permissions["Expenses"] === "Full";
+    } catch {
+        return false;
+    }
+}
+
 function TrackExpenses() {
     const [expenses, setExpenses] = useState([]);
     const [status, setStatus] = useState("");
@@ -37,6 +47,8 @@ function TrackExpenses() {
     const [detailsId, setDetailsId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [deletingAll, setDeletingAll] = useState(false);
+    const canDelete = hasFullExpenseAccess();
 
     const load = async () => {
         try {
@@ -61,9 +73,7 @@ function TrackExpenses() {
 
     useEffect(() => {
         axios.get("/api/expenses/types")
-            .then(({ data }) => {
-                setTypes(Array.isArray(data.types) ? data.types : []);
-            })
+            .then(({ data }) => setTypes(Array.isArray(data.types) ? data.types : []))
             .catch(() => setTypes([]));
     }, []);
 
@@ -77,39 +87,49 @@ function TrackExpenses() {
         return expenses.filter((item) => item.risk_level === risk);
     }, [expenses, risk]);
 
-    const summary = useMemo(() => {
-        return expenses.reduce((acc, item) => {
-            acc.count += 1;
-            acc.amount += Number(item.total_amount || 0);
+    const summary = useMemo(() => expenses.reduce((acc, item) => {
+        acc.count += 1;
+        acc.amount += Number(item.total_amount || 0);
+        if (item.status === "Pending") acc.pending += 1;
+        if (item.status === "Review Required") acc.review += 1;
+        if (item.status === "Approved") acc.approved += 1;
+        if (item.status === "Rejected") acc.rejected += 1;
+        return acc;
+    }, { count: 0, amount: 0, pending: 0, review: 0, approved: 0, rejected: 0 }), [expenses]);
 
-            if (item.status === "Pending") acc.pending += 1;
-            if (item.status === "Review Required") acc.review += 1;
-            if (item.status === "Approved") acc.approved += 1;
-            if (item.status === "Rejected") acc.rejected += 1;
+    const clearFilters = () => {
+        setSearch("");
+        setStatus("");
+        setRisk("");
+        setType("");
+    };
 
-            return acc;
-        }, {
-            count: 0,
-            amount: 0,
-            pending: 0,
-            review: 0,
-            approved: 0,
-            rejected: 0
-        });
-    }, [expenses]);
+    const deleteAll = async () => {
+        if (!canDelete || deletingAll) return;
+
+        const confirmed = window.confirm(
+            `Delete ALL ${expenses.length} expense record(s)? This will also remove their checks, items and uploaded bill files. This action cannot be undone.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setDeletingAll(true);
+            setError("");
+            await axios.delete("/api/expenses/delete-all");
+            setDetailsId(null);
+            await load();
+        } catch (err) {
+            console.error("Delete all expenses error:", err);
+            setError(err.response?.data?.message || "Unable to delete all expenses.");
+        } finally {
+            setDeletingAll(false);
+        }
+    };
 
     const exportCsv = () => {
         const headers = [
-            "Date",
-            "Submitted By",
-            "Employee ID",
-            "Type",
-            "Invoice #",
-            "Vendor",
-            "Amount",
-            "Risk",
-            "Risk Score",
-            "Status"
+            "Date", "Submitted By", "Employee ID", "Type", "Store",
+            "Invoice #", "Vendor", "Amount", "Risk", "Risk Score", "Status"
         ];
 
         const rows = visible.map((item) => [
@@ -117,6 +137,7 @@ function TrackExpenses() {
             item.submitted_by_name || "",
             item.submitted_by_employee_id || "",
             item.expense_type || "",
+            item.store_name || "",
             item.invoice_number || "",
             item.vendor_name || "",
             item.total_amount || 0,
@@ -126,17 +147,10 @@ function TrackExpenses() {
         ]);
 
         const csv = [headers, ...rows]
-            .map((row) =>
-                row
-                    .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-                    .join(",")
-            )
+            .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
             .join("\n");
 
-        const blob = new Blob(["\ufeff", csv], {
-            type: "text/csv;charset=utf-8;"
-        });
-
+        const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
@@ -161,26 +175,11 @@ function TrackExpenses() {
             </div>
 
             <div className="expense-stat-grid">
-                <div className="expense-stat-card">
-                    <div className="expense-stat-icon blue"><FaReceipt /></div>
-                    <div><span>Total bills</span><strong>{summary.count}</strong></div>
-                </div>
-                <div className="expense-stat-card">
-                    <div className="expense-stat-icon amber"><FaClock /></div>
-                    <div><span>Pending</span><strong>{summary.pending}</strong></div>
-                </div>
-                <div className="expense-stat-card">
-                    <div className="expense-stat-icon orange"><FaExclamationTriangle /></div>
-                    <div><span>Review required</span><strong>{summary.review}</strong></div>
-                </div>
-                <div className="expense-stat-card">
-                    <div className="expense-stat-icon green"><FaCheckCircle /></div>
-                    <div><span>Approved</span><strong>{summary.approved}</strong></div>
-                </div>
-                <div className="expense-stat-card amount">
-                    <div className="expense-stat-icon purple"><FaShieldAlt /></div>
-                    <div><span>Total value</span><strong>{money(summary.amount)}</strong></div>
-                </div>
+                <div className="expense-stat-card"><div className="expense-stat-icon blue"><FaReceipt /></div><div><span>Total bills</span><strong>{summary.count}</strong></div></div>
+                <div className="expense-stat-card"><div className="expense-stat-icon amber"><FaClock /></div><div><span>Pending</span><strong>{summary.pending}</strong></div></div>
+                <div className="expense-stat-card"><div className="expense-stat-icon orange"><FaExclamationTriangle /></div><div><span>Review required</span><strong>{summary.review}</strong></div></div>
+                <div className="expense-stat-card"><div className="expense-stat-icon green"><FaCheckCircle /></div><div><span>Approved</span><strong>{summary.approved}</strong></div></div>
+                <div className="expense-stat-card amount"><div className="expense-stat-icon purple"><FaShieldAlt /></div><div><span>Total value</span><strong>{money(summary.amount)}</strong></div></div>
             </div>
 
             <div className="expense-card expense-filter-card">
@@ -188,13 +187,8 @@ function TrackExpenses() {
                 <div className="expense-filters">
                     <div className="expense-search">
                         <FaSearch />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search vendor, invoice, employee..."
-                        />
+                        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendor, invoice, employee..." />
                     </div>
-
                     <select className="expense-input" value={status} onChange={(e) => setStatus(e.target.value)}>
                         <option value="">All statuses</option>
                         <option value="Pending">Pending</option>
@@ -202,22 +196,18 @@ function TrackExpenses() {
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                     </select>
-
                     <select className="expense-input" value={risk} onChange={(e) => setRisk(e.target.value)}>
                         <option value="">All risk levels</option>
                         <option value="Low Risk">Low Risk</option>
                         <option value="Review Required">Review Required</option>
                         <option value="High Risk">High Risk</option>
                     </select>
-
                     <select className="expense-input" value={type} onChange={(e) => setType(e.target.value)}>
                         <option value="">All types</option>
                         {types.map((item) => <option key={item} value={item}>{item}</option>)}
                     </select>
-
-                    <button className="expense-outline-btn" onClick={exportCsv}>
-                        <FaFileExport /> Export CSV
-                    </button>
+                    <button className="expense-clear-btn" onClick={clearFilters}><FaTimesCircle /> Clear Filters</button>
+                    <button className="expense-outline-btn" onClick={exportCsv}><FaFileExport /> Export CSV</button>
                 </div>
             </div>
 
@@ -229,7 +219,14 @@ function TrackExpenses() {
                         <h2>Expense Register</h2>
                         <p>{visible.length} records match the current filters.</p>
                     </div>
-                    <span className="expense-table-total">{money(visible.reduce((sum, item) => sum + Number(item.total_amount || 0), 0))}</span>
+                    <div className="expense-table-header-actions">
+                        <span className="expense-table-total">{money(visible.reduce((sum, item) => sum + Number(item.total_amount || 0), 0))}</span>
+                        {canDelete && (
+                            <button className="expense-delete-all-btn" onClick={deleteAll} disabled={deletingAll}>
+                                <FaTrash /> {deletingAll ? "Deleting..." : "Delete All"}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="expense-table-wrap">
@@ -239,6 +236,7 @@ function TrackExpenses() {
                                 <th>Date</th>
                                 <th>Submitted By</th>
                                 <th>Type</th>
+                                <th>Store</th>
                                 <th>Invoice #</th>
                                 <th>Vendor</th>
                                 <th>Amount</th>
@@ -249,35 +247,21 @@ function TrackExpenses() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="9" className="expense-table-empty">Loading expenses...</td></tr>
+                                <tr><td colSpan="10" className="expense-table-empty">Loading expenses...</td></tr>
                             ) : visible.length === 0 ? (
-                                <tr><td colSpan="9" className="expense-table-empty">No expenses found.</td></tr>
+                                <tr><td colSpan="10" className="expense-table-empty">No expenses found.</td></tr>
                             ) : visible.map((item) => (
                                 <tr key={item.id}>
                                     <td>{item.bill_date || "—"}</td>
-                                    <td>
-                                        <strong>{item.submitted_by_name || "Unknown User"}</strong>
-                                        <small>{item.submitted_by_employee_id || "—"}</small>
-                                    </td>
-                                    <td>{item.expense_type || "Other"}</td>
+                                    <td><strong>{item.submitted_by_name || "Unknown User"}</strong><small>{item.submitted_by_employee_id || "—"}</small></td>
+                                    <td>{item.expense_type || "—"}</td>
+                                    <td><strong>{item.store_name || "—"}</strong><small>{item.store_code || ""}</small></td>
                                     <td>{item.invoice_number || "—"}</td>
                                     <td>{item.vendor_name || "Not detected"}</td>
                                     <td><strong>{money(item.total_amount)}</strong></td>
-                                    <td>
-                                        <span className={`expense-mini-risk ${riskClass(item.risk_level)}`}>
-                                            <FaShieldAlt /> {item.risk_level || "Review Required"}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span className={`expense-status-pill ${statusClass(item.status)}`}>
-                                            {item.status || "Review Required"}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="expense-view-btn" onClick={() => setDetailsId(item.id)}>
-                                            <FaEye /> View
-                                        </button>
-                                    </td>
+                                    <td><span className={`expense-mini-risk ${riskClass(item.risk_level)}`}><FaShieldAlt /> {item.risk_level || "Review Required"}</span></td>
+                                    <td><span className={`expense-status-pill ${statusClass(item.status)}`}>{item.status || "Review Required"}</span></td>
+                                    <td><button className="expense-view-btn" onClick={() => setDetailsId(item.id)}><FaEye /> View</button></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -291,12 +275,7 @@ function TrackExpenses() {
                 </div>
             </div>
 
-            {detailsId && (
-                <ExpenseDetails
-                    id={detailsId}
-                    onClose={() => setDetailsId(null)}
-                />
-            )}
+            {detailsId && <ExpenseDetails id={detailsId} onClose={() => setDetailsId(null)} />}
         </div>
     );
 }

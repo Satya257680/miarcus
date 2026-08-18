@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "../../axiosConfig";
+import axios from "./expenseApi";
 import {
     FaCheck,
     FaTimes,

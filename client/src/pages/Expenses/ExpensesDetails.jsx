@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "../../axiosConfig";
+import axios from "./expenseApi";
 import {
     FaShieldAlt,
     FaFileInvoice,
@@ -12,7 +12,8 @@ import {
     FaExternalLinkAlt,
     FaCopy,
     FaCalendarAlt,
-    FaRupeeSign
+    FaRupeeSign,
+    FaTrash
 } from "react-icons/fa";
 
 function CheckIcon({ status }) {
@@ -47,6 +48,8 @@ function riskClass(value) {
 function ExpenseDetails({ id, onClose }) {
     const [expense, setExpense] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -76,6 +79,36 @@ function ExpenseDetails({ id, onClose }) {
         ? `${axios.defaults.baseURL}${expense.attachment_path}`
         : "";
 
+    const canDelete = (() => {
+        try {
+            const permissions = JSON.parse(localStorage.getItem("permissions") || "{}");
+            return permissions["Expenses"] === "Full";
+        } catch {
+            return false;
+        }
+    })();
+
+    const deleteExpense = async () => {
+        if (!canDelete || deleting || !expense?.id) return;
+
+        const confirmed = window.confirm(
+            `Delete Expense #${expense.id}? This will permanently remove its checks, items and uploaded bill.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setDeleting(true);
+            setDeleteError("");
+            await axios.delete(`/api/expenses/${expense.id}`);
+            onClose();
+        } catch (error) {
+            console.error("Delete expense error:", error);
+            setDeleteError(error.response?.data?.message || "Unable to delete this expense.");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     if (!id) return null;
 
     return (
@@ -100,6 +133,7 @@ function ExpenseDetails({ id, onClose }) {
                             <div><FaFileInvoice /><span>Invoice #</span><strong>{expense.invoice_number || "Not detected"}</strong></div>
                             <div><FaCalendarAlt /><span>Bill Date</span><strong>{expense.bill_date || "Not detected"}</strong></div>
                             <div><FaRupeeSign /><span>Amount</span><strong>{formatMoney(expense.total_amount)}</strong></div>
+                            <div><FaShieldAlt /><span>Store</span><strong>{expense.store_name || "Not selected"}</strong></div>
                             <div><span>Submitted By</span><strong>{expense.submitted_by_name || "Unknown User"}</strong></div>
                             <div><span>Status</span><strong>{expense.status || "Review Required"}</strong></div>
                         </div>
@@ -205,6 +239,16 @@ function ExpenseDetails({ id, onClose }) {
 
                         <section className="expense-section">
                             <div className="expense-section-title"><FaRobot /> AI / Image Findings</div>
+                            <div className="expense-ai-summary">
+                                <div className={`expense-ai-verdict ${expense.ai_analysis?.document_authenticity === "AI_GENERATED" || expense.ai_analysis?.document_authenticity === "SUSPICIOUS" ? "danger" : "safe"}`}>
+                                    {expense.ai_analysis?.document_authenticity === "AI_GENERATED" ? "AI-GENERATED / SYNTHETIC BILL DETECTED" :
+                                        expense.ai_analysis?.document_authenticity === "SUSPICIOUS" ? "SUSPICIOUS BILL DETECTED" :
+                                            "IMAGE ANALYSIS COMPLETED"}
+                                </div>
+                                {expense.ai_analysis?.ai_generated_probability !== undefined && (
+                                    <span className="expense-ai-probability">AI-generation probability: {Number(expense.ai_analysis.ai_generated_probability || 0)}%</span>
+                                )}
+                            </div>
                             <div className="expense-findings">
                                 {[
                                     ["Manipulation signals", expense.ai_analysis?.manipulation_signals],
@@ -213,7 +257,7 @@ function ExpenseDetails({ id, onClose }) {
                                 ].map(([title, values]) => (
                                     <div className="expense-finding" key={title}>
                                         <strong>{title}</strong>
-                                        {values?.length ? (
+                                        {Array.isArray(values) && values.length ? (
                                             <ul>{values.map((item, index) => <li key={index}>{item}</li>)}</ul>
                                         ) : (
                                             <span className="expense-clean"><FaCheckCircle /> No signals detected</span>
@@ -234,6 +278,12 @@ function ExpenseDetails({ id, onClose }) {
                             </div>
                         </section>
 
+                        {deleteError && (
+                            <div className="expense-error">
+                                <FaTimesCircle /> {deleteError}
+                            </div>
+                        )}
+
                         {expense.rejection_reason && (
                             <div className="expense-rejection-note">
                                 <FaTimesCircle />
@@ -241,16 +291,23 @@ function ExpenseDetails({ id, onClose }) {
                             </div>
                         )}
 
-                        {attachmentUrl && (
-                            <a
-                                className="expense-attachment-link"
-                                href={attachmentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <FaExternalLinkAlt /> Open original bill
-                            </a>
-                        )}
+                        <div className="expense-details-actions">
+                            {attachmentUrl && (
+                                <a
+                                    className="expense-attachment-link"
+                                    href={attachmentUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <FaExternalLinkAlt /> Open original bill
+                                </a>
+                            )}
+                            {canDelete && (
+                                <button className="expense-delete-btn" onClick={deleteExpense} disabled={deleting}>
+                                    <FaTrash /> {deleting ? "Deleting..." : "Delete Expense"}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
