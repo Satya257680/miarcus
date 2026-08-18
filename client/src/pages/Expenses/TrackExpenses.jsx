@@ -1,42 +1,70 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "../../axiosConfig";
 import {
     FaSearch,
     FaFileExport,
     FaEye,
     FaShieldAlt,
-    FaFilter
+    FaFilter,
+    FaReceipt,
+    FaClock,
+    FaCheckCircle,
+    FaExclamationTriangle,
+    FaTimesCircle
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+
+const statusClass = (value) =>
+    String(value || "").toLowerCase().replace(/\s+/g, "-");
+
+const riskClass = (value) =>
+    String(value || "Review Required").toLowerCase().replace(/\s+/g, "-");
+
+const money = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })}`;
 
 function TrackExpenses() {
     const [expenses, setExpenses] = useState([]);
     const [status, setStatus] = useState("");
     const [type, setType] = useState("");
+    const [risk, setRisk] = useState("");
     const [search, setSearch] = useState("");
     const [types, setTypes] = useState([]);
     const [detailsId, setDetailsId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const load = () => {
-        setLoading(true);
-        const params = new URLSearchParams();
-        if (status) params.set("status", status);
-        if (type) params.set("type", type);
-        if (search.trim()) params.set("search", search.trim());
+    const load = async () => {
+        try {
+            setLoading(true);
+            setError("");
 
-        axios.get(`/api/expenses?${params.toString()}`)
-            .then(({ data }) => setExpenses(data.expenses || []))
-            .catch(error => console.error("Expense list error:", error))
-            .finally(() => setLoading(false));
+            const params = new URLSearchParams();
+            if (status) params.set("status", status);
+            if (type) params.set("type", type);
+            if (search.trim()) params.set("search", search.trim());
+
+            const { data } = await axios.get(`/api/expenses?${params.toString()}`);
+            setExpenses(Array.isArray(data.expenses) ? data.expenses : []);
+        } catch (err) {
+            console.error("Expense list error:", err);
+            setError(err.response?.data?.message || "Unable to load expenses.");
+            setExpenses([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         axios.get("/api/expenses/types")
-            .then(({ data }) => setTypes(data.types || []))
-            .catch(() => {});
+            .then(({ data }) => {
+                setTypes(Array.isArray(data.types) ? data.types : []);
+            })
+            .catch(() => setTypes([]));
     }, []);
 
     useEffect(() => {
@@ -44,29 +72,78 @@ function TrackExpenses() {
         return () => clearTimeout(timer);
     }, [status, type, search]);
 
+    const visible = useMemo(() => {
+        if (!risk) return expenses;
+        return expenses.filter((item) => item.risk_level === risk);
+    }, [expenses, risk]);
+
+    const summary = useMemo(() => {
+        return expenses.reduce((acc, item) => {
+            acc.count += 1;
+            acc.amount += Number(item.total_amount || 0);
+
+            if (item.status === "Pending") acc.pending += 1;
+            if (item.status === "Review Required") acc.review += 1;
+            if (item.status === "Approved") acc.approved += 1;
+            if (item.status === "Rejected") acc.rejected += 1;
+
+            return acc;
+        }, {
+            count: 0,
+            amount: 0,
+            pending: 0,
+            review: 0,
+            approved: 0,
+            rejected: 0
+        });
+    }, [expenses]);
+
     const exportCsv = () => {
-        const headers = ["Date", "Submitted By", "Type", "Invoice #", "Vendor", "Amount", "Risk", "Status"];
-        const rows = expenses.map(item => [
+        const headers = [
+            "Date",
+            "Submitted By",
+            "Employee ID",
+            "Type",
+            "Invoice #",
+            "Vendor",
+            "Amount",
+            "Risk",
+            "Risk Score",
+            "Status"
+        ];
+
+        const rows = visible.map((item) => [
             item.bill_date || "",
             item.submitted_by_name || "",
+            item.submitted_by_employee_id || "",
             item.expense_type || "",
             item.invoice_number || "",
             item.vendor_name || "",
             item.total_amount || 0,
             item.risk_level || "",
+            item.risk_score || 0,
             item.status || ""
         ]);
 
         const csv = [headers, ...rows]
-            .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(","))
+            .map((row) =>
+                row
+                    .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+                    .join(",")
+            )
             .join("\n");
 
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob(["\ufeff", csv], {
+            type: "text/csv;charset=utf-8;"
+        });
+
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
         anchor.download = `miarcus-expenses-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(anchor);
         anchor.click();
+        anchor.remove();
         URL.revokeObjectURL(url);
     };
 
@@ -76,7 +153,33 @@ function TrackExpenses() {
                 <div>
                     <div className="expense-eyebrow">Expenses</div>
                     <h1>Track Expenses</h1>
-                    <p>Monitor submitted bills, risk scores and review status.</p>
+                    <p>Monitor submitted bills, verification results, risk and review status.</p>
+                </div>
+                <button className="expense-heading-action" onClick={load} disabled={loading}>
+                    {loading ? "Refreshing..." : "Refresh"}
+                </button>
+            </div>
+
+            <div className="expense-stat-grid">
+                <div className="expense-stat-card">
+                    <div className="expense-stat-icon blue"><FaReceipt /></div>
+                    <div><span>Total bills</span><strong>{summary.count}</strong></div>
+                </div>
+                <div className="expense-stat-card">
+                    <div className="expense-stat-icon amber"><FaClock /></div>
+                    <div><span>Pending</span><strong>{summary.pending}</strong></div>
+                </div>
+                <div className="expense-stat-card">
+                    <div className="expense-stat-icon orange"><FaExclamationTriangle /></div>
+                    <div><span>Review required</span><strong>{summary.review}</strong></div>
+                </div>
+                <div className="expense-stat-card">
+                    <div className="expense-stat-icon green"><FaCheckCircle /></div>
+                    <div><span>Approved</span><strong>{summary.approved}</strong></div>
+                </div>
+                <div className="expense-stat-card amount">
+                    <div className="expense-stat-icon purple"><FaShieldAlt /></div>
+                    <div><span>Total value</span><strong>{money(summary.amount)}</strong></div>
                 </div>
             </div>
 
@@ -87,26 +190,48 @@ function TrackExpenses() {
                         <FaSearch />
                         <input
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search vendor, invoice, employee..."
                         />
                     </div>
-                    <select className="expense-input" value={status} onChange={e => setStatus(e.target.value)}>
-                        <option value="">Status...</option>
+
+                    <select className="expense-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                        <option value="">All statuses</option>
                         <option value="Pending">Pending</option>
                         <option value="Review Required">Review Required</option>
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                     </select>
-                    <select className="expense-input" value={type} onChange={e => setType(e.target.value)}>
-                        <option value="">Type...</option>
-                        {types.map(item => <option key={item} value={item}>{item}</option>)}
+
+                    <select className="expense-input" value={risk} onChange={(e) => setRisk(e.target.value)}>
+                        <option value="">All risk levels</option>
+                        <option value="Low Risk">Low Risk</option>
+                        <option value="Review Required">Review Required</option>
+                        <option value="High Risk">High Risk</option>
                     </select>
-                    <button className="expense-outline-btn" onClick={exportCsv}><FaFileExport /> Export CSV</button>
+
+                    <select className="expense-input" value={type} onChange={(e) => setType(e.target.value)}>
+                        <option value="">All types</option>
+                        {types.map((item) => <option key={item} value={item}>{item}</option>)}
+                    </select>
+
+                    <button className="expense-outline-btn" onClick={exportCsv}>
+                        <FaFileExport /> Export CSV
+                    </button>
                 </div>
             </div>
 
+            {error && <div className="expense-error page-error"><FaTimesCircle /> {error}</div>}
+
             <div className="expense-card expense-table-card">
+                <div className="expense-table-header">
+                    <div>
+                        <h2>Expense Register</h2>
+                        <p>{visible.length} records match the current filters.</p>
+                    </div>
+                    <span className="expense-table-total">{money(visible.reduce((sum, item) => sum + Number(item.total_amount || 0), 0))}</span>
+                </div>
+
                 <div className="expense-table-wrap">
                     <table className="expense-table">
                         <thead>
@@ -125,23 +250,34 @@ function TrackExpenses() {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan="9" className="expense-table-empty">Loading expenses...</td></tr>
-                            ) : expenses.length === 0 ? (
+                            ) : visible.length === 0 ? (
                                 <tr><td colSpan="9" className="expense-table-empty">No expenses found.</td></tr>
-                            ) : expenses.map(item => (
+                            ) : visible.map((item) => (
                                 <tr key={item.id}>
                                     <td>{item.bill_date || "—"}</td>
-                                    <td>{item.submitted_by_name}<small>{item.submitted_by_employee_id}</small></td>
+                                    <td>
+                                        <strong>{item.submitted_by_name || "Unknown User"}</strong>
+                                        <small>{item.submitted_by_employee_id || "—"}</small>
+                                    </td>
                                     <td>{item.expense_type || "Other"}</td>
                                     <td>{item.invoice_number || "—"}</td>
                                     <td>{item.vendor_name || "Not detected"}</td>
-                                    <td>₹{Number(item.total_amount || 0).toFixed(2)}</td>
+                                    <td><strong>{money(item.total_amount)}</strong></td>
                                     <td>
-                                        <span className={`expense-mini-risk ${String(item.risk_level || "").toLowerCase().replace(/\s+/g, "-")}`}>
+                                        <span className={`expense-mini-risk ${riskClass(item.risk_level)}`}>
                                             <FaShieldAlt /> {item.risk_level || "Review Required"}
                                         </span>
                                     </td>
-                                    <td><span className={`expense-status-pill ${String(item.status).toLowerCase().replace(/\s+/g, "-")}`}>{item.status}</span></td>
-                                    <td><button className="expense-view-btn" onClick={() => setDetailsId(item.id)}><FaEye /> View</button></td>
+                                    <td>
+                                        <span className={`expense-status-pill ${statusClass(item.status)}`}>
+                                            {item.status || "Review Required"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button className="expense-view-btn" onClick={() => setDetailsId(item.id)}>
+                                            <FaEye /> View
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -149,11 +285,18 @@ function TrackExpenses() {
                 </div>
 
                 <div className="expense-table-footer">
-                    <span>Total: <strong>{expenses.length}</strong> entries</span>
+                    <span>Total: <strong>{visible.length}</strong> entries</span>
+                    <span>Approved: <strong>{summary.approved}</strong></span>
+                    <span>Rejected: <strong>{summary.rejected}</strong></span>
                 </div>
             </div>
 
-            {detailsId && <ExpenseDetails id={detailsId} onClose={() => setDetailsId(null)} />}
+            {detailsId && (
+                <ExpenseDetails
+                    id={detailsId}
+                    onClose={() => setDetailsId(null)}
+                />
+            )}
         </div>
     );
 }

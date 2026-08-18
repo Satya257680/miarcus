@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import axios from "../../axiosConfig";
 import {
@@ -6,10 +5,17 @@ import {
     FaTimes,
     FaEye,
     FaShieldAlt,
-    FaSearch
+    FaSearch,
+    FaExclamationTriangle
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+
+function riskClass(value) {
+    return String(value || "Review Required")
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+}
 
 function ApproveExpenses() {
     const [expenses, setExpenses] = useState([]);
@@ -18,27 +24,32 @@ function ApproveExpenses() {
     const [detailsId, setDetailsId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
 
-    const load = () => {
-        setLoading(true);
+    const load = async () => {
+        try {
+            setLoading(true);
+            setError("");
 
-        Promise.all([
-            axios.get("/api/expenses?status=Pending"),
-            axios.get("/api/expenses?status=Review%20Required")
-        ])
-            .then(([pending, review]) => {
-                const rows = [
-                    ...(pending.data.expenses || []),
-                    ...(review.data.expenses || [])
-                ].sort(
+            const { data } = await axios.get("/api/expenses");
+            const rows = (data.expenses || [])
+                .filter((item) =>
+                    ["Pending", "Review Required"].includes(item.status)
+                )
+                .sort(
                     (a, b) =>
                         new Date(b.created_at).getTime() -
                         new Date(a.created_at).getTime()
                 );
-                setExpenses(rows);
-            })
-            .catch(error => console.error("Approve expenses error:", error))
-            .finally(() => setLoading(false));
+
+            setExpenses(rows);
+            setSelected([]);
+        } catch (err) {
+            console.error("Approve expenses error:", err);
+            setError(err.response?.data?.message || "Unable to load review queue.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -49,34 +60,43 @@ function ApproveExpenses() {
         const q = search.trim().toLowerCase();
         if (!q) return expenses;
 
-        return expenses.filter(item =>
+        return expenses.filter((item) =>
             [
                 item.submitted_by_name,
                 item.submitted_by_employee_id,
                 item.invoice_number,
                 item.vendor_name,
                 item.expense_type
-            ].some(value => String(value || "").toLowerCase().includes(q))
+            ].some((value) =>
+                String(value || "").toLowerCase().includes(q)
+            )
         );
     }, [expenses, search]);
 
-    const toggle = id => {
-        setSelected(current =>
+    const toggle = (id) => {
+        setSelected((current) =>
             current.includes(id)
-                ? current.filter(item => item !== id)
+                ? current.filter((item) => item !== id)
                 : [...current, id]
         );
     };
 
     const toggleAll = () => {
-        const ids = filtered.map(item => item.id);
-        setSelected(current => current.length === ids.length ? [] : ids);
+        const ids = filtered.map((item) => item.id);
+        const allSelected = ids.length > 0 && ids.every((id) => selected.includes(id));
+
+        setSelected((current) =>
+            allSelected
+                ? current.filter((id) => !ids.includes(id))
+                : [...new Set([...current, ...ids])]
+        );
     };
 
-    const reviewSelected = async status => {
-        if (!selected.length) return;
+    const reviewSelected = async (status) => {
+        if (!selected.length || busy) return;
 
         let reason = "";
+
         if (status === "Rejected") {
             reason = window.prompt("Enter rejection reason:") || "";
             if (!reason.trim()) return;
@@ -84,23 +104,31 @@ function ApproveExpenses() {
 
         try {
             setBusy(true);
+            setError("");
+
             await Promise.all(
-                selected.map(id =>
+                selected.map((id) =>
                     axios.patch(`/api/expenses/${id}/review`, {
                         status,
-                        reason
+                        reason: reason.trim() || null
                     })
                 )
             );
 
-            setSelected([]);
-            load();
-        } catch (error) {
-            alert(error.response?.data?.message || "Unable to update selected expenses.");
+            await load();
+        } catch (err) {
+            console.error("Expense review error:", err);
+            setError(
+                err.response?.data?.message ||
+                "Unable to update selected expenses."
+            );
         } finally {
             setBusy(false);
         }
     };
+
+    const highRisk = filtered.filter((item) => item.risk_level === "High Risk").length;
+    const reviewRisk = filtered.filter((item) => item.risk_level === "Review Required").length;
 
     return (
         <div className="expense-page">
@@ -108,9 +136,22 @@ function ApproveExpenses() {
                 <div>
                     <div className="expense-eyebrow">Expenses</div>
                     <h1>Approve Expenses</h1>
-                    <p>Review low-risk and flagged bills before finance/manager approval.</p>
+                    <p>Review verified bills before finance or manager approval.</p>
                 </div>
-                <div className="expense-heading-badge"><FaShieldAlt /> Finance review queue</div>
+                <div className="expense-heading-badge">
+                    <FaShieldAlt /> Finance review queue
+                </div>
+            </div>
+
+            <div className="expense-review-alerts">
+                <div className="expense-review-alert warning">
+                    <FaExclamationTriangle />
+                    <span><strong>{reviewRisk}</strong> bills need review.</span>
+                </div>
+                <div className="expense-review-alert danger">
+                    <FaShieldAlt />
+                    <span><strong>{highRisk}</strong> bills are high risk.</span>
+                </div>
             </div>
 
             <div className="expense-card expense-approval-toolbar">
@@ -118,7 +159,7 @@ function ApproveExpenses() {
                     <FaSearch />
                     <input
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
+                        onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name, ID, invoice or vendor..."
                     />
                 </div>
@@ -129,7 +170,7 @@ function ApproveExpenses() {
                         disabled={!selected.length || busy}
                         onClick={() => reviewSelected("Approved")}
                     >
-                        <FaCheck /> Approve Selected
+                        <FaCheck /> {busy ? "Updating..." : "Approve Selected"}
                     </button>
                     <button
                         className="expense-reject-btn"
@@ -141,12 +182,33 @@ function ApproveExpenses() {
                 </div>
             </div>
 
+            {error && <div className="expense-error page-error">{error}</div>}
+
             <div className="expense-card expense-table-card">
+                <div className="expense-table-header">
+                    <div>
+                        <h2>Finance / Manager Queue</h2>
+                        <p>Select one or more bills and approve or reject them.</p>
+                    </div>
+                    <span className="expense-selection-count">
+                        {selected.length} selected
+                    </span>
+                </div>
+
                 <div className="expense-table-wrap">
                     <table className="expense-table">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" checked={filtered.length > 0 && selected.length === filtered.length} onChange={toggleAll} /></th>
+                                <th>
+                                    <input
+                                        type="checkbox"
+                                        checked={
+                                            filtered.length > 0 &&
+                                            filtered.every((item) => selected.includes(item.id))
+                                        }
+                                        onChange={toggleAll}
+                                    />
+                                </th>
                                 <th>Employee</th>
                                 <th>Date</th>
                                 <th>Invoice #</th>
@@ -161,20 +223,33 @@ function ApproveExpenses() {
                                 <tr><td colSpan="8" className="expense-table-empty">Loading review queue...</td></tr>
                             ) : filtered.length === 0 ? (
                                 <tr><td colSpan="8" className="expense-table-empty">No expenses are waiting for review.</td></tr>
-                            ) : filtered.map(item => (
+                            ) : filtered.map((item) => (
                                 <tr key={item.id}>
-                                    <td><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} /></td>
-                                    <td>{item.submitted_by_name}<small>{item.submitted_by_employee_id}</small></td>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            checked={selected.includes(item.id)}
+                                            onChange={() => toggle(item.id)}
+                                        />
+                                    </td>
+                                    <td>
+                                        <strong>{item.submitted_by_name || "Unknown User"}</strong>
+                                        <small>{item.submitted_by_employee_id || "—"}</small>
+                                    </td>
                                     <td>{item.bill_date || "—"}</td>
                                     <td>{item.invoice_number || "—"}</td>
                                     <td>{item.vendor_name || "Not detected"}</td>
-                                    <td>₹{Number(item.total_amount || 0).toFixed(2)}</td>
+                                    <td><strong>₹{Number(item.total_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>
                                     <td>
-                                        <span className={`expense-mini-risk ${String(item.risk_level || "").toLowerCase().replace(/\s+/g, "-")}`}>
-                                            <FaShieldAlt /> {item.risk_level}
+                                        <span className={`expense-mini-risk ${riskClass(item.risk_level)}`}>
+                                            <FaShieldAlt /> {item.risk_level || "Review Required"}
                                         </span>
                                     </td>
-                                    <td><button className="expense-view-btn" onClick={() => setDetailsId(item.id)}><FaEye /> View</button></td>
+                                    <td>
+                                        <button className="expense-view-btn" onClick={() => setDetailsId(item.id)}>
+                                            <FaEye /> View
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -182,12 +257,17 @@ function ApproveExpenses() {
                 </div>
 
                 <div className="expense-table-footer">
-                    <span>Total awaiting review: <strong>{filtered.length}</strong></span>
+                    <span>Awaiting review: <strong>{filtered.length}</strong></span>
                     <span>Selected: <strong>{selected.length}</strong></span>
                 </div>
             </div>
 
-            {detailsId && <ExpenseDetails id={detailsId} onClose={() => setDetailsId(null)} />}
+            {detailsId && (
+                <ExpenseDetails
+                    id={detailsId}
+                    onClose={() => setDetailsId(null)}
+                />
+            )}
         </div>
     );
 }

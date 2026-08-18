@@ -25,8 +25,13 @@ import "../../styles/layout/Sidebar.css";
 function Sidebar({ collapsed }) {
 
   const location = useLocation();
-  const quizOpenByPath = location.pathname.startsWith("/quiz/");
-  const expenseOpenByPath = location.pathname.startsWith("/expenses/");
+  const quizOpenByPath =
+    location.pathname === "/quiz" ||
+    location.pathname.startsWith("/quiz/");
+
+  const expenseOpenByPath =
+    location.pathname === "/expenses" ||
+    location.pathname.startsWith("/expenses/");
   const [quizOpen, setQuizOpen] = useState(quizOpenByPath);
   const [expenseOpen, setExpenseOpen] = useState(expenseOpenByPath);
 
