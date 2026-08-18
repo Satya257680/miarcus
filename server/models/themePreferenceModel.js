@@ -13,7 +13,13 @@ const VALID_THEMES = new Set([
     "dark",
     "minimal",
     "classic-blue",
-    "high-contrast"
+    "high-contrast",
+    "purple",
+    "ocean",
+    "emerald",
+    "sunset",
+    "midnight",
+    "sky"
 ]);
 
 const VALID_ACCENTS = new Set([
