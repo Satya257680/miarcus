@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { FaMoon, FaSun, FaPalette } from "react-icons/fa";
+import { useTheme } from "../context/ThemeProvider";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import "./login.css";
@@ -8,6 +10,7 @@ const API_BASE_URL =
 
 function Login() {
   const navigate = useNavigate();
+  const { preferences, themes, updatePreferences, saveCurrentForUser } = useTheme();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -131,6 +134,8 @@ function Login() {
         localStorage.setItem("profilePhoto", user.profile_photo);
       }
 
+      await saveCurrentForUser();
+
       setSuccessMessage(response.data.message || "Login successful.");
 
       setTimeout(() => {
@@ -201,6 +206,22 @@ function Login() {
 
   return (
     <main className="login-page">
+      <div className="login-theme-control">
+        <button type="button" className="login-mode-button" onClick={() => updatePreferences({ theme: preferences.theme === "dark" ? "miarcus-original" : "dark" })} aria-label={preferences.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={preferences.theme === "dark" ? "Light mode" : "Dark mode"}>
+          {preferences.theme === "dark" ? <FaSun /> : <FaMoon />}
+        </button>
+        <details className="login-theme-menu">
+          <summary title="Choose theme"><FaPalette /><span>{themes.find((theme) => theme.id === preferences.theme)?.name || "Theme"}</span></summary>
+          <div className="login-theme-list">
+            {themes.map((theme) => (
+              <button key={theme.id} type="button" className={preferences.theme === theme.id ? "selected" : ""} onClick={() => updatePreferences({ theme: theme.id })}>
+                <span>{theme.icon}</span><span>{theme.name}</span>
+              </button>
+            ))}
+          </div>
+        </details>
+      </div>
+
       {/* Soft nursery background */}
       <div className="nursery-glow glow-left" />
       <div className="nursery-glow glow-right" />
