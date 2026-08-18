@@ -8,7 +8,8 @@ import {
     FaStore,
     FaQuestionCircle,
     FaClipboardList,
-    FaSitemap
+    FaSitemap,
+    FaPalette
 } from "react-icons/fa";
 
 import { SettingsCard } from "./components";
@@ -42,6 +43,15 @@ function Settings() {
     // ==========================================
 
     const modules = [
+
+        {
+            permission: "Appearance",
+            title: "Appearance",
+            description: "Personalize your theme and display preferences.",
+            icon: FaPalette,
+            path: "/settings/appearance",
+            personal: true
+        },
 
         {
             permission: "Users",
@@ -110,6 +120,7 @@ function Settings() {
         return modules.filter((module) => {
 
             const hasPermission =
+                module.personal ||
                 isAdministrator ||
                 ["View", "Add", "Edit", "Full"].includes(
                     permissions[module.permission]

@@ -58,6 +58,7 @@ import NSOTracking from "./pages/NSOTracking";
 // ======================================================
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
+import Appearance from "./pages/Settings/Appearance";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -218,6 +219,11 @@ function App() {
                     <Route
                         path="/settings"
                         element={<Settings />}
+                    />
+
+                    <Route
+                        path="/settings/appearance"
+                        element={<Appearance />}
                     />
 
 
