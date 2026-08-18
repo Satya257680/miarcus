@@ -72,8 +72,15 @@ const Quiz =
 const Expense =
     require("./models/expenseModel");
 
-const NotificationService =
+// ======================================================
+// REAL-TIME NOTIFICATIONS
+// ======================================================
+
+const Notification =
     require("./services/notificationService");
+
+const installNotificationEventMiddleware =
+    require("./middleware/notificationEventMiddleware");
 
 // ======================================================
 // CREATE TABLE HELPER
@@ -212,15 +219,6 @@ async function initializeDatabase() {
         );
 
         // --------------------------------------------------
-        // REAL-TIME NOTIFICATIONS
-        // --------------------------------------------------
-
-        await createTablesAsync(
-            NotificationService,
-            "notifications"
-        );
-
-        // --------------------------------------------------
         // QUIZ
         // --------------------------------------------------
 
@@ -237,6 +235,16 @@ async function initializeDatabase() {
             Expense,
             "expenses"
         );
+
+        // --------------------------------------------------
+        // REAL-TIME NOTIFICATIONS
+        // --------------------------------------------------
+        try {
+            await Notification.ensureTable();
+            console.log("✅ notifications table verified");
+        } catch (error) {
+            console.error("❌ notifications table initialization failed:", error.message);
+        }
 
         // ==================================================
         // ACTION POINT NSO MIGRATION
@@ -537,6 +545,14 @@ app.use(
     })
 
 );
+
+// ======================================================
+// REAL-TIME NOTIFICATION EVENT DETECTION
+// ======================================================
+// Installed before business routes so every successful
+// POST/PUT/PATCH/DELETE API action can be converted into a
+// persistent MySQL notification without changing each page.
+installNotificationEventMiddleware(app);
 
 // ======================================================
 // UPLOAD DIRECTORY
@@ -869,6 +885,20 @@ const loadRoute = (
 };
 
 // ======================================================
+// NOTIFICATIONS
+// ======================================================
+
+loadRoute(
+
+    "./routes/notificationRoutes",
+
+    "/api/notifications",
+
+    "Notification Routes"
+
+);
+
+// ======================================================
 // API ROUTES
 // ======================================================
 
@@ -925,20 +955,6 @@ loadRoute(
     "/api/announcements",
 
     "Announcement Routes"
-
-);
-
-// ======================================================
-// REAL-TIME NOTIFICATIONS
-// ======================================================
-
-loadRoute(
-
-    "./routes/notificationRoutes",
-
-    "/api/notifications",
-
-    "Notification Routes"
 
 );
 
@@ -1656,7 +1672,7 @@ const PORT =
 // LISTEN
 // ======================================================
 
-app.listen(
+const httpServer = app.listen(
 
     PORT,
 
@@ -1709,3 +1725,7 @@ app.listen(
     }
 
 );
+
+// Keep long-lived SSE connections alive.
+httpServer.keepAliveTimeout = 0;
+httpServer.headersTimeout = 0;
