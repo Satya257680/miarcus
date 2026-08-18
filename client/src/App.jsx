@@ -9,8 +9,6 @@ import {
 // LAYOUT
 // ======================================================
 import Layout from "./components/layout/Layout";
-import ThemeProvider from "./context/ThemeProvider";
-import "./styles/theme.css";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import ExpensePermissionRoute from "./components/layout/ExpensePermissionRoute";
 
@@ -60,6 +58,7 @@ import NSOTracking from "./pages/NSOTracking";
 // ======================================================
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
+import Appearance from "./pages/Settings/Appearance";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -87,7 +86,6 @@ import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
 
 function App() {
     return (
-        <ThemeProvider>
         <BrowserRouter>
 
             <Routes>
@@ -221,6 +219,11 @@ function App() {
                     <Route
                         path="/settings"
                         element={<Settings />}
+                    />
+
+                    <Route
+                        path="/settings/appearance"
+                        element={<Appearance />}
                     />
 
 
@@ -479,7 +482,6 @@ function App() {
             </Routes>
 
         </BrowserRouter>
-        </ThemeProvider>
     );
 }
 
