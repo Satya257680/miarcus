@@ -94,7 +94,23 @@ router.get(
 
 // ------------------------------------------------------
 // REVIEW EXPENSE
+// PATCH /api/expenses/:id/review
+//
+// Frontend uses PATCH.
+// ------------------------------------------------------
+
+router.patch(
+    "/:id/review",
+    authMiddleware,
+    expenseController.reviewExpense
+);
+
+// ------------------------------------------------------
+// LEGACY REVIEW EXPENSE
 // PUT /api/expenses/:id/review
+//
+// Keep PUT also supported so older clients/integrations
+// continue working.
 // ------------------------------------------------------
 
 router.put(
