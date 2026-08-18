@@ -145,9 +145,20 @@ const Expense = {
             params.push(filters.storeId);
         }
 
-        if (filters.userId) {
-            where.push("e.submitted_by = ?");
-            params.push(filters.userId);
+        // Server-side ownership filter.
+        // The controller decides whether this is the logged-in user
+        // or no filter at all (administrator / Expenses = Full).
+        if (
+            filters.userId !== undefined &&
+            filters.userId !== null &&
+            String(filters.userId).trim() !== ""
+        ) {
+            const userId = Number(filters.userId);
+
+            if (Number.isInteger(userId) && userId > 0) {
+                where.push("e.submitted_by = ?");
+                params.push(userId);
+            }
         }
 
         if (filters.search) {

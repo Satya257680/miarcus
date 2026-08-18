@@ -15,6 +15,102 @@ function clean(value) {
         : String(value).trim();
 }
 
+// ======================================================
+// EXPENSE ACCESS CONTROL
+// ======================================================
+// Administrator and Expenses = Full can see every user's
+// expenses. View/Add/Edit users can only see their own.
+// The decision is made on the server from the authenticated
+// user and database permissions; query-string userId is
+// never trusted for restricted users.
+// ======================================================
+
+async function getExpenseAccess(req) {
+    const userId = Number(req.user?.id);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return {
+            authenticated: false,
+            canViewAll: false,
+            permission: null,
+            userId: null
+        };
+    }
+
+    let userRows = [];
+    let permissionRows = [];
+
+    try {
+        userRows = await db.query(
+            `
+                SELECT administrator, is_admin
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+            `,
+            [userId]
+        );
+    } catch (error) {
+        // Some production schemas may not have is_admin.
+        // Fall back to the administrator column.
+        userRows = await db.query(
+            `
+                SELECT administrator
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+            `,
+            [userId]
+        );
+    }
+
+    permissionRows = await db.query(
+        `
+            SELECT permission
+            FROM user_permissions
+            WHERE user_id = ?
+              AND LOWER(module_name) = LOWER(?)
+        `,
+        [userId, "Expenses"]
+    );
+
+    const user = Array.isArray(userRows) ? userRows[0] : null;
+
+    const isAdministrator =
+        user?.administrator === true ||
+        user?.administrator === 1 ||
+        String(user?.administrator || "") === "1" ||
+        user?.is_admin === true ||
+        user?.is_admin === 1 ||
+        String(user?.is_admin || "") === "1" ||
+        req.user?.administrator === true ||
+        req.user?.administrator === 1 ||
+        String(req.user?.administrator || "") === "1";
+
+    const permissions = Array.isArray(permissionRows)
+        ? permissionRows.map((row) =>
+            String(row?.permission || "").trim()
+        )
+        : [];
+
+    const fullPermission = permissions.find(
+        (permission) =>
+            permission.toLowerCase() === "full"
+    );
+
+    const effectivePermission =
+        fullPermission ||
+        permissions[0] ||
+        null;
+
+    return {
+        authenticated: true,
+        canViewAll: isAdministrator || Boolean(fullPermission),
+        permission: effectivePermission,
+        userId
+    };
+}
+
 function escapeHtml(value) {
     return clean(value)
         .replace(/&/g, "&amp;")
@@ -1039,6 +1135,26 @@ async function submitExpense(req, res) {
 
 async function getExpenses(req, res) {
     try {
+        const access = await getExpenseAccess(req);
+
+        if (!access.authenticated) {
+            return res.status(401).json({
+                success: false,
+                message: "Authenticated user is required."
+            });
+        }
+
+        // IMPORTANT:
+        // Administrator / Expenses = Full -> all expenses.
+        // View / Add / Edit -> ONLY the logged-in user's expenses.
+        //
+        // Any userId supplied by the browser is ignored for
+        // restricted users so it cannot be used to expose another
+        // employee's expenses.
+        const userId = access.canViewAll
+            ? clean(req.query.userId)
+            : access.userId;
+
         const rows =
             await Expense.getAll({
                 status:
@@ -1047,8 +1163,7 @@ async function getExpenses(req, res) {
                 type:
                     clean(req.query.type),
 
-                userId:
-                    clean(req.query.userId),
+                userId,
 
                 search:
                     clean(req.query.search)
@@ -1074,6 +1189,15 @@ async function getExpenses(req, res) {
 
 async function getExpenseById(req, res) {
     try {
+        const access = await getExpenseAccess(req);
+
+        if (!access.authenticated) {
+            return res.status(401).json({
+                success: false,
+                message: "Authenticated user is required."
+            });
+        }
+
         const expense =
             await Expense.getById(
                 req.params.id
@@ -1084,6 +1208,18 @@ async function getExpenseById(req, res) {
                 success: false,
                 message:
                     "Expense not found."
+            });
+        }
+
+        // Restricted users may only open their own expense.
+        // Administrator / Expenses = Full may open any expense.
+        if (
+            !access.canViewAll &&
+            Number(expense.submitted_by) !== Number(access.userId)
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this expense."
             });
         }
 
