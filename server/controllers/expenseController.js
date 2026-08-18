@@ -1,4 +1,5 @@
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const db = require("../config/db");
 const Expense = require("../models/expenseModel");
@@ -204,6 +205,32 @@ function normalizeAiResult(raw) {
                 data.image_inconsistencies
             ),
 
+        document_authenticity: clean(
+            data.document_authenticity ||
+            data.authenticity ||
+            data.bill_authenticity
+        ).toUpperCase(),
+
+        ai_generated_probability: Math.max(
+            0,
+            Math.min(
+                100,
+                num(
+                    data.ai_generated_probability ??
+                    data.synthetic_probability ??
+                    data.ai_probability
+                )
+            )
+        ),
+
+        authenticity_confidence: Math.max(
+            0,
+            Math.min(
+                100,
+                num(data.authenticity_confidence)
+            )
+        ),
+
         notes: clean(data.notes),
 
         raw_text: clean(data.raw_text)
@@ -274,11 +301,10 @@ async function analyzeWithGemini(file) {
     );
 
     const prompt = `
-You are the MI ARCUS expense verification engine.
+You are the MI ARCUS bill authenticity and expense verification engine.
 
-Analyze the uploaded bill/invoice image or PDF.
-
-Return ONLY valid JSON.
+Analyze the uploaded bill/invoice image or PDF as a forensic document reviewer.
+Return ONLY valid JSON. Do not invent values.
 
 Extract:
 - vendor_name
@@ -291,19 +317,25 @@ Extract:
 - total_amount
 - ocr_confidence (0-100)
 - items: description, quantity, unit_price, tax_rate, tax_amount, line_total
-- manipulation_signals
-- ai_generated_signals
-- image_inconsistencies
+
+Also assess authenticity using visible evidence only:
+- document_authenticity: one of AUTHENTIC, SUSPICIOUS, AI_GENERATED, UNKNOWN
+- ai_generated_probability: 0-100
+- authenticity_confidence: 0-100
+- manipulation_signals: array of concrete visual/document evidence
+- ai_generated_signals: array of concrete evidence suggesting synthetic/AI-generated content
+- image_inconsistencies: array of concrete visual inconsistencies
 - notes
 - raw_text
 
-Rules:
-1. Never invent values. Use empty string or 0 when unreadable.
-2. Keep invoice_number exactly as printed when possible.
-3. Use YYYY-MM-DD for dates when confidently known.
-4. Calculate line totals only when quantity and unit price are visible.
-5. Do not decide approval. Only provide evidence/signals.
-6. manipulation_signals, ai_generated_signals and image_inconsistencies must always be JSON arrays.
+Look specifically for: unnatural font rendering, inconsistent character shapes, impossible text spacing, repeated/generated patterns, mismatched logos, inconsistent compression/noise, warped tables, inconsistent alignment, impossible shadows, synthetic-looking seals/signatures, copied invoice layouts, and other evidence that the image may have been generated or manipulated.
+
+IMPORTANT:
+1. Do not call a bill AI-generated merely because it looks clean or professional.
+2. Only add AI-generated signals when there is actual visible evidence.
+3. If evidence is weak, use SUSPICIOUS or UNKNOWN rather than AI_GENERATED.
+4. Never invent vendor, invoice, date, amount or GST data.
+5. Always return arrays for manipulation_signals, ai_generated_signals and image_inconsistencies.
 `;
 
     const endpoint =
@@ -399,7 +431,7 @@ Rules:
     return parsed;
 }
 
-function calculateChecks(ai, duplicateCount) {
+function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateRows = []) {
     const checks = [];
 
     const hasCoreFields =
@@ -433,7 +465,15 @@ function calculateChecks(ai, duplicateCount) {
             duplicate ? "FAIL" : "PASS",
             duplicate ? 90 : 0,
             {
-                matching_records: duplicateCount
+                matching_records: duplicateCount,
+                exact_file_matches: exactDuplicateCount,
+                matches: duplicateRows.map((row) => ({
+                    id: row.id,
+                    invoice_number: row.invoice_number,
+                    vendor_name: row.vendor_name,
+                    store_name: row.store_name,
+                    created_at: row.created_at
+                }))
             }
         )
     );
@@ -528,15 +568,21 @@ function calculateChecks(ai, duplicateCount) {
         ai.ai_generated_signals.length +
         ai.image_inconsistencies.length;
 
+    const aiRisk =
+        ai.document_authenticity === "AI_GENERATED" ||
+        ai.ai_generated_probability >= 70;
+
     checks.push(
         makeCheck(
             "Image / AI analysis",
             manipulationCount === 0
                 ? "PASS"
-                : "REVIEW",
+                : aiRisk
+                    ? "FAIL"
+                    : "REVIEW",
             Math.min(
                 100,
-                manipulationCount * 20
+                manipulationCount * 20 + (aiRisk ? 40 : 0)
             ),
             {
                 manipulation_signals:
@@ -731,40 +777,92 @@ async function submitExpense(req, res) {
             });
         }
 
+        const expenseType = clean(req.body.expense_type);
+        const storeId = Number(req.body.store_id);
+
+        if (!expenseType) {
+            return res.status(400).json({
+                success: false,
+                message: "Expense type is required."
+            });
+        }
+
+        if (!Number.isInteger(storeId) || storeId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Store is required."
+            });
+        }
+
+        const storeRows = await db.query(`
+            SELECT id, store_name, store_code, status
+            FROM stores
+            WHERE id = ?
+            LIMIT 1
+        `, [storeId]);
+
+        if (!Array.isArray(storeRows) || storeRows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Selected store was not found."
+            });
+        }
+
+        if (String(storeRows[0].status || "Active").toLowerCase() === "inactive") {
+            return res.status(400).json({
+                success: false,
+                message: "Selected store is inactive."
+            });
+        }
+
+        const fileBytes = fs.readFileSync(file.path);
+        const fileHash = crypto.createHash("sha256").update(fileBytes).digest("hex");
+
+        const exactDuplicateRows = await Expense.getDuplicateInfo({ fileHash });
+
         const aiRaw =
             await analyzeWithGemini(file);
 
         const ai =
             normalizeAiResult(aiRaw);
 
-        const duplicateRows =
-            await db.query(`
-                SELECT COUNT(*) AS count
-                FROM expenses
-                WHERE invoice_number IS NOT NULL
-                  AND invoice_number <> ''
-                  AND invoice_number = ?
-                  AND (
-                        vendor_name = ?
-                        OR vendor_name IS NULL
-                        OR ? = ''
-                  )
-                  AND status <> 'Rejected'
-            `, [
-                ai.invoice_number,
-                ai.vendor_name,
-                ai.vendor_name
-            ]);
+        // Duplicate detection uses both the exact file hash and invoice + vendor.
+        // This catches an identical re-upload even when the filename changes.
+        const duplicateRows = await Expense.getDuplicateInfo({
+            fileHash,
+            invoiceNumber: ai.invoice_number,
+            vendorName: ai.vendor_name
+        });
 
-        const duplicateCount =
-            Number(
-                duplicateRows?.[0]?.count || 0
+        const duplicateCount = duplicateRows.length;
+        const exactDuplicateCount = exactDuplicateRows.length;
+
+        if (
+            ["AI_GENERATED", "SUSPICIOUS", "FAKE", "SYNTHETIC"].includes(ai.document_authenticity) &&
+            ai.ai_generated_signals.length === 0
+        ) {
+            ai.ai_generated_signals.push(
+                ai.document_authenticity === "AI_GENERATED"
+                    ? "AI-generated or synthetic document characteristics detected."
+                    : "Suspicious document authenticity characteristics detected."
             );
+        }
+
+        if (
+            ai.ai_generated_probability >= 70 &&
+            ai.ai_generated_signals.length === 0
+        ) {
+            ai.ai_generated_signals.push(
+                "High AI-generation probability reported by image analysis."
+            );
+        }
 
         const checks =
             calculateChecks(
                 ai,
-                duplicateCount
+                duplicateCount,
+                exactDuplicateCount,
+                duplicateRows
             );
 
         const verificationPreview = {
@@ -780,11 +878,11 @@ async function submitExpense(req, res) {
                 submitted_by:
                     req.user.id,
 
+                store_id:
+                    storeId,
+
                 expense_type:
-                    clean(
-                        req.body.expense_type ||
-                        "Other"
-                    ),
+                    expenseType,
 
                 invoice_number:
                     ai.invoice_number,
@@ -830,6 +928,9 @@ async function submitExpense(req, res) {
 
                 mime_type:
                     file.mimetype,
+
+                file_hash:
+                    fileHash,
 
                 ai_analysis:
                     ai,
@@ -1061,6 +1162,63 @@ async function reviewExpense(req, res) {
     }
 }
 
+async function deleteExpense(req, res) {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid expense ID." });
+        }
+
+        const result = await Expense.deleteById(id);
+
+        if (!result.deleted) {
+            return res.status(404).json({ success: false, message: "Expense not found." });
+        }
+
+        if (result.attachment_path) {
+            const filename = path.basename(result.attachment_path);
+            const filePath = path.join(process.cwd(), "uploads", filename);
+            try {
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            } catch (fileError) {
+                console.warn("Expense attachment cleanup failed:", fileError.message);
+            }
+        }
+
+        return res.json({ success: true, message: "Expense deleted successfully." });
+    } catch (error) {
+        console.error("Delete expense error:", error);
+        return res.status(500).json({ success: false, message: "Unable to delete expense." });
+    }
+}
+
+async function deleteAllExpenses(req, res) {
+    try {
+        const result = await Expense.deleteAll();
+        const uploadFolder = path.join(process.cwd(), "uploads");
+
+        for (const attachment of result.attachments) {
+            const filename = path.basename(attachment);
+            const filePath = path.join(uploadFolder, filename);
+            try {
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            } catch (fileError) {
+                console.warn("Expense attachment cleanup failed:", fileError.message);
+            }
+        }
+
+        return res.json({
+            success: true,
+            deleted: result.count,
+            message: `${result.count} expense record(s) deleted successfully.`
+        });
+    } catch (error) {
+        console.error("Delete all expenses error:", error);
+        return res.status(500).json({ success: false, message: "Unable to delete all expenses." });
+    }
+}
+
 async function getExpenseTypes(req, res) {
     try {
         return res.json({
@@ -1087,5 +1245,7 @@ module.exports = {
     getExpenses,
     getExpenseById,
     reviewExpense,
-    getExpenseTypes
+    getExpenseTypes,
+    deleteExpense,
+    deleteAllExpenses
 };
