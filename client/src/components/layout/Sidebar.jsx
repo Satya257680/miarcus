@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   FaHome,
@@ -23,21 +23,49 @@ import {
 import "../../styles/layout/Sidebar.css";
 
 function Sidebar({ collapsed }) {
-
   const location = useLocation();
-  const quizOpenByPath =
-    location.pathname === "/quiz" ||
-    location.pathname.startsWith("/quiz/");
+
+  // ======================================================
+  // PATH DETECTION
+  // ======================================================
 
   const expenseOpenByPath =
     location.pathname === "/expenses" ||
     location.pathname.startsWith("/expenses/");
-  const [quizOpen, setQuizOpen] = useState(quizOpenByPath);
-  const [expenseOpen, setExpenseOpen] = useState(expenseOpenByPath);
 
-  // ==========================================
+  const quizOpenByPath =
+    location.pathname === "/quiz" ||
+    location.pathname.startsWith("/quiz/");
+
+  // ======================================================
+  // MENU OPEN/CLOSE STATE
+  // ======================================================
+
+  const [expenseOpen, setExpenseOpen] =
+    useState(expenseOpenByPath);
+
+  const [quizOpen, setQuizOpen] =
+    useState(quizOpenByPath);
+
+  // ======================================================
+  // KEEP MENU OPEN WHEN DIRECT URL IS OPENED
+  // ======================================================
+
+  useEffect(() => {
+    if (expenseOpenByPath) {
+      setExpenseOpen(true);
+    }
+  }, [expenseOpenByPath]);
+
+  useEffect(() => {
+    if (quizOpenByPath) {
+      setQuizOpen(true);
+    }
+  }, [quizOpenByPath]);
+
+  // ======================================================
   // RBAC
-  // ==========================================
+  // ======================================================
 
   const user = JSON.parse(
     localStorage.getItem("user") || "{}"
@@ -47,10 +75,14 @@ function Sidebar({ collapsed }) {
     localStorage.getItem("permissions") || "{}"
   );
 
-  const isAdministrator = user?.administrator === true;
+  const isAdministrator =
+    user?.administrator === true;
+
+  // ======================================================
+  // PERMISSION HELPERS
+  // ======================================================
 
   const hasPermission = (moduleName) => {
-
     if (isAdministrator) return true;
 
     const permission = permissions[moduleName];
@@ -61,332 +93,496 @@ function Sidebar({ collapsed }) {
       "Edit",
       "Full",
     ].includes(permission);
-
   };
 
-  const hasAnyPermission = (moduleNames) =>
-    isAdministrator ||
-    moduleNames.some((moduleName) =>
-      ["View", "Add", "Edit", "Full"].includes(
-        permissions[moduleName]
-      )
-    );
+  const hasAnyPermission = (moduleNames) => {
+    if (isAdministrator) return true;
 
-  const expensePermission = permissions["Expenses"];
+    return moduleNames.some((moduleName) =>
+      [
+        "View",
+        "Add",
+        "Edit",
+        "Full",
+      ].includes(permissions[moduleName])
+    );
+  };
+
+  // ======================================================
+  // EXPENSE PERMISSIONS
+  // ======================================================
+
+  const expensePermission =
+    permissions["Expenses"];
 
   const canEnterExpense =
     isAdministrator ||
-    ["Add", "Edit", "Full"].includes(expensePermission);
+    ["Add", "Edit", "Full"].includes(
+      expensePermission
+    );
 
   const canTrackExpenses =
     isAdministrator ||
-    ["View", "Add", "Edit", "Full"].includes(expensePermission);
+    ["View", "Add", "Edit", "Full"].includes(
+      expensePermission
+    );
 
   const canApproveExpenses =
     isAdministrator ||
-    ["Edit", "Full"].includes(expensePermission);
+    ["Edit", "Full"].includes(
+      expensePermission
+    );
+
+  // ======================================================
+  // QUIZ PERMISSION
+  // ======================================================
+
+  const canAccessQuiz =
+    isAdministrator ||
+    hasPermission("Quiz");
+
+  // ======================================================
+  // COMMON NAVLINK CLASS
+  // ======================================================
+
+  const getMenuClass = ({ isActive }) =>
+    `menu-item ${isActive ? "active" : ""}`;
 
   return (
-
     <aside
-      className={`sidebar ${collapsed ? "collapsed" : ""}`}
+      className={`sidebar ${
+        collapsed ? "collapsed" : ""
+      }`}
     >
-
       <nav>
 
-        {/* ==========================================
+        {/* ==================================================
             DASHBOARD
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("Dashboard") && (
-
           <NavLink
             to="/dashboard"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaHome />
 
             {!collapsed && (
               <span>Dashboard</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             ANNOUNCEMENTS
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("Announcements") && (
-
           <NavLink
             to="/announcements"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaBullhorn />
 
             {!collapsed && (
               <span>Announcements</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             ACTION POINTS
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("Action Points") && (
-
           <NavLink
             to="/action-points"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaTasks />
 
             {!collapsed && (
               <span>Action Points</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             CHECKLIST REPORTS
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("Checklist Reports") && (
-
           <NavLink
             to="/checklist-reports"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaClipboardList />
 
             {!collapsed && (
               <span>Checklist Reports</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
-            CHECKLIST SUBMISSION
-        ========================================== */}
+        {/* ==================================================
+            CHECKLIST SUBMIT
+        ================================================== */}
 
         {hasPermission("Checklist Submission") && (
-
           <NavLink
             to="/checklist-submit"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaClipboardCheck />
 
             {!collapsed && (
               <span>Checklist Submit</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             NEW STORE OPENINGS
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("New Store Openings") && (
-
           <NavLink
             to="/new-store-openings"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaStore />
 
             {!collapsed && (
               <span>New Store Openings</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             NSO RULES
-        ========================================== */}
+        ================================================== */}
 
         {hasPermission("NSO Rules") && (
-
           <NavLink
             to="/nso-rules"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaBell />
 
             {!collapsed && (
               <span>NSO Rules</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             EXPENSES
-        ========================================== */}
+        ================================================== */}
 
         {hasAnyPermission([
           "Expenses",
           "Expense Entry",
           "Track Expenses",
-          "Approve Expenses"
+          "Approve Expenses",
         ]) && (
           <div
-            className={`sidebar-group ${expenseOpen || expenseOpenByPath ? "open" : ""}`}
+            className={`sidebar-group ${
+              expenseOpenByPath || expenseOpen
+                ? "open"
+                : ""
+            }`}
           >
             <button
               type="button"
-              className={`menu-item sidebar-group-toggle ${expenseOpenByPath ? "active" : ""}`}
-              onClick={() => setExpenseOpen((prev) => !prev)}
+              className={`sidebar-group-toggle ${
+                expenseOpenByPath
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setExpenseOpen(
+                  (previous) => !previous
+                )
+              }
+              aria-expanded={
+                expenseOpen ||
+                expenseOpenByPath
+              }
             >
-              <FaWallet />
-              {!collapsed && <span>Expenses</span>}
-              {!collapsed && <FaChevronDown className="submenu-chevron" />}
+              <span className="sidebar-group-content">
+                <FaWallet />
+
+                {!collapsed && (
+                  <span>Expenses</span>
+                )}
+              </span>
+
+              {!collapsed && (
+                <FaChevronDown
+                  className={`submenu-chevron ${
+                    expenseOpen ||
+                    expenseOpenByPath
+                      ? "rotated"
+                      : ""
+                  }`}
+                />
+              )}
             </button>
 
-            {!collapsed && (expenseOpen || expenseOpenByPath) && (
-              <div className="sidebar-submenu">
-                {canEnterExpense && (
-                  <NavLink to="/expenses/entry" className="menu-item submenu-item">
-                    <FaReceipt />
-                    <span>Expense Entry</span>
-                  </NavLink>
-                )}
+            {!collapsed &&
+              (expenseOpen ||
+                expenseOpenByPath) && (
+                <div className="sidebar-submenu">
 
-                {canTrackExpenses && (
-                  <NavLink to="/expenses/track" className="menu-item submenu-item">
-                    <FaReceipt />
-                    <span>Track Expenses</span>
-                  </NavLink>
-                )}
+                  {/* EXPENSE ENTRY */}
 
-                {canApproveExpenses && (
-                  <NavLink to="/expenses/approve" className="menu-item submenu-item">
-                    <FaCheckDouble />
-                    <span>Approve Expenses</span>
-                  </NavLink>
-                )}
-              </div>
-            )}
+                  {canEnterExpense && (
+                    <NavLink
+                      to="/expenses/entry"
+                      className={({ isActive }) =>
+                        `submenu-item ${
+                          isActive
+                            ? "active"
+                            : ""
+                        }`
+                      }
+                    >
+                      <FaReceipt />
+
+                      <span>
+                        Expense Entry
+                      </span>
+                    </NavLink>
+                  )}
+
+                  {/* TRACK EXPENSES */}
+
+                  {canTrackExpenses && (
+                    <NavLink
+                      to="/expenses/track"
+                      className={({ isActive }) =>
+                        `submenu-item ${
+                          isActive
+                            ? "active"
+                            : ""
+                        }`
+                      }
+                    >
+                      <FaReceipt />
+
+                      <span>
+                        Track Expenses
+                      </span>
+                    </NavLink>
+                  )}
+
+                  {/* APPROVE EXPENSES */}
+
+                  {canApproveExpenses && (
+                    <NavLink
+                      to="/expenses/approve"
+                      className={({ isActive }) =>
+                        `submenu-item ${
+                          isActive
+                            ? "active"
+                            : ""
+                        }`
+                      }
+                    >
+                      <FaCheckDouble />
+
+                      <span>
+                        Approve Expenses
+                      </span>
+                    </NavLink>
+                  )}
+
+                </div>
+              )}
           </div>
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             QUIZ
-        ========================================== */}
+        ================================================== */}
 
-        {hasPermission("Quiz") && (
-          <div className={`sidebar-group ${quizOpen || quizOpenByPath ? "open" : ""}`}>
+        {canAccessQuiz && (
+          <div
+            className={`sidebar-group ${
+              quizOpenByPath || quizOpen
+                ? "open"
+                : ""
+            }`}
+          >
             <button
               type="button"
-              className={`menu-item sidebar-group-toggle ${quizOpenByPath ? "active" : ""}`}
-              onClick={() => setQuizOpen((prev) => !prev)}
+              className={`sidebar-group-toggle ${
+                quizOpenByPath
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setQuizOpen(
+                  (previous) => !previous
+                )
+              }
+              aria-expanded={
+                quizOpen ||
+                quizOpenByPath
+              }
             >
-              <FaQuestionCircle />
-              {!collapsed && <span>Quiz</span>}
-              {!collapsed && <FaChevronDown className="submenu-chevron" />}
+              <span className="sidebar-group-content">
+                <FaQuestionCircle />
+
+                {!collapsed && (
+                  <span>Quiz</span>
+                )}
+              </span>
+
+              {!collapsed && (
+                <FaChevronDown
+                  className={`submenu-chevron ${
+                    quizOpen ||
+                    quizOpenByPath
+                      ? "rotated"
+                      : ""
+                  }`}
+                />
+              )}
             </button>
 
-            {!collapsed && (quizOpen || quizOpenByPath) && (
-              <div className="sidebar-submenu">
-                <NavLink to="/quiz/take" className="menu-item submenu-item">
-                  <FaClipboardCheck />
-                  <span>Take Quiz</span>
-                </NavLink>
-                <NavLink to="/quiz/setup" className="menu-item submenu-item">
-                  <FaCog />
-                  <span>Quiz Setup</span>
-                </NavLink>
-                <NavLink to="/quiz/report" className="menu-item submenu-item">
-                  <FaChartBar />
-                  <span>Training Report</span>
-                </NavLink>
-                <NavLink to="/quiz/email" className="menu-item submenu-item">
-                  <FaEnvelope />
-                  <span>Email Setting</span>
-                </NavLink>
-              </div>
-            )}
+            {!collapsed &&
+              (quizOpen ||
+                quizOpenByPath) && (
+                <div className="sidebar-submenu">
+
+                  {/* TAKE QUIZ */}
+
+                  <NavLink
+                    to="/quiz/take"
+                    className={({ isActive }) =>
+                      `submenu-item ${
+                        isActive
+                          ? "active"
+                          : ""
+                      }`
+                    }
+                  >
+                    <FaClipboardCheck />
+
+                    <span>
+                      Take Quiz
+                    </span>
+                  </NavLink>
+
+                  {/* QUIZ SETUP */}
+
+                  <NavLink
+                    to="/quiz/setup"
+                    className={({ isActive }) =>
+                      `submenu-item ${
+                        isActive
+                          ? "active"
+                          : ""
+                      }`
+                    }
+                  >
+                    <FaCog />
+
+                    <span>
+                      Quiz Setup
+                    </span>
+                  </NavLink>
+
+                  {/* TRAINING REPORT */}
+
+                  <NavLink
+                    to="/quiz/report"
+                    className={({ isActive }) =>
+                      `submenu-item ${
+                        isActive
+                          ? "active"
+                          : ""
+                      }`
+                    }
+                  >
+                    <FaChartBar />
+
+                    <span>
+                      Training Report
+                    </span>
+                  </NavLink>
+
+                  {/* EMAIL SETTING */}
+
+                  <NavLink
+                    to="/quiz/email"
+                    className={({ isActive }) =>
+                      `submenu-item ${
+                        isActive
+                          ? "active"
+                          : ""
+                      }`
+                    }
+                  >
+                    <FaEnvelope />
+
+                    <span>
+                      Email Setting
+                    </span>
+                  </NavLink>
+
+                </div>
+              )}
           </div>
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             SETTINGS
-        ========================================== */}
+        ================================================== */}
 
         {(
-
           isAdministrator ||
-
           hasPermission("Users") ||
-
           hasPermission("Departments") ||
-
           hasPermission("Designations") ||
-
           hasPermission("Stores") ||
-
           hasPermission("Questions") ||
-
           hasPermission("Checklist Types") ||
-
           hasPermission("Reports To")
-
         ) && (
-
           <NavLink
             to="/settings"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaCog />
 
             {!collapsed && (
               <span>Settings</span>
             )}
-
           </NavLink>
-
         )}
 
-        {/* ==========================================
+        {/* ==================================================
             PROFILE
-        ========================================== */}
+        ================================================== */}
 
         <div className="sidebar-footer">
-
           <NavLink
             to="/profile"
-            className="menu-item"
+            className={getMenuClass}
           >
             <FaUserCircle />
 
             {!collapsed && (
               <span>Profile</span>
             )}
-
           </NavLink>
-
         </div>
 
       </nav>
-
     </aside>
-
   );
-
 }
 
 export default Sidebar;

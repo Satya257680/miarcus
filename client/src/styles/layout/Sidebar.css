@@ -1,136 +1,643 @@
-/* ==========================================
+/* =========================================================
+   MI ARCUS SIDEBAR
+   Works with the updated Sidebar.jsx
+========================================================= */
+
+
+/* =========================================================
    SIDEBAR
-========================================== */
+========================================================= */
 
 .sidebar {
     width: 270px;
     height: 100%;
     background: #9CBFC4;
     border-right: 1px solid #8FB3B9;
-    overflow: hidden;
+
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+
+    overflow: hidden;
+
+    transition:
+        width 0.3s ease,
+        background 0.3s ease;
+
+    flex-shrink: 0;
 }
 
-/* ==========================================
-   SCROLLBAR
-========================================== */
 
-.sidebar::-webkit-scrollbar {
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.sidebar nav::-webkit-scrollbar {
     width: 6px;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar nav::-webkit-scrollbar-thumb {
     background: #84AEB5;
     border-radius: 50px;
 }
 
-.sidebar::-webkit-scrollbar-track {
-    background: transparent;
+.sidebar nav::-webkit-scrollbar-thumb:hover {
+    background: #6F9DA5;
 }
 
-/* ==========================================
-   COLLAPSED
-========================================== */
+
+/* =========================================================
+   COLLAPSED SIDEBAR
+========================================================= */
 
 .sidebar.collapsed {
     width: 80px;
 }
 
-/* ==========================================
+
+/* =========================================================
    NAVIGATION
-========================================== */
+========================================================= */
 
 .sidebar nav {
+    width: 100%;
+    height: 100%;
+
     display: flex;
     flex-direction: column;
-    flex: 1;
+
     overflow-y: auto;
     overflow-x: hidden;
+
     padding: 18px 0;
+
+    box-sizing: border-box;
 }
 
-/* ==========================================
-   MENU ITEMS
-========================================== */
+
+/* =========================================================
+   NORMAL MENU ITEMS
+========================================================= */
 
 .menu-item {
+    position: relative;
+
     display: flex;
     align-items: center;
-    gap: 14px;
+
     width: 100%;
+    min-height: 48px;
+
     padding: 14px 22px;
+
     box-sizing: border-box;
+
     text-decoration: none;
+
     color: #2F4E58;
+
     font-size: 15px;
     font-weight: 500;
+
+    border: none;
     border-left: 4px solid transparent;
-    transition: all 0.25s ease;
+
+    background: transparent;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
 }
 
-.menu-item svg {
+
+/* =========================================================
+   MENU ICON
+========================================================= */
+
+.menu-item > svg {
+    flex-shrink: 0;
+
+    width: 20px;
     min-width: 20px;
+
     font-size: 18px;
+
     color: #385661;
+
+    transition:
+        color 0.2s ease,
+        transform 0.2s ease;
 }
 
-/* ==========================================
-   HOVER
-========================================== */
+
+/* =========================================================
+   MENU TEXT
+========================================================= */
+
+.menu-item > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   NORMAL HOVER
+========================================================= */
 
 .menu-item:hover {
-    background: rgba(255,255,255,.30);
+    background: rgba(255, 255, 255, 0.30);
     color: #0F4C5C;
 }
 
-/* ==========================================
-   ACTIVE
-========================================== */
+.menu-item:hover > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   NORMAL ACTIVE
+========================================================= */
 
 .menu-item.active {
     background: #F9FCFD;
+
     color: #0F4C5C;
+
     font-weight: 600;
-    border-left: 4px solid #6D57C8;
+
+    border-left-color: #6D57C8;
 }
 
-/* ==========================================
+.menu-item.active > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   SIDEBAR GROUP
+   Expenses / Quiz
+========================================================= */
+
+.sidebar-group {
+    width: 100%;
+    display: block;
+}
+
+
+/* =========================================================
+   GROUP TOGGLE BUTTON
+========================================================= */
+
+.sidebar-group-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+
+    font-family: inherit;
+
+    justify-content: space-between;
+
+    text-align: left;
+
+    outline: none;
+}
+
+
+/* =========================================================
+   GROUP CONTENT
+   Contains icon + title
+========================================================= */
+
+.sidebar-group-content {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+
+    min-width: 0;
+
+    flex: 1;
+}
+
+
+/* =========================================================
+   GROUP CONTENT ICON
+========================================================= */
+
+.sidebar-group-content > svg {
+    flex-shrink: 0;
+
+    width: 20px;
+    min-width: 20px;
+
+    font-size: 18px;
+
+    color: #385661;
+
+    transition: color 0.2s ease;
+}
+
+
+/* =========================================================
+   GROUP TITLE
+========================================================= */
+
+.sidebar-group-content > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   GROUP TOGGLE HOVER
+========================================================= */
+
+.sidebar-group-toggle:hover {
+    background: rgba(255, 255, 255, 0.30);
+    color: #0F4C5C;
+}
+
+.sidebar-group-toggle:hover
+.sidebar-group-content > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   GROUP ACTIVE
+   Only highlights group when user is inside its module
+========================================================= */
+
+.sidebar-group-toggle.active {
+    background: #F9FCFD;
+
+    color: #0F4C5C;
+
+    font-weight: 600;
+
+    border-left-color: #6D57C8;
+}
+
+.sidebar-group-toggle.active
+.sidebar-group-content > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   CHEVRON
+========================================================= */
+
+.submenu-chevron {
+    flex-shrink: 0;
+
+    width: 14px !important;
+    min-width: 14px !important;
+
+    font-size: 12px !important;
+
+    color: #385661 !important;
+
+    transform: rotate(0deg);
+
+    transition:
+        transform 0.25s ease,
+        color 0.2s ease;
+
+    margin-left: auto;
+}
+
+
+/* =========================================================
+   CHEVRON OPEN / ROTATED
+========================================================= */
+
+.submenu-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+
+/* =========================================================
+   GROUP OPEN STATE
+========================================================= */
+
+.sidebar-group.open
+.submenu-chevron {
+    color: #0F4C5C !important;
+}
+
+
+/* =========================================================
+   SUBMENU
+========================================================= */
+
+.sidebar-submenu {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    overflow: hidden;
+
+    animation: submenuOpen 0.2s ease;
+}
+
+
+/* =========================================================
+   SUBMENU ANIMATION
+========================================================= */
+
+@keyframes submenuOpen {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================================
+   SUBMENU ITEMS
+========================================================= */
+
+.submenu-item {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    min-height: 48px;
+
+    padding: 13px 22px 13px 28px;
+
+    box-sizing: border-box;
+
+    gap: 14px;
+
+    text-decoration: none;
+
+    color: #2F4E58;
+
+    font-size: 15px;
+    font-weight: 500;
+
+    border-left: 4px solid transparent;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+
+/* =========================================================
+   SUBMENU ICON
+========================================================= */
+
+.submenu-item > svg {
+    flex-shrink: 0;
+
+    width: 20px;
+    min-width: 20px;
+
+    font-size: 17px;
+
+    color: #385661;
+
+    transition: color 0.2s ease;
+}
+
+
+/* =========================================================
+   SUBMENU TEXT
+========================================================= */
+
+.submenu-item > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   SUBMENU HOVER
+========================================================= */
+
+.submenu-item:hover {
+    background: rgba(255, 255, 255, 0.35);
+
+    color: #0F4C5C;
+}
+
+.submenu-item:hover > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   SUBMENU ACTIVE
+========================================================= */
+
+.submenu-item.active {
+    background: #F9FCFD;
+
+    color: #0F4C5C;
+
+    font-weight: 600;
+
+    border-left-color: #6D57C8;
+}
+
+.submenu-item.active > svg {
+    color: #0F4C5C;
+}
+
+
+/* =========================================================
+   EXPENSE / QUIZ GROUP SEPARATION
+========================================================= */
+
+.sidebar-group + .sidebar-group {
+    border-top: 1px solid rgba(47, 78, 88, 0.08);
+}
+
+
+/* =========================================================
    SIDEBAR FOOTER
-========================================== */
+========================================================= */
 
 .sidebar-footer {
     margin-top: auto;
+
+    width: 100%;
+
     background: #9CBFC4;
+
     border-top: 1px solid #8FB3B9;
+
     padding: 10px 0;
+
+    box-sizing: border-box;
 }
 
 .sidebar-footer .menu-item {
     margin: 0;
 }
 
-/* ==========================================
+
+/* =========================================================
    COLLAPSED MODE
-========================================== */
+========================================================= */
 
 .sidebar.collapsed .menu-item {
     justify-content: center;
+
     padding: 16px 0;
+
+    gap: 0;
 }
 
-.sidebar.collapsed .menu-item span {
-    display: none;
-}
 
-.sidebar.collapsed .menu-item svg {
+/* =========================================================
+   COLLAPSED NORMAL ICON
+========================================================= */
+
+.sidebar.collapsed .menu-item > svg {
+    width: 22px;
+    min-width: 22px;
+
     font-size: 20px;
 }
 
-/* ==========================================
+
+/* =========================================================
+   COLLAPSED GROUP TOGGLE
+========================================================= */
+
+.sidebar.collapsed .sidebar-group-toggle {
+    justify-content: center;
+
+    padding: 16px 0;
+
+    gap: 0;
+}
+
+
+/* =========================================================
+   COLLAPSED GROUP CONTENT
+========================================================= */
+
+.sidebar.collapsed .sidebar-group-content {
+    justify-content: center;
+
+    width: 100%;
+
+    gap: 0;
+}
+
+
+/* =========================================================
+   COLLAPSED GROUP ICON
+========================================================= */
+
+.sidebar.collapsed
+.sidebar-group-content > svg {
+    width: 22px;
+    min-width: 22px;
+
+    font-size: 20px;
+}
+
+
+/* =========================================================
+   HIDE TEXT IN COLLAPSED
+========================================================= */
+
+.sidebar.collapsed .menu-item span,
+.sidebar.collapsed .sidebar-group-content span {
+    display: none;
+}
+
+
+/* =========================================================
+   HIDE CHEVRON IN COLLAPSED
+========================================================= */
+
+.sidebar.collapsed .submenu-chevron {
+    display: none;
+}
+
+
+/* =========================================================
+   HIDE SUBMENU WHEN COLLAPSED
+========================================================= */
+
+.sidebar.collapsed .sidebar-submenu {
+    display: none;
+}
+
+
+/* =========================================================
+   COLLAPSED ACTIVE GROUP
+========================================================= */
+
+.sidebar.collapsed .sidebar-group-toggle.active {
+    border-left-color: #6D57C8;
+
+    background: #F9FCFD;
+}
+
+
+/* =========================================================
+   COLLAPSED HOVER
+========================================================= */
+
+.sidebar.collapsed .menu-item:hover,
+.sidebar.collapsed .sidebar-group-toggle:hover {
+    background: rgba(255, 255, 255, 0.30);
+}
+
+
+/* =========================================================
+   FOOTER IN COLLAPSED MODE
+========================================================= */
+
+.sidebar.collapsed .sidebar-footer .menu-item {
+    justify-content: center;
+
+    padding: 16px 0;
+}
+
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+========================================================= */
+
+.menu-item:focus-visible,
+.sidebar-group-toggle:focus-visible,
+.submenu-item:focus-visible {
+    outline: 2px solid #6D57C8;
+    outline-offset: -2px;
+}
+
+
+/* =========================================================
    RESPONSIVE
-========================================== */
+========================================================= */
 
 @media (max-width: 768px) {
 
@@ -143,7 +650,61 @@
     }
 
     .menu-item {
+        min-height: 46px;
         padding: 12px 18px;
+    }
+
+    .submenu-item {
+        min-height: 46px;
+        padding: 12px 18px 12px 24px;
+    }
+
+    .sidebar-group-toggle {
+        min-height: 46px;
+        padding: 12px 18px;
+    }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .sidebar {
+        width: 230px;
+    }
+
+    .sidebar.collapsed {
+        width: 64px;
+    }
+
+    .menu-item {
+        font-size: 14px;
+    }
+
+    .submenu-item {
+        font-size: 14px;
+    }
+
+}
+
+
+/* =========================================================
+   REDUCE MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .sidebar,
+    .menu-item,
+    .submenu-item,
+    .submenu-chevron,
+    .sidebar-submenu {
+        transition: none;
+        animation: none;
     }
 
 }

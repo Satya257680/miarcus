@@ -66,7 +66,9 @@ function ApproveExpenses() {
                 item.submitted_by_employee_id,
                 item.invoice_number,
                 item.vendor_name,
-                item.expense_type
+                item.expense_type,
+                item.store_name,
+                item.store_code
             ].some((value) =>
                 String(value || "").toLowerCase().includes(q)
             )
@@ -211,6 +213,7 @@ function ApproveExpenses() {
                                 </th>
                                 <th>Employee</th>
                                 <th>Date</th>
+                                <th>Store</th>
                                 <th>Invoice #</th>
                                 <th>Vendor</th>
                                 <th>Amount</th>
@@ -220,9 +223,9 @@ function ApproveExpenses() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="8" className="expense-table-empty">Loading review queue...</td></tr>
+                                <tr><td colSpan="9" className="expense-table-empty">Loading review queue...</td></tr>
                             ) : filtered.length === 0 ? (
-                                <tr><td colSpan="8" className="expense-table-empty">No expenses are waiting for review.</td></tr>
+                                <tr><td colSpan="9" className="expense-table-empty">No expenses are waiting for review.</td></tr>
                             ) : filtered.map((item) => (
                                 <tr key={item.id}>
                                     <td>
@@ -237,6 +240,10 @@ function ApproveExpenses() {
                                         <small>{item.submitted_by_employee_id || "—"}</small>
                                     </td>
                                     <td>{item.bill_date || "—"}</td>
+                                    <td>
+                                        <strong>{item.store_name || "Not selected"}</strong>
+                                        <small>{item.store_location || item.store_code || "Location not available"}</small>
+                                    </td>
                                     <td>{item.invoice_number || "—"}</td>
                                     <td>{item.vendor_name || "Not detected"}</td>
                                     <td><strong>₹{Number(item.total_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>

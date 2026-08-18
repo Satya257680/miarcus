@@ -305,7 +305,7 @@ This action cannot be undone.`
                                     <td>{item.bill_date || "—"}</td>
                                     <td><strong>{item.submitted_by_name || "Unknown User"}</strong><small>{item.submitted_by_employee_id || "—"}</small></td>
                                     <td>{item.expense_type || "—"}</td>
-                                    <td><strong>{item.store_name || "—"}</strong><small>{item.store_code || ""}</small></td>
+                                    <td><strong>{item.store_name || "—"}</strong><small>{item.store_location || item.store_code || ""}</small></td>
                                     <td>{item.invoice_number || "—"}</td>
                                     <td>{item.vendor_name || "Not detected"}</td>
                                     <td><strong>{money(item.total_amount)}</strong></td>

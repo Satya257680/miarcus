@@ -161,7 +161,7 @@ function ExpenseDetails({ id, onClose, onDeleted }) {
                             <div><FaFileInvoice /><span>Invoice #</span><strong>{expense.invoice_number || "Not detected"}</strong></div>
                             <div><FaCalendarAlt /><span>Bill Date</span><strong>{expense.bill_date || "Not detected"}</strong></div>
                             <div><FaRupeeSign /><span>Amount</span><strong>{formatMoney(expense.total_amount)}</strong></div>
-                            <div><FaShieldAlt /><span>Store</span><strong>{expense.store_name || "Not selected"}</strong></div>
+                            <div><FaShieldAlt /><span>Store</span><strong>{expense.store_name || "Not selected"}</strong><small>{expense.store_location || expense.store_code || "Location not available"}</small></div>
                             <div><span>Submitted By</span><strong>{expense.submitted_by_name || "Unknown User"}</strong></div>
                             <div><span>Status</span><strong>{expense.status || "Review Required"}</strong></div>
                         </div>
