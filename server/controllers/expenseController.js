@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const path = require("path");
 const db = require("../config/db");
 const Expense = require("../models/expenseModel");
+const { sendGenericEmail } = require("../services/emailService");
 
 const MAX_AI_BYTES = 18 * 1024 * 1024;
 const AI_TIMEOUT_MS = 90000;
@@ -12,6 +13,15 @@ function clean(value) {
     return value === undefined || value === null
         ? ""
         : String(value).trim();
+}
+
+function escapeHtml(value) {
+    return clean(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function num(value, fallback = 0) {
@@ -1097,42 +1107,40 @@ async function getExpenseById(req, res) {
 
 async function reviewExpense(req, res) {
     try {
-        const id =
-            Number(req.params.id);
+        const id = Number(req.params.id);
 
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Invalid expense ID."
+                message: "Invalid expense ID."
             });
         }
 
-        const status =
-            clean(req.body.status);
+        const status = clean(req.body.status);
+        const reason = clean(req.body.reason);
 
-        const reason =
-            clean(req.body.reason);
-
-        if (
-            !["Approved", "Rejected"]
-                .includes(status)
-        ) {
+        if (!["Approved", "Rejected"].includes(status)) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Status must be Approved or Rejected."
+                message: "Status must be Approved or Rejected."
             });
         }
 
-        if (
-            status === "Rejected" &&
-            !reason
-        ) {
+        if (status === "Rejected" && !reason) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Rejection reason is required."
+                message: "Rejection reason is required."
+            });
+        }
+
+        // Read the expense before updating it so the notification contains
+        // the original submitter, store and bill information.
+        const expense = await Expense.getById(id);
+
+        if (!expense) {
+            return res.status(404).json({
+                success: false,
+                message: "Expense not found."
             });
         }
 
@@ -1143,21 +1151,108 @@ async function reviewExpense(req, res) {
             reason || null
         );
 
+        // Email failure must NOT roll back a successful finance decision.
+        // The review is already stored; notification is best-effort.
+        let notification = "not_sent";
+
+        if (expense.submitted_by_email) {
+            const employeeName = escapeHtml(expense.submitted_by_name || "Employee");
+            const storeName = escapeHtml(expense.store_name || "Not selected");
+            const amount = `₹${Number(expense.total_amount || 0).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+            const invoice = escapeHtml(expense.invoice_number || "Not detected");
+            const billType = escapeHtml(expense.expense_type || "Expense");
+
+            const aiAnalysis = expense.ai_analysis || {};
+            const aiGenerated =
+                aiAnalysis.document_authenticity === "AI_GENERATED" ||
+                Number(aiAnalysis.ai_generated_probability || 0) >= 70 ||
+                Array.isArray(aiAnalysis.ai_generated_signals) && aiAnalysis.ai_generated_signals.length > 0;
+            const duplicateCheck = Array.isArray(expense.checks)
+                ? expense.checks.find((check) => check.check_type === "Duplicate check")
+                : null;
+            const duplicateEvidence = duplicateCheck ? parseJson(duplicateCheck.details_json, {}) : null;
+            const duplicateDetected = Number(duplicateEvidence?.matching_records || 0) > 0;
+
+            const emailReason = status === "Rejected"
+                ? (aiGenerated
+                    ? "AI-generated or synthetic bill characteristics were detected during MI ARCUS image analysis."
+                    : duplicateDetected
+                        ? "A duplicate bill was detected during MI ARCUS verification."
+                        : (reason || "The bill did not pass the required verification/review."))
+                : "";
+
+            const subject = status === "Approved"
+                ? `MI ARCUS Expense Approved - Invoice ${invoice}`
+                : `MI ARCUS Expense Rejected - Invoice ${invoice}`;
+
+            const html = status === "Approved"
+                ? `
+                    <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#17324d;line-height:1.6">
+                        <h2 style="color:#168a58">Expense Approved</h2>
+                        <p>Hi <strong>${employeeName}</strong>,</p>
+                        <p>Your expense bill has been <strong style="color:#168a58">approved</strong> by the administrator/finance reviewer.</p>
+                        <div style="background:#f5f8fb;border:1px solid #dbe5ed;border-radius:10px;padding:16px;margin:18px 0">
+                            <p><strong>Expense Type:</strong> ${billType}</p>
+                            <p><strong>Store:</strong> ${storeName}</p>
+                            <p><strong>Invoice:</strong> ${invoice}</p>
+                            <p><strong>Vendor:</strong> ${escapeHtml(expense.vendor_name || "Not detected")}</p>
+                            <p><strong>Amount:</strong> ${amount}</p>
+                        </div>
+                        <p>You can open MI ARCUS to view the complete verification report.</p>
+                        <p>If you have any questions, please contact your administrator.</p>
+                        <p>Regards,<br><strong>MI ARCUS Team</strong></p>
+                    </div>
+                `
+                : `
+                    <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#17324d;line-height:1.6">
+                        <h2 style="color:#c93636">Expense Rejected</h2>
+                        <p>Hi <strong>${employeeName}</strong>,</p>
+                        <p>Your expense bill has been <strong style="color:#c93636">rejected</strong> by the administrator/finance reviewer.</p>
+                        <div style="background:#fff5f5;border:1px solid #f0caca;border-radius:10px;padding:16px;margin:18px 0">
+                            <p><strong>Expense Type:</strong> ${billType}</p>
+                            <p><strong>Store:</strong> ${storeName}</p>
+                            <p><strong>Invoice:</strong> ${invoice}</p>
+                            <p><strong>Vendor:</strong> ${escapeHtml(expense.vendor_name || "Not detected")}</p>
+                            <p><strong>Amount:</strong> ${amount}</p>
+                            <p><strong>Reason:</strong> ${escapeHtml(emailReason)}</p>
+                        </div>
+                        <p>If this bill was rejected because of an AI-generated, duplicate, manipulated or otherwise invalid document, please do not resubmit the same document. Contact your administrator for further assistance.</p>
+                        <p>Regards,<br><strong>MI ARCUS Team</strong></p>
+                    </div>
+                `;
+
+            const text = status === "Approved"
+                ? `Hi ${employeeName},\n\nYour MI ARCUS expense bill has been approved.\nStore: ${storeName}\nInvoice: ${invoice}\nAmount: ${amount}\n\nPlease contact your administrator if you have questions.\n\nMI ARCUS Team`
+                : `Hi ${employeeName},\n\nYour MI ARCUS expense bill has been rejected by the administrator.\nStore: ${storeName}\nInvoice: ${invoice}\nAmount: ${amount}\nReason: ${emailReason}\n\nIf you believe this decision is incorrect, contact your administrator for further assistance.\n\nMI ARCUS Team`;
+
+            try {
+                await sendGenericEmail({
+                    to: expense.submitted_by_email,
+                    subject,
+                    html,
+                    text
+                });
+                notification = "sent";
+            } catch (mailError) {
+                console.error("Expense review email failed:", mailError.message);
+                notification = "failed";
+            }
+        }
+
         return res.json({
             success: true,
-            message:
-                `Expense ${status.toLowerCase()} successfully.`
+            message: `Expense ${status.toLowerCase()} successfully.`,
+            notification
         });
     } catch (error) {
-        console.error(
-            "Review expense error:",
-            error
-        );
+        console.error("Review expense error:", error);
 
         return res.status(500).json({
             success: false,
-            message:
-                "Unable to update expense."
+            message: "Unable to update expense."
         });
     }
 }

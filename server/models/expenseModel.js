@@ -174,8 +174,10 @@ const Expense = {
                 e.*,
                 COALESCE(s.store_name, 'Not selected') AS store_name,
                 COALESCE(s.store_code, '') AS store_code,
+                TRIM(CONCAT_WS(', ', NULLIF(s.city, ''), NULLIF(s.state, ''))) AS store_location,
                 COALESCE(u.name, 'Unknown User') AS submitted_by_name,
                 COALESCE(u.employee_id, '') AS submitted_by_employee_id,
+                COALESCE(u.email, '') AS submitted_by_email,
                 COALESCE(r.name, '') AS reviewed_by_name
             FROM expenses e
             LEFT JOIN stores s ON s.id = e.store_id
@@ -194,8 +196,10 @@ const Expense = {
                 e.*,
                 COALESCE(s.store_name, 'Not selected') AS store_name,
                 COALESCE(s.store_code, '') AS store_code,
+                TRIM(CONCAT_WS(', ', NULLIF(s.city, ''), NULLIF(s.state, ''))) AS store_location,
                 COALESCE(u.name, 'Unknown User') AS submitted_by_name,
                 COALESCE(u.employee_id, '') AS submitted_by_employee_id,
+                COALESCE(u.email, '') AS submitted_by_email,
                 COALESCE(r.name, '') AS reviewed_by_name
             FROM expenses e
             LEFT JOIN stores s ON s.id = e.store_id
