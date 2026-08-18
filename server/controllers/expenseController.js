@@ -40,29 +40,18 @@ async function getExpenseAccess(req) {
     let userRows = [];
     let permissionRows = [];
 
-    try {
-        userRows = await db.query(
-            `
-                SELECT administrator, is_admin
-                FROM users
-                WHERE id = ?
-                LIMIT 1
-            `,
-            [userId]
-        );
-    } catch (error) {
-        // Some production schemas may not have is_admin.
-        // Fall back to the administrator column.
-        userRows = await db.query(
-            `
-                SELECT administrator
-                FROM users
-                WHERE id = ?
-                LIMIT 1
-            `,
-            [userId]
-        );
-    }
+    // Miarcus stores the administrator flag as `is_admin`.
+    // Do NOT query `administrator` here because that column does
+    // not exist in the current users table.
+    userRows = await db.query(
+        `
+            SELECT is_admin
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+        `,
+        [userId]
+    );
 
     permissionRows = await db.query(
         `
@@ -77,9 +66,6 @@ async function getExpenseAccess(req) {
     const user = Array.isArray(userRows) ? userRows[0] : null;
 
     const isAdministrator =
-        user?.administrator === true ||
-        user?.administrator === 1 ||
-        String(user?.administrator || "") === "1" ||
         user?.is_admin === true ||
         user?.is_admin === 1 ||
         String(user?.is_admin || "") === "1" ||
