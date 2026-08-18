@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // ======================================================
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import ExpensePermissionRoute from "./components/layout/ExpensePermissionRoute";
 
 // ======================================================
 // PUBLIC PAGES
@@ -277,7 +278,11 @@ function App() {
 
                     <Route
                         path="/expenses/entry"
-                        element={<ExpenseEntry />}
+                        element={
+                            <ExpensePermissionRoute required="Add">
+                                <ExpenseEntry />
+                            </ExpensePermissionRoute>
+                        }
                     />
 
                     <Route
@@ -287,13 +292,21 @@ function App() {
 
                     <Route
                         path="/expenses/approve"
-                        element={<ApproveExpenses />}
+                        element={
+                            <ExpensePermissionRoute required="Edit">
+                                <ApproveExpenses />
+                            </ExpensePermissionRoute>
+                        }
                     />
 
                     {/* Legacy / direct Expense URLs */}
                     <Route
                         path="/expense-entry"
-                        element={<ExpenseEntry />}
+                        element={
+                            <ExpensePermissionRoute required="Add">
+                                <ExpenseEntry />
+                            </ExpensePermissionRoute>
+                        }
                     />
                     <Route
                         path="/track-expenses"
@@ -301,7 +314,11 @@ function App() {
                     />
                     <Route
                         path="/approve-expenses"
-                        element={<ApproveExpenses />}
+                        element={
+                            <ExpensePermissionRoute required="Edit">
+                                <ApproveExpenses />
+                            </ExpensePermissionRoute>
+                        }
                     />
                     <Route
                         path="/expenses"

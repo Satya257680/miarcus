@@ -1436,3 +1436,170 @@
         min-width: 90px;
     }
 }
+
+/* =========================================================
+   DEPLOYED EXPENSE ENHANCEMENTS
+========================================================= */
+
+.expense-field-label-spaced {
+    margin-top: 15px;
+}
+
+.expense-helper-error {
+    margin-top: 7px;
+    color: #b23c42;
+    font-size: 11px;
+}
+
+.expense-clear-btn,
+.expense-delete-all-btn,
+.expense-delete-btn {
+    min-height: 42px;
+    padding: 0 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.expense-clear-btn {
+    border: 1px solid #cbd8df;
+    background: #fff;
+    color: #506773;
+    white-space: nowrap;
+}
+
+.expense-clear-btn:hover {
+    background: #f5f8fa;
+    border-color: #9eafb9;
+}
+
+
+.expense-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.expense-row-delete-btn {
+    min-height: 34px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #f0b6b6;
+    border-radius: 7px;
+    background: #fff5f5;
+    color: #c23e45;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.expense-row-delete-btn:hover {
+    background: #ffe5e5;
+    border-color: #df8585;
+}
+
+.expense-table-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.expense-delete-all-btn,
+.expense-delete-btn {
+    border: 1px solid #f0b6b6;
+    background: #fff5f5;
+    color: #c23e45;
+}
+
+.expense-delete-all-btn:hover:not(:disabled),
+.expense-delete-btn:hover:not(:disabled) {
+    background: #ffe8e8;
+    border-color: #e38e8e;
+}
+
+.expense-delete-all-btn:disabled,
+.expense-delete-btn:disabled {
+    opacity: .55;
+    cursor: wait;
+}
+
+.expense-details-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.expense-details-actions .expense-attachment-link {
+    margin-top: 0;
+}
+
+.expense-ai-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8ed;
+    border-radius: 9px;
+    background: #fbfcfd;
+}
+
+.expense-ai-verdict {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .02em;
+}
+
+.expense-ai-verdict.safe {
+    color: #168553;
+}
+
+.expense-ai-verdict.danger {
+    color: #c33f46;
+}
+
+.expense-ai-probability {
+    color: #71818b;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+    .expense-filters {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .expense-filters .expense-search {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 650px) {
+    .expense-table-header-actions,
+    .expense-ai-summary,
+    .expense-details-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .expense-delete-all-btn,
+    .expense-delete-btn,
+    .expense-clear-btn {
+        width: 100%;
+    }
+}

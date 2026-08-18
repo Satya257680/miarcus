@@ -72,6 +72,20 @@ function Sidebar({ collapsed }) {
       )
     );
 
+  const expensePermission = permissions["Expenses"];
+
+  const canEnterExpense =
+    isAdministrator ||
+    ["Add", "Edit", "Full"].includes(expensePermission);
+
+  const canTrackExpenses =
+    isAdministrator ||
+    ["View", "Add", "Edit", "Full"].includes(expensePermission);
+
+  const canApproveExpenses =
+    isAdministrator ||
+    ["Edit", "Full"].includes(expensePermission);
+
   return (
 
     <aside
@@ -245,21 +259,21 @@ function Sidebar({ collapsed }) {
 
             {!collapsed && (expenseOpen || expenseOpenByPath) && (
               <div className="sidebar-submenu">
-                {hasAnyPermission(["Expenses", "Expense Entry"]) && (
+                {canEnterExpense && (
                   <NavLink to="/expenses/entry" className="menu-item submenu-item">
                     <FaReceipt />
                     <span>Expense Entry</span>
                   </NavLink>
                 )}
 
-                {hasAnyPermission(["Expenses", "Track Expenses"]) && (
+                {canTrackExpenses && (
                   <NavLink to="/expenses/track" className="menu-item submenu-item">
                     <FaReceipt />
                     <span>Track Expenses</span>
                   </NavLink>
                 )}
 
-                {hasAnyPermission(["Expenses", "Approve Expenses"]) && (
+                {canApproveExpenses && (
                   <NavLink to="/expenses/approve" className="menu-item submenu-item">
                     <FaCheckDouble />
                     <span>Approve Expenses</span>

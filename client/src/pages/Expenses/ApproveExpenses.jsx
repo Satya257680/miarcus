@@ -31,7 +31,7 @@ function ApproveExpenses() {
             setLoading(true);
             setError("");
 
-            const { data } = await axios.get("/api/expenses");
+            const { data } = await axios.get("/api/expenses/review-queue");
             const rows = (data.expenses || [])
                 .filter((item) =>
                     ["Pending", "Review Required"].includes(item.status)

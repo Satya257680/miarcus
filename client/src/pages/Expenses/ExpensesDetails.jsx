@@ -45,7 +45,7 @@ function riskClass(value) {
         .replace(/\s+/g, "-");
 }
 
-function ExpenseDetails({ id, onClose }) {
+function ExpenseDetails({ id, onClose, onDeleted }) {
     const [expense, setExpense] = useState(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
@@ -81,8 +81,32 @@ function ExpenseDetails({ id, onClose }) {
 
     const canDelete = (() => {
         try {
-            const permissions = JSON.parse(localStorage.getItem("permissions") || "{}");
-            return permissions["Expenses"] === "Full";
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            const raw = JSON.parse(localStorage.getItem("permissions") || "{}");
+
+            // Administrator is always FULL access in Miarcus.
+            if (user?.administrator === true || user?.administrator === 1 || user?.administrator === "1" ||
+                user?.is_admin === true || user?.is_admin === 1 || user?.is_admin === "1") {
+                return true;
+            }
+
+            if (raw && !Array.isArray(raw)) {
+                if (raw.Expenses === "Full") return true;
+                if (raw.Expenses?.permission === "Full") return true;
+                if (raw.permissions?.Expenses === "Full") return true;
+                if (raw.permissions?.Expenses?.permission === "Full") return true;
+            }
+
+            if (Array.isArray(raw)) {
+                return raw.some((item) => {
+                    const moduleName = item?.module_name || item?.moduleName || item?.module;
+                    const permission = item?.permission || item?.access || item?.level;
+                    return String(moduleName || "").toLowerCase() === "expenses" &&
+                        String(permission || "").toLowerCase() === "full";
+                });
+            }
+
+            return false;
         } catch {
             return false;
         }
@@ -100,7 +124,11 @@ function ExpenseDetails({ id, onClose }) {
             setDeleting(true);
             setDeleteError("");
             await axios.delete(`/api/expenses/${expense.id}`);
-            onClose();
+            if (typeof onDeleted === "function") {
+                await onDeleted();
+            } else {
+                onClose();
+            }
         } catch (error) {
             console.error("Delete expense error:", error);
             setDeleteError(error.response?.data?.message || "Unable to delete this expense.");

@@ -30,8 +30,37 @@ const money = (value) =>
 
 function hasFullExpenseAccess() {
     try {
-        const permissions = JSON.parse(localStorage.getItem("permissions") || "{}");
-        return permissions["Expenses"] === "Full";
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const raw = JSON.parse(localStorage.getItem("permissions") || "{}");
+
+        // Administrator is always FULL access in Miarcus.
+        if (user?.administrator === true || user?.administrator === 1 || user?.administrator === "1" ||
+            user?.is_admin === true || user?.is_admin === 1 || user?.is_admin === "1") {
+            return true;
+        }
+
+        // Supported permission formats used by Miarcus:
+        // 1. { Expenses: "Full" }
+        // 2. { "Expenses": { permission: "Full" } }
+        // 3. [{ module_name: "Expenses", permission: "Full" }]
+        // 4. [{ moduleName: "Expenses", permission: "Full" }]
+        if (raw && !Array.isArray(raw)) {
+            if (raw.Expenses === "Full") return true;
+            if (raw.Expenses?.permission === "Full") return true;
+            if (raw.permissions?.Expenses === "Full") return true;
+            if (raw.permissions?.Expenses?.permission === "Full") return true;
+        }
+
+        if (Array.isArray(raw)) {
+            return raw.some((item) => {
+                const moduleName = item?.module_name || item?.moduleName || item?.module;
+                const permission = item?.permission || item?.access || item?.level;
+                return String(moduleName || "").toLowerCase() === "expenses" &&
+                    String(permission || "").toLowerCase() === "full";
+            });
+        }
+
+        return false;
     } catch {
         return false;
     }
@@ -102,6 +131,27 @@ function TrackExpenses() {
         setStatus("");
         setRisk("");
         setType("");
+    };
+
+    const deleteOne = async (item) => {
+        if (!canDelete || !item?.id) return;
+
+        const confirmed = window.confirm(
+            `Delete Expense #${item.id}? This will permanently remove the expense, checks, items and uploaded bill.
+
+This action cannot be undone.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setError("");
+            await axios.delete(`/api/expenses/${item.id}`);
+            setExpenses((current) => current.filter((expense) => expense.id !== item.id));
+            if (detailsId === item.id) setDetailsId(null);
+        } catch (err) {
+            console.error("Delete expense error:", err);
+            setError(err.response?.data?.message || "Unable to delete this expense.");
+        }
     };
 
     const deleteAll = async () => {
@@ -261,7 +311,22 @@ function TrackExpenses() {
                                     <td><strong>{money(item.total_amount)}</strong></td>
                                     <td><span className={`expense-mini-risk ${riskClass(item.risk_level)}`}><FaShieldAlt /> {item.risk_level || "Review Required"}</span></td>
                                     <td><span className={`expense-status-pill ${statusClass(item.status)}`}>{item.status || "Review Required"}</span></td>
-                                    <td><button className="expense-view-btn" onClick={() => setDetailsId(item.id)}><FaEye /> View</button></td>
+                                    <td>
+                                        <div className="expense-row-actions">
+                                            <button className="expense-view-btn" onClick={() => setDetailsId(item.id)}>
+                                                <FaEye /> View
+                                            </button>
+                                            {canDelete && (
+                                                <button
+                                                    className="expense-row-delete-btn"
+                                                    onClick={() => deleteOne(item)}
+                                                    title={`Delete Expense #${item.id}`}
+                                                >
+                                                    <FaTrash /> Delete
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -275,7 +340,16 @@ function TrackExpenses() {
                 </div>
             </div>
 
-            {detailsId && <ExpenseDetails id={detailsId} onClose={() => setDetailsId(null)} />}
+            {detailsId && (
+                <ExpenseDetails
+                    id={detailsId}
+                    onClose={() => setDetailsId(null)}
+                    onDeleted={async () => {
+                        setDetailsId(null);
+                        await load();
+                    }}
+                />
+            )}
         </div>
     );
 }
