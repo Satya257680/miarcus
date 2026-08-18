@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -18,14 +17,17 @@ const {
 const router = express.Router();
 
 const uploadFolder = path.join(process.cwd(), "uploads");
+
 if (!fs.existsSync(uploadFolder)) {
     fs.mkdirSync(uploadFolder, { recursive: true });
 }
 
 const storage = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadFolder),
+
     filename: (_req, file, cb) => {
         const extension = path.extname(file.originalname).toLowerCase();
+
         const safeBase = path
             .basename(file.originalname, extension)
             .replace(/[^a-zA-Z0-9-_]/g, "-")
@@ -40,10 +42,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
+
     limits: {
         fileSize: 20 * 1024 * 1024,
         files: 1
     },
+
     fileFilter: (_req, file, cb) => {
         const allowed = [
             "image/jpeg",
@@ -56,10 +60,15 @@ const upload = multer({
             return cb(null, true);
         }
 
-        cb(new Error("Only JPG, PNG, WEBP and PDF bills are supported."));
+        cb(
+            new Error(
+                "Only JPG, PNG, WEBP and PDF bills are supported."
+            )
+        );
     }
 });
 
+// IMPORTANT: /types must stay before /:id.
 router.get(
     "/types",
     authMiddleware,

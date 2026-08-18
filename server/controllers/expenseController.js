@@ -443,6 +443,7 @@ function calculateRisk(checks, ai, verification) {
 
 async function submitExpense(req, res) {
     let file = req.file;
+    let expenseCreated = false;
 
     try {
         if (!file) {
@@ -455,7 +456,7 @@ async function submitExpense(req, res) {
         const aiRaw = await analyzeWithGemini(file);
         const ai = normalizeAiResult(aiRaw);
 
-        const [duplicateRows] = await require("../config/db").query(`
+        const duplicateRows = await require("../config/db").query(`
             SELECT COUNT(*) AS count
             FROM expenses
             WHERE invoice_number IS NOT NULL
@@ -469,7 +470,9 @@ async function submitExpense(req, res) {
               AND status <> 'Rejected'
         `, [ai.invoice_number, ai.vendor_name, ai.vendor_name]);
 
-        const duplicateCount = Number(duplicateRows?.[0]?.count || 0);
+        const duplicateCount = Number(
+            duplicateRows?.[0]?.count || 0
+        );
 
         const checks = calculateChecks(ai, duplicateCount);
 
@@ -500,6 +503,10 @@ async function submitExpense(req, res) {
             ai_analysis: ai,
             verification: verificationPreview
         });
+
+        // Prevent catch() from deleting the uploaded bill after
+        // the database record has already been created.
+        expenseCreated = true;
 
         await Expense.addItems(expenseId, ai.items);
         await Expense.addChecks(expenseId, checks);
@@ -538,7 +545,7 @@ async function submitExpense(req, res) {
             // Keep the attachment if an expense was created; otherwise remove it.
             // The controller does not know the insert result after a failed operation,
             // so failed AI analysis is safe to clean up.
-            if (!error.expenseCreated) {
+            if (!expenseCreated) {
                 try { fs.unlinkSync(file.path); } catch {}
             }
         }
