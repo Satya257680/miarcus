@@ -318,6 +318,47 @@ exports.createBill = (
 };
 
 /* ======================================================
+   GET BILLING STORES
+====================================================== */
+
+exports.getStores = (
+    req,
+    res
+) => {
+
+    Billing.getStores(
+        (err, stores) => {
+
+            if (err) {
+
+                console.error(
+                    "Billing stores error:",
+                    err
+                );
+
+                return res.status(500).json({
+                    success: false,
+                    message:
+                        "Failed to fetch stores."
+                });
+            }
+
+            return res.json({
+                success: true,
+                count:
+                    Array.isArray(stores)
+                        ? stores.length
+                        : 0,
+                data:
+                    Array.isArray(stores)
+                        ? stores
+                        : []
+            });
+        }
+    );
+};
+
+/* ======================================================
    GET ALL BILLS
 ====================================================== */
 

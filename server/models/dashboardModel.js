@@ -137,9 +137,12 @@ Dashboard.getStats = (callback) => {
         (
             SELECT COUNT(*)
             FROM action_points
-            WHERE due_date IS NOT NULL
-              AND due_date < CURDATE()
-              AND status NOT IN ('Completed', 'Closed')
+            WHERE sla_value > 0
+              AND DATE_ADD(
+                    DATE(created_at),
+                    INTERVAL sla_value DAY
+                  ) < CURDATE()
+              AND status NOT IN ('Closed', 'Completed')
         ) AS overdueActionPoints
 
 

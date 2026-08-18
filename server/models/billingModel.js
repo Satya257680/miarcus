@@ -363,6 +363,38 @@ Billing.createBill = async (
 };
 
 /* ======================================================
+   BILLING STORE LIST
+====================================================== */
+
+/*
+ * Billing needs a read-only list of stores.
+ *
+ * This endpoint intentionally lives inside the Billing
+ * module so Billing View permission is sufficient.
+ *
+ * We return only fields needed by Billing UI.
+ */
+Billing.getStores = (callback) => {
+    const sql = `
+        SELECT
+            id,
+            store_name,
+            city,
+            state,
+            status
+        FROM stores
+        ORDER BY
+            store_name ASC,
+            id ASC
+    `;
+
+    db.query(
+        sql,
+        callback
+    );
+};
+
+/* ======================================================
    GET ALL BILLS
 ====================================================== */
 

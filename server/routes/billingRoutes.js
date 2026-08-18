@@ -71,6 +71,27 @@ const canEditBilling =
 */
 
 /* ======================================================
+   BILLING STORE LIST
+====================================================== */
+
+/**
+ * GET /api/billing/stores
+ *
+ * Permission:
+ * Billing -> View
+ *
+ * Billing Entry uses this endpoint instead of
+ * /api/stores so users do not need a separate
+ * Store Management permission just to create a bill.
+ */
+router.get(
+    "/stores",
+    authMiddleware,
+    canViewBilling,
+    billingController.getStores
+);
+
+/* ======================================================
    DAILY REPORT
 ====================================================== */
 

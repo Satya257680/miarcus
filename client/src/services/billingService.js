@@ -1,259 +1,78 @@
+import "../axiosConfig";
 import axios from "axios";
 
 /* ======================================================
-   BILLING API CONFIGURATION
+   MIARCUS BILLING API SERVICE
 ====================================================== */
 
 const API = "/api/billing";
-
-/*
- * Prevent billing requests from hanging forever.
- *
- * 30 seconds is enough for normal billing operations.
- */
-const BILLING_TIMEOUT = 30000;
+const REQUEST_TIMEOUT = 30000;
 
 /* ======================================================
-   AXIOS CONFIG
+   HELPERS
 ====================================================== */
 
-const billingRequest = axios.create({
-  baseURL: "",
-  timeout: BILLING_TIMEOUT,
-  headers: {
-    "Content-Type": "application/json",
-  },
+const requestConfig = (extra = {}) => ({
+  timeout: REQUEST_TIMEOUT,
+  ...extra,
 });
 
-/* ======================================================
-   ERROR HANDLER
-====================================================== */
-
-const handleBillingError = (error) => {
-  console.error(
-    "Billing API Error:",
-    error
-  );
-
-  /*
-   * Do not replace the Axios error object.
-   * Components can still access:
-   *
-   * error.response
-   * error.response.data
-   * error.response.status
-   */
-
+const requireId = (id, label = "Bill ID") => {
   if (
-    error?.code ===
-    "ECONNABORTED"
+    id === undefined ||
+    id === null ||
+    String(id).trim() === ""
   ) {
-    error.message =
-      "Billing request timed out. Please check whether the backend server is running.";
-  }
-
-  if (
-    error?.response?.status === 401
-  ) {
-    error.message =
-      error?.response?.data?.message ||
-      "Your session has expired. Please login again.";
-  }
-
-  if (
-    error?.response?.status === 403
-  ) {
-    error.message =
-      error?.response?.data?.message ||
-      "You do not have permission to perform this billing action.";
-  }
-
-  if (
-    error?.response?.status === 404
-  ) {
-    error.message =
-      error?.response?.data?.message ||
-      "Billing API endpoint was not found.";
-  }
-
-  if (
-    error?.response?.status >= 500
-  ) {
-    error.message =
-      error?.response?.data?.message ||
-      "Billing server error. Please check the backend.";
-  }
-
-  return Promise.reject(
-    error
-  );
-};
-
-/* ======================================================
-   RESPONSE INTERCEPTOR
-====================================================== */
-
-billingRequest.interceptors.response.use(
-  (response) =>
-    response,
-
-  (error) =>
-    handleBillingError(
-      error
-    )
-);
-
-/* ======================================================
-   REQUEST INTERCEPTOR
-====================================================== */
-
-/*
- * The authentication middleware on the backend
- * should receive the existing application token/session.
- *
- * We intentionally do not create a separate
- * authentication mechanism for Billing.
- */
-
-billingRequest.interceptors.request.use(
-  (config) => {
-
-    console.log(
-      `[Billing API] ${String(
-        config.method
-      ).toUpperCase()} ${config.url}`
+    return Promise.reject(
+      new Error(`${label} is required.`)
     );
+  }
 
-    return config;
-  },
-
-  (error) =>
-    Promise.reject(
-      error
-    )
-);
+  return null;
+};
 
 /* ======================================================
    BILLS
 ====================================================== */
 
-/**
- * Get all billing transactions.
- *
- * Supported parameters:
- *
- * search
- * store_id
- * status
- * payment_type
- * date
- * page
- * limit
- *
- * Example:
- *
- * getBills({
- *   search: "INV-1001",
- *   store_id: 2,
- *   status: "PAID"
- * });
- */
-export const getBills = (
-  params = {}
-) =>
-  billingRequest.get(
+export const getBills = (params = {}) =>
+  axios.get(
     API,
-    {
-      params,
-    }
+    requestConfig({ params })
   );
 
-/* ======================================================
-   GET SINGLE BILL
-====================================================== */
+export const getBill = (id) => {
+  const error = requireId(id);
 
-/**
- * Get one bill by ID.
- *
- * Returns:
- *
- * - Bill
- * - Store
- * - Customer
- * - Items
- * - Payments
- * - Created By
- * - Updated By
- */
-export const getBill = (
-  id
-) => {
-
-  if (!id) {
-    return Promise.reject(
-      new Error(
-        "Bill ID is required."
-      )
-    );
+  if (error) {
+    return error;
   }
 
-  return billingRequest.get(
-    `${API}/${id}`
+  return axios.get(
+    `${API}/${id}`,
+    requestConfig()
   );
 };
 
-/* ======================================================
-   CREATE BILL
-====================================================== */
-
-/**
- * Create a new bill.
- *
- * Creates:
- *
- * - Bill
- * - Bill Items
- * - Payment
- * - CREATE Audit
- */
-export const createBill = (
-  data
-) => {
-
+export const createBill = (data) => {
   if (!data) {
     return Promise.reject(
-      new Error(
-        "Billing data is required."
-      )
+      new Error("Billing data is required.")
     );
   }
 
-  return billingRequest.post(
+  return axios.post(
     API,
-    data
+    data,
+    requestConfig()
   );
 };
 
-/* ======================================================
-   UPDATE BILL
-====================================================== */
+export const updateBill = (id, data) => {
+  const error = requireId(id);
 
-/**
- * Update an existing bill.
- *
- * PUT /api/billing/:id
- */
-export const updateBill = (
-  id,
-  data
-) => {
-
-  if (!id) {
-    return Promise.reject(
-      new Error(
-        "Bill ID is required."
-      )
-    );
+  if (error) {
+    return error;
   }
 
   if (!data) {
@@ -264,49 +83,24 @@ export const updateBill = (
     );
   }
 
-  return billingRequest.put(
+  return axios.put(
     `${API}/${id}`,
-    data
+    data,
+    requestConfig()
   );
 };
 
-/* ======================================================
-   CANCEL BILL
-====================================================== */
+export const cancelBill = (id) => {
+  const error = requireId(id);
 
-/**
- * Cancel / soft-delete a bill.
- *
- * IMPORTANT:
- *
- * This does NOT physically delete
- * the billing record.
- *
- * Backend:
- *
- * POST /api/billing/:id/cancel
- *
- * The bill remains available for:
- *
- * - Reports
- * - Audit
- * - History
- * - Management review
- */
-export const cancelBill = (
-  id
-) => {
-
-  if (!id) {
-    return Promise.reject(
-      new Error(
-        "Bill ID is required."
-      )
-    );
+  if (error) {
+    return error;
   }
 
-  return billingRequest.post(
-    `${API}/${id}/cancel`
+  return axios.post(
+    `${API}/${id}/cancel`,
+    {},
+    requestConfig()
   );
 };
 
@@ -314,202 +108,59 @@ export const cancelBill = (
    DAILY REPORT
 ====================================================== */
 
-/**
- * Get daily billing report.
- *
- * Example:
- *
- * getDailyReport({
- *   date: "2026-08-18",
- *   store_id: 1
- * });
- *
- * Returns:
- *
- * summary
- * details
- */
 export const getDailyReport = (
   params = {}
 ) =>
-  billingRequest.get(
+  axios.get(
     `${API}/reports/daily`,
-    {
-      params,
-    }
+    requestConfig({ params })
   );
 
 /* ======================================================
    BILLING AUDIT
 ====================================================== */
 
-/**
- * Get audit history for a bill.
- *
- * Example:
- *
- * getBillingAudit(15);
- *
- * Returns:
- *
- * CREATE
- * UPDATE
- * CANCEL
- *
- * together with:
- *
- * - Changed By
- * - Old Data
- * - New Data
- * - Date
- * - Time
- */
-export const getBillingAudit = (
-  id
-) => {
+export const getBillingAudit = (id) => {
+  const error = requireId(id);
 
-  if (!id) {
-    return Promise.reject(
-      new Error(
-        "Bill ID is required."
-      )
-    );
+  if (error) {
+    return error;
   }
 
-  return billingRequest.get(
-    `${API}/audit/${id}`
+  return axios.get(
+    `${API}/audit/${id}`,
+    requestConfig()
   );
 };
 
 /* ======================================================
-   STORES
+   BILLING STORE LIST
 ====================================================== */
 
-/**
- * Get available stores.
+/*
+ * Billing now uses its own store-list endpoint:
  *
- * Billing uses the existing
- * Stores API.
+ * GET /api/billing/stores
  *
- * IMPORTANT:
+ * This is intentional.
  *
- * The Stores API may return data in
- * different formats depending on the
- * backend response.
+ * It prevents Billing Entry from depending on
+ * "Store Management -> View" permission and keeps
+ * the Billing module self-contained.
  *
- * Supported formats:
- *
- * 1. { success: true, data: [...] }
- * 2. { data: [...] }
- * 3. { stores: [...] }
- * 4. [...]
- *
- * We normalize all of them into:
- *
- * response.data.data = [...]
- *
- * while still returning the normal
- * Axios response object.
+ * The request uses the application's shared Axios
+ * configuration from axiosConfig.js, so the existing
+ * JWT Authorization header is automatically attached.
  */
-export const getStores = async () => {
 
-  const response =
-    await billingRequest.get(
-      "/api/stores"
-    );
-
-  console.log(
-    "[Billing API] Stores response:",
-    response.data
+export const getStores = () =>
+  axios.get(
+    `${API}/stores`,
+    requestConfig()
   );
-
-  /* ====================================================
-     NORMALIZE STORE DATA
-  ==================================================== */
-
-  let stores = [];
-
-  /*
-   * Format:
-   *
-   * {
-   *   success: true,
-   *   data: [...]
-   * }
-   */
-  if (
-    Array.isArray(
-      response?.data?.data
-    )
-  ) {
-    stores =
-      response.data.data;
-  }
-
-  /*
-   * Format:
-   *
-   * {
-   *   stores: [...]
-   * }
-   */
-  else if (
-    Array.isArray(
-      response?.data?.stores
-    )
-  ) {
-    stores =
-      response.data.stores;
-  }
-
-  /*
-   * Format:
-   *
-   * [...]
-   */
-  else if (
-    Array.isArray(
-      response?.data
-    )
-  ) {
-    stores =
-      response.data;
-  }
-
-  /*
-   * Safety fallback
-   */
-  else {
-    stores = [];
-  }
-
-  /* ====================================================
-     NORMALIZED RESPONSE
-  ==================================================== */
-
-  response.data = {
-    ...(response.data &&
-    typeof response.data ===
-      "object" &&
-    !Array.isArray(
-      response.data
-    )
-      ? response.data
-      : {}),
-
-    data: stores,
-  };
-
-  console.log(
-    "[Billing API] Normalized stores:",
-    stores
-  );
-
-  return response;
-};
 
 /* ======================================================
-   OPTIONAL DEFAULT EXPORT
+   DEFAULT EXPORT
 ====================================================== */
 
 const billingService = {
