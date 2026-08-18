@@ -36,7 +36,7 @@ const handleBillingError = (error) => {
   );
 
   /*
-   * Do not modify the original Axios error.
+   * Do not replace the Axios error object.
    * Components can still access:
    *
    * error.response
@@ -111,8 +111,8 @@ billingRequest.interceptors.response.use(
  * The authentication middleware on the backend
  * should receive the existing application token/session.
  *
- * We intentionally do not invent a new authentication
- * mechanism here.
+ * We intentionally do not create a separate
+ * authentication mechanism for Billing.
  */
 
 billingRequest.interceptors.request.use(
@@ -390,11 +390,123 @@ export const getBillingAudit = (
  *
  * Billing uses the existing
  * Stores API.
+ *
+ * IMPORTANT:
+ *
+ * The Stores API may return data in
+ * different formats depending on the
+ * backend response.
+ *
+ * Supported formats:
+ *
+ * 1. { success: true, data: [...] }
+ * 2. { data: [...] }
+ * 3. { stores: [...] }
+ * 4. [...]
+ *
+ * We normalize all of them into:
+ *
+ * response.data.data = [...]
+ *
+ * while still returning the normal
+ * Axios response object.
  */
-export const getStores = () =>
-  billingRequest.get(
-    "/api/stores"
+export const getStores = async () => {
+
+  const response =
+    await billingRequest.get(
+      "/api/stores"
+    );
+
+  console.log(
+    "[Billing API] Stores response:",
+    response.data
   );
+
+  /* ====================================================
+     NORMALIZE STORE DATA
+  ==================================================== */
+
+  let stores = [];
+
+  /*
+   * Format:
+   *
+   * {
+   *   success: true,
+   *   data: [...]
+   * }
+   */
+  if (
+    Array.isArray(
+      response?.data?.data
+    )
+  ) {
+    stores =
+      response.data.data;
+  }
+
+  /*
+   * Format:
+   *
+   * {
+   *   stores: [...]
+   * }
+   */
+  else if (
+    Array.isArray(
+      response?.data?.stores
+    )
+  ) {
+    stores =
+      response.data.stores;
+  }
+
+  /*
+   * Format:
+   *
+   * [...]
+   */
+  else if (
+    Array.isArray(
+      response?.data
+    )
+  ) {
+    stores =
+      response.data;
+  }
+
+  /*
+   * Safety fallback
+   */
+  else {
+    stores = [];
+  }
+
+  /* ====================================================
+     NORMALIZED RESPONSE
+  ==================================================== */
+
+  response.data = {
+    ...(response.data &&
+    typeof response.data ===
+      "object" &&
+    !Array.isArray(
+      response.data
+    )
+      ? response.data
+      : {}),
+
+    data: stores,
+  };
+
+  console.log(
+    "[Billing API] Normalized stores:",
+    stores
+  );
+
+  return response;
+};
 
 /* ======================================================
    OPTIONAL DEFAULT EXPORT
