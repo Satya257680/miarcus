@@ -82,6 +82,7 @@ import PublicQuiz from "./pages/Quiz/PublicQuiz";
 import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
 import TrackExpenses from "./pages/Expenses/TrackExpenses";
 import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
+import PettyCash from "./pages/PettyCash/PettyCash";
 
 // ======================================================
 // BILLING
@@ -455,6 +456,29 @@ function App() {
                                 to="/expenses/entry"
                                 replace
                             />
+                        }
+                    />
+
+
+                    {/* ==================================================
+                        PETTY CASH
+                    ================================================== */}
+
+                    <Route
+                        path="/petty-cash"
+                        element={
+                            <ExpensePermissionRoute required="View">
+                                <PettyCash />
+                            </ExpensePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/:id"
+                        element={
+                            <ExpensePermissionRoute required="View">
+                                <PettyCash />
+                            </ExpensePermissionRoute>
                         }
                     />
 

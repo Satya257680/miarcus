@@ -37,7 +37,9 @@ function Sidebar({ collapsed }) {
 
     const expenseOpenByPath =
         location.pathname === "/expenses" ||
-        location.pathname.startsWith("/expenses/");
+        location.pathname.startsWith("/expenses/") ||
+        location.pathname === "/petty-cash" ||
+        location.pathname.startsWith("/petty-cash/");
 
     const quizOpenByPath =
         location.pathname === "/quiz" ||
@@ -551,6 +553,27 @@ function Sidebar({ collapsed }) {
 
                                             <span>
                                                 Approve Expenses
+                                            </span>
+                                        </NavLink>
+                                    )}
+
+                                    {/* PETTY CASH */}
+
+                                    {canTrackExpenses && (
+                                        <NavLink
+                                            to="/petty-cash"
+                                            className={({ isActive }) =>
+                                                `submenu-item ${
+                                                    isActive
+                                                        ? "active"
+                                                        : ""
+                                                }`
+                                            }
+                                        >
+                                            <FaMoneyBillWave />
+
+                                            <span>
+                                                Petty Cash
                                             </span>
                                         </NavLink>
                                     )}

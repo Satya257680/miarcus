@@ -72,6 +72,9 @@ const Quiz =
 const Expense =
     require("./models/expenseModel");
 
+const PettyCash =
+    require("./models/pettyCashModel");
+
 const ThemePreference =
     require("./models/themePreferenceModel");
 
@@ -237,6 +240,15 @@ async function initializeDatabase() {
         await createTablesAsync(
             Expense,
             "expenses"
+        );
+
+        // --------------------------------------------------
+        // PETTY CASH
+        // --------------------------------------------------
+
+        await createTablesAsync(
+            PettyCash,
+            "petty_cash"
         );
 
         // --------------------------------------------------
@@ -1195,6 +1207,20 @@ loadRoute(
     "/api/expenses",
 
     "Expense Routes"
+
+);
+
+// ======================================================
+// PETTY CASH
+// ======================================================
+
+loadRoute(
+
+    "./routes/pettyCashRoutes",
+
+    "/api/petty-cash",
+
+    "Petty Cash Routes"
 
 );
 
