@@ -16,6 +16,11 @@ const db = require("../config/db");
 // ======================================================
 
 const ignoredPrefixes = [
+    // Announcements have explicit audience recipients
+    // (everyone/managers/users/specific), so their controller
+    // creates the exact notifications and the generic middleware
+    // must not create duplicate admin notifications.
+    "/api/announcements",
     "/api/notifications",
     "/api/auth",
     "/api/upload-test",

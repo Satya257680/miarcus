@@ -4,6 +4,7 @@ const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
 const transporter = require("../config/mailer");
+const Notification = require("../services/notificationService");
 
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
@@ -117,7 +118,41 @@ const createAnnouncement = (req, res) => {
                         });
                     }
 
-                    Announcement.getRecipientsForEmail(announcementId, async (lookupErr, recipients) => {
+                    // ==================================================
+                    // CREATE IN-APP NOTIFICATIONS
+                    // ==================================================
+                    // announcement_recipients is the source of truth for
+                    // the audience. createForUsers() is promise-based, so
+                    // await it instead of passing a callback that the
+                    // service does not consume.
+                    (async () => {
+                        try {
+                            await Notification.createForUsers(
+                                users.map((user) => user.id),
+                                {
+                                    title,
+                                    message:
+                                        content ||
+                                        "A new announcement has been published.",
+                                    type: "announcement",
+                                    module_name: "announcements",
+                                    action_name: "Published",
+                                    entity_id: announcementId,
+                                    link: "/announcements"
+                                }
+                            );
+                        } catch (notificationErr) {
+                            // Notification failure must not prevent the
+                            // already-created announcement from completing.
+                            console.error(
+                                "Announcement notification error:",
+                                notificationErr
+                            );
+                        }
+
+                        Announcement.getRecipientsForEmail(
+                            announcementId,
+                            async (lookupErr, recipients) => {
                         if (lookupErr) {
                             return res.status(201).json({
                                 success: true,
@@ -153,15 +188,17 @@ const createAnnouncement = (req, res) => {
                             }
                         }
 
-                        res.status(201).json({
-                            success: true,
-                            message: "Announcement published successfully",
-                            announcementId,
-                            recipients: users.length,
-                            emailSent,
-                            emailFailed
-                        });
-                    });
+                                res.status(201).json({
+                                    success: true,
+                                    message: "Announcement published successfully",
+                                    announcementId,
+                                    recipients: users.length,
+                                    emailSent,
+                                    emailFailed
+                                });
+                            }
+                        );
+                    })();
                 });
             });
         };

@@ -1,5 +1,4 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const authMiddleware = require("../middleware/authMiddleware");
 const Notification = require("../services/notificationService");
@@ -9,145 +8,95 @@ const router = express.Router();
 // ======================================================
 // GET NOTIFICATIONS
 // ======================================================
-router.get("/", authMiddleware, (req, res) => {
-    Notification.getForUser(req.user.id, req.query.limit, (err, rows) => {
-        if (err) {
-            console.error("Get notifications:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Unable to load notifications"
-            });
-        }
+router.get("/", authMiddleware, async (req, res) => {
+    try {
+        const notifications = await Notification.getNotifications(
+            req.user.id,
+            req.query.limit
+        );
 
-        Notification.getUnreadCount(req.user.id, (countErr, unreadCount) => {
-            if (countErr) {
-                console.error("Get notification count:", countErr);
-                return res.status(500).json({
-                    success: false,
-                    message: "Unable to load notification count"
-                });
-            }
+        const unreadCount = await Notification.getUnreadCount(
+            req.user.id
+        );
 
-            res.json({
-                success: true,
-                notifications: rows.map(NotificationRow => ({
-                    id: NotificationRow.id,
-                    title: NotificationRow.title,
-                    message: NotificationRow.message || "",
-                    type: NotificationRow.type,
-                    module: NotificationRow.module,
-                    reference_id: NotificationRow.reference_id,
-                    url: NotificationRow.url,
-                    is_read: Boolean(NotificationRow.is_read),
-                    created_at: NotificationRow.created_at
-                })),
-                unreadCount
-            });
+        return res.json({
+            success: true,
+            notifications: notifications.map((notification) => ({
+                id: notification.id,
+                title: notification.title,
+                message: notification.message || "",
+                type: notification.type,
+                module: notification.module_name,
+                reference_id: notification.entity_id,
+                url: notification.link,
+                is_read: Boolean(notification.is_read),
+                created_at: notification.created_at
+            })),
+            unreadCount
         });
-    });
+    } catch (error) {
+        console.error("Get notifications:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to load notifications"
+        });
+    }
 });
 
 // ======================================================
 // UNREAD COUNT
 // ======================================================
-router.get("/unread-count", authMiddleware, (req, res) => {
-    Notification.getUnreadCount(req.user.id, (err, unreadCount) => {
-        if (err) {
-            console.error("Unread notification count:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Unable to load unread count"
-            });
-        }
+router.get("/unread-count", authMiddleware, async (req, res) => {
+    try {
+        const unreadCount = await Notification.getUnreadCount(
+            req.user.id
+        );
 
-        res.json({ success: true, unreadCount });
-    });
+        return res.json({
+            success: true,
+            unreadCount
+        });
+    } catch (error) {
+        console.error("Unread notification count:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to load unread count"
+        });
+    }
 });
 
 // ======================================================
 // REAL-TIME SSE STREAM
 // ======================================================
-// EventSource cannot send Authorization headers, so the
-// frontend uses fetch() with the normal Bearer token.
+//
+// EventSource cannot send an Authorization header.
+// The frontend therefore sends the JWT as:
+// /api/notifications/stream?token=...
+//
+// Notification.openStream() validates that token, checks the
+// current user, registers the response and sends new events.
 // ======================================================
 router.get("/stream", (req, res) => {
-    const authHeader = req.headers.authorization;
+    Promise.resolve(
+        Notification.openStream(req, res)
+    ).catch((error) => {
+        console.error("Notification stream error:", error);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({
-            success: false,
-            message: "Authorization Token Missing or Invalid"
-        });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    let decoded;
-    try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-        return res.status(401).json({
-            success: false,
-            message: "Token Expired or Invalid"
-        });
-    }
-
-    const userId = Number(decoded.id);
-    if (!Number.isInteger(userId) || userId <= 0) {
-        return res.status(401).json({
-            success: false,
-            message: "Invalid user"
-        });
-    }
-
-    db.query(
-        "SELECT status FROM users WHERE id=? LIMIT 1",
-        [userId],
-        (err, rows) => {
-            if (err) {
-                console.error("Notification stream auth:", err);
-                return res.status(500).end();
-            }
-
-            if (!rows.length || rows[0].status !== "Active") {
-                return res.status(401).end();
-            }
-
-            res.status(200);
-            res.setHeader("Content-Type", "text/event-stream");
-            res.setHeader("Cache-Control", "no-cache, no-transform");
-            res.setHeader("Connection", "keep-alive");
-            res.setHeader("X-Accel-Buffering", "no");
-            res.flushHeaders?.();
-
-            Notification.addClient(userId, res);
-
-            Notification.writeSSE(res, "connected", {
-                connected: true,
-                userId,
-                at: new Date().toISOString()
-            });
-
-            // Keep the SSE connection alive through proxies/load balancers.
-            const heartbeat = setInterval(() => {
-                try {
-                    res.write(`: heartbeat ${Date.now()}\n\n`);
-                } catch (err) {
-                    clearInterval(heartbeat);
-                }
-            }, 25000);
-
-            req.on("close", () => {
-                clearInterval(heartbeat);
+        if (!res.headersSent) {
+            return res.status(500).json({
+                success: false,
+                message: "Unable to open notification stream"
             });
         }
-    );
+
+        res.end();
+    });
 });
 
 // ======================================================
 // MARK ONE AS READ
 // ======================================================
-router.put("/:id/read", authMiddleware, (req, res) => {
+const markRead = async (req, res) => {
     const notificationId = Number(req.params.id);
 
     if (!Number.isInteger(notificationId) || notificationId <= 0) {
@@ -157,38 +106,44 @@ router.put("/:id/read", authMiddleware, (req, res) => {
         });
     }
 
-    Notification.markRead(
-        req.user.id,
-        notificationId,
-        (err) => {
-            if (err) {
-                console.error("Mark notification read:", err);
-                return res.status(500).json({
-                    success: false,
-                    message: "Unable to mark notification as read"
-                });
-            }
+    try {
+        await Notification.markRead(
+            req.user.id,
+            notificationId
+        );
 
-            res.json({ success: true });
-        }
-    );
-});
+        return res.json({ success: true });
+    } catch (error) {
+        console.error("Mark notification read:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to mark notification as read"
+        });
+    }
+};
+
+// PUT is the primary method. PATCH is also accepted so older
+// frontend builds do not break during deployment.
+router.put("/:id/read", authMiddleware, markRead);
+router.patch("/:id/read", authMiddleware, markRead);
 
 // ======================================================
 // MARK ALL AS READ
 // ======================================================
-router.put("/read-all", authMiddleware, (req, res) => {
-    Notification.markAllRead(req.user.id, (err) => {
-        if (err) {
-            console.error("Mark all notifications read:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Unable to mark notifications as read"
-            });
-        }
+const markAllRead = async (req, res) => {
+    try {
+        await Notification.markAllRead(req.user.id);
+        return res.json({ success: true });
+    } catch (error) {
+        console.error("Mark all notifications read:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to mark notifications as read"
+        });
+    }
+};
 
-        res.json({ success: true });
-    });
-});
+router.put("/read-all", authMiddleware, markAllRead);
+router.patch("/read-all", authMiddleware, markAllRead);
 
 module.exports = router;
