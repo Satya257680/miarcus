@@ -3,9 +3,14 @@ import axios from "../axiosConfig";
 import "../styles/Profile.css";
 import { FaUserCircle, FaSave, FaKey, FaStore } from "react-icons/fa";
 
+// Use the exact same backend URL configured by axiosConfig.
+// This prevents the deployed Vercel profile page from falling
+// back to localhost and showing "Network Error".
 const API =
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000";
+    (axios.defaults.baseURL ||
+        import.meta.env.VITE_API_URL ||
+        "https://miarcus-backend.onrender.com"
+    ).replace(/\/+$/, "");
 
 const getToken = () =>
     localStorage.getItem("token") || "";

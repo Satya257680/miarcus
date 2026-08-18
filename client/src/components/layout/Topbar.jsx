@@ -8,13 +8,17 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
+import axios from "../../axiosConfig";
 import miarcusLogo from "../../assets/Miarcus.png";
 import "../../styles/layout/Topbar.css";
 
-const API =
-  (import.meta.env.VITE_API_BASE_URL ||
-    "https://miarcus-backend.onrender.com").replace(/\/+$/, "");
+// Keep Topbar API calls and the rest of the application on
+// the exact same configured backend URL.
+const API = (
+  axios.defaults.baseURL ||
+  import.meta.env.VITE_API_URL ||
+  "https://miarcus-backend.onrender.com"
+).replace(/\/+$/, "");
 
 const getPhotoUrl = (photo) => {
   if (!photo) return "";
@@ -223,7 +227,7 @@ function Topbar({ toggleSidebar }) {
     if (!token) return;
 
     try {
-      await axios.patch(
+      await axios.put(
         `${API}/api/notifications/${notification.id}/read`,
         {},
         {
@@ -255,7 +259,7 @@ function Topbar({ toggleSidebar }) {
     if (!token || unreadCount === 0) return;
 
     try {
-      await axios.patch(
+      await axios.put(
         `${API}/api/notifications/read-all`,
         {},
         {
