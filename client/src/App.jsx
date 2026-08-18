@@ -83,6 +83,14 @@ import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
 import TrackExpenses from "./pages/Expenses/TrackExpenses";
 import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
 
+// ======================================================
+// BILLING
+// ======================================================
+import BillingEntry from "./pages/Billing/BillingEntry";
+import Bills from "./pages/Billing/Bills";
+import DailyBillingReport from "./pages/Billing/DailyBillingReport";
+import BillingAudit from "./pages/Billing/BillingAudit";
+
 
 function App() {
     return (
@@ -448,6 +456,31 @@ function App() {
                                 replace
                             />
                         }
+                    />
+
+
+                    {/* ==================================================
+                        BILLING
+                    ================================================== */}
+
+                    <Route
+                        path="/billing/entry"
+                        element={<BillingEntry />}
+                    />
+
+                    <Route
+                        path="/billing/bills"
+                        element={<Bills />}
+                    />
+
+                    <Route
+                        path="/billing/bills/:id"
+                        element={<BillingAudit />}
+                    />
+
+                    <Route
+                        path="/billing/daily-report"
+                        element={<DailyBillingReport />}
                     />
 
 

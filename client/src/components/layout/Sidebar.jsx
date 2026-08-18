@@ -22,7 +22,8 @@ import {
     FaBuilding,
     FaIdBadge,
     FaClipboard,
-    FaSitemap
+    FaSitemap,
+    FaMoneyBillWave
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -41,6 +42,10 @@ function Sidebar({ collapsed }) {
     const quizOpenByPath =
         location.pathname === "/quiz" ||
         location.pathname.startsWith("/quiz/");
+
+    const billingOpenByPath =
+        location.pathname === "/billing" ||
+        location.pathname.startsWith("/billing/");
 
     const settingsOpenByPath =
         location.pathname === "/settings" ||
@@ -70,6 +75,9 @@ function Sidebar({ collapsed }) {
     const [quizOpen, setQuizOpen] =
         useState(quizOpenByPath);
 
+    const [billingOpen, setBillingOpen] =
+        useState(billingOpenByPath);
+
     const [settingsOpen, setSettingsOpen] =
         useState(settingsOpenByPath);
 
@@ -88,6 +96,12 @@ function Sidebar({ collapsed }) {
             setQuizOpen(true);
         }
     }, [quizOpenByPath]);
+
+    useEffect(() => {
+        if (billingOpenByPath) {
+            setBillingOpen(true);
+        }
+    }, [billingOpenByPath]);
 
     useEffect(() => {
         if (settingsOpenByPath) {
@@ -208,6 +222,14 @@ function Sidebar({ collapsed }) {
     const canAccessQuiz =
         isAdministrator ||
         hasPermission("Quiz");
+
+    const canAccessBilling =
+        isAdministrator ||
+        hasPermission("Billing");
+
+    const canAddBilling =
+        isAdministrator ||
+        ["Add", "Edit", "Full"].includes(permissions?.Billing);
 
     // ======================================================
     // SETTINGS PERMISSIONS
@@ -535,6 +557,56 @@ function Sidebar({ collapsed }) {
 
                                 </div>
                             )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    BILLING
+                ================================================== */}
+
+                {canAccessBilling && (
+                    <div
+                        className={`sidebar-group ${
+                            billingOpenByPath || billingOpen ? "open" : ""
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            className={`sidebar-group-toggle ${billingOpenByPath ? "active" : ""}`}
+                            onClick={() => setBillingOpen(previous => !previous)}
+                            aria-expanded={billingOpen || billingOpenByPath}
+                        >
+                            <span className="sidebar-group-content">
+                                <FaMoneyBillWave />
+                                {!collapsed && <span>Billing</span>}
+                            </span>
+                            {!collapsed && (
+                                <FaChevronDown
+                                    className={`submenu-chevron ${billingOpen || billingOpenByPath ? "rotated" : ""}`}
+                                />
+                            )}
+                        </button>
+
+                        {!collapsed && (billingOpen || billingOpenByPath) && (
+                            <div className="sidebar-submenu">
+                                {canAddBilling && (
+                                    <NavLink to="/billing/entry" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaReceipt />
+                                        <span>Billing Entry</span>
+                                    </NavLink>
+                                )}
+
+                                <NavLink to="/billing/bills" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaReceipt />
+                                    <span>Bills</span>
+                                </NavLink>
+
+                                <NavLink to="/billing/daily-report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaChartBar />
+                                    <span>Daily Report</span>
+                                </NavLink>
+                            </div>
+                        )}
                     </div>
                 )}
 
