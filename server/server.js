@@ -72,6 +72,9 @@ const Quiz =
 const Expense =
     require("./models/expenseModel");
 
+const ThemePreference =
+    require("./models/themePreferenceModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -235,6 +238,19 @@ async function initializeDatabase() {
             Expense,
             "expenses"
         );
+
+        // --------------------------------------------------
+        // USER THEME / APPEARANCE PREFERENCES
+        // --------------------------------------------------
+        try {
+            await ThemePreference.ensureTable();
+            console.log("✅ user_theme_preferences table verified");
+        } catch (error) {
+            console.error(
+                "❌ user_theme_preferences table initialization failed:",
+                error.message
+            );
+        }
 
         // --------------------------------------------------
         // REAL-TIME NOTIFICATIONS
@@ -969,6 +985,20 @@ loadRoute(
     "/api/profile",
 
     "Profile Routes"
+
+);
+
+// ======================================================
+// THEME / APPEARANCE PREFERENCES
+// ======================================================
+
+loadRoute(
+
+    "./routes/themePreferenceRoutes",
+
+    "/api/theme-preferences",
+
+    "Theme Preference Routes"
 
 );
 
