@@ -1,16 +1,11 @@
 /* =========================================================
    MI ARCUS SIDEBAR
-   Works with the updated Sidebar.jsx
-========================================================= */
-
-
-/* =========================================================
-   SIDEBAR
 ========================================================= */
 
 .sidebar {
     width: 270px;
     height: 100%;
+
     background: #9CBFC4;
     border-right: 1px solid #8FB3B9;
 
@@ -19,11 +14,31 @@
 
     overflow: hidden;
 
-    transition:
-        width 0.3s ease,
-        background 0.3s ease;
-
     flex-shrink: 0;
+
+    transition: width 0.3s ease;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+.sidebar nav {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 18px 0;
+
+    box-sizing: border-box;
 }
 
 
@@ -50,62 +65,33 @@
 
 
 /* =========================================================
-   COLLAPSED SIDEBAR
-========================================================= */
-
-.sidebar.collapsed {
-    width: 80px;
-}
-
-
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-.sidebar nav {
-    width: 100%;
-    height: 100%;
-
-    display: flex;
-    flex-direction: column;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    padding: 18px 0;
-
-    box-sizing: border-box;
-}
-
-
-/* =========================================================
-   NORMAL MENU ITEMS
+   NORMAL MENU ITEM
 ========================================================= */
 
 .menu-item {
-    position: relative;
+    width: 100%;
+    min-height: 48px;
 
     display: flex;
     align-items: center;
 
-    width: 100%;
-    min-height: 48px;
+    box-sizing: border-box;
 
     padding: 14px 22px;
 
-    box-sizing: border-box;
-
-    text-decoration: none;
+    gap: 14px;
 
     color: #2F4E58;
+
+    background: transparent;
+
+    text-decoration: none;
 
     font-size: 15px;
     font-weight: 500;
 
-    border: none;
+    border: 0;
     border-left: 4px solid transparent;
-
-    background: transparent;
 
     cursor: pointer;
 
@@ -117,22 +103,20 @@
 
 
 /* =========================================================
-   MENU ICON
+   NORMAL MENU ICON
 ========================================================= */
 
 .menu-item > svg {
-    flex-shrink: 0;
-
     width: 20px;
     min-width: 20px;
+
+    height: 20px;
+
+    flex-shrink: 0;
 
     font-size: 18px;
 
     color: #385661;
-
-    transition:
-        color 0.2s ease,
-        transform 0.2s ease;
 }
 
 
@@ -142,17 +126,20 @@
 
 .menu-item > span {
     white-space: nowrap;
+
     overflow: hidden;
+
     text-overflow: ellipsis;
 }
 
 
 /* =========================================================
-   NORMAL HOVER
+   HOVER
 ========================================================= */
 
 .menu-item:hover {
     background: rgba(255, 255, 255, 0.30);
+
     color: #0F4C5C;
 }
 
@@ -162,7 +149,7 @@
 
 
 /* =========================================================
-   NORMAL ACTIVE
+   ACTIVE NORMAL MENU
 ========================================================= */
 
 .menu-item.active {
@@ -187,70 +174,129 @@
 
 .sidebar-group {
     width: 100%;
+
     display: block;
+
+    margin: 0;
+    padding: 0;
+
+    box-sizing: border-box;
 }
 
 
 /* =========================================================
-   GROUP TOGGLE BUTTON
+   IMPORTANT:
+   EXPENSES / QUIZ TOGGLE BUTTON
+
+   This fixes the small white box problem.
 ========================================================= */
 
 .sidebar-group-toggle {
+    width: 100% !important;
+    min-width: 100% !important;
+
+    height: 48px;
+    min-height: 48px;
+
+    display: flex !important;
+    align-items: center !important;
+
+    justify-content: space-between !important;
+
+    box-sizing: border-box;
+
+    margin: 0 !important;
+
+    padding: 14px 22px !important;
+
+    gap: 14px;
+
+    position: relative;
+
     appearance: none;
     -webkit-appearance: none;
 
+    border: 0;
+    border-left: 4px solid transparent;
+
+    background: transparent;
+
+    color: #2F4E58;
+
     font-family: inherit;
 
-    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 500;
 
     text-align: left;
 
-    outline: none;
+    line-height: normal;
+
+    cursor: pointer;
+
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
 }
 
 
 /* =========================================================
    GROUP CONTENT
-   Contains icon + title
+
+   Icon + Text stay together.
 ========================================================= */
 
 .sidebar-group-content {
+    min-width: 0;
+
+    flex: 1 1 auto;
+
     display: flex;
+
     align-items: center;
 
     gap: 14px;
 
-    min-width: 0;
-
-    flex: 1;
+    overflow: hidden;
 }
 
 
 /* =========================================================
-   GROUP CONTENT ICON
+   GROUP ICON
 ========================================================= */
 
 .sidebar-group-content > svg {
-    flex-shrink: 0;
-
     width: 20px;
     min-width: 20px;
+
+    height: 20px;
+
+    flex-shrink: 0;
 
     font-size: 18px;
 
     color: #385661;
-
-    transition: color 0.2s ease;
 }
 
 
 /* =========================================================
-   GROUP TITLE
+   GROUP TEXT
 ========================================================= */
 
 .sidebar-group-content > span {
-    white-space: nowrap;
+    display: block;
+
+    min-width: 0;
+
     overflow: hidden;
+
+    white-space: nowrap;
+
     text-overflow: ellipsis;
 }
 
@@ -261,6 +307,7 @@
 
 .sidebar-group-toggle:hover {
     background: rgba(255, 255, 255, 0.30);
+
     color: #0F4C5C;
 }
 
@@ -272,7 +319,6 @@
 
 /* =========================================================
    GROUP ACTIVE
-   Only highlights group when user is inside its module
 ========================================================= */
 
 .sidebar-group-toggle.active {
@@ -293,13 +339,21 @@
 
 /* =========================================================
    CHEVRON
+
+   Always stays on the RIGHT.
 ========================================================= */
 
 .submenu-chevron {
-    flex-shrink: 0;
-
     width: 14px !important;
     min-width: 14px !important;
+
+    height: 14px;
+
+    flex: 0 0 14px;
+
+    margin-left: auto;
+
+    display: block;
 
     font-size: 12px !important;
 
@@ -310,13 +364,11 @@
     transition:
         transform 0.25s ease,
         color 0.2s ease;
-
-    margin-left: auto;
 }
 
 
 /* =========================================================
-   CHEVRON OPEN / ROTATED
+   OPEN CHEVRON
 ========================================================= */
 
 .submenu-chevron.rotated {
@@ -325,7 +377,7 @@
 
 
 /* =========================================================
-   GROUP OPEN STATE
+   OPEN GROUP
 ========================================================= */
 
 .sidebar-group.open
@@ -342,13 +394,19 @@
     width: 100%;
 
     display: flex;
+
     flex-direction: column;
+
+    margin: 0;
+    padding: 0;
+
+    box-sizing: border-box;
 
     background: rgba(255, 255, 255, 0.08);
 
     overflow: hidden;
 
-    animation: submenuOpen 0.2s ease;
+    animation: submenuOpen 0.18s ease;
 }
 
 
@@ -359,42 +417,42 @@
 @keyframes submenuOpen {
     from {
         opacity: 0;
-        transform: translateY(-4px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
 
 /* =========================================================
-   SUBMENU ITEMS
+   SUBMENU ITEM
 ========================================================= */
 
 .submenu-item {
-    position: relative;
-
-    display: flex;
-    align-items: center;
-
     width: 100%;
     min-height: 48px;
 
-    padding: 13px 22px 13px 28px;
+    display: flex;
+
+    align-items: center;
 
     box-sizing: border-box;
 
+    padding: 14px 22px 14px 30px;
+
     gap: 14px;
 
-    text-decoration: none;
-
     color: #2F4E58;
+
+    background: transparent;
+
+    text-decoration: none;
 
     font-size: 15px;
     font-weight: 500;
 
+    border: 0;
     border-left: 4px solid transparent;
 
     transition:
@@ -409,16 +467,16 @@
 ========================================================= */
 
 .submenu-item > svg {
-    flex-shrink: 0;
-
     width: 20px;
     min-width: 20px;
+
+    height: 20px;
+
+    flex-shrink: 0;
 
     font-size: 17px;
 
     color: #385661;
-
-    transition: color 0.2s ease;
 }
 
 
@@ -428,7 +486,9 @@
 
 .submenu-item > span {
     white-space: nowrap;
+
     overflow: hidden;
+
     text-overflow: ellipsis;
 }
 
@@ -438,7 +498,7 @@
 ========================================================= */
 
 .submenu-item:hover {
-    background: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.30);
 
     color: #0F4C5C;
 }
@@ -468,7 +528,7 @@
 
 
 /* =========================================================
-   EXPENSE / QUIZ GROUP SEPARATION
+   GROUP SEPARATION
 ========================================================= */
 
 .sidebar-group + .sidebar-group {
@@ -481,29 +541,42 @@
 ========================================================= */
 
 .sidebar-footer {
-    margin-top: auto;
-
     width: 100%;
 
-    background: #9CBFC4;
-
-    border-top: 1px solid #8FB3B9;
+    margin-top: auto;
 
     padding: 10px 0;
 
     box-sizing: border-box;
+
+    background: #9CBFC4;
+
+    border-top: 1px solid #8FB3B9;
 }
 
 .sidebar-footer .menu-item {
+    width: 100%;
+
     margin: 0;
 }
 
 
 /* =========================================================
-   COLLAPSED MODE
+   COLLAPSED SIDEBAR
+========================================================= */
+
+.sidebar.collapsed {
+    width: 80px;
+}
+
+
+/* =========================================================
+   COLLAPSED NORMAL ITEM
 ========================================================= */
 
 .sidebar.collapsed .menu-item {
+    width: 100%;
+
     justify-content: center;
 
     padding: 16px 0;
@@ -511,27 +584,31 @@
     gap: 0;
 }
 
-
-/* =========================================================
-   COLLAPSED NORMAL ICON
-========================================================= */
-
 .sidebar.collapsed .menu-item > svg {
     width: 22px;
     min-width: 22px;
 
+    height: 22px;
+
     font-size: 20px;
+}
+
+.sidebar.collapsed .menu-item > span {
+    display: none;
 }
 
 
 /* =========================================================
-   COLLAPSED GROUP TOGGLE
+   COLLAPSED GROUP
 ========================================================= */
 
 .sidebar.collapsed .sidebar-group-toggle {
-    justify-content: center;
+    width: 100% !important;
+    min-width: 100% !important;
 
-    padding: 16px 0;
+    justify-content: center !important;
+
+    padding: 16px 0 !important;
 
     gap: 0;
 }
@@ -542,9 +619,11 @@
 ========================================================= */
 
 .sidebar.collapsed .sidebar-group-content {
-    justify-content: center;
-
     width: 100%;
+
+    flex: 1;
+
+    justify-content: center;
 
     gap: 0;
 }
@@ -559,34 +638,38 @@
     width: 22px;
     min-width: 22px;
 
+    height: 22px;
+
     font-size: 20px;
 }
 
 
 /* =========================================================
-   HIDE TEXT IN COLLAPSED
+   HIDE GROUP TEXT
 ========================================================= */
 
-.sidebar.collapsed .menu-item span,
-.sidebar.collapsed .sidebar-group-content span {
+.sidebar.collapsed
+.sidebar-group-content > span {
     display: none;
 }
 
 
 /* =========================================================
-   HIDE CHEVRON IN COLLAPSED
+   HIDE CHEVRON
 ========================================================= */
 
-.sidebar.collapsed .submenu-chevron {
+.sidebar.collapsed
+.submenu-chevron {
     display: none;
 }
 
 
 /* =========================================================
-   HIDE SUBMENU WHEN COLLAPSED
+   HIDE SUBMENU
 ========================================================= */
 
-.sidebar.collapsed .sidebar-submenu {
+.sidebar.collapsed
+.sidebar-submenu {
     display: none;
 }
 
@@ -595,42 +678,23 @@
    COLLAPSED ACTIVE GROUP
 ========================================================= */
 
-.sidebar.collapsed .sidebar-group-toggle.active {
-    border-left-color: #6D57C8;
-
+.sidebar.collapsed
+.sidebar-group-toggle.active {
     background: #F9FCFD;
+
+    border-left-color: #6D57C8;
 }
 
 
 /* =========================================================
-   COLLAPSED HOVER
-========================================================= */
-
-.sidebar.collapsed .menu-item:hover,
-.sidebar.collapsed .sidebar-group-toggle:hover {
-    background: rgba(255, 255, 255, 0.30);
-}
-
-
-/* =========================================================
-   FOOTER IN COLLAPSED MODE
-========================================================= */
-
-.sidebar.collapsed .sidebar-footer .menu-item {
-    justify-content: center;
-
-    padding: 16px 0;
-}
-
-
-/* =========================================================
-   FOCUS ACCESSIBILITY
+   FOCUS
 ========================================================= */
 
 .menu-item:focus-visible,
 .sidebar-group-toggle:focus-visible,
 .submenu-item:focus-visible {
     outline: 2px solid #6D57C8;
+
     outline-offset: -2px;
 }
 
@@ -651,19 +715,22 @@
 
     .menu-item {
         min-height: 46px;
+
         padding: 12px 18px;
+    }
+
+    .sidebar-group-toggle {
+        height: 46px;
+        min-height: 46px;
+
+        padding: 12px 18px !important;
     }
 
     .submenu-item {
         min-height: 46px;
-        padding: 12px 18px 12px 24px;
-    }
 
-    .sidebar-group-toggle {
-        min-height: 46px;
-        padding: 12px 18px;
+        padding: 12px 18px 12px 26px;
     }
-
 }
 
 
@@ -681,14 +748,11 @@
         width: 64px;
     }
 
-    .menu-item {
-        font-size: 14px;
-    }
-
+    .menu-item,
+    .sidebar-group-toggle,
     .submenu-item {
         font-size: 14px;
     }
-
 }
 
 
@@ -700,11 +764,11 @@
 
     .sidebar,
     .menu-item,
+    .sidebar-group-toggle,
     .submenu-item,
     .submenu-chevron,
     .sidebar-submenu {
         transition: none;
         animation: none;
     }
-
 }
