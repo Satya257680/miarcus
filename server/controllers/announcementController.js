@@ -4,7 +4,6 @@ const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
 const transporter = require("../config/mailer");
-const Notification = require("../services/notificationService");
 
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
@@ -118,33 +117,7 @@ const createAnnouncement = (req, res) => {
                         });
                     }
 
-                    // ==================================================
-                    // CREATE IN-APP NOTIFICATIONS
-                    // ==================================================
-                    // The announcement recipients table is the source of truth
-                    // for who should receive the notification.
-                    Notification.createForUsers(
-                        users,
-                        {
-                            title,
-                            message: content || "A new announcement has been published.",
-                            type: "announcement",
-                            module: "Announcements",
-                            referenceId: announcementId,
-                            url: "/announcements"
-                        },
-                        (notificationErr) => {
-                            if (notificationErr) {
-                                console.error("Announcement notification error:", notificationErr);
-                                return res.status(500).json({
-                                    success: false,
-                                    message: "Announcement was created, but in-app notifications could not be created",
-                                    announcementId,
-                                    recipients: users.length
-                                });
-                            }
-
-                            Announcement.getRecipientsForEmail(announcementId, async (lookupErr, recipients) => {
+                    Announcement.getRecipientsForEmail(announcementId, async (lookupErr, recipients) => {
                         if (lookupErr) {
                             return res.status(201).json({
                                 success: true,
@@ -180,17 +153,15 @@ const createAnnouncement = (req, res) => {
                             }
                         }
 
-                                res.status(201).json({
-                                    success: true,
-                                    message: "Announcement published successfully",
-                                    announcementId,
-                                    recipients: users.length,
-                                    emailSent,
-                                    emailFailed
-                                });
-                            });
-                        }
-                    );
+                        res.status(201).json({
+                            success: true,
+                            message: "Announcement published successfully",
+                            announcementId,
+                            recipients: users.length,
+                            emailSent,
+                            emailFailed
+                        });
+                    });
                 });
             });
         };
