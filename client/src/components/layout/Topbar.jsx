@@ -6,13 +6,31 @@ import {
 } from "react-icons/fa";
 
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import miarcusLogo from "../../assets/Miarcus.png";
 import "../../styles/layout/Topbar.css";
 
-function Topbar({ toggleSidebar }) {
+const API =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://miarcus-backend.onrender.com";
 
+const getPhotoUrl = (photo) => {
+  if (!photo) return "";
+
+  if (
+    photo.startsWith("data:") ||
+    photo.startsWith("blob:") ||
+    photo.startsWith("http://") ||
+    photo.startsWith("https://")
+  ) {
+    return photo;
+  }
+
+  return `${API}/uploads/${photo}`;
+};
+
+function Topbar({ toggleSidebar }) {
   const navigate = useNavigate();
 
   const userId = localStorage.getItem("userId");
@@ -21,76 +39,73 @@ function Topbar({ toggleSidebar }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const [profileImage, setProfileImage] = useState("");
+  const [profileImage, setProfileImage] = useState(
+    getPhotoUrl(localStorage.getItem("profilePhoto") || "")
+  );
 
   const [userName, setUserName] = useState(
     localStorage.getItem("userName") || "Profile"
   );
 
-  // ===========================
-  // Load User Profile
-  // ===========================
+  const loadProfile = useCallback(async () => {
+    // --------------------------------------------------
+    // Instant local state
+    // --------------------------------------------------
+
+    const savedName = localStorage.getItem("userName");
+    const savedPhoto = localStorage.getItem("profilePhoto");
+
+    if (savedName) {
+      setUserName(savedName);
+    }
+
+    if (savedPhoto) {
+      setProfileImage(getPhotoUrl(savedPhoto));
+    } else {
+      setProfileImage("");
+    }
+
+    if (!userId) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await axios.get(
+        `${API}/api/profile/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.data?.success) return;
+
+      const user = response.data.user || {};
+
+      setUserName(user.name || "Profile");
+      localStorage.setItem(
+        "userName",
+        user.name || "Profile"
+      );
+
+      if (user.profile_photo) {
+        localStorage.setItem(
+          "profilePhoto",
+          user.profile_photo
+        );
+
+        setProfileImage(
+          getPhotoUrl(user.profile_photo)
+        );
+      }
+    } catch (err) {
+      console.log("Topbar profile load:", err);
+    }
+  }, [userId]);
 
   useEffect(() => {
-
-    const loadProfile = async () => {
-
-      // Load instantly from localStorage
-      const savedName = localStorage.getItem("userName");
-      const savedPhoto = localStorage.getItem("profilePhoto");
-
-      if (savedName) {
-        setUserName(savedName);
-      }
-
-      if (savedPhoto) {
-        setProfileImage(
-          `https://miarcus-backend.onrender.com/uploads/${savedPhoto}`
-        );
-      }
-
-      if (!userId) return;
-
-      try {
-
-        const res = await axios.get(
-          `https://miarcus-backend.onrender.com/api/profile/user/${userId}`
-        );
-
-        if (res.data.success) {
-
-          const user = res.data.user;
-
-          setUserName(user.name || "Profile");
-
-          localStorage.setItem(
-            "userName",
-            user.name || "Profile"
-          );
-
-          if (user.profile_photo) {
-
-            localStorage.setItem(
-              "profilePhoto",
-              user.profile_photo
-            );
-
-            setProfileImage(
-              `https://miarcus-backend.onrender.com/uploads/${user.profile_photo}`
-            );
-
-          }
-
-        }
-
-      } catch (err) {
-
-        console.log(err);
-
-      }
-
-    };
-
     loadProfile();
 
     window.addEventListener(
@@ -99,143 +114,103 @@ function Topbar({ toggleSidebar }) {
     );
 
     return () => {
-
       window.removeEventListener(
         "profileUpdated",
         loadProfile
       );
-
     };
+  }, [loadProfile]);
 
-  }, [userId]);
+  // ==================================================
+  // LOGOUT
+  // ==================================================
 
- // ===========================
-// Logout
-// ===========================
+  const confirmLogout = () => {
+    localStorage.clear();
+    sessionStorage.clear();
 
-const confirmLogout = () => {
+    setShowLogoutModal(false);
 
-  // Clear all stored login information
-  localStorage.clear();
-  sessionStorage.clear();
-
-  // Close the logout modal
-  setShowLogoutModal(false);
-
-  // Redirect to login and replace history
-  navigate("/", { replace: true });
-
-};
+    navigate("/", {
+      replace: true,
+    });
+  };
 
   return (
-      
-
     <header className="topbar">
-
       {/* Left */}
-
       <div className="topbar-left">
-
         <button
           className="menu-btn"
           onClick={toggleSidebar}
+          type="button"
         >
           <FaBars />
         </button>
-
       </div>
 
       {/* Center */}
-
       <div className="topbar-center">
-
         <img
           src={miarcusLogo}
           alt="MIARCUS"
           className="topbar-logo"
         />
-
       </div>
 
       {/* Right */}
-
       <div className="topbar-right">
-
         {/* Notification */}
-
         <div className="dropdown">
-
           <button
             className="icon-btn"
+            type="button"
             onClick={() => {
-
-              setShowNotifications(!showNotifications);
+              setShowNotifications(
+                !showNotifications
+              );
               setShowProfile(false);
-
             }}
           >
-
             <FaBell />
-
           </button>
 
           {showNotifications && (
-
             <div className="dropdown-menu">
-
               <p>No new notifications</p>
-
             </div>
-
           )}
-
         </div>
 
         {/* Profile */}
-
         <div className="dropdown">
-
           <button
             className="profile-btn"
+            type="button"
             onClick={() => {
-
               setShowProfile(!showProfile);
               setShowNotifications(false);
-
             }}
           >
-
             {profileImage ? (
-
               <img
                 src={profileImage}
                 alt="Profile"
                 className="topbar-profile-img"
               />
-
             ) : (
-
-              <FaUserCircle
-                className="profile-icon"
-              />
-
+              <FaUserCircle className="profile-icon" />
             )}
 
             <span>{userName}</span>
-
           </button>
 
           {showProfile && (
-
             <div className="dropdown-menu">
-
               <p
                 onClick={() => {
-
                   setShowProfile(false);
-
                   navigate("/profile");
-
                 }}
               >
                 My Profile
@@ -243,89 +218,63 @@ const confirmLogout = () => {
 
               <p
                 onClick={() => {
-
                   setShowProfile(false);
-
                   setShowLogoutModal(true);
-
                 }}
               >
                 Logout
               </p>
-
             </div>
-
           )}
-
         </div>
 
         {/* Logout */}
-
         <button
           className="logout-btn"
+          type="button"
           onClick={() =>
             setShowLogoutModal(true)
           }
         >
-
           <FaSignOutAlt />
-
           <span>Logout</span>
-
         </button>
-
       </div>
 
       {/* Logout Modal */}
-
       {showLogoutModal && (
-
         <div className="logout-overlay">
-
           <div className="logout-modal">
-
             <h3>Logout</h3>
 
             <p>
-
               Are you sure you want to logout?
-
             </p>
 
             <div className="logout-actions">
-
               <button
                 className="cancel-btn"
+                type="button"
                 onClick={() =>
                   setShowLogoutModal(false)
                 }
               >
-
                 Cancel
-
               </button>
 
               <button
                 className="confirm-btn"
+                type="button"
                 onClick={confirmLogout}
               >
-
                 Logout
-
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </header>
-
   );
-
 }
 
 export default Topbar;

@@ -401,3 +401,140 @@
 .upload-btn input{
     display:none;
 }
+/* ==========================================================
+   PROFILE PERSISTENCE / STATUS
+========================================================== */
+
+.profile-loading {
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #526b75;
+    font-weight: 600;
+}
+
+.profile-message {
+    margin-bottom: 18px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.profile-message-error {
+    color: #a32323;
+    background: #fff1f1;
+    border: 1px solid #ffc7c7;
+}
+
+.profile-message-success {
+    color: #14764b;
+    background: #eefaf4;
+    border: 1px solid #bce8d1;
+}
+
+.profile-placeholder {
+    width: 82px;
+    height: 82px;
+    color: #aab8bd;
+}
+
+.profile-readonly-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 2px 0 18px;
+}
+
+.profile-readonly-grid > div {
+    padding: 12px 14px;
+    border: 1px solid #dfe6e8;
+    border-radius: 8px;
+    background: #f7fafb;
+}
+
+.profile-readonly-grid span {
+    display: block;
+    margin-bottom: 5px;
+    color: #71848c;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.profile-readonly-grid strong {
+    display: block;
+    color: #1d3557;
+    font-size: 14px;
+}
+
+.reset-btn,
+.save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.reset-btn:disabled,
+.save-btn:disabled,
+.upload-btn:has(input:disabled) {
+    opacity: .65;
+    cursor: not-allowed;
+}
+
+.stores-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.stores-box li {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 4px;
+    border-bottom: 1px solid #e7ecee;
+}
+
+.stores-box li:last-child {
+    border-bottom: 0;
+}
+
+.stores-box li strong {
+    color: #203c48;
+    font-size: 14px;
+}
+
+.stores-box li small {
+    color: #72858d;
+    font-size: 12px;
+}
+
+.profile-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #7a8d94;
+    font-size: 14px;
+}
+
+@media (max-width: 900px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .profile-readonly-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stores-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .stores-header input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}

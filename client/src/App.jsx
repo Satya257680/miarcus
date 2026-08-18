@@ -1,4 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+    BrowserRouter,
+    Routes,
+    Route,
+    Navigate
+} from "react-router-dom";
 
 // ======================================================
 // LAYOUT
@@ -31,7 +36,7 @@ import ActionPoints from "./pages/ActionPoints";
 import Announcements from "./pages/Announcements";
 
 // ======================================================
-// ADMIN
+// ADMIN / SETTINGS MODULES
 // ======================================================
 import Users from "./pages/Users";
 import Departments from "./pages/Departments";
@@ -61,25 +66,27 @@ import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
 import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
 import Signup from "./pages/Signup";
 
-// ==================================================
+// ======================================================
 // QUIZ
-// ==================================================
+// ======================================================
 import QuizSetup from "./pages/Quiz/QuizSetup";
 import TakeQuiz from "./pages/Quiz/TakeQuiz";
 import TrainingReport from "./pages/Quiz/TrainingReport";
 import EmailSettings from "./pages/Quiz/EmailSettings";
 import PublicQuiz from "./pages/Quiz/PublicQuiz";
 
-// ==================================================
+// ======================================================
 // EXPENSES
-// ==================================================
+// ======================================================
 import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
 import TrackExpenses from "./pages/Expenses/TrackExpenses";
 import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
 
+
 function App() {
     return (
         <BrowserRouter>
+
             <Routes>
 
                 {/* ==================================================
@@ -92,9 +99,9 @@ function App() {
                 />
 
                 <Route
-    path="/signup"
-    element={<Signup />}
-/>
+                    path="/signup"
+                    element={<Signup />}
+                />
 
                 <Route
                     path="/forgot-password"
@@ -116,14 +123,18 @@ function App() {
                     element={<ActivateAccount />}
                 />
 
-                {/* Public reusable Quiz link */}
+                {/* ==================================================
+                    PUBLIC QUIZ
+                ================================================== */}
+
                 <Route
                     path="/quiz/:token"
                     element={<PublicQuiz />}
                 />
 
+
                 {/* ==================================================
-                    PROTECTED ROUTES
+                    PROTECTED APPLICATION ROUTES
                 ================================================== */}
 
                 <Route
@@ -148,6 +159,7 @@ function App() {
                         element={<DashboardAnalytics />}
                     />
 
+
                     {/* ==================================================
                         ACTIVITY CENTER
                     ================================================== */}
@@ -161,6 +173,7 @@ function App() {
                         path="/activity-center/:id"
                         element={<ActivityDetails />}
                     />
+
 
                     {/* ==================================================
                         CHECKLIST
@@ -181,6 +194,7 @@ function App() {
                         element={<ActionPoints />}
                     />
 
+
                     {/* ==================================================
                         ANNOUNCEMENTS
                     ================================================== */}
@@ -190,8 +204,98 @@ function App() {
                         element={<Announcements />}
                     />
 
+
                     {/* ==================================================
-                        ADMIN
+                        ==================================================
+                        SETTINGS
+                        ==================================================
+                    ================================================== */}
+
+                    {/* --------------------------------------------------
+                        SETTINGS MAIN PAGE
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings"
+                        element={<Settings />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → USERS
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/users"
+                        element={<Users />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → DEPARTMENTS
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/departments"
+                        element={<Departments />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → DESIGNATIONS
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/designations"
+                        element={<Designations />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → STORE MANAGEMENT
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/stores"
+                        element={<StoreManagement />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → QUESTIONS
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/questions"
+                        element={<Questions />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → CHECKLIST TYPES
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/checklist-types"
+                        element={<ChecklistTypes />}
+                    />
+
+
+                    {/* --------------------------------------------------
+                        SETTINGS → REPORTS TO
+                    -------------------------------------------------- */}
+
+                    <Route
+                        path="/settings/reports-to"
+                        element={<ReportsTo />}
+                    />
+
+
+                    {/* ==================================================
+                        LEGACY ADMIN ROUTES
+                        --------------------------------------------------
+                        These are intentionally kept so existing links,
+                        bookmarks and internal navigation continue working.
                     ================================================== */}
 
                     <Route
@@ -229,6 +333,7 @@ function App() {
                         element={<ReportsTo />}
                     />
 
+
                     {/* ==================================================
                         NEW STORE OPENING
                     ================================================== */}
@@ -247,6 +352,7 @@ function App() {
                         path="/nso-tracking"
                         element={<NSOTracking />}
                     />
+
 
                     {/* ==================================================
                         QUIZ
@@ -271,6 +377,7 @@ function App() {
                         path="/quiz/email"
                         element={<EmailSettings />}
                     />
+
 
                     {/* ==================================================
                         EXPENSES
@@ -299,7 +406,11 @@ function App() {
                         }
                     />
 
-                    {/* Legacy / direct Expense URLs */}
+
+                    {/* ==================================================
+                        LEGACY / DIRECT EXPENSE URLS
+                    ================================================== */}
+
                     <Route
                         path="/expense-entry"
                         element={
@@ -308,10 +419,12 @@ function App() {
                             </ExpensePermissionRoute>
                         }
                     />
+
                     <Route
                         path="/track-expenses"
                         element={<TrackExpenses />}
                     />
+
                     <Route
                         path="/approve-expenses"
                         element={
@@ -320,19 +433,17 @@ function App() {
                             </ExpensePermissionRoute>
                         }
                     />
+
                     <Route
                         path="/expenses"
-                        element={<Navigate to="/expenses/entry" replace />}
+                        element={
+                            <Navigate
+                                to="/expenses/entry"
+                                replace
+                            />
+                        }
                     />
 
-                    {/* ==================================================
-                        SETTINGS
-                    ================================================== */}
-
-                    <Route
-                        path="/settings"
-                        element={<Settings />}
-                    />
 
                     {/* ==================================================
                         PROFILE
@@ -345,18 +456,28 @@ function App() {
 
                 </Route>
 
+
                 {/* ==================================================
                     FALLBACK
+                    --------------------------------------------------
+                    Only genuinely unknown URLs go to Login.
                 ================================================== */}
 
                 <Route
                     path="*"
-                    element={<Navigate to="/" replace />}
+                    element={
+                        <Navigate
+                            to="/"
+                            replace
+                        />
+                    }
                 />
 
             </Routes>
+
         </BrowserRouter>
     );
 }
+
 
 export default App;
