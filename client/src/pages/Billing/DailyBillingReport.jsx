@@ -23,6 +23,9 @@ import {
   FaChevronRight,
   FaExclamationTriangle,
   FaCheckCircle,
+  FaTimesCircle,
+  FaArrowUp,
+  FaReceipt,
 } from "react-icons/fa";
 
 import {
@@ -33,7 +36,13 @@ import {
 import "../../styles/Billing.css";
 
 /* ======================================================
-   HELPERS
+   CONSTANTS
+====================================================== */
+
+const ROWS_PER_PAGE = 10;
+
+/* ======================================================
+   CURRENCY
 ====================================================== */
 
 const formatCurrency = (value) => {
@@ -47,24 +56,14 @@ const formatCurrency = (value) => {
   }).format(amount);
 };
 
-const formatTime = (value) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
+/* ======================================================
+   DATE
+====================================================== */
 
 const formatDate = (value) => {
-  if (!value) return "-";
+  if (!value) {
+    return "-";
+  }
 
   const date = new Date(value);
 
@@ -79,15 +78,72 @@ const formatDate = (value) => {
   });
 };
 
-const getReportData = (response) => {
-  const data = response?.data?.data;
+/* ======================================================
+   TIME
+====================================================== */
 
-  if (data && typeof data === "object") {
+const formatTime = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+/* ======================================================
+   DATE FOR INPUT
+====================================================== */
+
+const getToday = () => {
+  const now = new Date();
+
+  const offset =
+    now.getTimezoneOffset();
+
+  const localDate = new Date(
+    now.getTime() -
+      offset * 60 * 1000
+  );
+
+  return localDate
+    .toISOString()
+    .slice(0, 10);
+};
+
+/* ======================================================
+   REPORT RESPONSE
+====================================================== */
+
+const getReportData = (
+  response
+) => {
+  const data =
+    response?.data?.data;
+
+  if (
+    data &&
+    typeof data === "object"
+  ) {
     return {
-      summary: data.summary || {},
-      details: Array.isArray(data.details)
-        ? data.details
-        : [],
+      summary:
+        data.summary || {},
+
+      details:
+        Array.isArray(
+          data.details
+        )
+          ? data.details
+          : [],
     };
   }
 
@@ -97,14 +153,27 @@ const getReportData = (response) => {
   };
 };
 
-const getStoreData = (response) => {
-  const data = response?.data?.data;
+/* ======================================================
+   STORE RESPONSE
+====================================================== */
 
-  if (Array.isArray(data)) {
+const getStoreData = (
+  response
+) => {
+  const data =
+    response?.data?.data;
+
+  if (
+    Array.isArray(data)
+  ) {
     return data;
   }
 
-  if (Array.isArray(response?.data)) {
+  if (
+    Array.isArray(
+      response?.data
+    )
+  ) {
     return response.data;
   }
 
@@ -112,174 +181,385 @@ const getStoreData = (response) => {
 };
 
 /* ======================================================
+   STATUS
+====================================================== */
+
+const normalizeStatus = (
+  status
+) => {
+  return String(
+    status || "UNKNOWN"
+  )
+    .trim()
+    .toUpperCase();
+};
+
+/* ======================================================
+   STATUS CONFIG
+====================================================== */
+
+const getStatusConfig = (
+  status
+) => {
+
+  switch (
+    normalizeStatus(status)
+  ) {
+
+    case "PAID":
+      return {
+        label: "Paid",
+        className: "paid",
+        icon: FaCheckCircle,
+      };
+
+    case "PENDING":
+      return {
+        label: "Pending",
+        className: "pending",
+        icon: FaArrowUp,
+      };
+
+    case "CANCELLED":
+    case "CANCELED":
+      return {
+        label: "Cancelled",
+        className: "cancelled",
+        icon: FaTimesCircle,
+      };
+
+    default:
+      return {
+        label:
+          status || "Unknown",
+        className: "unknown",
+        icon: FaReceipt,
+      };
+  }
+};
+
+/* ======================================================
+   PAYMENT ICON
+====================================================== */
+
+const getPaymentIcon = (
+  paymentType
+) => {
+
+  const type =
+    String(
+      paymentType || ""
+    ).toLowerCase();
+
+  if (
+    type.includes("cash")
+  ) {
+    return FaMoneyBillWave;
+  }
+
+  if (
+    type.includes("bank")
+  ) {
+    return FaUniversity;
+  }
+
+  return FaCreditCard;
+};
+
+/* ======================================================
+   CSV VALUE
+====================================================== */
+
+const csvValue = (
+  value
+) => {
+
+  const text =
+    String(
+      value ?? ""
+    ).replace(
+      /"/g,
+      '""'
+    );
+
+  return `"${text}"`;
+};
+
+/* ======================================================
    MAIN COMPONENT
 ====================================================== */
 
 export default function DailyBillingReport() {
-  const today = new Date()
-    .toISOString()
-    .slice(0, 10);
 
-  const [date, setDate] = useState(today);
+  /* ====================================================
+     STATE
+  ==================================================== */
 
-  const [store, setStore] = useState("");
+  const [
+    date,
+    setDate
+  ] = useState(
+    getToday()
+  );
 
-  const [stores, setStores] = useState([]);
+  const [
+    store,
+    setStore
+  ] = useState("");
 
-  const [report, setReport] = useState({
+  const [
+    stores,
+    setStores
+  ] = useState([]);
+
+  const [
+    report,
+    setReport
+  ] = useState({
     summary: {},
     details: [],
   });
 
-  const [search, setSearch] = useState("");
+  const [
+    search,
+    setSearch
+  ] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  const [
+    statusFilter,
+    setStatusFilter
+  ] = useState("ALL");
 
-  const [storesLoading, setStoresLoading] =
-    useState(true);
+  const [
+    paymentFilter,
+    setPaymentFilter
+  ] = useState("ALL");
 
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
 
-  const [error, setError] = useState("");
+  const [
+    storesLoading,
+    setStoresLoading
+  ] = useState(true);
 
-  const [page, setPage] = useState(1);
+  const [
+    refreshing,
+    setRefreshing
+  ] = useState(false);
 
-  const rowsPerPage = 10;
+  const [
+    error,
+    setError
+  ] = useState("");
+
+  const [
+    page,
+    setPage
+  ] = useState(1);
 
   /* ====================================================
      LOAD STORES
   ==================================================== */
 
   useEffect(() => {
-    const loadStores = async () => {
-      try {
-        setStoresLoading(true);
 
-        const response = await getStores();
+    let mounted = true;
 
-        setStores(getStoreData(response));
-      } catch (err) {
-        console.error(
-          "Billing stores loading error:",
-          err
-        );
+    const loadStores =
+      async () => {
 
-        setStores([]);
-      } finally {
-        setStoresLoading(false);
-      }
-    };
+        try {
+
+          setStoresLoading(
+            true
+          );
+
+          const response =
+            await getStores();
+
+          if (!mounted) {
+            return;
+          }
+
+          setStores(
+            getStoreData(
+              response
+            )
+          );
+
+        } catch (err) {
+
+          console.error(
+            "Billing stores loading error:",
+            err
+          );
+
+          if (mounted) {
+            setStores([]);
+          }
+
+        } finally {
+
+          if (mounted) {
+            setStoresLoading(
+              false
+            );
+          }
+        }
+      };
 
     loadStores();
+
+    return () => {
+      mounted = false;
+    };
+
   }, []);
 
   /* ====================================================
-     LOAD DAILY REPORT
+     LOAD REPORT
   ==================================================== */
 
-  const loadReport = useCallback(
-    async (showRefresh = false) => {
-      if (!date) {
-        return;
-      }
+  const loadReport =
+    useCallback(
+      async (
+        showRefresh = false
+      ) => {
 
-      try {
-        if (showRefresh) {
-          setRefreshing(true);
-        } else {
-          setLoading(true);
+        if (!date) {
+          return;
         }
 
-        setError("");
+        try {
 
-        const response =
-          await getDailyReport({
-            date,
-            store_id:
-              store || undefined,
+          if (showRefresh) {
+            setRefreshing(true);
+          } else {
+            setLoading(true);
+          }
+
+          setError("");
+
+          const response =
+            await getDailyReport({
+              date,
+              store_id:
+                store || undefined,
+            });
+
+          setReport(
+            getReportData(
+              response
+            )
+          );
+
+          setPage(1);
+
+        } catch (err) {
+
+          console.error(
+            "Daily billing report error:",
+            err
+          );
+
+          setReport({
+            summary: {},
+            details: [],
           });
 
-        setReport(getReportData(response));
-
-        setPage(1);
-      } catch (err) {
-        console.error(
-          "Daily billing report error:",
-          err
-        );
-
-        setReport({
-          summary: {},
-          details: [],
-        });
-
-        setError(
-          err?.response?.data?.message ||
+          setError(
+            err?.response
+              ?.data
+              ?.message ||
             err?.message ||
             "Unable to load the daily billing report."
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [date, store]
-  );
+          );
+
+        } finally {
+
+          setLoading(false);
+
+          setRefreshing(false);
+        }
+      },
+      [date, store]
+    );
 
   /* ====================================================
-     AUTO LOAD WHEN DATE / STORE CHANGES
+     AUTO LOAD
   ==================================================== */
 
   useEffect(() => {
+
     loadReport();
-  }, [loadReport]);
+
+  }, [
+    loadReport
+  ]);
 
   /* ====================================================
      SUMMARY
   ==================================================== */
 
-  const summary = report.summary || {};
+  const summary =
+    report.summary || {};
 
-  const totalBills = Number(
-    summary.total_bills || 0
-  );
+  const totalBills =
+    Number(
+      summary.total_bills || 0
+    );
 
-  const grossSales = Number(
-    summary.subtotal || 0
-  );
+  const grossSales =
+    Number(
+      summary.subtotal || 0
+    );
 
-  const discount = Number(
-    summary.discount || 0
-  );
+  const discount =
+    Number(
+      summary.discount || 0
+    );
 
-  const tax = Number(
-    summary.tax || summary.tax_amount || 0
-  );
+  const tax =
+    Number(
+      summary.tax ||
+        summary.tax_amount ||
+        0
+    );
 
-  const netTotal = Number(
-    summary.grand_total || 0
-  );
+  const netTotal =
+    Number(
+      summary.grand_total || 0
+    );
 
-  const cash = Number(
-    summary.cash || 0
-  );
+  const cash =
+    Number(
+      summary.cash || 0
+    );
 
-  const upi = Number(
-    summary.upi || 0
-  );
+  const upi =
+    Number(
+      summary.upi || 0
+    );
 
-  const card = Number(
-    summary.card || 0
-  );
+  const card =
+    Number(
+      summary.card || 0
+    );
 
-  const bankTransfer = Number(
-    summary.bank_transfer || 0
-  );
+  const bankTransfer =
+    Number(
+      summary.bank_transfer || 0
+    );
 
-  const otherPayment = Number(
-    summary.other || summary.other_payment || 0
-  );
+  const otherPayment =
+    Number(
+      summary.other ||
+        summary.other_payment ||
+        0
+    );
 
   /* ====================================================
      PAYMENT TOTAL
@@ -293,227 +573,437 @@ export default function DailyBillingReport() {
     otherPayment;
 
   /* ====================================================
+     PAYMENT BREAKDOWN
+  ==================================================== */
+
+  const paymentBreakdown =
+    useMemo(
+      () => [
+        {
+          key: "cash",
+          label: "Cash",
+          value: cash,
+          icon: FaMoneyBillWave,
+        },
+        {
+          key: "upi",
+          label: "UPI",
+          value: upi,
+          icon: FaCreditCard,
+        },
+        {
+          key: "card",
+          label: "Card",
+          value: card,
+          icon: FaCreditCard,
+        },
+        {
+          key: "bank",
+          label: "Bank Transfer",
+          value: bankTransfer,
+          icon: FaUniversity,
+        },
+        {
+          key: "other",
+          label: "Other",
+          value: otherPayment,
+          icon: FaMoneyBillWave,
+        },
+      ],
+      [
+        cash,
+        upi,
+        card,
+        bankTransfer,
+        otherPayment,
+      ]
+    );
+
+  /* ====================================================
+     PAYMENT TYPES
+  ==================================================== */
+
+  const paymentTypes =
+    useMemo(() => {
+
+      const values =
+        (report.details || [])
+          .map(
+            (bill) =>
+              bill?.payment_type
+          )
+          .filter(Boolean)
+          .map(
+            (value) =>
+              String(value)
+                .trim()
+                .toUpperCase()
+          );
+
+      return [
+        ...new Set(values),
+      ].sort();
+
+    }, [
+      report.details
+    ]);
+
+  /* ====================================================
      FILTER DETAILS
   ==================================================== */
 
-  const filteredDetails = useMemo(() => {
-    const keyword =
-      search.trim().toLowerCase();
+  const filteredDetails =
+    useMemo(() => {
 
-    if (!keyword) {
-      return report.details || [];
-    }
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
 
-    return (report.details || []).filter(
-      (bill) => {
-        return [
-          bill?.bill_no,
-          bill?.store_name,
-          bill?.payment_type,
-          bill?.created_by_name,
-          bill?.updated_by_name,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(keyword);
-      }
+      return (
+        report.details || []
+      ).filter(
+        (bill) => {
+
+          const status =
+            normalizeStatus(
+              bill?.status
+            );
+
+          const payment =
+            String(
+              bill?.payment_type ||
+                ""
+            )
+              .trim()
+              .toUpperCase();
+
+          const matchesSearch =
+            !keyword ||
+            [
+              bill?.bill_no,
+              bill?.store_name,
+              bill?.customer_name,
+              bill?.payment_type,
+              bill?.created_by_name,
+              bill?.updated_by_name,
+              bill?.transaction_reference,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(
+                keyword
+              );
+
+          const matchesStatus =
+            statusFilter ===
+              "ALL" ||
+            status ===
+              statusFilter;
+
+          const matchesPayment =
+            paymentFilter ===
+              "ALL" ||
+            payment ===
+              paymentFilter;
+
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesPayment
+          );
+        }
+      );
+
+    }, [
+      report.details,
+      search,
+      statusFilter,
+      paymentFilter,
+    ]);
+
+  /* ====================================================
+     FILTERED TOTAL
+  ==================================================== */
+
+  const filteredAmount =
+    useMemo(
+      () =>
+        filteredDetails.reduce(
+          (
+            total,
+            bill
+          ) =>
+            total +
+            Number(
+              bill?.grand_total ||
+                0
+            ),
+          0
+        ),
+      [
+        filteredDetails
+      ]
     );
-  }, [report.details, search]);
 
   /* ====================================================
      PAGINATION
   ==================================================== */
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      filteredDetails.length /
-        rowsPerPage
-    )
-  );
-
-  const safePage = Math.min(
-    page,
-    totalPages
-  );
-
-  const paginatedDetails = useMemo(() => {
-    const start =
-      (safePage - 1) *
-      rowsPerPage;
-
-    return filteredDetails.slice(
-      start,
-      start + rowsPerPage
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        filteredDetails.length /
+          ROWS_PER_PAGE
+      )
     );
+
+  const safePage =
+    Math.min(
+      page,
+      totalPages
+    );
+
+  const paginatedDetails =
+    useMemo(() => {
+
+      const start =
+        (safePage - 1) *
+        ROWS_PER_PAGE;
+
+      return filteredDetails.slice(
+        start,
+        start +
+          ROWS_PER_PAGE
+      );
+
+    }, [
+      filteredDetails,
+      safePage,
+    ]);
+
+  useEffect(() => {
+
+    if (
+      page >
+      totalPages
+    ) {
+      setPage(
+        totalPages
+      );
+    }
+
   }, [
-    filteredDetails,
-    safePage,
+    page,
+    totalPages,
   ]);
 
   /* ====================================================
-     PAYMENT BREAKDOWN
+     PRINT
   ==================================================== */
 
-  const paymentBreakdown = [
-    {
-      key: "cash",
-      label: "Cash",
-      value: cash,
-      icon: FaMoneyBillWave,
-    },
-    {
-      key: "upi",
-      label: "UPI",
-      value: upi,
-      icon: FaCreditCard,
-    },
-    {
-      key: "card",
-      label: "Card",
-      value: card,
-      icon: FaCreditCard,
-    },
-    {
-      key: "bank",
-      label: "Bank Transfer",
-      value: bankTransfer,
-      icon: FaUniversity,
-    },
-    {
-      key: "other",
-      label: "Other",
-      value: otherPayment,
-      icon: FaMoneyBillWave,
-    },
-  ];
+  const handlePrint =
+    () => {
 
-  /* ====================================================
-     PRINT REPORT
-  ==================================================== */
-
-  const handlePrint = () => {
-    window.print();
-  };
+      window.print();
+    };
 
   /* ====================================================
      CSV EXPORT
   ==================================================== */
 
-  const handleExportCSV = () => {
-    const rows = filteredDetails;
+  const handleExportCSV =
+    () => {
 
-    if (!rows.length) {
-      return;
-    }
-
-    const headers = [
-      "Bill No",
-      "Date",
-      "Store",
-      "Payment Type",
-      "Amount",
-      "Created By",
-      "Updated By",
-      "Status",
-    ];
-
-    const csvRows = rows.map(
-      (bill) => [
-        bill?.bill_no || "",
-        formatDate(
-          bill?.bill_date
-        ),
-        bill?.store_name || "",
-        bill?.payment_type || "",
-        Number(
-          bill?.grand_total || 0
-        ).toFixed(2),
-        bill?.created_by_name || "",
-        bill?.updated_by_name || "",
-        bill?.status || "",
-      ]
-    );
-
-    const csvContent = [
-      headers,
-      ...csvRows,
-    ]
-      .map((row) =>
-        row
-          .map((value) => {
-            const text = String(
-              value ?? ""
-            ).replace(/"/g, '""');
-
-            return `"${text}"`;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob(
-      [csvContent],
-      {
-        type: "text/csv;charset=utf-8;",
+      if (
+        !filteredDetails.length
+      ) {
+        return;
       }
-    );
 
-    const url =
-      URL.createObjectURL(blob);
+      const headers = [
+        "Bill No",
+        "Date",
+        "Time",
+        "Store",
+        "Customer",
+        "Payment Type",
+        "Transaction Reference",
+        "Amount",
+        "Created By",
+        "Updated By",
+        "Status",
+      ];
 
-    const link =
-      document.createElement("a");
+      const rows =
+        filteredDetails.map(
+          (bill) => [
+            bill?.bill_no ||
+              "",
+            formatDate(
+              bill?.bill_date ||
+                bill?.created_at
+            ),
+            formatTime(
+              bill?.bill_date ||
+                bill?.created_at
+            ),
+            bill?.store_name ||
+              "",
+            bill?.customer_name ||
+              "",
+            bill?.payment_type ||
+              "",
+            bill?.transaction_reference ||
+              "",
+            Number(
+              bill?.grand_total ||
+                0
+            ).toFixed(2),
+            bill?.created_by_name ||
+              bill?.created_by ||
+              "",
+            bill?.updated_by_name ||
+              bill?.updated_by ||
+              "",
+            bill?.status ||
+              "",
+          ]
+        );
 
-    link.href = url;
+      const csvContent =
+        [
+          headers,
+          ...rows,
+        ]
+          .map(
+            (row) =>
+              row
+                .map(
+                  csvValue
+                )
+                .join(",")
+          )
+          .join("\n");
 
-    link.download = `billing-report-${date}${
-      store ? `-store-${store}` : ""
-    }.csv`;
+      const blob =
+        new Blob(
+          [csvContent],
+          {
+            type:
+              "text/csv;charset=utf-8;",
+          }
+        );
 
-    document.body.appendChild(link);
+      const url =
+        URL.createObjectURL(
+          blob
+        );
 
-    link.click();
+      const link =
+        document.createElement(
+          "a"
+        );
 
-    document.body.removeChild(link);
+      link.href = url;
 
-    URL.revokeObjectURL(url);
-  };
+      link.download =
+        `billing-report-${date}${
+          store
+            ? `-store-${store}`
+            : ""
+        }.csv`;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+
+      URL.revokeObjectURL(
+        url
+      );
+    };
+
+  /* ====================================================
+     CLEAR FILTERS
+  ==================================================== */
+
+  const clearFilters =
+    () => {
+
+      setSearch("");
+
+      setStatusFilter(
+        "ALL"
+      );
+
+      setPaymentFilter(
+        "ALL"
+      );
+
+      setPage(1);
+    };
+
+  const hasFilters =
+    Boolean(search) ||
+    statusFilter !==
+      "ALL" ||
+    paymentFilter !==
+      "ALL";
 
   /* ====================================================
      RENDER
   ==================================================== */
 
   return (
-    <div className="billing-page billing-report-page">
+
+    <div
+      className="billing-page billing-report-page"
+    >
 
       {/* ==================================================
           HEADER
       ================================================== */}
 
-      <div className="billing-header">
+      <div
+        className="billing-header"
+      >
 
-        <div className="billing-header-left">
+        <div
+          className="billing-header-left"
+        >
 
-          <div className="billing-title-icon">
+          <div
+            className="billing-title-icon"
+          >
             <FaChartLine />
           </div>
 
           <div>
+
             <h1>
               Daily Billing Report
             </h1>
 
             <p>
-              Transaction-based daily sales
-              and payment summary.
+              Transaction-based daily
+              sales and payment summary.
             </p>
+
           </div>
 
         </div>
 
-        <div className="billing-header-actions">
+        <div
+          className="billing-header-actions"
+        >
 
           <button
             type="button"
@@ -526,6 +1016,7 @@ export default function DailyBillingReport() {
               refreshing
             }
           >
+
             <FaSyncAlt
               className={
                 refreshing
@@ -537,12 +1028,15 @@ export default function DailyBillingReport() {
             {refreshing
               ? "Refreshing..."
               : "Refresh"}
+
           </button>
 
           <button
             type="button"
             className="billing-secondary-btn"
-            onClick={handlePrint}
+            onClick={
+              handlePrint
+            }
             disabled={loading}
           >
             <FaPrint />
@@ -573,11 +1067,15 @@ export default function DailyBillingReport() {
       ================================================== */}
 
       {error && (
-        <div className="billing-alert billing-alert-error">
+
+        <div
+          className="billing-alert billing-alert-error"
+        >
 
           <FaExclamationTriangle />
 
           <div>
+
             <strong>
               Report Error
             </strong>
@@ -585,6 +1083,7 @@ export default function DailyBillingReport() {
             <span>
               {error}
             </span>
+
           </div>
 
           <button
@@ -597,20 +1096,27 @@ export default function DailyBillingReport() {
           </button>
 
         </div>
+
       )}
 
       {/* ==================================================
           FILTER CARD
       ================================================== */}
 
-      <div className="billing-card billing-report-filter-card">
+      <div
+        className="billing-card billing-report-filter-card"
+      >
 
-        <div className="billing-report-filter-heading">
+        <div
+          className="billing-report-filter-heading"
+        >
 
           <div>
+
             <FaFilter />
 
             <div>
+
               <strong>
                 Report Filters
               </strong>
@@ -619,10 +1125,15 @@ export default function DailyBillingReport() {
                 Select a date and store
                 to view transactions.
               </span>
+
             </div>
+
           </div>
 
-          <div className="billing-report-selected-date">
+          <div
+            className="billing-report-selected-date"
+          >
+
             <FaCalendarAlt />
 
             {date
@@ -631,18 +1142,25 @@ export default function DailyBillingReport() {
                 ).toLocaleDateString(
                   "en-IN",
                   {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
+                    weekday:
+                      "short",
+                    day:
+                      "2-digit",
+                    month:
+                      "short",
+                    year:
+                      "numeric",
                   }
                 )
               : "-"}
+
           </div>
 
         </div>
 
-        <div className="billing-grid billing-report-filters">
+        <div
+          className="billing-grid billing-report-filters"
+        >
 
           <label>
 
@@ -654,7 +1172,9 @@ export default function DailyBillingReport() {
             <input
               type="date"
               value={date}
-              onChange={(event) =>
+              onChange={(
+                event
+              ) =>
                 setDate(
                   event.target.value
                 )
@@ -672,7 +1192,9 @@ export default function DailyBillingReport() {
 
             <select
               value={store}
-              onChange={(event) =>
+              onChange={(
+                event
+              ) =>
                 setStore(
                   event.target.value
                 )
@@ -688,12 +1210,14 @@ export default function DailyBillingReport() {
 
               {stores.map(
                 (item) => (
+
                   <option
                     key={item.id}
                     value={item.id}
                   >
                     {item.store_name}
                   </option>
+
                 )
               )}
 
@@ -711,9 +1235,13 @@ export default function DailyBillingReport() {
 
       {loading ? (
 
-        <div className="billing-card billing-loading-card">
+        <div
+          className="billing-card billing-loading-card"
+        >
 
-          <div className="billing-loader" />
+          <div
+            className="billing-loader"
+          />
 
           <h3>
             Loading daily report...
@@ -730,19 +1258,27 @@ export default function DailyBillingReport() {
       ) : (
 
         <>
-          {/* ================================================
+
+          {/* ==================================================
               SUMMARY STATISTICS
-          ================================================= */}
+          ================================================== */}
 
-          <div className="billing-report-stats">
+          <div
+            className="billing-report-stats"
+          >
 
-            <div className="billing-report-stat-card">
+            <div
+              className="billing-report-stat-card"
+            >
 
-              <div className="billing-report-stat-icon">
+              <div
+                className="billing-report-stat-icon"
+              >
                 <FaFileInvoiceDollar />
               </div>
 
               <div>
+
                 <span>
                   Total Bills
                 </span>
@@ -754,17 +1290,23 @@ export default function DailyBillingReport() {
                 <small>
                   Transactions
                 </small>
+
               </div>
 
             </div>
 
-            <div className="billing-report-stat-card">
+            <div
+              className="billing-report-stat-card"
+            >
 
-              <div className="billing-report-stat-icon">
+              <div
+                className="billing-report-stat-icon"
+              >
                 <FaChartLine />
               </div>
 
               <div>
+
                 <span>
                   Gross Sales
                 </span>
@@ -778,17 +1320,23 @@ export default function DailyBillingReport() {
                 <small>
                   Before discount
                 </small>
+
               </div>
 
             </div>
 
-            <div className="billing-report-stat-card">
+            <div
+              className="billing-report-stat-card"
+            >
 
-              <div className="billing-report-stat-icon">
+              <div
+                className="billing-report-stat-icon"
+              >
                 <FaPercentage />
               </div>
 
               <div>
+
                 <span>
                   Discount
                 </span>
@@ -802,17 +1350,23 @@ export default function DailyBillingReport() {
                 <small>
                   Total discount
                 </small>
+
               </div>
 
             </div>
 
-            <div className="billing-report-stat-card billing-report-stat-highlight">
+            <div
+              className="billing-report-stat-card billing-report-stat-highlight"
+            >
 
-              <div className="billing-report-stat-icon">
+              <div
+                className="billing-report-stat-icon"
+              >
                 <FaCheckCircle />
               </div>
 
               <div>
+
                 <span>
                   Net Total
                 </span>
@@ -826,29 +1380,37 @@ export default function DailyBillingReport() {
                 <small>
                   Final billing amount
                 </small>
+
               </div>
 
             </div>
 
           </div>
 
-          {/* ================================================
-              TAX
-          ================================================= */}
+          {/* ==================================================
+              TAX / PAYMENT SUMMARY
+          ================================================== */}
 
-          <div className="billing-report-tax-card">
+          <div
+            className="billing-report-tax-card"
+          >
 
             <div>
+
               <span>
                 Total Tax
               </span>
 
               <strong>
-                {formatCurrency(tax)}
+                {formatCurrency(
+                  tax
+                )}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Payment Collected
               </span>
@@ -858,9 +1420,11 @@ export default function DailyBillingReport() {
                   paymentTotal
                 )}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Report Date
               </span>
@@ -870,19 +1434,39 @@ export default function DailyBillingReport() {
                   `${date}T00:00:00`
                 )}
               </strong>
+
+            </div>
+
+            <div>
+
+              <span>
+                Filtered Amount
+              </span>
+
+              <strong>
+                {formatCurrency(
+                  filteredAmount
+                )}
+              </strong>
+
             </div>
 
           </div>
 
-          {/* ================================================
+          {/* ==================================================
               PAYMENT BREAKDOWN
-          ================================================= */}
+          ================================================== */}
 
-          <div className="billing-card">
+          <div
+            className="billing-card"
+          >
 
-            <div className="billing-section-heading">
+            <div
+              className="billing-section-heading"
+            >
 
               <div>
+
                 <h2>
                   Payment Breakdown
                 </h2>
@@ -891,6 +1475,7 @@ export default function DailyBillingReport() {
                   Total amount collected
                   by payment method.
                 </p>
+
               </div>
 
               <strong>
@@ -901,23 +1486,29 @@ export default function DailyBillingReport() {
 
             </div>
 
-            <div className="billing-payment-grid billing-payment-grid-modern">
+            <div
+              className="billing-payment-grid billing-payment-grid-modern"
+            >
 
               {paymentBreakdown.map(
                 (payment) => {
+
                   const Icon =
                     payment.icon;
 
                   const percentage =
                     paymentTotal > 0
                       ? (
-                          (payment.value /
-                            paymentTotal) *
+                          (
+                            payment.value /
+                            paymentTotal
+                          ) *
                           100
                         ).toFixed(1)
-                      : 0;
+                      : "0.0";
 
                   return (
+
                     <div
                       className="billing-payment-card"
                       key={
@@ -925,9 +1516,13 @@ export default function DailyBillingReport() {
                       }
                     >
 
-                      <div className="billing-payment-card-top">
+                      <div
+                        className="billing-payment-card-top"
+                      >
 
-                        <div className="billing-payment-icon">
+                        <div
+                          className="billing-payment-icon"
+                        >
                           <Icon />
                         </div>
 
@@ -943,22 +1538,27 @@ export default function DailyBillingReport() {
                         )}
                       </strong>
 
-                      <div className="billing-payment-progress">
+                      <div
+                        className="billing-payment-progress"
+                      >
 
                         <span
                           style={{
-                            width: `${percentage}%`,
+                            width:
+                              `${percentage}%`,
                           }}
                         />
 
                       </div>
 
                       <small>
-                        {percentage}% of
-                        total
+                        {percentage}%
+                        {" "}
+                        of total
                       </small>
 
                     </div>
+
                   );
                 }
               )}
@@ -967,15 +1567,20 @@ export default function DailyBillingReport() {
 
           </div>
 
-          {/* ================================================
-              TRANSACTION DETAILS
-          ================================================= */}
+          {/* ==================================================
+              TRANSACTIONS
+          ================================================== */}
 
-          <div className="billing-card">
+          <div
+            className="billing-card"
+          >
 
-            <div className="billing-section-heading">
+            <div
+              className="billing-section-heading"
+            >
 
               <div>
+
                 <h2>
                   Transaction Details
                 </h2>
@@ -984,38 +1589,56 @@ export default function DailyBillingReport() {
                   Individual bills recorded
                   for this report.
                 </p>
+
               </div>
 
-              <div className="billing-result-count">
+              <div
+                className="billing-result-count"
+              >
+
                 <strong>
-                  {filteredDetails.length}
-                </strong>{" "}
+                  {
+                    filteredDetails.length
+                  }
+                </strong>
+
+                {" "}
                 transactions
+
               </div>
 
             </div>
 
-            {/* Search */}
+            {/* FILTER TOOLBAR */}
 
-            <div className="billing-toolbar billing-report-toolbar">
+            <div
+              className="billing-toolbar billing-report-toolbar"
+            >
 
-              <div className="billing-search-box">
+              <div
+                className="billing-search-box"
+              >
 
                 <FaSearch />
 
                 <input
                   type="text"
-                  placeholder="Search bill, store, payment or user..."
+                  placeholder="Search bill, store, customer or user..."
                   value={search}
-                  onChange={(event) => {
+                  onChange={(
+                    event
+                  ) => {
+
                     setSearch(
                       event.target.value
                     );
+
                     setPage(1);
                   }}
                 />
 
                 {search && (
+
                   <button
                     type="button"
                     onClick={() =>
@@ -1024,20 +1647,128 @@ export default function DailyBillingReport() {
                   >
                     ×
                   </button>
+
                 )}
 
               </div>
 
+              <div
+                className="billing-filter-select"
+              >
+
+                <FaFilter />
+
+                <select
+                  value={
+                    statusFilter
+                  }
+                  onChange={(
+                    event
+                  ) => {
+
+                    setStatusFilter(
+                      event.target.value
+                    );
+
+                    setPage(1);
+                  }}
+                >
+
+                  <option value="ALL">
+                    All Status
+                  </option>
+
+                  <option value="PAID">
+                    Paid
+                  </option>
+
+                  <option value="PENDING">
+                    Pending
+                  </option>
+
+                  <option value="CANCELLED">
+                    Cancelled
+                  </option>
+
+                </select>
+
+              </div>
+
+              <div
+                className="billing-filter-select"
+              >
+
+                <FaCreditCard />
+
+                <select
+                  value={
+                    paymentFilter
+                  }
+                  onChange={(
+                    event
+                  ) => {
+
+                    setPaymentFilter(
+                      event.target.value
+                    );
+
+                    setPage(1);
+                  }}
+                >
+
+                  <option value="ALL">
+                    All Payments
+                  </option>
+
+                  {paymentTypes.map(
+                    (payment) => (
+
+                      <option
+                        key={
+                          payment
+                        }
+                        value={
+                          payment
+                        }
+                      >
+                        {payment}
+                      </option>
+
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+              {hasFilters && (
+
+                <button
+                  type="button"
+                  className="billing-clear-btn"
+                  onClick={
+                    clearFilters
+                  }
+                >
+                  Clear Filters
+                </button>
+
+              )}
+
             </div>
 
-            {/* Empty */}
+            {/* EMPTY */}
 
             {filteredDetails.length ===
             0 ? (
 
-              <div className="billing-empty-card">
+              <div
+                className="billing-empty-card"
+              >
 
-                <div className="billing-empty-icon">
+                <div
+                  className="billing-empty-icon"
+                >
                   <FaFileInvoiceDollar />
                 </div>
 
@@ -1051,25 +1782,72 @@ export default function DailyBillingReport() {
                   the selected filters.
                 </p>
 
+                {hasFilters && (
+
+                  <button
+                    type="button"
+                    className="billing-secondary-btn"
+                    onClick={
+                      clearFilters
+                    }
+                  >
+                    Clear Filters
+                  </button>
+
+                )}
+
               </div>
 
             ) : (
 
-              <div className="billing-table-wrap">
+              <div
+                className="billing-table-wrap"
+              >
 
-                <table className="billing-table billing-report-table">
+                <table
+                  className="billing-table billing-report-table"
+                >
 
                   <thead>
 
                     <tr>
-                      <th>Time</th>
-                      <th>Bill No</th>
-                      <th>Store</th>
-                      <th>Payment</th>
-                      <th>Amount</th>
-                      <th>Created By</th>
-                      <th>Updated By</th>
-                      <th>Status</th>
+
+                      <th>
+                        Time
+                      </th>
+
+                      <th>
+                        Bill No
+                      </th>
+
+                      <th>
+                        Store
+                      </th>
+
+                      <th>
+                        Customer
+                      </th>
+
+                      <th>
+                        Payment
+                      </th>
+
+                      <th>
+                        Amount
+                      </th>
+
+                      <th>
+                        Created By
+                      </th>
+
+                      <th>
+                        Updated By
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
                     </tr>
 
                   </thead>
@@ -1079,16 +1857,35 @@ export default function DailyBillingReport() {
                     {paginatedDetails.map(
                       (bill) => {
 
+                        const statusConfig =
+                          getStatusConfig(
+                            bill?.status
+                          );
+
+                        const StatusIcon =
+                          statusConfig.icon;
+
+                        const PaymentIcon =
+                          getPaymentIcon(
+                            bill?.payment_type
+                          );
+
                         return (
+
                           <tr
                             key={
-                              bill?.id
+                              bill?.id ||
+                              bill?.bill_no
                             }
                           >
 
+                            {/* TIME */}
+
                             <td>
 
-                              <div className="billing-date-cell">
+                              <div
+                                className="billing-date-cell"
+                              >
 
                                 <strong>
                                   {formatTime(
@@ -1108,20 +1905,30 @@ export default function DailyBillingReport() {
 
                             </td>
 
+                            {/* BILL */}
+
                             <td>
 
-                              <strong className="billing-bill-number">
+                              <strong
+                                className="billing-bill-number"
+                              >
                                 {bill?.bill_no ||
                                   `#${bill?.id}`}
                               </strong>
 
                             </td>
 
+                            {/* STORE */}
+
                             <td>
 
-                              <div className="billing-table-user">
+                              <div
+                                className="billing-table-user"
+                              >
 
-                                <span className="billing-table-icon">
+                                <span
+                                  className="billing-table-icon"
+                                >
                                   <FaStore />
                                 </span>
 
@@ -1134,11 +1941,22 @@ export default function DailyBillingReport() {
 
                             </td>
 
+                            {/* CUSTOMER */}
+
+                            <td>
+                              {bill?.customer_name ||
+                                "-"}
+                            </td>
+
+                            {/* PAYMENT */}
+
                             <td>
 
-                              <span className="billing-payment-type">
+                              <span
+                                className="billing-payment-type"
+                              >
 
-                                <FaCreditCard />
+                                <PaymentIcon />
 
                                 {bill?.payment_type ||
                                   "-"}
@@ -1147,9 +1965,13 @@ export default function DailyBillingReport() {
 
                             </td>
 
+                            {/* AMOUNT */}
+
                             <td>
 
-                              <strong className="billing-amount">
+                              <strong
+                                className="billing-amount"
+                              >
                                 {formatCurrency(
                                   bill?.grand_total
                                 )}
@@ -1157,41 +1979,42 @@ export default function DailyBillingReport() {
 
                             </td>
 
+                            {/* CREATED */}
+
                             <td>
                               {bill?.created_by_name ||
+                                bill?.created_by ||
                                 "-"}
                             </td>
 
+                            {/* UPDATED */}
+
                             <td>
                               {bill?.updated_by_name ||
+                                bill?.updated_by ||
                                 "-"}
                             </td>
+
+                            {/* STATUS */}
 
                             <td>
 
                               <span
-                                className={`billing-status ${String(
-                                  bill?.status ||
-                                    "UNKNOWN"
-                                ).toLowerCase()}`}
+                                className={`billing-status ${statusConfig.className}`}
                               >
 
-                                {String(
-                                  bill?.status ||
-                                    "UNKNOWN"
-                                ).toUpperCase() ===
-                                "PAID" ? (
-                                  <FaCheckCircle />
-                                ) : null}
+                                <StatusIcon />
 
-                                {bill?.status ||
-                                  "Unknown"}
+                                {
+                                  statusConfig.label
+                                }
 
                               </span>
 
                             </td>
 
                           </tr>
+
                         );
                       }
                     )}
@@ -1204,14 +2027,16 @@ export default function DailyBillingReport() {
 
             )}
 
-            {/* ==============================================
+            {/* ==================================================
                 PAGINATION
-            =============================================== */}
+            ================================================== */}
 
             {filteredDetails.length >
-              rowsPerPage && (
+              ROWS_PER_PAGE && (
 
-              <div className="billing-pagination">
+              <div
+                className="billing-pagination"
+              >
 
                 <div>
 
@@ -1219,7 +2044,7 @@ export default function DailyBillingReport() {
 
                   <strong>
                     {(safePage - 1) *
-                      rowsPerPage +
+                      ROWS_PER_PAGE +
                       1}
                   </strong>
 
@@ -1228,7 +2053,7 @@ export default function DailyBillingReport() {
                   <strong>
                     {Math.min(
                       safePage *
-                        rowsPerPage,
+                        ROWS_PER_PAGE,
                       filteredDetails.length
                     )}
                   </strong>
@@ -1236,14 +2061,18 @@ export default function DailyBillingReport() {
                   {" "}of{" "}
 
                   <strong>
-                    {filteredDetails.length}
+                    {
+                      filteredDetails.length
+                    }
                   </strong>
 
                   {" "}transactions
 
                 </div>
 
-                <div className="billing-pagination-controls">
+                <div
+                  className="billing-pagination-controls"
+                >
 
                   <button
                     type="button"
@@ -1264,14 +2093,19 @@ export default function DailyBillingReport() {
                   </button>
 
                   <span>
+
                     Page{" "}
+
                     <strong>
                       {safePage}
-                    </strong>{" "}
-                    of{" "}
+                    </strong>
+
+                    {" "}of{" "}
+
                     <strong>
                       {totalPages}
                     </strong>
+
                   </span>
 
                   <button
@@ -1301,24 +2135,29 @@ export default function DailyBillingReport() {
 
           </div>
 
-          {/* ================================================
+          {/* ==================================================
               FOOTER
-          ================================================= */}
+          ================================================== */}
 
-          <div className="billing-report-footer">
+          <div
+            className="billing-report-footer"
+          >
 
             <FaCheckCircle />
 
             <span>
-              This report is generated directly
-              from billing transactions and
-              excludes cancelled bills according
+              This report is generated
+              directly from billing
+              transactions. Cancelled
+              bills are excluded from
+              the daily totals according
               to the billing report rules.
             </span>
 
           </div>
 
         </>
+
       )}
 
     </div>

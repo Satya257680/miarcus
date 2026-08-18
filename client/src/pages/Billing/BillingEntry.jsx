@@ -25,6 +25,8 @@ import {
   FaCheckCircle,
   FaTimes,
   FaCalculator,
+  FaSpinner,
+  FaReceipt,
 } from "react-icons/fa";
 
 import {
@@ -38,12 +40,7 @@ import "../../styles/Billing.css";
    CONSTANTS
 ====================================================== */
 
-const createBlankItem = () => ({
-  product_name: "",
-  quantity: 1,
-  rate: 0,
-  discount: 0,
-});
+const REQUEST_TIMEOUT = 30000;
 
 const PAYMENT_TYPES = [
   "Cash",
@@ -54,7 +51,18 @@ const PAYMENT_TYPES = [
 ];
 
 /* ======================================================
-   HELPERS
+   CREATE BLANK ITEM
+====================================================== */
+
+const createBlankItem = () => ({
+  product_name: "",
+  quantity: 1,
+  rate: 0,
+  discount: 0,
+});
+
+/* ======================================================
+   CURRENCY
 ====================================================== */
 
 const formatCurrency = (value) => {
@@ -67,6 +75,10 @@ const formatCurrency = (value) => {
     maximumFractionDigits: 2,
   }).format(amount);
 };
+
+/* ======================================================
+   CURRENT LOCAL DATE/TIME
+====================================================== */
 
 const getCurrentDateTime = () => {
   const now = new Date();
@@ -85,109 +97,240 @@ const getCurrentDateTime = () => {
 };
 
 /* ======================================================
+   ERROR MESSAGE
+====================================================== */
+
+const getErrorMessage = (
+  error
+) => {
+  if (
+    error?.code ===
+    "ECONNABORTED"
+  ) {
+    return (
+      "The billing request took too long. " +
+      "Please check whether the backend server is running."
+    );
+  }
+
+  if (
+    error?.response?.data?.message
+  ) {
+    return error.response.data.message;
+  }
+
+  if (
+    error?.response?.status === 401
+  ) {
+    return (
+      "Your session has expired. Please login again."
+    );
+  }
+
+  if (
+    error?.response?.status === 403
+  ) {
+    return (
+      "You do not have permission to create bills."
+    );
+  }
+
+  if (
+    error?.response?.status === 404
+  ) {
+    return (
+      "Billing API endpoint was not found. Check the backend route."
+    );
+  }
+
+  if (
+    error?.response?.status >= 500
+  ) {
+    return (
+      "The server encountered an error while creating the bill."
+    );
+  }
+
+  if (error?.message) {
+    return error.message;
+  }
+
+  return (
+    "Failed to create bill. Please try again."
+  );
+};
+
+/* ======================================================
    MAIN COMPONENT
 ====================================================== */
 
 export default function BillingEntry() {
-  const navigate = useNavigate();
+
+  const navigate =
+    useNavigate();
 
   /* ====================================================
      STATE
   ==================================================== */
 
-  const [stores, setStores] = useState([]);
+  const [
+    stores,
+    setStores
+  ] = useState([]);
 
-  const [storesLoading, setStoresLoading] =
-    useState(true);
+  const [
+    storesLoading,
+    setStoresLoading
+  ] = useState(true);
 
-  const [form, setForm] = useState({
+  const [
+    form,
+    setForm
+  ] = useState({
     bill_no: "",
     store_id: "",
     customer_name: "",
-    bill_date: getCurrentDateTime(),
+    bill_date:
+      getCurrentDateTime(),
     discount: 0,
     tax: 0,
     payment_type: "Cash",
     transaction_reference: "",
   });
 
-  const [items, setItems] = useState([
+  const [
+    items,
+    setItems
+  ] = useState([
     createBlankItem(),
   ]);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    saving,
+    setSaving
+  ] = useState(false);
 
-  const [message, setMessage] =
-    useState("");
+  const [
+    message,
+    setMessage
+  ] = useState("");
 
-  const [messageType, setMessageType] =
-    useState("");
+  const [
+    messageType,
+    setMessageType
+  ] = useState("");
 
-  const [errors, setErrors] =
-    useState({});
+  const [
+    errors,
+    setErrors
+  ] = useState({});
 
   /* ====================================================
      LOAD STORES
   ==================================================== */
 
   useEffect(() => {
-    const loadStores = async () => {
-      try {
-        setStoresLoading(true);
 
-        const response =
-          await getStores();
+    let mounted = true;
 
-        const storeData =
-          Array.isArray(
-            response?.data?.data
-          )
-            ? response.data.data
-            : [];
+    const loadStores =
+      async () => {
 
-        setStores(storeData);
-      } catch (error) {
-        console.error(
-          "Unable to load stores:",
-          error
-        );
+        try {
 
-        setStores([]);
+          setStoresLoading(
+            true
+          );
 
-        setMessage(
-          "Unable to load stores. Please refresh the page."
-        );
+          const response =
+            await getStores();
 
-        setMessageType("error");
-      } finally {
-        setStoresLoading(false);
-      }
-    };
+          if (!mounted) {
+            return;
+          }
+
+          const storeData =
+            Array.isArray(
+              response?.data?.data
+            )
+              ? response.data.data
+              : [];
+
+          setStores(
+            storeData
+          );
+
+        } catch (error) {
+
+          console.error(
+            "Unable to load stores:",
+            error
+          );
+
+          if (!mounted) {
+            return;
+          }
+
+          setStores([]);
+
+          setMessage(
+            getErrorMessage(
+              error
+            )
+          );
+
+          setMessageType(
+            "error"
+          );
+
+        } finally {
+
+          if (mounted) {
+            setStoresLoading(
+              false
+            );
+          }
+        }
+      };
 
     loadStores();
+
+    return () => {
+      mounted = false;
+    };
+
   }, []);
 
   /* ====================================================
      FORM UPDATE
   ==================================================== */
 
-  const updateForm = useCallback(
-    (field, value) => {
-      setForm((current) => ({
-        ...current,
-        [field]: value,
-      }));
+  const updateForm =
+    useCallback(
+      (
+        field,
+        value
+      ) => {
 
-      setErrors((current) => ({
-        ...current,
-        [field]: "",
-      }));
+        setForm(
+          (current) => ({
+            ...current,
+            [field]: value,
+          })
+        );
 
-      setMessage("");
-    },
-    []
-  );
+        setErrors(
+          (current) => ({
+            ...current,
+            [field]: "",
+          })
+        );
+
+        setMessage("");
+        setMessageType("");
+      },
+      []
+    );
 
   /* ====================================================
      ITEM UPDATE
@@ -198,23 +341,30 @@ export default function BillingEntry() {
     field,
     value
   ) => {
-    setItems((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item
-      )
+
+    setItems(
+      (current) =>
+        current.map(
+          (item, itemIndex) =>
+            itemIndex === index
+              ? {
+                  ...item,
+                  [field]: value,
+                }
+              : item
+        )
     );
 
-    setErrors((current) => ({
-      ...current,
-      items: "",
-    }));
+    setErrors(
+      (current) => ({
+        ...current,
+        items: "",
+        [`item_${index}`]: "",
+      })
+    );
 
     setMessage("");
+    setMessageType("");
   };
 
   /* ====================================================
@@ -222,26 +372,35 @@ export default function BillingEntry() {
   ==================================================== */
 
   const addItem = () => {
-    setItems((current) => [
-      ...current,
-      createBlankItem(),
-    ]);
+
+    setItems(
+      (current) => [
+        ...current,
+        createBlankItem(),
+      ]
+    );
   };
 
   /* ====================================================
      REMOVE ITEM
   ==================================================== */
 
-  const removeItem = (index) => {
-    if (items.length === 1) {
+  const removeItem = (
+    index
+  ) => {
+
+    if (
+      items.length === 1
+    ) {
       return;
     }
 
-    setItems((current) =>
-      current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index
-      )
+    setItems(
+      (current) =>
+        current.filter(
+          (_, itemIndex) =>
+            itemIndex !== index
+        )
     );
   };
 
@@ -249,131 +408,182 @@ export default function BillingEntry() {
      ITEM CALCULATIONS
   ==================================================== */
 
-  const itemCalculations = useMemo(() => {
-    return items.map((item) => {
-      const quantity =
-        Number(item.quantity) || 0;
+  const itemCalculations =
+    useMemo(() => {
 
-      const rate =
-        Number(item.rate) || 0;
+      return items.map(
+        (item) => {
 
-      const discount =
-        Number(item.discount) || 0;
+          const quantity =
+            Number(
+              item.quantity
+            ) || 0;
 
-      const gross =
-        quantity * rate;
+          const rate =
+            Number(
+              item.rate
+            ) || 0;
 
-      const amount = Math.max(
-        0,
-        gross - discount
+          const discount =
+            Number(
+              item.discount
+            ) || 0;
+
+          const gross =
+            quantity * rate;
+
+          const amount =
+            Math.max(
+              0,
+              gross - discount
+            );
+
+          return {
+            gross,
+            discount,
+            amount,
+          };
+        }
       );
 
-      return {
-        gross,
-        discount,
-        amount,
-      };
-    });
-  }, [items]);
+    }, [items]);
 
   /* ====================================================
      TOTALS
   ==================================================== */
 
-  const totals = useMemo(() => {
-    const grossSubtotal =
-      itemCalculations.reduce(
-        (sum, item) =>
-          sum + item.gross,
-        0
-      );
+  const totals =
+    useMemo(() => {
 
-    const itemDiscount =
-      itemCalculations.reduce(
-        (sum, item) =>
-          sum + item.discount,
-        0
-      );
+      const grossSubtotal =
+        itemCalculations.reduce(
+          (sum, item) =>
+            sum + item.gross,
+          0
+        );
 
-    const invoiceDiscount =
-      Number(form.discount) || 0;
+      const itemDiscount =
+        itemCalculations.reduce(
+          (sum, item) =>
+            sum + item.discount,
+          0
+        );
 
-    const totalDiscount =
-      itemDiscount +
-      invoiceDiscount;
+      const invoiceDiscount =
+        Math.max(
+          0,
+          Number(
+            form.discount
+          ) || 0
+        );
 
-    const tax =
-      Number(form.tax) || 0;
+      const totalDiscount =
+        itemDiscount +
+        invoiceDiscount;
 
-    const grandTotal = Math.max(
-      0,
-      grossSubtotal -
-        totalDiscount +
-        tax
-    );
+      const tax =
+        Math.max(
+          0,
+          Number(
+            form.tax
+          ) || 0
+        );
 
-    return {
-      grossSubtotal,
-      itemDiscount,
-      invoiceDiscount,
-      totalDiscount,
-      tax,
-      grandTotal,
-    };
-  }, [
-    itemCalculations,
-    form.discount,
-    form.tax,
-  ]);
+      const grandTotal =
+        Math.max(
+          0,
+          grossSubtotal -
+            totalDiscount +
+            tax
+        );
+
+      return {
+        grossSubtotal,
+        itemDiscount,
+        invoiceDiscount,
+        totalDiscount,
+        tax,
+        grandTotal,
+      };
+
+    }, [
+      itemCalculations,
+      form.discount,
+      form.tax,
+    ]);
 
   /* ====================================================
      VALIDATION
   ==================================================== */
 
-  const validateForm = () => {
-    const nextErrors = {};
+  const validateForm =
+    () => {
 
-    if (!form.bill_no.trim()) {
-      nextErrors.bill_no =
-        "Bill number is required.";
-    }
+      const nextErrors = {};
 
-    if (!form.store_id) {
-      nextErrors.store_id =
-        "Please select a store.";
-    }
+      if (
+        !form.bill_no.trim()
+      ) {
 
-    if (!form.bill_date) {
-      nextErrors.bill_date =
-        "Bill date is required.";
-    }
+        nextErrors.bill_no =
+          "Bill number is required.";
+      }
 
-    const validItems =
-      items.filter(
-        (item) =>
-          item.product_name.trim()
-      );
+      if (!form.store_id) {
 
-    if (!validItems.length) {
-      nextErrors.items =
-        "Add at least one product or service.";
-    }
+        nextErrors.store_id =
+          "Please select a store.";
+      }
 
-    items.forEach(
-      (item, index) => {
-        if (
-          item.product_name.trim()
-        ) {
+      if (!form.bill_date) {
+
+        nextErrors.bill_date =
+          "Bill date is required.";
+      }
+
+      const validItems =
+        items.filter(
+          (item) =>
+            item.product_name.trim()
+        );
+
+      if (
+        !validItems.length
+      ) {
+
+        nextErrors.items =
+          "Add at least one product or service.";
+      }
+
+      items.forEach(
+        (item, index) => {
+
+          if (
+            !item.product_name.trim()
+          ) {
+            return;
+          }
+
           const quantity =
-            Number(item.quantity);
+            Number(
+              item.quantity
+            );
 
           const rate =
-            Number(item.rate);
+            Number(
+              item.rate
+            );
+
+          const discount =
+            Number(
+              item.discount
+            );
 
           if (
             !quantity ||
             quantity <= 0
           ) {
+
             nextErrors[
               `item_${index}`
             ] =
@@ -381,72 +591,117 @@ export default function BillingEntry() {
           }
 
           if (
-            rate < 0 ||
-            Number.isNaN(rate)
+            Number.isNaN(
+              rate
+            ) ||
+            rate < 0
           ) {
+
             nextErrors[
               `item_${index}`
             ] =
               "Rate cannot be negative.";
           }
+
+          if (
+            Number.isNaN(
+              discount
+            ) ||
+            discount < 0
+          ) {
+
+            nextErrors[
+              `item_${index}`
+            ] =
+              "Discount cannot be negative.";
+          }
         }
+      );
+
+      const discount =
+        Number(
+          form.discount
+        ) || 0;
+
+      const tax =
+        Number(
+          form.tax
+        ) || 0;
+
+      if (
+        discount < 0
+      ) {
+
+        nextErrors.discount =
+          "Discount cannot be negative.";
       }
-    );
 
-    const discount =
-      Number(form.discount) || 0;
+      if (
+        tax < 0
+      ) {
 
-    const tax =
-      Number(form.tax) || 0;
+        nextErrors.tax =
+          "Tax cannot be negative.";
+      }
 
-    if (discount < 0) {
-      nextErrors.discount =
-        "Discount cannot be negative.";
-    }
+      if (
+        form.payment_type !==
+          "Cash" &&
+        !form.transaction_reference.trim()
+      ) {
 
-    if (tax < 0) {
-      nextErrors.tax =
-        "Tax cannot be negative.";
-    }
+        nextErrors.transaction_reference =
+          "Transaction reference is required for this payment type.";
+      }
 
-    if (
-      form.payment_type !== "Cash" &&
-      !form.transaction_reference.trim()
-    ) {
-      nextErrors.transaction_reference =
-        "Transaction reference is required for this payment type.";
-    }
+      setErrors(
+        nextErrors
+      );
 
-    setErrors(nextErrors);
-
-    return (
-      Object.keys(nextErrors).length === 0
-    );
-  };
+      return (
+        Object.keys(
+          nextErrors
+        ).length === 0
+      );
+    };
 
   /* ====================================================
-     SUBMIT BILL
+     CREATE BILL
   ==================================================== */
 
-  const submit = async (event) => {
+  const submit = async (
+    event
+  ) => {
+
     event.preventDefault();
 
+    if (saving) {
+      return;
+    }
+
     if (!validateForm()) {
+
       setMessage(
         "Please correct the highlighted fields."
       );
 
-      setMessageType("error");
+      setMessageType(
+        "error"
+      );
 
       return;
     }
 
     try {
+
       setSaving(true);
 
       setMessage("");
-
       setMessageType("");
+
+      /* ----------------------------------------------
+         PREPARE ITEMS
+      ---------------------------------------------- */
 
       const validItems =
         items
@@ -454,89 +709,174 @@ export default function BillingEntry() {
             (item) =>
               item.product_name.trim()
           )
-          .map((item, index) => {
-            const quantity =
-              Number(
-                item.quantity
-              ) || 0;
+          .map(
+            (item) => {
 
-            const rate =
-              Number(item.rate) || 0;
+              const quantity =
+                Number(
+                  item.quantity
+                ) || 0;
 
-            const discount =
-              Number(
-                item.discount
-              ) || 0;
+              const rate =
+                Number(
+                  item.rate
+                ) || 0;
 
-            const gross =
-              quantity * rate;
+              const discount =
+                Number(
+                  item.discount
+                ) || 0;
 
-            const amount = Math.max(
-              0,
-              gross - discount
-            );
+              const gross =
+                quantity * rate;
 
-            return {
-              product_name:
-                item.product_name.trim(),
+              const amount =
+                Math.max(
+                  0,
+                  gross - discount
+                );
 
-              quantity,
+              return {
+                product_name:
+                  item.product_name.trim(),
 
-              rate,
+                quantity,
 
-              discount,
+                rate,
 
-              amount,
-            };
-          });
+                discount,
+
+                amount,
+              };
+            }
+          );
+
+      /* ----------------------------------------------
+         PAYLOAD
+      ---------------------------------------------- */
 
       const payload = {
-        ...form,
+        bill_no:
+          form.bill_no.trim(),
+
+        store_id:
+          form.store_id,
+
+        customer_name:
+          form.customer_name.trim(),
+
+        bill_date:
+          form.bill_date,
 
         subtotal:
-          totals.grossSubtotal,
+          Number(
+            totals.grossSubtotal
+          ),
 
         discount:
-          totals.totalDiscount,
+          Number(
+            totals.totalDiscount
+          ),
 
         tax:
-          totals.tax,
+          Number(
+            totals.tax
+          ),
 
         grand_total:
-          totals.grandTotal,
+          Number(
+            totals.grandTotal
+          ),
+
+        payment_type:
+          form.payment_type,
 
         payment_amount:
-          totals.grandTotal,
+          Number(
+            totals.grandTotal
+          ),
 
-        items: validItems,
+        transaction_reference:
+          form.transaction_reference.trim(),
+
+        items:
+          validItems,
       };
 
-      await createBill(payload);
+      console.log(
+        "Creating billing payload:",
+        payload
+      );
+
+      /* ----------------------------------------------
+         CREATE BILL
+      ---------------------------------------------- */
+
+      const response =
+        await createBill(
+          payload
+        );
+
+      console.log(
+        "Billing API response:",
+        response
+      );
+
+      /* ----------------------------------------------
+         SUCCESS
+      ---------------------------------------------- */
+
+      if (
+        response?.data?.success ===
+        false
+      ) {
+
+        throw new Error(
+          response?.data?.message ||
+          "Unable to create bill."
+        );
+      }
 
       setMessage(
+        response?.data?.message ||
         "Bill created successfully."
       );
 
-      setMessageType("success");
+      setMessageType(
+        "success"
+      );
+
+      /* ----------------------------------------------
+         REDIRECT
+      ---------------------------------------------- */
 
       setTimeout(() => {
-        navigate("/billing/bills");
+
+        navigate(
+          "/billing/bills"
+        );
+
       }, 900);
+
     } catch (error) {
+
       console.error(
         "Create billing error:",
         error
       );
 
       setMessage(
-        error?.response?.data
-          ?.message ||
-          error?.message ||
-          "Failed to create bill. Please try again."
+        getErrorMessage(
+          error
+        )
       );
 
-      setMessageType("error");
+      setMessageType(
+        "error"
+      );
+
     } finally {
+
       setSaving(false);
     }
   };
@@ -545,54 +885,87 @@ export default function BillingEntry() {
      CANCEL
   ==================================================== */
 
-  const handleCancel = () => {
-    if (saving) {
-      return;
-    }
+  const handleCancel =
+    () => {
 
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to leave this billing entry? Unsaved changes will be lost."
-      );
+      if (saving) {
+        return;
+      }
 
-    if (confirmed) {
-      navigate("/billing/bills");
-    }
-  };
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to leave this billing entry? Unsaved changes will be lost."
+        );
+
+      if (
+        confirmed
+      ) {
+
+        navigate(
+          "/billing/bills"
+        );
+      }
+    };
 
   /* ====================================================
      PAYMENT ICON
   ==================================================== */
 
-  const getPaymentIcon = (
-    paymentType
-  ) => {
-    switch (paymentType) {
-      case "Cash":
-        return <FaMoneyBillWave />;
+  const getPaymentIcon =
+    (paymentType) => {
 
-      case "Bank Transfer":
-        return <FaUniversity />;
+      switch (
+        paymentType
+      ) {
 
-      default:
-        return <FaCreditCard />;
-    }
-  };
+        case "Cash":
+          return (
+            <FaMoneyBillWave />
+          );
+
+        case "Bank Transfer":
+          return (
+            <FaUniversity />
+          );
+
+        case "UPI":
+          return (
+            <FaCreditCard />
+          );
+
+        case "Card":
+          return (
+            <FaCreditCard />
+          );
+
+        default:
+          return (
+            <FaCreditCard />
+          );
+      }
+    };
 
   /* ====================================================
      RENDER
   ==================================================== */
 
   return (
-    <div className="billing-page billing-entry-page">
+
+    <div
+      className="billing-page billing-entry-page"
+    >
 
       {/* ==================================================
           HEADER
       ================================================== */}
 
-      <div className="billing-header">
+      <div
+        className="billing-header"
+      >
 
-        <div className="billing-header-left">
+        <div
+          className="billing-header-left"
+        >
 
           <button
             type="button"
@@ -608,11 +981,14 @@ export default function BillingEntry() {
             <FaArrowLeft />
           </button>
 
-          <div className="billing-title-icon">
+          <div
+            className="billing-title-icon"
+          >
             <FaFileInvoiceDollar />
           </div>
 
           <div>
+
             <h1>
               Billing Entry
             </h1>
@@ -621,6 +997,7 @@ export default function BillingEntry() {
               Create a new customer
               bill and payment record.
             </p>
+
           </div>
 
         </div>
@@ -632,6 +1009,7 @@ export default function BillingEntry() {
       ================================================== */}
 
       {message && (
+
         <div
           className={`billing-alert ${
             messageType ===
@@ -649,16 +1027,18 @@ export default function BillingEntry() {
           )}
 
           <div>
+
             <strong>
               {messageType ===
               "success"
                 ? "Success"
-                : "Please check the form"}
+                : "Billing Error"}
             </strong>
 
             <span>
               {message}
             </span>
+
           </div>
 
           <button
@@ -687,11 +1067,16 @@ export default function BillingEntry() {
             BILL INFORMATION
         ================================================== */}
 
-        <div className="billing-section">
+        <div
+          className="billing-section"
+        >
 
-          <div className="billing-section-title">
+          <div
+            className="billing-section-title"
+          >
 
             <div>
+
               <h3>
                 Bill Information
               </h3>
@@ -700,13 +1085,16 @@ export default function BillingEntry() {
                 Enter the basic details
                 for this transaction.
               </p>
+
             </div>
 
           </div>
 
-          <div className="billing-grid">
+          <div
+            className="billing-grid"
+          >
 
-            {/* Bill Number */}
+            {/* BILL NO */}
 
             <label
               className={
@@ -735,6 +1123,7 @@ export default function BillingEntry() {
                     event.target.value
                   )
                 }
+                disabled={saving}
               />
 
               {errors.bill_no && (
@@ -745,7 +1134,7 @@ export default function BillingEntry() {
 
             </label>
 
-            {/* Store */}
+            {/* STORE */}
 
             <label
               className={
@@ -786,16 +1175,14 @@ export default function BillingEntry() {
 
                 {stores.map(
                   (store) => (
+
                     <option
                       key={store.id}
-                      value={
-                        store.id
-                      }
+                      value={store.id}
                     >
-                      {
-                        store.store_name
-                      }
+                      {store.store_name}
                     </option>
+
                   )
                 )}
 
@@ -809,7 +1196,7 @@ export default function BillingEntry() {
 
             </label>
 
-            {/* Customer */}
+            {/* CUSTOMER */}
 
             <label>
 
@@ -830,11 +1217,12 @@ export default function BillingEntry() {
                     event.target.value
                   )
                 }
+                disabled={saving}
               />
 
             </label>
 
-            {/* Date */}
+            {/* DATE */}
 
             <label
               className={
@@ -862,6 +1250,7 @@ export default function BillingEntry() {
                     event.target.value
                   )
                 }
+                disabled={saving}
               />
 
               {errors.bill_date && (
@@ -880,11 +1269,16 @@ export default function BillingEntry() {
             BILL ITEMS
         ================================================== */}
 
-        <div className="billing-section">
+        <div
+          className="billing-section"
+        >
 
-          <div className="billing-section-title">
+          <div
+            className="billing-section-title"
+          >
 
             <div>
+
               <h3>
                 Bill Items
               </h3>
@@ -893,6 +1287,7 @@ export default function BillingEntry() {
                 Add products or services
                 included in this bill.
               </p>
+
             </div>
 
             <button
@@ -908,15 +1303,21 @@ export default function BillingEntry() {
           </div>
 
           {errors.items && (
-            <div className="billing-inline-error">
+
+            <div
+              className="billing-inline-error"
+            >
               <FaExclamationTriangle />
               {errors.items}
             </div>
+
           )}
 
-          {/* Item Header */}
+          {/* ITEM HEADER */}
 
-          <div className="billing-item-header">
+          <div
+            className="billing-item-header"
+          >
 
             <span>
               Product / Service
@@ -942,18 +1343,25 @@ export default function BillingEntry() {
 
           </div>
 
-          {/* Items */}
+          {/* ITEMS */}
 
-          <div className="billing-items-list">
+          <div
+            className="billing-items-list"
+          >
 
             {items.map(
-              (item, index) => {
+              (
+                item,
+                index
+              ) => {
+
                 const calculation =
                   itemCalculations[
                     index
                   ];
 
                 return (
+
                   <div
                     className={`billing-item-row ${
                       errors[
@@ -965,9 +1373,11 @@ export default function BillingEntry() {
                     key={index}
                   >
 
-                    {/* Product */}
+                    {/* PRODUCT */}
 
-                    <div className="billing-item-product">
+                    <div
+                      className="billing-item-product"
+                    >
 
                       <input
                         type="text"
@@ -975,14 +1385,11 @@ export default function BillingEntry() {
                         value={
                           item.product_name
                         }
-                        onChange={(
-                          event
-                        ) =>
+                        onChange={(event) =>
                           updateItem(
                             index,
                             "product_name",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         disabled={saving}
@@ -990,7 +1397,7 @@ export default function BillingEntry() {
 
                     </div>
 
-                    {/* Quantity */}
+                    {/* QUANTITY */}
 
                     <div>
 
@@ -1001,14 +1408,11 @@ export default function BillingEntry() {
                         value={
                           item.quantity
                         }
-                        onChange={(
-                          event
-                        ) =>
+                        onChange={(event) =>
                           updateItem(
                             index,
                             "quantity",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         disabled={saving}
@@ -1016,7 +1420,7 @@ export default function BillingEntry() {
 
                     </div>
 
-                    {/* Rate */}
+                    {/* RATE */}
 
                     <div>
 
@@ -1027,14 +1431,11 @@ export default function BillingEntry() {
                         value={
                           item.rate
                         }
-                        onChange={(
-                          event
-                        ) =>
+                        onChange={(event) =>
                           updateItem(
                             index,
                             "rate",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         disabled={saving}
@@ -1042,7 +1443,7 @@ export default function BillingEntry() {
 
                     </div>
 
-                    {/* Item Discount */}
+                    {/* ITEM DISCOUNT */}
 
                     <div>
 
@@ -1053,14 +1454,11 @@ export default function BillingEntry() {
                         value={
                           item.discount
                         }
-                        onChange={(
-                          event
-                        ) =>
+                        onChange={(event) =>
                           updateItem(
                             index,
                             "discount",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         disabled={saving}
@@ -1068,15 +1466,17 @@ export default function BillingEntry() {
 
                     </div>
 
-                    {/* Amount */}
+                    {/* AMOUNT */}
 
-                    <div className="billing-item-amount">
+                    <div
+                      className="billing-item-amount"
+                    >
                       {formatCurrency(
                         calculation.amount
                       )}
                     </div>
 
-                    {/* Remove */}
+                    {/* DELETE */}
 
                     <button
                       type="button"
@@ -1099,13 +1499,17 @@ export default function BillingEntry() {
                     {errors[
                       `item_${index}`
                     ] && (
-                      <small className="billing-item-error-message">
+
+                      <small
+                        className="billing-item-error-message"
+                      >
                         {
                           errors[
                             `item_${index}`
                           ]
                         }
                       </small>
+
                     )}
 
                   </div>
@@ -1115,9 +1519,11 @@ export default function BillingEntry() {
 
           </div>
 
-          {/* Item subtotal */}
+          {/* ITEM SUBTOTAL */}
 
-          <div className="billing-items-summary">
+          <div
+            className="billing-items-summary"
+          >
 
             <span>
               Items Subtotal
@@ -1134,14 +1540,19 @@ export default function BillingEntry() {
         </div>
 
         {/* ==================================================
-            PAYMENT & ADJUSTMENTS
+            PAYMENT
         ================================================== */}
 
-        <div className="billing-section">
+        <div
+          className="billing-section"
+        >
 
-          <div className="billing-section-title">
+          <div
+            className="billing-section-title"
+          >
 
             <div>
+
               <h3>
                 Payment & Adjustments
               </h3>
@@ -1151,13 +1562,16 @@ export default function BillingEntry() {
                 and select the payment
                 method.
               </p>
+
             </div>
 
           </div>
 
-          <div className="billing-grid">
+          <div
+            className="billing-grid"
+          >
 
-            {/* Discount */}
+            {/* DISCOUNT */}
 
             <label
               className={
@@ -1195,7 +1609,7 @@ export default function BillingEntry() {
 
             </label>
 
-            {/* Tax */}
+            {/* TAX */}
 
             <label
               className={
@@ -1233,7 +1647,7 @@ export default function BillingEntry() {
 
             </label>
 
-            {/* Payment Type */}
+            {/* PAYMENT TYPE */}
 
             <label>
 
@@ -1257,12 +1671,14 @@ export default function BillingEntry() {
 
                 {PAYMENT_TYPES.map(
                   (type) => (
+
                     <option
                       key={type}
                       value={type}
                     >
                       {type}
                     </option>
+
                   )
                 )}
 
@@ -1270,7 +1686,7 @@ export default function BillingEntry() {
 
             </label>
 
-            {/* Reference */}
+            {/* REFERENCE */}
 
             <label
               className={
@@ -1281,6 +1697,7 @@ export default function BillingEntry() {
             >
 
               <span>
+
                 {getPaymentIcon(
                   form.payment_type
                 )}
@@ -1291,6 +1708,7 @@ export default function BillingEntry() {
                   "Cash" && (
                   <em>*</em>
                 )}
+
               </span>
 
               <input
@@ -1331,15 +1749,22 @@ export default function BillingEntry() {
             TOTAL SUMMARY
         ================================================== */}
 
-        <div className="billing-total-panel">
+        <div
+          className="billing-total-panel"
+        >
 
-          <div className="billing-total-icon">
+          <div
+            className="billing-total-icon"
+          >
             <FaCalculator />
           </div>
 
-          <div className="billing-total-breakdown">
+          <div
+            className="billing-total-breakdown"
+          >
 
             <div>
+
               <span>
                 Subtotal
               </span>
@@ -1349,35 +1774,45 @@ export default function BillingEntry() {
                   totals.grossSubtotal
                 )}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Item Discount
               </span>
 
-              <strong className="billing-discount-value">
+              <strong
+                className="billing-discount-value"
+              >
                 -
                 {formatCurrency(
                   totals.itemDiscount
                 )}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Bill Discount
               </span>
 
-              <strong className="billing-discount-value">
+              <strong
+                className="billing-discount-value"
+              >
                 -
                 {formatCurrency(
                   totals.invoiceDiscount
                 )}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Tax
               </span>
@@ -1388,9 +1823,12 @@ export default function BillingEntry() {
                   totals.tax
                 )}
               </strong>
+
             </div>
 
-            <div className="billing-grand-total-row">
+            <div
+              className="billing-grand-total-row"
+            >
 
               <span>
                 Grand Total
@@ -1412,7 +1850,9 @@ export default function BillingEntry() {
             ACTIONS
         ================================================== */}
 
-        <div className="billing-actions">
+        <div
+          className="billing-actions"
+        >
 
           <button
             type="button"
@@ -1436,15 +1876,22 @@ export default function BillingEntry() {
           >
 
             {saving ? (
+
               <>
-                <span className="billing-button-spinner" />
-                Saving Bill...
+                <FaSpinner
+                  className="billing-spin"
+                />
+
+                Creating Bill...
               </>
+
             ) : (
+
               <>
                 <FaSave />
                 Create Bill
               </>
+
             )}
 
           </button>

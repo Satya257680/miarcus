@@ -18,7 +18,7 @@ const permissionMiddleware = require(
    CONTROLLER
 ====================================================== */
 
-const controller = require(
+const billingController = require(
     "../controllers/billingController"
 );
 
@@ -26,20 +26,49 @@ const controller = require(
    BILLING PERMISSIONS
 ====================================================== */
 
-const view = permissionMiddleware(
-    "Billing",
-    "View"
-);
+const canViewBilling =
+    permissionMiddleware(
+        "Billing",
+        "View"
+    );
 
-const add = permissionMiddleware(
-    "Billing",
-    "Add"
-);
+const canAddBilling =
+    permissionMiddleware(
+        "Billing",
+        "Add"
+    );
 
-const edit = permissionMiddleware(
-    "Billing",
-    "Edit"
-);
+const canEditBilling =
+    permissionMiddleware(
+        "Billing",
+        "Edit"
+    );
+
+/* ======================================================
+   BILLING ROUTES
+====================================================== */
+
+/*
+    IMPORTANT ROUTE ORDER
+
+    Specific routes MUST come before:
+
+        /:id
+
+    Otherwise Express could interpret:
+
+        /reports/daily
+
+    as:
+
+        /:id
+
+    and:
+
+        /audit/123
+
+    incorrectly.
+*/
 
 /* ======================================================
    DAILY REPORT
@@ -51,17 +80,15 @@ const edit = permissionMiddleware(
  * Permission:
  * Billing → View
  *
- * Example:
- *
- * /api/billing/reports/daily?date=2026-08-18
- *
- * /api/billing/reports/daily?date=2026-08-18&store_id=2
+ * Query:
+ * ?date=2026-08-18
+ * ?date=2026-08-18&store_id=2
  */
 router.get(
     "/reports/daily",
     authMiddleware,
-    view,
-    controller.dailyReport
+    canViewBilling,
+    billingController.dailyReport
 );
 
 /* ======================================================
@@ -78,16 +105,16 @@ router.get(
  * - CREATE
  * - UPDATE
  * - CANCEL
- * - Changed By
  * - Old Data
  * - New Data
+ * - Changed By
  * - Date / Time
  */
 router.get(
     "/audit/:billId",
     authMiddleware,
-    view,
-    controller.audit
+    canViewBilling,
+    billingController.audit
 );
 
 /* ======================================================
@@ -110,34 +137,8 @@ router.get(
 router.get(
     "/",
     authMiddleware,
-    view,
-    controller.getBills
-);
-
-/* ======================================================
-   GET SINGLE BILL
-====================================================== */
-
-/**
- * GET /api/billing/:id
- *
- * Permission:
- * Billing → View
- *
- * Returns:
- * - Bill information
- * - Store
- * - Customer
- * - Items
- * - Payments
- * - Created By
- * - Updated By
- */
-router.get(
-    "/:id",
-    authMiddleware,
-    view,
-    controller.getBillById
+    canViewBilling,
+    billingController.getBills
 );
 
 /* ======================================================
@@ -159,8 +160,8 @@ router.get(
 router.post(
     "/",
     authMiddleware,
-    add,
-    controller.createBill
+    canAddBilling,
+    billingController.createBill
 );
 
 /* ======================================================
@@ -175,15 +176,15 @@ router.post(
  *
  * Updates:
  * - Bill
- * - Items
+ * - Bill Items
  * - Payment
  * - UPDATE Audit
  */
 router.put(
     "/:id",
     authMiddleware,
-    edit,
-    controller.updateBill
+    canEditBilling,
+    billingController.updateBill
 );
 
 /* ======================================================
@@ -196,21 +197,50 @@ router.put(
  * Permission:
  * Billing → Edit
  *
- * IMPORTANT:
- * This performs a soft delete.
+ * This is a SOFT CANCEL.
  *
- * The bill remains in the database
- * with:
+ * The database record remains.
  *
- * status = CANCELLED
+ * Status:
  *
- * and an audit record is created.
+ *     CANCELLED
+ *
+ * An audit record is also created.
  */
 router.post(
     "/:id/cancel",
     authMiddleware,
-    edit,
-    controller.cancelBill
+    canEditBilling,
+    billingController.cancelBill
+);
+
+/* ======================================================
+   GET SINGLE BILL
+====================================================== */
+
+/**
+ * GET /api/billing/:id
+ *
+ * Permission:
+ * Billing → View
+ *
+ * Returns:
+ * - Bill
+ * - Store
+ * - Customer
+ * - Items
+ * - Payments
+ * - Created By
+ * - Updated By
+ *
+ * IMPORTANT:
+ * This route stays AFTER all specific routes.
+ */
+router.get(
+    "/:id",
+    authMiddleware,
+    canViewBilling,
+    billingController.getBillById
 );
 
 /* ======================================================

@@ -2199,29 +2199,830 @@ pre {
 }
 
 /* ======================================================
-   DARK THEME SUPPORT
+   MIARCUS BILLING
+   FINAL THEME + RESPONSIVE + INTERACTION OVERRIDES
 ====================================================== */
 
-[data-theme="dark"] .billing-card,
-.dark .billing-card {
-  background: var(--card-bg, #17262b);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #e4eef0;
-  box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.2);
+/* ======================================================
+   LIGHT THEME VARIABLES
+====================================================== */
+
+:root {
+  --billing-primary: #246b7a;
+  --billing-primary-hover: #1d5b68;
+
+  --billing-bg: #f4f7f8;
+  --billing-card: #ffffff;
+  --billing-input: #ffffff;
+  --billing-soft: #f7fafb;
+
+  --billing-text: #243a42;
+  --billing-muted: #788a91;
+
+  --billing-border: #dce5e8;
+  --billing-border-light: #edf1f2;
+
+  --billing-success: #267447;
+  --billing-warning: #96712b;
+  --billing-danger: #b44343;
+
+  --billing-shadow:
+    0 8px 28px rgba(28, 52, 60, 0.06);
 }
 
-[data-theme="dark"] .billing-grid input,
-[data-theme="dark"] .billing-grid select,
-[data-theme="dark"] .billing-toolbar input,
-[data-theme="dark"] .billing-item-row input,
-.dark .billing-grid input,
-.dark .billing-grid select,
-.dark .billing-toolbar input,
-.dark .billing-item-row input {
-  background: #132126;
-  border-color: #34484e;
-  color: #e7f0f2;
+/* ======================================================
+   DARK THEME VARIABLES
+====================================================== */
+
+[data-theme="dark"],
+.dark {
+  --billing-primary: #4fa5b4;
+  --billing-primary-hover: #63b6c4;
+
+  --billing-bg: #0f1b1f;
+  --billing-card: #17262b;
+  --billing-input: #132126;
+  --billing-soft: #1a2b30;
+
+  --billing-text: #e4eef0;
+  --billing-muted: #9aadb2;
+
+  --billing-border: #34484e;
+  --billing-border-light: #293c42;
+
+  --billing-success: #65c58c;
+  --billing-warning: #e4bd63;
+  --billing-danger: #e97979;
+
+  --billing-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* ======================================================
+   PAGE
+====================================================== */
+
+.billing-page {
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   CARDS
+====================================================== */
+
+.billing-card,
+.billing-summary-card,
+.billing-report-stat-card,
+.billing-audit-content {
+  background: var(--billing-card);
+  border-color: var(--billing-border);
+  color: var(--billing-text);
+  box-shadow: var(--billing-shadow);
+}
+
+/* ======================================================
+   HEADER
+====================================================== */
+
+.billing-header h1 {
+  color: var(--billing-text);
+}
+
+.billing-header p {
+  color: var(--billing-muted);
+}
+
+.billing-title-icon {
+  background:
+    linear-gradient(
+      135deg,
+      var(--billing-primary),
+      #3f8c99
+    );
+}
+
+/* ======================================================
+   BACK BUTTON
+====================================================== */
+
+.billing-back-btn {
+  background: var(--billing-card);
+  border-color: var(--billing-border);
+  color: var(--billing-text);
+}
+
+.billing-back-btn:hover {
+  background: var(--billing-soft);
+}
+
+/* ======================================================
+   PRIMARY BUTTON
+====================================================== */
+
+.billing-primary,
+.billing-primary-btn,
+.billing-primary-link {
+  background:
+    linear-gradient(
+      135deg,
+      var(--billing-primary),
+      #327e8c
+    );
+  color: #ffffff;
+}
+
+.billing-primary:hover,
+.billing-primary-btn:hover,
+.billing-primary-link:hover {
+  background:
+    linear-gradient(
+      135deg,
+      var(--billing-primary-hover),
+      var(--billing-primary)
+    );
+}
+
+/* ======================================================
+   SECONDARY BUTTON
+====================================================== */
+
+.billing-secondary,
+.billing-secondary-btn {
+  background: var(--billing-card);
+  border-color: var(--billing-border);
+  color: var(--billing-text);
+}
+
+.billing-secondary:hover,
+.billing-secondary-btn:hover {
+  background: var(--billing-soft);
+  border-color: var(--billing-primary);
+}
+
+/* ======================================================
+   FORM INPUTS
+====================================================== */
+
+.billing-grid input,
+.billing-grid select,
+.billing-toolbar input,
+.billing-item-row input,
+.billing-filter-select select {
+  background: var(--billing-input);
+  border-color: var(--billing-border);
+  color: var(--billing-text);
+}
+
+.billing-grid input::placeholder,
+.billing-toolbar input::placeholder,
+.billing-item-row input::placeholder {
+  color: var(--billing-muted);
+}
+
+.billing-grid input:focus,
+.billing-grid select:focus,
+.billing-toolbar input:focus,
+.billing-item-row input:focus,
+.billing-filter-select select:focus {
+  border-color: var(--billing-primary);
+  box-shadow:
+    0 0 0 3px
+    rgba(50, 125, 139, 0.12);
+}
+
+/* ======================================================
+   SELECT OPTIONS
+====================================================== */
+
+.billing-grid select option,
+.billing-filter-select select option {
+  background: var(--billing-card);
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   BILL ITEMS
+====================================================== */
+
+.billing-item-row {
+  background: var(--billing-soft);
+  border-color: var(--billing-border);
+}
+
+.billing-item-row:hover {
+  background: var(--billing-card);
+  border-color: var(--billing-primary);
+}
+
+.billing-item-amount {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   DELETE ITEM
+====================================================== */
+
+.billing-icon-button,
+.billing-delete-item {
+  color: var(--billing-danger);
+}
+
+.billing-icon-button {
+  background: rgba(180, 63, 63, 0.06);
+  border-color: rgba(180, 63, 63, 0.20);
+}
+
+.billing-icon-button:hover {
+  background: rgba(180, 63, 63, 0.12);
+}
+
+/* ======================================================
+   TOTAL PANEL
+====================================================== */
+
+.billing-total-panel {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(50, 125, 139, 0.10),
+      var(--billing-card)
+    );
+
+  border-color:
+    rgba(50, 125, 139, 0.25);
+}
+
+.billing-total-breakdown > div {
+  color: var(--billing-muted);
+}
+
+.billing-total-breakdown strong {
+  color: var(--billing-text);
+}
+
+.billing-grand-total-row {
+  color: var(--billing-text) !important;
+  border-color: var(--billing-border);
+}
+
+.billing-grand-total-row strong {
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   TOOLBAR
+====================================================== */
+
+.billing-search-box input {
+  background: var(--billing-input);
+  color: var(--billing-text);
+}
+
+.billing-search-box > svg {
+  color: var(--billing-muted);
+}
+
+.billing-search-box > button {
+  background: var(--billing-soft);
+  color: var(--billing-muted);
+}
+
+.billing-filter-select select {
+  background: var(--billing-input);
+  color: var(--billing-text);
+}
+
+.billing-clear-btn {
+  background: var(--billing-soft);
+  color: var(--billing-muted);
+}
+
+.billing-clear-btn:hover {
+  background: var(--billing-border);
+}
+
+/* ======================================================
+   RESULT BAR
+====================================================== */
+
+.billing-result-bar {
+  color: var(--billing-muted);
+}
+
+.billing-result-bar strong {
+  color: var(--billing-text);
+}
+
+.billing-result-bar span {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   TABLE
+====================================================== */
+
+.billing-table-wrap {
+  border-color: var(--billing-border);
+}
+
+.billing-table {
+  background: var(--billing-card);
+}
+
+.billing-table th {
+  background: var(--billing-soft);
+  color: var(--billing-muted);
+  border-color: var(--billing-border-light);
+}
+
+.billing-table td {
+  color: var(--billing-text);
+  border-color: var(--billing-border-light);
+}
+
+.billing-table tbody tr:hover {
+  background:
+    rgba(50, 125, 139, 0.055);
+}
+
+.billing-table a {
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   TABLE USER
+====================================================== */
+
+.billing-table-icon {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+.billing-table-user {
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   PAYMENT TYPE
+====================================================== */
+
+.billing-payment-type {
+  color: var(--billing-muted);
+}
+
+.billing-payment-type svg {
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   AMOUNT
+====================================================== */
+
+.billing-amount {
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   DATE
+====================================================== */
+
+.billing-date-cell strong {
+  color: var(--billing-text);
+}
+
+.billing-date-cell span {
+  color: var(--billing-muted);
+}
+
+/* ======================================================
+   STATUS
+====================================================== */
+
+.billing-status.paid {
+  background: rgba(39, 116, 71, 0.12);
+  color: var(--billing-success);
+}
+
+.billing-status.cancelled {
+  background: rgba(180, 67, 67, 0.12);
+  color: var(--billing-danger);
+}
+
+.billing-status.pending {
+  background: rgba(150, 113, 43, 0.13);
+  color: var(--billing-warning);
+}
+
+.billing-status.unknown {
+  background: var(--billing-soft);
+  color: var(--billing-muted);
+}
+
+/* ======================================================
+   ACTION COLUMN
+====================================================== */
+
+.billing-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+/* View */
+
+.billing-action-view {
+  background:
+    rgba(36, 107, 122, 0.08);
+  border-color:
+    rgba(36, 107, 122, 0.20);
+  color: var(--billing-primary);
+}
+
+.billing-action-view:hover {
+  background:
+    rgba(36, 107, 122, 0.16);
+}
+
+/* Edit */
+
+.billing-action-edit {
+  background:
+    rgba(150, 113, 43, 0.08);
+  border-color:
+    rgba(150, 113, 43, 0.20);
+  color: var(--billing-warning);
+}
+
+.billing-action-edit:hover {
+  background:
+    rgba(150, 113, 43, 0.16);
+}
+
+/* Delete */
+
+.billing-action-delete {
+  background:
+    rgba(180, 67, 67, 0.08);
+  border-color:
+    rgba(180, 67, 67, 0.20);
+  color: var(--billing-danger);
+}
+
+.billing-action-delete:hover {
+  background:
+    rgba(180, 67, 67, 0.16);
+}
+
+/* ======================================================
+   SUMMARY CARDS
+====================================================== */
+
+.billing-summary-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.billing-summary-card span {
+  color: var(--billing-muted);
+}
+
+.billing-summary-card strong {
+  color: var(--billing-text);
+}
+
+.billing-summary-icon {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   REPORT
+====================================================== */
+
+.billing-report-selected-date {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+.billing-report-stat-card span {
+  color: var(--billing-muted);
+}
+
+.billing-report-stat-card strong {
+  color: var(--billing-text);
+}
+
+.billing-report-stat-card small {
+  color: var(--billing-muted);
+}
+
+.billing-report-stat-highlight {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(50, 125, 139, 0.10),
+      var(--billing-card)
+    );
+  border-color:
+    rgba(50, 125, 139, 0.25);
+}
+
+.billing-report-tax-card > div {
+  background: var(--billing-soft);
+  border-color: var(--billing-border);
+}
+
+.billing-report-tax-card span {
+  color: var(--billing-muted);
+}
+
+.billing-report-tax-card strong {
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   PAYMENT CARDS
+====================================================== */
+
+.billing-payment-card {
+  background: var(--billing-card) !important;
+  border-color: var(--billing-border) !important;
+}
+
+.billing-payment-icon {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+.billing-payment-card-top span {
+  color: var(--billing-muted);
+}
+
+.billing-payment-card > strong {
+  color: var(--billing-text);
+}
+
+.billing-payment-progress {
+  background: var(--billing-border-light);
+}
+
+.billing-payment-progress span {
+  background:
+    linear-gradient(
+      90deg,
+      var(--billing-primary),
+      #4a9aa8
+    );
+}
+
+.billing-payment-card small {
+  color: var(--billing-muted);
+}
+
+/* ======================================================
+   AUDIT
+====================================================== */
+
+.billing-audit-content {
+  background: var(--billing-card);
+}
+
+.billing-audit-module,
+.billing-audit-time {
+  color: var(--billing-muted);
+}
+
+.billing-audit-action-badge {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+.billing-audit-user {
+  border-color: var(--billing-border-light);
+}
+
+.billing-audit-user-icon {
+  background: var(--billing-soft);
+  color: var(--billing-muted);
+}
+
+.billing-audit-user span {
+  color: var(--billing-muted);
+}
+
+.billing-audit-user strong {
+  color: var(--billing-text);
+}
+
+.billing-audit-reference {
+  color: var(--billing-muted);
+}
+
+.billing-audit-reference strong {
+  color: var(--billing-text);
+}
+
+/* ======================================================
+   AUDIT VALUES
+====================================================== */
+
+.audit-value {
+  border-color: var(--billing-border);
+}
+
+.audit-value-content {
+  background: var(--billing-soft);
+}
+
+.audit-value-content pre {
+  color: var(--billing-muted);
+}
+
+.audit-value-old .audit-value-header {
+  background:
+    rgba(180, 67, 67, 0.10);
+  color: var(--billing-danger);
+}
+
+.audit-value-new .audit-value-header {
+  background:
+    rgba(39, 116, 71, 0.10);
+  color: var(--billing-success);
+}
+
+.audit-expand-btn {
+  background: var(--billing-soft);
+  border-color: var(--billing-border);
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   AUDIT TIMELINE
+====================================================== */
+
+.billing-audit-dot {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+  border-color: var(--billing-card);
+  box-shadow:
+    0 0 0 1px var(--billing-border);
+}
+
+.billing-audit-line {
+  background: var(--billing-border);
+}
+
+/* ======================================================
+   LOADING
+====================================================== */
+
+.billing-loading-card {
+  background: var(--billing-soft);
+  border-color: var(--billing-border);
+}
+
+.billing-loading-card h3 {
+  color: var(--billing-text);
+}
+
+.billing-loading-card p {
+  color: var(--billing-muted);
+}
+
+.billing-loader {
+  border-color: var(--billing-border);
+  border-top-color: var(--billing-primary);
+}
+
+/* ======================================================
+   EMPTY STATE
+====================================================== */
+
+.billing-empty-card {
+  background: var(--billing-card);
+  color: var(--billing-text);
+}
+
+.billing-empty-icon {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+.billing-empty-card h3 {
+  color: var(--billing-text);
+}
+
+.billing-empty-card p {
+  color: var(--billing-muted);
+}
+
+/* ======================================================
+   PAGINATION
+====================================================== */
+
+.billing-pagination {
+  color: var(--billing-muted);
+}
+
+.billing-pagination strong {
+  color: var(--billing-text);
+}
+
+.billing-pagination-controls button {
+  background: var(--billing-card);
+  border-color: var(--billing-border);
+  color: var(--billing-text);
+}
+
+.billing-pagination-controls button:hover:not(:disabled) {
+  background:
+    rgba(50, 125, 139, 0.10);
+  color: var(--billing-primary);
+}
+
+/* ======================================================
+   ALERTS
+====================================================== */
+
+.billing-alert-error {
+  background:
+    rgba(180, 67, 67, 0.08);
+  border-color:
+    rgba(180, 67, 67, 0.22);
+  color: var(--billing-danger);
+}
+
+.billing-alert-success {
+  background:
+    rgba(39, 116, 71, 0.08);
+  border-color:
+    rgba(39, 116, 71, 0.22);
+  color: var(--billing-success);
+}
+
+.billing-message {
+  background:
+    rgba(39, 116, 71, 0.09);
+  color: var(--billing-success);
+}
+
+/* ======================================================
+   FOCUS / ACCESSIBILITY
+====================================================== */
+
+.billing-primary:focus-visible,
+.billing-primary-btn:focus-visible,
+.billing-secondary:focus-visible,
+.billing-secondary-btn:focus-visible,
+.billing-action-btn:focus-visible,
+.billing-back-btn:focus-visible,
+.billing-icon-button:focus-visible,
+.billing-pagination-controls button:focus-visible {
+  outline: 3px solid
+    rgba(50, 125, 139, 0.25);
+  outline-offset: 2px;
+}
+
+/* ======================================================
+   SMOOTH INTERACTIONS
+====================================================== */
+
+.billing-card,
+.billing-summary-card,
+.billing-report-stat-card,
+.billing-payment-card,
+.billing-audit-content,
+.billing-table tbody tr,
+.billing-action-btn,
+.billing-secondary,
+.billing-primary,
+.billing-icon-button {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* ======================================================
+   DARK MODE - EXTRA ELEMENTS
+====================================================== */
+
+[data-theme="dark"] .billing-table,
+.dark .billing-table {
+  background: var(--billing-card);
 }
 
 [data-theme="dark"] .billing-table th,
@@ -2232,7 +3033,8 @@ pre {
 
 [data-theme="dark"] .billing-table td,
 .dark .billing-table td {
-  border-color: #293c42;
+  color: var(--billing-text);
+  border-color: var(--billing-border-light);
 }
 
 [data-theme="dark"] .billing-table tbody tr:hover,
@@ -2240,63 +3042,26 @@ pre {
   background: #1c3036;
 }
 
-[data-theme="dark"] .billing-secondary,
-[data-theme="dark"] .billing-secondary-btn,
-.dark .billing-secondary,
-.dark .billing-secondary-btn {
-  background: #1a2b30;
-  border-color: #3a4e54;
-  color: #d9e5e8;
+[data-theme="dark"] .billing-search-box > button,
+.dark .billing-search-box > button {
+  background: #263a40;
+  color: #a8b8bd;
+}
+
+[data-theme="dark"] .billing-clear-btn,
+.dark .billing-clear-btn {
+  background: #20343a;
+  color: #a8b8bd;
 }
 
 [data-theme="dark"] .billing-item-row,
 .dark .billing-item-row {
   background: #142428;
-  border-color: #33484e;
 }
 
 [data-theme="dark"] .billing-item-row:hover,
 .dark .billing-item-row:hover {
   background: #1a2d32;
-}
-
-[data-theme="dark"] .billing-summary-card,
-.dark .billing-summary-card {
-  background: #17262b;
-  border-color: #30454b;
-}
-
-[data-theme="dark"] .billing-summary-card strong,
-.dark .billing-summary-card strong {
-  color: #e4eef0;
-}
-
-[data-theme="dark"] .billing-summary-card span,
-.dark .billing-summary-card span {
-  color: #9aadb2;
-}
-
-[data-theme="dark"] .billing-date-cell strong,
-.dark .billing-date-cell strong {
-  color: #dce8ea;
-}
-
-[data-theme="dark"] .billing-date-cell span,
-.dark .billing-date-cell span {
-  color: #8fa2a8;
-}
-
-[data-theme="dark"] .billing-empty-card,
-[data-theme="dark"] .billing-loading-card,
-.dark .billing-empty-card,
-.dark .billing-loading-card {
-  background: #15252a;
-  border-color: #34484e;
-}
-
-[data-theme="dark"] .billing-section,
-.dark .billing-section {
-  border-color: #2b3e43;
 }
 
 [data-theme="dark"] .billing-total-panel,
@@ -2307,53 +3072,21 @@ pre {
       #182f35,
       #15272c
     );
-  border-color: #345159;
-}
-
-[data-theme="dark"] .billing-total-breakdown strong,
-.dark .billing-total-breakdown strong {
-  color: #dbe8ea;
-}
-
-[data-theme="dark"] .billing-grand-total-row,
-.dark .billing-grand-total-row {
-  border-color: #3a5056;
-  color: #e3edef !important;
-}
-
-[data-theme="dark"] .billing-filter-select select,
-.dark .billing-filter-select select {
-  background: #17262b;
-  border-color: #34484e;
-  color: #e4eef0;
-}
-
-[data-theme="dark"] .billing-result-bar,
-.dark .billing-result-bar {
-  color: #98aab0;
-}
-
-[data-theme="dark"] .billing-result-bar strong,
-.dark .billing-result-bar strong {
-  color: #dce8ea;
 }
 
 [data-theme="dark"] .billing-report-tax-card > div,
 .dark .billing-report-tax-card > div {
   background: #182a2f;
-  border-color: #30444a;
 }
 
-[data-theme="dark"] .billing-payment-card,
-.dark .billing-payment-card {
-  background: #182a2f !important;
-  border-color: #30444a !important;
+[data-theme="dark"] .billing-loading-card,
+.dark .billing-loading-card {
+  background: #15252a;
 }
 
-[data-theme="dark"] .billing-audit-content,
-.dark .billing-audit-content {
-  background: #182a2f;
-  border-color: #30444a;
+[data-theme="dark"] .billing-empty-card,
+.dark .billing-empty-card {
+  background: #17262b;
 }
 
 [data-theme="dark"] .audit-value-content,
@@ -2361,9 +3094,10 @@ pre {
   background: #132428;
 }
 
-[data-theme="dark"] .billing-audit-user,
-.dark .billing-audit-user {
-  border-color: #2c4046;
+[data-theme="dark"] .audit-expand-btn,
+.dark .audit-expand-btn {
+  background: #182a2f;
+  color: #63b6c4;
 }
 
 [data-theme="dark"] .billing-pagination-controls button,
@@ -2373,35 +3107,391 @@ pre {
   color: #d4e0e3;
 }
 
-[data-theme="dark"] .billing-action-view,
-.dark .billing-action-view {
-  background: #163139;
-  border-color: #315963;
-}
+/* ======================================================
+   PRINT
+====================================================== */
 
-[data-theme="dark"] .billing-action-edit,
-.dark .billing-action-edit {
-  background: #302a1b;
-  border-color: #5b4e2f;
-}
+@media print {
 
-[data-theme="dark"] .billing-action-delete,
-.dark .billing-action-delete {
-  background: #321f21;
-  border-color: #5d3739;
+  .billing-page {
+    max-width: none;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .billing-header-actions,
+  .billing-toolbar,
+  .billing-filter-select,
+  .billing-clear-btn,
+  .billing-row-actions,
+  .billing-actions,
+  .billing-pagination,
+  .billing-audit-filters,
+  .billing-back-btn {
+    display: none !important;
+  }
+
+  .billing-card,
+  .billing-summary-card,
+  .billing-report-stat-card,
+  .billing-audit-content {
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .billing-table-wrap {
+    overflow: visible;
+    border: 1px solid #ddd;
+  }
+
+  .billing-table {
+    min-width: 0;
+  }
+
+  .billing-table th,
+  .billing-table td {
+    color: #000000 !important;
+    border-color: #ddd !important;
+  }
 }
 
 /* ======================================================
-   ACCESSIBILITY
+   RESPONSIVE - 1200
 ====================================================== */
 
-.billing-primary:focus-visible,
-.billing-primary-btn:focus-visible,
-.billing-secondary-btn:focus-visible,
-.billing-action-btn:focus-visible,
-.billing-back-btn:focus-visible,
-.billing-pagination-controls button:focus-visible {
-  outline: 3px solid
-    rgba(50, 125, 139, 0.25);
-  outline-offset: 2px;
+@media (max-width: 1200px) {
+
+  .billing-summary-grid,
+  .billing-audit-summary {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .billing-report-stats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-payment-grid-modern {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .billing-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-item-header {
+    display: none;
+  }
+
+  .billing-item-row {
+    grid-template-columns:
+      2fr 0.8fr 1fr;
+  }
+}
+
+/* ======================================================
+   RESPONSIVE - 900
+====================================================== */
+
+@media (max-width: 900px) {
+
+  .billing-page {
+    padding: 20px;
+  }
+
+  .billing-summary-grid,
+  .billing-audit-summary {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-report-tax-card {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-payment-grid-modern {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-audit-changes {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-audit-top {
+    flex-direction: column;
+  }
+
+  .billing-audit-time {
+    text-align: left;
+  }
+
+  .billing-toolbar {
+    align-items: stretch;
+  }
+
+  .billing-search-box {
+    flex-basis: 100%;
+  }
+}
+
+/* ======================================================
+   RESPONSIVE - 700
+====================================================== */
+
+@media (max-width: 700px) {
+
+  .billing-page {
+    padding: 15px;
+  }
+
+  .billing-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .billing-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .billing-header-actions > * {
+    flex: 1;
+  }
+
+  .billing-grid,
+  .billing-report-stats,
+  .billing-summary-grid,
+  .billing-audit-summary,
+  .billing-report-tax-card,
+  .billing-payment-grid-modern {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .billing-section-title,
+  .billing-section-heading,
+  .billing-report-filter-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .billing-report-selected-date {
+    align-self: flex-start;
+  }
+
+  .billing-total-panel {
+    justify-content: flex-start;
+  }
+
+  .billing-item-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .billing-item-product {
+    grid-column: 1 / -1;
+  }
+
+  .billing-item-amount {
+    min-width: 0;
+  }
+
+  .billing-delete-item {
+    justify-self: end;
+  }
+
+  .billing-actions {
+    flex-direction: column-reverse;
+  }
+
+  .billing-actions button {
+    width: 100%;
+  }
+
+  .billing-audit-filters {
+    flex-direction: column;
+  }
+
+  .billing-audit-item {
+    grid-template-columns:
+      36px minmax(0, 1fr);
+  }
+
+  .billing-audit-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 10px;
+  }
+
+  .billing-audit-line {
+    top: 32px;
+  }
+
+  .billing-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .billing-pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ======================================================
+   RESPONSIVE - 480
+====================================================== */
+
+@media (max-width: 480px) {
+
+  .billing-page {
+    padding: 12px;
+  }
+
+  .billing-header h1 {
+    font-size: 23px;
+  }
+
+  .billing-header p {
+    font-size: 12px;
+  }
+
+  .billing-title-icon {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+
+  .billing-header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .billing-header-actions > * {
+    width: 100%;
+    flex: none;
+  }
+
+  .billing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-item-product {
+    grid-column: auto;
+  }
+
+  .billing-total-panel {
+    padding: 15px;
+  }
+
+  .billing-total-icon {
+    display: none;
+  }
+
+  .billing-total-breakdown {
+    width: 100%;
+  }
+
+  .billing-summary-card strong {
+    font-size: 17px;
+  }
+
+  .billing-payment-grid-modern {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-audit-content {
+    padding: 13px;
+  }
+
+  .billing-audit-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .billing-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .billing-action-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ======================================================
+   FINAL TABLE ACTION FIX
+====================================================== */
+
+.billing-actions-column {
+  width: 150px;
+  min-width: 150px;
+  text-align: center !important;
+}
+
+.billing-row-actions {
+  white-space: nowrap;
+}
+
+/* ======================================================
+   SCROLLBAR
+====================================================== */
+
+.billing-table-wrap::-webkit-scrollbar {
+  height: 7px;
+}
+
+.billing-table-wrap::-webkit-scrollbar-track {
+  background: var(--billing-soft);
+  border-radius: 10px;
+}
+
+.billing-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--billing-border);
+  border-radius: 10px;
+}
+
+.billing-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--billing-primary);
+}
+
+/* ======================================================
+   REDUCED MOTION
+====================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .billing-card,
+  .billing-summary-card,
+  .billing-report-stat-card,
+  .billing-payment-card,
+  .billing-audit-content,
+  .billing-table tbody tr,
+  .billing-action-btn,
+  .billing-secondary,
+  .billing-primary,
+  .billing-icon-button {
+    transition: none !important;
+  }
+
+  .billing-loader,
+  .billing-spin,
+  .billing-button-spinner {
+    animation: none !important;
+  }
 }

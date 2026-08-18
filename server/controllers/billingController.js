@@ -8,7 +8,6 @@ const actorId = (req) => {
     return (
         req.user?.id ||
         req.user?.user_id ||
-        req.body?.created_by ||
         null
     );
 };
@@ -17,7 +16,10 @@ const actorId = (req) => {
    NUMBER HELPER
 ====================================================== */
 
-const numberValue = (value, fallback = 0) => {
+const numberValue = (
+    value,
+    fallback = 0
+) => {
     const number = Number(value);
 
     return Number.isFinite(number)
@@ -26,11 +28,81 @@ const numberValue = (value, fallback = 0) => {
 };
 
 /* ======================================================
+   ITEM NORMALIZER
+====================================================== */
+
+const normalizeItems = (items) => {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+
+    return items
+        .filter(
+            (item) =>
+                item &&
+                item.product_name &&
+                String(
+                    item.product_name
+                ).trim()
+        )
+        .map((item) => {
+
+            const quantity =
+                numberValue(
+                    item.quantity
+                );
+
+            const rate =
+                numberValue(
+                    item.rate
+                );
+
+            const discount =
+                numberValue(
+                    item.discount
+                );
+
+            const gross =
+                quantity * rate;
+
+            const amount =
+                Math.max(
+                    0,
+                    gross - discount
+                );
+
+            return {
+                product_id:
+                    item.product_id ||
+                    null,
+
+                product_name:
+                    String(
+                        item.product_name
+                    ).trim(),
+
+                quantity,
+
+                rate,
+
+                discount,
+
+                amount
+            };
+        });
+};
+
+/* ======================================================
    CREATE BILL
 ====================================================== */
 
-exports.createBill = (req, res) => {
-    const userId = actorId(req);
+exports.createBill = (
+    req,
+    res
+) => {
+
+    const userId =
+        actorId(req);
 
     const {
         bill_no,
@@ -44,26 +116,33 @@ exports.createBill = (req, res) => {
         items = [],
         payment_type,
         payment_amount,
-        transaction_reference,
-    } = req.body;
+        transaction_reference
+    } = req.body || {};
 
-    /* ======================================
-       VALIDATION
-    ====================================== */
+    /* --------------------------------------------------
+       AUTHENTICATION
+    -------------------------------------------------- */
 
     if (!userId) {
         return res.status(401).json({
             success: false,
             message:
-                "Authenticated user is required.",
+                "Authenticated user is required."
         });
     }
 
-    if (!bill_no) {
+    /* --------------------------------------------------
+       VALIDATION
+    -------------------------------------------------- */
+
+    if (
+        !bill_no ||
+        !String(bill_no).trim()
+    ) {
         return res.status(400).json({
             success: false,
             message:
-                "Bill number is required.",
+                "Bill number is required."
         });
     }
 
@@ -71,18 +150,19 @@ exports.createBill = (req, res) => {
         return res.status(400).json({
             success: false,
             message:
-                "Store is required.",
+                "Store is required."
         });
     }
 
     if (
         grand_total === undefined ||
-        grand_total === null
+        grand_total === null ||
+        Number.isNaN(Number(grand_total))
     ) {
         return res.status(400).json({
             success: false,
             message:
-                "Grand total is required.",
+                "Grand total is required."
         });
     }
 
@@ -90,105 +170,42 @@ exports.createBill = (req, res) => {
         return res.status(400).json({
             success: false,
             message:
-                "Payment type is required.",
+                "Payment type is required."
         });
     }
 
-    if (
-        !Array.isArray(items) ||
-        items.length === 0
-    ) {
-        return res.status(400).json({
-            success: false,
-            message:
-                "At least one bill item is required.",
-        });
-    }
-
-    /* ======================================
+    /* --------------------------------------------------
        NORMALIZE ITEMS
-    ====================================== */
+    -------------------------------------------------- */
 
     const normalizedItems =
-        items
-            .filter(
-                (item) =>
-                    item &&
-                    item.product_name &&
-                    String(
-                        item.product_name
-                    ).trim()
-            )
-            .map((item) => {
-                const quantity =
-                    numberValue(
-                        item.quantity
-                    );
+        normalizeItems(items);
 
-                const rate =
-                    numberValue(
-                        item.rate
-                    );
-
-                const itemDiscount =
-                    numberValue(
-                        item.discount
-                    );
-
-                const gross =
-                    quantity * rate;
-
-                const amount = Math.max(
-                    0,
-                    gross - itemDiscount
-                );
-
-                return {
-                    product_id:
-                        item.product_id ||
-                        null,
-
-                    product_name:
-                        String(
-                            item.product_name
-                        ).trim(),
-
-                    quantity,
-
-                    rate,
-
-                    discount:
-                        itemDiscount,
-
-                    amount,
-                };
-            });
-
-    if (
-        !normalizedItems.length
-    ) {
+    if (!normalizedItems.length) {
         return res.status(400).json({
             success: false,
             message:
-                "At least one valid bill item is required.",
+                "At least one valid bill item is required."
         });
     }
 
-    /* ======================================
+    /* --------------------------------------------------
        BILL DATA
-    ====================================== */
+    -------------------------------------------------- */
 
     const billData = {
         bill_no:
-            String(bill_no).trim(),
+            String(
+                bill_no
+            ).trim(),
 
         store_id,
 
         customer_name:
             customer_name
                 ? String(
-                      customer_name
-                  ).trim()
+                    customer_name
+                ).trim()
                 : null,
 
         bill_date:
@@ -196,52 +213,81 @@ exports.createBill = (req, res) => {
             new Date(),
 
         subtotal:
-            numberValue(subtotal),
+            numberValue(
+                subtotal
+            ),
 
         discount:
-            numberValue(discount),
+            numberValue(
+                discount
+            ),
 
         tax:
-            numberValue(tax),
+            numberValue(
+                tax
+            ),
 
         grand_total:
-            numberValue(grand_total),
+            numberValue(
+                grand_total
+            ),
 
         created_by:
-            userId,
+            userId
     };
 
-    /* ======================================
+    /* --------------------------------------------------
        PAYMENT DATA
-    ====================================== */
+    -------------------------------------------------- */
 
     const paymentData = {
-        payment_type,
+        payment_type:
+            String(
+                payment_type
+            ).trim(),
 
         amount:
             numberValue(
                 payment_amount ??
-                    grand_total
+                grand_total
             ),
 
         transaction_reference:
             transaction_reference
                 ? String(
-                      transaction_reference
-                  ).trim()
-                : null,
+                    transaction_reference
+                ).trim()
+                : null
     };
 
-    /* ======================================
+    console.log(
+        "BILLING CREATE REQUEST:",
+        {
+            bill_no:
+                billData.bill_no,
+
+            store_id:
+                billData.store_id,
+
+            userId,
+
+            grand_total:
+                billData.grand_total
+        }
+    );
+
+    /* --------------------------------------------------
        CREATE
-    ====================================== */
+    -------------------------------------------------- */
 
     Billing.createBill(
         billData,
         normalizedItems,
         paymentData,
         (err, result) => {
+
             if (err) {
+
                 console.error(
                     "Billing create error:",
                     err
@@ -250,20 +296,22 @@ exports.createBill = (req, res) => {
                 return res.status(500).json({
                     success: false,
                     message:
-                        "Failed to create bill.",
-                    error:
-                        process.env.NODE_ENV ===
-                        "development"
-                            ? err.message
-                            : undefined,
+                        err.message ||
+                        "Failed to create bill."
                 });
             }
+
+            console.log(
+                "BILL CREATED SUCCESSFULLY:",
+                result
+            );
 
             return res.status(201).json({
                 success: true,
                 message:
                     "Bill created successfully.",
-                data: result,
+                data:
+                    result
             });
         }
     );
@@ -277,10 +325,13 @@ exports.getBills = (
     req,
     res
 ) => {
+
     Billing.getBills(
         req.query || {},
         (err, data) => {
+
             if (err) {
+
                 console.error(
                     "Get bills error:",
                     err
@@ -290,12 +341,18 @@ exports.getBills = (
                     success: false,
                     message:
                         "Failed to fetch bills.",
+                    error:
+                        process.env.NODE_ENV ===
+                        "development"
+                            ? err.message
+                            : undefined
                 });
             }
 
             return res.json({
                 success: true,
-                data: data || [],
+                data:
+                    data || []
             });
         }
     );
@@ -309,21 +366,25 @@ exports.getBillById = (
     req,
     res
 ) => {
-    const { id } =
-        req.params;
+
+    const {
+        id
+    } = req.params;
 
     if (!id) {
         return res.status(400).json({
             success: false,
             message:
-                "Bill ID is required.",
+                "Bill ID is required."
         });
     }
 
     Billing.getBillById(
         id,
         (err, data) => {
+
             if (err) {
+
                 console.error(
                     "Get bill error:",
                     err
@@ -333,6 +394,11 @@ exports.getBillById = (
                     success: false,
                     message:
                         "Failed to fetch bill.",
+                    error:
+                        process.env.NODE_ENV ===
+                        "development"
+                            ? err.message
+                            : undefined
                 });
             }
 
@@ -340,13 +406,13 @@ exports.getBillById = (
                 return res.status(404).json({
                     success: false,
                     message:
-                        "Bill not found.",
+                        "Bill not found."
                 });
             }
 
             return res.json({
                 success: true,
-                data,
+                data
             });
         }
     );
@@ -360,8 +426,10 @@ exports.updateBill = (
     req,
     res
 ) => {
-    const { id } =
-        req.params;
+
+    const {
+        id
+    } = req.params;
 
     const userId =
         actorId(req);
@@ -370,7 +438,7 @@ exports.updateBill = (
         return res.status(400).json({
             success: false,
             message:
-                "Bill ID is required.",
+                "Bill ID is required."
         });
     }
 
@@ -378,223 +446,183 @@ exports.updateBill = (
         return res.status(401).json({
             success: false,
             message:
-                "Authenticated user is required.",
+                "Authenticated user is required."
         });
     }
 
-    /* ======================================
-       LOAD CURRENT BILL
-       Used for validation only.
-       The model also performs its own
-       transaction-safe old/new audit.
-    ====================================== */
+    const body =
+        req.body || {};
 
-    Billing.getBillById(
+    /* --------------------------------------------------
+       NORMALIZE ITEMS
+    -------------------------------------------------- */
+
+    const normalizedItems =
+        normalizeItems(
+            body.items
+        );
+
+    if (!normalizedItems.length) {
+        return res.status(400).json({
+            success: false,
+            message:
+                "At least one valid bill item is required."
+        });
+    }
+
+    /* --------------------------------------------------
+       UPDATE DATA
+    -------------------------------------------------- */
+
+    const updateData = {
+
+        store_id:
+            body.store_id,
+
+        customer_name:
+            body.customer_name ??
+            null,
+
+        bill_date:
+            body.bill_date ||
+            new Date(),
+
+        subtotal:
+            numberValue(
+                body.subtotal
+            ),
+
+        discount:
+            numberValue(
+                body.discount
+            ),
+
+        tax:
+            numberValue(
+                body.tax
+            ),
+
+        grand_total:
+            numberValue(
+                body.grand_total
+            ),
+
+        payment_type:
+            body.payment_type ||
+            "Cash",
+
+        payment_amount:
+            numberValue(
+                body.payment_amount ??
+                body.grand_total
+            ),
+
+        transaction_reference:
+            body.transaction_reference
+                ? String(
+                    body.transaction_reference
+                ).trim()
+                : null,
+
+        items:
+            normalizedItems,
+
+        updated_by:
+            userId
+    };
+
+    /* --------------------------------------------------
+       BASIC VALIDATION
+    -------------------------------------------------- */
+
+    if (!updateData.store_id) {
+        return res.status(400).json({
+            success: false,
+            message:
+                "Store is required."
+        });
+    }
+
+    if (
+        body.grand_total === undefined &&
+        body.grand_total !== 0
+    ) {
+        return res.status(400).json({
+            success: false,
+            message:
+                "Grand total is required."
+        });
+    }
+
+    console.log(
+        "BILLING UPDATE REQUEST:",
+        {
+            id,
+            userId,
+            grand_total:
+                updateData.grand_total
+        }
+    );
+
+    /* --------------------------------------------------
+       UPDATE
+       Model handles:
+       - old bill
+       - transaction
+       - bill update
+       - item replacement
+       - payment update
+       - audit
+       - commit
+    -------------------------------------------------- */
+
+    Billing.updateBill(
         id,
-        (beforeError, before) => {
-            if (beforeError) {
+        updateData,
+        (err, result) => {
+
+            if (err) {
+
                 console.error(
-                    "Load bill before update error:",
-                    beforeError
+                    "Billing update error:",
+                    err
                 );
 
-                return res.status(500).json({
+                const statusCode =
+                    err.message ===
+                    "Bill not found."
+                        ? 404
+                        : err.message ===
+                          "Cancelled bills cannot be edited."
+                            ? 400
+                            : 500;
+
+                return res.status(
+                    statusCode
+                ).json({
                     success: false,
                     message:
-                        "Failed to load bill.",
+                        err.message ||
+                        "Failed to update bill."
                 });
             }
 
-            if (!before) {
-                return res.status(404).json({
-                    success: false,
-                    message:
-                        "Bill not found.",
-                });
-            }
-
-            if (
-                String(
-                    before.status
-                ).toUpperCase() ===
-                "CANCELLED"
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Cancelled bills cannot be edited.",
-                });
-            }
-
-            /* ==================================
-               NORMALIZE ITEMS
-            ================================== */
-
-            const normalizedItems =
-                Array.isArray(
-                    req.body.items
-                )
-                    ? req.body.items
-                          .filter(
-                              (item) =>
-                                  item &&
-                                  item.product_name &&
-                                  String(
-                                      item.product_name
-                                  ).trim()
-                          )
-                          .map(
-                              (item) => {
-                                  const quantity =
-                                      numberValue(
-                                          item.quantity
-                                      );
-
-                                  const rate =
-                                      numberValue(
-                                          item.rate
-                                      );
-
-                                  const itemDiscount =
-                                      numberValue(
-                                          item.discount
-                                      );
-
-                                  const amount =
-                                      Math.max(
-                                          0,
-                                          quantity *
-                                              rate -
-                                              itemDiscount
-                                      );
-
-                                  return {
-                                      product_id:
-                                          item.product_id ||
-                                          null,
-
-                                      product_name:
-                                          String(
-                                              item.product_name
-                                          ).trim(),
-
-                                      quantity,
-
-                                      rate,
-
-                                      discount:
-                                          itemDiscount,
-
-                                      amount,
-                                  };
-                              }
-                          )
-                    : before.items ||
-                      [];
-
-            /* ==================================
-               UPDATE DATA
-            ================================== */
-
-            const updateData = {
-                ...req.body,
-
-                store_id:
-                    req.body.store_id ??
-                    before.store_id,
-
-                customer_name:
-                    req.body.customer_name ??
-                    before.customer_name,
-
-                bill_date:
-                    req.body.bill_date ??
-                    before.bill_date,
-
-                subtotal:
-                    numberValue(
-                        req.body.subtotal ??
-                            before.subtotal
-                    ),
-
-                discount:
-                    numberValue(
-                        req.body.discount ??
-                            before.discount
-                    ),
-
-                tax:
-                    numberValue(
-                        req.body.tax ??
-                            before.tax
-                    ),
-
-                grand_total:
-                    numberValue(
-                        req.body.grand_total ??
-                            before.grand_total
-                    ),
-
-                payment_type:
-                    req.body.payment_type ??
-                    before.payments?.[0]
-                        ?.payment_type ??
-                    "Cash",
-
-                payment_amount:
-                    numberValue(
-                        req.body.payment_amount ??
-                            req.body.grand_total ??
-                            before.grand_total
-                    ),
-
-                transaction_reference:
-                    req.body
-                        .transaction_reference ??
-                    before.payments?.[0]
-                        ?.transaction_reference ??
-                    null,
-
-                items:
-                    normalizedItems,
-
-                updated_by:
-                    userId,
-            };
-
-            /* ==================================
-               UPDATE
-            ================================== */
-
-            Billing.updateBill(
-                id,
-                updateData,
-                (err, result) => {
-                    if (err) {
-                        console.error(
-                            "Billing update error:",
-                            err
-                        );
-
-                        return res.status(500).json({
-                            success: false,
-                            message:
-                                err.message ||
-                                "Failed to update bill.",
-                        });
-                    }
-
-                    return res.json({
-                        success: true,
-                        message:
-                            "Bill updated successfully.",
-                        data:
-                            result || {
-                                id,
-                            },
-                    });
+            console.log(
+                "BILL UPDATED SUCCESSFULLY:",
+                {
+                    id
                 }
             );
+
+            return res.json({
+                success: true,
+                message:
+                    "Bill updated successfully.",
+                data:
+                    result || {
+                        id
+                    }
+            });
         }
     );
 };
@@ -607,8 +635,10 @@ exports.cancelBill = (
     req,
     res
 ) => {
-    const { id } =
-        req.params;
+
+    const {
+        id
+    } = req.params;
 
     const userId =
         actorId(req);
@@ -617,7 +647,7 @@ exports.cancelBill = (
         return res.status(400).json({
             success: false,
             message:
-                "Bill ID is required.",
+                "Bill ID is required."
         });
     }
 
@@ -625,94 +655,96 @@ exports.cancelBill = (
         return res.status(401).json({
             success: false,
             message:
-                "Authenticated user is required.",
+                "Authenticated user is required."
         });
     }
 
-    Billing.getBillById(
+    console.log(
+        "BILLING CANCEL REQUEST:",
+        {
+            id,
+            userId
+        }
+    );
+
+    /* --------------------------------------------------
+       CANCEL
+       Model handles:
+       - old bill
+       - transaction
+       - status change
+       - audit
+       - commit
+    -------------------------------------------------- */
+
+    Billing.cancelBill(
         id,
-        (beforeError, before) => {
-            if (beforeError) {
+        userId,
+        (err, result) => {
+
+            if (err) {
+
                 console.error(
-                    "Load bill before cancellation error:",
-                    beforeError
+                    "Cancel bill error:",
+                    err
                 );
 
-                return res.status(500).json({
+                const statusCode =
+                    err.message ===
+                    "Bill not found."
+                        ? 404
+                        : err.message ===
+                          "Bill is already cancelled."
+                            ? 400
+                            : 500;
+
+                return res.status(
+                    statusCode
+                ).json({
                     success: false,
                     message:
-                        "Failed to load bill.",
+                        err.message ||
+                        "Failed to cancel bill."
                 });
             }
 
-            if (!before) {
-                return res.status(404).json({
-                    success: false,
-                    message:
-                        "Bill not found.",
-                });
-            }
-
-            if (
-                String(
-                    before.status
-                ).toUpperCase() ===
-                "CANCELLED"
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Bill is already cancelled.",
-                });
-            }
-
-            Billing.cancelBill(
-                id,
-                userId,
-                (err, result) => {
-                    if (err) {
-                        console.error(
-                            "Cancel bill error:",
-                            err
-                        );
-
-                        return res.status(500).json({
-                            success: false,
-                            message:
-                                err.message ||
-                                "Failed to cancel bill.",
-                        });
-                    }
-
-                    return res.json({
-                        success: true,
-                        message:
-                            "Bill cancelled successfully.",
-                        data:
-                            result || {
-                                id,
-                                status:
-                                    "CANCELLED",
-                            },
-                    });
+            console.log(
+                "BILL CANCELLED SUCCESSFULLY:",
+                {
+                    id
                 }
             );
+
+            return res.json({
+                success: true,
+                message:
+                    "Bill cancelled successfully.",
+                data:
+                    result || {
+                        id,
+                        status:
+                            "CANCELLED"
+                    }
+            });
         }
     );
 };
 
 /* ======================================================
-   DAILY REPORT
+   DAILY BILLING REPORT
 ====================================================== */
 
 exports.dailyReport = (
     req,
     res
 ) => {
+
     Billing.dailyReport(
         req.query || {},
         (err, data) => {
+
             if (err) {
+
                 console.error(
                     "Daily billing report error:",
                     err
@@ -722,15 +754,21 @@ exports.dailyReport = (
                     success: false,
                     message:
                         "Failed to generate daily report.",
+                    error:
+                        process.env.NODE_ENV ===
+                        "development"
+                            ? err.message
+                            : undefined
                 });
             }
 
             return res.json({
                 success: true,
-                data: data || {
-                    summary: {},
-                    details: [],
-                },
+                data:
+                    data || {
+                        summary: {},
+                        details: []
+                    }
             });
         }
     );
@@ -744,21 +782,25 @@ exports.audit = (
     req,
     res
 ) => {
-    const { billId } =
-        req.params;
+
+    const {
+        billId
+    } = req.params;
 
     if (!billId) {
         return res.status(400).json({
             success: false,
             message:
-                "Bill ID is required.",
+                "Bill ID is required."
         });
     }
 
     Billing.getBillingAudit(
         billId,
         (err, data) => {
+
             if (err) {
+
                 console.error(
                     "Billing audit error:",
                     err
@@ -768,13 +810,23 @@ exports.audit = (
                     success: false,
                     message:
                         "Failed to fetch audit history.",
+                    error:
+                        process.env.NODE_ENV ===
+                        "development"
+                            ? err.message
+                            : undefined
                 });
             }
 
             return res.json({
                 success: true,
-                data: data || [],
+                data:
+                    data || []
             });
         }
     );
 };
+
+/* ======================================================
+   EXPORT
+====================================================== */
