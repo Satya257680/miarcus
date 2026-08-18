@@ -5,6 +5,8 @@ import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
 
 import "../../styles/layout/Layout.css";
+import "../../styles/theme.css";
+import ThemeProvider from "../../context/ThemeProvider";
 
 function Layout() {
 
@@ -41,35 +43,39 @@ function Layout() {
 
   return (
 
-    <div className="layout">
+    <ThemeProvider>
 
-      {/* Top Navigation */}
+      <div className="layout">
 
-      <Topbar
-        toggleSidebar={toggleSidebar}
-      />
+        {/* Top Navigation */}
 
-      <div className="layout-body">
-
-        {/* Sidebar */}
-
-        <Sidebar
-          collapsed={collapsed}
+        <Topbar
+          toggleSidebar={toggleSidebar}
         />
 
-        {/* Main Content */}
+        <div className="layout-body">
 
-        <main
-          className={`page-content ${
-            collapsed ? "expanded" : ""
-          }`}
-        >
-          <Outlet />
-        </main>
+          {/* Sidebar */}
+
+          <Sidebar
+            collapsed={collapsed}
+          />
+
+          {/* Main Content */}
+
+          <main
+            className={`page-content ${
+              collapsed ? "expanded" : ""
+            }`}
+          >
+            <Outlet />
+          </main>
+
+        </div>
 
       </div>
 
-    </div>
+    </ThemeProvider>
 
   );
 

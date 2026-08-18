@@ -22,17 +22,12 @@ import {
     FaBuilding,
     FaIdBadge,
     FaClipboard,
-    FaSitemap,
-    FaSun,
-    FaMoon,
-    FaPalette
+    FaSitemap
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
-import { useTheme } from "../../context/ThemeProvider";
 
 function Sidebar({ collapsed }) {
-    const { preferences, toggleColorMode } = useTheme();
     const location = useLocation();
 
     // ======================================================
@@ -756,21 +751,6 @@ function Sidebar({ collapsed }) {
                             ) && (
                                 <div className="sidebar-submenu">
 
-                                    {/* APPEARANCE */}
-
-                                    <NavLink
-                                        to="/settings/appearance"
-                                        className={({ isActive }) =>
-                                            `submenu-item ${isActive ? "active" : ""}`
-                                        }
-                                    >
-                                        <FaPalette />
-
-                                        <span>
-                                            Appearance
-                                        </span>
-                                    </NavLink>
-
                                     {/* USERS */}
 
                                     {canUsers && (
@@ -942,21 +922,6 @@ function Sidebar({ collapsed }) {
                             </span>
                         )}
                     </NavLink>
-
-                    <button
-                        type="button"
-                        className={`sidebar-theme-toggle ${collapsed ? "collapsed" : ""}`}
-                        onClick={toggleColorMode}
-                        title={preferences.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                        aria-label={preferences.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                    >
-                        {preferences.theme === "dark" ? <FaSun /> : <FaMoon />}
-                        {!collapsed && (
-                            <span>
-                                {preferences.theme === "dark" ? "Light Mode" : "Dark Mode"}
-                            </span>
-                        )}
-                    </button>
 
                 </div>
 
