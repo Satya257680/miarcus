@@ -2646,6 +2646,234 @@ exports.deleteReport = async (
 
 
 // ======================================================
+// REVIEW QUIZ SUBMISSION VERIFICATION
+// ======================================================
+// Internal/admin endpoint.
+// status: APPROVED or REJECTED.
+// On approval, a score-passing submission becomes Passed.
+// On rejection, the assessment result becomes Failed.
+// ======================================================
+
+exports.reviewSubmissionVerification = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const submissionId =
+            normalizeId(
+                req.params.id
+            );
+
+        if (!submissionId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid submission ID"
+
+            });
+
+        }
+
+        const reviewStatus =
+            String(
+                req.body?.verification_status ||
+                req.body?.status ||
+                ""
+            ).trim().toUpperCase();
+
+        if (
+            reviewStatus !== "APPROVED" &&
+            reviewStatus !== "REJECTED"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Verification status must be APPROVED or REJECTED"
+
+            });
+
+        }
+
+        const reviewReason =
+            String(
+                req.body?.admin_review_reason ||
+                req.body?.reason ||
+                ""
+            ).trim();
+
+        if (
+            reviewStatus === "REJECTED" &&
+            !reviewReason
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "A rejection reason is required"
+
+            });
+
+        }
+
+        const reviewerId =
+            getCurrentUserId(req);
+
+        if (!reviewerId) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authenticated reviewer is required"
+
+            });
+
+        }
+
+        const rows =
+            await db.query(
+                `
+                SELECT
+                    s.*,
+                    q.passing_score
+                FROM quiz_submissions s
+                INNER JOIN quizzes q
+                    ON q.id = s.quiz_id
+                WHERE s.id = ?
+                LIMIT 1
+                `,
+                [submissionId]
+            );
+
+        if (!rows.length) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Submission not found"
+
+            });
+
+        }
+
+        const submission =
+            rows[0];
+
+        const scoreResult =
+            Number(
+                submission.percentage || 0
+            ) >=
+            (
+                Number(
+                    submission.passing_score
+                ) || 0
+            )
+                ? "Passed"
+                : "Failed";
+
+        const finalResult =
+            reviewStatus === "APPROVED"
+                ? scoreResult
+                : "Failed";
+
+        const updateResult =
+            await db.query(
+                `
+                UPDATE quiz_submissions
+                SET
+                    verification_status = ?,
+                    admin_review_reason = ?,
+                    reviewed_by = ?,
+                    reviewed_at = NOW(),
+                    result = ?
+                WHERE id = ?
+                `,
+                [
+                    reviewStatus,
+                    reviewReason || null,
+                    reviewerId,
+                    finalResult,
+                    submissionId
+                ]
+            );
+
+        if (
+            !updateResult ||
+            updateResult.affectedRows === 0
+        ) {
+
+            return res.status(409).json({
+
+                success: false,
+
+                message:
+                    "Verification review could not be saved"
+
+            });
+
+        }
+
+        const updatedRows =
+            await db.query(
+                `
+                SELECT *
+                FROM quiz_submissions
+                WHERE id = ?
+                LIMIT 1
+                `,
+                [submissionId]
+            );
+
+        return res.json({
+
+            success: true,
+
+            message:
+                reviewStatus === "APPROVED"
+                    ? "Participant verification approved"
+                    : "Participant verification rejected",
+
+            data:
+                updatedRows[0] || null
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Quiz reviewSubmissionVerification error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Unable to review participant verification"
+
+        });
+
+    }
+
+};
+
+
+// ======================================================
 // GET PUBLIC QUIZ
 // ======================================================
 
@@ -2826,6 +3054,35 @@ exports.startPublicQuiz = async (
         }
 
 
+        // --------------------------------------------------
+        // PARTICIPANT GENDER
+        // --------------------------------------------------
+        // Gender is explicitly selected by the participant and
+        // is stored as part of the verification record.
+        // The camera is NOT used to infer gender.
+        const participantGender =
+            String(
+                req.body.participant_gender ||
+                ""
+            ).trim();
+
+        if (
+            participantGender !== "Male" &&
+            participantGender !== "Female"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Please select Male or Female before starting the assessment."
+
+            });
+
+        }
+
+
         const emailConsent =
             Boolean(
                 req.body.email_consent
@@ -2872,6 +3129,22 @@ exports.startPublicQuiz = async (
 
                 message:
                     "Camera permission is required"
+
+            });
+
+        }
+
+        if (
+            quiz.require_camera &&
+            !req.file
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "A successful camera verification photo is required before starting the assessment."
 
             });
 
@@ -3099,6 +3372,7 @@ exports.startPublicQuiz = async (
                     participant_id,
                     participant_name,
                     participant_email,
+                    participant_gender,
                     session_token,
                     photo_path,
                     photo_captured_at,
@@ -3108,12 +3382,13 @@ exports.startPublicQuiz = async (
                     camera_consent,
                     location_consent,
                     email_consent,
+                    verification_status,
                     status,
                     max_score
                 )
 
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
 
@@ -3124,6 +3399,8 @@ exports.startPublicQuiz = async (
                     name,
 
                     email,
+
+                    participantGender,
 
                     sessionToken,
 
@@ -3152,6 +3429,10 @@ exports.startPublicQuiz = async (
                         ? 1
                         : 0,
 
+                    quiz.require_camera
+                        ? "PENDING"
+                        : "APPROVED",
+
                     "In Progress",
 
                     maxScore
@@ -3172,6 +3453,14 @@ exports.startPublicQuiz = async (
 
             participant_id:
                 participantId,
+
+            participant_gender:
+                participantGender,
+
+            verification_status:
+                quiz.require_camera
+                    ? "PENDING"
+                    : "APPROVED",
 
             photo_path:
                 photoPath,
@@ -3853,13 +4142,32 @@ exports.submitPublicQuiz = async (
             ) || 0;
 
 
-        const result =
+        // The score can be calculated immediately, but a camera-required
+        // submission is NOT considered passed until verification is approved.
+        const scoreResult =
             finalPercentage >=
             passingScore
 
                 ? "Passed"
 
                 : "Failed";
+
+        const verificationStatus =
+            String(
+                submission.verification_status ||
+                ""
+            ).trim().toUpperCase();
+
+        const result =
+            verificationStatus === "PENDING"
+
+                ? "Pending Verification"
+
+                : verificationStatus === "REJECTED"
+
+                    ? "Failed"
+
+                    : scoreResult;
 
 
         // ==================================================
@@ -3944,6 +4252,15 @@ exports.submitPublicQuiz = async (
 
             participant_email:
                 submission.participant_email,
+
+            participant_gender:
+                submission.participant_gender,
+
+            verification_status:
+                verificationStatus,
+
+            admin_review_reason:
+                submission.admin_review_reason || null,
 
             quiz_id:
                 submission.quiz_id,
