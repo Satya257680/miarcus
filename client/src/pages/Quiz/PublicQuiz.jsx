@@ -2531,7 +2531,11 @@ function PublicQuiz() {
 
                                 <div className="quiz-verification-copy">
                                     <strong>Participant verification</strong>
-                                    <span>Photo captured before assessment</span>
+                                    <span>
+                                        {session?.verification_status === "APPROVED"
+                                            ? "Verification approved"
+                                            : "Photo captured before assessment"}
+                                    </span>
                                 </div>
 
                                 <div className="quiz-verification-meta">
@@ -2848,6 +2852,47 @@ function PublicQuiz() {
                                     points
                                 </span>
                             </div>
+
+                            {String(
+                                result.verification_status ||
+                                ""
+                            ).toUpperCase() === "PENDING" && (
+                                <div className="result-security">
+                                    <FaClock />
+
+                                    <div>
+                                        <strong>
+                                            Verification pending
+                                        </strong>
+
+                                        <span>
+                                            Your assessment has been submitted.
+                                            The captured photo and participant details
+                                            are waiting for authorized Miarcus review.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {String(
+                                result.verification_status ||
+                                ""
+                            ).toUpperCase() === "REJECTED" && (
+                                <div className="result-security">
+                                    <FaShieldAlt />
+
+                                    <div>
+                                        <strong>
+                                            Verification failed
+                                        </strong>
+
+                                        <span>
+                                            {result.admin_review_reason ||
+                                                "The verification could not be approved."}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {result.participant_id && (
                                 <div className="participant-id">
