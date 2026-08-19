@@ -369,6 +369,8 @@ const allowedOrigins = [
 
     // Production Vercel
     "https://miarcus.vercel.app",
+    "https://rytual.miarcus.com",
+    "https://rytual-peach.vercel.app",
 
     // Environment variable
     process.env.FRONTEND_URL
@@ -471,7 +473,7 @@ app.use(
 
             if (
 
-                /^https:\/\/miarcus(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(
+                /^https:\/\/(?:miarcus|rytual)(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(
                     normalizedOrigin
                 )
 
