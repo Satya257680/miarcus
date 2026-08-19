@@ -404,6 +404,14 @@ function PublicQuiz() {
 
     const requestCamera = async () => {
         setError("");
+
+        if (!isCameraPrerequisiteComplete()) {
+            setError(
+                "Please complete your name, email address, and agreement before enabling the camera."
+            );
+            return;
+        }
+
         setCameraLoading(true);
 
         try {
@@ -821,6 +829,7 @@ function PublicQuiz() {
                 autoCaptureBusyRef.current ||
                 photo ||
                 !cameraConsent ||
+                !isCameraPrerequisiteComplete() ||
                 !videoRef.current ||
                 cameraVerification.status === "checking"
             ) {
@@ -906,6 +915,7 @@ function PublicQuiz() {
     useEffect(() => {
         if (
             cameraConsent &&
+            isCameraPrerequisiteComplete() &&
             !photo &&
             cameraVerification.status !== "passed"
         ) {
@@ -924,6 +934,9 @@ function PublicQuiz() {
         return undefined;
     }, [
         cameraConsent,
+        name,
+        email,
+        emailConsent,
         photo,
         cameraVerification.status,
     ]);
@@ -997,6 +1010,24 @@ function PublicQuiz() {
     };
 
     // ============================================================
+    // CAMERA PREREQUISITE CHECK
+    // ============================================================
+
+    const isCameraPrerequisiteComplete = () => {
+        const participantName = name.trim();
+        const participantEmail = email.trim();
+
+        const emailPattern =
+            /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+
+        return (
+            participantName.length > 0 &&
+            emailPattern.test(participantEmail) &&
+            emailConsent === true
+        );
+    };
+
+    // ============================================================
     // VALIDATE PARTICIPANT
     // ============================================================
 
@@ -1030,12 +1061,9 @@ function PublicQuiz() {
             return false;
         }
 
-        if (
-            quiz?.require_email_consent &&
-            !emailConsent
-        ) {
+        if (!emailConsent) {
             setError(
-                "Please provide email consent before continuing."
+                "Please provide your agreement before continuing."
             );
 
             return false;
@@ -1959,12 +1987,20 @@ function PublicQuiz() {
                                     <input
                                         type="text"
                                         value={name}
-                                        onChange={(event) =>
-                                            setName(
-                                                event.target
-                                                    .value
-                                            )
-                                        }
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setName(value);
+
+                                            if (photo || cameraVerification.status === "passed") {
+                                                setPhoto(null);
+                                                setPhotoCapturedAt(null);
+                                                setCameraVerification({
+                                                    status: "idle",
+                                                    message: "Camera verification is ready.",
+                                                    checks: [],
+                                                });
+                                            }
+                                        }}
                                         placeholder="Enter your full name"
                                         autoComplete="name"
                                     />
@@ -1985,21 +2021,27 @@ function PublicQuiz() {
                                             }
                                             onChange={(
                                                 event
-                                            ) =>
-                                                setEmail(
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
+                                            ) => {
+                                                const value = event.target.value;
+                                                setEmail(value);
+
+                                                if (photo || cameraVerification.status === "passed") {
+                                                    setPhoto(null);
+                                                    setPhotoCapturedAt(null);
+                                                    setCameraVerification({
+                                                        status: "idle",
+                                                        message: "Camera verification is ready.",
+                                                        checks: [],
+                                                    });
+                                                }
+                                            }}
                                             placeholder="you@example.com"
                                             autoComplete="email"
                                         />
                                     </div>
                                 </label>
 
-                                {quiz.require_email_consent && (
-                                    <label className="consent">
+                                <label className="consent">
                                         <input
                                             type="checkbox"
                                             checked={
@@ -2007,13 +2049,20 @@ function PublicQuiz() {
                                             }
                                             onChange={(
                                                 event
-                                            ) =>
-                                                setEmailConsent(
-                                                    event
-                                                        .target
-                                                        .checked
-                                                )
-                                            }
+                                            ) => {
+                                                const checked = event.target.checked;
+                                                setEmailConsent(checked);
+
+                                                if (!checked) {
+                                                    setPhoto(null);
+                                                    setPhotoCapturedAt(null);
+                                                    setCameraVerification({
+                                                        status: "idle",
+                                                        message: "Camera verification is ready.",
+                                                        checks: [],
+                                                    });
+                                                }
+                                            }}
                                         />
 
                                         <span>
@@ -2025,8 +2074,7 @@ function PublicQuiz() {
                                             and
                                             certificate.
                                         </span>
-                                    </label>
-                                )}
+                                </label>
                             </section>
 
                             {/* ==================================================
@@ -2088,12 +2136,15 @@ function PublicQuiz() {
                                                         requestCamera
                                                     }
                                                     disabled={
-                                                        cameraLoading
+                                                        cameraLoading ||
+                                                        !isCameraPrerequisiteComplete()
                                                     }
                                                 >
                                                     {cameraLoading
                                                         ? "Opening..."
-                                                        : "Allow Camera"}
+                                                        : isCameraPrerequisiteComplete()
+                                                            ? "Allow Camera"
+                                                            : "Complete Details First"}
                                                 </button>
                                             ) : (
                                                 <button
@@ -2120,6 +2171,15 @@ function PublicQuiz() {
                                                 </button>
                                             )}
                                         </div>
+
+                                        {!cameraConsent &&
+                                            !isCameraPrerequisiteComplete() && (
+                                                <p className="camera-prerequisite-hint">
+                                                    Enter your name, valid email address,
+                                                    and accept the agreement before enabling
+                                                    camera verification.
+                                                </p>
+                                            )}
 
                                         {cameraConsent && (
                                             <div className="camera-preview">
