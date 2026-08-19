@@ -125,10 +125,6 @@ function PublicQuiz() {
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
-    // Participant-declared gender. If the backend provides an expected
-    // gender on the public quiz, it is checked against this value before
-    // camera verification is allowed. We do not infer gender from a face
-    // or from a person's name.
     const [gender, setGender] = useState("");
 
     const [emailConsent, setEmailConsent] = useState(false);
@@ -419,7 +415,7 @@ function PublicQuiz() {
     // RESET PARTICIPANT VERIFICATION
     // ============================================================
     // Retake must return the verification flow to its initial state.
-    // The participant must enter name, email, gender and agreement again before
+    // The participant must enter name, email and agreement again before
     // the camera can be enabled.
 
     const resetParticipantForRetake = () => {
@@ -450,7 +446,7 @@ function PublicQuiz() {
     // ============================================================
     // LOCK PARTICIPANT DETAILS
     // ============================================================
-    // Once name + valid email + gender + agreement are complete, freeze them.
+    // Once name + valid email + agreement are complete, freeze them.
     // This lock applies before camera verification, during verification,
     // and after verification. Only Retake Photo can clear it.
 
@@ -464,8 +460,8 @@ function PublicQuiz() {
     }, [
         name,
         email,
-        gender,
         emailConsent,
+        gender,
         participantDetailsLocked,
     ]);
 
@@ -478,7 +474,7 @@ function PublicQuiz() {
 
         if (!isCameraPrerequisiteComplete()) {
             setError(
-                "Please complete your name, email address, gender, and agreement before enabling the camera."
+                "Please complete your name, email address, and agreement before enabling the camera."
             );
             return;
         }
@@ -1093,29 +1089,15 @@ function PublicQuiz() {
     const isCameraPrerequisiteComplete = () => {
         const participantName = name.trim();
         const participantEmail = email.trim();
-        const participantGender = gender.trim().toLowerCase();
 
         const emailPattern =
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        // Gender must be explicitly selected before verification. If the
-        // quiz/API supplies an expected gender, require an exact match.
-        const expectedGender = String(
-            quiz?.expected_gender ||
-            quiz?.participant_gender ||
-            ""
-        ).trim().toLowerCase();
-
-        const genderMatchesExpected =
-            !expectedGender ||
-            participantGender === expectedGender;
-
         return (
             participantName.length > 0 &&
             emailPattern.test(participantEmail) &&
-            ["male", "female"].includes(participantGender) &&
-            emailConsent === true &&
-            genderMatchesExpected
+            (gender === "Male" || gender === "Female") &&
+            emailConsent === true
         );
     };
 
@@ -1153,24 +1135,8 @@ function PublicQuiz() {
             return false;
         }
 
-        const selectedGender = gender.trim().toLowerCase();
-        if (!["male", "female"].includes(selectedGender)) {
-            setError(
-                "Please select Male or Female before continuing."
-            );
-            return false;
-        }
-
-        const expectedGender = String(
-            quiz?.expected_gender ||
-            quiz?.participant_gender ||
-            ""
-        ).trim().toLowerCase();
-
-        if (expectedGender && selectedGender !== expectedGender) {
-            setError(
-                "The selected gender does not match the participant record."
-            );
+        if (gender !== "Male" && gender !== "Female") {
+            setError("Please select Male or Female before continuing.");
             return false;
         }
 
@@ -1180,6 +1146,29 @@ function PublicQuiz() {
             );
 
             return false;
+        }
+
+        // Optional trusted gender gate. The server must provide this value
+        // from a trusted participant/employee record; the camera is never
+        // used to infer gender. Supported fields: expected_gender or
+        // participant_gender. If neither is supplied, no server-side gender
+        // comparison is possible and the selected value is simply recorded.
+        const trustedGender = String(
+            quiz?.expected_gender ?? quiz?.participant_gender ?? ""
+        ).trim();
+
+        if (trustedGender) {
+            const normalizedTrustedGender =
+                trustedGender.toLowerCase();
+            const normalizedSelectedGender =
+                gender.toLowerCase();
+
+            if (normalizedTrustedGender !== normalizedSelectedGender) {
+                setError(
+                    "The selected gender does not match the trusted participant record. Verification cannot continue."
+                );
+                return false;
+            }
         }
 
         if (
@@ -1238,7 +1227,7 @@ function PublicQuiz() {
 
         formData.append(
             "participant_gender",
-            gender.trim().toLowerCase()
+            gender
         );
 
         formData.append(
@@ -2146,10 +2135,7 @@ function PublicQuiz() {
                                 </label>
 
                                 <label>
-                                    <span>
-                                        Gender
-                                    </span>
-
+                                    <span>Gender</span>
                                     <select
                                         value={gender}
                                         onChange={(event) => {
@@ -2158,11 +2144,10 @@ function PublicQuiz() {
                                             }
                                         }}
                                         disabled={participantDetailsLocked || verificationLocked}
-                                        aria-disabled={participantDetailsLocked || verificationLocked}
                                     >
                                         <option value="">Select gender</option>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
                                     </select>
                                 </label>
 
@@ -2195,7 +2180,7 @@ function PublicQuiz() {
 
                                 {participantDetailsLocked && (
                                     <p className="participant-details-locked">
-                                        Participant details (including gender) are locked for this verification.
+                                        Participant details, including gender, are locked for this verification.
                                         Use <strong>Retake Photo</strong> to start a new verification.
                                     </p>
                                 )}
@@ -2290,8 +2275,8 @@ function PublicQuiz() {
                                         {!cameraConsent &&
                                             !isCameraPrerequisiteComplete() && (
                                                 <p className="camera-prerequisite-hint">
-                                                    Enter your name, valid email address, select
-                                                    gender, and accept the agreement before enabling
+                                                    Enter your name, valid email address,
+                                                    and accept the agreement before enabling
                                                     camera verification.
                                                 </p>
                                             )}
