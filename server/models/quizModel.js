@@ -1355,17 +1355,10 @@ const createTables = (callback) => {
             participant_email VARCHAR(255)
                 NOT NULL,
 
-            participant_gender ENUM(
-                'Male',
-                'Female'
-            ) NULL,
-
             session_token VARCHAR(100)
                 NOT NULL UNIQUE,
 
             photo_path VARCHAR(500) NULL,
-
-            photo_captured_at DATETIME NULL,
 
             latitude DECIMAL(10,7) NULL,
 
@@ -1381,19 +1374,6 @@ const createTables = (callback) => {
 
             email_consent TINYINT(1)
                 NOT NULL DEFAULT 0,
-
-            verification_status ENUM(
-                'PENDING',
-                'APPROVED',
-                'REJECTED'
-            )
-            NOT NULL DEFAULT 'PENDING',
-
-            admin_review_reason TEXT NULL,
-
-            reviewed_by INT NULL,
-
-            reviewed_at DATETIME NULL,
 
             status ENUM(
                 'In Progress',
@@ -3175,34 +3155,6 @@ const getSubmissions = async (
         params.push(
             filters.status
         );
-    }
-
-    if (filters.verification_status) {
-
-        const verificationStatus =
-            String(
-                filters.verification_status
-            ).trim().toUpperCase();
-
-        if (
-            [
-                "PENDING",
-                "APPROVED",
-                "REJECTED"
-            ].includes(
-                verificationStatus
-            )
-        ) {
-
-            sql += `
-                AND s.verification_status = ?
-            `;
-
-            params.push(
-                verificationStatus
-            );
-
-        }
     }
 
     sql += `
