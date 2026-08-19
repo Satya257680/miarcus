@@ -399,6 +399,35 @@ function PublicQuiz() {
     };
 
     // ============================================================
+    // RESET PARTICIPANT VERIFICATION
+    // ============================================================
+    // Retake must return the verification flow to its initial state.
+    // The participant must enter name, email and agreement again before
+    // the camera can be enabled.
+
+    const resetParticipantForRetake = () => {
+        stopAutoCapture();
+        stopCamera();
+
+        setPhoto(null);
+        setPhotoCapturedAt(null);
+        setCameraConsent(false);
+        setCameraLoading(false);
+
+        setCameraVerification({
+            status: "idle",
+            message: "Camera verification is ready.",
+            checks: [],
+        });
+
+        setName("");
+        setEmail("");
+        setEmailConsent(false);
+
+        setError("");
+    };
+
+    // ============================================================
     // REQUEST CAMERA
     // ============================================================
 
@@ -1988,18 +2017,7 @@ function PublicQuiz() {
                                         type="text"
                                         value={name}
                                         onChange={(event) => {
-                                            const value = event.target.value;
-                                            setName(value);
-
-                                            if (photo || cameraVerification.status === "passed") {
-                                                setPhoto(null);
-                                                setPhotoCapturedAt(null);
-                                                setCameraVerification({
-                                                    status: "idle",
-                                                    message: "Camera verification is ready.",
-                                                    checks: [],
-                                                });
-                                            }
+                                            setName(event.target.value);
                                         }}
                                         placeholder="Enter your full name"
                                         autoComplete="name"
@@ -2022,18 +2040,7 @@ function PublicQuiz() {
                                             onChange={(
                                                 event
                                             ) => {
-                                                const value = event.target.value;
-                                                setEmail(value);
-
-                                                if (photo || cameraVerification.status === "passed") {
-                                                    setPhoto(null);
-                                                    setPhotoCapturedAt(null);
-                                                    setCameraVerification({
-                                                        status: "idle",
-                                                        message: "Camera verification is ready.",
-                                                        checks: [],
-                                                    });
-                                                }
+                                                setEmail(event.target.value);
                                             }}
                                             placeholder="you@example.com"
                                             autoComplete="email"
@@ -2149,16 +2156,7 @@ function PublicQuiz() {
                                             ) : (
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        setPhoto(null);
-                                                        setPhotoCapturedAt(null);
-                                                        setCameraVerification({
-                                                            status: "idle",
-                                                            message: "Camera verification is ready.",
-                                                            checks: [],
-                                                        });
-                                                        setError("");
-                                                    }}
+                                                    onClick={resetParticipantForRetake}
                                                     disabled={
                                                         cameraVerification.status === "checking"
                                                     }
