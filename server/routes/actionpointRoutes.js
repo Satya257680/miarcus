@@ -7,7 +7,7 @@ const router = express.Router();
 // ======================================================
 
 const upload = require("../middleware/upload");
-
+const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
@@ -134,6 +134,7 @@ router.post(
         "Add"
     ),
     upload.single("attachment"),
+    syncGalleryAttachment("Action Points", "attachment"),
     createActionPoint
 );
 
@@ -190,6 +191,7 @@ router.put(
         "Edit"
     ),
     upload.single("attachment"),
+    syncGalleryAttachment("Action Points", "attachment"),
     updateActionPoint
 );
 

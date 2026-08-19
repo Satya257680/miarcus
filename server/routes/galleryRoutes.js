@@ -3,7 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
-const { upload } = require("../middleware/galleryUpload");
+const { upload, uploadMany } = require("../middleware/galleryUpload");
 const controller = require("../controllers/galleryController");
 
 router.get(
@@ -31,11 +31,30 @@ router.get(
     controller.getCategories
 );
 
+router.get(
+    "/locations",
+    permissionMiddleware("Gallery", "View"),
+    controller.getLocations
+);
+
 router.post(
     "/upload",
     permissionMiddleware("Gallery", "Add"),
     upload.single("photo"),
     controller.uploadPhoto
+);
+
+router.post(
+    "/bulk-upload",
+    permissionMiddleware("Gallery", "Add"),
+    uploadMany.array("photos", 20),
+    controller.bulkUploadPhotos
+);
+
+router.delete(
+    "/delete-all",
+    permissionMiddleware("Gallery", "Full"),
+    controller.deleteAllPhotos
 );
 
 router.post(

@@ -18,6 +18,10 @@ const upload = require(
     "../middleware/upload"
 );
 
+const syncGalleryAttachment = require(
+    "../middleware/galleryAttachmentSync"
+);
+
 const ChecklistSubmission = require(
     "../models/checklistSubmissionModel"
 );
@@ -68,6 +72,8 @@ router.post(
     ),
 
     upload.single("attachment"),
+
+    syncGalleryAttachment("Checklist Submission", "attachment"),
 
     createSubmission
 

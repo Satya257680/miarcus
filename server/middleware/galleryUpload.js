@@ -38,4 +38,15 @@ const upload = multer({
     }
 });
 
-module.exports = { upload, destination, root };
+const uploadMany = multer({
+    storage,
+    limits: { fileSize: 15 * 1024 * 1024, files: 20 },
+    fileFilter: (_req, file, cb) => {
+        if (!allowed.has(file.mimetype)) {
+            return cb(new Error("Only JPG, PNG and WEBP images are allowed."));
+        }
+        cb(null, true);
+    }
+});
+
+module.exports = { upload, uploadMany, destination, root };

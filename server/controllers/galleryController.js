@@ -10,6 +10,35 @@ const publicFilePath = (filePath) => {
     return index >= 0 ? normalized.slice(index) : normalized;
 };
 
+const toNullableNumber = (value, min, max) => {
+    if (value === undefined || value === null || value === "") return null;
+    const number = Number(value);
+    if (!Number.isFinite(number) || number < min || number > max) return null;
+    return number;
+};
+
+const normalizeLocation = async (locationType, storeId) => {
+    const type = String(locationType || "head_office").trim();
+    if (!["head_office", "store"].includes(type)) {
+        const error = new Error("Please select Head Office or a valid Store.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (type === "head_office") {
+        return { location_type: "head_office", store_id: null };
+    }
+
+    const id = Number(storeId);
+    if (!Number.isInteger(id) || id <= 0 || !(await Gallery.storeExists(id))) {
+        const error = new Error("Please select a valid active store.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return { location_type: "store", store_id: id };
+};
+
 const serialize = (row) => ({
     id: Number(row.id),
     file_name: row.file_name,
@@ -21,6 +50,17 @@ const serialize = (row) => ({
     employee_id: row.employee_id || null,
     category: row.category || "",
     description: row.description || "",
+    location_type: row.location_type || "head_office",
+    store_id: row.store_id ? Number(row.store_id) : null,
+    location_name: row.location_type === "store" ? (row.store_name || "Store") : "Head Office",
+    store_name: row.store_name || null,
+    store_code: row.store_code || null,
+    latitude: row.latitude !== null && row.latitude !== undefined ? Number(row.latitude) : null,
+    longitude: row.longitude !== null && row.longitude !== undefined ? Number(row.longitude) : null,
+    location_accuracy: row.location_accuracy !== null && row.location_accuracy !== undefined ? Number(row.location_accuracy) : null,
+    source_module: row.source_module || "Gallery",
+    source_record_id: row.source_record_id ? Number(row.source_record_id) : null,
+    source_field: row.source_field || null,
     uploaded_at: row.uploaded_at
 });
 
@@ -41,6 +81,8 @@ const getAll = async (req, res) => {
         const result = await Gallery.list({
             search: String(req.query.search || "").trim(),
             category: String(req.query.category || "").trim(),
+            locationType: String(req.query.location_type || "").trim(),
+            storeId: String(req.query.store_id || "").trim(),
             from: String(req.query.from || "").trim(),
             to: String(req.query.to || "").trim(),
             page: req.query.page,
@@ -72,20 +114,52 @@ const getCategories = async (_req, res) => {
     }
 };
 
+const getLocations = async (_req, res) => {
+    try {
+        return res.json({ success: true, locations: await Gallery.getLocations() });
+    } catch (error) {
+        console.error("Gallery locations error:", error);
+        return res.status(500).json({ success: false, message: "Unable to load Gallery locations" });
+    }
+};
+
+const createPhotoRecord = async ({ req, file, location, latitude, longitude, locationAccuracy }) => {
+    return Gallery.create({
+        file_name: file.filename,
+        file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
+        mime_type: file.mimetype,
+        file_size: file.size,
+        uploaded_by: req.user.id,
+        category: String(req.body.category || "").trim().slice(0, 100),
+        description: String(req.body.description || "").trim().slice(0, 2000),
+        location_type: location.location_type,
+        store_id: location.store_id,
+        latitude,
+        longitude,
+        location_accuracy: locationAccuracy,
+        source_module: "Gallery",
+        source_field: "photo"
+    });
+};
+
 const uploadPhoto = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: "Please select an image" });
         }
 
-        const photoId = await Gallery.create({
-            file_name: req.file.filename,
-            file_path: path.relative(process.cwd(), req.file.path).replace(/\\/g, "/"),
-            mime_type: req.file.mimetype,
-            file_size: req.file.size,
-            uploaded_by: req.user.id,
-            category: String(req.body.category || "").trim().slice(0, 100),
-            description: String(req.body.description || "").trim().slice(0, 2000)
+        const location = await normalizeLocation(req.body.location_type, req.body.store_id);
+        const latitude = toNullableNumber(req.body.latitude, -90, 90);
+        const longitude = toNullableNumber(req.body.longitude, -180, 180);
+        const locationAccuracy = toNullableNumber(req.body.location_accuracy, 0, 100000);
+
+        const photoId = await createPhotoRecord({
+            req,
+            file: req.file,
+            location,
+            latitude,
+            longitude,
+            locationAccuracy
         });
 
         const photo = await Gallery.getById(photoId);
@@ -100,7 +174,99 @@ const uploadPhoto = async (req, res) => {
             try { fs.unlinkSync(req.file.path); } catch {}
         }
         console.error("Gallery upload error:", error);
-        return res.status(500).json({ success: false, message: error.message || "Unable to upload photo" });
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Unable to upload photo"
+        });
+    }
+};
+
+
+const bulkUploadPhotos = async (req, res) => {
+    const files = Array.isArray(req.files) ? req.files : [];
+    const createdIds = [];
+
+    try {
+        if (!files.length) {
+            return res.status(400).json({ success: false, message: "Please select at least one image." });
+        }
+
+        const location = await normalizeLocation(req.body.location_type, req.body.store_id);
+        const latitude = toNullableNumber(req.body.latitude, -90, 90);
+        const longitude = toNullableNumber(req.body.longitude, -180, 180);
+        const locationAccuracy = toNullableNumber(req.body.location_accuracy, 0, 100000);
+
+        if (latitude === null || longitude === null) {
+            return res.status(400).json({ success: false, message: "Please capture the current GPS location before bulk upload." });
+        }
+
+        for (const file of files) {
+            const photoId = await Gallery.create({
+                file_name: file.filename,
+                file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
+                mime_type: file.mimetype,
+                file_size: file.size,
+                uploaded_by: req.user.id,
+                category: String(req.body.category || "").trim().slice(0, 100),
+                description: String(req.body.description || "").trim().slice(0, 2000),
+                location_type: location.location_type,
+                store_id: location.store_id,
+                latitude,
+                longitude,
+                location_accuracy: locationAccuracy,
+                source_module: "Gallery",
+                source_field: "bulk_photos"
+            });
+            createdIds.push(photoId);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: `${createdIds.length} photo${createdIds.length === 1 ? "" : "s"} uploaded successfully.`,
+            ids: createdIds
+        });
+    } catch (error) {
+        for (const file of files) {
+            if (file?.path) {
+                try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+            }
+        }
+        console.error("Gallery bulk upload error:", error);
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Unable to bulk upload photos."
+        });
+    }
+};
+
+const deleteAllPhotos = async (_req, res) => {
+    try {
+        const rows = await Gallery.deleteAll();
+        let removedFiles = 0;
+
+        for (const row of rows) {
+            // Never physically delete an attachment owned by another module.
+            if (row.source_module && row.source_module !== "Gallery") continue;
+
+            const diskPath = path.resolve(process.cwd(), String(row.file_path || ""));
+            if (fs.existsSync(diskPath)) {
+                try {
+                    fs.unlinkSync(diskPath);
+                    removedFiles += 1;
+                } catch (error) {
+                    console.warn("Gallery bulk file cleanup failed:", error.message);
+                }
+            }
+        }
+
+        return res.json({
+            success: true,
+            deleted: rows.length,
+            removedFiles
+        });
+    } catch (error) {
+        console.error("Gallery delete-all error:", error);
+        return res.status(500).json({ success: false, message: "Unable to clear Gallery." });
     }
 };
 
@@ -145,9 +311,11 @@ const deletePhoto = async (req, res) => {
         }
 
         await Gallery.softDelete(id);
-        const diskPath = path.resolve(process.cwd(), String(photo.file_path).replace(/^.*?uploads[\\/]/, "uploads/"));
-        if (fs.existsSync(diskPath)) {
-            try { fs.unlinkSync(diskPath); } catch (error) { console.warn("Gallery file cleanup failed:", error.message); }
+        if (!photo.source_module || photo.source_module === "Gallery") {
+            const diskPath = path.resolve(process.cwd(), String(photo.file_path).replace(/^.*?uploads[\\/]/, "uploads/"));
+            if (fs.existsSync(diskPath)) {
+                try { fs.unlinkSync(diskPath); } catch (error) { console.warn("Gallery file cleanup failed:", error.message); }
+            }
         }
 
         return res.json({ success: true, id });
@@ -159,13 +327,17 @@ const deletePhoto = async (req, res) => {
 
 const createMobileSession = async (req, res) => {
     try {
+        const location = await normalizeLocation(req.body.location_type, req.body.store_id);
         const token = crypto.randomBytes(32).toString("hex");
         const tokenHash = hashToken(token);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
         const sessionId = await Gallery.createMobileSession({
             tokenHash,
             createdBy: req.user.id,
-            expiresAt
+            expiresAt,
+            locationType: location.location_type,
+            storeId: location.store_id
         });
 
         const uploadUrl = `${getFrontendOrigin(req)}/gallery/mobile/${token}`;
@@ -173,11 +345,16 @@ const createMobileSession = async (req, res) => {
             success: true,
             sessionId,
             uploadUrl,
-            expiresAt: expiresAt.toISOString()
+            expiresAt: expiresAt.toISOString(),
+            location_type: location.location_type,
+            store_id: location.store_id
         });
     } catch (error) {
         console.error("Gallery mobile session error:", error);
-        return res.status(500).json({ success: false, message: "Unable to create mobile upload session" });
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Unable to create mobile upload session"
+        });
     }
 };
 
@@ -196,7 +373,9 @@ const mobileStatus = async (req, res) => {
             status: session.status,
             photoId: session.gallery_photo_id,
             uploadedAt: session.uploaded_at,
-            expiresAt: session.expires_at
+            expiresAt: session.expires_at,
+            location_type: session.location_type,
+            store_id: session.store_id ? Number(session.store_id) : null
         });
     } catch (error) {
         console.error("Gallery mobile status error:", error);
@@ -218,6 +397,10 @@ const mobileUpload = async (req, res) => {
         }
         if (!req.file) return res.status(400).json({ success: false, message: "Please select or take a photo" });
 
+        const latitude = toNullableNumber(req.body.latitude, -90, 90);
+        const longitude = toNullableNumber(req.body.longitude, -180, 180);
+        const locationAccuracy = toNullableNumber(req.body.location_accuracy, 0, 100000);
+
         const photoId = await Gallery.create({
             file_name: req.file.filename,
             file_path: path.relative(process.cwd(), req.file.path).replace(/\\/g, "/"),
@@ -225,7 +408,12 @@ const mobileUpload = async (req, res) => {
             file_size: req.file.size,
             uploaded_by: session.created_by,
             category: String(req.body.category || "").trim().slice(0, 100),
-            description: String(req.body.description || "").trim().slice(0, 2000)
+            description: String(req.body.description || "").trim().slice(0, 2000),
+            location_type: session.location_type || "head_office",
+            store_id: session.store_id || null,
+            latitude,
+            longitude,
+            location_accuracy: locationAccuracy
         });
 
         await Gallery.markMobileUploaded(session.id, photoId);
@@ -242,7 +430,7 @@ const mobileUpload = async (req, res) => {
             try { fs.unlinkSync(req.file.path); } catch {}
         }
         console.error("Gallery mobile upload error:", error);
-        return res.status(500).json({ success: false, message: error.message || "Unable to upload photo" });
+        return res.status(500).json({ success: false, message: "Unable to upload photo" });
     }
 };
 
@@ -253,7 +441,15 @@ const mobileOpen = async (req, res) => {
             if (session) await Gallery.expireSession(session.id);
             return res.status(410).json({ success: false, message: "This upload link has expired or was already used" });
         }
-        return res.json({ success: true, expiresAt: session.expires_at });
+        const storeId = session.store_id ? Number(session.store_id) : null;
+        const storeName = storeId ? await Gallery.getStoreName(storeId) : null;
+        return res.json({
+            success: true,
+            expiresAt: session.expires_at,
+            location_type: session.location_type,
+            store_id: storeId,
+            location_name: session.location_type === "store" ? (storeName || "Selected Store") : "Head Office"
+        });
     } catch (error) {
         console.error("Gallery mobile open error:", error);
         return res.status(500).json({ success: false, message: "Unable to open upload session" });
@@ -263,7 +459,10 @@ const mobileOpen = async (req, res) => {
 module.exports = {
     getAll,
     getCategories,
+    getLocations,
     uploadPhoto,
+    bulkUploadPhotos,
+    deleteAllPhotos,
     downloadPhoto,
     deletePhoto,
     createMobileSession,

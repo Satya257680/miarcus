@@ -8,7 +8,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const activityAccessMiddleware = require("../middleware/activityAccessMiddleware");
 const upload = require("../middleware/upload");
-
+const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 // ======================================================
 // GET ALL ACTIVITIES
 // ======================================================
@@ -112,6 +112,8 @@ router.post(
     activityAccessMiddleware,
 
     upload.single("file"),
+
+    syncGalleryAttachment("Activity Center", "file"),
 
     activityController.uploadActivityFile
 

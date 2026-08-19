@@ -18,6 +18,10 @@ const upload = require(
     "../middleware/upload"
 );
 
+const syncGalleryAttachment = require(
+    "../middleware/galleryAttachmentSync"
+);
+
 // ======================================================
 // CONTROLLER
 // ======================================================
@@ -130,6 +134,7 @@ router.post(
         "Add"
     ),
     upload.single("attachment"),
+    syncGalleryAttachment("Announcements", "attachment"),
     createAnnouncement
 );
 
@@ -155,6 +160,7 @@ router.put(
         "Edit"
     ),
     upload.single("attachment"),
+    syncGalleryAttachment("Announcements", "attachment"),
     updateAnnouncement
 );
 

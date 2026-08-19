@@ -26,6 +26,10 @@ const upload = require(
     "../middleware/upload"
 );
 
+const syncGalleryAttachment = require(
+    "../middleware/galleryAttachmentSync"
+);
+
 // ======================================================
 // EXPENSE ROUTES
 // ======================================================
@@ -39,6 +43,7 @@ router.post(
     "/",
     authMiddleware,
     upload.single("bill"),
+    syncGalleryAttachment("Expenses", "bill"),
     expenseController.submitExpense
 );
 
