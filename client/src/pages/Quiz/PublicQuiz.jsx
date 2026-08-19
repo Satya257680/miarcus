@@ -1018,7 +1018,7 @@ function PublicQuiz() {
         const participantEmail = email.trim();
 
         const emailPattern =
-            /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         return (
             participantName.length > 0 &&
