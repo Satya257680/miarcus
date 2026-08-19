@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "../../axiosConfig";
+import {
+    FaceDetector,
+    FilesetResolver,
+} from "@mediapipe/tasks-vision";
 
 import {
     FaCamera,
@@ -472,15 +476,11 @@ function PublicQuiz() {
         faceDetectorLoadingRef.current = (async () => {
             // Loaded at runtime so the existing Vite bundle does not need
             // a large computer-vision dependency bundled into every page.
-            const vision = await import(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm"
-            );
-
-            const fileset = await vision.FilesetResolver.forVisionTasks(
+            const fileset = await FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
             );
 
-            const detector = await vision.FaceDetector.createFromOptions(
+            const detector = await FaceDetector.createFromOptions(
                 fileset,
                 {
                     baseOptions: {
