@@ -24,7 +24,8 @@ import {
     FaClipboard,
     FaSitemap,
     FaMoneyBillWave,
-    FaImages
+    FaImages,
+    FaMapMarkedAlt
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -371,6 +372,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Gallery
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    EMPLOYEE LOCATION
+                ================================================== */}
+
+                {hasPermission("Employee Location") && (
+                    <NavLink
+                        to="/employee-location"
+                        className={getMenuClass}
+                    >
+                        <FaMapMarkedAlt />
+
+                        {!collapsed && (
+                            <span>
+                                Employee Location
                             </span>
                         )}
                     </NavLink>

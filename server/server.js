@@ -81,6 +81,9 @@ const ThemePreference =
 const Gallery =
     require("./models/galleryModel");
 
+const EmployeeLocation =
+    require("./models/locationModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -275,6 +278,19 @@ async function initializeDatabase() {
             console.log("✅ gallery tables verified");
         } catch (error) {
             console.error("❌ gallery table initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
+        // EMPLOYEE LOCATION
+        // --------------------------------------------------
+        try {
+            await EmployeeLocation.ensureTables();
+            console.log("✅ employee location tables verified");
+        } catch (error) {
+            console.error(
+                "❌ employee location table initialization failed:",
+                error.message
+            );
         }
 
         // --------------------------------------------------
@@ -952,6 +968,16 @@ loadRoute(
     "/api/gallery",
 
     "Gallery Routes"
+
+);
+
+loadRoute(
+
+    "./routes/locationRoutes",
+
+    "/api/location",
+
+    "Employee Location Routes"
 
 );
 

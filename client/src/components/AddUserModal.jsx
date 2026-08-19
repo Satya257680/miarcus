@@ -135,6 +135,7 @@ function AddUserModal({
   "New Store Openings",
   "Announcements",
   "Gallery",
+  "Employee Location",
   "Expenses",
   "Profile",
   "Settings",

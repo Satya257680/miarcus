@@ -12,6 +12,7 @@ import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import ExpensePermissionRoute from "./components/layout/ExpensePermissionRoute";
 import PettyCashPermissionRoute from "./components/layout/PettyCashPermissionRoute";
+import ModulePermissionRoute from "./components/layout/ModulePermissionRoute";
 import PettyCashEmailSettings from "./pages/PettyCash/PettyCashEmailSettings";
 
 // ======================================================
@@ -38,6 +39,7 @@ import ActionPoints from "./pages/ActionPoints";
 import Announcements from "./pages/Announcements";
 import Gallery from "./pages/Gallery";
 import GalleryMobile from "./pages/GalleryMobile";
+import EmployeeLocation from "./pages/EmployeeLocation";
 
 // ======================================================
 // ADMIN / SETTINGS MODULES
@@ -234,6 +236,19 @@ function App() {
                     <Route
                         path="/gallery"
                         element={<Gallery />}
+                    />
+
+                    {/* ==================================================
+                        EMPLOYEE LOCATION
+                    ================================================== */}
+
+                    <Route
+                        path="/employee-location"
+                        element={
+                            <ModulePermissionRoute moduleName="Employee Location">
+                                <EmployeeLocation />
+                            </ModulePermissionRoute>
+                        }
                     />
 
 
