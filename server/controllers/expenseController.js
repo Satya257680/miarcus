@@ -288,6 +288,20 @@ function normalizeAiResult(raw) {
             data.sub_total
         ),
 
+        // Discount is kept separately because invoice arithmetic must not
+        // assume total = subtotal + tax. Many invoices contain discounts.
+        discount_amount: num(
+            data.discount_amount ??
+            data.discount ??
+            data.total_discount
+        ),
+
+        taxable_amount: num(
+            data.taxable_amount ??
+            data.taxable_total ??
+            data.taxable
+        ),
+
         tax_amount: num(
             data.tax_amount ??
             data.tax ??
@@ -470,6 +484,8 @@ Extract:
 - bill_date
 - currency
 - subtotal
+- discount_amount
+- taxable_amount
 - tax_amount
 - total_amount
 - ocr_confidence (0-100)
@@ -526,20 +542,32 @@ IMPORTANT:
 
 4. Never invent vendor, invoice number, date, amount or GST information.
 
-5. Always return arrays for:
+5. Extract DISCOUNT and TAXABLE AMOUNT whenever they are visibly printed. A discount must not be silently ignored when checking totals.
+
+6. Check the printed arithmetic carefully:
+   - item sum should agree with subtotal within a very small tolerance;
+   - taxable amount should agree with subtotal minus discount;
+   - total should agree with taxable amount plus tax;
+   - if the printed numbers conflict, report the inconsistency in image_inconsistencies or notes.
+
+7. Treat GSTIN as unverified unless it is actually visible. Do not assume that a syntactically valid 15-character GSTIN is genuine.
+
+8. Do not claim that a document is authentic merely because all fields are present. Document authenticity cannot be established from appearance alone.
+
+9. Always return arrays for:
    manipulation_signals
    ai_generated_signals
    image_inconsistencies
 
-6. If a field cannot be determined from the document, use:
+10. If a field cannot be determined from the document, use:
    ""
    0
    null
    or an empty array as appropriate.
 
-7. Keep monetary values numeric.
+11. Keep monetary values numeric.
 
-8. Return valid JSON only.
+12. Return valid JSON only.
 `;
 
     // ======================================================
@@ -913,6 +941,62 @@ IMPORTANT:
     return parsed;
 }
 
+function validateGSTIN(gstin) {
+    const value = clean(gstin).toUpperCase();
+
+    if (!value) {
+        return {
+            present: false,
+            formatValid: false,
+            checksumValid: false,
+            valid: false
+        };
+    }
+
+    if (!/^[0-9]{2}[A-Z0-9]{13}$/.test(value)) {
+        return {
+            present: true,
+            formatValid: false,
+            checksumValid: false,
+            valid: false
+        };
+    }
+
+    // GSTIN checksum validation.
+    // This validates the 15-character GSTIN checksum; it does NOT prove
+    // that the GSTIN is registered or belongs to the named vendor.
+    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let factor = 2;
+    let total = 0;
+
+    for (let i = 13; i >= 0; i--) {
+        const code = chars.indexOf(value[i]);
+
+        if (code < 0) {
+            return {
+                present: true,
+                formatValid: true,
+                checksumValid: false,
+                valid: false
+            };
+        }
+
+        const product = code * factor;
+        total += Math.floor(product / 36) + (product % 36);
+        factor = factor === 2 ? 1 : 2;
+    }
+
+    const expectedChecksum = chars[(36 - (total % 36)) % 36];
+    const checksumValid = expectedChecksum === value[14];
+
+    return {
+        present: true,
+        formatValid: true,
+        checksumValid,
+        valid: checksumValid
+    };
+}
+
 function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateRows = []) {
     const checks = [];
 
@@ -925,10 +1009,12 @@ function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateR
     checks.push(
         makeCheck(
             "OCR extraction",
-            hasCoreFields ? "PASS" : "REVIEW",
+            hasCoreFields
+                ? (ai.ocr_confidence >= 75 ? "PASS" : "REVIEW")
+                : "REVIEW",
             hasCoreFields
                 ? Math.max(0, 100 - ai.ocr_confidence)
-                : 45,
+                : 55,
             {
                 invoice_number: ai.invoice_number,
                 vendor_name: ai.vendor_name,
@@ -945,7 +1031,7 @@ function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateR
         makeCheck(
             "Duplicate check",
             duplicate ? "FAIL" : "PASS",
-            duplicate ? 90 : 0,
+            duplicate ? 95 : 0,
             {
                 matching_records: duplicateCount,
                 exact_file_matches: exactDuplicateCount,
@@ -961,45 +1047,100 @@ function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateR
     );
 
     const itemSum = ai.items.reduce(
-        (sum, item) =>
-            sum + num(item.line_total),
+        (sum, item) => sum + num(item.line_total),
         0
     );
 
-    const hasArithmeticData =
-        ai.total_amount > 0 ||
-        ai.subtotal > 0 ||
-        ai.tax_amount > 0 ||
-        ai.items.length > 0;
+    const hasItemData = ai.items.length > 0;
+    const hasSubtotal = ai.subtotal > 0;
+    const hasDiscount = ai.discount_amount !== 0;
+    const hasTaxableAmount = ai.taxable_amount > 0;
+    const hasTax = ai.tax_amount >= 0;
+    const hasTotal = ai.total_amount > 0;
 
-    const expectedTotal =
-        num(ai.subtotal) +
-        num(ai.tax_amount);
+    const arithmeticProblems = [];
+    const arithmeticDetails = {
+        item_sum: Number(itemSum.toFixed(2)),
+        subtotal: ai.subtotal,
+        discount_amount: ai.discount_amount,
+        taxable_amount: ai.taxable_amount,
+        tax_amount: ai.tax_amount,
+        total_amount: ai.total_amount
+    };
 
-    const itemMismatch =
-        ai.items.length > 0 &&
-        ai.subtotal > 0 &&
-        Math.abs(
-            itemSum - ai.subtotal
-        ) > Math.max(
-            1,
-            ai.subtotal * 0.02
-        );
+    // Small fixed/relative tolerance avoids allowing material invoice
+    // discrepancies to pass just because they are below a 2% threshold.
+    const tolerance = (value) =>
+        Math.max(2, Math.abs(Number(value || 0)) * 0.005);
 
-    const totalMismatch =
-        ai.total_amount > 0 &&
-        expectedTotal > 0 &&
-        Math.abs(
-            expectedTotal - ai.total_amount
-        ) > Math.max(
-            1,
-            ai.total_amount * 0.02
-        );
+    let itemMismatch = false;
+    let taxableMismatch = false;
+    let totalMismatch = false;
+
+    if (hasItemData && hasSubtotal) {
+        itemMismatch =
+            Math.abs(itemSum - ai.subtotal) > tolerance(ai.subtotal);
+
+        if (itemMismatch) {
+            arithmeticProblems.push(
+                `Line-item total (${itemSum.toFixed(2)}) does not match subtotal (${ai.subtotal.toFixed(2)}).`
+            );
+        }
+    }
+
+    if (hasSubtotal && hasTaxableAmount) {
+        const expectedTaxable =
+            ai.subtotal - ai.discount_amount;
+
+        taxableMismatch =
+            Math.abs(expectedTaxable - ai.taxable_amount) >
+            tolerance(expectedTaxable);
+
+        if (taxableMismatch) {
+            arithmeticProblems.push(
+                `Taxable amount (${ai.taxable_amount.toFixed(2)}) does not match subtotal minus discount (${expectedTaxable.toFixed(2)}).`
+            );
+        }
+    }
+
+    if (hasTotal) {
+        let expectedTotal = null;
+
+        if (hasTaxableAmount && hasTax) {
+            expectedTotal =
+                ai.taxable_amount + ai.tax_amount;
+        } else if (hasSubtotal && hasTax) {
+            expectedTotal =
+                ai.subtotal - ai.discount_amount + ai.tax_amount;
+        }
+
+        if (expectedTotal !== null) {
+            totalMismatch =
+                Math.abs(expectedTotal - ai.total_amount) >
+                tolerance(expectedTotal);
+
+            arithmeticDetails.expected_total =
+                Number(expectedTotal.toFixed(2));
+
+            if (totalMismatch) {
+                arithmeticProblems.push(
+                    `Grand total (${ai.total_amount.toFixed(2)}) does not match the calculated total (${expectedTotal.toFixed(2)}).`
+                );
+            }
+        }
+    }
+
+    const hasEnoughArithmeticData =
+        hasItemData ||
+        hasSubtotal ||
+        hasTaxableAmount ||
+        hasTax ||
+        hasTotal;
 
     const arithmeticStatus =
-        !hasArithmeticData
+        !hasEnoughArithmeticData
             ? "REVIEW"
-            : itemMismatch || totalMismatch
+            : arithmeticProblems.length > 0
                 ? "FAIL"
                 : "PASS";
 
@@ -1008,39 +1149,44 @@ function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateR
             "Arithmetic check",
             arithmeticStatus,
             arithmeticStatus === "FAIL"
-                ? 75
+                ? Math.min(100, 70 + arithmeticProblems.length * 10)
                 : arithmeticStatus === "REVIEW"
-                    ? 35
+                    ? 40
                     : 0,
             {
-                item_sum: Number(
-                    itemSum.toFixed(2)
-                ),
-                subtotal: ai.subtotal,
-                tax_amount: ai.tax_amount,
-                expected_total: Number(
-                    expectedTotal.toFixed(2)
-                ),
-                total_amount: ai.total_amount,
+                ...arithmeticDetails,
                 item_mismatch: itemMismatch,
-                total_mismatch: totalMismatch
+                taxable_mismatch: taxableMismatch,
+                total_mismatch: totalMismatch,
+                problems: arithmeticProblems
             }
         )
     );
 
-    const gstinValid =
-        !ai.vendor_gstin ||
-        /^[0-9]{2}[A-Z0-9]{13}$/.test(
-            ai.vendor_gstin.toUpperCase()
-        );
+    const gstin = validateGSTIN(ai.vendor_gstin);
 
     checks.push(
         makeCheck(
             "GST / tax check",
-            gstinValid ? "PASS" : "FAIL",
-            gstinValid ? 0 : 60,
+            !gstin.present
+                ? "REVIEW"
+                : gstin.valid
+                    ? "PASS"
+                    : "FAIL",
+            !gstin.present
+                ? 30
+                : gstin.valid
+                    ? 0
+                    : 85,
             {
-                gstin: ai.vendor_gstin || null
+                gstin: ai.vendor_gstin || null,
+                format_valid: gstin.formatValid,
+                checksum_valid: gstin.checksumValid,
+                note: gstin.valid
+                    ? "GSTIN checksum is valid. Registration/ownership was not externally verified."
+                    : gstin.present
+                        ? "GSTIN is present but failed format/checksum validation."
+                        : "GSTIN was not detected; vendor tax identity requires manual verification."
             }
         )
     );
@@ -1052,27 +1198,53 @@ function calculateChecks(ai, duplicateCount, exactDuplicateCount = 0, duplicateR
 
     const aiRisk =
         ai.document_authenticity === "AI_GENERATED" ||
-        ai.ai_generated_probability >= 70;
+        ai.document_authenticity === "SUSPICIOUS" ||
+        ai.document_authenticity === "FAKE" ||
+        ai.document_authenticity === "SYNTHETIC" ||
+        ai.ai_generated_probability >= 60;
+
+    const authenticityStatus =
+        ai.document_authenticity === "AUTHENTIC" &&
+        ai.authenticity_confidence >= 75 &&
+        ai.ai_generated_probability < 30 &&
+        manipulationCount === 0
+            ? "PASS"
+            : aiRisk || manipulationCount > 0
+                ? "FAIL"
+                : "REVIEW";
+
+    const authenticityScore =
+        authenticityStatus === "FAIL"
+            ? Math.min(
+                100,
+                65 +
+                manipulationCount * 10 +
+                (ai.ai_generated_probability >= 60 ? 20 : 0)
+            )
+            : authenticityStatus === "REVIEW"
+                ? 35
+                : 0;
 
     checks.push(
         makeCheck(
             "Image / AI analysis",
-            manipulationCount === 0
-                ? "PASS"
-                : aiRisk
-                    ? "FAIL"
-                    : "REVIEW",
-            Math.min(
-                100,
-                manipulationCount * 20 + (aiRisk ? 40 : 0)
-            ),
+            authenticityStatus,
+            authenticityScore,
             {
+                document_authenticity:
+                    ai.document_authenticity || "UNKNOWN",
+                ai_generated_probability:
+                    ai.ai_generated_probability,
+                authenticity_confidence:
+                    ai.authenticity_confidence,
                 manipulation_signals:
                     ai.manipulation_signals,
                 ai_generated_signals:
                     ai.ai_generated_signals,
                 image_inconsistencies:
-                    ai.image_inconsistencies
+                    ai.image_inconsistencies,
+                note:
+                    "Visual AI analysis cannot by itself prove that an invoice is genuine."
             }
         )
     );
@@ -1171,10 +1343,10 @@ function calculateRisk(checks, ai, verification) {
     let score = 0;
 
     const weights = {
-        "OCR extraction": 0.20,
-        "Duplicate check": 0.30,
-        "Arithmetic check": 0.20,
-        "GST / tax check": 0.10,
+        "OCR extraction": 0.15,
+        "Duplicate check": 0.25,
+        "Arithmetic check": 0.25,
+        "GST / tax check": 0.15,
         "Image / AI analysis": 0.20
     };
 
@@ -1191,7 +1363,7 @@ function calculateRisk(checks, ai, verification) {
         ai.total_amount <= 0;
 
     if (coreFieldsMissing) {
-        score += 25;
+        score += 30;
     }
 
     const signalCount =
@@ -1199,50 +1371,126 @@ function calculateRisk(checks, ai, verification) {
         ai.ai_generated_signals.length +
         ai.image_inconsistencies.length;
 
-    score += Math.min(
-        45,
-        signalCount * 15
-    );
-
-    if (
-        ai.ocr_confidence > 0 &&
-        ai.ocr_confidence < 70
-    ) {
-        score += 12;
+    if (signalCount > 0) {
+        score += Math.min(45, signalCount * 15);
     }
 
     if (
-        verification.status === "REVIEW" ||
-        verification.status === "ERROR"
+        ai.document_authenticity === "AI_GENERATED" ||
+        ai.document_authenticity === "FAKE" ||
+        ai.document_authenticity === "SYNTHETIC"
+    ) {
+        score += 40;
+    } else if (ai.document_authenticity === "SUSPICIOUS") {
+        score += 30;
+    } else if (ai.document_authenticity !== "AUTHENTIC") {
+        // UNKNOWN is not proof of fraud, but it must not be treated
+        // as a clean/verified invoice.
+        score += 15;
+    }
+
+    if (ai.ai_generated_probability >= 60) {
+        score += 30;
+    } else if (ai.ai_generated_probability >= 30) {
+        score += 15;
+    }
+
+    if (
+        ai.authenticity_confidence > 0 &&
+        ai.authenticity_confidence < 75
     ) {
         score += 10;
     }
 
     if (
+        ai.ocr_confidence > 0 &&
+        ai.ocr_confidence < 75
+    ) {
+        score += 12;
+    }
+
+    // Missing/failed external verification is deliberately not treated
+    // as a verified invoice. This prevents a mathematically clean fake
+    // document from automatically reaching "Low Risk".
+    if (verification.status === "VERIFIED") {
+        if (verification.verified !== true) {
+            score += 20;
+        }
+    } else if (
+        verification.status === "REVIEW" ||
+        verification.status === "ERROR"
+    ) {
+        score += 20;
+    } else if (
         verification.status === "NOT_CONFIGURED"
     ) {
-        score += 5;
+        score += 15;
     }
+
+    const arithmeticCheck =
+        checks.find(
+            (check) => check.check_type === "Arithmetic check"
+        );
+
+    const gstCheck =
+        checks.find(
+            (check) => check.check_type === "GST / tax check"
+        );
+
+    const duplicateCheck =
+        checks.find(
+            (check) => check.check_type === "Duplicate check"
+        );
+
+    const imageCheck =
+        checks.find(
+            (check) => check.check_type === "Image / AI analysis"
+        );
+
+    // Hard safety gates.
+    const hardHighRisk =
+        duplicateCheck?.check_status === "FAIL" ||
+        arithmeticCheck?.check_status === "FAIL" ||
+        gstCheck?.check_status === "FAIL" ||
+        imageCheck?.check_status === "FAIL" ||
+        ai.document_authenticity === "AI_GENERATED" ||
+        ai.document_authenticity === "FAKE" ||
+        ai.document_authenticity === "SYNTHETIC" ||
+        ai.ai_generated_probability >= 85;
+
+    // Low Risk means "passed every automated gate", not merely
+    // "the weighted score happened to be low".
+    const canBeLowRisk =
+        !hardHighRisk &&
+        !coreFieldsMissing &&
+        arithmeticCheck?.check_status === "PASS" &&
+        gstCheck?.check_status === "PASS" &&
+        imageCheck?.check_status === "PASS" &&
+        duplicateCheck?.check_status === "PASS" &&
+        ai.document_authenticity === "AUTHENTIC" &&
+        ai.authenticity_confidence >= 75 &&
+        ai.ai_generated_probability < 30 &&
+        verification.status === "VERIFIED" &&
+        verification.verified === true;
 
     score = Math.max(
         0,
-        Math.min(
-            100,
-            Math.round(score)
-        )
+        Math.min(100, Math.round(score))
     );
 
-    let risk_level = "Low Risk";
+    let risk_level = "Review Required";
 
-    if (score >= 61) {
+    if (hardHighRisk || score >= 61) {
         risk_level = "High Risk";
-    } else if (score >= 26) {
-        risk_level = "Review Required";
+    } else if (canBeLowRisk) {
+        risk_level = "Low Risk";
     }
 
     return {
         score,
-        risk_level
+        risk_level,
+        hard_high_risk: hardHighRisk,
+        can_be_low_risk: canBeLowRisk
     };
 }
 
@@ -1352,7 +1600,7 @@ async function submitExpense(req, res) {
             verified: false,
             provider: null,
             message:
-                "Verification is performed after the expense record is created."
+                "External verification is required before an expense can receive Low Risk."
         };
 
         const expenseId =
@@ -1478,10 +1726,16 @@ async function submitExpense(req, res) {
                 expenseId
             );
 
+        const responseMessage =
+            risk.risk_level === "High Risk"
+                ? "Bill uploaded, but high-risk verification issues were detected."
+                : risk.risk_level === "Review Required"
+                    ? "Bill uploaded. Manual verification is required before approval."
+                    : "Bill uploaded and passed all configured verification checks.";
+
         return res.status(201).json({
             success: true,
-            message:
-                "Bill uploaded and analyzed successfully.",
+            message: responseMessage,
             expense
         });
     } catch (error) {
