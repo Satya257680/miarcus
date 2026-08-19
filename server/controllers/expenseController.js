@@ -26,13 +26,16 @@ const AI_MAX_RETRIES = Math.max(
     )
 );
 
+// Current stable Gemini 3.5 models.
+// Primary: stronger multimodal/document analysis.
+// Fallback: lower-cost/high-throughput model.
 const GEMINI_DEFAULT_MODEL =
-    "gemini-2.5-flash";
+    "gemini-3.5-flash";
 
 const GEMINI_FALLBACK_MODEL =
     String(
         process.env.GEMINI_FALLBACK_MODEL ||
-        "gemini-2.5-flash-lite"
+        "gemini-3.5-flash-lite"
     ).trim();
 
 const VERIFICATION_TIMEOUT_MS = 15000;
@@ -423,15 +426,27 @@ async function analyzeWithGemini(file) {
         process.env.GEMINI_MODEL
     );
 
+    // Automatically migrate old Render environment values so an old
+    // GEMINI_MODEL=gemini-2.5-flash cannot accidentally send production
+    // traffic to the old model configuration.
     const primaryModel =
-        configuredModel ||
-        GEMINI_DEFAULT_MODEL;
+        configuredModel === "gemini-2.5-flash"
+            ? "gemini-3.5-flash"
+            : configuredModel === "gemini-2.5-flash-lite"
+                ? "gemini-3.5-flash-lite"
+                : configuredModel || GEMINI_DEFAULT_MODEL;
+
+    const configuredFallbackModel = GEMINI_FALLBACK_MODEL;
 
     const fallbackModel =
-        GEMINI_FALLBACK_MODEL &&
-        GEMINI_FALLBACK_MODEL !== primaryModel
-            ? GEMINI_FALLBACK_MODEL
-            : null;
+        configuredFallbackModel === "gemini-2.5-flash"
+            ? "gemini-3.5-flash"
+            : configuredFallbackModel === "gemini-2.5-flash-lite"
+                ? "gemini-3.5-flash-lite"
+                : configuredFallbackModel &&
+                    configuredFallbackModel !== primaryModel
+                    ? configuredFallbackModel
+                    : null;
 
     const models = [
         primaryModel,
@@ -571,11 +586,9 @@ IMPORTANT:
                     }
                 };
 
-                // Gemini 2.5 supports temperature. Newer Gemini 3.x
-                // models may reject deprecated sampling parameters.
-                if (!model.startsWith("gemini-3.")) {
-                    requestBody.generationConfig.temperature = 0.1;
-                }
+                // Gemini 3.5 models do not use the old sampling
+                // parameters such as temperature/top_p/top_k.
+                // Keep the generation config limited to supported fields.
 
                 const response =
                     await fetchWithTimeout(
