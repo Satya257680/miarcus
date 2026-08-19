@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 
-const ModulePermissionRoute = ({ moduleName, children }) => {
+const ModulePermissionRoute = ({ moduleName, children, adminOnly = false }) => {
     const userId = localStorage.getItem("userId");
 
     if (!userId) {
@@ -33,6 +33,10 @@ const ModulePermissionRoute = ({ moduleName, children }) => {
     const allowed = ["View", "Add", "Edit", "Full"].includes(
         permissions?.[moduleName]
     );
+
+    if (adminOnly && !isAdministrator) {
+        return <Navigate to="/dashboard" replace />;
+    }
 
     if (!isAdministrator && !allowed) {
         return <Navigate to="/dashboard" replace />;

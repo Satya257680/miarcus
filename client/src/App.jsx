@@ -245,7 +245,7 @@ function App() {
                     <Route
                         path="/employee-location"
                         element={
-                            <ModulePermissionRoute moduleName="Employee Location">
+                            <ModulePermissionRoute moduleName="Employee Location" adminOnly>
                                 <EmployeeLocation />
                             </ModulePermissionRoute>
                         }

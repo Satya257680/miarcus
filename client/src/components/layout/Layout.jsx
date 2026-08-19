@@ -7,6 +7,8 @@ import Sidebar from "./Sidebar";
 import "../../styles/layout/Layout.css";
 import "../../styles/theme.css";
 import ThemeProvider from "../../context/ThemeProvider";
+import LocationTrackingGate from "../LocationTrackingGate";
+import "../../styles/LocationTrackingGate.css";
 
 function Layout() {
 
@@ -46,6 +48,8 @@ function Layout() {
     <ThemeProvider>
 
       <div className="layout">
+
+        <LocationTrackingGate />
 
         {/* Top Navigation */}
 
