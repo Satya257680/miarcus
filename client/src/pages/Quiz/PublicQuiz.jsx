@@ -140,6 +140,14 @@ function PublicQuiz() {
 
     const videoRef = useRef(null);
     const streamRef = useRef(null);
+    const faceDetectorRef = useRef(null);
+    const faceDetectorLoadingRef = useRef(null);
+
+    const [cameraVerification, setCameraVerification] = useState({
+        status: "idle",
+        message: "Position your face in the frame and capture a clear photo.",
+        checks: [],
+    });
 
     // Browser preview of the exact photo captured before the attempt.
     const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
@@ -301,6 +309,8 @@ function PublicQuiz() {
     useEffect(() => {
         return () => {
             stopCamera();
+            faceDetectorRef.current = null;
+            faceDetectorLoadingRef.current = null;
         };
     }, []);
 
@@ -447,49 +457,279 @@ function PublicQuiz() {
     };
 
     // ============================================================
+    // CAMERA QUALITY / FACE VERIFICATION
+    // ============================================================
+
+    const loadFaceDetector = async () => {
+        if (faceDetectorRef.current) {
+            return faceDetectorRef.current;
+        }
+
+        if (faceDetectorLoadingRef.current) {
+            return faceDetectorLoadingRef.current;
+        }
+
+        faceDetectorLoadingRef.current = (async () => {
+            // Loaded at runtime so the existing Vite bundle does not need
+            // a large computer-vision dependency bundled into every page.
+            const vision = await import(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm"
+            );
+
+            const fileset = await vision.FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+            );
+
+            const detector = await vision.FaceDetector.createFromOptions(
+                fileset,
+                {
+                    baseOptions: {
+                        modelAssetPath:
+                            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+                        delegate: "GPU",
+                    },
+                    runningMode: "IMAGE",
+                    minDetectionConfidence: 0.65,
+                    minSuppressionThreshold: 0.3,
+                }
+            );
+
+            faceDetectorRef.current = detector;
+            return detector;
+        })();
+
+        try {
+            return await faceDetectorLoadingRef.current;
+        } finally {
+            faceDetectorLoadingRef.current = null;
+        }
+    };
+
+    const calculateImageQuality = (context, box, width, height) => {
+        const x = Math.max(0, Math.floor(box.originX));
+        const y = Math.max(0, Math.floor(box.originY));
+        const w = Math.min(width - x, Math.floor(box.width));
+        const h = Math.min(height - y, Math.floor(box.height));
+
+        if (w < 10 || h < 10) {
+            return { brightness: 0, blurScore: 0 };
+        }
+
+        const image = context.getImageData(x, y, w, h);
+        const data = image.data;
+        const gray = new Float32Array(w * h);
+        let sum = 0;
+
+        for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+            const value =
+                0.299 * data[i] +
+                0.587 * data[i + 1] +
+                0.114 * data[i + 2];
+            gray[p] = value;
+            sum += value;
+        }
+
+        const brightness = sum / gray.length;
+        let laplaceSum = 0;
+        let laplaceSq = 0;
+        let count = 0;
+
+        // A simple Laplacian variance is enough to reject obviously blurry
+        // captures without requiring another image-processing dependency.
+        for (let row = 1; row < h - 1; row += 1) {
+            for (let col = 1; col < w - 1; col += 1) {
+                const index = row * w + col;
+                const laplacian =
+                    gray[index - w] +
+                    gray[index - 1] +
+                    gray[index + 1] +
+                    gray[index + w] -
+                    4 * gray[index];
+
+                laplaceSum += laplacian;
+                laplaceSq += laplacian * laplacian;
+                count += 1;
+            }
+        }
+
+        const mean = count ? laplaceSum / count : 0;
+        const blurScore = count
+            ? laplaceSq / count - mean * mean
+            : 0;
+
+        return { brightness, blurScore };
+    };
+
+    const verifyCapturedFrame = async (canvas) => {
+        setCameraVerification({
+            status: "checking",
+            message: "Checking your face, lighting and photo quality...",
+            checks: [],
+        });
+
+        const detector = await loadFaceDetector();
+        const result = detector.detect(canvas);
+        const detections = result?.detections || [];
+
+        if (detections.length !== 1) {
+            throw new Error(
+                detections.length === 0
+                    ? "No face detected. Please place your face clearly inside the frame."
+                    : "Only one face should be visible. Please make sure nobody else is in the camera frame."
+            );
+        }
+
+        const detection = detections[0];
+        const box = detection.boundingBox;
+        const faceWidthRatio = box.width / canvas.width;
+        const faceHeightRatio = box.height / canvas.height;
+        const centerX = (box.originX + box.width / 2) / canvas.width;
+        const centerY = (box.originY + box.height / 2) / canvas.height;
+
+        if (
+            faceWidthRatio < 0.20 ||
+            faceHeightRatio < 0.20
+        ) {
+            throw new Error(
+                "Your face is too far from the camera. Please move closer."
+            );
+        }
+
+        if (
+            faceWidthRatio > 0.82 ||
+            faceHeightRatio > 0.82
+        ) {
+            throw new Error(
+                "Your face is too close to the camera. Please move slightly back."
+            );
+        }
+
+        if (
+            centerX < 0.30 ||
+            centerX > 0.70 ||
+            centerY < 0.30 ||
+            centerY > 0.70
+        ) {
+            throw new Error(
+                "Please position your face in the center of the camera frame."
+            );
+        }
+
+        const keypoints = detection.keypoints || [];
+        const leftEye = keypoints.find(
+            (point) => point?.label === "leftEye"
+        );
+        const rightEye = keypoints.find(
+            (point) => point?.label === "rightEye"
+        );
+        const nose = keypoints.find(
+            (point) => point?.label === "noseTip"
+        );
+
+        if (leftEye && rightEye && nose) {
+            const eyeMidX = (leftEye.x + rightEye.x) / 2;
+            const eyeMidY = (leftEye.y + rightEye.y) / 2;
+            const eyeDistance = Math.hypot(
+                leftEye.x - rightEye.x,
+                leftEye.y - rightEye.y
+            );
+            const noseVerticalRatio =
+                eyeDistance > 0
+                    ? (nose.y - eyeMidY) / eyeDistance
+                    : 0.35;
+            const eyeTilt =
+                Math.abs(leftEye.y - rightEye.y) /
+                Math.max(eyeDistance, 0.0001);
+            const noseHorizontalOffset =
+                Math.abs(nose.x - eyeMidX) /
+                Math.max(eyeDistance, 0.0001);
+
+            // These are intentionally conservative orientation checks. They
+            // reject an obviously downward/sideways pose without attempting
+            // to infer age, sex, gender, race, or any other attribute.
+            if (noseVerticalRatio > 1.25) {
+                throw new Error(
+                    "Please lift your head and look directly at the camera."
+                );
+            }
+
+            if (noseVerticalRatio < 0.05) {
+                throw new Error(
+                    "Please face the camera directly and keep your head level."
+                );
+            }
+
+            if (eyeTilt > 0.35) {
+                throw new Error(
+                    "Please keep your head straight and level with the camera."
+                );
+            }
+
+            if (noseHorizontalOffset > 0.85) {
+                throw new Error(
+                    "Please face the camera directly rather than turning your head."
+                );
+            }
+        }
+
+        const { brightness, blurScore } = calculateImageQuality(
+            canvas.getContext("2d"),
+            box,
+            canvas.width,
+            canvas.height
+        );
+
+        if (brightness < 55) {
+            throw new Error(
+                "Lighting is too dark. Please move to a brighter area and try again."
+            );
+        }
+
+        if (brightness > 235) {
+            throw new Error(
+                "Lighting is too bright. Please avoid strong light directly facing the camera."
+            );
+        }
+
+        if (blurScore < 18) {
+            throw new Error(
+                "The photo is too blurry. Please keep still and try again."
+            );
+        }
+
+        return {
+            faceCount: detections.length,
+            brightness: Math.round(brightness),
+            blurScore: Math.round(blurScore),
+            message: "Face, position, lighting and image quality passed.",
+        };
+    };
+
+    // ============================================================
     // CAPTURE PHOTO
     // ============================================================
 
-    const capturePhoto = () => {
+    const capturePhoto = async () => {
         if (!videoRef.current) {
-            setError(
-                "Camera is not ready."
-            );
+            setError("Camera is not ready.");
             return;
         }
 
-        const video =
-            videoRef.current;
+        const video = videoRef.current;
 
-        if (
-            !video.videoWidth ||
-            !video.videoHeight
-        ) {
-            setError(
-                "Camera is still loading. Please try again."
-            );
-
+        if (!video.videoWidth || !video.videoHeight) {
+            setError("Camera is still loading. Please try again.");
             return;
         }
 
-        const canvas =
-            document.createElement(
-                "canvas"
-            );
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
-        canvas.width =
-            video.videoWidth;
-
-        canvas.height =
-            video.videoHeight;
-
-        const context =
-            canvas.getContext("2d");
+        const context = canvas.getContext("2d");
 
         if (!context) {
-            setError(
-                "Unable to capture photo."
-            );
+            setError("Unable to capture photo.");
             return;
         }
 
@@ -501,30 +741,55 @@ function PublicQuiz() {
             canvas.height
         );
 
-        canvas.toBlob(
-            (blob) => {
-                if (!blob) {
-                    setError(
-                        "Unable to create photo."
-                    );
-                    return;
-                }
+        try {
+            const verification = await verifyCapturedFrame(canvas);
 
-                const file = new File(
-                    [blob],
-                    "participant-verification.jpg",
-                    {
-                        type: "image/jpeg",
+            setCameraVerification({
+                status: "passed",
+                message: verification.message,
+                checks: [
+                    "One face detected",
+                    "Face is centered",
+                    "Lighting is acceptable",
+                    "Image is clear",
+                ],
+            });
+
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        setError("Unable to create photo.");
+                        return;
                     }
-                );
 
-                setPhoto(file);
-                setPhotoCapturedAt(new Date().toISOString());
-                setError("");
-            },
-            "image/jpeg",
-            0.88
-        );
+                    const file = new File(
+                        [blob],
+                        "participant-verification.jpg",
+                        { type: "image/jpeg" }
+                    );
+
+                    setPhoto(file);
+                    setPhotoCapturedAt(new Date().toISOString());
+                    setError("");
+                },
+                "image/jpeg",
+                0.88
+            );
+        } catch (err) {
+            setPhoto(null);
+            setPhotoCapturedAt(null);
+            setCameraVerification({
+                status: "failed",
+                message:
+                    err?.message ||
+                    "Camera verification failed. Please adjust your position and try again.",
+                checks: [],
+            });
+            setError(
+                err?.message ||
+                "Camera verification failed. Please adjust your position and try again."
+            );
+        }
     };
 
     // ============================================================
@@ -642,10 +907,15 @@ function PublicQuiz() {
 
         if (
             quiz?.require_camera &&
-            (!cameraConsent || !photo)
+            (
+                !cameraConsent ||
+                !photo ||
+                cameraVerification.status !== "passed"
+            )
         ) {
             setError(
-                "Please allow camera access and capture your verification photo."
+                cameraVerification.message ||
+                "Please complete camera verification before continuing."
             );
 
             return false;
@@ -1662,11 +1932,15 @@ function PublicQuiz() {
                                                     verification
 
                                                     <small>
-                                                        {cameraConsent
-                                                            ? photo
-                                                                ? "Photo captured successfully"
-                                                                : "Camera permission granted"
-                                                            : "Required before starting"}
+                                                        {!cameraConsent
+                                                            ? "Required before starting"
+                                                            : cameraVerification.status === "passed"
+                                                                ? "Face and photo quality verified"
+                                                                : cameraVerification.status === "checking"
+                                                                    ? "Checking face and photo quality..."
+                                                                    : photo
+                                                                        ? "Verification needs to be completed"
+                                                                        : "Camera permission granted"}
                                                     </small>
                                                 </span>
                                             </div>
@@ -1691,10 +1965,15 @@ function PublicQuiz() {
                                                     onClick={
                                                         capturePhoto
                                                     }
+                                                    disabled={
+                                                        cameraVerification.status === "checking"
+                                                    }
                                                 >
-                                                    {photo
-                                                        ? "Retake Photo"
-                                                        : "Capture Photo"}
+                                                    {cameraVerification.status === "checking"
+                                                        ? "Checking..."
+                                                        : photo
+                                                            ? "Retake Photo"
+                                                            : "Verify Photo"}
                                                 </button>
                                             )}
                                         </div>
@@ -1709,7 +1988,7 @@ function PublicQuiz() {
                                                         />
                                                         <div className="verification-success">
                                                             <FaCheckCircle />
-                                                            <span>Verification photo captured</span>
+                                                            <span>Camera verification passed</span>
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -1719,6 +1998,33 @@ function PublicQuiz() {
                                                         muted
                                                         playsInline
                                                     />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {cameraVerification.status !== "idle" && (
+                                            <div
+                                                className={`camera-verification-status ${
+                                                    cameraVerification.status
+                                                }`}
+                                            >
+                                                <strong>
+                                                    {cameraVerification.status === "checking"
+                                                        ? "Checking camera..."
+                                                        : cameraVerification.status === "passed"
+                                                            ? "Camera verification passed"
+                                                            : "Camera verification failed"}
+                                                </strong>
+                                                <span>{cameraVerification.message}</span>
+                                                {cameraVerification.checks.length > 0 && (
+                                                    <div className="camera-verification-checks">
+                                                        {cameraVerification.checks.map((check) => (
+                                                            <span key={check}>
+                                                                <FaCheckCircle />
+                                                                {check}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </div>
                                         )}

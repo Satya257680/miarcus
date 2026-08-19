@@ -3345,3 +3345,77 @@ mask-composite: exclude;
   }
 }
 
+
+/* ============================================================
+   CAMERA VERIFICATION
+   ============================================================ */
+
+.camera-verification-status{
+  margin:0 0 12px;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid #e4e7ee;
+  background:#fafbfc;
+}
+
+.camera-verification-status strong{
+  display:block;
+  font-size:11px;
+  color:#2f3a50;
+}
+
+.camera-verification-status span{
+  display:block;
+  margin-top:4px;
+  font-size:10px;
+  line-height:1.45;
+  color:#697487;
+}
+
+.camera-verification-status.passed{
+  background:#f0fbf5;
+  border-color:#c8ead7;
+}
+
+.camera-verification-status.passed strong,
+.camera-verification-status.passed svg{
+  color:var(--quiz-success);
+}
+
+.camera-verification-status.failed{
+  background:#fff5f5;
+  border-color:#f0cccc;
+}
+
+.camera-verification-status.failed strong{
+  color:var(--quiz-danger);
+}
+
+.camera-verification-status.checking{
+  background:#f7f5fc;
+  border-color:#ded7f1;
+}
+
+.camera-verification-checks{
+  display:flex!important;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:8px;
+}
+
+.camera-verification-checks span{
+  display:inline-flex!important;
+  align-items:center;
+  gap:4px;
+  margin:0!important;
+  padding:5px 7px;
+  border-radius:7px;
+  background:#fff;
+  border:1px solid #e0e4eb;
+  color:#556173;
+}
+
+.permission-card button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
