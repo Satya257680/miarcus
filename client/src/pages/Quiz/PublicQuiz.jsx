@@ -149,7 +149,7 @@ function PublicQuiz() {
 
     const [cameraVerification, setCameraVerification] = useState({
         status: "idle",
-        message: "Position your face in the frame and capture a clear photo.",
+        message: "Camera verification is ready.",
         checks: [],
     });
 
@@ -477,7 +477,7 @@ function PublicQuiz() {
             // Loaded at runtime so the existing Vite bundle does not need
             // a large computer-vision dependency bundled into every page.
             const fileset = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+                new URL("@mediapipe/tasks-vision/wasm", import.meta.url).toString()
             );
 
             const detector = await FaceDetector.createFromOptions(
@@ -712,14 +712,14 @@ function PublicQuiz() {
     const capturePhoto = async () => {
         if (!videoRef.current) {
             setError("Camera is not ready.");
-            return;
+            return false;
         }
 
         const video = videoRef.current;
 
         if (!video.videoWidth || !video.videoHeight) {
             setError("Camera is still loading. Please try again.");
-            return;
+            return false;
         }
 
         const canvas = document.createElement("canvas");
@@ -730,7 +730,7 @@ function PublicQuiz() {
 
         if (!context) {
             setError("Unable to capture photo.");
-            return;
+            return false;
         }
 
         context.drawImage(
@@ -746,12 +746,12 @@ function PublicQuiz() {
 
             setCameraVerification({
                 status: "passed",
-                message: verification.message,
+                message: "Face verified. Photo captured successfully.",
                 checks: [
                     "One face detected",
-                    "Face is centered",
-                    "Lighting is acceptable",
-                    "Image is clear",
+                    "Face visible",
+                    "Lighting acceptable",
+                    "Image clear",
                 ],
             });
 
@@ -775,22 +775,158 @@ function PublicQuiz() {
                 "image/jpeg",
                 0.88
             );
+
+            return true;
         } catch (err) {
             setPhoto(null);
             setPhotoCapturedAt(null);
+
             setCameraVerification({
                 status: "failed",
-                message:
-                    err?.message ||
-                    "Camera verification failed. Please adjust your position and try again.",
+                message: "Camera verification failed. Please try again.",
                 checks: [],
             });
-            setError(
-                err?.message ||
-                "Camera verification failed. Please adjust your position and try again."
-            );
+
+            setError("Camera verification failed. Please try again.");
+            return false;
         }
     };
+
+    // ============================================================
+    // AUTOMATIC FACE CAPTURE
+    // ============================================================
+    //
+    // Once the camera is enabled, continuously inspect the live frame.
+    // As soon as exactly one acceptable face is visible, capture it
+    // automatically. After a successful capture the loop stops until
+    // the participant presses Retake Photo.
+    //
+
+    const autoCaptureTimerRef = useRef(null);
+    const autoCaptureBusyRef = useRef(false);
+
+    const stopAutoCapture = () => {
+        if (autoCaptureTimerRef.current) {
+            clearInterval(autoCaptureTimerRef.current);
+            autoCaptureTimerRef.current = null;
+        }
+        autoCaptureBusyRef.current = false;
+    };
+
+    const startAutoCapture = () => {
+        stopAutoCapture();
+
+        autoCaptureTimerRef.current = setInterval(async () => {
+            if (
+                autoCaptureBusyRef.current ||
+                photo ||
+                !cameraConsent ||
+                !videoRef.current ||
+                cameraVerification.status === "checking"
+            ) {
+                return;
+            }
+
+            const video = videoRef.current;
+
+            if (!video.videoWidth || !video.videoHeight) {
+                return;
+            }
+
+            autoCaptureBusyRef.current = true;
+
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const context = canvas.getContext("2d");
+
+                if (!context) {
+                    return;
+                }
+
+                context.drawImage(
+                    video,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+                const detector = await loadFaceDetector();
+                const result = detector.detect(canvas);
+                const detections = result?.detections || [];
+
+                // Only auto-capture when exactly one face is visible.
+                if (detections.length !== 1) {
+                    return;
+                }
+
+                const detection = detections[0];
+                const box = detection.boundingBox;
+
+                if (!box) {
+                    return;
+                }
+
+                const faceWidthRatio = box.width / canvas.width;
+                const faceHeightRatio = box.height / canvas.height;
+                const centerX =
+                    (box.originX + box.width / 2) / canvas.width;
+                const centerY =
+                    (box.originY + box.height / 2) / canvas.height;
+
+                // Internal acceptance checks. The participant sees only
+                // the generic verification message if these fail.
+                if (
+                    faceWidthRatio < 0.20 ||
+                    faceHeightRatio < 0.20 ||
+                    faceWidthRatio > 0.82 ||
+                    faceHeightRatio > 0.82 ||
+                    centerX < 0.30 ||
+                    centerX > 0.70 ||
+                    centerY < 0.30 ||
+                    centerY > 0.70
+                ) {
+                    return;
+                }
+
+                // Reuse the full verification rules before saving the photo.
+                await capturePhoto();
+            } catch {
+                // Keep watching the camera. A temporary detector failure
+                // should not break the verification UI.
+            } finally {
+                autoCaptureBusyRef.current = false;
+            }
+        }, 650);
+    };
+
+    useEffect(() => {
+        if (
+            cameraConsent &&
+            !photo &&
+            cameraVerification.status !== "passed"
+        ) {
+            const timer = setTimeout(() => {
+                startAutoCapture();
+            }, 800);
+
+            return () => {
+                clearTimeout(timer);
+                stopAutoCapture();
+            };
+        }
+
+        stopAutoCapture();
+
+        return undefined;
+    }, [
+        cameraConsent,
+        photo,
+        cameraVerification.status,
+    ]);
 
     // ============================================================
     // REQUEST LOCATION
@@ -1939,8 +2075,8 @@ function PublicQuiz() {
                                                                 : cameraVerification.status === "checking"
                                                                     ? "Checking face and photo quality..."
                                                                     : photo
-                                                                        ? "Verification needs to be completed"
-                                                                        : "Camera permission granted"}
+                                                                        ? "Waiting for a visible face"
+                                                                        : "Camera ready — automatic capture enabled"}
                                                     </small>
                                                 </span>
                                             </div>
@@ -1962,9 +2098,16 @@ function PublicQuiz() {
                                             ) : (
                                                 <button
                                                     type="button"
-                                                    onClick={
-                                                        capturePhoto
-                                                    }
+                                                    onClick={() => {
+                                                        setPhoto(null);
+                                                        setPhotoCapturedAt(null);
+                                                        setCameraVerification({
+                                                            status: "idle",
+                                                            message: "Camera verification is ready.",
+                                                            checks: [],
+                                                        });
+                                                        setError("");
+                                                    }}
                                                     disabled={
                                                         cameraVerification.status === "checking"
                                                     }
@@ -1973,7 +2116,7 @@ function PublicQuiz() {
                                                         ? "Checking..."
                                                         : photo
                                                             ? "Retake Photo"
-                                                            : "Verify Photo"}
+                                                            : "Auto Capture"}
                                                 </button>
                                             )}
                                         </div>
