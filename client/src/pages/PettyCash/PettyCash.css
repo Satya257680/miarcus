@@ -137,3 +137,113 @@
 .petty-audit-row strong{text-transform:uppercase;color:#245665;font-size:11px}
 .petty-audit-row span{color:#7b8a92;font-size:10px}
 @media(max-width:560px){.petty-detail-footer{align-items:flex-start;flex-direction:column}.petty-footer-actions{width:100%}}
+
+/* ======================================================
+   PETTY CASH MANAGEMENT ACTIONS
+====================================================== */
+.petty-action-toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    margin: 14px 0;
+}
+
+.petty-btn.danger {
+    border: 1px solid #e5bcbc;
+    background: #fff5f5;
+    color: #c62828;
+}
+
+.petty-btn.danger:hover {
+    background: #ffe7e7;
+}
+
+.petty-btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.petty-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.petty-icon-delete {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #efc4c4;
+    border-radius: 8px;
+    background: #fff7f7;
+    color: #c62828;
+    cursor: pointer;
+}
+
+.petty-icon-delete:hover {
+    background: #ffe7e7;
+}
+
+.petty-success.global {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    background: #edf9f0;
+    border: 1px solid #c9e9d1;
+    color: #1e7b38;
+}
+
+.petty-header-with-back {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.petty-email-settings-card {
+    max-width: 900px;
+}
+
+.petty-email-setting-list {
+    display: grid;
+    gap: 0;
+}
+
+.petty-email-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 4px;
+    border-bottom: 1px solid #e7eef0;
+    cursor: pointer;
+}
+
+.petty-email-setting-row:last-child {
+    border-bottom: 0;
+}
+
+.petty-email-setting-row > div {
+    display: grid;
+    gap: 5px;
+}
+
+.petty-email-setting-row strong {
+    color: #18323b;
+}
+
+.petty-email-setting-row span {
+    color: #71858c;
+    font-size: 13px;
+}
+
+.petty-email-setting-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #16758a;
+    flex: 0 0 auto;
+}

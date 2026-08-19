@@ -6,7 +6,35 @@ const Expense = require("../models/expenseModel");
 const { sendGenericEmail } = require("../services/emailService");
 
 const MAX_AI_BYTES = 18 * 1024 * 1024;
-const AI_TIMEOUT_MS = 90000;
+
+// ======================================================
+// GEMINI AI CONFIGURATION
+// ======================================================
+
+// Render environment variables are used when present.
+// Safe production defaults are kept for local development.
+const AI_TIMEOUT_MS = Math.max(
+    10000,
+    Number(process.env.GEMINI_TIMEOUT_MS) || 60000
+);
+
+const AI_MAX_RETRIES = Math.max(
+    0,
+    Math.min(
+        5,
+        Number(process.env.GEMINI_MAX_RETRIES) || 2
+    )
+);
+
+const GEMINI_DEFAULT_MODEL =
+    "gemini-2.5-flash";
+
+const GEMINI_FALLBACK_MODEL =
+    String(
+        process.env.GEMINI_FALLBACK_MODEL ||
+        "gemini-2.5-flash-lite"
+    ).trim();
+
 const VERIFICATION_TIMEOUT_MS = 15000;
 
 function clean(value) {
@@ -366,7 +394,7 @@ async function analyzeWithGemini(file) {
 
     if (!apiKey) {
         throw new Error(
-            "Gemini API key is not configured. Add GEMINI_API_KEY to server/.env."
+            "Gemini API key is not configured. Add GEMINI_API_KEY to the server environment."
         );
     }
 
@@ -387,18 +415,40 @@ async function analyzeWithGemini(file) {
     const bytes = fs.readFileSync(file.path);
     const base64 = bytes.toString("base64");
 
-    const model = clean(
-        process.env.GEMINI_MODEL ||
-        "gemini-2.5-flash"
+    // ======================================================
+    // PRIMARY + FALLBACK MODELS
+    // ======================================================
+
+    const configuredModel = clean(
+        process.env.GEMINI_MODEL
     );
+
+    const primaryModel =
+        configuredModel ||
+        GEMINI_DEFAULT_MODEL;
+
+    const fallbackModel =
+        GEMINI_FALLBACK_MODEL &&
+        GEMINI_FALLBACK_MODEL !== primaryModel
+            ? GEMINI_FALLBACK_MODEL
+            : null;
+
+    const models = [
+        primaryModel,
+        fallbackModel
+    ].filter(Boolean);
 
     const prompt = `
 You are the MI ARCUS bill authenticity and expense verification engine.
 
 Analyze the uploaded bill/invoice image or PDF as a forensic document reviewer.
-Return ONLY valid JSON. Do not invent values.
+
+Return ONLY valid JSON.
+Do not return markdown.
+Do not invent values.
 
 Extract:
+
 - vendor_name
 - vendor_gstin
 - invoice_number
@@ -408,117 +458,444 @@ Extract:
 - tax_amount
 - total_amount
 - ocr_confidence (0-100)
-- items: description, quantity, unit_price, tax_rate, tax_amount, line_total
+
+Extract line items:
+
+- description
+- quantity
+- unit_price
+- tax_rate
+- tax_amount
+- line_total
 
 Also assess authenticity using visible evidence only:
-- document_authenticity: one of AUTHENTIC, SUSPICIOUS, AI_GENERATED, UNKNOWN
+
+- document_authenticity:
+  AUTHENTIC
+  SUSPICIOUS
+  AI_GENERATED
+  UNKNOWN
+
 - ai_generated_probability: 0-100
 - authenticity_confidence: 0-100
-- manipulation_signals: array of concrete visual/document evidence
-- ai_generated_signals: array of concrete evidence suggesting synthetic/AI-generated content
-- image_inconsistencies: array of concrete visual inconsistencies
+- manipulation_signals: array
+- ai_generated_signals: array
+- image_inconsistencies: array
 - notes
 - raw_text
 
-Look specifically for: unnatural font rendering, inconsistent character shapes, impossible text spacing, repeated/generated patterns, mismatched logos, inconsistent compression/noise, warped tables, inconsistent alignment, impossible shadows, synthetic-looking seals/signatures, copied invoice layouts, and other evidence that the image may have been generated or manipulated.
+Look specifically for:
+
+- unnatural font rendering
+- inconsistent character shapes
+- impossible text spacing
+- repeated/generated patterns
+- mismatched logos
+- inconsistent compression/noise
+- warped tables
+- inconsistent alignment
+- impossible shadows
+- synthetic-looking seals/signatures
+- copied invoice layouts
+- image manipulation
+- suspicious editing
+- other visible evidence that the document may have been generated or manipulated
 
 IMPORTANT:
+
 1. Do not call a bill AI-generated merely because it looks clean or professional.
+
 2. Only add AI-generated signals when there is actual visible evidence.
+
 3. If evidence is weak, use SUSPICIOUS or UNKNOWN rather than AI_GENERATED.
-4. Never invent vendor, invoice, date, amount or GST data.
-5. Always return arrays for manipulation_signals, ai_generated_signals and image_inconsistencies.
+
+4. Never invent vendor, invoice number, date, amount or GST information.
+
+5. Always return arrays for:
+   manipulation_signals
+   ai_generated_signals
+   image_inconsistencies
+
+6. If a field cannot be determined from the document, use:
+   ""
+   0
+   null
+   or an empty array as appropriate.
+
+7. Keep monetary values numeric.
+
+8. Return valid JSON only.
 `;
 
-    const endpoint =
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    // ======================================================
+    // GEMINI REQUEST FUNCTION
+    // ======================================================
 
-    let response;
+    const requestModel = async (model) => {
+        const endpoint =
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    try {
-        response = await fetchWithTimeout(
-            endpoint,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            {
-                                inline_data: {
-                                    mime_type:
-                                        file.mimetype ||
-                                        "application/octet-stream",
-                                    data: base64
+        let lastError = null;
+
+        for (
+            let attempt = 0;
+            attempt <= AI_MAX_RETRIES;
+            attempt++
+        ) {
+            try {
+                console.log(
+                    `Gemini bill analysis: model=${model}, attempt=${attempt + 1}/${AI_MAX_RETRIES + 1}`
+                );
+
+                const requestBody = {
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: prompt
+                                },
+                                {
+                                    inline_data: {
+                                        mime_type:
+                                            file.mimetype ||
+                                            "application/octet-stream",
+                                        data: base64
+                                    }
                                 }
-                            }
-                        ]
-                    }],
+                            ]
+                        }
+                    ],
                     generationConfig: {
-                        temperature: 0.1,
-                        responseMimeType: "application/json"
+                        responseMimeType:
+                            "application/json"
                     }
-                })
-            },
-            AI_TIMEOUT_MS
+                };
+
+                // Gemini 2.5 supports temperature. Newer Gemini 3.x
+                // models may reject deprecated sampling parameters.
+                if (!model.startsWith("gemini-3.")) {
+                    requestBody.generationConfig.temperature = 0.1;
+                }
+
+                const response =
+                    await fetchWithTimeout(
+                        endpoint,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify(
+                                requestBody
+                            )
+                        },
+                        AI_TIMEOUT_MS
+                    );
+
+                const text =
+                    await response.text();
+
+                if (response.ok) {
+                    return {
+                        success: true,
+                        model,
+                        text
+                    };
+                }
+
+                let errorPayload = null;
+
+                try {
+                    errorPayload = JSON.parse(text);
+                } catch {
+                    errorPayload = null;
+                }
+
+                const errorCode =
+                    Number(
+                        errorPayload?.error?.code
+                    ) || response.status;
+
+                const errorStatus =
+                    String(
+                        errorPayload?.error?.status ||
+                        ""
+                    ).toUpperCase();
+
+                const errorMessage =
+                    clean(
+                        errorPayload?.error?.message ||
+                        text
+                    );
+
+                console.error(
+                    "Gemini request failed:",
+                    {
+                        model,
+                        attempt: attempt + 1,
+                        status: response.status,
+                        code: errorCode,
+                        errorStatus,
+                        message: errorMessage
+                    }
+                );
+
+                lastError = {
+                    status: response.status,
+                    code: errorCode,
+                    errorStatus,
+                    message: errorMessage
+                };
+
+                // Authentication errors are not retryable.
+                if (
+                    response.status === 401 ||
+                    response.status === 403
+                ) {
+                    throw new Error(
+                        `Gemini authentication failed (${response.status}). Check GEMINI_API_KEY.`
+                    );
+                }
+
+                // Invalid request/model configuration should not be
+                // retried repeatedly. A 404 will allow the fallback
+                // model to be tried by the outer loop.
+                if (response.status === 400) {
+                    throw new Error(
+                        `Gemini rejected the bill request: ${errorMessage || "Invalid request."}`
+                    );
+                }
+
+                const retryable =
+                    response.status === 429 ||
+                    response.status === 500 ||
+                    response.status === 502 ||
+                    response.status === 503 ||
+                    response.status === 504 ||
+                    errorStatus === "UNAVAILABLE" ||
+                    errorStatus === "RESOURCE_EXHAUSTED" ||
+                    errorStatus === "DEADLINE_EXCEEDED";
+
+                if (
+                    !retryable ||
+                    attempt >= AI_MAX_RETRIES
+                ) {
+                    break;
+                }
+
+                const delayMs =
+                    Math.min(
+                        10000,
+                        2000 * Math.pow(2, attempt)
+                    );
+
+                console.warn(
+                    `Gemini temporary failure (${response.status}). Retrying in ${delayMs}ms...`
+                );
+
+                await new Promise(
+                    (resolve) =>
+                        setTimeout(
+                            resolve,
+                            delayMs
+                        )
+                );
+            } catch (error) {
+                if (error?.name === "AbortError") {
+                    lastError = {
+                        timeout: true,
+                        message:
+                            "Gemini request timed out."
+                    };
+
+                    console.warn(
+                        `Gemini timeout: model=${model}, attempt=${attempt + 1}/${AI_MAX_RETRIES + 1}`
+                    );
+                } else {
+                    // A deliberate configuration/authentication error
+                    // should move to the outer model loop rather than
+                    // being hidden behind a generic message.
+                    lastError = {
+                        network: true,
+                        message:
+                            error?.message ||
+                            "Gemini network request failed."
+                    };
+
+                    console.warn(
+                        `Gemini request error: model=${model}, attempt=${attempt + 1}/${AI_MAX_RETRIES + 1}`,
+                        error?.message
+                    );
+
+                    // Do not retry permanent configuration errors.
+                    if (
+                        error?.message?.includes("authentication failed") ||
+                        error?.message?.includes("rejected the bill request")
+                    ) {
+                        break;
+                    }
+                }
+
+                if (
+                    attempt >= AI_MAX_RETRIES
+                ) {
+                    break;
+                }
+
+                const delayMs =
+                    Math.min(
+                        10000,
+                        2000 * Math.pow(2, attempt)
+                    );
+
+                await new Promise(
+                    (resolve) =>
+                        setTimeout(
+                            resolve,
+                            delayMs
+                        )
+                );
+            }
+        }
+
+        return {
+            success: false,
+            model,
+            error: lastError
+        };
+    };
+
+    // ======================================================
+    // TRY PRIMARY MODEL THEN FALLBACK MODEL
+    // ======================================================
+
+    let successfulResponse = null;
+    let lastModelError = null;
+
+    for (
+        let modelIndex = 0;
+        modelIndex < models.length;
+        modelIndex++
+    ) {
+        const model = models[modelIndex];
+
+        console.log(
+            `Starting Gemini bill analysis with model: ${model}`
         );
-    } catch (error) {
-        if (error.name === "AbortError") {
-            throw new Error(
-                "AI bill analysis timed out. Please try again."
+
+        const result =
+            await requestModel(model);
+
+        if (result.success) {
+            successfulResponse = result;
+            break;
+        }
+
+        lastModelError = result.error;
+
+        if (
+            modelIndex < models.length - 1
+        ) {
+            console.warn(
+                `Gemini model ${model} unavailable. Switching to fallback model ${models[modelIndex + 1]}.`
             );
         }
-        throw new Error(
-            `AI bill analysis connection failed: ${error.message}`
-        );
     }
 
-    const text = await response.text();
-
-    if (!response.ok) {
+    if (!successfulResponse) {
         console.error(
-            "Gemini expense analysis error:",
-            response.status,
-            text
+            "All Gemini bill-analysis attempts failed:",
+            {
+                models,
+                error: lastModelError
+            }
         );
 
+        if (
+            lastModelError?.status === 429 ||
+            lastModelError?.errorStatus ===
+                "RESOURCE_EXHAUSTED"
+        ) {
+            throw new Error(
+                "Gemini is temporarily rate-limited. Please try again shortly."
+            );
+        }
+
+        if (
+            lastModelError?.status === 503 ||
+            lastModelError?.errorStatus ===
+                "UNAVAILABLE"
+        ) {
+            throw new Error(
+                "Gemini is temporarily unavailable. The AI service is experiencing high demand. Please try again shortly."
+            );
+        }
+
+        if (lastModelError?.timeout) {
+            throw new Error(
+                "Gemini bill analysis timed out after multiple attempts. Please try again."
+            );
+        }
+
+        if (lastModelError?.network) {
+            throw new Error(
+                `Unable to complete Gemini bill analysis after multiple attempts. ${clean(lastModelError?.message)}`
+            );
+        }
+
         throw new Error(
-            "AI bill analysis failed. Check GEMINI_API_KEY and GEMINI_MODEL."
+            `Gemini bill analysis failed after trying the configured models. ${clean(lastModelError?.message)}`
         );
     }
+
+    // ======================================================
+    // PARSE GEMINI RESPONSE
+    // ======================================================
 
     let payload;
 
     try {
-        payload = JSON.parse(text);
+        payload = JSON.parse(
+            successfulResponse.text
+        );
     } catch {
         throw new Error(
-            "AI bill analysis returned an invalid response."
+            "Gemini returned an invalid API response."
         );
     }
 
     const output =
-        payload?.candidates?.[0]?.content?.parts
-            ?.map((part) => part.text || "")
+        payload?.candidates?.[0]
+            ?.content?.parts
+            ?.map(
+                (part) => part.text || ""
+            )
             .join("")
             .trim();
 
     if (!output) {
         throw new Error(
-            "AI bill analysis returned no result."
+            "Gemini bill analysis returned no result."
         );
     }
 
-    const parsed = parseJson(output, null);
+    const parsed =
+        parseJson(output, null);
 
-    if (!parsed || typeof parsed !== "object") {
+    if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed)
+    ) {
         throw new Error(
-            "AI bill analysis returned invalid JSON."
+            "Gemini bill analysis returned invalid JSON."
         );
     }
+
+    console.log(
+        `Gemini bill analysis successful using model: ${successfulResponse.model}`
+    );
 
     return parsed;
 }

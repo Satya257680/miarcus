@@ -11,6 +11,8 @@ import {
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import ExpensePermissionRoute from "./components/layout/ExpensePermissionRoute";
+import PettyCashPermissionRoute from "./components/layout/PettyCashPermissionRoute";
+import PettyCashEmailSettings from "./pages/PettyCash/PettyCashEmailSettings";
 
 // ======================================================
 // PUBLIC PAGES
@@ -467,18 +469,27 @@ function App() {
                     <Route
                         path="/petty-cash"
                         element={
-                            <ExpensePermissionRoute required="View">
+                            <PettyCashPermissionRoute required="View">
                                 <PettyCash />
-                            </ExpensePermissionRoute>
+                            </PettyCashPermissionRoute>
                         }
                     />
 
                     <Route
                         path="/petty-cash/:id"
                         element={
-                            <ExpensePermissionRoute required="View">
+                            <PettyCashPermissionRoute required="View">
                                 <PettyCash />
-                            </ExpensePermissionRoute>
+                            </PettyCashPermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/email-settings"
+                        element={
+                            <PettyCashPermissionRoute required="View">
+                                <PettyCashEmailSettings />
+                            </PettyCashPermissionRoute>
                         }
                     />
 

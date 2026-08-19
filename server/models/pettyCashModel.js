@@ -18,6 +18,7 @@ const PettyCash = {
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_pca_store (store_id),
+                INDEX idx_pca_paid (paid_by),
                 INDEX idx_pca_received (received_by),
                 INDEX idx_pca_date (advance_date),
                 INDEX idx_pca_status (status)
@@ -37,9 +38,7 @@ const PettyCash = {
                 entered_by INT NOT NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_pce_advance (advance_id),
-                CONSTRAINT fk_pce_advance
-                    FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id)
-                    ON DELETE CASCADE
+                CONSTRAINT fk_pce_advance FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id) ON DELETE CASCADE
             )
         `);
 
@@ -56,9 +55,7 @@ const PettyCash = {
                 receipt_path VARCHAR(1000) NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_pcd_advance (advance_id),
-                CONSTRAINT fk_pcd_advance
-                    FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id)
-                    ON DELETE CASCADE
+                CONSTRAINT fk_pcd_advance FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id) ON DELETE CASCADE
             )
         `);
 
@@ -74,28 +71,88 @@ const PettyCash = {
                 settled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 status ENUM('SETTLED') NOT NULL DEFAULT 'SETTLED',
                 INDEX idx_pcs_advance (advance_id),
-                CONSTRAINT fk_pcs_advance
-                    FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id)
-                    ON DELETE CASCADE
+                CONSTRAINT fk_pcs_advance FOREIGN KEY (advance_id) REFERENCES petty_cash_advances(id) ON DELETE CASCADE
             )
         `);
 
-        console.log("✅ petty_cash table(s) verified");
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS petty_cash_email_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL UNIQUE,
+                advance_created TINYINT(1) NOT NULL DEFAULT 1,
+                expense_added TINYINT(1) NOT NULL DEFAULT 1,
+                deposit_added TINYINT(1) NOT NULL DEFAULT 1,
+                settlement_completed TINYINT(1) NOT NULL DEFAULT 1,
+                advance_cancelled TINYINT(1) NOT NULL DEFAULT 1,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_pces_user (user_id)
+            )
+        `);
+
+        // One-time migration: copy existing Expenses access into the new
+        // dedicated Petty Cash module so current users keep access after deploy.
+        // Future Petty Cash permissions are independent.
+        try {
+            await db.query(`
+                INSERT INTO user_permissions (user_id, module_name, permission)
+                SELECT ep.user_id, 'Petty Cash', ep.permission
+                FROM user_permissions ep
+                WHERE ep.module_name='Expenses'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM user_permissions pp
+                      WHERE pp.user_id=ep.user_id AND pp.module_name='Petty Cash'
+                  )
+            `);
+        } catch (permissionMigrationError) {
+            console.error("Petty Cash permission migration skipped:", permissionMigrationError.message);
+        }
+
+        console.log("✅ Petty Cash tables verified");
     },
 
-    async getOptions() {
-        const stores = await db.query(`
-            SELECT id, store_name, store_code
-            FROM stores
-            WHERE LOWER(COALESCE(status,'Active')) <> 'inactive'
-            ORDER BY store_name
-        `);
+    async isAdmin(userId) {
+        const rows = await db.query(`
+            SELECT is_admin, administrator FROM users WHERE id=? LIMIT 1
+        `, [userId]);
+        const u = rows[0] || {};
+        return u.is_admin === 1 || u.administrator === 1 || u.is_admin === true || u.administrator === true;
+    },
 
-        const users = await db.query(`
-            SELECT id, name, employee_id
-            FROM users
-            ORDER BY name
-        `);
+    async getAccessibleStoreIds(userId) {
+        return db.query(`SELECT store_id FROM user_stores WHERE user_id=?`, [userId]);
+    },
+
+    async canAccessStore(userId, storeId) {
+        if (await PettyCash.isAdmin(userId)) return true;
+        const rows = await db.query(`SELECT 1 FROM user_stores WHERE user_id=? AND store_id=? LIMIT 1`, [userId, storeId]);
+        return rows.length > 0;
+    },
+
+    async userBelongsToStore(userId, storeId) {
+        const rows = await db.query(`SELECT 1 FROM user_stores WHERE user_id=? AND store_id=? LIMIT 1`, [userId, storeId]);
+        return rows.length > 0;
+    },
+
+    async getOptions(userId, admin = false) {
+        const stores = admin
+            ? await db.query(`SELECT id, store_name, store_code FROM stores WHERE LOWER(COALESCE(status,'Active')) <> 'inactive' ORDER BY store_name`)
+            : await db.query(`
+                SELECT s.id, s.store_name, s.store_code
+                FROM stores s
+                INNER JOIN user_stores us ON us.store_id=s.id AND us.user_id=?
+                WHERE LOWER(COALESCE(s.status,'Active')) <> 'inactive'
+                ORDER BY s.store_name
+            `, [userId]);
+
+        const users = admin
+            ? await db.query(`SELECT id, name, employee_id, email FROM users ORDER BY name`)
+            : await db.query(`
+                SELECT DISTINCT u.id, u.name, u.employee_id, u.email
+                FROM users u
+                INNER JOIN user_stores us ON us.user_id=u.id
+                WHERE us.store_id IN (SELECT store_id FROM user_stores WHERE user_id=?)
+                ORDER BY u.name
+            `, [userId]);
 
         return { stores: stores || [], users: users || [] };
     },
@@ -105,16 +162,7 @@ const PettyCash = {
             INSERT INTO petty_cash_advances
             (advance_no, store_id, paid_by, received_by, advance_amount, purpose, advance_date)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [
-            data.advance_no,
-            data.store_id,
-            data.paid_by,
-            data.received_by,
-            data.advance_amount,
-            data.purpose || null,
-            data.advance_date
-        ]);
-
+        `, [data.advance_no, data.store_id, data.paid_by, data.received_by, data.advance_amount, data.purpose || null, data.advance_date]);
         return { id: result.insertId, advance_no: data.advance_no };
     },
 
@@ -123,17 +171,7 @@ const PettyCash = {
             INSERT INTO petty_cash_expenses
             (advance_id, expense_type, description, amount, bill_filename, bill_path, expense_date, entered_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            advanceId,
-            data.expense_type,
-            data.description || null,
-            data.amount,
-            data.bill_filename || null,
-            data.bill_path || null,
-            data.expense_date,
-            data.entered_by
-        ]);
-
+        `, [advanceId, data.expense_type, data.description || null, data.amount, data.bill_filename || null, data.bill_path || null, data.expense_date, data.entered_by]);
         await PettyCash.refreshStatus(advanceId);
         return { id: result.insertId };
     },
@@ -143,314 +181,154 @@ const PettyCash = {
             INSERT INTO petty_cash_deposits
             (advance_id, amount, deposited_by, received_by, deposit_date, reference_no, receipt_filename, receipt_path)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            advanceId,
-            data.amount,
-            data.deposited_by,
-            data.received_by,
-            data.deposit_date,
-            data.reference_no || null,
-            data.receipt_filename || null,
-            data.receipt_path || null
-        ]);
-
+        `, [advanceId, data.amount, data.deposited_by, data.received_by, data.deposit_date, data.reference_no || null, data.receipt_filename || null, data.receipt_path || null]);
         await PettyCash.refreshStatus(advanceId);
         return { id: result.insertId };
     },
 
     async refreshStatus(advanceId) {
         const rows = await db.query(`
-            SELECT
-                a.advance_amount,
-                COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id = a.id),0) AS total_expense,
-                COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id = a.id),0) AS total_deposit
-            FROM petty_cash_advances a
-            WHERE a.id = ?
-        `, [advanceId]);
-
-        if (!rows.length) return;
-
-        const a = rows[0];
-        const balance = Number(a.advance_amount) - Number(a.total_expense) - Number(a.total_deposit);
-        let status = "OPEN";
-
-        // Reaching zero balance means the numbers are reconcilable,
-        // but the user must still explicitly click "Settle" so the
-        // settlement record and audit trail are created.
-        if (Number(a.total_expense) > 0 || Number(a.total_deposit) > 0) {
-            status = "PARTIALLY_SETTLED";
-        }
-
-        await db.query(`
-            UPDATE petty_cash_advances SET status = ?, updated_at = NOW() WHERE id = ?
-        `, [status, advanceId]);
-    },
-
-    async getAll(filters = {}) {
-        const where = [];
-        const params = [];
-
-        if (filters.store_id) {
-            where.push("a.store_id = ?");
-            params.push(filters.store_id);
-        }
-
-        if (filters.status) {
-            where.push("a.status = ?");
-            params.push(filters.status);
-        }
-
-        if (filters.search) {
-            const term = `%${filters.search}%`;
-            where.push(`(
-                a.advance_no LIKE ?
-                OR a.purpose LIKE ?
-                OR s.store_name LIKE ?
-                OR COALESCE(receiver.name,'') LIKE ?
-            )`);
-            params.push(term, term, term, term);
-        }
-
-        if (filters.from) {
-            where.push("a.advance_date >= ?");
-            params.push(filters.from);
-        }
-
-        if (filters.to) {
-            where.push("a.advance_date <= ?");
-            params.push(filters.to);
-        }
-
-        const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-
-        return db.query(`
-            SELECT
-                a.id,
-                a.advance_no,
-                a.store_id,
-                s.store_name,
-                s.store_code,
-                a.advance_amount,
-                a.advance_date,
-                a.purpose,
-                a.status,
+            SELECT a.advance_amount,
                 COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0) AS total_expense,
                 COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS total_deposit,
-                a.advance_amount
-                    - COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)
-                    - COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS balance,
-                payer.name AS paid_by_name,
-                receiver.name AS received_by_name
+                a.status
+            FROM petty_cash_advances a WHERE a.id=?
+        `, [advanceId]);
+        if (!rows.length || rows[0].status === "CANCELLED" || rows[0].status === "SETTLED") return;
+        const a = rows[0];
+        const expense = Number(a.total_expense);
+        const deposit = Number(a.total_deposit);
+        const balance = Number(a.advance_amount) - expense - deposit;
+        let status = "OPEN";
+        if (Math.abs(balance) <= 0.005 && (expense > 0 || deposit > 0)) status = "PARTIALLY_SETTLED";
+        else if (expense > 0 || deposit > 0) status = "PARTIALLY_SETTLED";
+        await db.query(`UPDATE petty_cash_advances SET status=?, updated_at=NOW() WHERE id=?`, [status, advanceId]);
+    },
+
+    async getAll(filters = {}, userId, admin = false) {
+        const where = [];
+        const params = [];
+        if (!admin) {
+            where.push(`EXISTS (SELECT 1 FROM user_stores scope_us WHERE scope_us.user_id=? AND scope_us.store_id=a.store_id)`);
+            params.push(userId);
+        }
+        if (filters.store_id) { where.push("a.store_id=?"); params.push(filters.store_id); }
+        if (filters.status) { where.push("a.status=?"); params.push(filters.status); }
+        if (filters.paid_by) { where.push("a.paid_by=?"); params.push(filters.paid_by); }
+        if (filters.received_by) { where.push("a.received_by=?"); params.push(filters.received_by); }
+        if (filters.search) {
+            const term = `%${filters.search}%`;
+            where.push(`(a.advance_no LIKE ? OR a.purpose LIKE ? OR s.store_name LIKE ? OR COALESCE(payer.name,'') LIKE ? OR COALESCE(receiver.name,'') LIKE ?)`);
+            params.push(term, term, term, term, term);
+        }
+        if (filters.from) { where.push("a.advance_date>=?"); params.push(filters.from); }
+        if (filters.to) { where.push("a.advance_date<=?"); params.push(filters.to); }
+        const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+        return db.query(`
+            SELECT a.id,a.advance_no,a.store_id,s.store_name,s.store_code,a.advance_amount,a.advance_date,a.purpose,a.status,
+                COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0) AS total_expense,
+                COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS total_deposit,
+                a.advance_amount-COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)-COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS balance,
+                payer.name AS paid_by_name, receiver.name AS received_by_name
             FROM petty_cash_advances a
             LEFT JOIN stores s ON s.id=a.store_id
             LEFT JOIN users payer ON payer.id=a.paid_by
             LEFT JOIN users receiver ON receiver.id=a.received_by
-            ${whereSql}
-            ORDER BY a.id DESC
-            LIMIT 300
+            ${whereSql} ORDER BY a.id DESC LIMIT 500
         `, params);
     },
 
     async getById(id) {
         const advances = await db.query(`
-            SELECT
-                a.*,
-                s.store_name,
-                s.store_code,
-                payer.name AS paid_by_name,
-                receiver.name AS received_by_name
+            SELECT a.*,s.store_name,s.store_code,payer.name AS paid_by_name,payer.email AS paid_by_email,
+                receiver.name AS received_by_name,receiver.email AS received_by_email
             FROM petty_cash_advances a
             LEFT JOIN stores s ON s.id=a.store_id
             LEFT JOIN users payer ON payer.id=a.paid_by
             LEFT JOIN users receiver ON receiver.id=a.received_by
-            WHERE a.id = ?
-            LIMIT 1
+            WHERE a.id=? LIMIT 1
         `, [id]);
-
         if (!advances.length) return null;
-
         const advance = advances[0];
-
-        const expenses = await db.query(`
-            SELECT
-                e.*,
-                u.name AS entered_by_name
-            FROM petty_cash_expenses e
-            LEFT JOIN users u ON u.id=e.entered_by
-            WHERE e.advance_id=?
-            ORDER BY e.id
-        `, [id]);
-
-        const deposits = await db.query(`
-            SELECT
-                d.*,
-                depositor.name AS deposited_by_name,
-                receiver.name AS received_by_name
-            FROM petty_cash_deposits d
-            LEFT JOIN users depositor ON depositor.id=d.deposited_by
-            LEFT JOIN users receiver ON receiver.id=d.received_by
-            WHERE d.advance_id=?
-            ORDER BY d.id
-        `, [id]);
-
-        const settlements = await db.query(`
-            SELECT
-                st.*,
-                u.name AS settled_by_name
-            FROM petty_cash_settlements st
-            LEFT JOIN users u ON u.id=st.settled_by
-            WHERE st.advance_id=?
-            LIMIT 1
-        `, [id]);
-
-        const totalExpense = expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-        const totalDeposit = deposits.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-        const balance = Number(advance.advance_amount || 0) - totalExpense - totalDeposit;
-
-        return {
-            ...advance,
-            total_expense: totalExpense,
-            total_deposit: totalDeposit,
-            balance,
-            expenses,
-            deposits,
-            settlement: settlements[0] || null
-        };
+        const expenses = await db.query(`SELECT e.*,u.name AS entered_by_name,u.email AS entered_by_email FROM petty_cash_expenses e LEFT JOIN users u ON u.id=e.entered_by WHERE e.advance_id=? ORDER BY e.id`, [id]);
+        const deposits = await db.query(`SELECT d.*,depositor.name AS deposited_by_name,depositor.email AS deposited_by_email,receiver.name AS received_by_name,receiver.email AS received_by_email FROM petty_cash_deposits d LEFT JOIN users depositor ON depositor.id=d.deposited_by LEFT JOIN users receiver ON receiver.id=d.received_by WHERE d.advance_id=? ORDER BY d.id`, [id]);
+        const settlements = await db.query(`SELECT st.*,u.name AS settled_by_name,u.email AS settled_by_email FROM petty_cash_settlements st LEFT JOIN users u ON u.id=st.settled_by WHERE st.advance_id=? LIMIT 1`, [id]);
+        const totalExpense = expenses.reduce((sum,x)=>sum+Number(x.amount||0),0);
+        const totalDeposit = deposits.reduce((sum,x)=>sum+Number(x.amount||0),0);
+        return {...advance,total_expense:totalExpense,total_deposit:totalDeposit,balance:Number(advance.advance_amount||0)-totalExpense-totalDeposit,expenses,deposits,settlement:settlements[0]||null};
     },
 
     async settle(id, userId) {
         const connection = await db.getConnection();
-
         try {
             await connection.beginTransaction();
-
-            const [advances] = await connection.query(`
-                SELECT * FROM petty_cash_advances WHERE id=? FOR UPDATE
-            `, [id]);
-
-            if (!advances.length) {
-                throw new Error("Petty cash advance not found.");
-            }
-
+            const [advances] = await connection.query(`SELECT * FROM petty_cash_advances WHERE id=? FOR UPDATE`, [id]);
+            if (!advances.length) throw new Error("Petty cash advance not found.");
             const advance = advances[0];
-
-            const [expenseRows] = await connection.query(`
-                SELECT COALESCE(SUM(amount),0) AS total FROM petty_cash_expenses WHERE advance_id=?
-            `, [id]);
-
-            const [depositRows] = await connection.query(`
-                SELECT COALESCE(SUM(amount),0) AS total FROM petty_cash_deposits WHERE advance_id=?
-            `, [id]);
-
-            const totalExpense = Number(expenseRows[0]?.total || 0);
-            const totalDeposit = Number(depositRows[0]?.total || 0);
-            const balance = Number(advance.advance_amount) - totalExpense - totalDeposit;
-
-            if (Math.abs(balance) > 0.005) {
-                throw new Error(
-                    `Cannot settle yet. Expense + deposit must equal ₹${Number(advance.advance_amount).toLocaleString("en-IN",{minimumFractionDigits:2})}. Current balance is ₹${balance.toLocaleString("en-IN",{minimumFractionDigits:2})}.`
-                );
-            }
-
-            await connection.query(`
-                INSERT INTO petty_cash_settlements
-                (advance_id, advance_amount, total_expense, total_deposit, balance, settled_by)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    advance_amount=VALUES(advance_amount),
-                    total_expense=VALUES(total_expense),
-                    total_deposit=VALUES(total_deposit),
-                    balance=VALUES(balance),
-                    settled_by=VALUES(settled_by),
-                    settled_at=NOW()
-            `, [id, advance.advance_amount, totalExpense, totalDeposit, balance, userId]);
-
-            await connection.query(`
-                UPDATE petty_cash_advances
-                SET status='SETTLED', updated_at=NOW()
-                WHERE id=?
-            `, [id]);
-
+            if (advance.status === "SETTLED") throw new Error("This advance is already settled.");
+            const [expenseRows] = await connection.query(`SELECT COALESCE(SUM(amount),0) AS total FROM petty_cash_expenses WHERE advance_id=?`, [id]);
+            const [depositRows] = await connection.query(`SELECT COALESCE(SUM(amount),0) AS total FROM petty_cash_deposits WHERE advance_id=?`, [id]);
+            const totalExpense=Number(expenseRows[0]?.total||0), totalDeposit=Number(depositRows[0]?.total||0);
+            const balance=Number(advance.advance_amount)-totalExpense-totalDeposit;
+            if (Math.abs(balance)>0.005) throw new Error(`Cannot settle yet. Current balance is ₹${balance.toLocaleString("en-IN",{minimumFractionDigits:2})}.`);
+            await connection.query(`INSERT INTO petty_cash_settlements (advance_id,advance_amount,total_expense,total_deposit,balance,settled_by) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE advance_amount=VALUES(advance_amount),total_expense=VALUES(total_expense),total_deposit=VALUES(total_deposit),balance=VALUES(balance),settled_by=VALUES(settled_by),settled_at=NOW()`, [id,advance.advance_amount,totalExpense,totalDeposit,balance,userId]);
+            await connection.query(`UPDATE petty_cash_advances SET status='SETTLED',updated_at=NOW() WHERE id=?`, [id]);
             await connection.commit();
-
-            return {
-                advance_amount: Number(advance.advance_amount),
-                total_expense: totalExpense,
-                total_deposit: totalDeposit,
-                balance
-            };
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+            return {advance_amount:Number(advance.advance_amount),total_expense:totalExpense,total_deposit:totalDeposit,balance};
+        } catch(error) { await connection.rollback(); throw error; }
+        finally { connection.release(); }
     },
 
-    async cancel(id, userId) {
-        const result = await db.query(`
-            UPDATE petty_cash_advances
-            SET status='CANCELLED', updated_at=NOW()
-            WHERE id=? AND status <> 'SETTLED'
-        `, [id]);
-
-        return result;
+    async cancel(id) {
+        return db.query(`UPDATE petty_cash_advances SET status='CANCELLED',updated_at=NOW() WHERE id=? AND status<>'SETTLED'`, [id]);
     },
 
-    async getSummary() {
-        const rows = await db.query(`
-            SELECT
-                COUNT(*) AS total_advances,
-                COALESCE(SUM(advance_amount),0) AS total_advanced,
-                COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) AS total_expense,
-                COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) AS total_deposit,
-                COALESCE(SUM(CASE WHEN status='SETTLED' THEN advance_amount ELSE 0 END),0) AS settled_amount,
-                COALESCE(SUM(CASE WHEN status IN ('OPEN','PARTIALLY_SETTLED') THEN
-                    advance_amount
-                    - COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)
-                    - COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0)
-                    ELSE 0 END),0) AS outstanding_balance
-            FROM petty_cash_advances a
-            WHERE status <> 'CANCELLED'
-        `);
+    async bulkCancel(ids) {
+        if (!ids?.length) return { affectedRows: 0 };
+        const placeholders = ids.map(()=>"?").join(",");
+        return db.query(`UPDATE petty_cash_advances SET status='CANCELLED',updated_at=NOW() WHERE id IN (${placeholders}) AND status<>'SETTLED'`, ids);
+    },
 
-        const storeRows = await db.query(`
-            SELECT
-                s.store_name,
-                COALESCE(SUM(a.advance_amount),0) AS advances_given,
-                COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) AS total_expenses,
-                COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) AS total_deposits
-            FROM petty_cash_advances a
-            JOIN stores s ON s.id=a.store_id
-            WHERE a.status <> 'CANCELLED'
-            GROUP BY s.id, s.store_name
-            ORDER BY s.store_name
-            LIMIT 50
-        `);
+    async getSummary(userId, admin=false, storeId="") {
+        const scope = admin ? "" : `AND EXISTS (SELECT 1 FROM user_stores us WHERE us.user_id=? AND us.store_id=a.store_id)`;
+        const params = admin ? [] : [userId];
+        if (storeId) { /* handled below in each query */ }
+        const storeClause = storeId ? " AND a.store_id=?" : "";
+        const baseParams = storeId ? [...params, storeId] : [...params];
+        const rows = await db.query(`SELECT COUNT(*) total_advances,COALESCE(SUM(advance_amount),0) total_advanced,
+            COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) total_expense,
+            COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) total_deposit,
+            COALESCE(SUM(CASE WHEN status='SETTLED' THEN advance_amount ELSE 0 END),0) settled_amount,
+            COALESCE(SUM(CASE WHEN status IN ('OPEN','PARTIALLY_SETTLED') THEN advance_amount-COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)-COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) ELSE 0 END),0) outstanding_balance
+            FROM petty_cash_advances a WHERE status<>'CANCELLED' ${scope} ${storeClause}`, baseParams);
+        const storeRows = await db.query(`SELECT s.store_name,COALESCE(SUM(a.advance_amount),0) advances_given,
+            COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) total_expenses,
+            COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) total_deposits
+            FROM petty_cash_advances a JOIN stores s ON s.id=a.store_id WHERE a.status<>'CANCELLED' ${scope} ${storeClause}
+            GROUP BY s.id,s.store_name ORDER BY s.store_name LIMIT 100`, baseParams);
+        const peopleRows = await db.query(`SELECT u.name employee,COALESCE(SUM(a.advance_amount),0) total_advance,
+            COALESCE(SUM(CASE WHEN a.status='SETTLED' THEN a.advance_amount ELSE 0 END),0) settled
+            FROM petty_cash_advances a JOIN users u ON u.id=a.received_by WHERE a.status<>'CANCELLED' ${scope} ${storeClause}
+            GROUP BY u.id,u.name ORDER BY total_advance DESC LIMIT 100`, baseParams);
+        return {summary: rows[0] || {},storeWise:storeRows||[],personWise:peopleRows||[]};
+    },
 
-        const peopleRows = await db.query(`
-            SELECT
-                u.name AS employee,
-                COALESCE(SUM(a.advance_amount),0) AS total_advance,
-                COALESCE(SUM(CASE WHEN a.status='SETTLED' THEN a.advance_amount ELSE 0 END),0) AS settled
-            FROM petty_cash_advances a
-            JOIN users u ON u.id=a.received_by
-            WHERE a.status <> 'CANCELLED'
-            GROUP BY u.id, u.name
-            ORDER BY total_advance DESC
-            LIMIT 50
-        `);
+    async getEmailSettings(userId) {
+        const rows = await db.query(`SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled FROM petty_cash_email_settings WHERE user_id=? LIMIT 1`, [userId]);
+        if (!rows.length) return {advance_created:true,expense_added:true,deposit_added:true,settlement_completed:true,advance_cancelled:true};
+        return Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Boolean(v)]));
+    },
 
-        return {
-            summary: rows[0] || {
-                total_advances: 0,
-                total_advanced: 0,
-                settled_amount: 0,
-                outstanding_balance: 0
-            },
-            storeWise: storeRows || [],
-            personWise: peopleRows || []
-        };
+    async updateEmailSettings(userId, data) {
+        const keys = ["advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled"];
+        const values = keys.map((key)=>data[key] === false || data[key] === 0 ? 0 : 1);
+        await db.query(`INSERT INTO petty_cash_email_settings (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE advance_created=VALUES(advance_created),expense_added=VALUES(expense_added),deposit_added=VALUES(deposit_added),settlement_completed=VALUES(settlement_completed),advance_cancelled=VALUES(advance_cancelled)`, [userId,...values]);
+        return PettyCash.getEmailSettings(userId);
+    },
+
+    async isEmailEnabled(userId, event) {
+        const settings = await PettyCash.getEmailSettings(userId);
+        return settings[event] !== false;
     }
 };
 

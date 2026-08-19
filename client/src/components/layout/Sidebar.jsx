@@ -37,7 +37,9 @@ function Sidebar({ collapsed }) {
 
     const expenseOpenByPath =
         location.pathname === "/expenses" ||
-        location.pathname.startsWith("/expenses/") ||
+        location.pathname.startsWith("/expenses/");
+
+    const pettyCashOpenByPath =
         location.pathname === "/petty-cash" ||
         location.pathname.startsWith("/petty-cash/");
 
@@ -74,6 +76,9 @@ function Sidebar({ collapsed }) {
     const [expenseOpen, setExpenseOpen] =
         useState(expenseOpenByPath);
 
+    const [pettyCashOpen, setPettyCashOpen] =
+        useState(pettyCashOpenByPath);
+
     const [quizOpen, setQuizOpen] =
         useState(quizOpenByPath);
 
@@ -92,6 +97,12 @@ function Sidebar({ collapsed }) {
             setExpenseOpen(true);
         }
     }, [expenseOpenByPath]);
+
+    useEffect(() => {
+        if (pettyCashOpenByPath) {
+            setPettyCashOpen(true);
+        }
+    }, [pettyCashOpenByPath]);
 
     useEffect(() => {
         if (quizOpenByPath) {
@@ -216,6 +227,19 @@ function Sidebar({ collapsed }) {
         ].includes(
             expensePermission
         );
+
+    // ======================================================
+    // PETTY CASH PERMISSION
+    // ======================================================
+
+    const pettyCashPermission =
+        permissions?.["Petty Cash"] ||
+        permissions?.Expenses;
+
+    const canAccessPettyCash =
+        isAdministrator ||
+        ["View", "Add", "Edit", "Full"].includes(pettyCashPermission);
+
 
     // ======================================================
     // QUIZ PERMISSION
@@ -557,29 +581,46 @@ function Sidebar({ collapsed }) {
                                         </NavLink>
                                     )}
 
-                                    {/* PETTY CASH */}
 
-                                    {canTrackExpenses && (
-                                        <NavLink
-                                            to="/petty-cash"
-                                            className={({ isActive }) =>
-                                                `submenu-item ${
-                                                    isActive
-                                                        ? "active"
-                                                        : ""
-                                                }`
-                                            }
-                                        >
-                                            <FaMoneyBillWave />
-
-                                            <span>
-                                                Petty Cash
-                                            </span>
-                                        </NavLink>
-                                    )}
 
                                 </div>
                             )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    PETTY CASH — SEPARATE MODULE
+                ================================================== */}
+
+                {canAccessPettyCash && (
+                    <div className={`sidebar-group ${pettyCashOpenByPath || pettyCashOpen ? "open" : ""}`}>
+                        <button
+                            type="button"
+                            className={`sidebar-group-toggle ${pettyCashOpenByPath ? "active" : ""}`}
+                            onClick={() => setPettyCashOpen((previous) => !previous)}
+                            aria-expanded={pettyCashOpen || pettyCashOpenByPath}
+                        >
+                            <span className="sidebar-group-content">
+                                <FaMoneyBillWave />
+                                {!collapsed && <span>Petty Cash</span>}
+                            </span>
+                            {!collapsed && (
+                                <FaChevronDown className={`submenu-chevron ${pettyCashOpen || pettyCashOpenByPath ? "rotated" : ""}`} />
+                            )}
+                        </button>
+
+                        {!collapsed && (pettyCashOpen || pettyCashOpenByPath) && (
+                            <div className="sidebar-submenu">
+                                <NavLink to="/petty-cash" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
+                                    <FaMoneyBillWave />
+                                    <span>Petty Cash Dashboard</span>
+                                </NavLink>
+                                <NavLink to="/petty-cash/email-settings" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaEnvelope />
+                                    <span>Email Notifications</span>
+                                </NavLink>
+                            </div>
+                        )}
                     </div>
                 )}
 
