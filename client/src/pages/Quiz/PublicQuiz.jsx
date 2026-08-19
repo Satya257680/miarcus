@@ -477,7 +477,7 @@ function PublicQuiz() {
             // Loaded at runtime so the existing Vite bundle does not need
             // a large computer-vision dependency bundled into every page.
             const fileset = await FilesetResolver.forVisionTasks(
-                new URL("@mediapipe/tasks-vision/wasm", import.meta.url).toString()
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
             );
 
             const detector = await FaceDetector.createFromOptions(
