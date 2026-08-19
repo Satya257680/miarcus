@@ -134,6 +134,7 @@ function AddUserModal({
   "NSO Rules",
   "New Store Openings",
   "Announcements",
+  "Gallery",
   "Expenses",
   "Profile",
   "Settings",

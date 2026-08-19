@@ -33,7 +33,8 @@ const ignoredPrefixes = [
 // Starting a public quiz session is not a module change.
 // The actual public quiz submission IS watched below.
 const ignoredExactOrPrefixes = [
-    "/api/quiz/public/session"
+    "/api/quiz/public/session",
+    "/api/gallery/mobile-session"
 ];
 
 const moduleMap = [
@@ -48,6 +49,7 @@ const moduleMap = [
     ["users", "Users", "/settings/users"],
     ["reports-to", "Reports To", "/settings/reports-to"],
     ["announcements", "Announcements", "/announcements"],
+    ["gallery", "Gallery", "/gallery"],
     ["new-store-openings", "New Store Openings", "/new-store-openings"],
     ["nso-rules", "NSO Rules", "/nso-rules"],
     ["nso-tracking", "NSO Tracking", "/nso-tracking"],
@@ -344,12 +346,41 @@ function install(app) {
                     : null;
 
                 const excludedIds = [actorId, participantId].filter(Boolean);
-                const recipientIds = await getActiveUsersExcept(excludedIds);
+                let recipientIds = await getActiveUsersExcept(excludedIds);
+
+                if (moduleName === "Gallery") {
+                    const rows = await db.query(`
+                        SELECT DISTINCT u.id
+                        FROM users u
+                        INNER JOIN user_permissions p ON p.user_id = u.id
+                        WHERE u.status = 'Active'
+                          AND (
+                              u.is_admin = 1
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM user_permissions gp
+                                  WHERE gp.user_id = u.id
+                                    AND gp.module_name = 'Gallery'
+                                    AND gp.permission IN ('View', 'Add', 'Edit', 'Full')
+                              )
+                          )
+                          AND u.id NOT IN (${excludedIds.length ? excludedIds.map(() => '?').join(',') : '0'})
+                    `, excludedIds);
+                    recipientIds = rows.map(row => Number(row.id)).filter(Boolean);
+                }
 
                 if (recipientIds.length === 0) return;
 
                 let title = `${label} ${action}`;
                 let message = `${label} ${action.toLowerCase()} successfully.`;
+
+                const isGalleryMutation = path.startsWith("/api/gallery/") && !path.includes("/mobile-session");
+
+                if (isGalleryMutation && action === "Created") {
+                    const uploaderName = responsePayload?.uploader_name || "An employee";
+                    title = "New Gallery Photo";
+                    message = `${uploaderName} uploaded a new photo to Gallery.`;
+                }
 
                 if (isPublicQuizSubmit) {
                     const participantName =

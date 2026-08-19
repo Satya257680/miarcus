@@ -78,6 +78,9 @@ const PettyCash =
 const ThemePreference =
     require("./models/themePreferenceModel");
 
+const Gallery =
+    require("./models/galleryModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -262,6 +265,16 @@ async function initializeDatabase() {
                 "❌ user_theme_preferences table initialization failed:",
                 error.message
             );
+        }
+
+        // --------------------------------------------------
+        // GALLERY
+        // --------------------------------------------------
+        try {
+            await Gallery.ensureTables();
+            console.log("✅ gallery tables verified");
+        } catch (error) {
+            console.error("❌ gallery table initialization failed:", error.message);
         }
 
         // --------------------------------------------------
@@ -925,6 +938,20 @@ loadRoute(
     "/api/notifications",
 
     "Notification Routes"
+
+);
+
+// ======================================================
+// GALLERY
+// ======================================================
+
+loadRoute(
+
+    "./routes/galleryRoutes",
+
+    "/api/gallery",
+
+    "Gallery Routes"
 
 );
 

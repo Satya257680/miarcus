@@ -36,6 +36,8 @@ import ChecklistSubmission from "./pages/ChecklistSubmission";
 import ChecklistReports from "./pages/ChecklistReports";
 import ActionPoints from "./pages/ActionPoints";
 import Announcements from "./pages/Announcements";
+import Gallery from "./pages/Gallery";
+import GalleryMobile from "./pages/GalleryMobile";
 
 // ======================================================
 // ADMIN / SETTINGS MODULES
@@ -144,6 +146,15 @@ function App() {
                     element={<PublicQuiz />}
                 />
 
+                {/* ==================================================
+                    MOBILE GALLERY UPLOAD
+                ================================================== */}
+
+                <Route
+                    path="/gallery/mobile/:token"
+                    element={<GalleryMobile />}
+                />
+
 
                 {/* ==================================================
                     PROTECTED APPLICATION ROUTES
@@ -214,6 +225,15 @@ function App() {
                     <Route
                         path="/announcements"
                         element={<Announcements />}
+                    />
+
+                    {/* ==================================================
+                        GALLERY
+                    ================================================== */}
+
+                    <Route
+                        path="/gallery"
+                        element={<Gallery />}
                     />
 
 

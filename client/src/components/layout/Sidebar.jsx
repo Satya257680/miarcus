@@ -23,7 +23,8 @@ import {
     FaIdBadge,
     FaClipboard,
     FaSitemap,
-    FaMoneyBillWave
+    FaMoneyBillWave,
+    FaImages
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -351,6 +352,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Announcements
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    GALLERY
+                ================================================== */}
+
+                {hasPermission("Gallery") && (
+                    <NavLink
+                        to="/gallery"
+                        className={getMenuClass}
+                    >
+                        <FaImages />
+
+                        {!collapsed && (
+                            <span>
+                                Gallery
                             </span>
                         )}
                     </NavLink>
