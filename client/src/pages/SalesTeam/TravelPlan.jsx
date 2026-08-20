@@ -659,12 +659,24 @@ function TravelPlan() {
   const columns = [
     {
       key: "visit_date",
-      title: "Date",
-      minWidth: "110px",
-      render: (row) =>
-        formatDate(
-          row.visit_date
-        ),
+      title: "Date / Period",
+      minWidth: "170px",
+      render: (row) => {
+        const start = formatDate(row.visit_date);
+        const end = row.end_date && row.end_date !== row.visit_date
+          ? formatDate(row.end_date)
+          : null;
+
+        return row.week_off && end ? (
+          <span className="sales-date-range-cell">
+            <strong>{start}</strong>
+            <span>to</span>
+            <strong>{end}</strong>
+          </span>
+        ) : (
+          start
+        );
+      },
     },
 
     {
@@ -736,6 +748,9 @@ function TravelPlan() {
           return (
             <span className="sales-weekoff">
               Week off
+              {row.leave_days > 1
+                ? ` · ${row.leave_days} days`
+                : ""}
             </span>
           );
         }

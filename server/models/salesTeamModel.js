@@ -45,6 +45,8 @@ const createTables = (callback) => {
 
       visit_date DATE NOT NULL,
 
+      end_date DATE NULL,
+
       week_off TINYINT(1) NOT NULL DEFAULT 0,
 
       city VARCHAR(160) NULL,
@@ -229,6 +231,12 @@ const createTables = (callback) => {
       column: "approval_status",
       definition:
         "VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+    },
+    {
+      table: "sales_visit_plans",
+      column: "end_date",
+      definition:
+        "DATE NULL",
     },
     {
       table: "sales_visit_plans",
@@ -690,11 +698,17 @@ const buildVisitWhere = (filters = {}, user = {}, params = []) => {
   }
 
   if (filters.from) {
-    add("v.visit_date >= ?", filters.from);
+    add(
+      "COALESCE(v.end_date, v.visit_date) >= ?",
+      filters.from
+    );
   }
 
   if (filters.to) {
-    add("v.visit_date <= ?", filters.to);
+    add(
+      "v.visit_date <= ?",
+      filters.to
+    );
   }
 
   if (filters.name) {
@@ -834,7 +848,16 @@ const visitSelect = `
     DATE_FORMAT(
       v.visit_date,
       '%W'
-    ) AS day_name
+    ) AS day_name,
+
+    CASE
+      WHEN v.week_off = 1
+      THEN DATEDIFF(
+        COALESCE(v.end_date, v.visit_date),
+        v.visit_date
+      ) + 1
+      ELSE 1
+    END AS leave_days
 
   FROM sales_visit_plans v
 
@@ -1098,6 +1121,8 @@ const createVisitPlan = (
 
       visit_date,
 
+      end_date,
+
       week_off,
 
       city,
@@ -1117,6 +1142,8 @@ const createVisitPlan = (
       data.employee_id,
 
       data.visit_date,
+
+      data.end_date || data.visit_date,
 
       data.week_off ? 1 : 0,
 
@@ -1182,6 +1209,8 @@ const updateVisitPlan = (
 
       visit_date = ?,
 
+      end_date = ?,
+
       week_off = ?,
 
       city = ?,
@@ -1202,6 +1231,8 @@ const updateVisitPlan = (
       data.employee_id,
 
       data.visit_date,
+
+      data.end_date || data.visit_date,
 
       data.week_off ? 1 : 0,
 
@@ -1677,6 +1708,21 @@ const getApprovals = (
         '%Y-%m'
       ) AS month,
 
+      DATE(MIN(v.visit_date)) AS start_date,
+
+      DATE(MAX(COALESCE(v.end_date, v.visit_date))) AS end_date,
+
+      SUM(
+        CASE
+          WHEN v.week_off = 1
+          THEN DATEDIFF(
+            COALESCE(v.end_date, v.visit_date),
+            v.visit_date
+          ) + 1
+          ELSE 1
+        END
+      ) AS leave_days,
+
       COUNT(*) AS pending_days
 
     FROM sales_visit_plans v
@@ -1735,8 +1781,6 @@ const getApprovalRecipients = (
         u.id = employee.reports_to
 
         OR u.is_admin = 1
-
-        OR u.administrator = 1
       )
 
     ORDER BY u.id
@@ -1770,7 +1814,20 @@ const getEmployeeForApproval = (
         '%M %Y'
       ) AS month_label,
 
-      COUNT(*) AS plan_days
+      DATE(MIN(v.visit_date)) AS start_date,
+
+      DATE(MAX(COALESCE(v.end_date, v.visit_date))) AS end_date,
+
+      SUM(
+        CASE
+          WHEN v.week_off = 1
+          THEN DATEDIFF(
+            COALESCE(v.end_date, v.visit_date),
+            v.visit_date
+          ) + 1
+          ELSE 1
+        END
+      ) AS plan_days
 
     FROM sales_visit_plans v
 
@@ -2226,15 +2283,125 @@ const getReview = (
                 }
               );
 
-              callback(
-                null,
-                {
-                  rows,
-                  total: Number(
-                    countRows[0]?.total ||
-                      0
-                  ),
-                  benchmarks,
+              /*
+                The table is paginated, but dashboard analytics must
+                use the complete filtered dataset. This prevents the
+                Target/MTD/Projection cards and chart from changing
+                just because the user moved to another table page.
+              */
+              query(
+                `
+                SELECT
+                  COALESCE(SUM(target), 0) AS target,
+                  COALESCE(SUM(mtd), 0) AS mtd,
+                  COALESCE(SUM(mrp_sale), 0) AS mrp_sale,
+                  COALESCE(SUM(last_month_sale), 0) AS last_month_sale,
+                  COALESCE(SUM(lysm), 0) AS lysm,
+                  COALESCE(SUM(projection), 0) AS projection,
+                  COALESCE(SUM(projection_remaining), 0) AS projection_remaining,
+                  COALESCE(SUM(projection_selected_week), 0) AS projection_selected_week,
+                  COALESCE(SUM(discount_amount), 0) AS discount_amount,
+                  COALESCE(AVG(discount_percent), 0) AS discount_percent,
+                  COALESCE(AVG(upt), 0) AS upt,
+                  COALESCE(AVG(abv), 0) AS abv,
+                  COALESCE(AVG(asp), 0) AS asp,
+                  COALESCE(SUM(bill_count), 0) AS bill_count,
+                  COALESCE(SUM(qty_sold), 0) AS qty_sold,
+                  COUNT(DISTINCT store_name) AS store_count
+                FROM sales_review_records
+                WHERE ${where}
+                `,
+                params,
+                (analyticsErr, analyticsRows) => {
+                  if (analyticsErr) {
+                    return callback(analyticsErr);
+                  }
+
+                  const raw = analyticsRows?.[0] || {};
+                  const toNumber = (value) => Number(value || 0);
+                  const target = toNumber(raw.target);
+                  const mtd = toNumber(raw.mtd);
+                  const lastMonthSale = toNumber(raw.last_month_sale);
+                  const projection = toNumber(raw.projection);
+
+                  const growth = (current, previous) =>
+                    previous !== 0
+                      ? ((current - previous) / Math.abs(previous)) * 100
+                      : current > 0
+                        ? 100
+                        : 0;
+
+                  const analytics = {
+                    target,
+                    mtd,
+                    mrp_sale: toNumber(raw.mrp_sale),
+                    last_month_sale: lastMonthSale,
+                    lysm: toNumber(raw.lysm),
+                    projection,
+                    projection_remaining: toNumber(raw.projection_remaining),
+                    projection_selected_week: toNumber(raw.projection_selected_week),
+                    discount_amount: toNumber(raw.discount_amount),
+                    discount_percent: toNumber(raw.discount_percent),
+                    upt: toNumber(raw.upt),
+                    abv: toNumber(raw.abv),
+                    asp: toNumber(raw.asp),
+                    bill_count: toNumber(raw.bill_count),
+                    qty_sold: toNumber(raw.qty_sold),
+                    store_count: toNumber(raw.store_count),
+                    mtd_growth: growth(mtd, lastMonthSale),
+                    mtd_vs_lysm: growth(mtd, toNumber(raw.lysm)),
+                    projection_vs_target: growth(projection, target),
+                    target_achievement: target !== 0 ? (mtd / target) * 100 : 0,
+                    projection_achievement: target !== 0 ? (projection / target) * 100 : 0,
+                    projection_gap: projection - target,
+                  };
+
+                  query(
+                    `
+                    SELECT
+                      year,
+                      month,
+                      week,
+                      MIN(id) AS first_id,
+                      COALESCE(SUM(target), 0) AS target,
+                      COALESCE(SUM(mtd), 0) AS mtd,
+                      COALESCE(SUM(projection), 0) AS projection
+                    FROM sales_review_records
+                    WHERE ${where}
+                    GROUP BY year, month, week
+                    ORDER BY first_id ASC
+                    LIMIT 24
+                    `,
+                    params,
+                    (trendErr, trendRows) => {
+                      if (trendErr) {
+                        return callback(trendErr);
+                      }
+
+                      const trend = (trendRows || []).map((row) => ({
+                        label: [row.month, row.week].filter(Boolean).join(" / ") || `Period ${row.first_id}`,
+                        year: row.year,
+                        month: row.month,
+                        week: row.week,
+                        target: toNumber(row.target),
+                        mtd: toNumber(row.mtd),
+                        projection: toNumber(row.projection),
+                      }));
+
+                      callback(
+                        null,
+                        {
+                          rows,
+                          total: Number(
+                            countRows[0]?.total || 0
+                          ),
+                          benchmarks,
+                          analytics,
+                          trend,
+                        }
+                      );
+                    }
+                  );
                 }
               );
             }

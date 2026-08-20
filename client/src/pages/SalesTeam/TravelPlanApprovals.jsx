@@ -348,10 +348,17 @@ function TravelPlanApprovals() {
           <div className="approval-list">
             {items.map(
               (item) => {
-                const pendingDays =
-                  Number(
-                    item.pending_days
-                  ) || 0;
+                const pendingPlans =
+                  Number(item.pending_days) || 0;
+
+                const leaveDays =
+                  Number(item.leave_days) || pendingPlans || 0;
+
+                const startDate =
+                  item.start_date || null;
+
+                const endDate =
+                  item.end_date || startDate;
 
                 return (
                   <div
@@ -383,19 +390,25 @@ function TravelPlanApprovals() {
                           <FaClock />
 
                           <span>
-                            {item.month_label ||
-                              item.month}
+                            {item.month_label || item.month}
+                          </span>
+                        </div>
+
+                        <div className="approval-leave-period">
+                          <strong>
+                            {startDate}
+                            {endDate && endDate !== startDate
+                              ? ` → ${endDate}`
+                              : ""}
+                          </strong>
+
+                          <span className="approval-leave-days">
+                            {leaveDays} day{leaveDays === 1 ? "" : "s"} leave / plan
                           </span>
                         </div>
 
                         <p>
-                          {pendingDays}{" "}
-                          day
-                          {pendingDays ===
-                          1
-                            ? ""
-                            : "s"}{" "}
-                          waiting for approval
+                          {pendingPlans} pending plan{pendingPlans === 1 ? "" : "s"}
                         </p>
                       </div>
                     </div>

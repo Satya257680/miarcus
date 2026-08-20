@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -12,6 +11,9 @@ import {
   FaSyncAlt,
   FaSave,
   FaBullseye,
+  FaArrowUp,
+  FaArrowDown,
+  FaBolt,
   FaTimes,
 } from "react-icons/fa";
 
@@ -43,6 +45,281 @@ import {
 import "../../styles/pages/SalesTeam.css";
 
 /* =========================================================
+   SALES ANALYTICS HELPERS
+========================================================= */
+
+const numberValue = (value) =>
+  Number.isFinite(Number(value))
+    ? Number(value)
+    : 0;
+
+const formatAmount = (value) => {
+  const number = numberValue(value);
+
+  return `₹${number.toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  })}`;
+};
+
+const formatMetric = (value) =>
+  numberValue(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+
+const formatPercent = (value) => {
+  const number = numberValue(value);
+
+  return `${number >= 0 ? "+" : ""}${number.toFixed(1)}%`;
+};
+
+const trendMeta = (value) => {
+  const number = numberValue(value);
+
+  return {
+    positive: number >= 0,
+    Icon:
+      number >= 0
+        ? FaArrowUp
+        : FaArrowDown,
+  };
+};
+
+/* =========================================================
+   TRADING-STYLE SALES TREND
+========================================================= */
+
+function SalesTrendChart({
+  trend = [],
+}) {
+  if (!trend.length) {
+    return (
+      <div className="sales-review-chart-empty">
+        Upload data with Year / Month / Week values to see the live trend.
+      </div>
+    );
+  }
+
+  const width = 760;
+  const height = 250;
+  const padding = {
+    top: 22,
+    right: 18,
+    bottom: 42,
+    left: 52,
+  };
+
+  const chartWidth =
+    width - padding.left - padding.right;
+
+  const chartHeight =
+    height - padding.top - padding.bottom;
+
+  const values = trend.flatMap((item) => [
+    numberValue(item.mtd),
+    numberValue(item.projection),
+    numberValue(item.target),
+  ]);
+
+  const maxValue =
+    Math.max(...values, 1);
+
+  const minValue =
+    Math.min(...values, 0);
+
+  const range =
+    maxValue - minValue || 1;
+
+  const x = (index) =>
+    padding.left +
+    (trend.length === 1
+      ? chartWidth / 2
+      : (index / (trend.length - 1)) *
+        chartWidth);
+
+  const y = (value) =>
+    padding.top +
+    chartHeight -
+    ((value - minValue) / range) *
+      chartHeight;
+
+  const line = (key) =>
+    trend
+      .map(
+        (item, index) =>
+          `${x(index)},${y(
+            numberValue(item[key])
+          )}`
+      )
+      .join(" ");
+
+  const last =
+    trend[trend.length - 1];
+
+  const lastMtd =
+    numberValue(last?.mtd);
+
+  const firstMtd =
+    numberValue(trend[0]?.mtd);
+
+  const liveGrowth =
+    firstMtd !== 0
+      ? ((lastMtd - firstMtd) /
+          Math.abs(firstMtd)) *
+        100
+      : lastMtd > 0
+        ? 100
+        : 0;
+
+  const liveMeta =
+    trendMeta(liveGrowth);
+
+  const LiveIcon =
+    liveMeta.Icon;
+
+  const labelStep =
+    Math.max(
+      1,
+      Math.ceil(trend.length / 6)
+    );
+
+  return (
+    <div className="sales-review-chart-wrap">
+      <div className="sales-review-chart-head">
+        <div>
+          <span>Sales movement</span>
+          <strong>
+            {liveGrowth >= 0
+              ? "Momentum is rising"
+              : "Momentum is falling"}
+          </strong>
+        </div>
+
+        <div
+          className={`sales-review-live-change ${
+            liveMeta.positive
+              ? "positive"
+              : "negative"
+          }`}
+        >
+          <LiveIcon />
+          {formatPercent(liveGrowth)}
+        </div>
+      </div>
+
+      <svg
+        className="sales-review-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Sales trend chart"
+      >
+        {[0, 0.25, 0.5, 0.75, 1].map(
+          (ratio) => {
+            const gridY =
+              padding.top +
+              chartHeight * ratio;
+
+            const gridValue =
+              maxValue -
+              range * ratio;
+
+            return (
+              <g key={ratio}>
+                <line
+                  x1={padding.left}
+                  x2={width - padding.right}
+                  y1={gridY}
+                  y2={gridY}
+                  className="sales-review-grid-line"
+                />
+                <text
+                  x={padding.left - 8}
+                  y={gridY + 4}
+                  textAnchor="end"
+                  className="sales-review-axis-label"
+                >
+                  {formatAmount(gridValue)}
+                </text>
+              </g>
+            );
+          }
+        )}
+
+        <polyline
+          points={line("target")}
+          fill="none"
+          className="sales-review-line target"
+        />
+
+        <polyline
+          points={line("projection")}
+          fill="none"
+          className="sales-review-line projection"
+        />
+
+        <polyline
+          points={line("mtd")}
+          fill="none"
+          className="sales-review-line mtd"
+        />
+
+        {trend.map(
+          (item, index) => (
+            <circle
+              key={`${item.label}-${index}`}
+              cx={x(index)}
+              cy={y(
+                numberValue(
+                  item.mtd
+                )
+              )}
+              r="4"
+              className="sales-review-point"
+            />
+          )
+        )}
+
+        {trend.map(
+          (item, index) =>
+            index % labelStep === 0 ||
+            index ===
+              trend.length - 1 ? (
+              <text
+                key={`label-${item.label}-${index}`}
+                x={x(index)}
+                y={
+                  height -
+                  12
+                }
+                textAnchor="middle"
+                className="sales-review-axis-label"
+              >
+                {item.label}
+              </text>
+            ) : null
+        )}
+      </svg>
+
+      <div className="sales-review-chart-legend">
+        <span>
+          <i className="target" />
+          Target
+        </span>
+
+        <span>
+          <i className="mtd" />
+          MTD
+        </span>
+
+        <span>
+          <i className="projection" />
+          Projection
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
    DEFAULT FILTERS
 ========================================================= */
 
@@ -71,6 +348,35 @@ function SalesReview() {
     useState(emptyFilters);
 
   const [rows, setRows] =
+    useState([]);
+
+  const [analytics, setAnalytics] =
+    useState({
+      target: 0,
+      mtd: 0,
+      mrp_sale: 0,
+      last_month_sale: 0,
+      lysm: 0,
+      projection: 0,
+      projection_remaining: 0,
+      projection_selected_week: 0,
+      discount_amount: 0,
+      discount_percent: 0,
+      upt: 0,
+      abv: 0,
+      asp: 0,
+      bill_count: 0,
+      qty_sold: 0,
+      store_count: 0,
+      mtd_growth: 0,
+      mtd_vs_lysm: 0,
+      projection_vs_target: 0,
+      target_achievement: 0,
+      projection_achievement: 0,
+      projection_gap: 0,
+    });
+
+  const [trend, setTrend] =
     useState([]);
 
   const [loading, setLoading] =
@@ -150,6 +456,39 @@ function SalesReview() {
             : []
         );
 
+        setAnalytics(
+          response?.data?.analytics || {
+            target: 0,
+            mtd: 0,
+            mrp_sale: 0,
+            last_month_sale: 0,
+            lysm: 0,
+            projection: 0,
+            projection_remaining: 0,
+            projection_selected_week: 0,
+            discount_amount: 0,
+            discount_percent: 0,
+            upt: 0,
+            abv: 0,
+            asp: 0,
+            bill_count: 0,
+            qty_sold: 0,
+            store_count: 0,
+            mtd_growth: 0,
+            mtd_vs_lysm: 0,
+            projection_vs_target: 0,
+            target_achievement: 0,
+            projection_achievement: 0,
+            projection_gap: 0,
+          }
+        );
+
+        setTrend(
+          Array.isArray(response?.data?.trend)
+            ? response.data.trend
+            : []
+        );
+
         setTotal(
           Number(
             response?.data?.total || 0
@@ -191,6 +530,12 @@ function SalesReview() {
 
   useEffect(() => {
     load();
+
+    const timer = window.setInterval(() => {
+      load(true);
+    }, 30000);
+
+    return () => window.clearInterval(timer);
   }, [load]);
 
   /* =======================================================
@@ -463,48 +808,13 @@ function SalesReview() {
      SUMMARY
   ======================================================= */
 
-  const summary = useMemo(
-    () => {
-      if (!rows.length) {
-        return {
-          target: 0,
-          mtd: 0,
-          projection: 0,
-        };
-      }
+  const summary = analytics;
 
-      return rows.reduce(
-        (
-          result,
-          row
-        ) => ({
-          target:
-            result.target +
-            Number(
-              row.target || 0
-            ),
+  const growthMeta =
+    trendMeta(summary.mtd_growth);
 
-          mtd:
-            result.mtd +
-            Number(
-              row.mtd || 0
-            ),
-
-          projection:
-            result.projection +
-            Number(
-              row.projection || 0
-            ),
-        }),
-        {
-          target: 0,
-          mtd: 0,
-          projection: 0,
-        }
-      );
-    },
-    [rows]
-  );
+  const GrowthIcon =
+    growthMeta.Icon;
 
   /* =======================================================
      TABLE COLUMNS
@@ -1000,63 +1310,161 @@ function SalesReview() {
       </FilterBar>
 
       {/* =================================================
-          QUICK SUMMARY
+          TRADING-STYLE LIVE SALES DASHBOARD
       ================================================= */}
 
-      {!loading &&
-        rows.length > 0 && (
-          <div className="sales-review-summary-grid">
-
-            <div className="sales-review-summary-card">
-              <div className="sales-review-summary-icon">
-                <FaBullseye />
-              </div>
-
-              <div>
-                <span>
-                  Target
-                </span>
-
-                <strong>
-                  {summary.target.toLocaleString()}
-                </strong>
-              </div>
+      {!loading && (
+        <div className="sales-review-live-dashboard">
+          <div className="sales-review-live-banner">
+            <div>
+              <span className="sales-review-live-dot" />
+              LIVE SALES PULSE
             </div>
 
-            <div className="sales-review-summary-card">
-              <div className="sales-review-summary-icon">
-                <FaChartLine />
-              </div>
-
-              <div>
-                <span>
-                  MTD
-                </span>
-
-                <strong>
-                  {summary.mtd.toLocaleString()}
-                </strong>
-              </div>
-            </div>
-
-            <div className="sales-review-summary-card">
-              <div className="sales-review-summary-icon">
-                <FaChartLine />
-              </div>
-
-              <div>
-                <span>
-                  Projection
-                </span>
-
-                <strong>
-                  {summary.projection.toLocaleString()}
-                </strong>
-              </div>
-            </div>
-
+            <small>
+              Auto refresh every 30 seconds
+            </small>
           </div>
-        )}
+
+          <div className="sales-review-kpi-grid">
+            <div className="sales-review-kpi-card">
+              <div className="sales-review-kpi-top">
+                <span>MTD</span>
+                <span className={`sales-review-trend ${growthMeta.positive ? "positive" : "negative"}`}>
+                  <GrowthIcon />
+                  {formatPercent(summary.mtd_growth)}
+                </span>
+              </div>
+              <strong>{formatAmount(summary.mtd)}</strong>
+              <small>
+                vs last month {formatAmount(summary.last_month_sale)}
+              </small>
+            </div>
+
+            <div className="sales-review-kpi-card">
+              <div className="sales-review-kpi-top">
+                <span>Target</span>
+                <span className="sales-review-neutral">
+                  {summary.target_achievement.toFixed(1)}%
+                </span>
+              </div>
+              <strong>{formatAmount(summary.target)}</strong>
+              <small>
+                {summary.target_achievement.toFixed(1)}% achieved by MTD
+              </small>
+            </div>
+
+            <div className="sales-review-kpi-card">
+              <div className="sales-review-kpi-top">
+                <span>Projection</span>
+                <span className={`sales-review-trend ${summary.projection_vs_target >= 0 ? "positive" : "negative"}`}>
+                  {summary.projection_vs_target >= 0 ? <FaArrowUp /> : <FaArrowDown />}
+                  {formatPercent(summary.projection_vs_target)}
+                </span>
+              </div>
+              <strong>{formatAmount(summary.projection)}</strong>
+              <small>
+                {summary.projection_vs_target >= 0
+                  ? "Projected above target"
+                  : "Projected below target"}
+              </small>
+            </div>
+
+            <div className="sales-review-kpi-card">
+              <div className="sales-review-kpi-top">
+                <span>Projection Gap</span>
+                <FaBolt />
+              </div>
+              <strong>{formatAmount(summary.projection_gap)}</strong>
+              <small>
+                {summary.projection_gap >= 0
+                  ? "Expected surplus vs target"
+                  : "Expected shortfall vs target"}
+              </small>
+            </div>
+
+            <div className="sales-review-kpi-card compact">
+              <span>UPT</span>
+              <strong>{formatMetric(summary.upt)}</strong>
+              <small>Units per transaction</small>
+            </div>
+
+            <div className="sales-review-kpi-card compact">
+              <span>ABV</span>
+              <strong>{formatAmount(summary.abv)}</strong>
+              <small>Average bill value</small>
+            </div>
+
+            <div className="sales-review-kpi-card compact">
+              <span>ASP</span>
+              <strong>{formatAmount(summary.asp)}</strong>
+              <small>Average selling price</small>
+            </div>
+
+            <div className="sales-review-kpi-card compact">
+              <span>Quantity / Bills</span>
+              <strong>{formatMetric(summary.qty_sold)}</strong>
+              <small>{formatMetric(summary.bill_count)} bills</small>
+            </div>
+          </div>
+
+          <div className="sales-review-live-grid">
+            <Card
+              title="Sales Trend"
+              subtitle="Target, MTD and projection movement across the filtered periods."
+              className="sales-review-chart-card"
+            >
+              <SalesTrendChart trend={trend} />
+            </Card>
+
+            <Card
+              title="Management View"
+              subtitle="Automatic interpretation of the current filtered data."
+              className="sales-review-insight-card"
+            >
+              <div className={`sales-review-insight ${summary.mtd_growth >= 0 ? "positive" : "negative"}`}>
+                {summary.mtd_growth >= 0 ? <FaArrowUp /> : <FaArrowDown />}
+
+                <div>
+                  <strong>
+                    {summary.mtd_growth >= 0
+                      ? "Sales are growing"
+                      : "Sales are falling"}
+                  </strong>
+
+                  <p>
+                    MTD is {formatPercent(summary.mtd_growth)} compared with
+                    last month. MTD has achieved {summary.target_achievement.toFixed(1)}%
+                    of the current target.
+                  </p>
+                </div>
+              </div>
+
+              <div className="sales-review-insight-row">
+                <span>Projection</span>
+                <strong>{formatAmount(summary.projection)}</strong>
+              </div>
+
+              <div className="sales-review-insight-row">
+                <span>Target gap</span>
+                <strong>{formatAmount(summary.projection_gap)}</strong>
+              </div>
+
+              <div className="sales-review-insight-row">
+                <span>LYSM comparison</span>
+                <strong className={summary.mtd_vs_lysm >= 0 ? "positive-text" : "negative-text"}>
+                  {formatPercent(summary.mtd_vs_lysm)}
+                </strong>
+              </div>
+
+              <div className="sales-review-insight-row">
+                <span>Stores in view</span>
+                <strong>{formatMetric(summary.store_count)}</strong>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* =================================================
           SALES TABLE

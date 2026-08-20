@@ -356,6 +356,22 @@ const notifyDecision = (
           </p>
 
           ${
+            employee.start_date
+              ? `
+                <p>
+                  Period:
+                  <b>
+                    ${employee.start_date}
+                    ${employee.end_date && employee.end_date !== employee.start_date
+                      ? ` to ${employee.end_date}`
+                      : ""}
+                  </b>
+                </p>
+              `
+              : ""
+          }
+
+          ${
             approved
               ? `
                 <p>
@@ -527,6 +543,33 @@ exports.createVisitPlan = (
     });
   }
 
+  const weekOff =
+    body.week_off === true ||
+    body.week_off === 1 ||
+    String(body.week_off || "").toLowerCase() === "true" ||
+    String(body.week_off || "").toLowerCase() === "yes";
+
+  const endDate =
+    weekOff
+      ? String(body.end_date || "").trim()
+      : String(body.visit_date);
+
+  if (weekOff && !endDate) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Leave To date is required when Week off / Leave is selected.",
+    });
+  }
+
+  if (weekOff && endDate < String(body.visit_date)) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Leave To date cannot be before the From date.",
+    });
+  }
+
   /*
     Normal employees can only create
     their own visit plan.
@@ -553,6 +596,12 @@ exports.createVisitPlan = (
 
     employee_id:
       Number(body.employee_id),
+
+    end_date:
+      endDate,
+
+    week_off:
+      weekOff,
 
     approval_status:
       "Pending",
@@ -659,6 +708,36 @@ exports.updateVisitPlan = (
 
         Model resets edited plans to Pending.
       */
+      const updateWeekOff =
+        req.body.week_off === true ||
+        req.body.week_off === 1 ||
+        String(req.body.week_off || "").toLowerCase() === "true" ||
+        String(req.body.week_off || "").toLowerCase() === "yes";
+
+      const updateVisitDate =
+        String(req.body.visit_date || row.visit_date);
+
+      const updateEndDate =
+        updateWeekOff
+          ? String(req.body.end_date || "").trim()
+          : updateVisitDate;
+
+      if (updateWeekOff && !updateEndDate) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Leave To date is required when Week off / Leave is selected.",
+        });
+      }
+
+      if (updateWeekOff && updateEndDate < updateVisitDate) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Leave To date cannot be before the From date.",
+        });
+      }
+
       const payload = {
         ...req.body,
 
@@ -667,6 +746,10 @@ exports.updateVisitPlan = (
             req.body.employee_id ||
               row.employee_id
           ),
+
+        end_date: updateEndDate,
+
+        week_off: updateWeekOff,
 
         planned_store_ids:
           Array.isArray(
@@ -912,6 +995,13 @@ exports.importVisitPlans = (
         row["Week Off"] ||
         "";
 
+      const endDateValue =
+        row.end_date ||
+        row["End Date"] ||
+        row.to_date ||
+        row["To Date"] ||
+        date;
+
       const weekOff =
         String(
           weekOffValue
@@ -939,6 +1029,9 @@ exports.importVisitPlans = (
 
           visit_date:
             date,
+
+          end_date:
+            weekOff ? endDateValue : date,
 
           week_off:
             weekOff,
@@ -1520,6 +1613,12 @@ exports.getSalesReview = (
 
         benchmarks:
           result.benchmarks,
+
+        analytics:
+          result.analytics,
+
+        trend:
+          result.trend || [],
       });
     }
   );

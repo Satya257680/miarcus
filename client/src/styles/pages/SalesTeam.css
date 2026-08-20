@@ -1385,3 +1385,390 @@
     width: 100%;
   }
 }
+
+/* =====================================================
+   TRAVEL PLAN DATE RANGE / LEAVE
+===================================================== */
+
+.sales-date-range-cell {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.sales-date-range-cell span {
+  color: #82939a;
+  font-size: 11px;
+}
+
+.approval-leave-period {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.approval-leave-period strong {
+  color: #294652;
+  font-size: 12px;
+}
+
+.approval-leave-days {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff4df;
+  color: #a36a00;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+
+
+/* =====================================================
+   SALES REVIEW - TRADING STYLE LIVE DASHBOARD
+===================================================== */
+
+.sales-review-live-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 4px 0 20px;
+}
+
+.sales-review-live-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #d6e3e7;
+  border-radius: 10px;
+  background: #f8fbfc;
+  color: #294652;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.sales-review-live-banner > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sales-review-live-banner small {
+  color: #71858d;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.sales-review-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1aa56d;
+  box-shadow: 0 0 0 4px rgba(26, 165, 109, 0.12);
+}
+
+.sales-review-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sales-review-kpi-card {
+  min-height: 116px;
+  padding: 15px;
+  border: 1px solid #d8e3e7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(37, 67, 78, 0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sales-review-kpi-card.compact {
+  min-height: 94px;
+}
+
+.sales-review-kpi-card > span:first-child,
+.sales-review-kpi-top > span:first-child {
+  color: #607780;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sales-review-kpi-card strong {
+  color: #173946;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.sales-review-kpi-card small {
+  color: #7b8e95;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.sales-review-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sales-review-trend,
+.sales-review-neutral {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sales-review-trend.positive,
+.positive-text {
+  color: #12855d;
+}
+
+.sales-review-trend.negative,
+.negative-text {
+  color: #c43333;
+}
+
+.sales-review-neutral {
+  color: #7868bb;
+}
+
+.sales-review-live-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.85fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.sales-review-chart-card,
+.sales-review-insight-card {
+  min-width: 0;
+}
+
+.sales-review-chart-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+
+.sales-review-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sales-review-chart-head > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sales-review-chart-head span {
+  color: #7a8d94;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sales-review-chart-head strong {
+  color: #243f4b;
+  font-size: 14px;
+}
+
+.sales-review-live-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.sales-review-live-change.positive {
+  color: #12855d;
+}
+
+.sales-review-live-change.negative {
+  color: #c43333;
+}
+
+.sales-review-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+}
+
+.sales-review-grid-line {
+  stroke: #e6edef;
+  stroke-width: 1;
+}
+
+.sales-review-axis-label {
+  fill: #83949a;
+  font-size: 10px;
+}
+
+.sales-review-line {
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.sales-review-line.target {
+  stroke: #83959d;
+  stroke-dasharray: 6 5;
+}
+
+.sales-review-line.mtd {
+  stroke: #2f7d95;
+}
+
+.sales-review-line.projection {
+  stroke: #8b7ac7;
+}
+
+.sales-review-point {
+  fill: #2f7d95;
+  stroke: #fff;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.sales-review-chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding-top: 3px;
+  color: #647a83;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sales-review-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sales-review-chart-legend i {
+  display: inline-block;
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.sales-review-chart-legend i.target {
+  background: #83959d;
+}
+
+.sales-review-chart-legend i.mtd {
+  background: #2f7d95;
+}
+
+.sales-review-chart-legend i.projection {
+  background: #8b7ac7;
+}
+
+.sales-review-chart-empty {
+  min-height: 245px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  text-align: center;
+  color: #81939a;
+  font-size: 13px;
+}
+
+.sales-review-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #f7fafb;
+}
+
+.sales-review-insight.positive {
+  color: #12855d;
+}
+
+.sales-review-insight.negative {
+  color: #c43333;
+}
+
+.sales-review-insight > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.sales-review-insight strong {
+  display: block;
+  color: #274551;
+  font-size: 14px;
+}
+
+.sales-review-insight p {
+  margin: 5px 0 0;
+  color: #6f828a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sales-review-insight-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #edf2f4;
+  color: #6b7f87;
+  font-size: 12px;
+}
+
+.sales-review-insight-row:last-child {
+  border-bottom: 0;
+}
+
+.sales-review-insight-row strong {
+  color: #294652;
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .sales-review-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sales-review-live-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .sales-review-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-review-live-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sales-review-chart {
+    min-height: 190px;
+  }
+}

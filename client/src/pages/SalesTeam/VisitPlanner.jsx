@@ -53,6 +53,7 @@ import "../../styles/pages/SalesTeam.css";
 const makeInitialForm = () => ({
   employee_id: "",
   visit_date: new Date().toISOString().slice(0, 10),
+  end_date: new Date().toISOString().slice(0, 10),
   week_off: false,
   city: "",
   reason_to_travel: "",
@@ -628,6 +629,18 @@ function VisitPlanner() {
       return;
     }
 
+    if (form.week_off) {
+      if (!form.end_date) {
+        alert("Leave end date is required when Week off is selected.");
+        return;
+      }
+
+      if (form.end_date < form.visit_date) {
+        alert("Leave To date cannot be before the From date.");
+        return;
+      }
+    }
+
     if (
       !form.week_off &&
       form.planned_store_ids.length === 0
@@ -648,6 +661,10 @@ function VisitPlanner() {
         employee_id: Number(
           form.employee_id
         ),
+
+        end_date: form.week_off
+          ? form.end_date
+          : form.visit_date,
 
         planned_store_ids:
           form.week_off
@@ -834,10 +851,24 @@ function VisitPlanner() {
   const columns = [
     {
       key: "visit_date",
-      title: "Date",
-      render: (row) =>
-        formatDate(row.visit_date),
-      minWidth: "110px",
+      title: "Date / Period",
+      render: (row) => {
+        const start = formatDate(row.visit_date);
+        const end = row.end_date && row.end_date !== row.visit_date
+          ? formatDate(row.end_date)
+          : null;
+
+        return row.week_off && end ? (
+          <span className="sales-date-range-cell">
+            <strong>{start}</strong>
+            <span>to</span>
+            <strong>{end}</strong>
+          </span>
+        ) : (
+          start
+        );
+      },
+      minWidth: "170px",
     },
 
     {
@@ -898,6 +929,9 @@ function VisitPlanner() {
         row.week_off ? (
           <span className="sales-weekoff">
             Week off
+            {row.leave_days > 1
+              ? ` · ${row.leave_days} days`
+              : ""}
           </span>
         ) : (
           <span className="sales-wrap-cell">
@@ -1346,33 +1380,27 @@ function VisitPlanner() {
               </label>
 
               {/* =================================================
-                  DATE
+                  DATE / LEAVE RANGE
               ================================================= */}
 
               <label className="sales-field">
                 <span>
-                  Date <b>*</b>
+                  {form.week_off ? "From date" : "Date"} <b>*</b>
                 </span>
 
                 <input
                   type="date"
-                  value={
-                    form.visit_date
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setForm(
-                      (
-                        current
-                      ) => ({
-                        ...current,
-                        visit_date:
-                          event
-                            .target
-                            .value,
-                      })
-                    )
+                  value={form.visit_date}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      visit_date: event.target.value,
+                      end_date:
+                        current.week_off &&
+                        (!current.end_date || current.end_date < event.target.value)
+                          ? event.target.value
+                          : current.end_date,
+                    }))
                   }
                   required
                   disabled={saving}
@@ -1380,7 +1408,7 @@ function VisitPlanner() {
               </label>
 
               {/* =================================================
-                  WEEK OFF
+                  WEEK OFF / LEAVE
               ================================================= */}
 
               <label className="sales-check-field">
@@ -1417,9 +1445,37 @@ function VisitPlanner() {
                 />
 
                 <span>
-                  Week off
+                  Week off / Leave
                 </span>
               </label>
+
+              {form.week_off && (
+                <label className="sales-field">
+                  <span>
+                    To date <b>*</b>
+                  </span>
+
+                  <input
+                    type="date"
+                    value={form.end_date}
+                    min={form.visit_date}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        end_date: event.target.value,
+                      }))
+                    }
+                    required
+                    disabled={saving}
+                  />
+
+                  <small className="sales-field-help">
+                    {form.visit_date && form.end_date && form.end_date >= form.visit_date
+                      ? `${Math.floor((new Date(`${form.end_date}T00:00:00`) - new Date(`${form.visit_date}T00:00:00`)) / 86400000) + 1} day${Math.floor((new Date(`${form.end_date}T00:00:00`) - new Date(`${form.visit_date}T00:00:00`)) / 86400000) === 0 ? "" : "s"} leave`
+                      : "Select the last leave day."}
+                  </small>
+                </label>
+              )}
 
               {/* =================================================
                   CITY
