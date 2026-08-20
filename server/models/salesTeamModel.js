@@ -1858,14 +1858,13 @@ const changeApproval = (
   query(
     `
     SELECT
-      id,
-      employee_id,
-      name,
-      is_admin,
-      administrator
-    FROM users
-    WHERE id = ?
-    LIMIT 1
+  id,
+  employee_id,
+  name,
+  is_admin
+FROM users
+WHERE id = ?
+LIMIT 1
     `,
     [cleanUserId],
     (userErr, userRows) => {
@@ -1890,12 +1889,9 @@ const changeApproval = (
         userRows[0];
 
       const admin =
-        Number(
-          currentUser.is_admin || 0
-        ) === 1 ||
-        Number(
-          currentUser.administrator || 0
-        ) === 1;
+  Number(
+    currentUser.is_admin || 0
+  ) === 1;
 
       /*
         Build authorization condition.
