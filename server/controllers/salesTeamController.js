@@ -1269,6 +1269,16 @@ exports.getApprovals = (
       data
     ) => {
       if (err) {
+        console.error(
+          "Travel plan approvals query failed:",
+          {
+            code: err.code,
+            errno: err.errno,
+            sqlState: err.sqlState,
+            message: err.message,
+          }
+        );
+
         return res.status(500).json({
           success: false,
           message:

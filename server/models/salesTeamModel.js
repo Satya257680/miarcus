@@ -54,9 +54,8 @@ const createTables = (callback) => {
       remarks TEXT NULL,
 
       /*
-        IMPORTANT:
         Every newly created visit starts as Pending.
-        It can only become Approved/Rejected from
+        Approval can only be changed from
         Travel Plan Approvals.
       */
       approval_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
@@ -214,21 +213,185 @@ const createTables = (callback) => {
     `,
   ];
 
-  let index = 0;
+  /*
+    The Sales Team tables may already exist in production from an
+    older version of the module. CREATE TABLE IF NOT EXISTS does
+    NOT alter an existing table, which can leave approval columns
+    missing and make /api/sales-team/approvals return HTTP 500.
 
-  const next = (err) => {
-    if (err) {
-      return callback(err);
-    }
+    These migrations are deliberately checked through
+    INFORMATION_SCHEMA so the code works even on MySQL versions
+    where ALTER TABLE ... ADD COLUMN IF NOT EXISTS is unavailable.
+  */
+  const requiredColumns = [
+    {
+      table: "sales_visit_plans",
+      column: "approval_status",
+      definition:
+        "VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+    },
+    {
+      table: "sales_visit_plans",
+      column: "approval_by",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_visit_plans",
+      column: "approval_at",
+      definition:
+        "DATETIME NULL",
+    },
+    {
+      table: "sales_visit_plans",
+      column: "created_by",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_visit_plans",
+      column: "updated_by",
+      definition:
+        "INT NULL",
+    },
+  ];
 
-    if (index >= statements.length) {
-      return callback(null);
-    }
+  const ensureColumn = (
+    table,
+    column,
+    definition,
+    next
+  ) => {
+    query(
+      `
+      SELECT COUNT(*) AS column_exists
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?
+      `,
+      [table, column],
+      (checkErr, rows) => {
+        if (checkErr) {
+          return next(checkErr);
+        }
 
-    query(statements[index++], [], next);
+        if (
+          Number(
+            rows[0]?.column_exists || 0
+          ) > 0
+        ) {
+          return next(null);
+        }
+
+        query(
+          `
+          ALTER TABLE \`${table}\`
+          ADD COLUMN \`${column}\` ${definition}
+          `,
+          [],
+          (alterErr) => {
+            if (alterErr) {
+              return next(alterErr);
+            }
+
+            next(null);
+          }
+        );
+      }
+    );
   };
 
-  next();
+  const runStatements = (
+    index,
+    next
+  ) => {
+    if (index >= statements.length) {
+      return next(null);
+    }
+
+    query(
+      statements[index],
+      [],
+      (err) => {
+        if (err) {
+          return next(err);
+        }
+
+        runStatements(
+          index + 1,
+          next
+        );
+      }
+    );
+  };
+
+  const runMigrations = (
+    index,
+    next
+  ) => {
+    if (
+      index >=
+      requiredColumns.length
+    ) {
+      return next(null);
+    }
+
+    const migration =
+      requiredColumns[index];
+
+    ensureColumn(
+      migration.table,
+      migration.column,
+      migration.definition,
+      (err) => {
+        if (err) {
+          return next(err);
+        }
+
+        runMigrations(
+          index + 1,
+          next
+        );
+      }
+    );
+  };
+
+  runStatements(
+    0,
+    (tableErr) => {
+      if (tableErr) {
+        return callback(tableErr);
+      }
+
+      runMigrations(
+        0,
+        (migrationErr) => {
+          if (migrationErr) {
+            return callback(
+              migrationErr
+            );
+          }
+
+          /*
+            Existing rows created before the approval workflow
+            are safely treated as Pending when the status is
+            empty/null. They still require an explicit approval.
+          */
+          query(
+            `
+            UPDATE sales_visit_plans
+            SET approval_status = 'Pending'
+            WHERE approval_status IS NULL
+               OR TRIM(approval_status) = ''
+            `,
+            [],
+            callback
+          );
+        }
+      );
+    }
+  );
 };
 
 /* =========================================================
