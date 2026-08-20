@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaUpload, FaDownload, FaTrash, FaFilter, FaChartLine } from "react-icons/fa";
 import { deleteAllSalesReview, exportSalesReview, getSalesReview, uploadSalesReview, updateSalesBenchmark } from "../../services/salesTeamService";
-import { canAdd, canDelete, canEdit, canView, downloadBlob } from "./salesTeamUtils";
+import { canAdd, canDelete, canEdit, canView, downloadBlob } from "./salesTeamUtils.js";
 import "../../styles/pages/SalesTeam.css";
 
 const emptyFilters = { years: "", months: "", weeks: "", reports_to: "", asm: "", store: "", search: "" };
