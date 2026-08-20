@@ -1136,7 +1136,7 @@ const createVisitPlan = (
       updated_by
     )
 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.employee_id,
