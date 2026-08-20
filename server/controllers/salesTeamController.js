@@ -1622,43 +1622,102 @@ exports.uploadSalesReview = (
     });
   }
 
+  const uploadedPath =
+    req.file.path;
+
   let rows;
 
   try {
     rows =
       readSpreadsheetRows(
-        req.file.path
+        uploadedPath
       );
   } catch (error) {
     fs.unlink(
-      req.file.path,
+      uploadedPath,
       () => {}
+    );
+
+    console.error(
+      "Sales Review spreadsheet read failed:",
+      error
     );
 
     return res.status(400).json({
       success: false,
       message:
-        "Unable to read the uploaded file.",
+        "Unable to read the uploaded file. Please upload a valid CSV, XLSX or XLS file.",
     });
   }
 
+  /*
+    The file is no longer needed after XLSX has parsed it.
+  */
   fs.unlink(
-    req.file.path,
+    uploadedPath,
     () => {}
   );
 
+  if (
+    !Array.isArray(rows) ||
+    !rows.length
+  ) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "The uploaded Sales Review file is empty.",
+      imported: 0,
+    });
+  }
+
   SalesTeam.importReviewRows(
     rows,
-    req.user.id,
+    req.user?.id,
     (
       err,
       result
     ) => {
       if (err) {
+        console.error(
+          "Sales Review import failed:",
+          {
+            message:
+              err.message,
+            code:
+              err.code,
+            sqlMessage:
+              err.sqlMessage,
+            sqlState:
+              err.sqlState,
+            errno:
+              err.errno,
+            details:
+              err.details,
+          }
+        );
+
+        /*
+          Give the frontend a useful validation message for
+          invalid rows, while keeping the actual SQL error
+          in the Render server logs.
+        */
+        if (
+          err.code ===
+          "SALES_REVIEW_INVALID_ROWS"
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              err.message,
+            details:
+              err.details || [],
+          });
+        }
+
         return res.status(500).json({
           success: false,
           message:
-            "Unable to import Sales Review file",
+            "Unable to import Sales Review file. Please check the backend database/schema and Render logs.",
         });
       }
 
@@ -1666,7 +1725,19 @@ exports.uploadSalesReview = (
         success: true,
 
         imported:
-          result.affectedRows,
+          Number(
+            result?.imported ||
+              result?.affectedRows ||
+              0
+          ),
+
+        skipped:
+          Number(
+            result?.skipped || 0
+          ),
+
+        warnings:
+          result?.errors || [],
       });
     }
   );

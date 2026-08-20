@@ -254,6 +254,189 @@ const createTables = (callback) => {
       definition:
         "INT NULL",
     },
+
+    /*
+      SALES REVIEW MIGRATIONS
+
+      CREATE TABLE IF NOT EXISTS does not modify an already existing
+      production table. The Sales Review importer writes to these
+      columns, so older production databases must be upgraded safely.
+    */
+    {
+      table: "sales_review_records",
+      column: "store_id",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "store_name",
+      definition:
+        "VARCHAR(255) NOT NULL DEFAULT ''",
+    },
+    {
+      table: "sales_review_records",
+      column: "year",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "month",
+      definition:
+        "VARCHAR(40) NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "week",
+      definition:
+        "VARCHAR(40) NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "target",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "mtd",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "mrp_sale",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "last_month_sale",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "lysm",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "projection",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "projection_remaining",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "projection_selected_week",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "discount_amount",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "discount_percent",
+      definition:
+        "DECIMAL(10,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "upt",
+      definition:
+        "DECIMAL(10,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "abv",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "asp",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "bill_count",
+      definition:
+        "INT DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "qty_sold",
+      definition:
+        "DECIMAL(16,2) DEFAULT 0",
+    },
+    {
+      table: "sales_review_records",
+      column: "reports_to",
+      definition:
+        "VARCHAR(255) NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "asm",
+      definition:
+        "VARCHAR(255) NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "remarks",
+      definition:
+        "TEXT NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "created_by",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_review_records",
+      column: "created_at",
+      definition:
+        "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    },
+
+    {
+      table: "sales_review_benchmarks",
+      column: "benchmark_key",
+      definition:
+        "VARCHAR(50) NOT NULL DEFAULT ''",
+    },
+    {
+      table: "sales_review_benchmarks",
+      column: "benchmark_value",
+      definition:
+        "DECIMAL(16,4) NOT NULL DEFAULT 0",
+    },
+    {
+      table: "sales_review_benchmarks",
+      column: "updated_by",
+      definition:
+        "INT NULL",
+    },
+    {
+      table: "sales_review_benchmarks",
+      column: "updated_at",
+      definition:
+        "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    },
   ];
 
   const ensureColumn = (
@@ -1413,72 +1596,105 @@ const getApprovals = (
   user,
   callback
 ) => {
-  const admin = isAdmin(user);
-
   /*
-    Admin:
-      sees all pending plans.
-
-    Manager:
-      sees only pending plans where
-      employee.reports_to = current user.
+    Make sure the approval columns exist before querying.
   */
+  ensureApprovalSchema((schemaErr) => {
+    if (schemaErr) {
+      return callback(schemaErr);
+    }
 
-  const where = admin
-    ? "v.approval_status = 'Pending'"
-    : `
-      v.approval_status = 'Pending'
-      AND u.reports_to = ?
-    `;
+    const admin = isAdmin(user);
 
-  const params = admin
-    ? []
-    : [user.id];
+    /*
+      Admins can see every pending travel plan.
 
-  query(
-    `
-    SELECT
+      Non-admin approvers can see plans belonging to employees
+      whose reports_to matches:
+      - approver user id
+      - approver employee id
+      - approver name
+    */
+    const where = admin
+      ? `
+          v.approval_status = 'Pending'
+        `
+      : `
+          v.approval_status = 'Pending'
+          AND (
+            CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
+            OR CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
+            OR LOWER(
+              TRIM(
+                CAST(u.reports_to AS CHAR)
+              )
+            ) = LOWER(
+              TRIM(?)
+            )
+          )
+        `;
 
-      v.employee_id,
+    const params = admin
+      ? []
+      : [
+          user.id,
+          user.employee_id || user.id,
+          user.name || "",
+        ];
 
-      u.name,
+    query(
+      `
+      SELECT
 
-      u.email,
+        v.employee_id,
 
-      DATE_FORMAT(
-        v.visit_date,
-        '%M %Y'
-      ) AS month_label,
+        u.name,
 
-      DATE_FORMAT(
-        v.visit_date,
-        '%Y-%m'
-      ) AS month,
+        u.email,
 
-      COUNT(*) AS pending_days
+        DATE_FORMAT(
+          MIN(v.visit_date),
+          '%M %Y'
+        ) AS month_label,
 
-    FROM sales_visit_plans v
+        /*
+          IMPORTANT:
+          Do NOT use v.visit_date directly here.
 
-    JOIN users u
-      ON u.id = v.employee_id
+          The query groups by employee + month, so the
+          date must be aggregated.
+        */
+        DATE_FORMAT(
+          MIN(v.visit_date),
+          '%Y-%m'
+        ) AS month,
 
-    WHERE ${where}
+        COUNT(*) AS pending_days
 
-    GROUP BY
-      v.employee_id,
-      DATE_FORMAT(
-        v.visit_date,
-        '%Y-%m'
-      )
+      FROM sales_visit_plans v
 
-    ORDER BY
-      MIN(v.visit_date) DESC
-    `,
-    params,
-    callback
-  );
+      INNER JOIN users u
+        ON u.id = v.employee_id
+
+      WHERE ${where}
+
+      GROUP BY
+        v.employee_id,
+        u.name,
+        u.email,
+        DATE_FORMAT(
+          v.visit_date,
+          '%Y-%m'
+        )
+
+      ORDER BY
+        MIN(v.visit_date) DESC
+      `,
+      params,
+      callback
+    );
+  });
 };
-
 /* =========================================================
    APPROVAL RECIPIENTS
 ========================================================= */
@@ -1975,153 +2191,539 @@ const upsertBenchmarks = (
    IMPORT SALES REVIEW
 ========================================================= */
 
+const normalizeSalesReviewHeader = (value) =>
+  String(value ?? "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const getSalesReviewCell = (row, aliases = []) => {
+  const entries = Object.entries(row || {});
+
+  for (const alias of aliases) {
+    const wanted =
+      normalizeSalesReviewHeader(alias);
+
+    const found = entries.find(
+      ([key]) =>
+        normalizeSalesReviewHeader(key) ===
+        wanted
+    );
+
+    if (found) {
+      return found[1];
+    }
+  }
+
+  return "";
+};
+
+const toSalesReviewNumber = (
+  value,
+  fallback = 0
+) => {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ) {
+    return fallback;
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    return value;
+  }
+
+  let text = String(value).trim();
+
+  /*
+    Excel/CSV values can contain commas, currency symbols,
+    spaces, percent signs and accounting-style negatives.
+  */
+  const negative =
+    text.startsWith("(") &&
+    text.endsWith(")");
+
+  text = text
+    .replace(/^\((.*)\)$/, "$1")
+    .replace(/[,\s₹$€£]/g, "")
+    .replace(/%$/, "");
+
+  const parsed = Number(text);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return negative ? -parsed : parsed;
+};
+
+const toSalesReviewInteger = (
+  value,
+  fallback = null
+) => {
+  if (
+    value instanceof Date &&
+    !Number.isNaN(value.getTime())
+  ) {
+    return value.getFullYear();
+  }
+
+  const parsed =
+    toSalesReviewNumber(
+      value,
+      NaN
+    );
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.trunc(parsed);
+};
+
+const toSalesReviewString = (
+  value,
+  maxLength = null
+) => {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  let text = String(value).trim();
+
+  if (!text) {
+    return null;
+  }
+
+  if (
+    maxLength &&
+    text.length > maxLength
+  ) {
+    text = text.slice(
+      0,
+      maxLength
+    );
+  }
+
+  return text;
+};
+
+const toSalesReviewStoreId = (
+  value
+) => {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ) {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  /*
+    store_id is an INT column. A store code such as
+    ST001 must never be inserted into it because MySQL
+    strict mode can reject the entire bulk INSERT.
+  */
+  if (!/^\d+$/.test(text)) {
+    return null;
+  }
+
+  const id = Number(text);
+
+  return Number.isSafeInteger(id) &&
+    id > 0
+    ? id
+    : null;
+};
+
 const importReviewRows = (
   rows,
   userId,
   callback
 ) => {
-  if (!rows.length) {
+  if (!Array.isArray(rows) || !rows.length) {
     return callback(
       null,
       {
         affectedRows: 0,
+        imported: 0,
+        skipped: 0,
+        errors: [],
       }
     );
   }
 
-  const values = rows.map(
-    (r) => [
-      r.store_id ||
-        r["Store ID"] ||
-        null,
+  const values = [];
+  const errors = [];
 
-      r.store_name ||
-        r["Store Name"] ||
-        "",
+  rows.forEach(
+    (row, index) => {
+      const rowNumber =
+        index + 2;
 
-      r.year ||
-        r.Year ||
-        null,
+      /*
+        Accept both the sample/template headers and common
+        headers exported by Excel/CSV reports.
+      */
+      const storeId =
+        toSalesReviewStoreId(
+          getSalesReviewCell(
+            row,
+            [
+              "store_id",
+              "Store ID",
+              "store id",
+              "storeid",
+            ]
+          )
+        );
 
-      r.month ||
-        r.Month ||
-        null,
+      const storeName =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "store_name",
+              "Store Name",
+              "store",
+              "Store",
+              "shop_name",
+              "Shop Name",
+              "outlet",
+              "Outlet",
+              "outlet_name",
+              "Outlet Name",
+            ]
+          ),
+          255
+        );
 
-      r.week ||
-        r.Week ||
-        null,
+      /*
+        store_name is NOT NULL in the database. Do not allow
+        an empty value to make the whole bulk INSERT fail.
+      */
+      if (!storeName) {
+        errors.push(
+          `Row ${rowNumber}: Store Name is required.`
+        );
 
-      Number(
-        r.target ||
-          r.Target ||
-          0
-      ),
+        return;
+      }
 
-      Number(
-        r.mtd ||
-          r.MTD ||
-          0
-      ),
+      const yearValue =
+        getSalesReviewCell(
+          row,
+          [
+            "year",
+            "Year",
+          ]
+        );
 
-      Number(
-        r.mrp_sale ||
-          r["MRP Sale"] ||
-          0
-      ),
+      const year =
+        toSalesReviewInteger(
+          yearValue,
+          null
+        );
 
-      Number(
-        r.last_month_sale ||
-          r["Last Month Sale"] ||
-          0
-      ),
+      const month =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "month",
+              "Month",
+            ]
+          ),
+          40
+        );
 
-      Number(
-        r.lysm ||
-          r.LYSM ||
-          0
-      ),
+      const week =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "week",
+              "Week",
+            ]
+          ),
+          40
+        );
 
-      Number(
-        r.projection ||
-          r.Projection ||
-          0
-      ),
+      const target =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "target",
+              "Target",
+            ]
+          )
+        );
 
-      Number(
-        r.projection_remaining ||
-          r[
-            "Projection For Remaining Days"
-          ] ||
-          0
-      ),
+      const mtd =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "mtd",
+              "MTD",
+            ]
+          )
+        );
 
-      Number(
-        r.projection_selected_week ||
-          r[
-            "Projection (by selected week)"
-          ] ||
-          0
-      ),
+      const mrpSale =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "mrp_sale",
+              "MRP Sale",
+              "mrp",
+            ]
+          )
+        );
 
-      Number(
-        r.discount_amount ||
-          r[
-            "Discount Amount (MRP)"
-          ] ||
-          0
-      ),
+      const lastMonthSale =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "last_month_sale",
+              "Last Month Sale",
+            ]
+          )
+        );
 
-      Number(
-        r.discount_percent ||
-          r["Discount %"] ||
-          0
-      ),
+      const lysm =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "lysm",
+              "LYSM",
+            ]
+          )
+        );
 
-      Number(
-        r.upt ||
-          r.UPT ||
-          0
-      ),
+      const projection =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "projection",
+              "Projection",
+            ]
+          )
+        );
 
-      Number(
-        r.abv ||
-          r.ABV ||
-          0
-      ),
+      const projectionRemaining =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "projection_remaining",
+              "Projection For Remaining Days",
+              "Projection Remaining",
+              "projection_for_remaining_days",
+            ]
+          )
+        );
 
-      Number(
-        r.asp ||
-          r.ASP ||
-          0
-      ),
+      const projectionSelectedWeek =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "projection_selected_week",
+              "Projection (by selected week)",
+              "Projection Selected Week",
+            ]
+          )
+        );
 
-      Number(
-        r.bill_count ||
-          r["Bill Count"] ||
-          0
-      ),
+      const discountAmount =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "discount_amount",
+              "Discount Amount (MRP)",
+              "Discount Amount",
+            ]
+          )
+        );
 
-      Number(
-        r.qty_sold ||
-          r["Qty Sold"] ||
-          0
-      ),
+      const discountPercent =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "discount_percent",
+              "Discount %",
+              "Discount Percent",
+            ]
+          )
+        );
 
-      r.reports_to ||
-        r["Reports To"] ||
-        null,
+      const upt =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "upt",
+              "UPT",
+            ]
+          )
+        );
 
-      r.asm ||
-        r.ASM ||
-        null,
+      const abv =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "abv",
+              "ABV",
+            ]
+          )
+        );
 
-      r.remarks ||
-        r.Remarks ||
-        null,
+      const asp =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "asp",
+              "ASP",
+            ]
+          )
+        );
 
-      userId,
-    ]
+      const billCount =
+        Math.trunc(
+          toSalesReviewNumber(
+            getSalesReviewCell(
+              row,
+              [
+                "bill_count",
+                "Bill Count",
+                "Bills",
+              ]
+            )
+          )
+        );
+
+      const qtySold =
+        toSalesReviewNumber(
+          getSalesReviewCell(
+            row,
+            [
+              "qty_sold",
+              "Qty Sold",
+              "Quantity Sold",
+              "Qty",
+            ]
+          )
+        );
+
+      const reportsTo =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "reports_to",
+              "Reports To",
+              "manager",
+              "Manager",
+            ]
+          ),
+          255
+        );
+
+      const asm =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "asm",
+              "ASM",
+            ]
+          ),
+          255
+        );
+
+      const remarks =
+        toSalesReviewString(
+          getSalesReviewCell(
+            row,
+            [
+              "remarks",
+              "Remarks",
+              "remark",
+            ]
+          )
+        );
+
+      values.push([
+        storeId,
+        storeName,
+        year,
+        month,
+        week,
+        target,
+        mtd,
+        mrpSale,
+        lastMonthSale,
+        lysm,
+        projection,
+        projectionRemaining,
+        projectionSelectedWeek,
+        discountAmount,
+        discountPercent,
+        upt,
+        abv,
+        asp,
+        billCount,
+        qtySold,
+        reportsTo,
+        asm,
+        remarks,
+        Number(userId) || null,
+      ]);
+    }
   );
+
+  /*
+    If every row was invalid, return a client error instead of
+    attempting an empty INSERT.
+  */
+  if (!values.length) {
+    return callback(
+      Object.assign(
+        new Error(
+          "No valid Sales Review rows were found."
+        ),
+        {
+          code:
+            "SALES_REVIEW_INVALID_ROWS",
+          details: errors.slice(
+            0,
+            20
+          ),
+        }
+      )
+    );
+  }
 
   query(
     `
@@ -2156,7 +2758,25 @@ const importReviewRows = (
     VALUES ?
     `,
     [values],
-    callback
+    (err, result) => {
+      if (err) {
+        return callback(err);
+      }
+
+      callback(
+        null,
+        {
+          affectedRows:
+            result?.affectedRows || 0,
+          imported:
+            values.length,
+          skipped:
+            errors.length,
+          errors:
+            errors.slice(0, 20),
+        }
+      );
+    }
   );
 };
 

@@ -296,13 +296,7 @@ export const uploadSalesReview = (
 
   return axios.post(
     `${api}/sales-review/upload`,
-    form,
-    {
-      headers: {
-        "Content-Type":
-          "multipart/form-data",
-      },
-    }
+    form
   );
 };
 
