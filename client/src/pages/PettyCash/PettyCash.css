@@ -248,29 +248,86 @@
     flex: 0 0 auto;
 }
 
-
-/* ======================================================
-   PETTY CASH EMAIL RECIPIENT SETTINGS
-====================================================== */
-.petty-email-section-title{
-    margin:20px 0 4px;
-    padding:10px 12px;
-    border-radius:9px;
-    background:#f3f8f9;
-    color:#245766;
-    font-size:11px;
-    font-weight:900;
-    text-transform:uppercase;
-    letter-spacing:.05em;
+/* Recipient mode selector */
+.petty-recipient-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 4px;
 }
-.petty-email-section-title.recipient{margin-top:24px}
-.petty-email-help{
-    margin-top:14px;
-    padding:12px 14px;
-    border:1px solid #dce8eb;
-    border-radius:9px;
-    background:#fbfdfd;
-    color:#6d8088;
-    font-size:11px;
-    line-height:1.6;
+
+.petty-recipient-option {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #d9e5e8;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.petty-recipient-option:hover {
+    border-color: #7baeba;
+    background: #f8fbfc;
+}
+
+.petty-recipient-option.selected {
+    border-color: #16758a;
+    box-shadow: 0 0 0 2px rgba(22,117,138,.08);
+    background: #f5fbfc;
+}
+
+.petty-recipient-option input[type="radio"] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    accent-color: #16758a;
+    flex: 0 0 auto;
+}
+
+.petty-recipient-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #edf7f9;
+    color: #16758a;
+    flex: 0 0 auto;
+}
+
+.petty-recipient-copy {
+    display: grid;
+    gap: 5px;
+}
+
+.petty-recipient-copy strong {
+    color: #18323b;
+}
+
+.petty-recipient-copy small {
+    color: #71858c;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.petty-email-help {
+    margin-top: 14px;
+    padding: 11px 13px;
+    border: 1px solid #dce7ea;
+    border-radius: 9px;
+    background: #f8fbfc;
+    color: #71858c;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+    .petty-recipient-choice {
+        grid-template-columns: 1fr;
+    }
 }

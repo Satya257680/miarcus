@@ -84,6 +84,7 @@ const PettyCash = {
                 deposit_added TINYINT(1) NOT NULL DEFAULT 1,
                 settlement_completed TINYINT(1) NOT NULL DEFAULT 1,
                 advance_cancelled TINYINT(1) NOT NULL DEFAULT 1,
+                recipient_mode VARCHAR(20) NOT NULL DEFAULT 'direct',
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_pces_user (user_id)
             )
@@ -95,7 +96,8 @@ const PettyCash = {
             ["send_to_giver", "TINYINT(1) NOT NULL DEFAULT 1"],
             ["send_to_receiver", "TINYINT(1) NOT NULL DEFAULT 1"],
             ["send_to_reporting_manager", "TINYINT(1) NOT NULL DEFAULT 0"],
-            ["send_to_admins", "TINYINT(1) NOT NULL DEFAULT 0"]
+            ["send_to_admins", "TINYINT(1) NOT NULL DEFAULT 0"],
+            ["recipient_mode", "VARCHAR(20) NOT NULL DEFAULT 'direct'"]
         ];
         for (const [column, definition] of recipientColumns) {
             try {
@@ -106,6 +108,40 @@ const PettyCash = {
                     console.error(`Petty Cash email settings migration (${column}) skipped:`, error.message || error);
                 }
             }
+        }
+
+        // Seed the global row from an existing administrator's settings once.
+        // This preserves today's notification choices when the central mode is introduced.
+        try {
+            const globalRows = await db.query(`SELECT id FROM petty_cash_email_settings WHERE user_id=0 LIMIT 1`);
+            if (!globalRows.length) {
+                const adminRows = await db.query(`
+                    SELECT p.advance_created,p.expense_added,p.deposit_added,p.settlement_completed,p.advance_cancelled,p.recipient_mode
+                    FROM petty_cash_email_settings p
+                    INNER JOIN users u ON u.id=p.user_id
+                    WHERE (u.is_admin=1 OR u.administrator=1 OR u.is_admin=true OR u.administrator=true)
+                    ORDER BY p.user_id
+                    LIMIT 1
+                `);
+
+                if (adminRows.length) {
+                    const row = adminRows[0];
+                    await db.query(`
+                        INSERT INTO petty_cash_email_settings
+                            (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,recipient_mode)
+                        VALUES (0,?,?,?,?,?,?)
+                    `, [
+                        row.advance_created,
+                        row.expense_added,
+                        row.deposit_added,
+                        row.settlement_completed,
+                        row.advance_cancelled,
+                        row.recipient_mode === "everyone" ? "everyone" : "direct"
+                    ]);
+                }
+            }
+        } catch (globalSettingsMigrationError) {
+            console.error("Petty Cash global email settings migration skipped:", globalSettingsMigrationError.message || globalSettingsMigrationError);
         }
 
         // One-time migration: copy existing Expenses access into the new
@@ -404,84 +440,105 @@ const PettyCash = {
         return {summary: rows[0] || {},storeWise:storeRows||[],personWise:peopleRows||[]};
     },
 
-    async getEmailSettings(userId) {
+    async getEmailSettings(userId = 0) {
         const rows = await db.query(`
             SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,
-                   send_to_giver,send_to_receiver,send_to_reporting_manager,send_to_admins
+                   recipient_mode
             FROM petty_cash_email_settings WHERE user_id=? LIMIT 1
         `, [userId]);
+
         if (!rows.length) {
             return {
-                advance_created:true, expense_added:true, deposit_added:true,
-                settlement_completed:true, advance_cancelled:true,
-                send_to_giver:true, send_to_receiver:true,
-                send_to_reporting_manager:false, send_to_admins:false
+                advance_created:true,
+                expense_added:true,
+                deposit_added:true,
+                settlement_completed:true,
+                advance_cancelled:true,
+                recipient_mode:"direct"
             };
         }
-        return Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Boolean(v)]));
+
+        return {
+            advance_created: Boolean(rows[0].advance_created),
+            expense_added: Boolean(rows[0].expense_added),
+            deposit_added: Boolean(rows[0].deposit_added),
+            settlement_completed: Boolean(rows[0].settlement_completed),
+            advance_cancelled: Boolean(rows[0].advance_cancelled),
+            recipient_mode: rows[0].recipient_mode === "everyone" ? "everyone" : "direct"
+        };
     },
 
-    async updateEmailSettings(userId, data) {
+    async getGlobalEmailSettings() {
+        return PettyCash.getEmailSettings(0);
+    },
+
+    async updateEmailSettings(userId, data, global = false) {
+        const targetUserId = global ? 0 : Number(userId);
         const keys = [
-            "advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled",
-            "send_to_giver","send_to_receiver","send_to_reporting_manager","send_to_admins"
+            "advance_created",
+            "expense_added",
+            "deposit_added",
+            "settlement_completed",
+            "advance_cancelled"
         ];
         const values = keys.map((key)=>data[key] === false || data[key] === 0 ? 0 : 1);
+        const recipientMode = data.recipient_mode === "everyone" ? "everyone" : "direct";
+
         await db.query(`
             INSERT INTO petty_cash_email_settings
-                (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,send_to_giver,send_to_receiver,send_to_reporting_manager,send_to_admins)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,recipient_mode)
+            VALUES (?,?,?,?,?,?,?)
             ON DUPLICATE KEY UPDATE
                 advance_created=VALUES(advance_created),
                 expense_added=VALUES(expense_added),
                 deposit_added=VALUES(deposit_added),
                 settlement_completed=VALUES(settlement_completed),
                 advance_cancelled=VALUES(advance_cancelled),
-                send_to_giver=VALUES(send_to_giver),
-                send_to_receiver=VALUES(send_to_receiver),
-                send_to_reporting_manager=VALUES(send_to_reporting_manager),
-                send_to_admins=VALUES(send_to_admins)
-        `, [userId,...values]);
-        return PettyCash.getEmailSettings(userId);
+                recipient_mode=VALUES(recipient_mode)
+        `, [targetUserId,...values,recipientMode]);
+
+        return global
+            ? PettyCash.getGlobalEmailSettings()
+            : PettyCash.getEmailSettings(targetUserId);
     },
 
-    async getEmailRecipients({ giverId=0, receiverId=0, settings={}, actorId=0 } = {}) {
-        const targetIds = [Number(giverId), Number(receiverId)].filter(Boolean);
+    async getEmailRecipients({ giverId=0, receiverId=0, settings={} } = {}) {
         const recipients = new Map();
 
         const addRows = (rows) => {
             (rows || []).forEach((row) => {
-                if (row?.email) recipients.set(String(row.email).toLowerCase(), { email:row.email, name:row.name || "" });
+                if (row?.email) {
+                    recipients.set(String(row.email).trim().toLowerCase(), {
+                        email: row.email,
+                        name: row.name || ""
+                    });
+                }
             });
         };
 
-        if (settings.send_to_giver && Number(giverId)) {
-            addRows(await db.query(`SELECT id,name,email FROM users WHERE id=? AND email IS NOT NULL AND email<>'' LIMIT 1`, [giverId]));
-        }
-        if (settings.send_to_receiver && Number(receiverId)) {
-            addRows(await db.query(`SELECT id,name,email FROM users WHERE id=? AND email IS NOT NULL AND email<>'' LIMIT 1`, [receiverId]));
-        }
-        if (settings.send_to_reporting_manager && targetIds.length) {
-            const placeholders = targetIds.map(()=>"?").join(",");
+        if (settings.recipient_mode === "everyone") {
             addRows(await db.query(`
-                SELECT DISTINCT manager.id,manager.name,manager.email
-                FROM users employee
-                INNER JOIN users manager
-                    ON LOWER(TRIM(manager.name))=LOWER(TRIM(employee.reports_to))
-                WHERE employee.id IN (${placeholders})
-                  AND employee.reports_to IS NOT NULL
-                  AND TRIM(employee.reports_to)<>''
-                  AND manager.email IS NOT NULL AND manager.email<>''
-            `, targetIds));
-        }
-        if (settings.send_to_admins) {
-            addRows(await db.query(`
-                SELECT id,name,email FROM users
-                WHERE (is_admin=1 OR administrator=1 OR is_admin=true OR administrator=true)
-                  AND LOWER(COALESCE(status,'Active')) NOT IN ('inactive','disabled')
-                  AND email IS NOT NULL AND email<>''
+                SELECT id,name,email
+                FROM users
+                WHERE LOWER(COALESCE(status,'Active')) NOT IN ('inactive','disabled')
+                  AND email IS NOT NULL
+                  AND TRIM(email)<>''
+                ORDER BY name
             `));
+        } else {
+            const targetIds = [Number(giverId), Number(receiverId)].filter(Boolean);
+            if (targetIds.length) {
+                const placeholders = targetIds.map(()=>"?").join(",");
+                addRows(await db.query(`
+                    SELECT id,name,email
+                    FROM users
+                    WHERE id IN (${placeholders})
+                      AND email IS NOT NULL
+                      AND TRIM(email)<>''
+                `, targetIds));
+            }
         }
+
         return Array.from(recipients.values());
     },
 

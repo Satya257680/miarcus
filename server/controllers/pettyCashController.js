@@ -23,17 +23,26 @@ async function ensureAdvanceAccess(req, advance) {
 
 async function sendPettyCashEventEmail(actorIdValue, event, subject, html, context={}) {
     try {
-        if (!actorIdValue || !(await PettyCash.isEmailEnabled(actorIdValue, event))) return;
-        const settings = await PettyCash.getEmailSettings(actorIdValue);
+        // Petty Cash email behavior is controlled centrally from the
+        // Email Notifications page. It is not tied to the user who
+        // happened to trigger the action.
+        const settings = await PettyCash.getGlobalEmailSettings();
+        if (settings[event] === false) return;
+
         const recipients = await PettyCash.getEmailRecipients({
             giverId: context.giverId,
             receiverId: context.receiverId,
-            settings,
-            actorId: actorIdValue
+            settings
         });
+
         if (!recipients.length) return;
+
         await Promise.all(recipients.map((recipient) =>
-            sendGenericEmail({ to:recipient.email, subject, html })
+            sendGenericEmail({
+                to: recipient.email,
+                subject,
+                html
+            })
         ));
     } catch (error) {
         console.error(`Petty Cash email (${event}) failed:`, error.message || error);
@@ -246,13 +255,41 @@ exports.bulkCancel = async (req,res)=>{
 };
 
 exports.emailSettings = async (req,res)=>{
-    try { res.json({success:true,data:await PettyCash.getEmailSettings(actorId(req))}); }
-    catch(error){ res.status(500).json({success:false,message:"Unable to load email settings."}); }
+    try {
+        res.json({
+            success:true,
+            data:await PettyCash.getGlobalEmailSettings()
+        });
+    } catch(error) {
+        console.error("Petty Cash email settings load error:",error);
+        res.status(500).json({success:false,message:"Unable to load email settings."});
+    }
 };
 
 exports.updateEmailSettings = async (req,res)=>{
-    try { res.json({success:true,message:"Email notification settings saved.",data:await PettyCash.updateEmailSettings(actorId(req),req.body||{})}); }
-    catch(error){ console.error("Petty Cash email settings error:",error); res.status(500).json({success:false,message:"Unable to save email settings."}); }
+    try {
+        if (!isAdmin(req)) {
+            return res.status(403).json({
+                success:false,
+                message:"Only a system administrator can change Petty Cash email notification settings."
+            });
+        }
+
+        const data = await PettyCash.updateEmailSettings(
+            actorId(req),
+            req.body || {},
+            true
+        );
+
+        res.json({
+            success:true,
+            message:"Email notification settings saved.",
+            data
+        });
+    } catch(error) {
+        console.error("Petty Cash email settings error:",error);
+        res.status(500).json({success:false,message:"Unable to save email settings."});
+    }
 };
 
 exports.audit=async (req,res)=>{
