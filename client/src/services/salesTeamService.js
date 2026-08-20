@@ -26,8 +26,11 @@ export const deleteAllVisitPlans = () =>
 export const importVisitPlans = (file) => {
   const form = new FormData();
   form.append("file", file);
+
   return axios.post(`${api}/visit-plans/import`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
   });
 };
 
@@ -48,8 +51,40 @@ export const saveActualStores = (id, storeIds) =>
 export const getTravelPlanHistory = (id) =>
   axios.get(`${api}/travel-plans/${id}/history`);
 
+/* ======================================================
+   TRAVEL PLAN REMARKS
+   ====================================================== */
+
+export const addTravelRemark = (
+  id,
+  remark = "",
+  attachment = null
+) => {
+  const form = new FormData();
+
+  form.append("remark", remark || "");
+
+  if (attachment) {
+    form.append("attachment", attachment);
+  }
+
+  return axios.post(
+    `${api}/travel-plans/${id}/remarks`,
+    form,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+};
+
 export const deleteTravelPlan = (id) =>
   axios.delete(`${api}/travel-plans/${id}`);
+
+/* ======================================================
+   TRAVEL PLAN APPROVALS
+   ====================================================== */
 
 export const getTravelPlanApprovals = () =>
   axios.get(`${api}/approvals`);
@@ -60,29 +95,48 @@ export const approveTravelPlan = (employeeId, month) =>
     month,
   });
 
-export const rejectTravelPlan = (employeeId, month, reason = "") =>
+export const rejectTravelPlan = (
+  employeeId,
+  month,
+  reason = ""
+) =>
   axios.post(`${api}/approvals/reject`, {
     employee_id: employeeId,
     month,
     reason,
   });
 
+/* ======================================================
+   SALES REVIEW
+   ====================================================== */
+
 export const getSalesReview = (params = {}) =>
   axios.get(`${api}/sales-review`, { params });
 
 export const uploadSalesReview = (file) => {
   const form = new FormData();
+
   form.append("file", file);
-  return axios.post(`${api}/sales-review/upload`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+
+  return axios.post(
+    `${api}/sales-review/upload`,
+    form,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
 };
 
 export const deleteAllSalesReview = () =>
   axios.delete(`${api}/sales-review`);
 
 export const updateSalesBenchmark = (payload) =>
-  axios.put(`${api}/sales-review/benchmarks`, payload);
+  axios.put(
+    `${api}/sales-review/benchmarks`,
+    payload
+  );
 
 export const exportSalesReview = (params = {}) =>
   axios.get(`${api}/sales-review/export`, {
