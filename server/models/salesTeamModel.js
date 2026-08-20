@@ -1596,104 +1596,115 @@ const getApprovals = (
   user,
   callback
 ) => {
+  const admin = isAdmin(user);
+
   /*
-    Make sure the approval columns exist before querying.
+    Admins:
+      See every Pending travel plan.
+
+    Non-admin approvers:
+      See Pending plans belonging to employees whose
+      reports_to matches the current approver.
   */
-  ensureApprovalSchema((schemaErr) => {
-    if (schemaErr) {
-      return callback(schemaErr);
-    }
 
-    const admin = isAdmin(user);
-
-    /*
-      Admins can see every pending travel plan.
-
-      Non-admin approvers can see plans belonging to employees
-      whose reports_to matches:
-      - approver user id
-      - approver employee id
-      - approver name
-    */
-    const where = admin
-      ? `
-          v.approval_status = 'Pending'
-        `
-      : `
-          v.approval_status = 'Pending'
-          AND (
-            CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
-            OR CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
-            OR LOWER(
-              TRIM(
-                CAST(u.reports_to AS CHAR)
-              )
-            ) = LOWER(
-              TRIM(?)
-            )
-          )
-        `;
-
-    const params = admin
-      ? []
-      : [
-          user.id,
-          user.employee_id || user.id,
-          user.name || "",
-        ];
-
-    query(
+  const where = admin
+    ? `
+        v.approval_status = 'Pending'
       `
-      SELECT
+    : `
+        v.approval_status = 'Pending'
 
-        v.employee_id,
+        AND (
+          CAST(u.reports_to AS CHAR) =
+            CAST(? AS CHAR)
 
-        u.name,
+          OR
 
-        u.email,
+          CAST(u.reports_to AS CHAR) =
+            CAST(? AS CHAR)
 
-        DATE_FORMAT(
-          MIN(v.visit_date),
-          '%M %Y'
-        ) AS month_label,
+          OR
 
-        /*
-          IMPORTANT:
-          Do NOT use v.visit_date directly here.
-
-          The query groups by employee + month, so the
-          date must be aggregated.
-        */
-        DATE_FORMAT(
-          MIN(v.visit_date),
-          '%Y-%m'
-        ) AS month,
-
-        COUNT(*) AS pending_days
-
-      FROM sales_visit_plans v
-
-      INNER JOIN users u
-        ON u.id = v.employee_id
-
-      WHERE ${where}
-
-      GROUP BY
-        v.employee_id,
-        u.name,
-        u.email,
-        DATE_FORMAT(
-          v.visit_date,
-          '%Y-%m'
+          LOWER(
+            TRIM(
+              CAST(u.reports_to AS CHAR)
+            )
+          ) =
+          LOWER(
+            TRIM(?)
+          )
         )
+      `;
 
-      ORDER BY
-        MIN(v.visit_date) DESC
-      `,
-      params,
-      callback
-    );
-  });
+  const params = admin
+    ? []
+    : [
+        user.id,
+        user.employee_id || user.id,
+        user.name || "",
+      ];
+
+  query(
+    `
+    SELECT
+
+      v.employee_id,
+
+      u.name,
+
+      u.email,
+
+      /*
+        First visit date of the employee's
+        pending month.
+      */
+      DATE_FORMAT(
+        MIN(v.visit_date),
+        '%M %Y'
+      ) AS month_label,
+
+      /*
+        IMPORTANT:
+        This MUST use the same month expression
+        that is present in GROUP BY.
+
+        This fixes MySQL:
+        ER_WRONG_FIELD_WITH_GROUP
+        / only_full_group_by
+      */
+      DATE_FORMAT(
+        MIN(v.visit_date),
+        '%Y-%m'
+      ) AS month,
+
+      COUNT(*) AS pending_days
+
+    FROM sales_visit_plans v
+
+    INNER JOIN users u
+      ON u.id = v.employee_id
+
+    WHERE ${where}
+
+    GROUP BY
+
+      v.employee_id,
+
+      u.name,
+
+      u.email,
+
+      DATE_FORMAT(
+        v.visit_date,
+        '%Y-%m'
+      )
+
+    ORDER BY
+      MIN(v.visit_date) DESC
+    `,
+    params,
+    callback
+  );
 };
 /* =========================================================
    APPROVAL RECIPIENTS
