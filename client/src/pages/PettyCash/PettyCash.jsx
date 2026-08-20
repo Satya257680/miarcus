@@ -664,8 +664,19 @@ function PettyCash() {
                     const a = document.createElement("a"); a.href=url; a.download=`petty-cash-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
                 }}><FaDownload /> Export</button>
                 {access.canEdit && <button className="petty-btn danger" disabled={deleting || !visibleAdvances.length} onClick={async () => {
-                    if (!window.confirm(`Delete all ${visibleAdvances.length} visible petty cash record(s)? Settled records will be protected. This action is audited.`)) return;
-                    try { setDeleting(true); await axios.post("/api/petty-cash/bulk-delete", { ids: visibleAdvances.map(a => a.id) }); await loadDashboard(); } catch (err) { setError(err.response?.data?.message || "Unable to delete records."); } finally { setDeleting(false); }
+                    const scope = access.admin ? "ALL petty cash records in the system" : "ALL petty cash records given by you";
+                    if (!window.confirm(`PERMANENT DELETE\n\nThis will permanently delete ${scope}, including their expenses, deposits and settlement records.\n\nThis cannot be undone. Continue?`)) return;
+                    try {
+                        setDeleting(true);
+                        const response = await axios.post("/api/petty-cash/bulk-delete", { deleteAll: true });
+                        if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete records.");
+                        setError("");
+                        setSearch("");
+                        setStore("");
+                        setStatus("");
+                        setViewMode("ALL");
+                        await loadDashboard({ search: "", store: "", status: "", viewMode: "ALL" });
+                    } catch (err) { setError(err.response?.data?.message || err.message || "Unable to delete records."); } finally { setDeleting(false); }
                 }}><FaTrash /> {deleting ? "Deleting..." : "Delete All"}</button>}
                 <Link className="petty-btn secondary" to="/petty-cash/email-settings"><FaEnvelope /> Email Settings</Link>
             </div>
@@ -685,10 +696,15 @@ function PettyCash() {
                                         <td><span className={`petty-status ${statusClass(a.status)}`}>{statusLabel(a.status)}</span></td>
                                         <td className="petty-row-actions">
                                             <Link className="petty-view-link" to={`/petty-cash/${a.id}`}>View <FaArrowRight /></Link>
-                                            {(access.admin || Number(a.paid_by) === access.userId) && a.status !== "SETTLED" && a.status !== "CANCELLED" && access.canEdit && (
-                                                <button className="petty-icon-delete" title="Delete" onClick={async () => {
-                                                    if (!window.confirm(`Delete ${a.advance_no}?`)) return;
-                                                    try { await axios.delete(`/api/petty-cash/${a.id}`); await loadDashboard(); } catch (err) { setError(err.response?.data?.message || "Unable to delete record."); }
+                                            {(access.admin || Number(a.paid_by) === access.userId) && access.canEdit && (
+                                                <button className="petty-icon-delete" title={`Permanently delete ${a.advance_no}`} onClick={async () => {
+                                                    if (!window.confirm(`Permanently delete ${a.advance_no}? This will also delete its expenses, deposits and settlement record. This cannot be undone.`)) return;
+                                                    try {
+                                                        const response = await axios.delete(`/api/petty-cash/${a.id}`);
+                                                        if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete record.");
+                                                        setError("");
+                                                        await loadDashboard();
+                                                    } catch (err) { setError(err.response?.data?.message || err.message || "Unable to delete record."); }
                                                 }}><FaTrash /></button>
                                             )}
                                         </td>

@@ -9,15 +9,26 @@ const defaults = {
     expense_added: true,
     deposit_added: true,
     settlement_completed: true,
-    advance_cancelled: true
+    advance_cancelled: true,
+    send_to_giver: true,
+    send_to_receiver: true,
+    send_to_reporting_manager: false,
+    send_to_admins: false
 };
 
 const labels = [
-    ["advance_created", "New advance created", "Email me when a petty cash advance is created for me."],
-    ["expense_added", "Expense added", "Email the giver when the receiver records an expense."],
-    ["deposit_added", "Unused cash deposited", "Email the giver when the receiver returns unused cash."],
-    ["settlement_completed", "Settlement completed", "Email me when the giver completes settlement."],
-    ["advance_cancelled", "Advance deleted / cancelled", "Email participants when an advance is cancelled."]
+    ["advance_created", "New advance created", "Send an email when a new petty cash advance is created."],
+    ["expense_added", "Expense added", "Send an email when an employee records an expense."],
+    ["deposit_added", "Unused cash deposited", "Send an email when unused cash is returned."],
+    ["settlement_completed", "Settlement completed", "Send an email when an advance is settled."],
+    ["advance_cancelled", "Advance deleted / cancelled", "Send an email when an advance is permanently deleted."]
+];
+
+const recipientLabels = [
+    ["send_to_giver", "Advance giver / Manager", "Send notifications to the manager who gave the advance."],
+    ["send_to_receiver", "Employee / Receiver", "Send notifications to the employee who received the advance."],
+    ["send_to_reporting_manager", "Reporting Manager", "Also send to the reporting manager configured on the employee profile."],
+    ["send_to_admins", "System Administrators", "Also send to active users marked as Admin / Administrator."],
 ];
 
 export default function PettyCashEmailSettings() {
@@ -66,14 +77,28 @@ export default function PettyCashEmailSettings() {
             <div className="petty-card petty-email-settings-card">
                 <div className="petty-card-title"><FaEnvelope /><div><h2>Email Notifications</h2><p>Emails use the existing MIARCUS Gmail/OAuth mail service.</p></div></div>
                 {loading ? <div className="petty-loading">Loading settings...</div> : (
-                    <div className="petty-email-setting-list">
-                        {labels.map(([key, title, description]) => (
-                            <label className="petty-email-setting-row" key={key}>
-                                <div><strong>{title}</strong><span>{description}</span></div>
-                                <input type="checkbox" checked={Boolean(settings[key])} onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.checked }))} />
-                            </label>
-                        ))}
-                    </div>
+                    <>
+                        <div className="petty-email-section-title">What should send an email?</div>
+                        <div className="petty-email-setting-list">
+                            {labels.map(([key, title, description]) => (
+                                <label className="petty-email-setting-row" key={key}>
+                                    <div><strong>{title}</strong><span>{description}</span></div>
+                                    <input type="checkbox" checked={Boolean(settings[key])} onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.checked }))} />
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className="petty-email-section-title recipient">Who should receive those emails?</div>
+                        <div className="petty-email-setting-list">
+                            {recipientLabels.map(([key, title, description]) => (
+                                <label className="petty-email-setting-row" key={key}>
+                                    <div><strong>{title}</strong><span>{description}</span></div>
+                                    <input type="checkbox" checked={Boolean(settings[key])} onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.checked }))} />
+                                </label>
+                            ))}
+                        </div>
+                        <div className="petty-email-help">Example: enable <b>Expense added</b> + <b>Reporting Manager</b> + <b>System Administrators</b> to notify management whenever an employee records an expense.</div>
+                    </>
                 )}
             </div>
         </div>

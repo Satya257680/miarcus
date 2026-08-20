@@ -422,6 +422,7 @@ const verifyOTP = (req, res) => {
         FROM password_reset_otp
         WHERE email=?
         AND otp=?
+        AND verified=0
         ORDER BY id DESC
         LIMIT 1
     `;
@@ -479,7 +480,7 @@ const verifyOTP = (req, res) => {
                 `
                 UPDATE password_reset_otp
                 SET verified=1
-                WHERE id=?
+                WHERE id=? AND verified=0
                 `,
 
                 [
@@ -488,7 +489,7 @@ const verifyOTP = (req, res) => {
 
                 ],
 
-                (updateErr) => {
+                (updateErr, updateResult) => {
 
                     if (updateErr) {
 
@@ -496,6 +497,19 @@ const verifyOTP = (req, res) => {
 
                             success: false,
                             message: "Database Error"
+
+                        });
+
+                    }
+
+                    // The OTP is one-time-use. If another request verified
+                    // it first, this update affects 0 rows and must fail.
+                    if (updateResult.affectedRows === 0) {
+
+                        return res.status(400).json({
+
+                            success: false,
+                            message: "Invalid or already used OTP"
 
                         });
 

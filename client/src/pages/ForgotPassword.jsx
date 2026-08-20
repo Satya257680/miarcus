@@ -36,12 +36,17 @@ function ForgotPassword() {
       );
 
       if (response.data?.success) {
+        // Start a fresh password-reset session for this OTP request.
+        sessionStorage.removeItem("passwordResetVerified");
+        sessionStorage.setItem("passwordResetEmail", trimmedEmail);
+
         alert(
           response.data.message ||
             "OTP has been sent to your registered email address."
         );
 
         navigate("/verify-otp", {
+          replace: true,
           state: {
             email: trimmedEmail,
           },

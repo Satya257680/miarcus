@@ -89,6 +89,25 @@ const PettyCash = {
             )
         `);
 
+        // Recipient preferences were added after the first Petty Cash release.
+        // Add them safely for existing installations without requiring a manual SQL migration.
+        const recipientColumns = [
+            ["send_to_giver", "TINYINT(1) NOT NULL DEFAULT 1"],
+            ["send_to_receiver", "TINYINT(1) NOT NULL DEFAULT 1"],
+            ["send_to_reporting_manager", "TINYINT(1) NOT NULL DEFAULT 0"],
+            ["send_to_admins", "TINYINT(1) NOT NULL DEFAULT 0"]
+        ];
+        for (const [column, definition] of recipientColumns) {
+            try {
+                await db.query(`ALTER TABLE petty_cash_email_settings ADD COLUMN ${column} ${definition}`);
+            } catch (error) {
+                // ER_DUP_FIELDNAME means the column already exists.
+                if (error?.code !== "ER_DUP_FIELDNAME") {
+                    console.error(`Petty Cash email settings migration (${column}) skipped:`, error.message || error);
+                }
+            }
+        }
+
         // One-time migration: copy existing Expenses access into the new
         // dedicated Petty Cash module so current users keep access after deploy.
         // Future Petty Cash permissions are independent.
@@ -280,13 +299,85 @@ const PettyCash = {
     },
 
     async cancel(id) {
-        return db.query(`UPDATE petty_cash_advances SET status='CANCELLED',updated_at=NOW() WHERE id=? AND status<>'SETTLED'`, [id]);
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Delete child records explicitly. This works even when an older
+            // database was created before the ON DELETE CASCADE constraints
+            // were added.
+            await connection.query(`DELETE FROM petty_cash_expenses WHERE advance_id=?`, [id]);
+            await connection.query(`DELETE FROM petty_cash_deposits WHERE advance_id=?`, [id]);
+            await connection.query(`DELETE FROM petty_cash_settlements WHERE advance_id=?`, [id]);
+            const [result] = await connection.query(`DELETE FROM petty_cash_advances WHERE id=?`, [id]);
+
+            await connection.commit();
+            return result;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
 
     async bulkCancel(ids) {
         if (!ids?.length) return { affectedRows: 0 };
-        const placeholders = ids.map(()=>"?").join(",");
-        return db.query(`UPDATE petty_cash_advances SET status='CANCELLED',updated_at=NOW() WHERE id IN (${placeholders}) AND status<>'SETTLED'`, ids);
+
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+            const placeholders = ids.map(() => "?").join(",");
+
+            // Explicit child deletion makes bulk delete reliable on both new
+            // and existing installations, regardless of their FK definition.
+            await connection.query(`DELETE FROM petty_cash_expenses WHERE advance_id IN (${placeholders})`, ids);
+            await connection.query(`DELETE FROM petty_cash_deposits WHERE advance_id IN (${placeholders})`, ids);
+            await connection.query(`DELETE FROM petty_cash_settlements WHERE advance_id IN (${placeholders})`, ids);
+            const [result] = await connection.query(`DELETE FROM petty_cash_advances WHERE id IN (${placeholders})`, ids);
+
+            await connection.commit();
+            return result;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    },
+
+    async getDeleteCandidates(userId, admin=false) {
+        if (admin) {
+            return db.query(`
+                SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id
+                FROM petty_cash_advances a
+                ORDER BY a.id
+            `);
+        }
+
+        return db.query(`
+            SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id
+            FROM petty_cash_advances a
+            WHERE a.paid_by=?
+              AND EXISTS (
+                  SELECT 1 FROM user_stores us
+                  WHERE us.user_id=? AND us.store_id=a.store_id
+              )
+            ORDER BY a.id
+        `, [userId, userId]);
+    },
+
+    async getDeleteCandidates(userId, admin=false) {
+        if (admin) {
+            return db.query(`SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id FROM petty_cash_advances a ORDER BY a.id`);
+        }
+        return db.query(`
+            SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id
+            FROM petty_cash_advances a
+            WHERE a.paid_by=?
+              AND EXISTS (SELECT 1 FROM user_stores us WHERE us.user_id=? AND us.store_id=a.store_id)
+            ORDER BY a.id
+        `, [userId,userId]);
     },
 
     async getSummary(userId, admin=false, storeId="") {
@@ -314,16 +405,84 @@ const PettyCash = {
     },
 
     async getEmailSettings(userId) {
-        const rows = await db.query(`SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled FROM petty_cash_email_settings WHERE user_id=? LIMIT 1`, [userId]);
-        if (!rows.length) return {advance_created:true,expense_added:true,deposit_added:true,settlement_completed:true,advance_cancelled:true};
+        const rows = await db.query(`
+            SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,
+                   send_to_giver,send_to_receiver,send_to_reporting_manager,send_to_admins
+            FROM petty_cash_email_settings WHERE user_id=? LIMIT 1
+        `, [userId]);
+        if (!rows.length) {
+            return {
+                advance_created:true, expense_added:true, deposit_added:true,
+                settlement_completed:true, advance_cancelled:true,
+                send_to_giver:true, send_to_receiver:true,
+                send_to_reporting_manager:false, send_to_admins:false
+            };
+        }
         return Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Boolean(v)]));
     },
 
     async updateEmailSettings(userId, data) {
-        const keys = ["advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled"];
+        const keys = [
+            "advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled",
+            "send_to_giver","send_to_receiver","send_to_reporting_manager","send_to_admins"
+        ];
         const values = keys.map((key)=>data[key] === false || data[key] === 0 ? 0 : 1);
-        await db.query(`INSERT INTO petty_cash_email_settings (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE advance_created=VALUES(advance_created),expense_added=VALUES(expense_added),deposit_added=VALUES(deposit_added),settlement_completed=VALUES(settlement_completed),advance_cancelled=VALUES(advance_cancelled)`, [userId,...values]);
+        await db.query(`
+            INSERT INTO petty_cash_email_settings
+                (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,send_to_giver,send_to_receiver,send_to_reporting_manager,send_to_admins)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE
+                advance_created=VALUES(advance_created),
+                expense_added=VALUES(expense_added),
+                deposit_added=VALUES(deposit_added),
+                settlement_completed=VALUES(settlement_completed),
+                advance_cancelled=VALUES(advance_cancelled),
+                send_to_giver=VALUES(send_to_giver),
+                send_to_receiver=VALUES(send_to_receiver),
+                send_to_reporting_manager=VALUES(send_to_reporting_manager),
+                send_to_admins=VALUES(send_to_admins)
+        `, [userId,...values]);
         return PettyCash.getEmailSettings(userId);
+    },
+
+    async getEmailRecipients({ giverId=0, receiverId=0, settings={}, actorId=0 } = {}) {
+        const targetIds = [Number(giverId), Number(receiverId)].filter(Boolean);
+        const recipients = new Map();
+
+        const addRows = (rows) => {
+            (rows || []).forEach((row) => {
+                if (row?.email) recipients.set(String(row.email).toLowerCase(), { email:row.email, name:row.name || "" });
+            });
+        };
+
+        if (settings.send_to_giver && Number(giverId)) {
+            addRows(await db.query(`SELECT id,name,email FROM users WHERE id=? AND email IS NOT NULL AND email<>'' LIMIT 1`, [giverId]));
+        }
+        if (settings.send_to_receiver && Number(receiverId)) {
+            addRows(await db.query(`SELECT id,name,email FROM users WHERE id=? AND email IS NOT NULL AND email<>'' LIMIT 1`, [receiverId]));
+        }
+        if (settings.send_to_reporting_manager && targetIds.length) {
+            const placeholders = targetIds.map(()=>"?").join(",");
+            addRows(await db.query(`
+                SELECT DISTINCT manager.id,manager.name,manager.email
+                FROM users employee
+                INNER JOIN users manager
+                    ON LOWER(TRIM(manager.name))=LOWER(TRIM(employee.reports_to))
+                WHERE employee.id IN (${placeholders})
+                  AND employee.reports_to IS NOT NULL
+                  AND TRIM(employee.reports_to)<>''
+                  AND manager.email IS NOT NULL AND manager.email<>''
+            `, targetIds));
+        }
+        if (settings.send_to_admins) {
+            addRows(await db.query(`
+                SELECT id,name,email FROM users
+                WHERE (is_admin=1 OR administrator=1 OR is_admin=true OR administrator=true)
+                  AND LOWER(COALESCE(status,'Active')) NOT IN ('inactive','disabled')
+                  AND email IS NOT NULL AND email<>''
+            `));
+        }
+        return Array.from(recipients.values());
     },
 
     async isEmailEnabled(userId, event) {

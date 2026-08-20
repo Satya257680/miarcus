@@ -1079,3 +1079,93 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ======================================================
+   RESET PASSWORD - PASSWORD VISIBILITY & REQUIREMENTS
+   ====================================================== */
+
+.reset-password-card .password-eye {
+  right: 10px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #8257be;
+  line-height: 1;
+  z-index: 3;
+}
+
+.reset-password-card .password-eye:hover {
+  color: #5f3c9a;
+  background: rgba(130, 87, 190, 0.08);
+  border-radius: 50%;
+}
+
+.reset-password-card .password-eye:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.reset-password-card .input-wrapper input {
+  padding-right: 56px;
+}
+
+.password-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 14px;
+  margin: 9px 2px 0;
+  padding: 0;
+  list-style: none;
+  color: #857b91;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.password-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.password-rule.valid {
+  color: #4c8b63;
+}
+
+.password-rule-icon {
+  width: 13px;
+  flex: 0 0 13px;
+  text-align: center;
+  font-weight: 800;
+  color: #aaa0b7;
+}
+
+.password-rule.valid .password-rule-icon {
+  color: #4c8b63;
+}
+
+.password-match {
+  margin: 7px 2px 0;
+  color: #c05c68;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.password-match.valid {
+  color: #4c8b63;
+}
+
+.reset-password-card .login-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .password-rules {
+    grid-template-columns: 1fr;
+  }
+}
