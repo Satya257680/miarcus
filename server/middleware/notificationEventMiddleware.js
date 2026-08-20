@@ -304,11 +304,16 @@ function install(app) {
             /^\/api\/announcements\/[^/]+\/read\/?$/i.test(path) ||
             /^\/api\/announcements\/email\/[^/]+\/delivered\/?$/i.test(path);
 
+        // Sales Team has a targeted approval notification workflow.
+        // Do not broadcast generic mutation notifications to every user.
+        const isSalesTeamMutation = path.startsWith("/api/sales-team/");
+
         const ignored =
             ignoredPrefixes.some(prefix => path.startsWith(prefix)) ||
             ignoredExactOrPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`) && !isPublicQuizSubmit) ||
             isAnnouncementCreate ||
-            isAnnouncementBookkeeping;
+            isAnnouncementBookkeeping ||
+            isSalesTeamMutation;
 
         // Public quiz submission is explicitly allowed through even though
         // it lives below /api/quiz/public/session/.

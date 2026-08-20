@@ -6,7 +6,7 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 const controller = require("../controllers/salesTeamController");
 
 const router = express.Router();
-const upload = multer({ dest:path.resolve(__dirname,"../uploads/"), limits:{fileSize:10*1024*1024}, fileFilter:(req,file,cb)=>file.originalname.toLowerCase().endsWith(".csv")?cb(null,true):cb(new Error("Only CSV files are allowed.")) });
+const upload = multer({ dest:path.resolve(__dirname,"../uploads/"), limits:{fileSize:10*1024*1024}, fileFilter:(req,file,cb)=>/\.(csv|xlsx|xls)$/i.test(file.originalname)?cb(null,true):cb(new Error("Only CSV, XLSX and XLS files are allowed.")) });
 const attachmentUpload = multer({ dest:path.resolve(__dirname,"../uploads/"), limits:{fileSize:10*1024*1024} });
 
 router.get("/employees", authMiddleware, permissionMiddleware("Visit Planner","View"), controller.employees);

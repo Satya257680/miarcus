@@ -1,29 +1,76 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  FaDownload, FaSyncAlt, FaUpload, FaTrash, FaPlus, FaInfoCircle,
-  FaSearch, FaEdit, FaTrashAlt, FaCalendarAlt, FaChevronDown
+  FaDownload,
+  FaInfoCircle,
+  FaPlus,
+  FaSyncAlt,
+  FaTrash,
+  FaUpload,
+  FaCheckCircle,
+  FaClock,
+  FaTimes,
 } from "react-icons/fa";
+import PageHeader from "../../components/common/PageHeader";
+import PageToolbar from "../../components/common/PageToolbar";
+import FilterBar from "../../components/common/FilterBar";
+import Card from "../../components/common/Card";
+import DataTable from "../../components/common/DataTable";
+import Pagination from "../../components/common/Pagination";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import BulkUploadModal from "../../components/common/BulkUploadModal";
 import {
-  createVisitPlan, deleteAllVisitPlans, deleteVisitPlan,
-  exportVisitPlans, getSalesEmployees, getSalesStores,
-  getVisitPlans, importVisitPlans, updateVisitPlan
+  createVisitPlan,
+  deleteAllVisitPlans,
+  deleteVisitPlan,
+  exportVisitPlans,
+  getSalesEmployees,
+  getSalesStores,
+  getVisitPlans,
+  importVisitPlans,
+  updateVisitPlan,
 } from "../../services/salesTeamService";
 import {
-  canAdd, canDelete, canEdit, canView, downloadBlob, formatDate, toInputDate
+  canAdd,
+  canDelete,
+  canEdit,
+  canView,
+  downloadBlob,
+  formatDate,
+  getStoredUser,
+  isAdmin,
+  toInputDate,
 } from "./salesTeamUtils";
 import "../../styles/pages/SalesTeam.css";
 
-const initialForm = {
-  employee_id: "", visit_date: new Date().toISOString().slice(0, 10),
-  week_off: false, city: "", reason_to_travel: "", planned_store_ids: []
-};
+const makeInitialForm = () => ({
+  employee_id: "",
+  visit_date: new Date().toISOString().slice(0, 10),
+  week_off: false,
+  city: "",
+  reason_to_travel: "",
+  planned_store_ids: [],
+});
 
 function VisitPlanner() {
+  const permission = "Visit Planner";
+  const user = getStoredUser();
+  const admin = isAdmin();
+
   const [rows, setRows] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [form, setForm] = useState(makeInitialForm());
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [storeSearch, setStoreSearch] = useState("");
+
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -33,18 +80,9 @@ function VisitPlanner() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(initialForm);
-  const [employeeSearch, setEmployeeSearch] = useState("");
-  const [storeSearch, setStoreSearch] = useState("");
-  const [employeeOpen, setEmployeeOpen] = useState(false);
-  const [storeOpen, setStoreOpen] = useState(false);
-  const fileRef = useRef(null);
 
-  const permission = "Visit Planner";
   const departments = useMemo(
-    () => [...new Set(rows.map((r) => r.department).filter(Boolean))].sort(),
+    () => [...new Set(rows.map((row) => row.department).filter(Boolean))].sort(),
     [rows]
   );
 
@@ -53,19 +91,28 @@ function VisitPlanner() {
     setLoading(true);
     try {
       const response = await getVisitPlans({
-        page, limit, search, from, to,
-        name: nameFilter, department: departmentFilter, store: storeFilter
+        page,
+        limit,
+        search,
+        from,
+        to,
+        name: nameFilter,
+        department: departmentFilter,
+        store: storeFilter,
       });
       setRows(response.data?.data || []);
       setTotal(Number(response.data?.total || 0));
     } catch (error) {
       console.error("Visit planner load failed", error);
+      alert(error.response?.data?.message || "Unable to load visit plans.");
     } finally {
       setLoading(false);
     }
   }, [page, limit, search, from, to, nameFilter, departmentFilter, storeFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     Promise.all([getSalesEmployees(), getSalesStores()])
@@ -76,11 +123,35 @@ function VisitPlanner() {
       .catch((error) => console.error("Sales lookup load failed", error));
   }, []);
 
-  const openAdd = () => {
-    setEditing(null);
-    setForm(initialForm);
+  const employeeOptions = useMemo(() => {
+    if (admin) return employees;
+    const currentId = Number(user?.id);
+    return employees.filter((employee) => Number(employee.id) === currentId);
+  }, [admin, employees, user?.id]);
+
+  const filteredEmployees = employeeOptions.filter((employee) =>
+    `${employee.name} ${employee.employee_id} ${employee.email}`
+      .toLowerCase()
+      .includes(employeeSearch.toLowerCase())
+  );
+
+  const filteredStores = stores.filter((store) =>
+    `${store.store_name} ${store.store_code} ${store.city}`
+      .toLowerCase()
+      .includes(storeSearch.toLowerCase())
+  );
+
+  const resetForm = () => {
+    const next = makeInitialForm();
+    if (!admin && user?.id) next.employee_id = Number(user.id);
+    setForm(next);
     setEmployeeSearch("");
     setStoreSearch("");
+  };
+
+  const openAdd = () => {
+    setEditing(null);
+    resetForm();
     setShowModal(true);
   };
 
@@ -92,11 +163,23 @@ function VisitPlanner() {
       week_off: Boolean(row.week_off),
       city: row.city || "",
       reason_to_travel: row.reason_to_travel || "",
-      planned_store_ids: row.planned_store_ids || []
+      planned_store_ids: row.planned_store_ids || [],
     });
     setEmployeeSearch(row.name || "");
     setStoreSearch("");
     setShowModal(true);
+  };
+
+  const toggleStore = (storeId) => {
+    setForm((current) => {
+      const exists = current.planned_store_ids.some((id) => Number(id) === Number(storeId));
+      return {
+        ...current,
+        planned_store_ids: exists
+          ? current.planned_store_ids.filter((id) => Number(id) !== Number(storeId))
+          : [...current.planned_store_ids, Number(storeId)],
+      };
+    });
   };
 
   const save = async (event) => {
@@ -104,8 +187,13 @@ function VisitPlanner() {
     if (!form.employee_id || !form.visit_date) return;
     setSaving(true);
     try {
-      if (editing) await updateVisitPlan(editing.id, form);
-      else await createVisitPlan(form);
+      const payload = {
+        ...form,
+        employee_id: Number(form.employee_id),
+        planned_store_ids: form.week_off ? [] : form.planned_store_ids,
+      };
+      if (editing) await updateVisitPlan(editing.id, payload);
+      else await createVisitPlan(payload);
       setShowModal(false);
       await load();
     } catch (error) {
@@ -115,132 +203,290 @@ function VisitPlanner() {
     }
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("Delete this planned visit?")) return;
-    try { await deleteVisitPlan(id); await load(); }
-    catch (error) { alert(error.response?.data?.message || "Delete failed."); }
+  const askDelete = (id) => {
+    if (!canDelete(permission)) return;
+    setDeleteId(id);
+    setShowDeleteDialog(true);
   };
 
-  const removeAll = async () => {
-    if (!window.confirm("Delete ALL planned visits? This cannot be undone.")) return;
-    try { await deleteAllVisitPlans(); setPage(1); await load(); }
-    catch (error) { alert(error.response?.data?.message || "Delete all failed."); }
+  const confirmDelete = async () => {
+    try {
+      await deleteVisitPlan(deleteId);
+      await load();
+    } catch (error) {
+      alert(error.response?.data?.message || "Delete failed.");
+    } finally {
+      setDeleteId(null);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const confirmDeleteAll = async () => {
+    try {
+      await deleteAllVisitPlans();
+      setPage(1);
+      await load();
+    } catch (error) {
+      alert(error.response?.data?.message || "Delete all failed.");
+    } finally {
+      setShowDeleteAllDialog(false);
+    }
   };
 
   const exportCsv = async () => {
     try {
-      const response = await exportVisitPlans({ search, from, to, name: nameFilter, department: departmentFilter, store: storeFilter });
+      const response = await exportVisitPlans({
+        search,
+        from,
+        to,
+        name: nameFilter,
+        department: departmentFilter,
+        store: storeFilter,
+      });
       downloadBlob(response.data, "visit-planner.csv");
-    } catch (error) { alert(error.response?.data?.message || "Export failed."); }
+    } catch (error) {
+      alert(error.response?.data?.message || "Export failed.");
+    }
   };
 
-  const importCsv = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    try { await importVisitPlans(file); setPage(1); await load(); alert("Visit plans imported successfully."); }
-    catch (error) { alert(error.response?.data?.message || "Import failed."); }
+  const importFile = async (file) => {
+    const result = await importVisitPlans(file);
+    setPage(1);
+    await load();
+    return result.data || result;
   };
 
-  const visibleEmployees = employees.filter((employee) =>
-    `${employee.name} ${employee.employee_id} ${employee.email}`.toLowerCase().includes(employeeSearch.toLowerCase())
-  );
-  const visibleStores = stores.filter((store) =>
-    `${store.store_name} ${store.store_code} ${store.city}`.toLowerCase().includes(storeSearch.toLowerCase())
-  );
+  const clearFilters = () => {
+    setSearch("");
+    setFrom("");
+    setTo("");
+    setNameFilter("");
+    setDepartmentFilter("");
+    setStoreFilter("");
+    setPage(1);
+  };
+
   const pageCount = Math.max(1, Math.ceil(total / limit));
+
+  const columns = [
+    { key: "visit_date", title: "Date", render: (row) => formatDate(row.visit_date), minWidth: "110px" },
+    { key: "day_name", title: "Day", minWidth: "110px" },
+    { key: "name", title: "Name", minWidth: "170px", render: (row) => <strong>{row.name}</strong> },
+    { key: "designation", title: "Designation", minWidth: "160px", render: (row) => row.designation || "—" },
+    { key: "department", title: "Department", minWidth: "150px", render: (row) => row.department || "—" },
+    { key: "city", title: "City", minWidth: "130px", render: (row) => row.city || "—" },
+    { key: "reason_to_travel", title: "Reason to travel", minWidth: "240px", render: (row) => <span className="sales-wrap-cell">{row.reason_to_travel || "—"}</span> },
+    { key: "planned_store_names", title: "Planned", minWidth: "260px", render: (row) => row.week_off ? <span className="sales-weekoff">Week off</span> : <span className="sales-wrap-cell">{row.planned_store_names || "—"}</span> },
+    { key: "remarks", title: "Remarks", minWidth: "180px", render: (row) => <span className="sales-wrap-cell">{row.remarks || "—"}</span> },
+    {
+      key: "approval_status",
+      title: "Approval",
+      minWidth: "130px",
+      align: "center",
+      render: (row) => {
+        const status = String(row.approval_status || "Pending");
+        const Icon = status === "Approved" ? FaCheckCircle : status === "Rejected" ? FaTimes : FaClock;
+        return <span className={`sales-status-badge ${status.toLowerCase()}`}><Icon />{status}</span>;
+      },
+    },
+    {
+      key: "actions",
+      title: "Actions",
+      minWidth: "130px",
+      align: "center",
+      render: (row) => (
+        <div className="sales-action-buttons">
+          {canEdit(permission) && <button type="button" className="sales-icon-btn" title="Edit" onClick={() => openEdit(row)}>Edit</button>}
+          {canDelete(permission) && <button type="button" className="sales-icon-btn danger" title="Delete" onClick={() => askDelete(row.id)}>Delete</button>}
+        </div>
+      ),
+    },
+  ];
 
   if (!canView(permission)) return null;
 
   return (
-    <div className="sales-page visit-planner-page">
-      <div className="sales-page-heading">
-        <div>
-          <h1>Visit Planner <FaInfoCircle title="Plan store visits for your sales force." /></h1>
-          <p>Plan store visits for your sales force, or mark a week off. Use Import CSV for bulk rows.</p>
-        </div>
-      </div>
+    <div className="sales-page sales-standard-page">
+      <PageHeader
+        title={<>Visit Planner <FaInfoCircle className="sales-title-info" /></>}
+        subtitle="Plan store visits for your sales force. Every new plan stays Pending until it is approved."
+      />
 
-      <section className="sales-card">
-        <div className="sales-toolbar">
-          <button className="sales-btn" onClick={exportCsv}><FaDownload /> Export CSV</button>
-          <button className="sales-btn" onClick={load}><FaSyncAlt /> Refresh</button>
-          {canAdd(permission) && <label className="sales-btn sales-file-btn"><FaUpload /> Import CSV<input ref={fileRef} type="file" accept=".csv" onChange={importCsv} hidden /></label>}
-          {canDelete(permission) && <button className="sales-btn danger" onClick={removeAll}><FaTrash /> Delete all</button>}
-          {canAdd(permission) && <button className="sales-btn primary-outline" onClick={openAdd}><FaPlus /> Add row</button>}
-        </div>
+      <PageToolbar
+        search={search}
+        setSearch={(value) => { setPage(1); setSearch(value); }}
+        placeholder="Search name, city or planned store..."
+        showAdd={canAdd(permission)}
+        addText="Add Planned Visit"
+        onAdd={openAdd}
+        showExport
+        onExport={exportCsv}
+        showBulk={canAdd(permission)}
+        onBulk={() => setShowBulkModal(true)}
+        showDeleteAll={canDelete(permission)}
+        onDeleteAll={() => setShowDeleteAllDialog(true)}
+      >
+        <button type="button" className="toolbar-btn refresh-toolbar-btn" onClick={load}>
+          <FaSyncAlt /> Refresh
+        </button>
+      </PageToolbar>
 
-        <div className="sales-filter-row top-filters">
-          <label>From<input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} /></label>
-          <label>To<input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} /></label>
-          <label className="wide">Search<div className="input-with-icon"><FaSearch /><input placeholder="Name, city, planned stores..." value={search} onChange={(e) => { setPage(1); setSearch(e.target.value); }} /></div></label>
-        </div>
-        <div className="sales-help">Leave From and To empty to show all dates; set both to filter.</div>
-        <div className="sales-filter-row">
-          <label className="wide"><input placeholder="Filter by name..." value={nameFilter} onChange={(e) => { setPage(1); setNameFilter(e.target.value); }} /></label>
-          <label className="wide"><select value={departmentFilter} onChange={(e) => { setPage(1); setDepartmentFilter(e.target.value); }}><option value="">Filter by department...</option>{departments.map((d) => <option key={d}>{d}</option>)}</select></label>
-          <label className="wide"><input placeholder="Filter by store (planned)..." value={storeFilter} onChange={(e) => { setPage(1); setStoreFilter(e.target.value); }} /></label>
-        </div>
-      </section>
+      <FilterBar onClear={clearFilters}>
+        <label className="sales-global-filter">
+          <span>From</span>
+          <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} />
+        </label>
+        <label className="sales-global-filter">
+          <span>To</span>
+          <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} />
+        </label>
+        <label className="sales-global-filter">
+          <span>Name</span>
+          <input placeholder="Filter by name..." value={nameFilter} onChange={(e) => { setPage(1); setNameFilter(e.target.value); }} />
+        </label>
+        <label className="sales-global-filter">
+          <span>Department</span>
+          <select value={departmentFilter} onChange={(e) => { setPage(1); setDepartmentFilter(e.target.value); }}>
+            <option value="">All departments</option>
+            {departments.map((department) => <option key={department}>{department}</option>)}
+          </select>
+        </label>
+        <label className="sales-global-filter">
+          <span>Planned Store</span>
+          <input placeholder="Filter by store..." value={storeFilter} onChange={(e) => { setPage(1); setStoreFilter(e.target.value); }} />
+        </label>
+      </FilterBar>
 
-      <section className="sales-table-card">
-        <div className="sales-table-wrap">
-          <table className="sales-table visit-table">
-            <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Designation</th><th>Department</th><th>City</th><th>Reason to travel</th><th>Planned</th><th>Remarks</th><th>Approval</th><th>Actions</th></tr></thead>
-            <tbody>
-              {loading ? <tr><td colSpan="11" className="empty-cell">Loading...</td></tr> : rows.length === 0 ? <tr><td colSpan="11" className="empty-cell">No planned visits found.</td></tr> : rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{formatDate(row.visit_date)}</td>
-                  <td>{row.day_name}</td>
-                  <td>{row.name}</td>
-                  <td>{row.designation || "—"}</td>
-                  <td>{row.department || "—"}</td>
-                  <td>{row.city || "—"}</td>
-                  <td>{row.reason_to_travel || "—"}</td>
-                  <td>{row.week_off ? "Week off" : (row.planned_store_names || "—")}</td>
-                  <td>{row.remarks || "—"}</td>
-                  <td><span className={`sales-status ${String(row.approval_status || "Pending").toLowerCase()}`}>{row.approval_status || "Pending"}</span></td>
-                  <td className="actions-cell">{canEdit(permission) && <button title="Edit" onClick={() => openEdit(row)}><FaEdit /></button>}{canDelete(permission) && <button className="delete-link" title="Delete" onClick={() => remove(row.id)}><FaTrashAlt /></button>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="sales-pagination">
-          <span>Total: <b>{total}</b> entries</span><span>Page {page} of {pageCount}</span>
-          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Previous</button>
-          <button disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>Next →</button>
-          <span>Go to page:</span><input value={page} onChange={(e) => setPage(Math.min(pageCount, Math.max(1, Number(e.target.value) || 1)))} /><span>Items per page:</span><select value={limit} onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}><option>10</option><option>20</option><option>50</option></select>
-        </div>
-      </section>
+      <Card title="Planned Visits" subtitle={`${total} visit plan${total === 1 ? "" : "s"} found`} noPadding>
+        <DataTable
+          columns={columns}
+          data={rows}
+          loading={loading}
+          emptyTitle="No Planned Visits Found"
+          emptyDescription="Create a planned visit or use Bulk Upload to add multiple visits."
+          className="sales-global-table"
+        />
+        <Pagination
+          currentPage={page}
+          totalPages={pageCount}
+          totalRecords={total}
+          pageSize={limit}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => { setPage(1); setLimit(size); }}
+        />
+      </Card>
+
+      <BulkUploadModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        title="Bulk Upload Visit Plans"
+        uploadFunction={importFile}
+        onSuccess={load}
+        acceptedFile=".csv,.xlsx,.xls"
+      />
 
       {showModal && (
-        <div className="sales-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setShowModal(false)}>
-          <form className="sales-modal" onSubmit={save}>
-            <h2>{editing ? "Edit planned visit" : "Add planned visit"}</h2>
-            <label>Employee
-              <div className="sales-combobox">
-                <input value={employeeSearch} placeholder="Search name or employee ID..." onChange={(e) => { setEmployeeSearch(e.target.value); setEmployeeOpen(true); setForm((f) => ({ ...f, employee_id: "" })); }} onFocus={() => setEmployeeOpen(true)} />
-                <FaChevronDown />
-                {employeeOpen && <div className="sales-options">{visibleEmployees.slice(0, 30).map((employee) => <button type="button" key={employee.id} onClick={() => { setForm((f) => ({ ...f, employee_id: employee.id })); setEmployeeSearch(employee.name); setEmployeeOpen(false); }}>{employee.name} <small>{employee.employee_id}</small></button>)}</div>}
+        <div className="sales-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setShowModal(false)}>
+          <form className="sales-form-modal visit-form-modal" onSubmit={save}>
+            <div className="sales-modal-header">
+              <div>
+                <h2>{editing ? "Edit Planned Visit" : "Add Planned Visit"}</h2>
+                <p>{editing ? "Changes will be sent for approval again." : "New plans are always submitted as Pending."}</p>
               </div>
-            </label>
-            <label>Date<input type="date" value={form.visit_date} onChange={(e) => setForm((f) => ({ ...f, visit_date: e.target.value }))} required /></label>
-            <label className="checkbox-line"><input type="checkbox" checked={form.week_off} onChange={(e) => setForm((f) => ({ ...f, week_off: e.target.checked }))} /> Week off</label>
-            <label>City<input value={form.city} disabled={form.planned_store_ids.length > 0} placeholder="Select planned stores to auto-fill" onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></label>
-            <label>Reason to travel<textarea value={form.reason_to_travel} placeholder="Purpose of this visit (from visit plan)..." onChange={(e) => setForm((f) => ({ ...f, reason_to_travel: e.target.value }))} /></label>
-            <label>Planned stores
-              <div className="sales-combobox">
-                <input value={storeSearch} placeholder="Search store name..." onChange={(e) => { setStoreSearch(e.target.value); setStoreOpen(true); }} onFocus={() => setStoreOpen(true)} />
-                <FaChevronDown />
-                {storeOpen && <div className="sales-options">{visibleStores.slice(0, 30).map((store) => <button type="button" key={store.id} onClick={() => { setForm((f) => ({ ...f, planned_store_ids: f.planned_store_ids.includes(store.id) ? f.planned_store_ids : [...f.planned_store_ids, store.id], city: f.city || store.city || "" })); setStoreSearch(""); }}>{store.store_name} <small>{store.city || store.store_code}</small></button>)}</div>}
-              </div>
-              <div className="selected-chips">{form.planned_store_ids.map((id) => { const store = stores.find((s) => Number(s.id) === Number(id)); return store ? <button type="button" key={id} onClick={() => setForm((f) => ({ ...f, planned_store_ids: f.planned_store_ids.filter((x) => Number(x) !== Number(id)) }))}>{store.store_name} ×</button> : null; })}</div>
-            </label>
-            <div className="sales-modal-actions"><button type="button" className="sales-btn" onClick={() => setShowModal(false)}>Cancel</button><button className="sales-btn primary" disabled={saving}>{saving ? "Saving..." : "Save"}</button></div>
+              <button type="button" className="sales-modal-close" onClick={() => setShowModal(false)}><FaTimes /></button>
+            </div>
+
+            <div className="sales-form-grid">
+              <label className="sales-field sales-field-full">
+                <span>Employee <b>*</b></span>
+                <select
+                  value={form.employee_id}
+                  disabled={!admin}
+                  onChange={(event) => setForm((current) => ({ ...current, employee_id: event.target.value }))}
+                  required
+                >
+                  <option value="">Select employee</option>
+                  {filteredEmployees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.name} {employee.employee_id ? `(${employee.employee_id})` : ""}
+                    </option>
+                  ))}
+                </select>
+                {admin && (
+                  <input className="sales-field-search" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} placeholder="Type to narrow employee list..." />
+                )}
+              </label>
+
+              <label className="sales-field">
+                <span>Date <b>*</b></span>
+                <input type="date" value={form.visit_date} onChange={(event) => setForm((current) => ({ ...current, visit_date: event.target.value }))} required />
+              </label>
+
+              <label className="sales-check-field">
+                <input type="checkbox" checked={form.week_off} onChange={(event) => setForm((current) => ({ ...current, week_off: event.target.checked, planned_store_ids: event.target.checked ? [] : current.planned_store_ids }))} />
+                <span>Week off</span>
+              </label>
+
+              <label className="sales-field sales-field-full">
+                <span>City</span>
+                <input value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} placeholder="Enter city or select a planned store" />
+              </label>
+
+              <label className="sales-field sales-field-full">
+                <span>Reason to travel</span>
+                <textarea value={form.reason_to_travel} onChange={(event) => setForm((current) => ({ ...current, reason_to_travel: event.target.value }))} placeholder="Purpose of this visit..." rows={4} />
+              </label>
+
+              {!form.week_off && (
+                <div className="sales-field sales-field-full">
+                  <span>Planned stores</span>
+                  <input className="sales-store-search" value={storeSearch} onChange={(event) => setStoreSearch(event.target.value)} placeholder="Search store name, code or city..." />
+                  <div className="sales-store-picker">
+                    {filteredStores.slice(0, 100).map((store) => {
+                      const selected = form.planned_store_ids.some((id) => Number(id) === Number(store.id));
+                      return (
+                        <label key={store.id} className={`sales-store-option ${selected ? "selected" : ""}`}>
+                          <input type="checkbox" checked={selected} onChange={() => toggleStore(store.id)} />
+                          <span><strong>{store.store_name}</strong><small>{store.store_code || ""}{store.city ? ` · ${store.city}` : ""}</small></span>
+                        </label>
+                      );
+                    })}
+                    {!filteredStores.length && <div className="sales-picker-empty">No stores found.</div>}
+                  </div>
+                  <div className="sales-selected-summary">{form.planned_store_ids.length} store{form.planned_store_ids.length === 1 ? "" : "s"} selected</div>
+                </div>
+              )}
+            </div>
+
+            <div className="sales-modal-actions">
+              <button type="button" className="modal-secondary-btn" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
+              <button type="submit" className="modal-primary-btn" disabled={saving}>{saving ? "Saving..." : editing ? "Save Changes" : "Submit for Approval"}</button>
+            </div>
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        title="Delete Planned Visit"
+        message="Are you sure you want to delete this planned visit?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => { setDeleteId(null); setShowDeleteDialog(false); }}
+      />
+
+      <ConfirmDialog
+        open={showDeleteAllDialog}
+        title="Delete All Visit Plans"
+        message="This will delete all visit plans available to your account. This action cannot be undone."
+        confirmText="Delete All"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={confirmDeleteAll}
+        onCancel={() => setShowDeleteAllDialog(false)}
+      />
     </div>
   );
 }

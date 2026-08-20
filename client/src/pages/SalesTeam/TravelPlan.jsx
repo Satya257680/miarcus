@@ -1,40 +1,233 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FaDownload, FaSyncAlt, FaSearch, FaCommentAlt, FaHistory, FaTrash } from "react-icons/fa";
-import { getTravelPlans, getSalesStores, saveActualStores, getTravelPlanHistory, addTravelRemark, deleteTravelPlan, exportVisitPlans } from "../../services/salesTeamService";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaCommentAlt, FaHistory, FaSyncAlt, FaTrash, FaDownload, FaTimes } from "react-icons/fa";
+import PageHeader from "../../components/common/PageHeader";
+import PageToolbar from "../../components/common/PageToolbar";
+import FilterBar from "../../components/common/FilterBar";
+import Card from "../../components/common/Card";
+import DataTable from "../../components/common/DataTable";
+import Pagination from "../../components/common/Pagination";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import {
+  getTravelPlans,
+  getSalesStores,
+  saveActualStores,
+  getTravelPlanHistory,
+  addTravelRemark,
+  deleteTravelPlan,
+  exportVisitPlans,
+} from "../../services/salesTeamService";
 import { canDelete, canEdit, canView, downloadBlob, formatDate } from "./salesTeamUtils";
 import "../../styles/pages/SalesTeam.css";
 
 function TravelPlan() {
   const permission = "Travel Plan";
-  const [rows, setRows] = useState([]); const [stores, setStores] = useState([]); const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(""); const [from, setFrom] = useState(""); const [to, setTo] = useState("");
-  const [name, setName] = useState(""); const [department, setDepartment] = useState(""); const [store, setStore] = useState("");
-  const [actual, setActual] = useState({}); const [remarksRow, setRemarksRow] = useState(null); const [history, setHistory] = useState([]); const [remarkDraft, setRemarkDraft] = useState(""); const [attachment, setAttachment] = useState(null); const attachmentRef = useRef(null);
-  const [page, setPage] = useState(1); const [limit, setLimit] = useState(10); const [total, setTotal] = useState(0);
-  const departments = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort();
+  const [rows, setRows] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [name, setName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [store, setStore] = useState("");
+  const [actual, setActual] = useState({});
+  const [remarksRow, setRemarksRow] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [remarkDraft, setRemarkDraft] = useState("");
+  const [attachment, setAttachment] = useState(null);
+  const attachmentRef = useRef(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const departments = useMemo(() => [...new Set(rows.map((row) => row.department).filter(Boolean))].sort(), [rows]);
 
   const load = useCallback(async () => {
     if (!canView(permission)) return;
-    setLoading(true); try { const response = await getTravelPlans({ page, limit, search, from, to, name, department, store }); setRows(response.data?.data || []); setTotal(Number(response.data?.total || 0)); } catch (e) { console.error(e); } finally { setLoading(false); }
+    setLoading(true);
+    try {
+      const response = await getTravelPlans({ page, limit, search, from, to, name, department, store });
+      setRows(response.data?.data || []);
+      setTotal(Number(response.data?.total || 0));
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Unable to load Travel Plan.");
+    } finally {
+      setLoading(false);
+    }
   }, [page, limit, search, from, to, name, department, store]);
+
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { getSalesStores().then((r) => setStores(r.data?.data || [])).catch(console.error); }, []);
+  useEffect(() => { getSalesStores().then((response) => setStores(response.data?.data || [])).catch(console.error); }, []);
 
   const setSelection = (id, value) => setActual((current) => ({ ...current, [id]: value }));
-  const save = async (row) => { try { await saveActualStores(row.id, actual[row.id] || row.actual_store_ids || []); await load(); } catch (e) { alert(e.response?.data?.message || "Unable to save actual stores."); } };
-  const openHistory = async (row) => { try { const response = await getTravelPlanHistory(row.id); setHistory(response.data?.data || []); setRemarksRow(row); } catch (e) { alert("Unable to load history."); } };
-  const openRemarks = (row) => { setHistory([]); setRemarkDraft(row.remarks || ""); setAttachment(null); setRemarksRow(row); };
-  const saveRemark = async () => { if (!remarksRow) return; try { await addTravelRemark(remarksRow.id, remarkDraft, attachment); setRemarkDraft(""); setAttachment(null); if (attachmentRef.current) attachmentRef.current.value = ""; const response = await getTravelPlanHistory(remarksRow.id); setHistory(response.data?.data || []); await load(); } catch (e) { alert(e.response?.data?.message || "Unable to save remark."); } };
-  const remove = async (id) => { if (!window.confirm("Delete this travel plan row?")) return; try { await deleteTravelPlan(id); await load(); } catch (e) { alert(e.response?.data?.message || "Delete failed."); } };
-  const exportCsv = async () => { try { const response = await exportVisitPlans({ search, from, to, name, department, store }); downloadBlob(response.data, "travel-plan.csv"); } catch (e) { alert("Export failed."); } };
+
+  const save = async (row) => {
+    try {
+      await saveActualStores(row.id, actual[row.id] ?? row.actual_store_ids ?? []);
+      await load();
+    } catch (error) {
+      alert(error.response?.data?.message || "Unable to save actual stores.");
+    }
+  };
+
+  const openHistory = async (row) => {
+    try {
+      const response = await getTravelPlanHistory(row.id);
+      setHistory(response.data?.data || []);
+      setRemarkDraft("");
+      setAttachment(null);
+      setRemarksRow(row);
+    } catch (error) {
+      alert(error.response?.data?.message || "Unable to load history.");
+    }
+  };
+
+  const openRemarks = (row) => {
+    setHistory([]);
+    setRemarkDraft(row.remarks || "");
+    setAttachment(null);
+    setRemarksRow(row);
+  };
+
+  const saveRemark = async () => {
+    if (!remarksRow) return;
+    try {
+      await addTravelRemark(remarksRow.id, remarkDraft, attachment);
+      setRemarkDraft("");
+      setAttachment(null);
+      if (attachmentRef.current) attachmentRef.current.value = "";
+      await load();
+      await openHistory(remarksRow);
+    } catch (error) {
+      alert(error.response?.data?.message || "Unable to save remark.");
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteTravelPlan(deleteId);
+      await load();
+    } catch (error) {
+      alert(error.response?.data?.message || "Delete failed.");
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const exportCsv = async () => {
+    try {
+      const response = await exportVisitPlans({ search, from, to, name, department, store, approved_only: 1 });
+      downloadBlob(response.data, "travel-plan.csv");
+    } catch (error) {
+      alert(error.response?.data?.message || "Export failed.");
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setFrom("");
+    setTo("");
+    setName("");
+    setDepartment("");
+    setStore("");
+    setPage(1);
+  };
+
   const pageCount = Math.max(1, Math.ceil(total / limit));
+
+  const columns = [
+    { key: "visit_date", title: "Date", minWidth: "110px", render: (row) => formatDate(row.visit_date) },
+    { key: "day_name", title: "Day", minWidth: "110px" },
+    { key: "name", title: "Name", minWidth: "170px", render: (row) => <strong>{row.name}</strong> },
+    { key: "designation", title: "Designation", minWidth: "160px", render: (row) => row.designation || "—" },
+    { key: "department", title: "Department", minWidth: "150px", render: (row) => row.department || "—" },
+    { key: "city", title: "City", minWidth: "130px", render: (row) => row.city || "—" },
+    { key: "planned_store_names", title: "Planned", minWidth: "240px", render: (row) => row.planned_store_names || "—" },
+    {
+      key: "actual",
+      title: "Actual",
+      minWidth: "230px",
+      render: (row) => row.week_off ? <span className="sales-weekoff">Week off</span> : (
+        <div className="actual-store-editor">
+          <select
+            multiple
+            value={(actual[row.id] ?? row.actual_store_ids ?? []).map(String)}
+            onChange={(event) => setSelection(row.id, [...event.target.selectedOptions].map((option) => Number(option.value)))}
+          >
+            {(row.planned_store_ids || []).length
+              ? stores.filter((storeItem) => row.planned_store_ids.includes(Number(storeItem.id))).map((storeItem) => <option key={storeItem.id} value={storeItem.id}>{storeItem.store_name}</option>)
+              : null}
+          </select>
+          {canEdit(permission) && <button type="button" className="mini-save-btn" onClick={() => save(row)}>Save</button>}
+        </div>
+      ),
+    },
+    { key: "reason_to_travel", title: "Reason to travel", minWidth: "220px", render: (row) => <span className="sales-wrap-cell">{row.reason_to_travel || "—"}</span> },
+    {
+      key: "visit_rate",
+      title: "Visit Rate",
+      minWidth: "110px",
+      align: "center",
+      render: (row) => row.week_off ? <span className="sales-weekoff">Week off</span> : (() => {
+        const selected = actual[row.id] ?? row.actual_store_ids ?? [];
+        const rate = row.planned_store_count ? Math.round((selected.length / row.planned_store_count) * 100) : 0;
+        return <span className={`visit-rate ${rate >= 100 ? "complete" : "partial"}`}>{rate}%</span>;
+      })(),
+    },
+    { key: "remarks", title: "Remarks", minWidth: "150px", align: "center", render: (row) => <button type="button" className="sales-text-link" onClick={() => openRemarks(row)}><FaCommentAlt /> {row.remarks ? "View" : "Add remarks"}</button> },
+    { key: "history", title: "History", minWidth: "110px", align: "center", render: (row) => <button type="button" className="sales-text-link" onClick={() => openHistory(row)}><FaHistory /> View</button> },
+    { key: "actions", title: "Actions", minWidth: "110px", align: "center", render: (row) => canDelete(permission) ? <button type="button" className="sales-text-link danger" onClick={() => setDeleteId(row.id)}><FaTrash /> Delete</button> : <span>—</span> },
+  ];
+
   if (!canView(permission)) return null;
 
-  return <div className="sales-page">
-    <div className="sales-page-heading"><div><h1>Travel Plan <span className="title-info">ⓘ</span></h1><p>Use the row boxes for actual stores (multi-select). Reason to travel is set in Visit Planner and shown here only. Remarks open in a modal with attachments. Visit rate reflects planned vs actual.</p></div></div>
-    <section className="sales-card"><div className="sales-filter-row top-filters"><label>From<input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} /></label><label>To<input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} /></label><label className="wide">Search<div className="input-with-icon"><FaSearch /><input placeholder="Name, city, planned / actual..." value={search} onChange={(e) => { setPage(1); setSearch(e.target.value); }} /></div></label><button className="sales-btn primary-outline" onClick={load}><FaSyncAlt /> Refresh</button><button className="sales-btn primary-outline" onClick={exportCsv}><FaDownload /> Export CSV</button></div><div className="sales-help">Leave From and To empty to load all dates.</div><div className="sales-filter-row"><label className="wide"><input placeholder="Filter by name..." value={name} onChange={(e) => { setPage(1); setName(e.target.value); }} /></label><label className="wide"><select value={department} onChange={(e) => { setPage(1); setDepartment(e.target.value); }}><option value="">Filter by department...</option>{departments.map((d) => <option key={d}>{d}</option>)}</select></label><label className="wide"><input placeholder="Filter by store (planned or actual)..." value={store} onChange={(e) => { setPage(1); setStore(e.target.value); }} /></label></div></section>
-    <section className="sales-table-card"><div className="sales-table-wrap"><table className="sales-table travel-table"><thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Designation</th><th>Department</th><th>City</th><th>Planned</th><th>Actual</th><th>Reason to travel</th><th>Visit Rate</th><th>Remarks</th><th>History</th><th>Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan="13" className="empty-cell">Loading...</td></tr> : rows.length === 0 ? <tr><td colSpan="13" className="empty-cell">No travel plan rows found.</td></tr> : rows.map((row) => { const selected = actual[row.id] ?? (row.actual_store_ids || []); const rate = row.week_off ? "Week off" : row.planned_store_count ? `${Math.round((selected.length / row.planned_store_count) * 100)}%` : "—"; return <tr key={row.id}><td>{formatDate(row.visit_date)}</td><td>{row.day_name}</td><td>{row.name}</td><td>{row.designation || "—"}</td><td>{row.department || "—"}</td><td>{row.city || "—"}</td><td>{row.week_off ? "Week off" : row.planned_store_names || "—"}</td><td>{row.week_off ? "—" : <><select multiple value={selected.map(String)} onChange={(e) => setSelection(row.id, [...e.target.selectedOptions].map((o) => Number(o.value)))}>{(row.planned_store_ids?.length ? stores.filter((s) => row.planned_store_ids.includes(Number(s.id))) : stores).map((s) => <option key={s.id} value={s.id}>{s.store_name}</option>)}</select><small className="select-note">{row.planned_store_count ? `Only ${row.planned_store_count} planned store(s).` : "No planned store."}</small>{canEdit(permission) && <button className="mini-save" onClick={() => save(row)}>Save</button>}</>}</td><td>{row.reason_to_travel || "—"}</td><td>{rate}</td><td><button className="link-button" onClick={() => openRemarks(row)}><FaCommentAlt /> {row.remarks ? "View remarks" : "Add remarks"}</button></td><td><button className="link-button" onClick={() => openHistory(row)}><FaHistory /> View</button></td><td>{canDelete(permission) && <button className="link-button danger-link" onClick={() => remove(row.id)}><FaTrash /> Delete</button>}</td></tr>; })}</tbody></table></div><div className="sales-pagination"><span>Total: <b>{total}</b> entries</span><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Previous</button><span>Page {page} of {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>Next →</button><span>Items per page:</span><select value={limit} onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}><option>10</option><option>20</option><option>50</option></select></div></section>
-    {remarksRow && <div className="sales-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setRemarksRow(null)}><div className="sales-modal"><h2>{history.length ? "Travel history & remarks" : "Remarks"}</h2>{history.length && <div className="history-list">{history.map((item) => <div className="history-item" key={item.id}><b>{item.user_name || "User"}</b><small>{new Date(item.created_at).toLocaleString()}</small><p>{item.remark}</p>{item.attachments && <a href={item.attachments} target="_blank" rel="noreferrer">View attachment</a>}</div>)}</div>}<label className="sales-modal-label">Add remark<textarea value={remarkDraft} onChange={(e) => setRemarkDraft(e.target.value)} placeholder="Enter remarks..." /></label><label className="sales-modal-label">Attachment<input ref={attachmentRef} type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} /></label><div className="sales-modal-actions"><button className="sales-btn" onClick={() => { setRemarksRow(null); setHistory([]); }}>Close</button>{canEdit(permission) && <button className="sales-btn primary" onClick={saveRemark}>Save remark</button>}</div></div></div>}
-  </div>;
+  return (
+    <div className="sales-page sales-standard-page">
+      <PageHeader title="Travel Plan" subtitle="Work only with approved plans. Save actual stores, track visit rate, remarks and history." />
+
+      <PageToolbar
+        search={search}
+        setSearch={(value) => { setPage(1); setSearch(value); }}
+        placeholder="Search name, city, planned store..."
+        showExport
+        onExport={exportCsv}
+      >
+        <button type="button" className="toolbar-btn refresh-toolbar-btn" onClick={load}><FaSyncAlt /> Refresh</button>
+      </PageToolbar>
+
+      <FilterBar onClear={clearFilters}>
+        <label className="sales-global-filter"><span>From</span><input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} /></label>
+        <label className="sales-global-filter"><span>To</span><input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} /></label>
+        <label className="sales-global-filter"><span>Name</span><input placeholder="Filter by name..." value={name} onChange={(e) => { setPage(1); setName(e.target.value); }} /></label>
+        <label className="sales-global-filter"><span>Department</span><select value={department} onChange={(e) => { setPage(1); setDepartment(e.target.value); }}><option value="">All departments</option>{departments.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="sales-global-filter"><span>Store</span><input placeholder="Planned store..." value={store} onChange={(e) => { setPage(1); setStore(e.target.value); }} /></label>
+      </FilterBar>
+
+      <Card title="Approved Travel Plans" subtitle={`${total} approved plan${total === 1 ? "" : "s"} found`} noPadding>
+        <DataTable columns={columns} data={rows} loading={loading} emptyTitle="No Approved Travel Plans" emptyDescription="Approved plans will appear here for actual-store tracking." className="sales-global-table travel-global-table" />
+        <Pagination currentPage={page} totalPages={pageCount} totalRecords={total} pageSize={limit} onPageChange={setPage} onPageSizeChange={(size) => { setPage(1); setLimit(size); }} />
+      </Card>
+
+      {remarksRow && (
+        <div className="sales-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setRemarksRow(null)}>
+          <div className="sales-form-modal remarks-modal">
+            <div className="sales-modal-header">
+              <div><h2>{history.length ? "Travel History & Remarks" : "Travel Remarks"}</h2><p>{remarksRow.name} · {formatDate(remarksRow.visit_date)}</p></div>
+              <button type="button" className="sales-modal-close" onClick={() => setRemarksRow(null)}><FaTimes /></button>
+            </div>
+            {history.length > 0 && <div className="history-list">{history.map((item) => <div className="history-item" key={item.id}><div><strong>{item.user_name || "User"}</strong><small>{new Date(item.created_at).toLocaleString()}</small></div><p>{item.remark || "No remark"}</p>{item.attachments && <a href={item.attachments} target="_blank" rel="noreferrer">View attachment</a>}</div>)}</div>}
+            <label className="sales-field sales-field-full"><span>Add remark</span><textarea value={remarkDraft} onChange={(event) => setRemarkDraft(event.target.value)} placeholder="Enter remarks..." rows={4} /></label>
+            <label className="sales-field sales-field-full"><span>Attachment</span><input ref={attachmentRef} type="file" onChange={(event) => setAttachment(event.target.files?.[0] || null)} /></label>
+            <div className="sales-modal-actions"><button type="button" className="modal-secondary-btn" onClick={() => setRemarksRow(null)}>Close</button>{canEdit(permission) && <button type="button" className="modal-primary-btn" onClick={saveRemark}>Save Remark</button>}</div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog open={Boolean(deleteId)} title="Delete Travel Plan" message="Are you sure you want to delete this approved travel plan?" confirmText="Delete" cancelText="Cancel" confirmVariant="danger" onConfirm={confirmDelete} onCancel={() => setDeleteId(null)} />
+    </div>
+  );
 }
+
 export default TravelPlan;

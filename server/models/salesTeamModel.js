@@ -179,7 +179,7 @@ const createVisitPlan = (data, callback) => {
 };
 
 const updateVisitPlan = (id, data, callback) => {
-  query(`UPDATE sales_visit_plans SET employee_id=?,visit_date=?,week_off=?,city=?,reason_to_travel=?,updated_by=? WHERE id=?`, [data.employee_id, data.visit_date, data.week_off ? 1 : 0, data.city || null, data.reason_to_travel || null, data.updated_by, id], (err) => {
+  query(`UPDATE sales_visit_plans SET employee_id=?,visit_date=?,week_off=?,city=?,reason_to_travel=?,approval_status='Pending',approval_by=NULL,approval_at=NULL,updated_by=? WHERE id=?`, [data.employee_id, data.visit_date, data.week_off ? 1 : 0, data.city || null, data.reason_to_travel || null, data.updated_by, id], (err) => {
     if (err) return callback(err);
     replaceStores(id, data.planned_store_ids, "planned", callback);
   });
@@ -215,7 +215,29 @@ const deleteAllVisitPlans = (user, callback) => {
   });
 };
 
-const getTravelPlans = (filters, user, callback) => getVisitPlans(filters, user, callback);
+const getTravelPlans = (filters, user, callback) => {
+  const params = [];
+  const where = buildVisitWhere(filters, user, params);
+  const approvedWhere = `${where} AND v.approval_status='Approved'`;
+  const page = Math.max(1, Number(filters.page || 1));
+  const limit = Math.min(100, Math.max(1, Number(filters.limit || 10)));
+  const offset = (page - 1) * limit;
+  const dataSql = `${visitSelect} WHERE ${approvedWhere} GROUP BY v.id ORDER BY v.visit_date DESC, v.id DESC LIMIT ? OFFSET ?`;
+  const countSql = `SELECT COUNT(DISTINCT v.id) AS total FROM sales_visit_plans v JOIN users u ON u.id=v.employee_id LEFT JOIN departments d ON d.id=u.department_id WHERE ${approvedWhere}`;
+  query(countSql, params, (countErr, countRows) => {
+    if (countErr) return callback(countErr);
+    query(dataSql, [...params, limit, offset], (err, rows) => {
+      if (err) return callback(err);
+      rows.forEach((row) => {
+        row.planned_store_ids = normalizeIds(row.planned_store_ids_csv);
+        row.actual_store_ids = normalizeIds(row.actual_store_ids_csv);
+        delete row.planned_store_ids_csv;
+        delete row.actual_store_ids_csv;
+      });
+      callback(null, { rows, total: Number(countRows[0]?.total || 0) });
+    });
+  });
+};
 
 const saveActualStores = (id, storeIds, userId, callback) => {
   replaceStores(id, storeIds, "actual", (err) => {
@@ -242,10 +264,26 @@ const getApprovals = (user, callback) => {
          GROUP BY v.employee_id, DATE_FORMAT(v.visit_date,'%Y-%m') ORDER BY MIN(v.visit_date) DESC`, params, callback);
 };
 
+const getApprovalRecipients = (employeeId, callback) => {
+  query(`SELECT DISTINCT u.id, u.name, u.email
+         FROM users u
+         LEFT JOIN users employee ON employee.id=?
+         WHERE u.status='Active'
+           AND (u.id=employee.reports_to OR u.is_admin=1 OR u.administrator=1)
+         ORDER BY u.id`, [employeeId], callback);
+};
+
+const getEmployeeForApproval = (employeeId, month, callback) => {
+  query(`SELECT u.id, u.name, u.email, DATE_FORMAT(MIN(v.visit_date),'%M %Y') AS month_label, COUNT(*) AS plan_days
+         FROM sales_visit_plans v JOIN users u ON u.id=v.employee_id
+         WHERE v.employee_id=? AND DATE_FORMAT(v.visit_date,'%Y-%m')=?
+         GROUP BY u.id, u.name, u.email`, [employeeId, month], (err, rows) => callback(err, rows[0] || null));
+};
+
 const changeApproval = (employeeId, month, status, userId, callback) => {
-  query(`SELECT is_admin FROM users WHERE id=? LIMIT 1`, [userId], (userErr, userRows) => {
+  query(`SELECT is_admin, administrator FROM users WHERE id=? LIMIT 1`, [userId], (userErr, userRows) => {
     if (userErr) return callback(userErr);
-    const admin = Number(userRows[0]?.is_admin || 0) === 1;
+    const admin = Number(userRows[0]?.is_admin || 0) === 1 || Number(userRows[0]?.administrator || 0) === 1;
     const managerCondition = admin ? "1=1" : "u.reports_to=?";
     const params = admin
       ? [status, userId, employeeId, month]
@@ -256,7 +294,10 @@ const changeApproval = (employeeId, month, status, userId, callback) => {
        SET v.approval_status=?, v.approval_by=?, v.approval_at=NOW()
        WHERE v.employee_id=? AND DATE_FORMAT(v.visit_date,'%Y-%m')=? AND v.approval_status='Pending' AND ${managerCondition}`,
       params,
-      callback
+      (updateErr, result) => {
+        if (updateErr) return callback(updateErr);
+        callback(null, { affectedRows: result.affectedRows || 0 });
+      }
     );
   });
 };
@@ -301,7 +342,11 @@ const importReviewRows = (rows, userId, callback) => {
 };
 
 const exportVisitRows = (filters, user, callback) => {
-  const params=[]; const where=buildVisitWhere(filters,user,params);
+  const params=[];
+  let where=buildVisitWhere(filters,user,params);
+  if (String(filters.approved_only || "") === "1" || String(filters.approved_only || "").toLowerCase() === "true") {
+    where += " AND v.approval_status='Approved'";
+  }
   query(`${visitSelect} WHERE ${where} GROUP BY v.id ORDER BY v.visit_date DESC, v.id DESC`, params, callback);
 };
 
@@ -327,4 +372,4 @@ const exportReviewRows = (filters, callback) => {
   query(`SELECT * FROM sales_review_records WHERE ${conditions.join(" AND ")} ORDER BY id ASC`, params, callback);
 };
 
-module.exports = { createTables, getEmployees, getStores, getVisitPlans, createVisitPlan, updateVisitPlan, getVisitPlanById, deleteVisitPlan, deleteAllVisitPlans, getTravelPlans, saveActualStores, getHistory, addHistory, getApprovals, changeApproval, getReview, clearReview, upsertBenchmarks, importReviewRows, exportVisitRows, exportReviewRows };
+module.exports = { createTables, getEmployees, getStores, getVisitPlans, createVisitPlan, updateVisitPlan, getVisitPlanById, deleteVisitPlan, deleteAllVisitPlans, getTravelPlans, saveActualStores, getHistory, addHistory, getApprovals, getApprovalRecipients, getEmployeeForApproval, changeApproval, getReview, clearReview, upsertBenchmarks, importReviewRows, exportVisitRows, exportReviewRows };
