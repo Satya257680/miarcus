@@ -25,7 +25,11 @@ import {
     FaSitemap,
     FaMoneyBillWave,
     FaImages,
-    FaMapMarkedAlt
+    FaMapMarkedAlt,
+    FaMapMarkerAlt,
+    FaPlane,
+    FaCheckCircle,
+    FaChartLine
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -52,6 +56,12 @@ function Sidebar({ collapsed }) {
     const billingOpenByPath =
         location.pathname === "/billing" ||
         location.pathname.startsWith("/billing/");
+
+    const salesTeamOpenByPath =
+        location.pathname === "/visit-planner" ||
+        location.pathname === "/travel-plan" ||
+        location.pathname === "/travel-plan-approval" ||
+        location.pathname === "/sales-review";
 
     const settingsOpenByPath =
         location.pathname === "/settings" ||
@@ -87,6 +97,9 @@ function Sidebar({ collapsed }) {
     const [billingOpen, setBillingOpen] =
         useState(billingOpenByPath);
 
+    const [salesTeamOpen, setSalesTeamOpen] =
+        useState(salesTeamOpenByPath);
+
     const [settingsOpen, setSettingsOpen] =
         useState(settingsOpenByPath);
 
@@ -117,6 +130,12 @@ function Sidebar({ collapsed }) {
             setBillingOpen(true);
         }
     }, [billingOpenByPath]);
+
+    useEffect(() => {
+        if (salesTeamOpenByPath) {
+            setSalesTeamOpen(true);
+        }
+    }, [salesTeamOpenByPath]);
 
     useEffect(() => {
         if (settingsOpenByPath) {
@@ -258,6 +277,16 @@ function Sidebar({ collapsed }) {
     const canAddBilling =
         isAdministrator ||
         ["Add", "Edit", "Full"].includes(permissions?.Billing);
+
+    // ======================================================
+    // SALES TEAM PERMISSIONS
+    // ======================================================
+
+    const canSalesVisitPlanner = isAdministrator || hasPermission("Visit Planner");
+    const canSalesTravelPlan = isAdministrator || hasPermission("Travel Plan");
+    const canSalesApprovals = isAdministrator || hasPermission("Travel Plan Approvals");
+    const canSalesReview = isAdministrator || hasPermission("Sales Review");
+    const canAccessSalesTeam = canSalesVisitPlanner || canSalesTravelPlan || canSalesApprovals || canSalesReview;
 
     // ======================================================
     // SETTINGS PERMISSIONS
@@ -855,6 +884,27 @@ function Sidebar({ collapsed }) {
 
                                 </div>
                             )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    SALES TEAM
+                ================================================== */}
+
+                {canAccessSalesTeam && (
+                    <div className={`sidebar-group ${salesTeamOpenByPath || salesTeamOpen ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${salesTeamOpenByPath ? "active" : ""}`} onClick={() => setSalesTeamOpen((previous) => !previous)} aria-expanded={salesTeamOpen || salesTeamOpenByPath}>
+                            <span className="sidebar-group-content"><FaUsers />{!collapsed && <span>Sales Team</span>}</span>
+                            {!collapsed && <FaChevronDown className={`submenu-chevron ${salesTeamOpen || salesTeamOpenByPath ? "rotated" : ""}`} />}
+                        </button>
+                        {!collapsed && (salesTeamOpen || salesTeamOpenByPath) && (
+                            <div className="sidebar-submenu">
+                                {canSalesVisitPlanner && <NavLink to="/visit-planner" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaMapMarkerAlt /><span>Visit Planner</span></NavLink>}
+                                {canSalesTravelPlan && <NavLink to="/travel-plan" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaPlane /><span>Travel Plan</span></NavLink>}
+                                {canSalesApprovals && <NavLink to="/travel-plan-approval" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCheckCircle /><span>Travel Plan Approvals</span></NavLink>}
+                                {canSalesReview && <NavLink to="/sales-review" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Sales Review</span></NavLink>}
+                            </div>
+                        )}
                     </div>
                 )}
 

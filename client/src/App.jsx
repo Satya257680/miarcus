@@ -97,6 +97,10 @@ import BillingEntry from "./pages/Billing/BillingEntry";
 import Bills from "./pages/Billing/Bills";
 import DailyBillingReport from "./pages/Billing/DailyBillingReport";
 import BillingAudit from "./pages/Billing/BillingAudit";
+import VisitPlanner from "./pages/SalesTeam/VisitPlanner";
+import TravelPlan from "./pages/SalesTeam/TravelPlan";
+import TravelPlanApprovals from "./pages/SalesTeam/TravelPlanApprovals";
+import SalesReview from "./pages/SalesTeam/SalesReview";
 
 
 function App() {
@@ -553,6 +557,15 @@ function App() {
                         element={<DailyBillingReport />}
                     />
 
+
+                    {/* ==================================================
+                        SALES TEAM
+                    ================================================== */}
+
+                    <Route path="/visit-planner" element={<ModulePermissionRoute moduleName="Visit Planner"><VisitPlanner /></ModulePermissionRoute>} />
+                    <Route path="/travel-plan" element={<ModulePermissionRoute moduleName="Travel Plan"><TravelPlan /></ModulePermissionRoute>} />
+                    <Route path="/travel-plan-approval" element={<ModulePermissionRoute moduleName="Travel Plan Approvals"><TravelPlanApprovals /></ModulePermissionRoute>} />
+                    <Route path="/sales-review" element={<ModulePermissionRoute moduleName="Sales Review"><SalesReview /></ModulePermissionRoute>} />
 
                     {/* ==================================================
                         PROFILE

@@ -84,6 +84,9 @@ const Gallery =
 const EmployeeLocation =
     require("./models/locationModel");
 
+const SalesTeam =
+    require("./models/salesTeamModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -258,6 +261,14 @@ async function initializeDatabase() {
         );
 
         // --------------------------------------------------
+        // SALES TEAM
+        // --------------------------------------------------
+        await createTablesAsync(
+            SalesTeam,
+            "Sales Team"
+        );
+
+        // --------------------------------------------------
         // USER THEME / APPEARANCE PREFERENCES
         // --------------------------------------------------
         try {
@@ -398,6 +409,7 @@ const allowedOrigins = [
 
     // Production Vercel
     "https://miarcus.vercel.app",
+    "https://rytual.miarcus.com",
     "https://rytual-peach.vercel.app",
 
     // Environment variable
@@ -1290,6 +1302,16 @@ loadRoute(
 
     "Billing Routes"
 
+);
+
+// ======================================================
+// SALES TEAM
+// ======================================================
+
+loadRoute(
+    "./routes/salesTeamRoutes",
+    "/api/sales-team",
+    "Sales Team Routes"
 );
 
 // ======================================================

@@ -137,6 +137,10 @@ function AddUserModal({
   "Gallery",
   "Employee Location",
   "Expenses",
+  "Visit Planner",
+  "Travel Plan",
+  "Travel Plan Approvals",
+  "Sales Review",
   "Profile",
   "Settings",
 ];
