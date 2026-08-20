@@ -1,20 +1,20 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
   FaChartLine,
-  FaDownload,
   FaFileCsv,
   FaSyncAlt,
   FaSave,
   FaBullseye,
-  FaArrowUp,
+  FaInfoCircle,
+  FaCheckCircle,
+  FaExclamationTriangle,
   FaArrowDown,
-  FaBolt,
-  FaTimes,
 } from "react-icons/fa";
 
 import PageHeader from "../../components/common/PageHeader";
@@ -44,280 +44,99 @@ import {
 
 import "../../styles/pages/SalesTeam.css";
 
-/* =========================================================
-   SALES ANALYTICS HELPERS
-========================================================= */
 
-const numberValue = (value) =>
-  Number.isFinite(Number(value))
-    ? Number(value)
-    : 0;
-
-const formatAmount = (value) => {
-  const number = numberValue(value);
-
-  return `₹${number.toLocaleString("en-IN", {
-    maximumFractionDigits: 0,
-  })}`;
-};
-
-const formatMetric = (value) =>
-  numberValue(value).toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-  });
-
-const formatPercent = (value) => {
-  const number = numberValue(value);
-
-  return `${number >= 0 ? "+" : ""}${number.toFixed(1)}%`;
-};
-
-const trendMeta = (value) => {
-  const number = numberValue(value);
-
-  return {
-    positive: number >= 0,
-    Icon:
-      number >= 0
-        ? FaArrowUp
-        : FaArrowDown,
-  };
-};
-
-/* =========================================================
-   TRADING-STYLE SALES TREND
-========================================================= */
-
-function SalesTrendChart({
-  trend = [],
-}) {
-  if (!trend.length) {
-    return (
-      <div className="sales-review-chart-empty">
-        Upload data with Year / Month / Week values to see the live trend.
-      </div>
-    );
+const departmentScoringStyles = `
+  .sales-scoring-shell {
+    margin-top: 22px;
+    border: 1px solid #d9e4e8;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfc 100%);
+    box-shadow: 0 14px 40px rgba(40, 73, 84, 0.09);
   }
-
-  const width = 760;
-  const height = 250;
-  const padding = {
-    top: 22,
-    right: 18,
-    bottom: 42,
-    left: 52,
-  };
-
-  const chartWidth =
-    width - padding.left - padding.right;
-
-  const chartHeight =
-    height - padding.top - padding.bottom;
-
-  const values = trend.flatMap((item) => [
-    numberValue(item.mtd),
-    numberValue(item.projection),
-    numberValue(item.target),
-  ]);
-
-  const maxValue =
-    Math.max(...values, 1);
-
-  const minValue =
-    Math.min(...values, 0);
-
-  const range =
-    maxValue - minValue || 1;
-
-  const x = (index) =>
-    padding.left +
-    (trend.length === 1
-      ? chartWidth / 2
-      : (index / (trend.length - 1)) *
-        chartWidth);
-
-  const y = (value) =>
-    padding.top +
-    chartHeight -
-    ((value - minValue) / range) *
-      chartHeight;
-
-  const line = (key) =>
-    trend
-      .map(
-        (item, index) =>
-          `${x(index)},${y(
-            numberValue(item[key])
-          )}`
-      )
-      .join(" ");
-
-  const last =
-    trend[trend.length - 1];
-
-  const lastMtd =
-    numberValue(last?.mtd);
-
-  const firstMtd =
-    numberValue(trend[0]?.mtd);
-
-  const liveGrowth =
-    firstMtd !== 0
-      ? ((lastMtd - firstMtd) /
-          Math.abs(firstMtd)) *
-        100
-      : lastMtd > 0
-        ? 100
-        : 0;
-
-  const liveMeta =
-    trendMeta(liveGrowth);
-
-  const LiveIcon =
-    liveMeta.Icon;
-
-  const labelStep =
-    Math.max(
-      1,
-      Math.ceil(trend.length / 6)
-    );
-
-  return (
-    <div className="sales-review-chart-wrap">
-      <div className="sales-review-chart-head">
-        <div>
-          <span>Sales movement</span>
-          <strong>
-            {liveGrowth >= 0
-              ? "Momentum is rising"
-              : "Momentum is falling"}
-          </strong>
-        </div>
-
-        <div
-          className={`sales-review-live-change ${
-            liveMeta.positive
-              ? "positive"
-              : "negative"
-          }`}
-        >
-          <LiveIcon />
-          {formatPercent(liveGrowth)}
-        </div>
-      </div>
-
-      <svg
-        className="sales-review-chart"
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Sales trend chart"
-      >
-        {[0, 0.25, 0.5, 0.75, 1].map(
-          (ratio) => {
-            const gridY =
-              padding.top +
-              chartHeight * ratio;
-
-            const gridValue =
-              maxValue -
-              range * ratio;
-
-            return (
-              <g key={ratio}>
-                <line
-                  x1={padding.left}
-                  x2={width - padding.right}
-                  y1={gridY}
-                  y2={gridY}
-                  className="sales-review-grid-line"
-                />
-                <text
-                  x={padding.left - 8}
-                  y={gridY + 4}
-                  textAnchor="end"
-                  className="sales-review-axis-label"
-                >
-                  {formatAmount(gridValue)}
-                </text>
-              </g>
-            );
-          }
-        )}
-
-        <polyline
-          points={line("target")}
-          fill="none"
-          className="sales-review-line target"
-        />
-
-        <polyline
-          points={line("projection")}
-          fill="none"
-          className="sales-review-line projection"
-        />
-
-        <polyline
-          points={line("mtd")}
-          fill="none"
-          className="sales-review-line mtd"
-        />
-
-        {trend.map(
-          (item, index) => (
-            <circle
-              key={`${item.label}-${index}`}
-              cx={x(index)}
-              cy={y(
-                numberValue(
-                  item.mtd
-                )
-              )}
-              r="4"
-              className="sales-review-point"
-            />
-          )
-        )}
-
-        {trend.map(
-          (item, index) =>
-            index % labelStep === 0 ||
-            index ===
-              trend.length - 1 ? (
-              <text
-                key={`label-${item.label}-${index}`}
-                x={x(index)}
-                y={
-                  height -
-                  12
-                }
-                textAnchor="middle"
-                className="sales-review-axis-label"
-              >
-                {item.label}
-              </text>
-            ) : null
-        )}
-      </svg>
-
-      <div className="sales-review-chart-legend">
-        <span>
-          <i className="target" />
-          Target
-        </span>
-
-        <span>
-          <i className="mtd" />
-          MTD
-        </span>
-
-        <span>
-          <i className="projection" />
-          Projection
-        </span>
-      </div>
-    </div>
-  );
-}
+  .sales-scoring-header {
+    display:flex; justify-content:space-between; gap:24px; align-items:flex-start;
+    padding:24px 26px 20px; border-bottom:1px solid #e6eef1;
+    background:linear-gradient(135deg,#fdfefe 0%,#f2f8fa 100%);
+  }
+  .sales-scoring-eyebrow,.sales-scoring-label {
+    display:flex; align-items:center; gap:7px; font-size:10px; font-weight:800; letter-spacing:.12em; color:#7c6ac0;
+  }
+  .sales-scoring-header h2,.sales-scoring-panel h3 { margin:6px 0 5px; color:#203a46; }
+  .sales-scoring-header h2 { font-size:21px; }
+  .sales-scoring-header p { margin:0; max-width:720px; color:#6a7b83; font-size:12px; line-height:1.6; }
+  .sales-scoring-period { min-width:150px; padding:10px 13px; border:1px solid #dbe6ea; border-radius:12px; background:#fff; }
+  .sales-scoring-period span { display:block; font-size:10px; color:#7a8b92; text-transform:uppercase; letter-spacing:.08em; }
+  .sales-scoring-period strong { display:block; margin-top:4px; font-size:12px; color:#29434e; }
+  .sales-scoring-explainer { display:flex; gap:12px; margin:18px 22px 0; padding:13px 15px; border:1px solid #d9e9ed; border-radius:12px; background:#f5fbfc; }
+  .sales-scoring-explainer-icon { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border-radius:9px; background:#e1f1f4; color:#3b7484; }
+  .sales-scoring-explainer strong { color:#2a4652; font-size:12px; }
+  .sales-scoring-explainer p { margin:4px 0 0; color:#667981; font-size:11px; line-height:1.55; }
+  .sales-scoring-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; padding:18px 22px 22px; }
+  .sales-scoring-panel { min-width:0; border:1px solid #e1eaed; border-radius:14px; background:#fff; box-shadow:0 7px 22px rgba(44,75,85,.055); padding:18px; }
+  .sales-scoring-panel-top,.sales-scoring-panel-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; }
+  .sales-scoring-panel h3 { font-size:16px; }
+  .sales-scoring-panel-top select { width:min(330px,55%); height:40px; padding:0 11px; border:1px solid #cfdde2; border-radius:9px; background:#fff; color:#263f49; font-size:12px; outline:none; }
+  .sales-scoring-store-context { display:flex; justify-content:space-between; gap:12px; align-items:center; margin:16px 0 10px; padding:10px 12px; border-radius:10px; background:#f6f9fa; border:1px solid #e5edef; color:#60727a; font-size:11px; }
+  .sales-scoring-store-context div { display:flex; align-items:center; gap:8px; }
+  .sales-scoring-store-context svg { color:#7b69be; }
+  .sales-scoring-store-context small { color:#84949a; }
+  .sales-score-list { max-height:520px; overflow:auto; padding-right:4px; }
+  .sales-score-row { display:grid; grid-template-columns:1fr minmax(210px,45%); gap:14px; align-items:center; padding:9px 0; border-bottom:1px solid #eef3f4; }
+  .sales-score-row:last-child { border-bottom:0; }
+  .sales-score-department span { display:block; font-size:12px; font-weight:650; color:#2c4651; }
+  .sales-score-department small { display:block; margin-top:2px; font-size:9px; color:#8a999f; }
+  .sales-score-control { display:grid; grid-template-columns:1fr 62px; gap:8px; align-items:center; }
+  .sales-score-control input[type=range] { width:100%; accent-color:#806dc3; cursor:pointer; }
+  .sales-score-control select { height:30px; padding:0 7px; border:1px solid #d2dfe3; border-radius:7px; font-size:11px; color:#29414c; background:#fff; }
+  .sales-score-row.excellent .sales-score-control select { border-color:#9ed9be; }
+  .sales-score-row.watch .sales-score-control select { border-color:#ecd18d; }
+  .sales-score-row.critical .sales-score-control select { border-color:#edb1b1; }
+  .sales-score-save { width:100%; margin-top:14px; height:40px; display:flex; justify-content:center; align-items:center; gap:8px; border:0; border-radius:9px; background:linear-gradient(135deg,#18a957,#0d8d4b); color:#fff; font-size:11px; font-weight:750; cursor:pointer; box-shadow:0 8px 18px rgba(20,145,77,.18); }
+  .sales-score-save:disabled { cursor:not-allowed; opacity:.55; box-shadow:none; }
+  .sales-scoring-empty { min-height:300px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#829198; gap:7px; }
+  .sales-scoring-empty svg { font-size:28px; color:#9a8bd0; margin-bottom:4px; }
+  .sales-scoring-empty strong { color:#405862; font-size:13px; }
+  .sales-scoring-empty span { max-width:300px; font-size:11px; line-height:1.5; }
+  .sales-performance-copy { margin:9px 0 14px; color:#77878e; font-size:11px; }
+  .sales-score-saved { display:flex; align-items:center; gap:5px; padding:5px 8px; border-radius:999px; background:#e9f8ef; color:#198a57; font-size:9px; font-weight:700; white-space:nowrap; }
+  .sales-performance-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .sales-performance-kpi { padding:10px; border:1px solid #e3ebee; border-radius:10px; background:#fbfcfc; }
+  .sales-performance-kpi span { display:block; color:#74858c; font-size:9px; }
+  .sales-performance-kpi strong { display:block; margin:3px 0 1px; color:#233e49; font-size:18px; }
+  .sales-performance-kpi small { color:#9aa7ac; font-size:8px; }
+  .sales-performance-kpi.primary { background:#f6f3ff; border-color:#ddd5f4; }
+  .sales-performance-kpi.positive { background:#f2fbf6; border-color:#d8efdf; }
+  .sales-performance-kpi.negative { background:#fff6f4; border-color:#f1ddd8; }
+  .sales-score-chart { margin-top:17px; border-top:1px solid #edf2f3; padding-top:15px; }
+  .sales-score-chart-head { display:flex; justify-content:space-between; margin-bottom:10px; color:#415b65; font-size:10px; }
+  .sales-score-chart-head span { color:#99a7ac; }
+  .sales-score-bars { max-height:410px; overflow:auto; padding-right:3px; }
+  .sales-score-bar-row { display:grid; grid-template-columns:108px 1fr 28px; gap:8px; align-items:center; margin:7px 0; }
+  .sales-score-bar-row > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#64777f; font-size:9px; }
+  .sales-score-track { height:7px; border-radius:999px; background:#edf2f3; overflow:hidden; }
+  .sales-score-fill { height:100%; border-radius:999px; transition:width .25s ease; background:#9a8bd0; }
+  .sales-score-fill.excellent { background:#21a766; }
+  .sales-score-fill.watch { background:#d7a12b; }
+  .sales-score-fill.critical { background:#dc5c5c; }
+  .sales-score-fill.na { background:#c9d2d6; width:0 !important; }
+  .sales-score-bar-row strong { text-align:right; color:#334e59; font-size:9px; }
+  .sales-score-guidance { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:15px; padding-top:12px; border-top:1px solid #edf2f3; }
+  .sales-score-guidance div { display:flex; align-items:center; gap:5px; color:#7b8a90; font-size:8px; }
+  .sales-score-guidance svg { color:#7c6ac0; }
+  .sales-score-guidance strong { color:#415964; }
+  @media (max-width: 1100px) {
+    .sales-scoring-grid { grid-template-columns:1fr; }
+  }
+  @media (max-width: 720px) {
+    .sales-scoring-header,.sales-scoring-panel-top,.sales-scoring-panel-heading { flex-direction:column; align-items:stretch; }
+    .sales-scoring-period { width:100%; box-sizing:border-box; }
+    .sales-scoring-panel-top select { width:100%; }
+    .sales-score-row { grid-template-columns:1fr; gap:7px; }
+    .sales-performance-kpis { grid-template-columns:repeat(2,1fr); }
+    .sales-score-guidance { grid-template-columns:1fr; }
+  }
+`;
 
 /* =========================================================
    DEFAULT FILTERS
@@ -348,35 +167,6 @@ function SalesReview() {
     useState(emptyFilters);
 
   const [rows, setRows] =
-    useState([]);
-
-  const [analytics, setAnalytics] =
-    useState({
-      target: 0,
-      mtd: 0,
-      mrp_sale: 0,
-      last_month_sale: 0,
-      lysm: 0,
-      projection: 0,
-      projection_remaining: 0,
-      projection_selected_week: 0,
-      discount_amount: 0,
-      discount_percent: 0,
-      upt: 0,
-      abv: 0,
-      asp: 0,
-      bill_count: 0,
-      qty_sold: 0,
-      store_count: 0,
-      mtd_growth: 0,
-      mtd_vs_lysm: 0,
-      projection_vs_target: 0,
-      target_achievement: 0,
-      projection_achievement: 0,
-      projection_gap: 0,
-    });
-
-  const [trend, setTrend] =
     useState([]);
 
   const [loading, setLoading] =
@@ -411,6 +201,173 @@ function SalesReview() {
 
   const [savingBenchmark, setSavingBenchmark] =
     useState(false);
+
+  /* =======================================================
+     DEPARTMENT SCORING
+
+     This is intentionally kept in this page because the
+     current Sales Review backend does not expose a scoring
+     endpoint yet. Scores are persisted in browser storage
+     so the existing backend contract is not changed.
+  ======================================================= */
+
+  const departments = [
+    "ASM",
+    "Accounts",
+    "Buying",
+    "City Manager",
+    "Customer Support",
+    "Design",
+    "E-commerce",
+    "EA",
+    "HR",
+    "IT Department",
+    "Inventory Manager",
+    "Maintenance",
+    "Management",
+    "Marketing",
+    "New Store Opening",
+    "Quality",
+    "Regional Head",
+    "Store Personnel",
+    "VM",
+    "Warehouse",
+  ];
+
+  const [selectedScoreStore, setSelectedScoreStore] =
+    useState("");
+
+  const [departmentScores, setDepartmentScores] =
+    useState({});
+
+  const [scoresSavedAt, setScoresSavedAt] =
+    useState("");
+
+  const scoreStorageKey = useMemo(() => {
+    const year = filters.years || "all-years";
+    const month = filters.months || "all-months";
+    const week = filters.weeks || "all-weeks";
+    return `miarcus-sales-review-department-scores:${year}:${month}:${week}`;
+  }, [filters.years, filters.months, filters.weeks]);
+
+  const scoreStores = useMemo(() => {
+    const seen = new Set();
+    return rows
+      .map((row) => String(row.store_name || "").trim())
+      .filter((name) => {
+        if (!name || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      });
+  }, [rows]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(scoreStorageKey) || "{}"
+      );
+
+      setDepartmentScores(
+        saved?.scores && typeof saved.scores === "object"
+          ? saved.scores
+          : {}
+      );
+
+      setScoresSavedAt(saved?.savedAt || "");
+    } catch (error) {
+      console.warn("Unable to restore department scores:", error);
+      setDepartmentScores({});
+      setScoresSavedAt("");
+    }
+  }, [scoreStorageKey]);
+
+  useEffect(() => {
+    if (!selectedScoreStore && scoreStores.length) {
+      setSelectedScoreStore(scoreStores[0]);
+    }
+  }, [scoreStores, selectedScoreStore]);
+
+  const scoreForStore = useMemo(() => {
+    if (!selectedScoreStore) return {};
+    return departmentScores[selectedScoreStore] || {};
+  }, [departmentScores, selectedScoreStore]);
+
+  const setDepartmentScore = (department, value) => {
+    if (!selectedScoreStore) return;
+
+    setDepartmentScores((current) => ({
+      ...current,
+      [selectedScoreStore]: {
+        ...(current[selectedScoreStore] || {}),
+        [department]: value,
+      },
+    }));
+  };
+
+  const saveDepartmentScores = () => {
+    if (!selectedScoreStore) {
+      alert("Please select a store first.");
+      return;
+    }
+
+    const savedAt = new Date().toISOString();
+
+    try {
+      localStorage.setItem(
+        scoreStorageKey,
+        JSON.stringify({
+          scores: departmentScores,
+          savedAt,
+        })
+      );
+
+      setScoresSavedAt(savedAt);
+      alert(`Department scores saved for ${selectedScoreStore}.`);
+    } catch (error) {
+      console.error("Unable to save department scores:", error);
+      alert("Unable to save department scores on this device.");
+    }
+  };
+
+  const scoringSummary = useMemo(() => {
+    const values = Object.values(scoreForStore)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 0);
+
+    if (!values.length) {
+      return {
+        average: null,
+        scored: 0,
+        total: departments.length,
+        high: 0,
+        low: 0,
+      };
+    }
+
+    return {
+      average: values.reduce((sum, value) => sum + value, 0) / values.length,
+      scored: values.length,
+      total: departments.length,
+      high: values.filter((value) => value >= 8).length,
+      low: values.filter((value) => value < 5).length,
+    };
+  }, [scoreForStore, departments.length]);
+
+  const scoreTone = (value) => {
+    if (value === "" || value === undefined || value === null) return "na";
+    const number = Number(value);
+    if (number >= 8) return "excellent";
+    if (number >= 5) return "watch";
+    return "critical";
+  };
+
+  const scoreLabel = (value) => {
+    if (value === "" || value === undefined || value === null) return "Not scored";
+    const number = Number(value);
+    if (number >= 8) return "Strong";
+    if (number >= 5) return "Watch";
+    return "Needs attention";
+  };
 
   /* =======================================================
      MODALS
@@ -456,39 +413,6 @@ function SalesReview() {
             : []
         );
 
-        setAnalytics(
-          response?.data?.analytics || {
-            target: 0,
-            mtd: 0,
-            mrp_sale: 0,
-            last_month_sale: 0,
-            lysm: 0,
-            projection: 0,
-            projection_remaining: 0,
-            projection_selected_week: 0,
-            discount_amount: 0,
-            discount_percent: 0,
-            upt: 0,
-            abv: 0,
-            asp: 0,
-            bill_count: 0,
-            qty_sold: 0,
-            store_count: 0,
-            mtd_growth: 0,
-            mtd_vs_lysm: 0,
-            projection_vs_target: 0,
-            target_achievement: 0,
-            projection_achievement: 0,
-            projection_gap: 0,
-          }
-        );
-
-        setTrend(
-          Array.isArray(response?.data?.trend)
-            ? response.data.trend
-            : []
-        );
-
         setTotal(
           Number(
             response?.data?.total || 0
@@ -530,12 +454,6 @@ function SalesReview() {
 
   useEffect(() => {
     load();
-
-    const timer = window.setInterval(() => {
-      load(true);
-    }, 30000);
-
-    return () => window.clearInterval(timer);
   }, [load]);
 
   /* =======================================================
@@ -808,13 +726,48 @@ function SalesReview() {
      SUMMARY
   ======================================================= */
 
-  const summary = analytics;
+  const summary = useMemo(
+    () => {
+      if (!rows.length) {
+        return {
+          target: 0,
+          mtd: 0,
+          projection: 0,
+        };
+      }
 
-  const growthMeta =
-    trendMeta(summary.mtd_growth);
+      return rows.reduce(
+        (
+          result,
+          row
+        ) => ({
+          target:
+            result.target +
+            Number(
+              row.target || 0
+            ),
 
-  const GrowthIcon =
-    growthMeta.Icon;
+          mtd:
+            result.mtd +
+            Number(
+              row.mtd || 0
+            ),
+
+          projection:
+            result.projection +
+            Number(
+              row.projection || 0
+            ),
+        }),
+        {
+          target: 0,
+          mtd: 0,
+          projection: 0,
+        }
+      );
+    },
+    [rows]
+  );
 
   /* =======================================================
      TABLE COLUMNS
@@ -1079,7 +1032,9 @@ function SalesReview() {
   ======================================================= */
 
   return (
-    <div className="sales-page sales-standard-page">
+    <>
+      <style>{departmentScoringStyles}</style>
+      <div className="sales-page sales-standard-page">
 
       {/* =================================================
           HEADER
@@ -1310,161 +1265,63 @@ function SalesReview() {
       </FilterBar>
 
       {/* =================================================
-          TRADING-STYLE LIVE SALES DASHBOARD
+          QUICK SUMMARY
       ================================================= */}
 
-      {!loading && (
-        <div className="sales-review-live-dashboard">
-          <div className="sales-review-live-banner">
-            <div>
-              <span className="sales-review-live-dot" />
-              LIVE SALES PULSE
-            </div>
+      {!loading &&
+        rows.length > 0 && (
+          <div className="sales-review-summary-grid">
 
-            <small>
-              Auto refresh every 30 seconds
-            </small>
-          </div>
+            <div className="sales-review-summary-card">
+              <div className="sales-review-summary-icon">
+                <FaBullseye />
+              </div>
 
-          <div className="sales-review-kpi-grid">
-            <div className="sales-review-kpi-card">
-              <div className="sales-review-kpi-top">
-                <span>MTD</span>
-                <span className={`sales-review-trend ${growthMeta.positive ? "positive" : "negative"}`}>
-                  <GrowthIcon />
-                  {formatPercent(summary.mtd_growth)}
+              <div>
+                <span>
+                  Target
                 </span>
-              </div>
-              <strong>{formatAmount(summary.mtd)}</strong>
-              <small>
-                vs last month {formatAmount(summary.last_month_sale)}
-              </small>
-            </div>
 
-            <div className="sales-review-kpi-card">
-              <div className="sales-review-kpi-top">
-                <span>Target</span>
-                <span className="sales-review-neutral">
-                  {summary.target_achievement.toFixed(1)}%
-                </span>
-              </div>
-              <strong>{formatAmount(summary.target)}</strong>
-              <small>
-                {summary.target_achievement.toFixed(1)}% achieved by MTD
-              </small>
-            </div>
-
-            <div className="sales-review-kpi-card">
-              <div className="sales-review-kpi-top">
-                <span>Projection</span>
-                <span className={`sales-review-trend ${summary.projection_vs_target >= 0 ? "positive" : "negative"}`}>
-                  {summary.projection_vs_target >= 0 ? <FaArrowUp /> : <FaArrowDown />}
-                  {formatPercent(summary.projection_vs_target)}
-                </span>
-              </div>
-              <strong>{formatAmount(summary.projection)}</strong>
-              <small>
-                {summary.projection_vs_target >= 0
-                  ? "Projected above target"
-                  : "Projected below target"}
-              </small>
-            </div>
-
-            <div className="sales-review-kpi-card">
-              <div className="sales-review-kpi-top">
-                <span>Projection Gap</span>
-                <FaBolt />
-              </div>
-              <strong>{formatAmount(summary.projection_gap)}</strong>
-              <small>
-                {summary.projection_gap >= 0
-                  ? "Expected surplus vs target"
-                  : "Expected shortfall vs target"}
-              </small>
-            </div>
-
-            <div className="sales-review-kpi-card compact">
-              <span>UPT</span>
-              <strong>{formatMetric(summary.upt)}</strong>
-              <small>Units per transaction</small>
-            </div>
-
-            <div className="sales-review-kpi-card compact">
-              <span>ABV</span>
-              <strong>{formatAmount(summary.abv)}</strong>
-              <small>Average bill value</small>
-            </div>
-
-            <div className="sales-review-kpi-card compact">
-              <span>ASP</span>
-              <strong>{formatAmount(summary.asp)}</strong>
-              <small>Average selling price</small>
-            </div>
-
-            <div className="sales-review-kpi-card compact">
-              <span>Quantity / Bills</span>
-              <strong>{formatMetric(summary.qty_sold)}</strong>
-              <small>{formatMetric(summary.bill_count)} bills</small>
-            </div>
-          </div>
-
-          <div className="sales-review-live-grid">
-            <Card
-              title="Sales Trend"
-              subtitle="Target, MTD and projection movement across the filtered periods."
-              className="sales-review-chart-card"
-            >
-              <SalesTrendChart trend={trend} />
-            </Card>
-
-            <Card
-              title="Management View"
-              subtitle="Automatic interpretation of the current filtered data."
-              className="sales-review-insight-card"
-            >
-              <div className={`sales-review-insight ${summary.mtd_growth >= 0 ? "positive" : "negative"}`}>
-                {summary.mtd_growth >= 0 ? <FaArrowUp /> : <FaArrowDown />}
-
-                <div>
-                  <strong>
-                    {summary.mtd_growth >= 0
-                      ? "Sales are growing"
-                      : "Sales are falling"}
-                  </strong>
-
-                  <p>
-                    MTD is {formatPercent(summary.mtd_growth)} compared with
-                    last month. MTD has achieved {summary.target_achievement.toFixed(1)}%
-                    of the current target.
-                  </p>
-                </div>
-              </div>
-
-              <div className="sales-review-insight-row">
-                <span>Projection</span>
-                <strong>{formatAmount(summary.projection)}</strong>
-              </div>
-
-              <div className="sales-review-insight-row">
-                <span>Target gap</span>
-                <strong>{formatAmount(summary.projection_gap)}</strong>
-              </div>
-
-              <div className="sales-review-insight-row">
-                <span>LYSM comparison</span>
-                <strong className={summary.mtd_vs_lysm >= 0 ? "positive-text" : "negative-text"}>
-                  {formatPercent(summary.mtd_vs_lysm)}
+                <strong>
+                  {summary.target.toLocaleString()}
                 </strong>
               </div>
+            </div>
 
-              <div className="sales-review-insight-row">
-                <span>Stores in view</span>
-                <strong>{formatMetric(summary.store_count)}</strong>
+            <div className="sales-review-summary-card">
+              <div className="sales-review-summary-icon">
+                <FaChartLine />
               </div>
-            </Card>
+
+              <div>
+                <span>
+                  MTD
+                </span>
+
+                <strong>
+                  {summary.mtd.toLocaleString()}
+                </strong>
+              </div>
+            </div>
+
+            <div className="sales-review-summary-card">
+              <div className="sales-review-summary-icon">
+                <FaChartLine />
+              </div>
+
+              <div>
+                <span>
+                  Projection
+                </span>
+
+                <strong>
+                  {summary.projection.toLocaleString()}
+                </strong>
+              </div>
+            </div>
+
           </div>
-        </div>
-      )}
+        )}
 
       {/* =================================================
           SALES TABLE
@@ -1526,6 +1383,238 @@ function SalesReview() {
           }}
         />
       </Card>
+
+      {/* =================================================
+          DEPARTMENT SCORING
+      ================================================= */}
+
+      <section className="sales-scoring-shell">
+        <div className="sales-scoring-header">
+          <div>
+            <div className="sales-scoring-eyebrow">
+              <FaChartLine /> PERFORMANCE INTELLIGENCE
+            </div>
+            <h2>Department Scoring</h2>
+            <p>
+              Score each department for the selected store to turn the Sales Review
+              into an actionable management view — not just a sales table.
+            </p>
+          </div>
+
+          <div className="sales-scoring-period">
+            <span>Review period</span>
+            <strong>
+              {filters.months || "All months"}
+              {filters.years ? ` · ${filters.years}` : ""}
+              {filters.weeks ? ` · ${filters.weeks}` : ""}
+            </strong>
+          </div>
+        </div>
+
+        <div className="sales-scoring-explainer">
+          <div className="sales-scoring-explainer-icon">
+            <FaInfoCircle />
+          </div>
+          <div>
+            <strong>Why this is here</strong>
+            <p>
+              Sales numbers show <em>what</em> happened. Department scores help explain
+              <em> why</em> it happened. A low score highlights where management,
+              merchandising, support, inventory or store execution needs attention.
+              This makes follow-up and coaching much easier.
+            </p>
+          </div>
+        </div>
+
+        <div className="sales-scoring-grid">
+          <div className="sales-scoring-panel">
+            <div className="sales-scoring-panel-top">
+              <div>
+                <span className="sales-scoring-label">SELECT STORE</span>
+                <h3>Enter Scores</h3>
+              </div>
+
+              <select
+                value={selectedScoreStore}
+                onChange={(event) => setSelectedScoreStore(event.target.value)}
+                disabled={!scoreStores.length}
+              >
+                <option value="">
+                  {scoreStores.length ? "Select a store" : "No stores in current results"}
+                </option>
+                {scoreStores.map((store) => (
+                  <option key={store} value={store}>
+                    {store}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedScoreStore ? (
+              <>
+                <div className="sales-scoring-store-context">
+                  <div>
+                    <FaBullseye />
+                    <span>
+                      Scoring <strong>{selectedScoreStore}</strong>
+                    </span>
+                  </div>
+                  <small>0 = critical · 5 = watch · 10 = excellent</small>
+                </div>
+
+                <div className="sales-score-list">
+                  {departments.map((department) => {
+                    const value = scoreForStore[department] ?? "";
+                    const tone = scoreTone(value);
+
+                    return (
+                      <div className={`sales-score-row ${tone}`} key={department}>
+                        <div className="sales-score-department">
+                          <span>{department}</span>
+                          <small>{scoreLabel(value)}</small>
+                        </div>
+
+                        <div className="sales-score-control">
+                          <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            step="1"
+                            value={value === "" ? 0 : value}
+                            onChange={(event) =>
+                              setDepartmentScore(department, event.target.value)
+                            }
+                            aria-label={`${department} score`}
+                          />
+                          <select
+                            value={value}
+                            onChange={(event) =>
+                              setDepartmentScore(department, event.target.value)
+                            }
+                            aria-label={`${department} score selection`}
+                          >
+                            <option value="">N/A</option>
+                            {Array.from({ length: 11 }, (_, index) => (
+                              <option key={index} value={index}>
+                                {index}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  className="sales-score-save"
+                  onClick={saveDepartmentScores}
+                  disabled={!canEdit(permission)}
+                  title={!canEdit(permission) ? "Edit permission is required" : "Save department scores"}
+                >
+                  <FaSave />
+                  {canEdit(permission) ? `Save Scores for ${selectedScoreStore}` : "View Only — Edit Permission Required"}
+                </button>
+              </>
+            ) : (
+              <div className="sales-scoring-empty">
+                <FaBullseye />
+                <strong>Select a store to begin</strong>
+                <span>Department scoring becomes available when Sales Review rows are loaded.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="sales-scoring-panel sales-performance-panel">
+            <div className="sales-scoring-panel-heading">
+              <div>
+                <span className="sales-scoring-label">LIVE SUMMARY</span>
+                <h3>Performance Summary</h3>
+              </div>
+              {scoresSavedAt && (
+                <span className="sales-score-saved">
+                  <FaCheckCircle /> Saved {new Date(scoresSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+
+            <p className="sales-performance-copy">
+              {selectedScoreStore
+                ? `Aggregated department performance for ${selectedScoreStore}.`
+                : "Select a store to see its department performance."}
+            </p>
+
+            <div className="sales-performance-kpis">
+              <div className="sales-performance-kpi primary">
+                <span>Average Score</span>
+                <strong>
+                  {scoringSummary.average === null
+                    ? "N/A"
+                    : scoringSummary.average.toFixed(1)}
+                </strong>
+                <small>out of 10</small>
+              </div>
+              <div className="sales-performance-kpi">
+                <span>Scored</span>
+                <strong>{scoringSummary.scored}/{scoringSummary.total}</strong>
+                <small>departments</small>
+              </div>
+              <div className="sales-performance-kpi positive">
+                <span>Strong</span>
+                <strong>{scoringSummary.high}</strong>
+                <small>8–10 score</small>
+              </div>
+              <div className="sales-performance-kpi negative">
+                <span>Needs Attention</span>
+                <strong>{scoringSummary.low}</strong>
+                <small>below 5</small>
+              </div>
+            </div>
+
+            <div className="sales-score-chart">
+              <div className="sales-score-chart-head">
+                <strong>Department-wise Performance</strong>
+                <span>0 — 10</span>
+              </div>
+
+              <div className="sales-score-bars">
+                {departments.map((department) => {
+                  const value = Number(scoreForStore[department]);
+                  const hasValue = Number.isFinite(value);
+                  const width = hasValue ? `${Math.max(2, value * 10)}%` : "0%";
+                  const tone = scoreTone(hasValue ? value : "");
+
+                  return (
+                    <div className="sales-score-bar-row" key={`bar-${department}`}>
+                      <span title={department}>{department}</span>
+                      <div className="sales-score-track">
+                        <div className={`sales-score-fill ${tone}`} style={{ width }} />
+                      </div>
+                      <strong>{hasValue ? value : "N/A"}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="sales-score-guidance">
+              <div>
+                <FaCheckCircle />
+                <span><strong>8–10</strong> Strong execution</span>
+              </div>
+              <div>
+                <FaExclamationTriangle />
+                <span><strong>5–7</strong> Watch closely</span>
+              </div>
+              <div>
+                <FaArrowDown />
+                <span><strong>0–4</strong> Immediate attention</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* =================================================
           BENCHMARKS
@@ -1721,7 +1810,8 @@ function SalesReview() {
         }
       />
 
-    </div>
+      </div>
+    </>
   );
 }
 
