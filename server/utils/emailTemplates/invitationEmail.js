@@ -1,4 +1,5 @@
 const baseTemplate = require("./baseTemplate");
+const { getAppUrl } = require("../../config/appUrl");
 
 const invitationEmail = (user, activationLink) => {
 
@@ -69,8 +70,7 @@ const invitationEmail = (user, activationLink) => {
 
         buttonLink:
             activationLink ||
-            process.env.FRONTEND_URL ||
-            "https://miarcus.com/",
+            getAppUrl(),
 
         // ===========================
         // Information Box

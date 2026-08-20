@@ -1,3 +1,5 @@
+const { getAppUrl } = require("../../config/appUrl");
+
 const baseTemplate = ({
     title = "",
     greeting = "",
@@ -26,7 +28,7 @@ const logo = `${backendUrl}/images/Miarcus.png`;
 // ======================================================
 
 const WEBSITE =
-    "https://miarcus.com/";
+    getAppUrl();
 
 const FACEBOOK =
     "https://www.facebook.com/MiArcusOfficial";

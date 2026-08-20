@@ -398,7 +398,6 @@ const allowedOrigins = [
 
     // Production Vercel
     "https://miarcus.vercel.app",
-    "https://rytual.miarcus.com",
     "https://rytual-peach.vercel.app",
 
     // Environment variable

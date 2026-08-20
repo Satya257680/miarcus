@@ -19,6 +19,8 @@ const {
     addToQueue
 } = require("../utils/emailTemplates/emailQueue");
 
+const { getAppUrl } = require("../config/appUrl");
+
 
 // ==========================================================
 // RBAC CONFIGURATION
@@ -408,7 +410,7 @@ const createUser = (
 
 
                                     const activationLink =
-                                        `${process.env.FRONTEND_URL}/activate-account/${token}`;
+                                        `${getAppUrl()}/activate-account/${token}`;
 
 
                                     // --------------------------------------------------
@@ -1065,7 +1067,7 @@ const bulkUploadUsers = async (
                 // --------------------------------------------------
 
                 const activationLink =
-                    `${process.env.FRONTEND_URL}/activate-account/${token}`;
+                    `${getAppUrl()}/activate-account/${token}`;
 
 
                 // --------------------------------------------------
@@ -2262,7 +2264,7 @@ const resendInvitation = (
 
 
                     const activationLink =
-                        `${process.env.FRONTEND_URL}/activate-account/${token}`;
+                        `${getAppUrl()}/activate-account/${token}`;
 
 
                     // --------------------------------------------------

@@ -1,4 +1,5 @@
 const baseTemplate = require("./baseTemplate");
+const { getAppUrl } = require("../../config/appUrl");
 
 const accountDeleted = (user) => {
 
@@ -70,8 +71,7 @@ const accountDeleted = (user) => {
         buttonText: "Visit miarcus",
 
         buttonLink:
-            process.env.FRONTEND_URL ||
-            "https://miarcus.com/",
+            getAppUrl(),
 
         // ===========================
         // Information Box

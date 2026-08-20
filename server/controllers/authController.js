@@ -255,7 +255,25 @@ const token = jwt.sign(
 
 const forgotPassword = (req, res) => {
 
-    const { email } = req.body;
+    const email = String(req.body?.email || "")
+        .trim()
+        .toLowerCase();
+
+    // Only registered addresses from the supported Miarcus domains
+    // may request a password-reset OTP.
+    const allowedDomain = /@(gmail\.com|jawandson\.com|miarcus\.com)$/i.test(email);
+
+    if (!allowedDomain) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message:
+                "Password reset OTP is available only for @gmail.com, @jawandson.com, and @miarcus.com email addresses."
+
+        });
+    }
 
     const checkUserSql = `
         SELECT id, name, email

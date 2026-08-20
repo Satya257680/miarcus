@@ -1,4 +1,5 @@
 const baseTemplate = require("./baseTemplate");
+const { getAppUrl } = require("../../config/appUrl");
 
 const accountEnabled = (user) => {
 
@@ -63,8 +64,7 @@ const accountEnabled = (user) => {
         buttonText: "Login to miarcus",
 
         buttonLink:
-            process.env.FRONTEND_URL ||
-            "https://miarcus.com/",
+            getAppUrl(),
 
         // ===========================
         // Information Box

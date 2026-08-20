@@ -1,4 +1,5 @@
 const baseTemplate = require("./baseTemplate");
+const { getAppUrl } = require("../../config/appUrl");
 
 const forgotPassword = (user, resetLink) => {
 
@@ -65,8 +66,7 @@ const forgotPassword = (user, resetLink) => {
 
         buttonLink:
             resetLink ||
-            process.env.FRONTEND_URL ||
-            "https://miarcus.com/",
+            getAppUrl(),
 
         // ===========================
         // Information Box

@@ -9,6 +9,8 @@ const {
     sendGenericEmail
 } = require("../services/emailService");
 
+const { getAppUrl } = require("../config/appUrl");
+
 
 // ======================================================
 // FRONTEND URL
@@ -16,11 +18,7 @@ const {
 
 const frontendUrl = () => {
 
-    return String(
-        process.env.CLIENT_URL ||
-        process.env.FRONTEND_URL ||
-        "http://localhost:5173"
-    ).replace(/\/+$/, "");
+    return getAppUrl();
 
 };
 

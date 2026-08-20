@@ -1,4 +1,5 @@
 const baseTemplate = require("./baseTemplate");
+const { getAppUrl } = require("../../config/appUrl");
 
 const resetPassword = (user) => {
 
@@ -64,8 +65,7 @@ const resetPassword = (user) => {
         buttonText: "Login to miarcus",
 
         buttonLink:
-            process.env.FRONTEND_URL ||
-            "https://miarcus.com/",
+            getAppUrl(),
 
         // ===========================
         // Information Box
