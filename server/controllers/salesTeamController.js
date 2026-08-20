@@ -1345,11 +1345,12 @@ exports.approve = (
           err
         );
 
-        return res.status(500).json({
-          success: false,
-          message:
-            "Approval failed",
-        });
+     return res.status(500).json({
+  success: false,
+  message:
+    err?.message ||
+    "Approval failed",
+});
       }
 
       if (
@@ -1441,10 +1442,11 @@ exports.reject = (
         );
 
         return res.status(500).json({
-          success: false,
-          message:
-            "Rejection failed",
-        });
+  success: false,
+  message:
+    err?.message ||
+    "Rejection failed",
+});
       }
 
       if (

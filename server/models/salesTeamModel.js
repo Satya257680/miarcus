@@ -1814,98 +1814,128 @@ const changeApproval = (
   userId,
   callback
 ) => {
+  const cleanEmployeeId = Number(employeeId);
+  const cleanUserId = Number(userId);
+  const cleanMonth = String(month || "").trim();
+
+  if (
+    !cleanEmployeeId ||
+    !cleanUserId ||
+    !cleanMonth
+  ) {
+    return callback(
+      new Error(
+        "Invalid employee, month or approving user."
+      )
+    );
+  }
+
+  const normalizedStatus =
+    String(status || "")
+      .trim()
+      .toLowerCase();
+
+  if (
+    normalizedStatus !== "approved" &&
+    normalizedStatus !== "rejected"
+  ) {
+    return callback(
+      new Error(
+        "Invalid approval status."
+      )
+    );
+  }
+
+  const finalStatus =
+    normalizedStatus === "approved"
+      ? "Approved"
+      : "Rejected";
+
+  /*
+    First determine whether the current user
+    is an administrator.
+  */
   query(
     `
     SELECT
+      id,
+      employee_id,
+      name,
       is_admin,
       administrator
-
     FROM users
-
     WHERE id = ?
-
     LIMIT 1
     `,
-    [userId],
+    [cleanUserId],
     (userErr, userRows) => {
       if (userErr) {
+        console.error(
+          "Approval user lookup failed:",
+          userErr
+        );
+
         return callback(userErr);
       }
 
-      const admin =
-        Number(
-          userRows[0]?.is_admin || 0
-        ) === 1 ||
-        Number(
-          userRows[0]?.administrator || 0
-        ) === 1;
-
-      /*
-        Only Approved or Rejected should reach this method.
-      */
-      const normalizedStatus =
-        String(status || "")
-          .trim()
-          .toLowerCase();
-
-      if (
-        normalizedStatus !== "approved" &&
-        normalizedStatus !== "rejected"
-      ) {
+      if (!userRows?.length) {
         return callback(
           new Error(
-            "Invalid approval status."
+            "Approving user was not found."
           )
         );
       }
 
-      const finalStatus =
-        normalizedStatus === "approved"
-          ? "Approved"
-          : "Rejected";
+      const currentUser =
+        userRows[0];
+
+      const admin =
+        Number(
+          currentUser.is_admin || 0
+        ) === 1 ||
+        Number(
+          currentUser.administrator || 0
+        ) === 1;
 
       /*
-        Admin can approve any pending employee plan.
+        Build authorization condition.
 
-        Manager can approve only plans belonging
-        to direct reports.
+        Admin:
+          Can approve/reject any pending plan.
+
+        Manager:
+          Can approve/reject only the employee's
+          plan when that employee reports to them.
       */
-      const managerCondition = admin
-        ? "1=1"
-        : "u.reports_to = ?";
+      const authorizationCondition = admin
+        ? "1 = 1"
+        : `
+          u.reports_to = ?
+        `;
 
-      const params = admin
-        ? [
-            finalStatus,
-            userId,
-            employeeId,
-            month,
-          ]
-        : [
-            finalStatus,
-            userId,
-            employeeId,
-            month,
-            userId,
-          ];
+      const authorizationParams = admin
+        ? []
+        : [cleanUserId];
 
-      query(
-        `
-        UPDATE sales_visit_plans v
+      /*
+        IMPORTANT:
+        Do not use an UPDATE JOIN here.
 
-        JOIN users u
+        First find the exact pending rows.
+        Then update them.
+
+        This is safer with MySQL ONLY_FULL_GROUP_BY
+        and avoids UPDATE JOIN compatibility problems.
+      */
+      const findSql = `
+        SELECT
+          v.id
+        FROM sales_visit_plans v
+
+        INNER JOIN users u
           ON u.id = v.employee_id
 
-        SET
-
-          v.approval_status = ?,
-
-          v.approval_by = ?,
-
-          v.approval_at = NOW()
-
         WHERE
-
           v.employee_id = ?
 
           AND DATE_FORMAT(
@@ -1915,20 +1945,108 @@ const changeApproval = (
 
           AND v.approval_status = 'Pending'
 
-          AND ${managerCondition}
-        `,
-        params,
-        (updateErr, result) => {
-          if (updateErr) {
-            return callback(updateErr);
+          AND ${authorizationCondition}
+      `;
+
+      query(
+        findSql,
+        [
+          cleanEmployeeId,
+          cleanMonth,
+          ...authorizationParams,
+        ],
+        (findErr, rows) => {
+          if (findErr) {
+            console.error(
+              "Approval pending-plan lookup failed:",
+              findErr
+            );
+
+            return callback(findErr);
           }
 
-          callback(
-            null,
-            {
-              affectedRows:
-                result.affectedRows || 0,
-              status: finalStatus,
+          if (!rows?.length) {
+            return callback(
+              null,
+              {
+                affectedRows: 0,
+                status: finalStatus,
+              }
+            );
+          }
+
+          const ids = rows
+            .map((row) =>
+              Number(row.id)
+            )
+            .filter(Boolean);
+
+          if (!ids.length) {
+            return callback(
+              null,
+              {
+                affectedRows: 0,
+                status: finalStatus,
+              }
+            );
+          }
+
+          const placeholders =
+            ids
+              .map(() => "?")
+              .join(",");
+
+          /*
+            Update only the rows that were verified
+            above as Pending and authorized.
+          */
+          const updateSql = `
+            UPDATE sales_visit_plans
+
+            SET
+              approval_status = ?,
+              approval_by = ?,
+              approval_at = NOW(),
+              updated_by = ?
+
+            WHERE id IN (${placeholders})
+
+              AND approval_status = 'Pending'
+          `;
+
+          const updateParams = [
+            finalStatus,
+            cleanUserId,
+            cleanUserId,
+            ...ids,
+          ];
+
+          query(
+            updateSql,
+            updateParams,
+            (updateErr, result) => {
+              if (updateErr) {
+                console.error(
+                  "Travel plan approval update failed:",
+                  updateErr
+                );
+
+                return callback(
+                  updateErr
+                );
+              }
+
+              callback(
+                null,
+                {
+                  affectedRows:
+                    Number(
+                      result?.affectedRows || 0
+                    ),
+                  status:
+                    finalStatus,
+                }
+              );
             }
           );
         }
