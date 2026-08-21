@@ -3736,3 +3736,20 @@
         flex-basis: 34px;
     }
 }
+.report-filters {
+    display: block !important;
+    width: 100% !important;
+}
+
+.report-filters .attendance-report-filter-grid {
+    display: grid !important;
+    position: static !important;
+    width: 100% !important;
+
+    grid-template-columns:
+        minmax(260px, 2fr)
+        repeat(5, minmax(130px, 1fr)) !important;
+
+    gap: 14px !important;
+    padding: 16px 20px 20px !important;
+}
