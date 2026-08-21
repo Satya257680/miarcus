@@ -205,6 +205,13 @@ const checkOut = async (req, res) => {
             });
         }
 
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Automatic checkout photo capture is required.",
+            });
+        }
+
         const existing = await Attendance.getRecord(
             req.user.id,
             workDate
@@ -233,9 +240,7 @@ const checkOut = async (req, res) => {
             latitude,
             longitude,
             accuracy,
-            photo: req.file
-                ? `/uploads/attendance/${req.file.filename}`
-                : null,
+            photo: `/uploads/attendance/${req.file.filename}`,
             remarks,
         });
 

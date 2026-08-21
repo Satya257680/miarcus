@@ -1399,9 +1399,37 @@
 }
 
 .report-filter-grid {
-    grid-template-columns: 2fr 1.15fr 1.15fr .9fr 1fr 1fr;
+    display: grid;
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: end;
+    gap: 14px;
     padding: 14px 18px 18px;
+}
+
+.report-filter-grid > label {
+    width: 100%;
+    min-width: 0;
+}
+
+.report-filter-grid .search-field {
+    width: 100%;
+    min-width: 0;
+}
+
+.report-filter-grid .search-control {
+    width: 100%;
+}
+
+.report-filter-grid input,
+.report-filter-grid select {
+    min-width: 0;
+    height: 42px;
+}
+
+.report-filter-grid .search-control input {
+    width: 100%;
 }
 
 .report-filter-grid label {
@@ -1554,9 +1582,9 @@
    REPORT RESPONSIVE OVERRIDES
    ========================================================= */
 
-@media (max-width: 1200px) {
+@media (max-width: 1100px) {
     .report-filter-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

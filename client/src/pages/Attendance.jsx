@@ -178,7 +178,7 @@ export default function Attendance() {
     }, [stopCamera]);
 
     const enableCamera = useCallback(async () => {
-        if (checkedIn || completed || photo || autoCaptureStartedRef.current) {
+        if (completed || photo || autoCaptureStartedRef.current) {
             return;
         }
 
@@ -229,7 +229,7 @@ export default function Attendance() {
     }, [capturePhoto, checkedIn, completed, photo, stopCamera]);
 
     useEffect(() => {
-        if (!context || checkedIn || completed || photo) return;
+        if (!context || completed || photo) return;
         enableCamera();
     }, [context, checkedIn, completed, photo, enableCamera]);
 
@@ -278,7 +278,7 @@ export default function Attendance() {
             return;
         }
 
-        if (mode === "check-in" && !photo) {
+        if (!photo) {
             setError("Automatic photo capture has not completed yet.");
             return;
         }
@@ -307,6 +307,17 @@ export default function Attendance() {
                 data.message || "Attendance updated successfully."
             );
             setRemarks("");
+
+            if (mode === "check-in") {
+                if (photoPreview) {
+                    URL.revokeObjectURL(photoPreview);
+                }
+                setPhoto(null);
+                setPhotoPreview("");
+                setCameraState("idle");
+                autoCaptureStartedRef.current = false;
+            }
+
             await load();
         } catch (err) {
             setError(
@@ -594,7 +605,7 @@ export default function Attendance() {
                                         <span>
                                             {cameraState === "error"
                                                 ? "Allow camera access and reload this page to capture attendance automatically."
-                                                : "The attendance camera starts automatically when a check-in is required."}
+                                                : "The attendance camera starts automatically for check-in and check-out."}
                                         </span>
                                     </div>
                                 )}
