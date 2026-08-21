@@ -77,6 +77,46 @@ const createTables = async () => {
           DEFAULT CHARSET=utf8mb4
           COLLATE=utf8mb4_unicode_ci
     `);
+
+    // Allow multiple check-in/check-out sessions on the same day.
+    await ensureMultipleDailySessions();
+};
+
+// ======================================================
+// MULTIPLE ATTENDANCE SESSIONS PER DAY
+// ======================================================
+//
+// Employees can check in, check out, and then check in again
+// on the same work date. The old schema had a UNIQUE
+// (employee_id, work_date) key, which allowed only one session.
+//
+// Remove that legacy unique key once at startup. The attendance
+// report continues to store and display every session as a
+// separate attendance_records row.
+//
+// ======================================================
+
+const ensureMultipleDailySessions = async () => {
+    try {
+        await query(`
+            ALTER TABLE attendance_records
+            DROP INDEX uq_attendance_employee_day
+        `);
+    } catch (error) {
+        // The index may already have been removed.
+        // Do not prevent the server from starting in that case.
+        if (
+            ![
+                "ER_CANT_DROP_FIELD_OR_KEY",
+                "ER_DROP_INDEX_FK"
+            ].includes(error.code)
+        ) {
+            console.warn(
+                "Attendance daily unique-index migration:",
+                error.message
+            );
+        }
+    }
 };
 
 // ======================================================
@@ -331,6 +371,7 @@ const getContext = async (userId, workDate) => {
                 ON s.id = a.store_id
             WHERE a.employee_id = ?
               AND a.work_date = ?
+            ORDER BY a.id DESC
             LIMIT 1
         `,
         [userId, workDate]
@@ -397,6 +438,7 @@ const getRecord = async (userId, workDate) => {
                 ON s.id = a.store_id
             WHERE a.employee_id = ?
               AND a.work_date = ?
+            ORDER BY a.id DESC
             LIMIT 1
         `,
         [userId, workDate]

@@ -231,6 +231,13 @@ export default function Attendance() {
     const [now, setNow] =
         useState(new Date());
 
+    // After a completed session, immediately return the
+    // employee workspace to the initial check-in state.
+    // The completed record is still kept in the database
+    // and therefore remains visible in Attendance Reports.
+    const [readyForNewSession, setReadyForNewSession] =
+        useState(false);
+
     // ==================================================
     // REFS
     // ==================================================
@@ -263,12 +270,12 @@ export default function Attendance() {
     const checkedIn =
         Boolean(
             attendance?.check_in_at
-        );
+        ) && !readyForNewSession;
 
     const completed =
         Boolean(
             attendance?.check_out_at
-        );
+        ) && !readyForNewSession;
 
     const assignedStore =
         context?.assignedStore || null;
@@ -1168,6 +1175,9 @@ export default function Attendance() {
                 mode ===
                 "check-in"
             ) {
+                // A new session is now active again.
+                setReadyForNewSession(false);
+
                 if (
                     photoPreview
                 ) {
@@ -1211,6 +1221,23 @@ export default function Attendance() {
                 "check-in"
             ) {
                 getLocation();
+            } else {
+                // Checkout is complete. Reset only the employee
+                // workspace so a fresh check-in can start immediately.
+                // The completed attendance row is NOT deleted or changed.
+                setReadyForNewSession(true);
+
+                if (photoPreview) {
+                    URL.revokeObjectURL(photoPreview);
+                }
+
+                setPhoto(null);
+                setPhotoPreview("");
+                setCameraState("idle");
+                setLocation(null);
+                setLocationCapturedAt(null);
+                setLocationState("idle");
+                autoCaptureStartedRef.current = false;
             }
         } catch (err) {
             setError(
