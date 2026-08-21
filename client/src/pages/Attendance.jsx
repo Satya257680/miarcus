@@ -231,11 +231,16 @@ export default function Attendance() {
     const [now, setNow] =
         useState(new Date());
 
-    // After a completed session, immediately return the
-    // employee workspace to the initial check-in state.
-    // The completed record is still kept in the database
-    // and therefore remains visible in Attendance Reports.
-    const [readyForNewSession, setReadyForNewSession] =
+    // --------------------------------------------------
+    // When true, the workspace displays a brand-new,
+    // ready-to-check-in state instead of the last
+    // completed session. The completed session itself is
+    // never deleted — it stays exactly as-is in Attendance
+    // Reports. This only controls what THIS SCREEN shows
+    // right now.
+    // --------------------------------------------------
+
+    const [freshSession, setFreshSession] =
         useState(false);
 
     // ==================================================
@@ -265,17 +270,19 @@ export default function Attendance() {
     // ==================================================
 
     const attendance =
-        context?.attendance;
+        freshSession
+            ? null
+            : context?.attendance;
 
     const checkedIn =
         Boolean(
             attendance?.check_in_at
-        ) && !readyForNewSession;
+        );
 
     const completed =
         Boolean(
             attendance?.check_out_at
-        ) && !readyForNewSession;
+        );
 
     const assignedStore =
         context?.assignedStore || null;
@@ -1033,6 +1040,48 @@ export default function Attendance() {
     ]);
 
     // ==================================================
+    // START A NEW SESSION
+    // ==================================================
+    // Called after a session is completed (checked out).
+    //
+    // This does NOT touch the saved record — the completed
+    // session stays exactly as it is for Attendance
+    // Reports. It only resets what this screen shows so
+    // the employee can check in again the same day.
+    // ==================================================
+
+    const startNewSession =
+        useCallback(() => {
+            stopCamera();
+
+            if (photoPreview) {
+                URL.revokeObjectURL(
+                    photoPreview
+                );
+            }
+
+            setPhoto(null);
+            setPhotoPreview("");
+            setCameraState("idle");
+
+            autoCaptureStartedRef.current =
+                false;
+
+            setLocation(null);
+            setLocationCapturedAt(null);
+            setLocationState("idle");
+
+            setRemarks("");
+            setError("");
+            setMessage("");
+
+            setFreshSession(true);
+        }, [
+            stopCamera,
+            photoPreview,
+        ]);
+
+    // ==================================================
     // SUBMIT ATTENDANCE
     // ==================================================
 
@@ -1175,9 +1224,6 @@ export default function Attendance() {
                 mode ===
                 "check-in"
             ) {
-                // A new session is now active again.
-                setReadyForNewSession(false);
-
                 if (
                     photoPreview
                 ) {
@@ -1211,6 +1257,15 @@ export default function Attendance() {
             await load();
 
             // ------------------------------------------------
+            // The reloaded context now reflects the real,
+            // current state (a fresh open check-in, or a
+            // newly completed session), so the temporary
+            // "fresh session" override is no longer needed.
+            // ------------------------------------------------
+
+            setFreshSession(false);
+
+            // ------------------------------------------------
             // Refresh GPS after check-in.
             //
             // Checkout should use a fresh location.
@@ -1221,23 +1276,6 @@ export default function Attendance() {
                 "check-in"
             ) {
                 getLocation();
-            } else {
-                // Checkout is complete. Reset only the employee
-                // workspace so a fresh check-in can start immediately.
-                // The completed attendance row is NOT deleted or changed.
-                setReadyForNewSession(true);
-
-                if (photoPreview) {
-                    URL.revokeObjectURL(photoPreview);
-                }
-
-                setPhoto(null);
-                setPhotoPreview("");
-                setCameraState("idle");
-                setLocation(null);
-                setLocationCapturedAt(null);
-                setLocationState("idle");
-                autoCaptureStartedRef.current = false;
             }
         } catch (err) {
             setError(
@@ -1864,6 +1902,19 @@ export default function Attendance() {
                             </label>
 
                             {/* SUBMIT */}
+
+                            {completed && (
+                                <button
+                                    type="button"
+                                    className="attendance-submit"
+                                    onClick={
+                                        startNewSession
+                                    }
+                                >
+                                    <FaCheckCircle />
+                                    Check in again
+                                </button>
+                            )}
 
                             {!completed && (
                                 <button

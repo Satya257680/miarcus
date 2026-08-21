@@ -261,14 +261,21 @@ const checkIn = async (req, res) => {
                 workDate
             );
 
-        if (existing) {
+        // ------------------------------------------------
+        // Only an OPEN session (checked in, not yet
+        // checked out) blocks a new check-in. Once that
+        // session is completed, the employee is allowed
+        // to check in again the same day — this creates a
+        // new session row, and every earlier session stays
+        // untouched in Attendance Reports.
+        // ------------------------------------------------
+
+        if (existing && !existing.check_out_at) {
             return res.status(409).json({
                 success: false,
 
                 message:
-                    existing.check_out_at
-                        ? "Attendance is already completed for today."
-                        : "You are already checked in for today.",
+                    "You are already checked in for today.",
 
                 attendance: existing
             });
