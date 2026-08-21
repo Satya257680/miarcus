@@ -96,6 +96,32 @@ const getDashboardStats = (req,res)=>{
 
 
 // ======================================================
+// GET ALL-MODULE BUSINESS ANALYTICS
+// GET /api/dashboard/analytics
+// ======================================================
+
+const getAnalytics = (req, res) => {
+    Dashboard.getAnalytics((err, results) => {
+        if (err) {
+            console.error("DASHBOARD ANALYTICS ERROR:", err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch dashboard analytics.",
+                error: err.message
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: results || []
+        });
+    });
+};
+
+
+
+// ======================================================
 // GET RECENT ACTIVITIES
 // GET /api/dashboard/activities
 // ======================================================
@@ -428,7 +454,7 @@ module.exports = {
 
     getChecklistSummary,
     getNSOSummary,
-
+    getAnalytics,
 
     getActionPointSummary
 
