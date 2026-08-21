@@ -92,12 +92,35 @@ Activity.getAll = (filters, user, callback) => {
     // STATUS FILTER
     // ======================================================
 
+    if (filters.activity_type) {
+
+        sql += ` AND a.activity_type = ? `;
+
+        params.push(filters.activity_type);
+
+    }
+
+    if (filters.action) {
+        sql += ` AND a.title LIKE ? `;
+        params.push(`%${filters.action}%`);
+    }
+
     if (filters.status) {
 
         sql += ` AND a.status = ? `;
 
         params.push(filters.status);
 
+    }
+
+    if (filters.date_from) {
+        sql += ` AND DATE(a.created_at) >= ? `;
+        params.push(filters.date_from);
+    }
+
+    if (filters.date_to) {
+        sql += ` AND DATE(a.created_at) <= ? `;
+        params.push(filters.date_to);
     }
 
     // ======================================================
@@ -223,6 +246,7 @@ Activity.getDetails = (activityId, user, callback) => {
             assignee.employee_id AS assigned_employee_id,
             assignee.name AS assigned_to_name,
             assignee.email AS assigned_to_email,
+            assignee.call_contact AS phone,
 
             d.department_name,
 
@@ -653,4 +677,184 @@ Activity.create = (
 
 
 };
+// ======================================================
+// ACTIVITY CENTER SUPPORT TABLES
+// ======================================================
+
+Activity.ensureTables = async () => {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS activity_messages (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            activity_id BIGINT NOT NULL,
+            sender_id INT NOT NULL,
+            receiver_id INT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            read_at TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_activity_messages_activity (activity_id),
+            KEY idx_activity_messages_sender (sender_id),
+            KEY idx_activity_messages_receiver (receiver_id),
+            KEY idx_activity_messages_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+};
+
+// ======================================================
+// ACTIVITY MESSAGES / CHAT
+// ======================================================
+
+Activity.getMessages = (activityId, user, callback) => {
+    Activity.hasAccess(activityId, user, (accessErr, allowed) => {
+        if (accessErr) return callback(accessErr);
+        if (!allowed) return callback(null, []);
+
+        const sql = `
+            SELECT
+                m.id,
+                m.activity_id,
+                m.sender_id,
+                m.receiver_id,
+                m.message,
+                m.created_at,
+                m.read_at,
+                u.name AS sender_name,
+                u.email AS sender_email
+            FROM activity_messages m
+            LEFT JOIN users u ON u.id = m.sender_id
+            WHERE m.activity_id = ?
+            ORDER BY m.created_at ASC, m.id ASC
+        `;
+        db.query(sql, [activityId], callback);
+    });
+};
+
+Activity.addMessage = (activityId, senderId, receiverId, message, callback) => {
+    const sql = `
+        INSERT INTO activity_messages
+        (activity_id, sender_id, receiver_id, message)
+        VALUES (?, ?, ?, ?)
+    `;
+    db.query(sql, [activityId, senderId, receiverId || null, message], callback);
+};
+
+Activity.markMessagesRead = (activityId, userId, callback) => {
+    const sql = `
+        UPDATE activity_messages
+        SET read_at = CURRENT_TIMESTAMP
+        WHERE activity_id = ?
+          AND receiver_id = ?
+          AND read_at IS NULL
+    `;
+    db.query(sql, [activityId, userId], callback);
+};
+
+// ======================================================
+// DELETE ACTIVITY
+// ======================================================
+
+Activity.deleteById = (activityId, user, callback) => {
+    Activity.hasAccess(activityId, user, (accessErr, allowed) => {
+        if (accessErr) return callback(accessErr);
+        if (!allowed) return callback(null, { forbidden: true });
+
+        const id = Number(activityId);
+        const queries = [
+            ["DELETE FROM activity_messages WHERE activity_id = ?", [id]],
+            ["DELETE FROM activity_comments WHERE activity_id = ?", [id]],
+            ["DELETE FROM activity_files WHERE activity_id = ?", [id]],
+            ["DELETE FROM activity_mentions WHERE activity_id = ?", [id]],
+            ["DELETE FROM activity_notifications WHERE activity_id = ?", [id]],
+            ["DELETE FROM activity_timeline WHERE activity_id = ?", [id]],
+            ["DELETE FROM activities WHERE id = ?", [id]],
+        ];
+
+        const run = (index) => {
+            if (index >= queries.length) return callback(null, { forbidden: false });
+            db.query(queries[index][0], queries[index][1], (err) => {
+                if (err) return callback(err);
+                run(index + 1);
+            });
+        };
+        run(0);
+    });
+};
+
+Activity.deleteAll = (filters, user, callback) => {
+    let sql = `DELETE FROM activities WHERE 1 = 1`;
+    const params = [];
+
+    if (!user.is_admin) {
+        sql += ` AND (created_by = ? OR assigned_to = ?)`;
+        params.push(user.id, user.id);
+    }
+
+    if (filters.search) {
+        sql += ` AND (title LIKE ? OR description LIKE ? OR module_name LIKE ?)`;
+        const q = `%${filters.search}%`;
+        params.push(q, q, q);
+    }
+    if (filters.module_name) {
+        sql += ` AND module_name = ?`;
+        params.push(filters.module_name);
+    }
+    if (filters.status) {
+        sql += ` AND status = ?`;
+        params.push(filters.status);
+    }
+    if (filters.priority) {
+        sql += ` AND priority = ?`;
+        params.push(filters.priority);
+    }
+    if (filters.activity_type) {
+        sql += ` AND activity_type = ?`;
+        params.push(filters.activity_type);
+    }
+    if (filters.action) {
+        sql += ` AND title LIKE ?`;
+        params.push(`%${filters.action}%`);
+    }
+    if (filters.date_from) {
+        sql += ` AND DATE(created_at) >= ?`;
+        params.push(filters.date_from);
+    }
+    if (filters.date_to) {
+        sql += ` AND DATE(created_at) <= ?`;
+        params.push(filters.date_to);
+    }
+    if (filters.new_store_opening_id) {
+        sql += ` AND module_name = 'New Store Openings' AND reference_id = ?`;
+        params.push(filters.new_store_opening_id);
+    }
+
+    // Delete child rows first so installations without cascading foreign keys
+    // behave consistently.
+    const selectSql = sql.replace(/^DELETE FROM activities/, "SELECT id FROM activities");
+    db.query(selectSql, params, (selectErr, rows) => {
+        if (selectErr) return callback(selectErr);
+        const ids = rows.map((row) => Number(row.id)).filter(Boolean);
+        if (!ids.length) return callback(null, { deleted: 0 });
+
+        const placeholders = ids.map(() => "?").join(",");
+        const children = [
+            `DELETE FROM activity_messages WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activity_comments WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activity_files WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activity_mentions WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activity_notifications WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activity_timeline WHERE activity_id IN (${placeholders})`,
+            `DELETE FROM activities WHERE id IN (${placeholders})`,
+        ];
+
+        const run = (index) => {
+            if (index >= children.length) return callback(null, { deleted: ids.length });
+            db.query(children[index], ids, (err) => {
+                if (err) return callback(err);
+                run(index + 1);
+            });
+        };
+        run(0);
+    });
+};
+
 module.exports = Activity;

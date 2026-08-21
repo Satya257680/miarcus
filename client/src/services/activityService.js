@@ -158,3 +158,41 @@ export const getActivityTimeline = (id) => {
         headers: headers()
     });
 };
+// ======================================================
+// DELETE ACTIVITY
+// ======================================================
+
+export const deleteActivity = (id) => {
+    return axios.delete(`${API}/${id}`, { headers: headers() });
+};
+
+export const deleteAllActivities = (filters = {}) => {
+    return axios.delete(`${API}/bulk`, {
+        headers: headers(),
+        data: filters,
+    });
+};
+
+// ======================================================
+// EMAIL
+// ======================================================
+
+export const sendActivityEmail = (id, payload) => {
+    return axios.post(`${API}/${id}/email`, payload, { headers: headers() });
+};
+
+// ======================================================
+// CHAT
+// ======================================================
+
+export const getActivityMessages = (id) => {
+    return axios.get(`${API}/${id}/messages`, { headers: headers() });
+};
+
+export const sendActivityMessage = (id, message) => {
+    return axios.post(`${API}/${id}/messages`, { message }, { headers: headers() });
+};
+
+export const markActivityMessagesRead = (id) => {
+    return axios.put(`${API}/${id}/messages/read`, {}, { headers: headers() });
+};

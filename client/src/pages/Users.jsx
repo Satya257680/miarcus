@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import AddUserModal from "../components/AddUserModal";
@@ -15,6 +16,8 @@ import {
 import "../styles/Users.css";
 
 function Users() {
+
+  const location = useLocation();
 
   // ============================
   // States
@@ -108,6 +111,16 @@ useEffect(() => {
   fetchManagers();
   fetchDepartments();
 }, []);
+
+useEffect(() => {
+  const viewUserId = Number(location.state?.viewUserId || 0);
+  if (!viewUserId || !users.length) return;
+  const found = users.find((item) => Number(item.id) === viewUserId);
+  if (found) {
+    setViewingUser(found);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}, [location.state, users]);
 const fetchManagers = async () => {
   try {
     const res = await axios.get(
@@ -334,6 +347,7 @@ const fetchDepartments = async () => {
 };
 const [showAddModal, setShowAddModal] = useState(false);
 const [editingUser, setEditingUser] = useState(null);
+const [viewingUser, setViewingUser] = useState(null);
 
 const indexOfLastUser = currentPage * usersPerPage;
 
@@ -789,6 +803,38 @@ return (
         editingUser={editingUser}
     />
 )}
+{/* ============================
+      VIEW USER MODAL
+============================ */}
+{viewingUser && (
+  <div className="user-view-overlay" onClick={() => setViewingUser(null)}>
+    <div className="user-view-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="user-view-header">
+        <div>
+          <h2>User Details</h2>
+          <p>Employee information from Activity Center</p>
+        </div>
+        <button onClick={() => setViewingUser(null)}>×</button>
+      </div>
+      <div className="user-view-avatar">{(viewingUser.name || "U").charAt(0).toUpperCase()}</div>
+      <div className="user-view-grid">
+        <div><span>Employee ID</span><strong>{viewingUser.employee_id || "-"}</strong></div>
+        <div><span>Name</span><strong>{viewingUser.name || "-"}</strong></div>
+        <div><span>Email</span><strong>{viewingUser.email || "-"}</strong></div>
+        <div><span>Department</span><strong>{viewingUser.department || viewingUser.department_name || "-"}</strong></div>
+        <div><span>Designation</span><strong>{viewingUser.designation || viewingUser.designation_name || "-"}</strong></div>
+        <div><span>Reports To</span><strong>{viewingUser.reports_to || "-"}</strong></div>
+        <div><span>Status</span><strong>{viewingUser.status || "-"}</strong></div>
+        <div><span>Admin</span><strong>{viewingUser.is_admin ? "Yes" : "No"}</strong></div>
+      </div>
+      <div className="user-view-actions">
+        {canEdit && <button onClick={() => { setEditingUser(viewingUser); setViewingUser(null); setShowAddModal(true); }}>Edit User</button>}
+        <button className="secondary" onClick={() => setViewingUser(null)}>Close</button>
+      </div>
+    </div>
+  </div>
+)}
+
 {/* ============================
       BULK UPLOAD MODAL
       ============================ */}

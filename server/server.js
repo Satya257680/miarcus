@@ -93,9 +93,6 @@ const ListingTracker =
 const Attendance =
     require("./models/attendanceModel");
 
-const Asset =
-    require("./models/assetModel");
-
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -105,6 +102,11 @@ const Notification =
 
 const installNotificationEventMiddleware =
     require("./middleware/notificationEventMiddleware");
+
+const installActivityAuditMiddleware =
+    require("./middleware/activityAuditMiddleware");
+
+const Activity = require("./models/activityModel");
 
 // ======================================================
 // CREATE TABLE HELPER
@@ -294,14 +296,6 @@ async function initializeDatabase() {
         );
 
         // --------------------------------------------------
-        // ASSET MASTER
-        // --------------------------------------------------
-        await createTablesAsync(
-            Asset,
-            "Asset Master"
-        );
-
-        // --------------------------------------------------
         // USER THEME / APPEARANCE PREFERENCES
         // --------------------------------------------------
         try {
@@ -335,6 +329,18 @@ async function initializeDatabase() {
                 "❌ employee location table initialization failed:",
                 error.message
             );
+        }
+
+        // --------------------------------------------------
+        // ACTIVITY CENTER / CHAT TABLES
+        // --------------------------------------------------
+        try {
+            if (typeof Activity.ensureTables === "function") {
+                await Activity.ensureTables();
+                console.log("✅ Activity Center tables verified");
+            }
+        } catch (error) {
+            console.error("❌ Activity Center table initialization failed:", error.message);
         }
 
         // --------------------------------------------------
@@ -656,6 +662,10 @@ app.use(
 // POST/PUT/PATCH/DELETE API action can be converted into a
 // persistent MySQL notification without changing each page.
 installNotificationEventMiddleware(app);
+
+// Global audit bridge: captures successful create/update/delete actions for
+// modules that do not already call activityLogger directly.
+installActivityAuditMiddleware(app);
 
 // ======================================================
 // UPLOAD DIRECTORY
@@ -1368,20 +1378,6 @@ loadRoute(
     "/api/listing-tracker",
 
     "Listing Tracker Routes"
-
-);
-
-// ======================================================
-// ASSET MASTER
-// ======================================================
-
-loadRoute(
-
-    "./routes/assetRoutes",
-
-    "/api/assets",
-
-    "Asset Master Routes"
 
 );
 

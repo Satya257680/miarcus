@@ -7,6 +7,19 @@ import {
     FaClipboardCheck,
     FaBuilding,
     FaArrowRight,
+    FaBullhorn,
+    FaImages,
+    FaMapMarkerAlt,
+    FaCalendarCheck,
+    FaListAlt,
+    FaTasks,
+    FaQuestionCircle,
+    FaUsers,
+    FaMoneyBillWave,
+    FaChartLine,
+    FaBox,
+    FaCreditCard,
+    FaCog,
 } from "react-icons/fa";
 
 import { getRecentActivities } from "../../../services/dashboardService";
@@ -46,26 +59,25 @@ function RecentActivity() {
 
     };
 
-    const getIcon = (type) => {
-
-        switch (type) {
-
-            case "User":
-                return <FaUser className="activity-icon user" />;
-
-            case "Store":
-                return <FaStore className="activity-icon store" />;
-
-            case "Checklist":
-                return <FaClipboardCheck className="activity-icon checklist" />;
-
-            case "New Store Opening":
-                return <FaBuilding className="activity-icon nso" />;
-
-            default:
-                return <FaClipboardCheck className="activity-icon" />;
-        }
-
+    const getIcon = (type, moduleName) => {
+        const key = String(moduleName || type || "").toLowerCase();
+        if (key.includes("user")) return <FaUser className="activity-icon user" />;
+        if (key.includes("announcement")) return <FaBullhorn className="activity-icon announcement" />;
+        if (key.includes("gallery")) return <FaImages className="activity-icon gallery" />;
+        if (key.includes("location")) return <FaMapMarkerAlt className="activity-icon location" />;
+        if (key.includes("attendance")) return <FaCalendarCheck className="activity-icon attendance" />;
+        if (key.includes("checklist")) return <FaClipboardCheck className="activity-icon checklist" />;
+        if (key.includes("action point")) return <FaTasks className="activity-icon action" />;
+        if (key.includes("question")) return <FaQuestionCircle className="activity-icon question" />;
+        if (key.includes("department") || key.includes("designation") || key.includes("reports")) return <FaUsers className="activity-icon users" />;
+        if (key.includes("expense") || key.includes("petty cash")) return <FaMoneyBillWave className="activity-icon finance" />;
+        if (key.includes("billing")) return <FaCreditCard className="activity-icon billing" />;
+        if (key.includes("listing") || key.includes("sales")) return <FaChartLine className="activity-icon sales" />;
+        if (key.includes("asset")) return <FaBox className="activity-icon asset" />;
+        if (key.includes("store")) return <FaStore className="activity-icon store" />;
+        if (key.includes("nso")) return <FaBuilding className="activity-icon nso" />;
+        if (key.includes("setting") || key.includes("quiz")) return <FaCog className="activity-icon settings" />;
+        return <FaClipboardCheck className="activity-icon" />;
     };
 
     const formatTime = (date) => {
@@ -104,11 +116,11 @@ function RecentActivity() {
     // ==========================================
 
     const openActivity = (activity) => {
-
-        navigate("/activity-center", {
-            state: activity
-        });
-
+        if (activity?.id) {
+            navigate(`/activity-center/${activity.id}`);
+        } else {
+            navigate("/activity-center");
+        }
     };
 
     return (
@@ -166,12 +178,13 @@ function RecentActivity() {
 
                             <div className="activity-card-icon">
 
-                                {getIcon(item.type)}
+                                {getIcon(item.type, item.module_name)}
 
                             </div>
 
                             <div className="activity-card-body">
 
+                                <div className="activity-module-label">{item.module_name || item.type}</div>
                                 <h4>{item.title || item.type}</h4>
 
                                 <p>{item.activity || item.description || "Activity"}</p>

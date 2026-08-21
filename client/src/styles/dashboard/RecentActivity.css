@@ -307,3 +307,27 @@
 .activity-card:hover{
     transform:translateY(-4px);
 }
+.activity-module-label {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    margin-bottom: 7px;
+}
+
+.activity-icon.announcement { background:#fff7ed; color:#ea580c; }
+.activity-icon.gallery { background:#fdf2f8; color:#db2777; }
+.activity-icon.location { background:#ecfeff; color:#0891b2; }
+.activity-icon.attendance { background:#ecfdf5; color:#059669; }
+.activity-icon.action { background:#eff6ff; color:#2563eb; }
+.activity-icon.question { background:#f5f3ff; color:#7c3aed; }
+.activity-icon.users { background:#eef2ff; color:#4f46e5; }
+.activity-icon.finance { background:#f0fdf4; color:#16a34a; }
+.activity-icon.billing { background:#fff7ed; color:#d97706; }
+.activity-icon.sales { background:#ecfeff; color:#0f766e; }
+.activity-icon.asset { background:#f0fdfa; color:#0f766e; }
+.activity-icon.settings { background:#f8fafc; color:#475569; }

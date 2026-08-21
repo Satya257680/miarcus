@@ -26,6 +26,65 @@ router.get(
 );
 
 // ======================================================
+// DELETE ALL ACTIVITIES (CURRENT FILTERS)
+// ======================================================
+
+router.delete(
+    "/bulk",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "Full"),
+    activityController.deleteAllActivities
+);
+
+// ======================================================
+// GET ACTIVITY MESSAGES
+// ======================================================
+
+router.get(
+    "/:id/messages",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "View"),
+    activityAccessMiddleware,
+    activityController.getActivityMessages
+);
+
+// ======================================================
+// SEND ACTIVITY MESSAGE
+// ======================================================
+
+router.post(
+    "/:id/messages",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "Edit"),
+    activityAccessMiddleware,
+    activityController.addActivityMessage
+);
+
+// ======================================================
+// MARK ACTIVITY MESSAGES READ
+// ======================================================
+
+router.put(
+    "/:id/messages/read",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "Edit"),
+    activityAccessMiddleware,
+    activityController.markActivityMessagesRead
+);
+
+// ======================================================
+// SEND EMAIL TO ACTIVITY USER
+// ======================================================
+
+router.post(
+    "/:id/email",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "Edit"),
+    activityAccessMiddleware,
+    activityController.sendActivityEmail
+);
+
+// ======================================================
 // GET ACTIVITY DETAILS
 // ======================================================
 
@@ -207,6 +266,18 @@ router.get(
 
     activityController.getActivityById
 
+);
+
+// ======================================================
+// DELETE ONE ACTIVITY
+// ======================================================
+
+router.delete(
+    "/:id",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "Full"),
+    activityAccessMiddleware,
+    activityController.deleteActivity
 );
 
 module.exports = router;
