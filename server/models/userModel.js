@@ -29,6 +29,7 @@ const RBAC_MODULES = [
     "Announcements",
     "Gallery",
     "Employee Location",
+    "Attendance",
     "Expenses",
     "Profile",
     "Settings"

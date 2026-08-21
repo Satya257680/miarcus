@@ -1283,3 +1283,313 @@
         min-height: 250px;
     }
 }
+/* =========================================================
+   ATTENDANCE 2.0 — ASSIGNED STORE + AUTO CAMERA
+   ========================================================= */
+
+.assigned-store-lock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 13px 14px;
+    border: 1px solid #d9e5e7;
+    border-radius: 10px;
+    background: #f8fbfb;
+}
+
+.assigned-store-lock > div {
+    min-width: 0;
+}
+
+.assigned-store-lock span,
+.assigned-store-lock small {
+    display: block;
+}
+
+.assigned-store-lock span {
+    color: #84969b;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.assigned-store-lock strong {
+    display: block;
+    margin-top: 3px;
+    color: #21434c;
+    font-size: 12px;
+}
+
+.assigned-store-lock small {
+    margin-top: 3px;
+    color: #8a9ba0;
+    font-size: 9px;
+}
+
+.assigned-store-lock > svg {
+    flex: 0 0 auto;
+    color: var(--att-primary);
+    font-size: 18px;
+}
+
+.profile-meta > div small {
+    display: block;
+    margin-top: 3px;
+    color: #8a9ba0;
+    font-size: 9px;
+}
+
+.camera-frame video {
+    transform: scaleX(-1);
+}
+
+.camera-frame img {
+    transform: none;
+}
+
+.camera-placeholder {
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   REPORT HEADER / TOOLBAR
+   ========================================================= */
+
+.report-page-hero {
+    align-items: center;
+}
+
+.report-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.report-header-actions .attendance-btn {
+    white-space: nowrap;
+}
+
+.danger-outline {
+    border-color: #efcaca !important;
+    color: #c43e3e !important;
+    background: #fffafa !important;
+}
+
+.danger-outline:hover:not(:disabled) {
+    border-color: #e7aaaa !important;
+    background: #fff2f2 !important;
+}
+
+.report-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid #edf2f3;
+}
+
+.report-section-head > svg {
+    color: #80969c;
+    font-size: 15px;
+}
+
+.report-filter-grid {
+    grid-template-columns: 2fr 1.15fr 1.15fr .9fr 1fr 1fr;
+    align-items: end;
+    padding: 14px 18px 18px;
+}
+
+.report-filter-grid label {
+    min-width: 0;
+}
+
+.search-control {
+    position: relative;
+}
+
+.search-control > svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #8a9ba0;
+    pointer-events: none;
+}
+
+.search-control input {
+    padding-left: 32px !important;
+}
+
+/* =========================================================
+   REPORT TABLE ACTIONS
+   ========================================================= */
+
+.attendance-report-table {
+    min-width: 1260px;
+}
+
+.report-link-button,
+.report-delete-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.report-link-button {
+    color: #4c6e77;
+}
+
+.report-link-button:hover {
+    text-decoration: underline;
+}
+
+.report-delete-button {
+    color: #d14a4a;
+}
+
+.report-delete-button:hover:not(:disabled) {
+    color: #a52d2d;
+}
+
+.report-delete-button:disabled,
+.report-link-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+/* =========================================================
+   PHOTO VIEW MODAL
+   ========================================================= */
+
+.attendance-photo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    background: rgba(18, 36, 42, .72);
+    backdrop-filter: blur(4px);
+}
+
+.attendance-photo-dialog {
+    width: min(920px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.45);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 28px 80px rgba(0,0,0,.28);
+}
+
+.attendance-photo-dialog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px 18px;
+    border-bottom: 1px solid #e9eff0;
+}
+
+.attendance-photo-dialog-head h2 {
+    margin: 3px 0 0;
+    color: #17343d;
+    font-size: 15px;
+}
+
+.photo-modal-close {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce6e8;
+    border-radius: 9px;
+    background: #fff;
+    color: #6f858b;
+    cursor: pointer;
+}
+
+.photo-modal-close:hover {
+    background: #f5f8f9;
+    color: #d14a4a;
+}
+
+.attendance-photo-viewer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    max-height: calc(100vh - 140px);
+    padding: 18px;
+    overflow: auto;
+    background: #f2f5f6;
+}
+
+.attendance-photo-viewer img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 180px);
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(23,52,61,.14);
+}
+
+/* =========================================================
+   REPORT RESPONSIVE OVERRIDES
+   ========================================================= */
+
+@media (max-width: 1200px) {
+    .report-filter-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .report-page-hero {
+        align-items: flex-start;
+    }
+
+    .report-header-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 760px) {
+    .report-header-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .report-header-actions .attendance-btn {
+        width: 100%;
+    }
+
+    .report-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .attendance-photo-modal {
+        padding: 10px;
+    }
+
+    .attendance-photo-dialog {
+        max-height: calc(100vh - 20px);
+    }
+}

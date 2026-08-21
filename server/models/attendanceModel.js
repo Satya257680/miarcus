@@ -1,8 +1,11 @@
 const db = require("../config/db");
 
-const query = (sql, params = []) => new Promise((resolve, reject) => {
-    db.query(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
-});
+const query = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.query(sql, params, (err, rows) =>
+            err ? reject(err) : resolve(rows)
+        );
+    });
 
 const createTables = async () => {
     await query(`
@@ -37,6 +40,61 @@ const createTables = async () => {
     `);
 };
 
+const isAdministrator = async (userId) => {
+    const rows = await query(
+        `SELECT is_admin FROM users WHERE id = ? LIMIT 1`,
+        [userId]
+    );
+
+    return [true, 1, "1"].includes(rows[0]?.is_admin);
+};
+
+const hasFullAttendanceAccess = async (userId) => {
+    const rows = await query(
+        `
+            SELECT permission
+            FROM user_permissions
+            WHERE user_id = ?
+              AND module_name = 'Attendance'
+            LIMIT 1
+        `,
+        [userId]
+    );
+
+    return rows[0]?.permission === "Full";
+};
+
+const getHeadOfficeStore = async () => {
+    const rows = await query(`
+        SELECT id, store_name, store_code, city, state, address
+        FROM stores
+        WHERE (store_code = '501' OR UPPER(store_name) = 'HEAD OFFICE MRC')
+          AND (status IS NULL OR status = 'Active')
+        ORDER BY CASE WHEN store_code = '501' THEN 0 ELSE 1 END, id ASC
+        LIMIT 1
+    `);
+
+    return rows[0] || null;
+};
+
+const getAssignedAttendanceStore = async (userId, forceHeadOffice = false) => {
+    if (forceHeadOffice) {
+        return getHeadOfficeStore();
+    }
+
+    const rows = await query(`
+        SELECT s.id, s.store_name, s.store_code, s.city, s.state, s.address
+        FROM user_stores us
+        INNER JOIN stores s ON s.id = us.store_id
+        WHERE us.user_id = ?
+          AND (s.status IS NULL OR s.status = 'Active')
+        ORDER BY s.id ASC
+        LIMIT 1
+    `, [userId]);
+
+    return rows[0] || null;
+};
+
 const getContext = async (userId, workDate) => {
     const users = await query(`
         SELECT u.id, u.employee_id, u.name, u.email, u.department_id,
@@ -48,13 +106,25 @@ const getContext = async (userId, workDate) => {
         WHERE u.id = ? LIMIT 1
     `, [userId]);
 
-    const stores = await query(`
-        SELECT s.id, s.store_name, s.store_code, s.city, s.state, s.address
-        FROM stores s
-        INNER JOIN user_stores us ON us.store_id = s.id
-        WHERE us.user_id = ? AND (s.status IS NULL OR s.status = 'Active')
-        ORDER BY s.store_name ASC
-    `, [userId]);
+    const user = users[0] || null;
+    if (!user) {
+        return {
+            user: null,
+            stores: [],
+            assignedStore: null,
+            attendance: null,
+        };
+    }
+
+    const administrator = [true, 1, "1"].includes(user.is_admin);
+    const fullAttendanceAccess = administrator
+        ? true
+        : await hasFullAttendanceAccess(userId);
+
+    const assignedStore = await getAssignedAttendanceStore(
+        userId,
+        administrator || fullAttendanceAccess
+    );
 
     const attendance = await query(`
         SELECT a.*, s.store_name, s.store_code
@@ -64,7 +134,16 @@ const getContext = async (userId, workDate) => {
         LIMIT 1
     `, [userId, workDate]);
 
-    return { user: users[0] || null, stores, attendance: attendance[0] || null };
+    return {
+        user,
+        stores: assignedStore ? [assignedStore] : [],
+        assignedStore,
+        assignmentType:
+            administrator || fullAttendanceAccess
+                ? "head-office"
+                : "user-assigned",
+        attendance: attendance[0] || null,
+    };
 };
 
 const getRecord = async (userId, workDate) => {
@@ -75,6 +154,7 @@ const getRecord = async (userId, workDate) => {
         WHERE a.employee_id = ? AND a.work_date = ?
         LIMIT 1
     `, [userId, workDate]);
+
     return rows[0] || null;
 };
 
@@ -86,10 +166,17 @@ const createCheckIn = async (data) => {
          check_in_photo, check_in_remarks)
         VALUES (?, ?, ?, 'Present', ?, ?, ?, ?, ?, ?)
     `, [
-        data.employeeId, data.storeId || null, data.workDate, data.checkInAt,
-        data.latitude, data.longitude, data.accuracy || null,
-        data.photo || null, data.remarks || null
+        data.employeeId,
+        data.storeId || null,
+        data.workDate,
+        data.checkInAt,
+        data.latitude,
+        data.longitude,
+        data.accuracy || null,
+        data.photo || null,
+        data.remarks || null,
     ]);
+
     return result.insertId;
 };
 
@@ -101,38 +188,81 @@ const createCheckOut = async (data) => {
             check_out_photo=?, check_out_remarks=?
         WHERE id=? AND employee_id=? AND work_date=? AND check_out_at IS NULL
     `, [
-        data.checkOutAt, data.latitude, data.longitude, data.accuracy || null,
-        data.photo || null, data.remarks || null,
-        data.id, data.employeeId, data.workDate
+        data.checkOutAt,
+        data.latitude,
+        data.longitude,
+        data.accuracy || null,
+        data.photo || null,
+        data.remarks || null,
+        data.id,
+        data.employeeId,
+        data.workDate,
     ]);
+
     return getRecord(data.employeeId, data.workDate);
 };
 
-const getReport = async ({ page = 1, pageSize = 10, search = '', userId = '', storeId = '', from = '', to = '', status = '' }) => {
-    const where = ['1=1'];
+const getReport = async ({
+    page = 1,
+    pageSize = 10,
+    search = "",
+    userId = "",
+    storeId = "",
+    from = "",
+    to = "",
+    status = "",
+}) => {
+    const where = ["1=1"];
     const params = [];
 
     if (search) {
-        where.push('(u.name LIKE ? OR u.employee_id LIKE ? OR u.email LIKE ? OR s.store_name LIKE ? OR s.store_code LIKE ?)');
+        where.push(
+            "(u.name LIKE ? OR u.employee_id LIKE ? OR u.email LIKE ? OR s.store_name LIKE ? OR s.store_code LIKE ?)"
+        );
         const q = `%${search}%`;
         params.push(q, q, q, q, q);
     }
-    if (userId) { where.push('a.employee_id = ?'); params.push(userId); }
-    if (storeId) { where.push('a.store_id = ?'); params.push(storeId); }
-    if (from) { where.push('a.work_date >= ?'); params.push(from); }
-    if (to) { where.push('a.work_date <= ?'); params.push(to); }
-    if (status) { where.push('a.status = ?'); params.push(status); }
+
+    if (userId) {
+        where.push("a.employee_id = ?");
+        params.push(userId);
+    }
+
+    if (storeId) {
+        where.push("a.store_id = ?");
+        params.push(storeId);
+    }
+
+    if (from) {
+        where.push("a.work_date >= ?");
+        params.push(from);
+    }
+
+    if (to) {
+        where.push("a.work_date <= ?");
+        params.push(to);
+    }
+
+    if (status) {
+        where.push("a.status = ?");
+        params.push(status);
+    }
+
+    const whereSql = where.join(" AND ");
 
     const countRows = await query(`
         SELECT COUNT(*) AS total
         FROM attendance_records a
-        INNER JOIN users u ON u.id=a.employee_id
-        LEFT JOIN stores s ON s.id=a.store_id
-        WHERE ${where.join(' AND ')}
+        INNER JOIN users u ON u.id = a.employee_id
+        LEFT JOIN stores s ON s.id = a.store_id
+        WHERE ${whereSql}
     `, params);
 
     const total = Number(countRows[0]?.total || 0);
-    const safePageSize = Math.min(Math.max(Number(pageSize) || 10, 5), 100);
+    const safePageSize = Math.min(
+        Math.max(Number(pageSize) || 10, 5),
+        10000
+    );
     const safePage = Math.max(Number(page) || 1, 1);
     const offset = (safePage - 1) * safePageSize;
 
@@ -147,12 +277,13 @@ const getReport = async ({ page = 1, pageSize = 10, search = '', userId = '', st
                dg.designation_name AS designation,
                s.id AS store_id, s.store_name, s.store_code
         FROM attendance_records a
-        INNER JOIN users u ON u.id=a.employee_id
-        LEFT JOIN departments d ON d.id=u.department_id
-        LEFT JOIN designations dg ON dg.id=u.designation_id
-        LEFT JOIN stores s ON s.id=a.store_id
-        WHERE ${where.join(' AND ')}
-        ORDER BY a.work_date DESC, COALESCE(a.check_in_at, a.created_at) DESC
+        INNER JOIN users u ON u.id = a.employee_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        LEFT JOIN designations dg ON dg.id = u.designation_id
+        LEFT JOIN stores s ON s.id = a.store_id
+        WHERE ${whereSql}
+        ORDER BY a.work_date DESC,
+                 COALESCE(a.check_in_at, a.created_at) DESC
         LIMIT ? OFFSET ?
     `, [...params, safePageSize, offset]);
 
@@ -164,9 +295,9 @@ const getReport = async ({ page = 1, pageSize = 10, search = '', userId = '', st
             SUM(CASE WHEN a.check_in_at IS NOT NULL AND TIME(a.check_in_at) > '09:15:00' THEN 1 ELSE 0 END) AS late,
             SUM(CASE WHEN a.check_in_at IS NOT NULL AND a.check_out_at IS NULL THEN 1 ELSE 0 END) AS open_sessions
         FROM attendance_records a
-        INNER JOIN users u ON u.id=a.employee_id
-        LEFT JOIN stores s ON s.id=a.store_id
-        WHERE ${where.join(' AND ')}
+        INNER JOIN users u ON u.id = a.employee_id
+        LEFT JOIN stores s ON s.id = a.store_id
+        WHERE ${whereSql}
     `, params);
 
     return {
@@ -175,31 +306,68 @@ const getReport = async ({ page = 1, pageSize = 10, search = '', userId = '', st
         page: safePage,
         pageSize: safePageSize,
         pages: Math.max(Math.ceil(total / safePageSize), 1),
-        summary: summaryRows[0] || {}
+        summary: summaryRows[0] || {},
     };
 };
 
-const getEmployees = async () => query(`
-    SELECT id, employee_id, name, email
-    FROM users
-    WHERE status='Active'
-    ORDER BY name ASC
-`);
+const getEmployees = async () =>
+    query(`
+        SELECT id, employee_id, name, email
+        FROM users
+        WHERE status='Active'
+        ORDER BY name ASC
+    `);
 
-const getStores = async () => query(`
-    SELECT id, store_name, store_code
-    FROM stores
-    WHERE status IS NULL OR status='Active'
-    ORDER BY store_name ASC
-`);
+const getStores = async () =>
+    query(`
+        SELECT id, store_name, store_code
+        FROM stores
+        WHERE status IS NULL OR status='Active'
+        ORDER BY store_name ASC
+    `);
+
+const deleteRecord = async (id) => {
+    const rows = await query(`
+        SELECT id, check_in_photo, check_out_photo
+        FROM attendance_records
+        WHERE id = ?
+        LIMIT 1
+    `, [id]);
+
+    if (!rows.length) return null;
+
+    await query(
+        `DELETE FROM attendance_records WHERE id = ?`,
+        [id]
+    );
+
+    return rows[0];
+};
+
+const deleteAllRecords = async () => {
+    const photos = await query(`
+        SELECT check_in_photo, check_out_photo
+        FROM attendance_records
+    `);
+
+    await query(`DELETE FROM attendance_records`);
+
+    return photos;
+};
 
 module.exports = {
     createTables,
+    isAdministrator,
+    hasFullAttendanceAccess,
+    getHeadOfficeStore,
+    getAssignedAttendanceStore,
     getContext,
     getRecord,
     createCheckIn,
     createCheckOut,
     getReport,
     getEmployees,
-    getStores
+    getStores,
+    deleteRecord,
+    deleteAllRecords,
 };

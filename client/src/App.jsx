@@ -256,7 +256,14 @@ function App() {
 
                     <Route
                         path="/attendance-reports"
-                        element={<AttendanceReports />}
+                        element={
+                            <ModulePermissionRoute
+                                moduleName="Attendance"
+                                requiredPermission="Full"
+                            >
+                                <AttendanceReports />
+                            </ModulePermissionRoute>
+                        }
                     />
 
 

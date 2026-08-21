@@ -7,7 +7,6 @@ import {
     FaMapMarkerAlt,
     FaShieldAlt,
     FaStore,
-    FaSyncAlt,
     FaTimes,
     FaUserCircle,
 } from "react-icons/fa";
@@ -59,43 +58,39 @@ export default function Attendance() {
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const canvasRef = useRef(null);
+    const autoCaptureTimerRef = useRef(null);
+    const autoCaptureStartedRef = useRef(false);
 
     const attendance = context?.attendance;
     const checkedIn = Boolean(attendance?.check_in_at);
     const completed = Boolean(attendance?.check_out_at);
+    const assignedStore = context?.assignedStore || null;
 
     const elapsed = useMemo(() => {
-        if (!attendance?.check_in_at) {
-            return "00h 00m";
-        }
+        if (!attendance?.check_in_at) return "00h 00m";
 
         const end = attendance.check_out_at
             ? new Date(attendance.check_out_at)
             : now;
-
-        const ms = Math.max(
+        const milliseconds = Math.max(
             0,
             end - new Date(attendance.check_in_at)
         );
+        const minutes = Math.floor(milliseconds / 60000);
 
-        const mins = Math.floor(ms / 60000);
-
-        return `${String(Math.floor(mins / 60)).padStart(
-            2,
-            "0"
-        )}h ${String(mins % 60).padStart(2, "0")}m`;
+        return `${String(Math.floor(minutes / 60)).padStart(2, "0")}h ${String(
+            minutes % 60
+        ).padStart(2, "0")}m`;
     }, [attendance, now]);
 
     const load = useCallback(async () => {
         try {
             setError("");
-
             const data = await getAttendanceContext(date);
-
             setContext(data);
 
-            if (!selectedStore && data.stores?.length) {
-                setSelectedStore(String(data.stores[0].id));
+            if (data.assignedStore?.id) {
+                setSelectedStore(String(data.assignedStore.id));
             }
         } catch (err) {
             setError(
@@ -103,129 +98,142 @@ export default function Attendance() {
                     "Unable to load your attendance workspace."
             );
         }
-    }, [date, selectedStore]);
+    }, [date]);
 
     useEffect(() => {
         load();
     }, [load]);
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setNow(new Date());
-        }, 1000);
-
+        const timer = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
-        return () => stopCamera();
+        return () => {
+            if (autoCaptureTimerRef.current) {
+                clearTimeout(autoCaptureTimerRef.current);
+            }
+
+            streamRef.current?.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        };
     }, []);
 
-    function stopCamera() {
-        streamRef.current?.getTracks().forEach((track) => {
-            track.stop();
-        });
+    useEffect(() => {
+        return () => {
+            if (photoPreview) URL.revokeObjectURL(photoPreview);
+        };
+    }, [photoPreview]);
 
+    const stopCamera = useCallback(() => {
+        if (autoCaptureTimerRef.current) {
+            clearTimeout(autoCaptureTimerRef.current);
+            autoCaptureTimerRef.current = null;
+        }
+
+        streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
 
         if (videoRef.current) {
             videoRef.current.srcObject = null;
         }
-    }
+    }, []);
 
-    async function enableCamera() {
+    const capturePhoto = useCallback(() => {
+        if (!videoRef.current || !canvasRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const width = video.videoWidth || 1280;
+        const height = video.videoHeight || 720;
+
+        if (!width || !height) return;
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        ctx.drawImage(video, 0, 0, width, height);
+
+        canvas.toBlob(
+            (blob) => {
+                if (!blob) return;
+
+                const file = new File(
+                    [blob],
+                    `attendance-${Date.now()}.jpg`,
+                    { type: "image/jpeg" }
+                );
+
+                setPhoto(file);
+                setPhotoPreview(URL.createObjectURL(blob));
+                setCameraState("captured");
+                stopCamera();
+            },
+            "image/jpeg",
+            0.88
+        );
+    }, [stopCamera]);
+
+    const enableCamera = useCallback(async () => {
+        if (checkedIn || completed || photo || autoCaptureStartedRef.current) {
+            return;
+        }
+
         try {
             setError("");
             setCameraState("loading");
+            autoCaptureStartedRef.current = true;
 
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "user",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                    },
-                    audio: false,
-                });
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error("Camera API is unavailable in this browser.");
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+                audio: false,
+            });
 
             streamRef.current = stream;
             setCameraState("ready");
 
             requestAnimationFrame(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.play().catch(() => {});
-                }
+                const video = videoRef.current;
+                if (!video) return;
+
+                video.srcObject = stream;
+                video.muted = true;
+                video.playsInline = true;
+                video.play().catch(() => {});
+
+                autoCaptureTimerRef.current = setTimeout(() => {
+                    capturePhoto();
+                }, 1800);
             });
         } catch (err) {
+            autoCaptureStartedRef.current = false;
+            stopCamera();
             setCameraState("error");
-
             setError(
                 err.name === "NotAllowedError"
-                    ? "Camera permission was denied. Allow camera access and try again."
-                    : "Unable to start the camera."
+                    ? "Camera permission was denied. Allow camera access and reload the attendance page."
+                    : err.message || "Unable to start the camera."
             );
         }
-    }
+    }, [capturePhoto, checkedIn, completed, photo, stopCamera]);
 
-    function capturePhoto() {
-        if (!videoRef.current || !canvasRef.current) {
-            return;
-        }
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-
-        canvas
-            .getContext("2d")
-            .drawImage(
-                video,
-                0,
-                0,
-                canvas.width,
-                canvas.height
-            );
-
-        canvas.toBlob(
-            (blob) => {
-                if (!blob) {
-                    return;
-                }
-
-                const file = new File(
-                    [blob],
-                    `attendance-${Date.now()}.jpg`,
-                    {
-                        type: "image/jpeg",
-                    }
-                );
-
-                setPhoto(file);
-                setPhotoPreview(URL.createObjectURL(blob));
-
-                stopCamera();
-                setCameraState("captured");
-            },
-            "image/jpeg",
-            0.88
-        );
-    }
-
-    function retake() {
-        setPhoto(null);
-
-        if (photoPreview) {
-            URL.revokeObjectURL(photoPreview);
-        }
-
-        setPhotoPreview("");
+    useEffect(() => {
+        if (!context || checkedIn || completed || photo) return;
         enableCamera();
-    }
+    }, [context, checkedIn, completed, photo, enableCamera]);
 
-    function getLocation() {
+    const getLocation = () => {
         if (!navigator.geolocation) {
             setError("Your browser does not support GPS location.");
             return;
@@ -241,12 +249,10 @@ export default function Attendance() {
                     longitude: position.coords.longitude,
                     accuracy: position.coords.accuracy,
                 });
-
                 setLocationState("ready");
             },
             (err) => {
                 setLocationState("error");
-
                 setError(
                     err.code === 1
                         ? "Location permission was denied. Allow location access and try again."
@@ -259,11 +265,11 @@ export default function Attendance() {
                 maximumAge: 0,
             }
         );
-    }
+    };
 
-    async function submit(mode) {
+    const submit = async (mode) => {
         if (!selectedStore) {
-            setError("Please select your assigned store.");
+            setError("No assigned store is available for this account.");
             return;
         }
 
@@ -273,7 +279,7 @@ export default function Attendance() {
         }
 
         if (mode === "check-in" && !photo) {
-            setError("Please capture your attendance photo.");
+            setError("Automatic photo capture has not completed yet.");
             return;
         }
 
@@ -283,20 +289,14 @@ export default function Attendance() {
             setMessage("");
 
             const formData = new FormData();
-
             formData.append("workDate", date);
             formData.append("storeId", selectedStore);
             formData.append("latitude", location.latitude);
             formData.append("longitude", location.longitude);
-            formData.append(
-                "accuracy",
-                location.accuracy || ""
-            );
+            formData.append("accuracy", location.accuracy || "");
             formData.append("remarks", remarks);
 
-            if (photo) {
-                formData.append("photo", photo);
-            }
+            if (photo) formData.append("photo", photo);
 
             const data =
                 mode === "check-in"
@@ -304,12 +304,9 @@ export default function Attendance() {
                     : await checkOut(formData);
 
             setMessage(
-                data.message ||
-                    "Attendance updated successfully."
+                data.message || "Attendance updated successfully."
             );
-
             setRemarks("");
-
             await load();
         } catch (err) {
             setError(
@@ -319,14 +316,10 @@ export default function Attendance() {
         } finally {
             setBusy(false);
         }
-    }
+    };
 
     const user = context?.user;
-
-    const selectedStoreData = context?.stores?.find(
-        (store) =>
-            String(store.id) === String(selectedStore)
-    );
+    const selectedStoreData = assignedStore;
 
     const locationLabel =
         locationState === "ready"
@@ -344,18 +337,15 @@ export default function Attendance() {
                             <FaShieldAlt />
                             Workforce attendance
                         </div>
-
                         <h1>Attendance</h1>
-
                         <p>
-                            Secure employee check-in with live GPS
-                            verification and photo evidence.
+                            Secure employee check-in with live GPS verification
+                            and automatic photo evidence.
                         </p>
                     </div>
 
                     <div className="attendance-date-card">
                         <span>{fmtDate(date)}</span>
-
                         <strong>
                             {now.toLocaleTimeString([], {
                                 hour: "2-digit",
@@ -363,7 +353,6 @@ export default function Attendance() {
                                 second: "2-digit",
                             })}
                         </strong>
-
                         <small>India Standard Time</small>
                     </div>
                 </header>
@@ -385,7 +374,6 @@ export default function Attendance() {
                 <section className="attendance-kpis">
                     <div className="attendance-kpi">
                         <span>Work status</span>
-
                         <strong
                             className={
                                 completed
@@ -401,7 +389,6 @@ export default function Attendance() {
                                   ? "Checked in"
                                   : "Ready"}
                         </strong>
-
                         <small>
                             {completed
                                 ? "Today's attendance closed"
@@ -413,11 +400,7 @@ export default function Attendance() {
 
                     <div className="attendance-kpi">
                         <span>Check-in</span>
-
-                        <strong>
-                            {fmtTime(attendance?.check_in_at)}
-                        </strong>
-
+                        <strong>{fmtTime(attendance?.check_in_at)}</strong>
                         <small>
                             {attendance?.check_in_at
                                 ? "Recorded today"
@@ -427,7 +410,6 @@ export default function Attendance() {
 
                     <div className="attendance-kpi">
                         <span>Location</span>
-
                         <strong
                             className={
                                 locationState === "ready"
@@ -439,7 +421,6 @@ export default function Attendance() {
                                 ? "Verified"
                                 : "Pending"}
                         </strong>
-
                         <small>
                             {location?.accuracy
                                 ? `Accuracy ±${Math.round(
@@ -451,9 +432,7 @@ export default function Attendance() {
 
                     <div className="attendance-kpi">
                         <span>Today's hours</span>
-
                         <strong>{elapsed}</strong>
-
                         <small>
                             {completed
                                 ? "Final working duration"
@@ -466,13 +445,9 @@ export default function Attendance() {
                     <div className="attendance-card profile-card">
                         <div className="card-heading">
                             <div>
-                                <span className="card-kicker">
-                                    Employee
-                                </span>
-
+                                <span className="card-kicker">Employee</span>
                                 <h2>Your work profile</h2>
                             </div>
-
                             <FaUserCircle />
                         </div>
 
@@ -480,16 +455,10 @@ export default function Attendance() {
                             <div className="profile-avatar">
                                 <FaUserCircle />
                             </div>
-
                             <div>
-                                <strong>
-                                    {user?.name || "Employee"}
-                                </strong>
-
+                                <strong>{user?.name || "Employee"}</strong>
                                 <span>
-                                    {user?.employee_id || "—"} ·{" "}
-                                    {user?.designation ||
-                                        "Team member"}
+                                    {user?.employee_id || "—"} · {user?.designation || "Team member"}
                                 </span>
                             </div>
                         </div>
@@ -497,17 +466,17 @@ export default function Attendance() {
                         <div className="profile-meta">
                             <div>
                                 <span>Department</span>
-                                <strong>
-                                    {user?.department || "—"}
-                                </strong>
+                                <strong>{user?.department || "—"}</strong>
                             </div>
-
                             <div>
                                 <span>Assigned store</span>
                                 <strong>
                                     {selectedStoreData?.store_name ||
-                                        "Select below"}
+                                        "No store assigned"}
                                 </strong>
+                                <small>
+                                    {selectedStoreData?.store_code || ""}
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -515,33 +484,21 @@ export default function Attendance() {
                     <div className="attendance-card location-card">
                         <div className="card-heading">
                             <div>
-                                <span className="card-kicker">
-                                    Step 01
-                                </span>
-
+                                <span className="card-kicker">Step 01</span>
                                 <h2>Location verification</h2>
                             </div>
-
                             <FaMapMarkerAlt />
                         </div>
 
-                        <div
-                            className={`verification ${locationState}`}
-                        >
+                        <div className={`verification ${locationState}`}>
                             <div className="verification-icon">
                                 <FaMapMarkerAlt />
                             </div>
-
                             <div>
                                 <strong>{locationLabel}</strong>
-
                                 <span>
                                     {location
-                                        ? `${location.latitude.toFixed(
-                                              5
-                                          )}, ${location.longitude.toFixed(
-                                              5
-                                          )}`
+                                        ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
                                         : "Your browser GPS is used only when you request it."}
                                 </span>
                             </div>
@@ -551,12 +508,9 @@ export default function Attendance() {
                             <button
                                 className="attendance-btn secondary"
                                 onClick={getLocation}
-                                disabled={
-                                    locationState === "loading"
-                                }
+                                disabled={locationState === "loading"}
                             >
                                 <FaCrosshairs />
-
                                 {locationState === "loading"
                                     ? "Detecting…"
                                     : "Get my location"}
@@ -564,11 +518,7 @@ export default function Attendance() {
 
                             {location?.accuracy && (
                                 <span>
-                                    ±
-                                    {Math.round(
-                                        location.accuracy
-                                    )}{" "}
-                                    m accuracy
+                                    ±{Math.round(location.accuracy)} m accuracy
                                 </span>
                             )}
                         </div>
@@ -581,7 +531,6 @@ export default function Attendance() {
                             <span className="card-kicker">
                                 Step 02 · Secure evidence
                             </span>
-
                             <h2>
                                 {completed
                                     ? "Attendance completed"
@@ -589,22 +538,21 @@ export default function Attendance() {
                                       ? "Check-out workspace"
                                       : "Check-in workspace"}
                             </h2>
-
                             <p>
-                                Capture a clear photo and submit the
-                                attendance event with the selected
-                                store and GPS coordinates.
+                                Your camera captures the attendance photo
+                                automatically. No manual capture is required.
                             </p>
                         </div>
 
                         <div className="live-chip">
                             <i />
-
                             {cameraState === "ready"
-                                ? "Camera ready"
+                                ? "Capturing automatically"
                                 : cameraState === "captured"
                                   ? "Photo captured"
-                                  : "Camera off"}
+                                  : cameraState === "loading"
+                                    ? "Starting camera"
+                                    : "Camera off"}
                         </div>
                     </div>
 
@@ -612,11 +560,13 @@ export default function Attendance() {
                         <div className="camera-panel">
                             <div className="camera-label">
                                 <span>Camera evidence</span>
-
                                 <small>
                                     {photo
-                                        ? "Preview ready"
-                                        : "No photo captured"}
+                                        ? "Automatic capture complete"
+                                        : cameraState === "loading" ||
+                                            cameraState === "ready"
+                                          ? "Automatic capture in progress"
+                                          : "Waiting for camera"}
                                 </small>
                             </div>
 
@@ -624,173 +574,98 @@ export default function Attendance() {
                                 {photoPreview ? (
                                     <img
                                         src={photoPreview}
-                                        alt="Attendance capture"
+                                        alt="Automatic attendance capture"
                                     />
                                 ) : cameraState === "ready" ? (
                                     <video
                                         ref={videoRef}
                                         muted
                                         playsInline
+                                        autoPlay
                                     />
                                 ) : (
                                     <div className="camera-placeholder">
                                         <FaCamera />
-
                                         <strong>
-                                            Camera not active
+                                            {cameraState === "loading"
+                                                ? "Starting camera…"
+                                                : "Camera not active"}
                                         </strong>
-
                                         <span>
-                                            Camera permission is
-                                            requested only when
-                                            you enable it.
+                                            {cameraState === "error"
+                                                ? "Allow camera access and reload this page to capture attendance automatically."
+                                                : "The attendance camera starts automatically when a check-in is required."}
                                         </span>
                                     </div>
                                 )}
-
-                                <canvas
-                                    ref={canvasRef}
-                                    hidden
-                                />
-                            </div>
-
-                            <div className="camera-actions">
-                                {photoPreview ? (
-                                    <button
-                                        className="attendance-btn secondary"
-                                        onClick={retake}
-                                    >
-                                        <FaSyncAlt />
-                                        Retake
-                                    </button>
-                                ) : cameraState === "ready" ? (
-                                    <button
-                                        className="attendance-btn primary"
-                                        onClick={capturePhoto}
-                                    >
-                                        <FaCamera />
-                                        Capture photo
-                                    </button>
-                                ) : (
-                                    <button
-                                        className="attendance-btn secondary"
-                                        onClick={enableCamera}
-                                    >
-                                        <FaCamera />
-                                        Enable camera
-                                    </button>
-                                )}
+                                <canvas ref={canvasRef} hidden />
                             </div>
                         </div>
 
                         <div className="action-form">
-                            <label>
-                                Assigned store
-
-                                <select
-                                    value={selectedStore}
-                                    onChange={(event) =>
-                                        setSelectedStore(
-                                            event.target.value
-                                        )
-                                    }
-                                    disabled={
-                                        checkedIn || completed
-                                    }
-                                >
-                                    <option value="">
-                                        Select assigned store
-                                    </option>
-
-                                    {context?.stores?.map(
-                                        (store) => (
-                                            <option
-                                                key={store.id}
-                                                value={store.id}
-                                            >
-                                                {store.store_name}{" "}
-                                                (
-                                                {store.store_code}
-                                                )
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </label>
+                            <div className="assigned-store-lock">
+                                <div>
+                                    <span>Assigned store</span>
+                                    <strong>
+                                        {selectedStoreData?.store_name ||
+                                            "No store assigned"}
+                                    </strong>
+                                    <small>
+                                        {selectedStoreData?.store_code
+                                            ? `Store ${selectedStoreData.store_code}`
+                                            : "Attendance store is controlled by your user assignment"}
+                                    </small>
+                                </div>
+                                <FaStore />
+                            </div>
 
                             <div className="readiness-list">
-                                <div
-                                    className={
-                                        location ? "ready" : ""
-                                    }
-                                >
+                                <div className={location ? "ready" : ""}>
                                     <FaMapMarkerAlt />
-
                                     <span>
-                                        <strong>
-                                            GPS location
-                                        </strong>
-
+                                        <strong>GPS location</strong>
                                         <small>
                                             {location
                                                 ? "Captured and ready"
                                                 : "Required before check-in"}
                                         </small>
                                     </span>
-
                                     <FaCheckCircle />
                                 </div>
 
-                                <div
-                                    className={
-                                        photo ? "ready" : ""
-                                    }
-                                >
+                                <div className={photo ? "ready" : ""}>
                                     <FaCamera />
-
                                     <span>
-                                        <strong>
-                                            Photo evidence
-                                        </strong>
-
+                                        <strong>Photo evidence</strong>
                                         <small>
                                             {photo
-                                                ? "Captured and ready"
-                                                : "Required before check-in"}
+                                                ? "Captured automatically and ready"
+                                                : "Automatic capture required"}
                                         </small>
                                     </span>
-
                                     <FaCheckCircle />
                                 </div>
 
-                                <div className="ready">
+                                <div className={selectedStoreData ? "ready" : ""}>
                                     <FaStore />
-
                                     <span>
-                                        <strong>
-                                            Store assignment
-                                        </strong>
-
+                                        <strong>Store assignment</strong>
                                         <small>
                                             {selectedStoreData
                                                 ? selectedStoreData.store_name
-                                                : "Select your assigned store"}
+                                                : "No store assigned"}
                                         </small>
                                     </span>
-
                                     <FaCheckCircle />
                                 </div>
                             </div>
 
                             <label>
                                 Remarks / comments
-
                                 <textarea
                                     value={remarks}
                                     onChange={(event) =>
-                                        setRemarks(
-                                            event.target.value
-                                        )
+                                        setRemarks(event.target.value)
                                     }
                                     placeholder="Add an optional attendance note…"
                                 />
@@ -814,7 +689,6 @@ export default function Attendance() {
                                     }
                                 >
                                     <FaCheckCircle />
-
                                     {busy
                                         ? "Processing…"
                                         : checkedIn
@@ -829,35 +703,20 @@ export default function Attendance() {
                 <section className="attendance-card timeline-card">
                     <div className="card-heading">
                         <div>
-                            <span className="card-kicker">
-                                Today's activity
-                            </span>
-
+                            <span className="card-kicker">Today's activity</span>
                             <h2>Attendance timeline</h2>
                         </div>
-
                         <FaClock />
                     </div>
 
                     <div className="timeline">
                         <div className="timeline-item">
-                            <i
-                                className={
-                                    checkedIn ? "done" : ""
-                                }
-                            />
-
+                            <i className={checkedIn ? "done" : ""} />
                             <div>
                                 <strong>Check-in</strong>
-
                                 <span>
                                     {attendance?.check_in_at
-                                        ? `${fmtTime(
-                                              attendance.check_in_at
-                                          )} · ${
-                                              attendance.store_name ||
-                                              "Store"
-                                          }`
+                                        ? `${fmtTime(attendance.check_in_at)} · ${attendance.store_name || "Store"}`
                                         : "Waiting for check-in"}
                                 </span>
                             </div>
@@ -866,20 +725,12 @@ export default function Attendance() {
                         <div className="timeline-line" />
 
                         <div className="timeline-item">
-                            <i
-                                className={
-                                    completed ? "done" : ""
-                                }
-                            />
-
+                            <i className={completed ? "done" : ""} />
                             <div>
                                 <strong>Check-out</strong>
-
                                 <span>
                                     {attendance?.check_out_at
-                                        ? fmtTime(
-                                              attendance.check_out_at
-                                          )
+                                        ? fmtTime(attendance.check_out_at)
                                         : checkedIn
                                           ? "Session in progress"
                                           : "Available after check-in"}

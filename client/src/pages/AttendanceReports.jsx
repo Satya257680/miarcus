@@ -1,24 +1,38 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+    FaCamera,
     FaChartBar,
     FaDownload,
     FaMapMarkerAlt,
     FaSearch,
+    FaTimes,
     FaTimesCircle,
+    FaTrash,
     FaUsers,
 } from "react-icons/fa";
 
+import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
+    deleteAllAttendance,
+    deleteAttendanceRecord,
     getAttendanceEmployees,
+    getAttendancePhotoUrl,
     getAttendanceReports,
     getAttendanceStores,
 } from "../services/attendanceService";
 
 import "../styles/pages/Attendance.css";
 
-// ======================================================
-// HELPERS
-// ======================================================
+const initialFilters = {
+    search: "",
+    userId: "",
+    storeId: "",
+    from: "",
+    to: "",
+    status: "",
+    page: 1,
+    pageSize: 10,
+};
 
 const fmt = (value) => {
     if (!value) return "—";
@@ -26,8 +40,22 @@ const fmt = (value) => {
     return new Date(value).toLocaleString([], {
         day: "2-digit",
         month: "short",
+        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+    });
+};
+
+const fmtDate = (value) => {
+    if (!value) return "—";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+
+    return date.toLocaleDateString([], {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
     });
 };
 
@@ -35,57 +63,34 @@ const duration = (start, end) => {
     if (!start || !end) return "—";
 
     const milliseconds = new Date(end) - new Date(start);
-    const minutes = Math.max(
-        0,
-        Math.floor(milliseconds / 60000)
-    );
+    const minutes = Math.max(0, Math.floor(milliseconds / 60000));
 
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-
-    return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`;
+    return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(
+        2,
+        "0"
+    )}m`;
 };
 
-const csvEscape = (value) => {
-    return `"${String(value ?? "").replaceAll('"', '""')}"`;
-};
-
-// ======================================================
-// ATTENDANCE REPORTS
-// ======================================================
+const csvEscape = (value) =>
+    `"${String(value ?? "").replaceAll('"', '""')}"`;
 
 export default function AttendanceReports() {
-    // ==================================================
-    // STATE
-    // ==================================================
-
     const [data, setData] = useState({
         rows: [],
         total: 0,
         pages: 1,
         summary: {},
     });
-
     const [employees, setEmployees] = useState([]);
     const [stores, setStores] = useState([]);
-
-    const [filters, setFilters] = useState({
-        search: "",
-        userId: "",
-        storeId: "",
-        from: "",
-        to: "",
-        status: "",
-        page: 1,
-        pageSize: 10,
-    });
-
+    const [filters, setFilters] = useState(initialFilters);
     const [loading, setLoading] = useState(true);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
-
-    // ==================================================
-    // LOAD ATTENDANCE REPORTS
-    // ==================================================
+    const [message, setMessage] = useState("");
+    const [photo, setPhoto] = useState(null);
+    const [deleteId, setDeleteId] = useState(null);
+    const [showDeleteAll, setShowDeleteAll] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -93,7 +98,6 @@ export default function AttendanceReports() {
             setError("");
 
             const response = await getAttendanceReports(filters);
-
             setData(response);
         } catch (err) {
             setError(
@@ -105,40 +109,20 @@ export default function AttendanceReports() {
         }
     }, [filters]);
 
-    // ==================================================
-    // LOAD EMPLOYEES AND STORES
-    // ==================================================
-
     useEffect(() => {
         getAttendanceEmployees()
-            .then((response) => {
-                setEmployees(response.data || []);
-            })
+            .then((response) => setEmployees(response.data || []))
             .catch(() => {});
 
         getAttendanceStores()
-            .then((response) => {
-                setStores(response.data || []);
-            })
+            .then((response) => setStores(response.data || []))
             .catch(() => {});
     }, []);
 
-    // ==================================================
-    // LOAD REPORTS WHEN FILTERS CHANGE
-    // ==================================================
-
     useEffect(() => {
-        const timer = setTimeout(
-            load,
-            filters.search ? 300 : 0
-        );
-
+        const timer = setTimeout(load, filters.search ? 300 : 0);
         return () => clearTimeout(timer);
     }, [load, filters.search]);
-
-    // ==================================================
-    // UPDATE FILTER
-    // ==================================================
 
     const set = (key, value) => {
         setFilters((current) => ({
@@ -148,125 +132,171 @@ export default function AttendanceReports() {
         }));
     };
 
-    // ==================================================
-    // EXPORT CSV
-    // ==================================================
-
-    const exportCsv = async () => {
-        let all;
-
-        try {
-            all = await getAttendanceReports({
-                ...filters,
-                page: 1,
-                pageSize: 100,
-            });
-        } catch {
-            return;
-        }
-
-        const header = [
-            "Date",
-            "Employee",
-            "Employee ID",
-            "Department",
-            "Store",
-            "Status",
-            "Check-in",
-            "Check-out",
-            "Duration",
-            "Remarks",
-        ];
-
-        const rows = (all.rows || []).map((row) => [
-            row.work_date,
-            row.name,
-            row.employee_id,
-            row.department,
-            row.store_name,
-            row.status,
-            fmt(row.check_in_at),
-            fmt(row.check_out_at),
-            duration(
-                row.check_in_at,
-                row.check_out_at
-            ),
-            row.check_in_remarks ||
-                row.check_out_remarks,
-        ]);
-
-        const csv = [header, ...rows]
-            .map((row) =>
-                row
-                    .map(csvEscape)
-                    .join(",")
-            )
-            .join("\n");
-
-        const blob = new Blob([csv], {
-            type: "text/csv;charset=utf-8",
-        });
-
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-
-        link.href = url;
-        link.download = `attendance-report-${new Date()
-            .toISOString()
-            .slice(0, 10)}.csv`;
-
-        link.click();
-
-        URL.revokeObjectURL(url);
+    const clearFilters = () => {
+        setMessage("");
+        setError("");
+        setFilters({ ...initialFilters });
     };
 
-    // ==================================================
-    // SUMMARY
-    // ==================================================
+    const exportCsv = async () => {
+        try {
+            setBusy(true);
+            setError("");
+
+            const all = await getAttendanceReports({
+                ...filters,
+                page: 1,
+                pageSize: 10000,
+            });
+
+            const header = [
+                "Date",
+                "Employee",
+                "Employee ID",
+                "Department",
+                "Designation",
+                "Store",
+                "Store Code",
+                "Status",
+                "Check-in",
+                "Check-out",
+                "Duration",
+                "Check-in Latitude",
+                "Check-in Longitude",
+                "Check-in Accuracy",
+                "Remarks",
+            ];
+
+            const rows = (all.rows || []).map((row) => [
+                fmtDate(row.work_date),
+                row.name,
+                row.employee_id,
+                row.department,
+                row.designation,
+                row.store_name,
+                row.store_code,
+                row.status,
+                fmt(row.check_in_at),
+                fmt(row.check_out_at),
+                duration(row.check_in_at, row.check_out_at),
+                row.check_in_latitude,
+                row.check_in_longitude,
+                row.check_in_accuracy,
+                row.check_in_remarks || row.check_out_remarks,
+            ]);
+
+            const csv = [header, ...rows]
+                .map((row) => row.map(csvEscape).join(","))
+                .join("\n");
+
+            const blob = new Blob([csv], {
+                type: "text/csv;charset=utf-8",
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = `attendance-report-${new Date()
+                .toISOString()
+                .slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                    "Unable to export attendance records."
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+
+        try {
+            setBusy(true);
+            setError("");
+            await deleteAttendanceRecord(deleteId);
+            setDeleteId(null);
+            setMessage("Attendance record deleted successfully.");
+            await load();
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                    "Unable to delete attendance record."
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const confirmDeleteAll = async () => {
+        try {
+            setBusy(true);
+            setError("");
+            await deleteAllAttendance();
+            setShowDeleteAll(false);
+            setMessage("All attendance records were deleted successfully.");
+            setFilters({ ...initialFilters });
+            await load();
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                    "Unable to delete attendance records."
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const summary = data.summary || {};
-
-    // ==================================================
-    // RENDER
-    // ==================================================
 
     return (
         <div className="attendance-page">
             <div className="attendance-shell">
-
-                {/* ======================================
-                    PAGE HEADER
-                ====================================== */}
-
-                <header className="attendance-hero">
+                <header className="attendance-hero report-page-hero">
                     <div>
                         <div className="attendance-eyebrow">
                             <FaChartBar />
                             Workforce analytics
                         </div>
-
                         <h1>Attendance Reports</h1>
-
                         <p>
-                            Review employee attendance,
-                            working duration, check-in
-                            evidence and location records.
+                            Review attendance, working duration, location and
+                            employee photo evidence.
                         </p>
                     </div>
 
-                    <button
-                        className="attendance-btn primary report-export"
-                        onClick={exportCsv}
-                    >
-                        <FaDownload />
-                        Export CSV
-                    </button>
+                    <div className="report-header-actions">
+                        <button
+                            className="attendance-btn secondary"
+                            onClick={clearFilters}
+                            disabled={busy}
+                        >
+                            <FaTimes />
+                            Clear Filters
+                        </button>
+                        <button
+                            className="attendance-btn secondary danger-outline"
+                            onClick={() => setShowDeleteAll(true)}
+                            disabled={busy || !data.total}
+                        >
+                            <FaTrash />
+                            Delete All
+                        </button>
+                        <button
+                            className="attendance-btn primary"
+                            onClick={exportCsv}
+                            disabled={busy || !data.total}
+                        >
+                            <FaDownload />
+                            {busy ? "Working…" : "Export CSV"}
+                        </button>
+                    </div>
                 </header>
-
-                {/* ======================================
-                    ERROR MESSAGE
-                ====================================== */}
 
                 {error && (
                     <div className="attendance-alert error">
@@ -275,373 +305,208 @@ export default function AttendanceReports() {
                     </div>
                 )}
 
-                {/* ======================================
-                    KPI CARDS
-                ====================================== */}
+                {message && (
+                    <div className="attendance-alert success">
+                        <FaUsers />
+                        {message}
+                    </div>
+                )}
 
                 <section className="attendance-kpis report-kpis">
-
-                    {/* Total Records */}
                     <div className="attendance-kpi">
                         <span>Total records</span>
-
-                        <strong>
-                            {summary.total || 0}
-                        </strong>
-
-                        <small>
-                            Matching your filters
-                        </small>
+                        <strong>{summary.total || 0}</strong>
+                        <small>Matching your filters</small>
                     </div>
-
-                    {/* Present */}
                     <div className="attendance-kpi">
                         <span>Present</span>
-
                         <strong className="active">
                             {Number(summary.present || 0) +
                                 Number(summary.completed || 0)}
                         </strong>
-
-                        <small>
-                            Employees with attendance
-                        </small>
+                        <small>Employees with attendance</small>
                     </div>
-
-                    {/* Late */}
                     <div className="attendance-kpi">
                         <span>Late check-ins</span>
-
                         <strong className="ready">
                             {summary.late || 0}
                         </strong>
-
-                        <small>
-                            After 09:15 AM
-                        </small>
+                        <small>After 09:15 AM</small>
                     </div>
-
-                    {/* Open Sessions */}
                     <div className="attendance-kpi">
                         <span>Open sessions</span>
-
                         <strong className="active">
                             {summary.open_sessions || 0}
                         </strong>
-
-                        <small>
-                            Currently checked in
-                        </small>
+                        <small>Currently checked in</small>
                     </div>
-
                 </section>
 
-                {/* ======================================
-                    FILTER SECTION
-                ====================================== */}
-
                 <section className="attendance-card report-filters">
-
-                    <div className="card-heading">
+                    <div className="report-section-head">
                         <div>
-                            <span className="card-kicker">
-                                Filters
-                            </span>
-
-                            <h2>
-                                Attendance search
-                            </h2>
+                            <span className="card-kicker">Filters</span>
+                            <h2>Attendance search</h2>
                         </div>
-
                         <FaUsers />
                     </div>
 
                     <div className="report-filter-grid">
-
-                        {/* Search */}
                         <label className="search-field">
-                            <FaSearch />
-
-                            <input
-                                value={filters.search}
-                                onChange={(event) =>
-                                    set(
-                                        "search",
-                                        event.target.value
-                                    )
-                                }
-                                placeholder="Search employee, ID, store or email…"
-                            />
+                            <span>Search</span>
+                            <div className="search-control">
+                                <FaSearch />
+                                <input
+                                    value={filters.search}
+                                    onChange={(event) =>
+                                        set("search", event.target.value)
+                                    }
+                                    placeholder="Search employee, ID, store or email…"
+                                />
+                            </div>
                         </label>
 
-                        {/* Employee */}
                         <label>
-                            <span>
-                                Employee
-                            </span>
-
+                            <span>Employee</span>
                             <select
                                 value={filters.userId}
                                 onChange={(event) =>
-                                    set(
-                                        "userId",
-                                        event.target.value
-                                    )
+                                    set("userId", event.target.value)
                                 }
                             >
-                                <option value="">
-                                    All employees
-                                </option>
-
+                                <option value="">All employees</option>
                                 {employees.map((employee) => (
                                     <option
                                         key={employee.id}
                                         value={employee.id}
                                     >
-                                        {employee.name} (
-                                        {employee.employee_id}
-                                        )
+                                        {employee.name} ({employee.employee_id})
                                     </option>
                                 ))}
                             </select>
                         </label>
 
-                        {/* Store */}
                         <label>
-                            <span>
-                                Store
-                            </span>
-
+                            <span>Store</span>
                             <select
                                 value={filters.storeId}
                                 onChange={(event) =>
-                                    set(
-                                        "storeId",
-                                        event.target.value
-                                    )
+                                    set("storeId", event.target.value)
                                 }
                             >
-                                <option value="">
-                                    All stores
-                                </option>
-
+                                <option value="">All stores</option>
                                 {stores.map((store) => (
-                                    <option
-                                        key={store.id}
-                                        value={store.id}
-                                    >
-                                        {store.store_name}
+                                    <option key={store.id} value={store.id}>
+                                        {store.store_name} ({store.store_code})
                                     </option>
                                 ))}
                             </select>
                         </label>
 
-                        {/* Status */}
                         <label>
-                            <span>
-                                Status
-                            </span>
-
+                            <span>Status</span>
                             <select
                                 value={filters.status}
                                 onChange={(event) =>
-                                    set(
-                                        "status",
-                                        event.target.value
-                                    )
+                                    set("status", event.target.value)
                                 }
                             >
-                                <option value="">
-                                    All status
-                                </option>
-
-                                <option value="Present">
-                                    Present
-                                </option>
-
-                                <option value="Completed">
-                                    Completed
-                                </option>
+                                <option value="">All status</option>
+                                <option value="Present">Present</option>
+                                <option value="Completed">Completed</option>
                             </select>
                         </label>
 
-                        {/* From */}
                         <label>
-                            <span>
-                                From
-                            </span>
-
+                            <span>From</span>
                             <input
                                 type="date"
                                 value={filters.from}
                                 onChange={(event) =>
-                                    set(
-                                        "from",
-                                        event.target.value
-                                    )
+                                    set("from", event.target.value)
                                 }
                             />
                         </label>
 
-                        {/* To */}
                         <label>
-                            <span>
-                                To
-                            </span>
-
+                            <span>To</span>
                             <input
                                 type="date"
                                 value={filters.to}
                                 onChange={(event) =>
-                                    set(
-                                        "to",
-                                        event.target.value
-                                    )
+                                    set("to", event.target.value)
                                 }
                             />
                         </label>
-
                     </div>
                 </section>
 
-                {/* ======================================
-                    ATTENDANCE TABLE
-                ====================================== */}
-
                 <section className="attendance-card report-table-card">
-
                     <div className="report-table-head">
                         <div>
-                            <span className="card-kicker">
-                                Live records
-                            </span>
-
-                            <h2>
-                                Attendance register
-                            </h2>
+                            <span className="card-kicker">Live records</span>
+                            <h2>Attendance register</h2>
                         </div>
-
                         <span className="record-count">
                             {data.total || 0} records
                         </span>
                     </div>
 
                     <div className="attendance-table-wrap">
-
-                        <table className="attendance-table">
-
+                        <table className="attendance-table attendance-report-table">
                             <thead>
                                 <tr>
-                                    <th>
-                                        Employee
-                                    </th>
-
-                                    <th>
-                                        Store
-                                    </th>
-
-                                    <th>
-                                        Date
-                                    </th>
-
-                                    <th>
-                                        Check-in
-                                    </th>
-
-                                    <th>
-                                        Check-out
-                                    </th>
-
-                                    <th>
-                                        Duration
-                                    </th>
-
-                                    <th>
-                                        Status
-                                    </th>
-
-                                    <th>
-                                        Location
-                                    </th>
+                                    <th>Employee</th>
+                                    <th>Store</th>
+                                    <th>Date</th>
+                                    <th>Check-in</th>
+                                    <th>Check-out</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th>Photo</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-
                             <tbody>
-
-                                {/* Loading */}
                                 {loading && (
                                     <tr>
-                                        <td
-                                            colSpan="8"
-                                            className="table-state"
-                                        >
+                                        <td colSpan="10" className="table-state">
                                             Loading attendance…
                                         </td>
                                     </tr>
                                 )}
 
-                                {/* Records */}
                                 {!loading &&
                                     data.rows?.length > 0 &&
                                     data.rows.map((row) => (
                                         <tr key={row.id}>
-
-                                            {/* Employee */}
                                             <td>
-                                                <strong>
-                                                    {row.name}
-                                                </strong>
-
+                                                <strong>{row.name}</strong>
                                                 <small>
                                                     {row.employee_id}
-
                                                     {row.department
                                                         ? ` · ${row.department}`
                                                         : ""}
                                                 </small>
                                             </td>
-
-                                            {/* Store */}
                                             <td>
                                                 <strong>
-                                                    {row.store_name ||
-                                                        "—"}
+                                                    {row.store_name || "—"}
                                                 </strong>
-
                                                 <small>
-                                                    {row.store_code ||
-                                                        ""}
+                                                    {row.store_code || ""}
                                                 </small>
                                             </td>
-
-                                            {/* Date */}
-                                            <td>
-                                                {row.work_date}
-                                            </td>
-
-                                            {/* Check-in */}
-                                            <td>
-                                                {fmt(
-                                                    row.check_in_at
-                                                )}
-                                            </td>
-
-                                            {/* Check-out */}
-                                            <td>
-                                                {fmt(
-                                                    row.check_out_at
-                                                )}
-                                            </td>
-
-                                            {/* Duration */}
+                                            <td>{fmtDate(row.work_date)}</td>
+                                            <td>{fmt(row.check_in_at)}</td>
+                                            <td>{fmt(row.check_out_at)}</td>
                                             <td>
                                                 {duration(
                                                     row.check_in_at,
                                                     row.check_out_at
                                                 )}
                                             </td>
-
-                                            {/* Status */}
                                             <td>
                                                 <span
                                                     className={`attendance-status ${
@@ -652,8 +517,6 @@ export default function AttendanceReports() {
                                                     {row.status}
                                                 </span>
                                             </td>
-
-                                            {/* Location */}
                                             <td>
                                                 {row.check_in_latitude ? (
                                                     <a
@@ -661,86 +524,150 @@ export default function AttendanceReports() {
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
-                                                        <FaMapMarkerAlt />
-                                                        {" "}
-                                                        View
+                                                        <FaMapMarkerAlt /> View
                                                     </a>
                                                 ) : (
                                                     "—"
                                                 )}
                                             </td>
-
+                                            <td>
+                                                {(row.check_in_photo || row.check_out_photo) ? (
+                                                    <button
+                                                        className="report-link-button"
+                                                        onClick={() =>
+                                                            setPhoto({
+                                                                url: getAttendancePhotoUrl(
+                                                                    row.check_in_photo || row.check_out_photo
+                                                                ),
+                                                                title: `${row.name} · ${fmtDate(
+                                                                    row.work_date
+                                                                )}`,
+                                                            })
+                                                        }
+                                                    >
+                                                        <FaCamera /> View
+                                                    </button>
+                                                ) : (
+                                                    "—"
+                                                )}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="report-delete-button"
+                                                    onClick={() =>
+                                                        setDeleteId(row.id)
+                                                    }
+                                                    disabled={busy}
+                                                    title="Delete attendance record"
+                                                >
+                                                    <FaTrash /> Delete
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
 
-                                {/* Empty */}
                                 {!loading &&
-                                    (!data.rows ||
-                                        data.rows.length === 0) && (
+                                    (!data.rows || data.rows.length === 0) && (
                                         <tr>
-                                            <td
-                                                colSpan="8"
-                                                className="table-state"
-                                            >
-                                                No attendance records
-                                                match your filters.
+                                            <td colSpan="10" className="table-state">
+                                                No attendance records match your filters.
                                             </td>
                                         </tr>
                                     )}
-
                             </tbody>
                         </table>
-
                     </div>
 
-                    {/* ==================================
-                        PAGINATION
-                    ================================== */}
-
                     <div className="report-pagination">
-
                         <span>
-                            Page {data.page || 1} of{" "}
-                            {data.pages || 1}
+                            Page {data.page || 1} of {data.pages || 1}
                         </span>
-
                         <div>
                             <button
-                                disabled={
-                                    (data.page || 1) <= 1
-                                }
+                                disabled={(data.page || 1) <= 1 || busy}
                                 onClick={() =>
                                     setFilters((current) => ({
                                         ...current,
-                                        page:
-                                            current.page - 1,
+                                        page: current.page - 1,
                                     }))
                                 }
                             >
                                 Previous
                             </button>
-
                             <button
                                 disabled={
-                                    (data.page || 1) >=
-                                    (data.pages || 1)
+                                    (data.page || 1) >= (data.pages || 1) ||
+                                    busy
                                 }
                                 onClick={() =>
                                     setFilters((current) => ({
                                         ...current,
-                                        page:
-                                            current.page + 1,
+                                        page: current.page + 1,
                                     }))
                                 }
                             >
                                 Next
                             </button>
                         </div>
-
                     </div>
-
                 </section>
             </div>
+
+            {photo && (
+                <div
+                    className="attendance-photo-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => setPhoto(null)}
+                >
+                    <div
+                        className="attendance-photo-dialog"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="attendance-photo-dialog-head">
+                            <div>
+                                <span className="card-kicker">Photo evidence</span>
+                                <h2>{photo.title}</h2>
+                            </div>
+                            <button
+                                className="photo-modal-close"
+                                onClick={() => setPhoto(null)}
+                                aria-label="Close photo"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="attendance-photo-viewer">
+                            <img src={photo.url} alt={photo.title} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmDialog
+                open={Boolean(deleteId)}
+                title="Delete Attendance Record"
+                message="Are you sure you want to delete this attendance record? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                loading={busy}
+                confirmVariant="danger"
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteId(null)}
+            />
+
+            <ConfirmDialog
+                open={showDeleteAll}
+                title="Delete All Attendance"
+                message="Are you sure you want to delete ALL attendance records? This will permanently remove the attendance history and stored attendance photos."
+                confirmText="Delete All"
+                cancelText="Cancel"
+                loading={busy}
+                confirmVariant="danger"
+                onConfirm={confirmDeleteAll}
+                onCancel={() => setShowDeleteAll(false)}
+            />
         </div>
     );
 }
+

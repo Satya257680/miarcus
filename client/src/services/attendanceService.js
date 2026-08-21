@@ -1,48 +1,24 @@
 import axios from "axios";
 
-// ======================================================
-// API CONFIGURATION
-// ======================================================
-
-const API =
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000";
-
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const BASE_URL = `${API}/api/attendance`;
-
-// ======================================================
-// AUTHORIZATION
-// ======================================================
 
 const getAuthConfig = () => ({
     headers: {
-        Authorization: `Bearer ${
-            localStorage.getItem("token") || ""
-        }`,
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
     },
 });
 
-// ======================================================
-// ATTENDANCE CONTEXT
-// ======================================================
-
-export const getAttendanceContext = (date) => {
-    return axios
+export const getAttendanceContext = (date) =>
+    axios
         .get(`${BASE_URL}/context`, {
             ...getAuthConfig(),
-            params: {
-                date,
-            },
+            params: { date },
         })
         .then((response) => response.data);
-};
 
-// ======================================================
-// CHECK-IN
-// ======================================================
-
-export const checkIn = (formData) => {
-    return axios
+export const checkIn = (formData) =>
+    axios
         .post(`${BASE_URL}/check-in`, formData, {
             ...getAuthConfig(),
             headers: {
@@ -51,14 +27,9 @@ export const checkIn = (formData) => {
             },
         })
         .then((response) => response.data);
-};
 
-// ======================================================
-// CHECK-OUT
-// ======================================================
-
-export const checkOut = (formData) => {
-    return axios
+export const checkOut = (formData) =>
+    axios
         .post(`${BASE_URL}/check-out`, formData, {
             ...getAuthConfig(),
             headers: {
@@ -67,43 +38,37 @@ export const checkOut = (formData) => {
             },
         })
         .then((response) => response.data);
-};
 
-// ======================================================
-// ATTENDANCE REPORTS
-// ======================================================
-
-export const getAttendanceReports = (params) => {
-    return axios
+export const getAttendanceReports = (params) =>
+    axios
         .get(`${BASE_URL}/reports`, {
             ...getAuthConfig(),
             params,
         })
         .then((response) => response.data);
-};
 
-// ======================================================
-// EMPLOYEES
-// ======================================================
-
-export const getAttendanceEmployees = () => {
-    return axios
-        .get(
-            `${BASE_URL}/employees`,
-            getAuthConfig()
-        )
+export const getAttendanceEmployees = () =>
+    axios
+        .get(`${BASE_URL}/employees`, getAuthConfig())
         .then((response) => response.data);
-};
 
-// ======================================================
-// STORES
-// ======================================================
-
-export const getAttendanceStores = () => {
-    return axios
-        .get(
-            `${BASE_URL}/stores`,
-            getAuthConfig()
-        )
+export const getAttendanceStores = () =>
+    axios
+        .get(`${BASE_URL}/stores`, getAuthConfig())
         .then((response) => response.data);
+
+export const deleteAttendanceRecord = (id) =>
+    axios
+        .delete(`${BASE_URL}/${id}`, getAuthConfig())
+        .then((response) => response.data);
+
+export const deleteAllAttendance = () =>
+    axios
+        .delete(`${BASE_URL}/delete-all`, getAuthConfig())
+        .then((response) => response.data);
+
+export const getAttendancePhotoUrl = (photoPath) => {
+    if (!photoPath) return "";
+    if (/^https?:\/\//i.test(photoPath)) return photoPath;
+    return `${API}${photoPath.startsWith("/") ? "" : "/"}${photoPath}`;
 };

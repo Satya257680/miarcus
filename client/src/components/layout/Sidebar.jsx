@@ -196,6 +196,9 @@ function Sidebar({ collapsed }) {
         ].includes(permission);
     };
 
+    const hasFullAttendanceAccess =
+        isAdministrator || permissions?.["Attendance"] === "Full";
+
     const hasAnyPermission = (moduleNames) => {
         if (isAdministrator) {
             return true;
@@ -430,16 +433,14 @@ function Sidebar({ collapsed }) {
                         <FaCalendarCheck />
                         {!collapsed && <span>Attendance</span>}
                     </NavLink>
-                    {!collapsed && (isAdministrator || location.pathname === "/attendance-reports") && (
+                    {!collapsed && hasFullAttendanceAccess && (
                         <div className="sidebar-submenu">
-                            {isAdministrator && (
-                                <NavLink
-                                    to="/attendance-reports"
-                                    className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}
-                                >
-                                    <FaChartBar /><span>Attendance Reports</span>
-                                </NavLink>
-                            )}
+                            <NavLink
+                                to="/attendance-reports"
+                                className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}
+                            >
+                                <FaChartBar /><span>Attendance Reports</span>
+                            </NavLink>
                         </div>
                     )}
                 </div>
