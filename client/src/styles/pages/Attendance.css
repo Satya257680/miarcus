@@ -3330,3 +3330,156 @@
         font-size: 22px;
     }
 }
+
+/* =========================================================================
+   ================================================================
+   SMART FILTERS — ROBUST LAYOUT FIX
+   ------------------------------------------------------------------------
+   The filter row (Search / Employee / Store / Status / From / To) was
+   collapsing to a tiny, overlapping cluster on some builds because the
+   grid container and its inputs weren't reliably being forced to fill
+   their row. This block re-asserts a clean, professional filter layout
+   (labels above fields, generous height, auto-fit columns that wrap
+   instead of shrinking below a readable size) with high-priority
+   overrides so it always wins, regardless of legacy rules above.
+   ================================================================
+   ========================================================================= */
+
+.report-filters .attendance-report-filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+    gap: 18px 20px !important;
+    width: 100% !important;
+    align-items: end !important;
+    padding: 20px 22px 24px !important;
+    box-sizing: border-box !important;
+}
+
+.report-filters .attendance-report-filter-grid > label,
+.report-filters .attendance-report-search-field {
+    position: static !important;
+    float: none !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    gap: 8px !important;
+    box-sizing: border-box !important;
+}
+
+.report-filters .attendance-report-search-field {
+    grid-column: 1 / -1 !important;
+}
+
+.report-filters .attendance-report-filter-grid > label > span {
+    display: block !important;
+
+    color: #5c7a82 !important;
+
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.07em !important;
+    text-transform: uppercase !important;
+}
+
+.report-filters .attendance-report-filter-grid input,
+.report-filters .attendance-report-filter-grid select,
+.report-filters .attendance-report-search-control input {
+    display: block !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    height: 46px !important;
+
+    box-sizing: border-box !important;
+
+    padding: 0 14px !important;
+
+    border: 1px solid #d7e3e6 !important;
+    border-radius: 10px !important;
+
+    background: #ffffff !important;
+    color: var(--att-navy, #17343d) !important;
+
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+
+    appearance: auto;
+    -webkit-appearance: auto;
+}
+
+.report-filters .attendance-report-filter-grid select {
+    padding-right: 34px !important;
+    cursor: pointer;
+}
+
+.report-filters .attendance-report-filter-grid input:hover,
+.report-filters .attendance-report-filter-grid select:hover,
+.report-filters .attendance-report-search-control input:hover {
+    border-color: #b9ced2 !important;
+}
+
+.report-filters .attendance-report-filter-grid input:focus,
+.report-filters .attendance-report-filter-grid select:focus,
+.report-filters .attendance-report-search-control input:focus {
+    border-color: var(--att-accent-1, #2f6f7e) !important;
+    box-shadow: 0 0 0 4px var(--att-ring, rgba(47, 111, 126, 0.14)) !important;
+    outline: none !important;
+}
+
+.report-filters .attendance-report-search-control {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+}
+
+.report-filters .attendance-report-search-control > svg {
+    position: absolute !important;
+    left: 15px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: #7f959b !important;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.report-filters .attendance-report-search-control input {
+    height: 48px !important;
+    padding: 0 42px 0 42px !important;
+    border-radius: 11px !important;
+    font-size: 13px !important;
+}
+
+.report-filters .date-control {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+}
+
+.report-filters .date-control > svg {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: #7f959b !important;
+    z-index: 1;
+    pointer-events: none;
+    font-size: 12px;
+}
+
+.report-filters .date-control input {
+    padding-left: 38px !important;
+}
+
+@media (max-width: 640px) {
+    .report-filters .attendance-report-filter-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
