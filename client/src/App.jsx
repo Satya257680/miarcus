@@ -104,6 +104,7 @@ import SalesReview from "./pages/SalesTeam/SalesReview";
 import ListingTracker from "./pages/ListingTracker";
 import Attendance from "./pages/Attendance";
 import AttendanceReports from "./pages/AttendanceReports";
+import AssetManagement from "./pages/AssetManagement";
 
 
 function App() {
@@ -224,6 +225,36 @@ function App() {
                     <Route
                         path="/action-points"
                         element={<ActionPoints />}
+                    />
+
+                    {/* ==================================================
+                        ASSET MASTER
+                    ================================================== */}
+
+                    <Route
+                        path="/asset-management"
+                        element={
+                            <ModulePermissionRoute moduleName="Asset Master">
+                                <AssetManagement type="marketing" />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/asset-master"
+                        element={
+                            <Navigate to="/asset-management" replace />
+                        }
+                    />
+
+
+                    <Route
+                        path="/legal-assets"
+                        element={
+                            <ModulePermissionRoute moduleName="Asset Master">
+                                <AssetManagement type="legal" />
+                            </ModulePermissionRoute>
+                        }
                     />
 
 

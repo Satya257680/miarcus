@@ -143,6 +143,8 @@ function AddUserModal({
     "Announcements",
     "Gallery",
 
+    "Asset Master",
+
     "Employee Location",
 
     "Attendance",

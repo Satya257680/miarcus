@@ -93,6 +93,9 @@ const ListingTracker =
 const Attendance =
     require("./models/attendanceModel");
 
+const Asset =
+    require("./models/assetModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -288,6 +291,14 @@ async function initializeDatabase() {
         await createTablesAsync(
             Attendance,
             "Attendance"
+        );
+
+        // --------------------------------------------------
+        // ASSET MASTER
+        // --------------------------------------------------
+        await createTablesAsync(
+            Asset,
+            "Asset Master"
         );
 
         // --------------------------------------------------
@@ -1357,6 +1368,20 @@ loadRoute(
     "/api/listing-tracker",
 
     "Listing Tracker Routes"
+
+);
+
+// ======================================================
+// ASSET MASTER
+// ======================================================
+
+loadRoute(
+
+    "./routes/assetRoutes",
+
+    "/api/assets",
+
+    "Asset Master Routes"
 
 );
 

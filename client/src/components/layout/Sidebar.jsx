@@ -31,7 +31,9 @@ import {
     FaCheckCircle,
     FaChartLine,
     FaListAlt,
-    FaCalendarCheck
+    FaCalendarCheck,
+    FaBoxes,
+    FaBalanceScale
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -42,6 +44,10 @@ function Sidebar({ collapsed }) {
     // ======================================================
     // PATH DETECTION
     // ======================================================
+
+    const assetMasterOpenByPath =
+        location.pathname === "/asset-management" ||
+        location.pathname === "/legal-assets";
 
     const expenseOpenByPath =
         location.pathname === "/expenses" ||
@@ -87,6 +93,9 @@ function Sidebar({ collapsed }) {
     // MENU OPEN/CLOSE STATE
     // ======================================================
 
+    const [assetMasterOpen, setAssetMasterOpen] =
+        useState(assetMasterOpenByPath);
+
     const [expenseOpen, setExpenseOpen] =
         useState(expenseOpenByPath);
 
@@ -104,6 +113,12 @@ function Sidebar({ collapsed }) {
 
     const [settingsOpen, setSettingsOpen] =
         useState(settingsOpenByPath);
+
+    useEffect(() => {
+        if (assetMasterOpenByPath) {
+            setAssetMasterOpen(true);
+        }
+    }, [assetMasterOpenByPath]);
 
     // ======================================================
     // KEEP GROUP OPEN WHEN DIRECT URL IS OPENED
@@ -417,6 +432,42 @@ function Sidebar({ collapsed }) {
                             </span>
                         )}
                     </NavLink>
+                )}
+
+                {/* ==================================================
+                    ASSET MASTER
+                ================================================== */}
+
+                {hasPermission("Asset Master") && (
+                    <div className={`sidebar-group ${assetMasterOpenByPath || assetMasterOpen ? "open" : ""}`}>
+                        <button
+                            type="button"
+                            className={`sidebar-group-toggle ${assetMasterOpenByPath ? "active" : ""}`}
+                            onClick={() => setAssetMasterOpen((previous) => !previous)}
+                            aria-expanded={assetMasterOpen || assetMasterOpenByPath}
+                        >
+                            <span className="sidebar-group-content">
+                                <FaBoxes />
+                                {!collapsed && <span>Asset Master</span>}
+                            </span>
+                            {!collapsed && (
+                                <FaChevronDown className={`submenu-chevron ${assetMasterOpen || assetMasterOpenByPath ? "rotated" : ""}`} />
+                            )}
+                        </button>
+
+                        {!collapsed && (assetMasterOpen || assetMasterOpenByPath) && (
+                            <div className="sidebar-submenu">
+                                <NavLink to="/asset-management" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaImages />
+                                    <span>Marketing Assets</span>
+                                </NavLink>
+                                <NavLink to="/legal-assets" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaBalanceScale />
+                                    <span>Legal Assets</span>
+                                </NavLink>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* ==================================================

@@ -28,6 +28,7 @@ const RBAC_MODULES = [
     "New Store Openings",
     "Announcements",
     "Gallery",
+    "Asset Master",
     "Employee Location",
     "Attendance",
     "Expenses",
