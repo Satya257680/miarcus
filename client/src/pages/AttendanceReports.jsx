@@ -34,10 +34,28 @@ const initialFilters = {
     pageSize: 10,
 };
 
-const fmt = (value) => {
-    if (!value) return "—";
+const INDIA_TIME_ZONE = "Asia/Kolkata";
 
-    return new Date(value).toLocaleString([], {
+const parseAttendanceDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+
+    const text = String(value);
+
+    if (/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}/.test(text)) {
+        return new Date(`${text.slice(0, 19).replace(" ", "T")}+05:30`);
+    }
+
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const fmt = (value) => {
+    const date = parseAttendanceDate(value);
+    if (!date) return "—";
+
+    return date.toLocaleString([], {
+        timeZone: INDIA_TIME_ZONE,
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -49,21 +67,36 @@ const fmt = (value) => {
 const fmtDate = (value) => {
     if (!value) return "—";
 
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
+    // work_date is a MySQL DATE, so never let the browser shift it
+    // backward/forward because of its local timezone.
+    const text = String(value).slice(0, 10);
+    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(text)) {
+        const [year, month, day] = text.split("-").map(Number);
+        return new Intl.DateTimeFormat([], {
+            timeZone: INDIA_TIME_ZONE,
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        }).format(new Date(Date.UTC(year, month - 1, day)));
+    }
 
-    return date.toLocaleDateString([], {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
+    const date = parseAttendanceDate(value);
+    return date
+        ? date.toLocaleDateString([], {
+              timeZone: INDIA_TIME_ZONE,
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+          })
+        : text;
 };
 
 const duration = (start, end) => {
-    if (!start || !end) return "—";
+    const from = parseAttendanceDate(start);
+    const to = parseAttendanceDate(end);
+    if (!from || !to) return "—";
 
-    const milliseconds = new Date(end) - new Date(start);
-    const minutes = Math.max(0, Math.floor(milliseconds / 60000));
+    const minutes = Math.max(0, Math.floor((to - from) / 60000));
 
     return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(
         2,
@@ -352,8 +385,8 @@ export default function AttendanceReports() {
                     </div>
 
                     <div className="report-filter-grid">
-                        <label className="search-field">
-                            <span>Search</span>
+                        <label className="report-search-field">
+                            <span>Search employee, ID, store or email</span>
                             <div className="search-control">
                                 <FaSearch />
                                 <input
@@ -361,7 +394,7 @@ export default function AttendanceReports() {
                                     onChange={(event) =>
                                         set("search", event.target.value)
                                     }
-                                    placeholder="Search employee, ID, store or email…"
+                                    placeholder="Search employee, employee ID, store or email…"
                                 />
                             </div>
                         </label>
@@ -418,7 +451,7 @@ export default function AttendanceReports() {
                         </label>
 
                         <label>
-                            <span>From</span>
+                            <span>From date</span>
                             <input
                                 type="date"
                                 value={filters.from}
@@ -429,7 +462,7 @@ export default function AttendanceReports() {
                         </label>
 
                         <label>
-                            <span>To</span>
+                            <span>To date</span>
                             <input
                                 type="date"
                                 value={filters.to}

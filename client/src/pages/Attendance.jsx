@@ -19,18 +19,44 @@ import {
 
 import "../styles/pages/Attendance.css";
 
-const today = () =>
-    new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-    });
+const INDIA_TIME_ZONE = "Asia/Kolkata";
 
-const fmtTime = (value) =>
-    value
-        ? new Date(value).toLocaleTimeString([], {
+const today = () =>
+    new Intl.DateTimeFormat("en-CA", {
+        timeZone: INDIA_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+
+const parseAttendanceDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+
+    const text = String(value);
+
+    // MySQL DATETIME values are stored as India Standard Time by the
+    // attendance controller. Explicitly attach +05:30 so the browser
+    // never interprets them using the device/server timezone.
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(text)) {
+        const base = text.slice(0, 19).replace(" ", "T");
+        return new Date(`${base}+05:30`);
+    }
+
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const fmtTime = (value) => {
+    const date = parseAttendanceDate(value);
+    return date
+        ? date.toLocaleTimeString([], {
+              timeZone: INDIA_TIME_ZONE,
               hour: "2-digit",
               minute: "2-digit",
           })
         : "—";
+};
 
 const fmtDate = (value) =>
     new Date(`${value}T00:00:00`).toLocaleDateString([], {
@@ -70,12 +96,12 @@ export default function Attendance() {
         if (!attendance?.check_in_at) return "00h 00m";
 
         const end = attendance.check_out_at
-            ? new Date(attendance.check_out_at)
+            ? parseAttendanceDate(attendance.check_out_at)
             : now;
-        const milliseconds = Math.max(
-            0,
-            end - new Date(attendance.check_in_at)
-        );
+        const start = parseAttendanceDate(attendance.check_in_at);
+        if (!start || !end) return "00h 00m";
+
+        const milliseconds = Math.max(0, end - start);
         const minutes = Math.floor(milliseconds / 60000);
 
         return `${String(Math.floor(minutes / 60)).padStart(2, "0")}h ${String(
@@ -233,7 +259,7 @@ export default function Attendance() {
         enableCamera();
     }, [context, checkedIn, completed, photo, enableCamera]);
 
-    const getLocation = () => {
+    const getLocation = useCallback(() => {
         if (!navigator.geolocation) {
             setError("Your browser does not support GPS location.");
             return;
@@ -265,7 +291,39 @@ export default function Attendance() {
                 maximumAge: 0,
             }
         );
-    };
+    }, []);
+
+    useEffect(() => {
+        if (!context) return;
+
+        // Restore the last verified attendance coordinates immediately
+        // after a refresh so the UI does not incorrectly show "Pending".
+        const storedAttendance = context.attendance;
+        const storedLatitude = storedAttendance?.check_out_latitude ??
+            storedAttendance?.check_in_latitude;
+        const storedLongitude = storedAttendance?.check_out_longitude ??
+            storedAttendance?.check_in_longitude;
+        const storedAccuracy = storedAttendance?.check_out_accuracy ??
+            storedAttendance?.check_in_accuracy;
+
+        if (
+            Number.isFinite(Number(storedLatitude)) &&
+            Number.isFinite(Number(storedLongitude))
+        ) {
+            setLocation({
+                latitude: Number(storedLatitude),
+                longitude: Number(storedLongitude),
+                accuracy: Number(storedAccuracy || 0),
+            });
+            setLocationState("ready");
+        }
+
+        // A live GPS reading is required before a new check-in or checkout.
+        // If an attendance session is already open, refresh GPS for checkout.
+        if (!storedAttendance?.check_out_at) {
+            getLocation();
+        }
+    }, [context, getLocation]);
 
     const submit = async (mode) => {
         if (!selectedStore) {
@@ -359,6 +417,7 @@ export default function Attendance() {
                         <span>{fmtDate(date)}</span>
                         <strong>
                             {now.toLocaleTimeString([], {
+                                timeZone: INDIA_TIME_ZONE,
                                 hour: "2-digit",
                                 minute: "2-digit",
                                 second: "2-digit",

@@ -17,21 +17,24 @@ const validCoords = (lat, lng) =>
     Number(lng) <= 180;
 
 const indiaDateTime = () => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-    }).formatToParts(new Date());
+    // Always derive the stored wall-clock value from the UTC instant.
+    // This avoids depending on the hosting platform's local timezone
+    // (Vercel/Render containers commonly run in UTC).
+    const indiaNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
 
-    const get = (type) =>
-        parts.find((part) => part.type === type)?.value || "00";
+    const pad = (value) => String(value).padStart(2, "0");
 
-    return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+    return [
+        indiaNow.getUTCFullYear(),
+        pad(indiaNow.getUTCMonth() + 1),
+        pad(indiaNow.getUTCDate()),
+    ].join("-") +
+        " " +
+        [
+            pad(indiaNow.getUTCHours()),
+            pad(indiaNow.getUTCMinutes()),
+            pad(indiaNow.getUTCSeconds()),
+        ].join(":");
 };
 
 const canManageAttendance = async (req) => {
