@@ -29,7 +29,8 @@ import {
     FaMapMarkerAlt,
     FaPlane,
     FaCheckCircle,
-    FaChartLine
+    FaChartLine,
+    FaListAlt
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -287,6 +288,14 @@ function Sidebar({ collapsed }) {
     const canSalesApprovals = isAdministrator || hasPermission("Travel Plan Approvals");
     const canSalesReview = isAdministrator || hasPermission("Sales Review");
     const canAccessSalesTeam = canSalesVisitPlanner || canSalesTravelPlan || canSalesApprovals || canSalesReview;
+
+    // ======================================================
+    // LISTING TRACKER
+    // ======================================================
+
+    const canAccessListingTracker =
+        isAdministrator ||
+        hasPermission("Listing Tracker");
 
     // ======================================================
     // SETTINGS PERMISSIONS
@@ -906,6 +915,25 @@ function Sidebar({ collapsed }) {
                             </div>
                         )}
                     </div>
+                )}
+
+                {/* ==================================================
+                    LISTING TRACKER
+                ================================================== */}
+
+                {canAccessListingTracker && (
+                    <NavLink
+                        to="/listing-tracker"
+                        className={getMenuClass}
+                    >
+                        <FaListAlt />
+
+                        {!collapsed && (
+                            <span>
+                                Listing Tracker
+                            </span>
+                        )}
+                    </NavLink>
                 )}
 
                 {/* ==================================================

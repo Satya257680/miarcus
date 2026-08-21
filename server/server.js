@@ -87,6 +87,9 @@ const EmployeeLocation =
 const SalesTeam =
     require("./models/salesTeamModel");
 
+const ListingTracker =
+    require("./models/listingTrackerModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -266,6 +269,14 @@ async function initializeDatabase() {
         await createTablesAsync(
             SalesTeam,
             "Sales Team"
+        );
+
+        // --------------------------------------------------
+        // LISTING TRACKER
+        // --------------------------------------------------
+        await createTablesAsync(
+            ListingTracker,
+            "Listing Tracker"
         );
 
         // --------------------------------------------------
@@ -1312,6 +1323,20 @@ loadRoute(
     "./routes/salesTeamRoutes",
     "/api/sales-team",
     "Sales Team Routes"
+);
+
+// ======================================================
+// LISTING TRACKER
+// ======================================================
+
+loadRoute(
+
+    "./routes/listingTrackerRoutes",
+
+    "/api/listing-tracker",
+
+    "Listing Tracker Routes"
+
 );
 
 // ======================================================

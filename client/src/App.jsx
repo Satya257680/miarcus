@@ -101,6 +101,7 @@ import VisitPlanner from "./pages/SalesTeam/VisitPlanner";
 import TravelPlan from "./pages/SalesTeam/TravelPlan";
 import TravelPlanApprovals from "./pages/SalesTeam/TravelPlanApprovals";
 import SalesReview from "./pages/SalesTeam/SalesReview";
+import ListingTracker from "./pages/ListingTracker";
 
 
 function App() {
@@ -566,6 +567,14 @@ function App() {
                     <Route path="/travel-plan" element={<ModulePermissionRoute moduleName="Travel Plan"><TravelPlan /></ModulePermissionRoute>} />
                     <Route path="/travel-plan-approval" element={<ModulePermissionRoute moduleName="Travel Plan Approvals"><TravelPlanApprovals /></ModulePermissionRoute>} />
                     <Route path="/sales-review" element={<ModulePermissionRoute moduleName="Sales Review"><SalesReview /></ModulePermissionRoute>} />
+                    <Route
+                        path="/listing-tracker"
+                        element={
+                            <ModulePermissionRoute moduleName="Listing Tracker">
+                                <ListingTracker />
+                            </ModulePermissionRoute>
+                        }
+                    />
 
                     {/* ==================================================
                         PROFILE

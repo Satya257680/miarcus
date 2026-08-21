@@ -141,6 +141,7 @@ function AddUserModal({
   "Travel Plan",
   "Travel Plan Approvals",
   "Sales Review",
+  "Listing Tracker",
   "Profile",
   "Settings",
 ];
