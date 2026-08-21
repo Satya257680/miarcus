@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     FaPlus,
+    FaUpload,
     FaDownload,
     FaColumns,
+    FaSlidersH,
     FaSearch,
     FaInfoCircle,
     FaMapMarkerAlt,
@@ -11,19 +13,9 @@ import {
     FaTrash,
     FaPaperclip,
     FaExternalLinkAlt,
-    FaFilter,
-    FaBroom,
-    FaCalendarAlt,
-    FaCloudUploadAlt,
-    FaChevronDown,
-    FaBullhorn,
-    FaBalanceScale,
 } from "react-icons/fa";
-import BulkUploadModal from "../components/common/BulkUploadModal";
-import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
     createAsset,
-    deleteAllAssets,
     deleteAsset,
     exportAssets,
     fetchAssetOptions,
@@ -51,7 +43,6 @@ const MARKETING_COLUMNS = [
     ["buy_date", "Buy Date"],
     ["expiry_date", "Expiry Date"],
     ["days_to_expire", "Days to Expire"],
-    ["status", "Status"],
     ["remark", "Remark"],
     ["attachments", "Attachments"],
     ["created_at", "Created At"],
@@ -424,44 +415,32 @@ function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
 export default function AssetManagement({ type = "marketing" }) {
     const isMarketing = type === "marketing";
     const title = isMarketing ? "Marketing Assets" : "Legal Assets";
-    const subtitle = isMarketing
-        ? "Manage all marketing materials, assets and promotional items."
-        : "Manage and track all legal related assets, documents and notices.";
     const columns = isMarketing ? MARKETING_COLUMNS : LEGAL_COLUMNS;
-    const permissions = useMemo(getPermissions, [type]);
-
     const [rows, setRows] = useState([]);
-    const [options, setOptions] = useState({ departments: [], stores: [], categories: [], statuses: [] });
+    const [options, setOptions] = useState({ departments: [], stores: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-    const [filters, setFilters] = useState({ store: "", department: "", category: "", status: "", dateFrom: "", dateTo: "" });
+    const [column, setColumn] = useState("");
+    const [filterValue, setFilterValue] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
-    const [showBulkModal, setShowBulkModal] = useState(false);
-    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState(() => columns.map(([key]) => key));
     const [showColumns, setShowColumns] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
-    const [exporting, setExporting] = useState(false);
-    const [deletingAll, setDeletingAll] = useState(false);
-
-    const defaultVisible = isMarketing
-        ? ["particular_name", "store_name", "category", "type", "rate", "size", "color", "brand", "department_name", "buy_date", "expiry_date", "days_to_expire", "status", "attachments", "created_at"]
-        : LEGAL_COLUMNS.map(([key]) => key);
+    const [showPrefills, setShowPrefills] = useState(false);
+    const importRef = useRef(null);
+    const permissions = useMemo(getPermissions, [type]);
 
     useEffect(() => {
-        setVisibleColumns(defaultVisible);
-        setFilters({ store: "", department: "", category: "", status: "", dateFrom: "", dateTo: "" });
-        setSearch("");
+        setVisibleColumns(columns.map(([key]) => key));
         setPage(1);
     }, [type]);
 
     const load = useCallback(async () => {
-        if (!permissions.canView) { setLoading(false); return; }
         setLoading(true);
         setError("");
         try {
@@ -469,79 +448,89 @@ export default function AssetManagement({ type = "marketing" }) {
                 page,
                 pageSize,
                 search,
-                column: "",
-                filterValue: "",
-                ...filters,
+                column,
+                filterValue,
             });
             setRows(result.data || []);
             setTotal(Number(result.pagination?.total || 0));
         } catch (err) {
             setError(err?.response?.data?.message || "Unable to load assets.");
-        } finally { setLoading(false); }
-    }, [type, page, pageSize, search, filters, permissions.canView]);
-
-    useEffect(() => { load(); }, [load]);
+        } finally {
+            setLoading(false);
+        }
+    }, [type, page, pageSize, search, column, filterValue]);
 
     useEffect(() => {
+        load();
+    }, [load]);
+
+    useEffect(() => {
+        if (!modalOpen) return;
         fetchAssetOptions()
-            .then((data) => setOptions(data || { departments: [], stores: [], categories: [], statuses: [] }))
-            .catch(() => setOptions({ departments: [], stores: [], categories: [], statuses: [] }));
-    }, [type]);
+            .then(setOptions)
+            .catch(() => setOptions({ departments: [], stores: [] }));
+    }, [modalOpen]);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const hasFilters = Boolean(search || Object.values(filters).some(Boolean));
 
-    const openAdd = () => { if (permissions.canAdd) { setEditing(null); setModalOpen(true); } };
-    const openEdit = (row) => { if (permissions.canEdit) { setEditing(row); setModalOpen(true); } };
-
-    const remove = async (row) => {
-        if (!permissions.canDelete) return;
-        if (!window.confirm(`Delete this ${isMarketing ? "marketing" : "legal"} asset?`)) return;
-        try { await deleteAsset(type, row.id); await load(); }
-        catch (err) { setError(err?.response?.data?.message || "Unable to delete the asset."); }
+    const openAdd = () => {
+        setEditing(null);
+        setModalOpen(true);
     };
 
-    const bulkUpload = async (file) => importAssets(type, file);
+    const openEdit = (row) => {
+        setEditing(row);
+        setModalOpen(true);
+    };
 
-    const exportCsv = async () => {
-        setExporting(true);
+    const remove = async (row) => {
+        if (!window.confirm(`Delete this ${isMarketing ? "marketing" : "legal"} asset?`)) return;
+        try {
+            await deleteAsset(type, row.id);
+            await load();
+        } catch (err) {
+            setError(err?.response?.data?.message || "Unable to delete the asset.");
+        }
+    };
+
+    const importCsv = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        setImporting(true);
         setError("");
         try {
-            const blob = await exportAssets(type, { search, ...filters });
+            const result = await importAssets(type, file);
+            window.alert(result?.message || "CSV imported successfully.");
+            await load();
+        } catch (err) {
+            setError(err?.response?.data?.message || "Unable to import CSV.");
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    const exportCsv = async () => {
+        try {
+            const blob = await exportAssets(type, { search, column, filterValue });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `${type}-assets-${new Date().toISOString().slice(0, 10)}.csv`;
+            link.download = `${type}-assets.csv`;
             document.body.appendChild(link);
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (err) {
             setError(err?.response?.data?.message || "Unable to export CSV.");
-        } finally { setExporting(false); }
+        }
     };
 
-    const clearFilters = () => {
-        setSearch("");
-        setFilters({ store: "", department: "", category: "", status: "", dateFrom: "", dateTo: "" });
-        setPage(1);
+    const toggleColumn = (key) => {
+        setVisibleColumns((prev) =>
+            prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+        );
     };
-
-    const confirmDeleteAll = async () => {
-        if (!permissions.canDelete) return;
-        setDeletingAll(true);
-        try {
-            const result = await deleteAllAssets(type);
-            if (!result?.success) throw new Error(result?.message || "Delete all failed.");
-            setShowDeleteAllDialog(false);
-            setPage(1);
-            await load();
-        } catch (err) {
-            setError(err?.response?.data?.message || err.message || "Unable to delete all assets.");
-        } finally { setDeletingAll(false); }
-    };
-
-    const toggleColumn = (key) => setVisibleColumns((prev) => prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]);
 
     const renderCell = (row, key) => {
         if (key === "rate") return formatMoney(row[key]);
@@ -550,72 +539,127 @@ export default function AssetManagement({ type = "marketing" }) {
         if (key === "days_to_expire") {
             if (row.days_to_expire === null || row.days_to_expire === undefined || row.days_to_expire === "") return "—";
             const days = Number(row.days_to_expire);
-            return <span className={`expiry-value ${days < 0 ? "expired" : days <= 30 ? "soon" : "healthy"}`}>{days < 0 ? `${Math.abs(days)} days overdue` : `${days} days`}</span>;
+            return <span className={`expiry-value ${days < 0 ? "expired" : days <= 30 ? "soon" : ""}`}>{days < 0 ? `${Math.abs(days)} days overdue` : `${days} days`}</span>;
         }
-        if (key === "status") {
-            const status = String(row.status || "—");
-            return <span className={`asset-status ${status.toLowerCase().replace(/\s+/g, "-")}`}>{status}</span>;
-        }
+        if (key === "status") return <span className={`asset-status ${String(row.status || "").toLowerCase().replace(/\s+/g, "-")}`}>{row.status || "—"}</span>;
         if (key === "attachments") {
             const items = Array.isArray(row.attachments) ? row.attachments : [];
             if (!items.length) return "—";
             return <div className="attachment-list">{items.map((item, index) => <a key={`${item.filename || item.url}-${index}`} href={attachmentUrl(item)} target="_blank" rel="noreferrer" title={item.originalname || item.filename || "Attachment"}><FaPaperclip /></a>)}</div>;
         }
-        if (key === "custom_field") return row.custom_field_name || row.custom_field_value ? `${row.custom_field_name || "Custom Field"}: ${row.custom_field_value || "—"}` : "—";
+        if (key === "custom_field") {
+            if (!row.custom_field_name && !row.custom_field_value) return "—";
+            return `${row.custom_field_name || "Custom Field"}: ${row.custom_field_value || "—"}`;
+        }
         if (key === "remark") return row.remark ? <span className="table-text-clamp" title={row.remark}>{row.remark}</span> : <button type="button" className="asset-inline-link" onClick={() => openEdit(row)}>Add Remark</button>;
         if (key === "short_description") return row.short_description ? <span className="table-text-clamp" title={row.short_description}>{row.short_description}</span> : "—";
         return row[key] === null || row[key] === undefined || row[key] === "" ? "—" : row[key];
     };
 
-    if (!permissions.canView) return <div className="asset-page"><section className="asset-card asset-access-card"><strong>Access Restricted</strong><span>You do not have permission to view Asset Master.</span></section></div>;
-
     return (
         <div className="asset-page">
             <section className="asset-card">
-                <div className={`asset-premium-header ${isMarketing ? "marketing" : "legal"}`}>
-                    <div className="asset-premium-copy">
-                        <div className="asset-title-row"><h1>{title}</h1><FaInfoCircle className="asset-info-icon" title={subtitle} /></div>
-                        <p>{subtitle}</p>
+                <div className="asset-toolbar-top">
+                    <div>
+                        <div className="asset-title-row">
+                            <h1>{title}</h1>
+                            <FaInfoCircle className="asset-info-icon" title={`Manage ${title.toLowerCase()}`} />
+                        </div>
                         <div className="asset-action-row">
-                            {permissions.canAdd && <button className="asset-primary-button" onClick={openAdd}><FaPlus /> Add Entry</button>}
-                            {permissions.canAdd && <button className="asset-outline-button" onClick={() => setShowBulkModal(true)}><FaCloudUploadAlt /> Bulk Upload</button>}
-                            <button className="asset-outline-button" onClick={exportCsv} disabled={exporting}><FaDownload /> {exporting ? "Exporting..." : "Export CSV"}</button>
-                            <div className="asset-menu-wrap">
-                                <button className="asset-outline-button" onClick={() => { setShowColumns((v) => !v); setShowFilters(false); }}><FaColumns /> Columns <FaChevronDown /></button>
-                                {showColumns && <div className="asset-dropdown asset-columns-dropdown"><strong>Visible Columns</strong>{columns.map(([key, label]) => <label key={key}><input type="checkbox" checked={visibleColumns.includes(key)} onChange={() => toggleColumn(key)} />{label}</label>)}<button type="button" onClick={() => setVisibleColumns(defaultVisible)}>Reset columns</button></div>}
-                            </div>
-                            {permissions.canDelete && <button className="asset-danger-button" onClick={() => setShowDeleteAllDialog(true)} disabled={!total}><FaTrash /> Delete All</button>}
+                            {permissions.canAdd && (
+                                <button className="asset-primary-button" onClick={openAdd}><FaPlus /> Add Entry</button>
+                            )}
+                            <button className="asset-outline-button" onClick={() => importRef.current?.click()} disabled={importing}><FaUpload /> {importing ? "Importing..." : "Import CSV"}</button>
+                            <button className="asset-outline-button" onClick={exportCsv}><FaDownload /> Export CSV</button>
+                            <button className="asset-outline-button" onClick={() => setShowColumns((prev) => !prev)}><FaColumns /> Columns</button>
+                            {isMarketing && <button className="asset-outline-button" onClick={() => setShowPrefills((prev) => !prev)}><FaSlidersH /> Prefills</button>}
+                            <input ref={importRef} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
                         </div>
                     </div>
-                    <div className="asset-illustration"><div className="asset-art-card"><div className="asset-art-icon">{isMarketing ? <FaBullhorn /> : <FaBalanceScale />}</div><span>{isMarketing ? "Campaign assets" : "Legal records"}</span></div><i /><i /></div>
+
                     <div className="asset-search-panel">
-                        <div className="asset-search-input"><FaSearch /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Global Search..." /></div>
-                        <button className={`asset-filter-button ${showFilters || hasFilters ? "active" : ""}`} onClick={() => { setShowFilters((v) => !v); setShowColumns(false); }}><FaFilter /> Filter <FaChevronDown /></button>
+                        <div className="asset-search-input">
+                            <FaSearch />
+                            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Global Search..." />
+                        </div>
+                        <select value={column} onChange={(e) => { setColumn(e.target.value); setPage(1); }}>
+                            <option value="">Column(s)...</option>
+                            {columns.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                        </select>
+                        <input value={filterValue} onChange={(e) => { setFilterValue(e.target.value); setPage(1); }} placeholder="Filter value..." />
                     </div>
                 </div>
 
-                {showFilters && <div className="asset-premium-filters">
-                    <label>Store<select value={filters.store} onChange={(e) => { setFilters((p) => ({ ...p, store: e.target.value })); setPage(1); }}><option value="">All Stores</option>{options.stores.map((x) => <option key={x.id} value={x.store_name}>{x.store_name}</option>)}</select></label>
-                    <label>Department<select value={filters.department} onChange={(e) => { setFilters((p) => ({ ...p, department: e.target.value })); setPage(1); }}><option value="">All Departments</option>{options.departments.map((x) => <option key={x.id} value={x.department_name}>{x.department_name}</option>)}</select></label>
-                    {isMarketing ? <label>Category<select value={filters.category} onChange={(e) => { setFilters((p) => ({ ...p, category: e.target.value })); setPage(1); }}><option value="">All Categories</option>{options.categories?.map((x) => <option key={x} value={x}>{x}</option>)}</select></label> : <label>Status<select value={filters.status} onChange={(e) => { setFilters((p) => ({ ...p, status: e.target.value })); setPage(1); }}><option value="">All Status</option>{options.statuses?.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>}
-                    {isMarketing && <label>Status<select value={filters.status} onChange={(e) => { setFilters((p) => ({ ...p, status: e.target.value })); setPage(1); }}><option value="">All Status</option><option>Active</option><option>Expiring Soon</option><option>Expired</option><option>No Expiry</option></select></label>}
-                    <label className="asset-date-filter"><span><FaCalendarAlt /> {isMarketing ? "Expiry Date" : "Date of Issue"}</span><div><input type="date" value={filters.dateFrom} onChange={(e) => { setFilters((p) => ({ ...p, dateFrom: e.target.value })); setPage(1); }} /><b>to</b><input type="date" value={filters.dateTo} onChange={(e) => { setFilters((p) => ({ ...p, dateTo: e.target.value })); setPage(1); }} /></div></label>
-                    <button className="asset-clear-button" onClick={clearFilters} disabled={!hasFilters}><FaBroom /> Clear Filters</button>
-                </div>}
+                {showColumns && (
+                    <div className="asset-popover asset-columns-popover">
+                        {columns.map(([key, label]) => (
+                            <label key={key}><input type="checkbox" checked={visibleColumns.includes(key)} onChange={() => toggleColumn(key)} /> {label}</label>
+                        ))}
+                    </div>
+                )}
+
+                {showPrefills && isMarketing && (
+                    <div className="asset-popover asset-prefill-popover">
+                        <strong>Prefills</strong>
+                        <span>Use the Add Entry form for department, store, category, type and other reusable values.</span>
+                    </div>
+                )}
 
                 {error && <div className="asset-page-error">{error}</div>}
+
                 <div className="asset-table-wrap">
-                    <div className="asset-table-caption"><span><strong>{total}</strong> {isMarketing ? "marketing assets" : "legal assets"}</span><small>Live database view</small></div>
-                    <table className="asset-table"><thead><tr>{columns.filter(([key]) => visibleColumns.includes(key)).map(([key, label]) => <th key={key}>{label}</th>)}<th>Actions</th></tr></thead>
-                        <tbody>{loading ? <tr><td colSpan={visibleColumns.length + 1} className="asset-empty">Loading assets...</td></tr> : rows.length === 0 ? <tr><td colSpan={visibleColumns.length + 1} className="asset-empty"><div className="asset-empty-premium"><div>{isMarketing ? <FaBullhorn /> : <FaBalanceScale />}</div><strong>No assets found</strong><span>{hasFilters ? "Clear filters or add a new entry." : "Add your first asset to get started."}</span></div></td></tr> : rows.map((row) => <tr key={row.id}>{columns.filter(([key]) => visibleColumns.includes(key)).map(([key]) => <td key={key}>{renderCell(row, key)}</td>)}<td><div className="asset-row-actions">{permissions.canEdit && <button title="Edit" onClick={() => openEdit(row)}><FaEdit /></button>}{permissions.canDelete && <button title="Delete" onClick={() => remove(row)}><FaTrash /></button>}{row.attachments?.[0] && <a title="Open attachment" href={attachmentUrl(row.attachments[0])} target="_blank" rel="noreferrer"><FaExternalLinkAlt /></a>}</div></td></tr>)}</tbody>
+                    <table className="asset-table">
+                        <thead>
+                            <tr>
+                                {columns.filter(([key]) => visibleColumns.includes(key)).map(([key, label]) => <th key={key}>{label}</th>)}
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr><td colSpan={visibleColumns.length + 1} className="asset-empty">Loading...</td></tr>
+                            ) : rows.length === 0 ? (
+                                <tr><td colSpan={visibleColumns.length + 1} className="asset-empty">No assets found.</td></tr>
+                            ) : rows.map((row) => (
+                                <tr key={row.id}>
+                                    {columns.filter(([key]) => visibleColumns.includes(key)).map(([key]) => <td key={key}>{renderCell(row, key)}</td>)}
+                                    <td>
+                                        <div className="asset-row-actions">
+                                            {permissions.canEdit && <button type="button" title="Edit" onClick={() => openEdit(row)}><FaEdit /></button>}
+                                            {permissions.canDelete && <button type="button" title="Delete" onClick={() => remove(row)}><FaTrash /></button>}
+                                            {Array.isArray(row.attachments) && row.attachments[0] && <a title="Open attachment" href={attachmentUrl(row.attachments[0])} target="_blank" rel="noreferrer"><FaExternalLinkAlt /></a>}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
                     </table>
                 </div>
-                <div className="asset-pagination"><span>Total: {total} entries{total ? ` (Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)})` : ""}</span><span>Items per page <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>{[10,20,50,100].map((n) => <option key={n} value={n}>{n}</option>)}</select></span><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button><span>Page {page} of {totalPages}</span><button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button></div>
+
+                <div className="asset-pagination">
+                    <span>Total: {total} entries{total > 0 ? ` (Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)})` : ""}</span>
+                    <span>Items per page:</span>
+                    <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                        {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+                    </select>
+                    <button type="button" disabled={page <= 1} onClick={() => setPage((prev) => prev - 1)}>Previous</button>
+                    <span>Page {page} of {totalPages}</span>
+                    <button type="button" disabled={page >= totalPages} onClick={() => setPage((prev) => prev + 1)}>Next</button>
+                </div>
             </section>
 
-            <AssetModal type={type} open={modalOpen} initialData={editing} options={options} onClose={() => { setModalOpen(false); setEditing(null); }} onSaved={async () => { setModalOpen(false); setEditing(null); await load(); }} />
-            <BulkUploadModal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} title={`Bulk Upload ${title}`} uploadFunction={bulkUpload} onSuccess={load} acceptedFile=".csv,.xlsx,.xls" sampleFile={`https://miarcus-backend.onrender.com/api/assets/${type}/sample`} />
-            <ConfirmDialog open={showDeleteAllDialog} title={`Delete All ${title}`} message={`Are you sure you want to permanently delete all ${total} records? This action cannot be undone.`} confirmText={deletingAll ? "Deleting..." : "Delete All"} cancelText="Cancel" confirmVariant="danger" onConfirm={confirmDeleteAll} onCancel={() => !deletingAll && setShowDeleteAllDialog(false)} />
+            <AssetModal
+                type={type}
+                open={modalOpen}
+                initialData={editing}
+                options={options}
+                onClose={() => setModalOpen(false)}
+                onSaved={async () => {
+                    setModalOpen(false);
+                    setEditing(null);
+                    await load();
+                }}
+            />
         </div>
     );
 }
