@@ -169,7 +169,7 @@ function BarChart({ items }) {
     );
 }
 
-function TrendChart({ points }) {
+function TrendChart({ points, range = "sevenDays" }) {
     const safePoints = points?.length ? points : [];
 
     if (!safePoints.length) {
@@ -181,69 +181,194 @@ function TrendChart({ points }) {
         );
     }
 
-    const width = 620;
-    const height = 230;
-    const paddingX = 30;
-    const paddingTop = 18;
-    const paddingBottom = 34;
+    /*
+     * The flow is based on day-over-day movement, not the absolute record
+     * count.  This gives the chart a real zero baseline:
+     *   green + above the line = growth
+     *   red   - below the line = loss
+     *   neutral on the line   = no movement
+     */
+    const movements = safePoints.map((point, index) => {
+        const current = Number(point.total || 0);
+        const previous = index === 0 ? current : Number(safePoints[index - 1].total || 0);
+        return {
+            ...point,
+            movement: index === 0 ? 0 : current - previous,
+        };
+    });
+
+    const width = 760;
+    const height = 260;
+    const paddingX = 34;
+    const paddingTop = 20;
+    const paddingBottom = 42;
     const chartWidth = width - paddingX * 2;
     const chartHeight = height - paddingTop - paddingBottom;
-    const max = Math.max(...safePoints.map((point) => Number(point.total || 0)), 1);
+    const baseline = paddingTop + chartHeight / 2;
+    const maxMovement = Math.max(
+        ...movements.map((point) => Math.abs(Number(point.movement || 0))),
+        1
+    );
 
-    const coordinates = safePoints.map((point, index) => {
+    const coordinates = movements.map((point, index) => {
         const x =
             paddingX +
             (safePoints.length === 1
                 ? chartWidth / 2
                 : (index / (safePoints.length - 1)) * chartWidth);
-        const y = paddingTop + chartHeight - (Number(point.total || 0) / max) * chartHeight;
+
+        const movement = Number(point.movement || 0);
+        const y = baseline - (movement / maxMovement) * (chartHeight / 2 - 14);
+
         return { ...point, x, y };
     });
 
-    const line = coordinates
-        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-        .join(" ");
+    const positivePoints = coordinates.filter((point) => point.movement > 0);
+    const negativePoints = coordinates.filter((point) => point.movement < 0);
 
-    const area = `${line} L ${coordinates.at(-1).x} ${height - paddingBottom} L ${coordinates[0].x} ${height - paddingBottom} Z`;
+    const segments = coordinates.slice(1).map((point, index) => {
+        const previous = coordinates[index];
+        const positive = point.movement > 0;
+        const negative = point.movement < 0;
+
+        return {
+            previous,
+            point,
+            positive,
+            negative,
+        };
+    });
 
     return (
-        <div className="analytics-trend-chart">
-            <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-                {[0, 1, 2, 3].map((step) => {
-                    const y = paddingTop + (chartHeight / 3) * step;
+        <div className="analytics-trend-chart analytics-trend-flow-chart">
+            <div className="analytics-trend-flow-summary">
+                <span className="analytics-flow-key growth">
+                    <i /> Growth / Up
+                </span>
+                <span className="analytics-flow-key loss">
+                    <i /> Loss / Down
+                </span>
+                <span className="analytics-flow-key flat">
+                    <i /> No movement
+                </span>
+            </div>
+
+            <svg
+                viewBox={`0 0 ${width} ${height}`}
+                preserveAspectRatio="none"
+                aria-label={`${range} growth and loss trend`}
+            >
+                <line
+                    x1={paddingX}
+                    x2={width - paddingX}
+                    y1={baseline}
+                    y2={baseline}
+                    className="analytics-trend-zero-line"
+                />
+
+                <line
+                    x1={paddingX}
+                    x2={width - paddingX}
+                    y1={paddingTop}
+                    y2={paddingTop}
+                    className="analytics-trend-zone-line growth-zone"
+                />
+                <line
+                    x1={paddingX}
+                    x2={width - paddingX}
+                    y1={height - paddingBottom}
+                    y2={height - paddingBottom}
+                    className="analytics-trend-zone-line loss-zone"
+                />
+
+                <text
+                    x={paddingX + 3}
+                    y={paddingTop - 5}
+                    className="analytics-trend-zone-label growth-label"
+                >
+                    GROWTH
+                </text>
+                <text
+                    x={paddingX + 3}
+                    y={height - paddingBottom + 16}
+                    className="analytics-trend-zone-label loss-label"
+                >
+                    LOSS
+                </text>
+
+                {segments.map(({ previous, point, positive, negative }) => {
+                    const segmentClass = positive
+                        ? "analytics-flow-segment growth"
+                        : negative
+                            ? "analytics-flow-segment loss"
+                            : "analytics-flow-segment flat";
+
+                    const fillClass = positive
+                        ? "analytics-flow-fill growth"
+                        : negative
+                            ? "analytics-flow-fill loss"
+                            : "analytics-flow-fill flat";
+
+                    const areaPath = `M ${previous.x} ${baseline} L ${point.x} ${point.y} L ${point.x} ${baseline} Z`;
+
                     return (
-                        <line
-                            key={step}
-                            x1={paddingX}
-                            x2={width - paddingX}
-                            y1={y}
-                            y2={y}
-                            className="analytics-grid-line"
-                        />
+                        <g key={`${point.day}-${point.movement}`}>
+                            <path d={areaPath} className={fillClass} />
+                            <line
+                                x1={previous.x}
+                                y1={baseline}
+                                x2={point.x}
+                                y2={point.y}
+                                className={segmentClass}
+                            />
+                        </g>
                     );
                 })}
 
-                <path d={area} className="analytics-area" />
-                <path d={line} className="analytics-line" />
+                {coordinates.map((point, index) => {
+                    const movement = Number(point.movement || 0);
+                    const directionClass =
+                        movement > 0 ? "growth" : movement < 0 ? "loss" : "flat";
+                    const sign = movement > 0 ? "+" : "";
+                    const labelStep = range === "daily" ? 4 : range === "monthly" ? 1 : 1;
+                    const showLabel =
+                        range === "sevenDays" || range === "monthly" || range === "yearly"
+                            ? true
+                            : index % labelStep === 0 || index === coordinates.length - 1;
 
-                {coordinates.map((point) => (
-                    <g key={point.day}>
-                        <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r="4.5"
-                            className="analytics-point"
-                        />
-                        <text
-                            x={point.x}
-                            y={height - 11}
-                            textAnchor="middle"
-                            className="analytics-axis-label"
-                        >
-                            {point.label}
-                        </text>
-                    </g>
-                ))}
+                    return (
+                        <g key={`${point.period || point.day}-${index}`}>
+                            <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r="5"
+                                className={`analytics-flow-point ${directionClass}`}
+                            />
+
+                            {movement !== 0 && (
+                                <text
+                                    x={point.x}
+                                    y={movement > 0 ? point.y - 10 : point.y + 18}
+                                    textAnchor="middle"
+                                    className={`analytics-flow-value ${directionClass}`}
+                                >
+                                    {sign}{formatNumber(movement)}
+                                </text>
+                            )}
+
+                            {showLabel && (
+                                <text
+                                    x={point.x}
+                                    y={height - 11}
+                                    textAnchor="middle"
+                                    className="analytics-axis-label"
+                                >
+                                    {point.label}
+                                </text>
+                            )}
+                        </g>
+                    );
+                })}
             </svg>
         </div>
     );
@@ -255,6 +380,7 @@ function DashboardAnalytics() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [trendRange, setTrendRange] = useState("sevenDays");
 
     const loadAnalytics = async () => {
         setLoading(true);
@@ -311,33 +437,33 @@ function DashboardAnalytics() {
             .sort((a, b) => b.total - a.total)
             .slice(0, 7);
 
-        const trendMap = new Map();
-        list.forEach((module) => {
-            (module.trend || []).forEach((point) => {
-                trendMap.set(
-                    point.day,
-                    (trendMap.get(point.day) || 0) + Number(point.total || 0)
-                );
+        const aggregateTrendRange = (range) => {
+            const trendMap = new Map();
+            list.forEach((module) => {
+                (module.trendRanges?.[range] || []).forEach((point) => {
+                    const key = point.period || point.day;
+                    trendMap.set(
+                        key,
+                        (trendMap.get(key) || 0) + Number(point.total || 0)
+                    );
+                });
             });
-        });
 
-        const trend = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+            const template = list.find((module) => module.trendRanges?.[range]?.length)?.trendRanges?.[range] || [];
+            return template.map((point) => ({
+                ...point,
+                total: trendMap.get(point.period || point.day) || 0
+            }));
+        };
 
-        for (let offset = 6; offset >= 0; offset -= 1) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - offset);
-            const day = date.toISOString().slice(0, 10);
-            trend.push({
-                day,
-                label: date.toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                }),
-                total: trendMap.get(day) || 0,
-            });
-        }
+        const trendRanges = {
+            sevenDays: aggregateTrendRange("sevenDays"),
+            daily: aggregateTrendRange("daily"),
+            monthly: aggregateTrendRange("monthly"),
+            yearly: aggregateTrendRange("yearly")
+        };
+
+        const trend = trendRanges.sevenDays;
 
         return {
             total,
@@ -346,6 +472,7 @@ function DashboardAnalytics() {
             valueTotal,
             status,
             trend,
+            trendRanges,
             moduleCount: list.length,
         };
     }, [modules]);
@@ -365,6 +492,23 @@ function DashboardAnalytics() {
                   ).toFixed(1)
               )
             : 0;
+
+    const trendPoints = view.trendRanges?.[trendRange] || view.trend || [];
+
+    const trendGrowth = useMemo(() => {
+        if (trendPoints.length < 2) return 0;
+        const midpoint = Math.ceil(trendPoints.length / 2);
+        const previous = trendPoints.slice(0, midpoint).reduce(
+            (sum, point) => sum + Number(point.total || 0),
+            0
+        );
+        const current = trendPoints.slice(midpoint).reduce(
+            (sum, point) => sum + Number(point.total || 0),
+            0
+        );
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return Number((((current - previous) / previous) * 100).toFixed(1));
+    }, [trendPoints]);
 
     return (
         <div className="dashboard-analytics-page">
@@ -525,17 +669,40 @@ function DashboardAnalytics() {
                     </section>
 
                     <section className="analytics-panel analytics-trend-panel">
-                        <div className="analytics-panel-heading">
+                        <div className="analytics-panel-heading analytics-trend-heading">
                             <div>
                                 <div className="analytics-panel-kicker">TRENDING FLOW</div>
-                                <h2>{selectedModule ? `${selectedModule.name} Activity — Last 7 Days` : "MIARCUS Activity — Last 7 Days"}</h2>
+                                <h2>
+                                    {selectedModule ? `${selectedModule.name} Activity` : "MIARCUS Activity"}
+                                    <span className="analytics-trend-range-title">
+                                        {trendRange === "sevenDays" ? " — Last 7 Days" : trendRange === "daily" ? " — Daily / 30 Days" : trendRange === "monthly" ? " — Monthly / 12 Months" : " — Yearly / 5 Years"}
+                                    </span>
+                                </h2>
                             </div>
-                            <div className={`analytics-trend-badge ${growth >= 0 ? "up" : "down"}`}>
-                                {growth >= 0 ? <FaArrowUp /> : <FaArrowDown />}
-                                {growth > 0 ? "+" : ""}{growth}%
+                            <div className="analytics-trend-controls" role="group" aria-label="Trend period">
+                                {[
+                                    ["sevenDays", "7 Days"],
+                                    ["daily", "Per Day"],
+                                    ["monthly", "Per Month"],
+                                    ["yearly", "Per Year"]
+                                ].map(([key, label]) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        className={trendRange === key ? "active" : ""}
+                                        onClick={() => setTrendRange(key)}
+                                        aria-pressed={trendRange === key}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className={`analytics-trend-badge ${trendGrowth >= 0 ? "up" : "down"}`}>
+                                {trendGrowth >= 0 ? <FaArrowUp /> : <FaArrowDown />}
+                                {trendGrowth > 0 ? "+" : ""}{trendGrowth}%
                             </div>
                         </div>
-                        <TrendChart points={view.trend || []} />
+                        <TrendChart points={trendPoints} range={trendRange} />
                     </section>
 
                     <section className="analytics-module-section">

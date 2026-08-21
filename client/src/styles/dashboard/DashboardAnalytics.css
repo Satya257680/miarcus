@@ -553,6 +553,56 @@
     color: #c14c4c;
 }
 
+.analytics-trend-heading {
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.analytics-trend-heading > div:first-child {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.analytics-trend-range-title {
+    color: #6f8288;
+    font-weight: 700;
+}
+
+.analytics-trend-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid #d8e4e7;
+    border-radius: 9px;
+    background: #f5f9fa;
+    white-space: nowrap;
+}
+
+.analytics-trend-controls button {
+    border: 0;
+    background: transparent;
+    color: #557078;
+    padding: 7px 9px;
+    border-radius: 7px;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.analytics-trend-controls button:hover {
+    background: #e8f1f3;
+    color: #185d68;
+}
+
+.analytics-trend-controls button.active {
+    background: #216f79;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(33, 111, 121, 0.18);
+}
+
 .analytics-trend-chart {
     width: 100%;
     height: 245px;
@@ -783,6 +833,112 @@
     font-size: 8px;
 }
 
+
+/* ==========================================================
+   GROWTH / LOSS TREND FLOW
+   Positive movement rises above zero in green.
+   Negative movement falls below zero in red.
+   ========================================================== */
+.analytics-trend-flow-chart {
+    position: relative;
+    height: 275px;
+    padding-top: 18px;
+}
+
+.analytics-trend-flow-chart svg {
+    height: 245px;
+}
+
+.analytics-trend-flow-summary {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.analytics-flow-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #728489;
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.analytics-flow-key i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.analytics-flow-key.growth i { background: #20a765; }
+.analytics-flow-key.loss i { background: #df5757; }
+.analytics-flow-key.flat i { background: #8ca0a5; }
+
+.analytics-trend-zero-line {
+    stroke: #8fa3a8;
+    stroke-width: 1.6;
+    stroke-dasharray: 5 4;
+}
+
+.analytics-trend-zone-line {
+    stroke-width: 1;
+    stroke-dasharray: 3 6;
+    opacity: 0.45;
+}
+
+.analytics-trend-zone-line.growth-zone { stroke: #75c99b; }
+.analytics-trend-zone-line.loss-zone { stroke: #e9a0a0; }
+
+.analytics-trend-zone-label {
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+}
+
+.analytics-trend-zone-label.growth-label { fill: #23935e; }
+.analytics-trend-zone-label.loss-label { fill: #c95151; }
+
+.analytics-flow-fill {
+    opacity: 0.11;
+}
+
+.analytics-flow-fill.growth { fill: #20a765; }
+.analytics-flow-fill.loss { fill: #df5757; }
+.analytics-flow-fill.flat { fill: #8ca0a5; opacity: 0.05; }
+
+.analytics-flow-segment {
+    fill: none;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.analytics-flow-segment.growth { stroke: #20a765; }
+.analytics-flow-segment.loss { stroke: #df5757; }
+.analytics-flow-segment.flat { stroke: #8ca0a5; }
+
+.analytics-flow-point {
+    fill: #fff;
+    stroke-width: 3;
+}
+
+.analytics-flow-point.growth { stroke: #20a765; }
+.analytics-flow-point.loss { stroke: #df5757; }
+.analytics-flow-point.flat { stroke: #8ca0a5; }
+
+.analytics-flow-value {
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.analytics-flow-value.growth { fill: #16834e; }
+.analytics-flow-value.loss { fill: #c94b4b; }
+
 @media (max-width: 1250px) {
     .analytics-module-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -873,5 +1029,22 @@
 
     .analytics-footer {
         flex-direction: column;
+    }
+}
+
+
+@media (max-width: 900px) {
+    .analytics-trend-heading {
+        align-items: flex-start;
+    }
+
+    .analytics-trend-controls {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .analytics-trend-controls button {
+        flex: 1 0 auto;
     }
 }

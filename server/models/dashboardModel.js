@@ -426,45 +426,124 @@ const firstColumn = (columns, candidates) => {
     return null;
 };
 
-const buildTrend = async (table, dateColumn) => {
+const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
     if (!dateColumn) return [];
 
-    const rows = await db.query(
-        `
-            SELECT DATE(${quoteIdentifier(dateColumn)}) AS day, COUNT(*) AS total
-            FROM ${quoteIdentifier(table)}
-            WHERE ${quoteIdentifier(dateColumn)} >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-              AND ${quoteIdentifier(dateColumn)} < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
-            GROUP BY DATE(${quoteIdentifier(dateColumn)})
-            ORDER BY day ASC
-        `
-    );
+    const config = {
+        sevenDays: { days: 7 },
+        daily: { days: 30 },
+        monthly: { months: 12 },
+        yearly: { years: 5 }
+    };
 
-    const lookup = new Map(
-        (rows || []).map((row) => [
-            String(row.day).slice(0, 10),
-            Number(row.total || 0)
-        ])
-    );
+    if (!config[range]) return [];
 
-    const result = [];
-    for (let offset = 6; offset >= 0; offset -= 1) {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() - offset);
-        const key = date.toISOString().slice(0, 10);
-        result.push({
-            day: key,
-            label: date.toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short"
-            }),
-            total: lookup.get(key) || 0
-        });
+    let rows = [];
+    let result = [];
+
+    if (range === "sevenDays" || range === "daily") {
+        const days = config[range].days;
+        rows = await db.query(
+            `
+                SELECT DATE(${quoteIdentifier(dateColumn)}) AS period, COUNT(*) AS total
+                FROM ${quoteIdentifier(table)}
+                WHERE ${quoteIdentifier(dateColumn)} >= DATE_SUB(CURDATE(), INTERVAL ${days - 1} DAY)
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                GROUP BY DATE(${quoteIdentifier(dateColumn)})
+                ORDER BY period ASC
+            `
+        );
+
+        const lookup = new Map(
+            (rows || []).map((row) => [
+                String(row.period).slice(0, 10),
+                Number(row.total || 0)
+            ])
+        );
+
+        for (let offset = days - 1; offset >= 0; offset -= 1) {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() - offset);
+            const day = date.toISOString().slice(0, 10);
+            result.push({
+                period: day,
+                day,
+                label: date.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short"
+                }),
+                total: lookup.get(day) || 0
+            });
+        }
+    } else if (range === "monthly") {
+        rows = await db.query(
+            `
+                SELECT DATE_FORMAT(${quoteIdentifier(dateColumn)}, '%Y-%m') AS period,
+                       COUNT(*) AS total
+                FROM ${quoteIdentifier(table)}
+                WHERE ${quoteIdentifier(dateColumn)} >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01')
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                GROUP BY DATE_FORMAT(${quoteIdentifier(dateColumn)}, '%Y-%m')
+                ORDER BY period ASC
+            `
+        );
+
+        const lookup = new Map(
+            (rows || []).map((row) => [
+                String(row.period).slice(0, 7),
+                Number(row.total || 0)
+            ])
+        );
+
+        for (let offset = 11; offset >= 0; offset -= 1) {
+            const date = new Date();
+            date.setDate(1);
+            date.setHours(0, 0, 0, 0);
+            date.setMonth(date.getMonth() - offset);
+            const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+            result.push({
+                period,
+                label: date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+                total: lookup.get(period) || 0
+            });
+        }
+    } else if (range === "yearly") {
+        rows = await db.query(
+            `
+                SELECT YEAR(${quoteIdentifier(dateColumn)}) AS period,
+                       COUNT(*) AS total
+                FROM ${quoteIdentifier(table)}
+                WHERE ${quoteIdentifier(dateColumn)} >= MAKEDATE(YEAR(CURDATE()) - 4, 1)
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(MAKEDATE(YEAR(CURDATE()), 1), INTERVAL 1 YEAR)
+                GROUP BY YEAR(${quoteIdentifier(dateColumn)})
+                ORDER BY period ASC
+            `
+        );
+
+        const lookup = new Map(
+            (rows || []).map((row) => [
+                String(row.period),
+                Number(row.total || 0)
+            ])
+        );
+
+        const currentYear = new Date().getFullYear();
+        for (let offset = 4; offset >= 0; offset -= 1) {
+            const year = currentYear - offset;
+            const period = String(year);
+            result.push({
+                period,
+                label: period,
+                total: lookup.get(period) || 0
+            });
+        }
     }
 
     return result;
 };
+
+const buildTrend = async (table, dateColumn) => buildTrendRange(table, dateColumn, "sevenDays");
 
 const getTableAnalytics = async (table) => {
     try {
@@ -523,7 +602,14 @@ const getTableAnalytics = async (table) => {
             "date"
         ]);
 
-        const trend = await buildTrend(table, dateColumn);
+        const trendRanges = {
+            sevenDays: await buildTrendRange(table, dateColumn, "sevenDays"),
+            daily: await buildTrendRange(table, dateColumn, "daily"),
+            monthly: await buildTrendRange(table, dateColumn, "monthly"),
+            yearly: await buildTrendRange(table, dateColumn, "yearly")
+        };
+
+        const trend = trendRanges.sevenDays;
 
         const numericColumn = columns.find((column) =>
             ["decimal", "double", "float", "int", "bigint"].includes(
@@ -555,6 +641,7 @@ const getTableAnalytics = async (table) => {
             total,
             status,
             trend,
+            trendRanges,
             valueTotal,
             dateColumn
         };
@@ -596,33 +683,30 @@ Dashboard.getAnalytics = async (callback) => {
                 }
             }
 
-            const trendMap = new Map();
-            for (const item of tableResults) {
-                for (const point of item.trend || []) {
-                    trendMap.set(
-                        point.day,
-                        (trendMap.get(point.day) || 0) + Number(point.total || 0)
-                    );
+            const aggregateTrendRange = (range) => {
+                const map = new Map();
+                for (const item of tableResults) {
+                    for (const point of item.trendRanges?.[range] || []) {
+                        const key = point.period || point.day;
+                        map.set(key, (map.get(key) || 0) + Number(point.total || 0));
+                    }
                 }
-            }
 
-            const trend = [];
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+                const template = tableResults.find((item) => item.trendRanges?.[range]?.length)?.trendRanges?.[range] || [];
+                return template.map((point) => ({
+                    ...point,
+                    total: map.get(point.period || point.day) || 0
+                }));
+            };
 
-            for (let offset = 6; offset >= 0; offset -= 1) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - offset);
-                const day = date.toISOString().slice(0, 10);
-                trend.push({
-                    day,
-                    label: date.toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short"
-                    }),
-                    total: trendMap.get(day) || 0
-                });
-            }
+            const trendRanges = {
+                sevenDays: aggregateTrendRange("sevenDays"),
+                daily: aggregateTrendRange("daily"),
+                monthly: aggregateTrendRange("monthly"),
+                yearly: aggregateTrendRange("yearly")
+            };
+
+            const trend = trendRanges.sevenDays;
 
             const previousPeriod = trend.slice(0, 3).reduce(
                 (sum, point) => sum + point.total,
@@ -647,6 +731,7 @@ Dashboard.getAnalytics = async (callback) => {
                     .sort((a, b) => b.total - a.total)
                     .slice(0, 8),
                 trend,
+                trendRanges,
                 change: Number(change.toFixed(1)),
                 direction: change > 0 ? "up" : change < 0 ? "down" : "flat",
                 tables: tableResults.map((item) => item.table)
