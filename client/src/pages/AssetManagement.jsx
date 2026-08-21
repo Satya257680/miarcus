@@ -127,7 +127,10 @@ const getPermissions = () => {
 
     const permission = permissions?.["Asset Master"] || "None";
 
+    const canView = ["View", "Add", "Edit", "Full"].includes(permission);
+
     return {
+        canView: admin || canView,
         canAdd: admin || ["Add", "Edit", "Full"].includes(permission),
         canEdit: admin || ["Edit", "Full"].includes(permission),
         canDelete: admin || permission === "Full",
