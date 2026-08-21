@@ -48,6 +48,11 @@ export const deleteAsset = async (type, id) => {
     return response.data;
 };
 
+export const deleteAllAssets = async (type) => {
+    const response = await axios.delete(`${API}/${type}/delete-all`, authConfig());
+    return response.data;
+};
+
 export const importAssets = async (type, file) => {
     const formData = new FormData();
     formData.append("file", file);

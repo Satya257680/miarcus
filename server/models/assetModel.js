@@ -124,16 +124,22 @@ const resolveNames = async (data) => {
     return { departmentName, storeName };
 };
 
-const parseRow = (type, row) => ({
-    ...row,
-    attachments: normalizeAttachments(row.attachments),
-    additional_fields: jsonOrEmpty(row.additional_fields, []),
-    rate: row.rate === null || row.rate === undefined ? null : Number(row.rate),
-    days_to_expire:
-        type === "marketing" && row.expiry_date
-            ? Math.ceil((new Date(row.expiry_date).getTime() - Date.now()) / 86400000)
-            : null,
-});
+const parseRow = (type, row) => {
+    const daysToExpire = type === "marketing" && row.expiry_date
+        ? Math.ceil((new Date(row.expiry_date).getTime() - Date.now()) / 86400000)
+        : null;
+    const status = type === "marketing"
+        ? daysToExpire === null ? "No Expiry" : daysToExpire <= 0 ? "Expired" : "Active"
+        : row.status;
+    return {
+        ...row,
+        attachments: normalizeAttachments(row.attachments),
+        additional_fields: jsonOrEmpty(row.additional_fields, []),
+        rate: row.rate === null || row.rate === undefined ? null : Number(row.rate),
+        days_to_expire: daysToExpire,
+        status,
+    };
+};
 
 const buildWhere = (type, filters = {}) => {
     const conditions = [];
@@ -159,6 +165,21 @@ const buildWhere = (type, filters = {}) => {
             params.push(`%${filterValue}%`);
         }
     }
+
+    if (clean(filters.store)) { conditions.push("store_name = ?"); params.push(clean(filters.store)); }
+    if (clean(filters.department)) { conditions.push("department_name = ?"); params.push(clean(filters.department)); }
+    if (type === "marketing" && clean(filters.category)) { conditions.push("category = ?"); params.push(clean(filters.category)); }
+    if (type === "legal" && clean(filters.status)) { conditions.push("status = ?"); params.push(clean(filters.status)); }
+    if (type === "marketing" && clean(filters.status)) {
+        const status = clean(filters.status);
+        if (status === "Expired") conditions.push("expiry_date IS NOT NULL AND expiry_date < CURDATE()");
+        else if (status === "Expiring Soon") conditions.push("expiry_date IS NOT NULL AND expiry_date > CURDATE() AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)");
+        else if (status === "Active") conditions.push("expiry_date IS NOT NULL AND expiry_date > CURDATE()");
+        else if (status === "No Expiry") conditions.push("expiry_date IS NULL");
+    }
+    const dateColumn = type === "marketing" ? "expiry_date" : "date_of_issue";
+    if (clean(filters.dateFrom)) { conditions.push(`${dateColumn} >= ?`); params.push(clean(filters.dateFrom)); }
+    if (clean(filters.dateTo)) { conditions.push(`${dateColumn} <= ?`); params.push(clean(filters.dateTo)); }
 
     return {
         where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
@@ -277,13 +298,19 @@ const remove = async (type, id) => {
     return result.affectedRows > 0;
 };
 
+const removeAll = async (type) => {
+    const result = await db.query(`DELETE FROM ${TABLES[type]}`);
+    return Number(result.affectedRows || 0);
+};
+
 const getOptions = async () => {
-    const [departments, stores] = await Promise.all([
+    const [departments, stores, categories, statuses] = await Promise.all([
         db.query("SELECT id, department_name FROM departments ORDER BY department_name ASC"),
         db.query("SELECT id, store_name FROM stores ORDER BY store_name ASC"),
+        db.query("SELECT DISTINCT category FROM marketing_assets WHERE category IS NOT NULL AND category <> '' ORDER BY category ASC"),
+        db.query("SELECT DISTINCT status FROM legal_assets WHERE status IS NOT NULL AND status <> '' ORDER BY status ASC"),
     ]);
-
-    return { departments, stores };
+    return { departments, stores, categories: categories.map((row) => row.category), statuses: statuses.map((row) => row.status) };
 };
 
 const exportRows = async (type, filters = {}) => {
@@ -322,6 +349,7 @@ module.exports = {
     create,
     update,
     remove,
+    removeAll,
     getOptions,
     exportRows,
     importRows,
