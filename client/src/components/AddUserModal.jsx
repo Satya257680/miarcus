@@ -118,32 +118,47 @@ function AddUserModal({
   // MODULE ACCESS
   // =====================================================
 
-  const modules = [
-  "Dashboard",
-  "Action Points",
-  "Quiz",
-  "Checklist Reports",
-  "Checklist Submit",
-  "Checklist Types",
-  "Questions",
-  "Departments",
-  "Designations",
-  "Store Management",
-  "Users",
-  "Reports To",
-  "NSO Rules",
-  "New Store Openings",
-  "Announcements",
-  "Gallery",
-  "Employee Location",
-  "Expenses",
-  "Visit Planner",
-  "Travel Plan",
-  "Travel Plan Approvals",
-  "Sales Review",
-  "Listing Tracker",
-  "Profile",
-  "Settings",
+ const modules = [
+    "Dashboard",
+
+    "Action Points",
+
+    "Quiz",
+
+    "Checklist Reports",
+    "Checklist Submit",
+    "Checklist Types",
+    "Questions",
+
+    "Departments",
+    "Designations",
+    "Store Management",
+
+    "Users",
+    "Reports To",
+
+    "NSO Rules",
+    "New Store Openings",
+
+    "Announcements",
+    "Gallery",
+
+    "Employee Location",
+
+    "Attendance",
+
+    "Expenses",
+
+    "Visit Planner",
+
+    "Travel Plan",
+    "Travel Plan Approvals",
+
+    "Sales Review",
+    "Listing Tracker",
+
+    "Profile",
+    "Settings",
 ];
   const permissionTypes = [
     "None",

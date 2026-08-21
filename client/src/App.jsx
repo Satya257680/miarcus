@@ -102,6 +102,8 @@ import TravelPlan from "./pages/SalesTeam/TravelPlan";
 import TravelPlanApprovals from "./pages/SalesTeam/TravelPlanApprovals";
 import SalesReview from "./pages/SalesTeam/SalesReview";
 import ListingTracker from "./pages/ListingTracker";
+import Attendance from "./pages/Attendance";
+import AttendanceReports from "./pages/AttendanceReports";
 
 
 function App() {
@@ -242,6 +244,21 @@ function App() {
                         path="/gallery"
                         element={<Gallery />}
                     />
+
+                    {/* ==================================================
+                        ATTENDANCE
+                    ================================================== */}
+
+                    <Route
+                        path="/attendance"
+                        element={<Attendance />}
+                    />
+
+                    <Route
+                        path="/attendance-reports"
+                        element={<AttendanceReports />}
+                    />
+
 
                     {/* ==================================================
                         EMPLOYEE LOCATION

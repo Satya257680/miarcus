@@ -30,7 +30,8 @@ import {
     FaPlane,
     FaCheckCircle,
     FaChartLine,
-    FaListAlt
+    FaListAlt,
+    FaCalendarCheck
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -414,6 +415,34 @@ function Sidebar({ collapsed }) {
                         )}
                     </NavLink>
                 )}
+
+                {/* ==================================================
+                    ATTENDANCE
+                ================================================== */}
+
+                <div className={`sidebar-group ${
+                    location.pathname === "/attendance" || location.pathname === "/attendance-reports" ? "open" : ""
+                }`}>
+                    <NavLink
+                        to="/attendance"
+                        className={getMenuClass}
+                    >
+                        <FaCalendarCheck />
+                        {!collapsed && <span>Attendance</span>}
+                    </NavLink>
+                    {!collapsed && (isAdministrator || location.pathname === "/attendance-reports") && (
+                        <div className="sidebar-submenu">
+                            {isAdministrator && (
+                                <NavLink
+                                    to="/attendance-reports"
+                                    className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}
+                                >
+                                    <FaChartBar /><span>Attendance Reports</span>
+                                </NavLink>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {/* ==================================================
                     EMPLOYEE LOCATION

@@ -90,6 +90,9 @@ const SalesTeam =
 const ListingTracker =
     require("./models/listingTrackerModel");
 
+const Attendance =
+    require("./models/attendanceModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -277,6 +280,14 @@ async function initializeDatabase() {
         await createTablesAsync(
             ListingTracker,
             "Listing Tracker"
+        );
+
+        // --------------------------------------------------
+        // ATTENDANCE
+        // --------------------------------------------------
+        await createTablesAsync(
+            Attendance,
+            "Attendance"
         );
 
         // --------------------------------------------------
@@ -1000,6 +1011,16 @@ loadRoute(
     "/api/location",
 
     "Employee Location Routes"
+
+);
+
+loadRoute(
+
+    "./routes/attendanceRoutes",
+
+    "/api/attendance",
+
+    "Attendance Routes"
 
 );
 
