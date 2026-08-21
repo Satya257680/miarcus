@@ -998,17 +998,17 @@ export default function AttendanceReports() {
 
                     </div>
 
-                    <div className="report-filter-grid">
+                    <div className="attendance-report-filter-grid">
 
                         {/* SEARCH */}
 
-                        <label className="report-search-field">
+                        <label className="attendance-report-search-field">
 
                             <span>
                                 Search
                             </span>
 
-                            <div className="search-control">
+                            <div className="attendance-report-search-control">
 
                                 <FaSearch />
 

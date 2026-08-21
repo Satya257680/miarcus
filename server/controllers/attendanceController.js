@@ -30,6 +30,20 @@ const validCoords = (lat, lng) =>
     Number(lng) >= -180 &&
     Number(lng) <= 180;
 
+const removeUploadedAttendancePhoto = async (file) => {
+    if (!file?.path) {
+        return;
+    }
+
+    try {
+        await fs.unlink(file.path);
+    } catch (error) {
+        if (error.code !== "ENOENT") {
+            console.warn("Unable to remove failed attendance upload:", error.message);
+        }
+    }
+};
+
 // ======================================================
 // INDIA DATE
 // ======================================================
@@ -168,6 +182,8 @@ const context = async (req, res) => {
 // ======================================================
 
 const checkIn = async (req, res) => {
+    let attendancePersisted = false;
+
     try {
         // ------------------------------------------------
         // ALWAYS USE SERVER'S INDIA DATE
@@ -287,6 +303,8 @@ const checkIn = async (req, res) => {
                 remarks
             });
 
+        attendancePersisted = true;
+
         // ------------------------------------------------
         // GET SAVED RECORD
         // ------------------------------------------------
@@ -309,6 +327,10 @@ const checkIn = async (req, res) => {
         });
 
     } catch (error) {
+        if (!attendancePersisted) {
+            await removeUploadedAttendancePhoto(req.file);
+        }
+
         console.error(
             "Attendance check-in error:",
             error
@@ -346,6 +368,8 @@ const checkIn = async (req, res) => {
 // ======================================================
 
 const checkOut = async (req, res) => {
+    let attendancePersisted = false;
+
     try {
         // ------------------------------------------------
         // ALWAYS USE SERVER'S INDIA DATE
@@ -456,6 +480,8 @@ const checkOut = async (req, res) => {
                 remarks
             });
 
+        attendancePersisted = true;
+
         return res.json({
             success: true,
 
@@ -466,6 +492,10 @@ const checkOut = async (req, res) => {
         });
 
     } catch (error) {
+        if (!attendancePersisted) {
+            await removeUploadedAttendancePhoto(req.file);
+        }
+
         console.error(
             "Attendance check-out error:",
             error

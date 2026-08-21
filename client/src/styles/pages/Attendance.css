@@ -2573,3 +2573,169 @@
         max-height: calc(100vh - 20px);
     }
 }
+
+
+/* =========================================================
+   ATTENDANCE REPORTS — FINAL ERP FILTER LAYOUT
+   Matches the wider Department / Checklist / Action Point
+   search-and-filter structure.
+   ========================================================= */
+
+.attendance-report-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 18px 18px;
+    align-items: end;
+}
+
+.attendance-report-filter-grid > label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.attendance-report-search-field {
+    grid-column: 1 / -1;
+}
+
+.attendance-report-filter-grid > label > span {
+    color: #4f6670;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: .03em;
+}
+
+.attendance-report-filter-grid input,
+.attendance-report-filter-grid select {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    box-sizing: border-box;
+    border: 1px solid #cfdde0;
+    border-radius: 8px;
+    background: #fff;
+    color: #17343d;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.attendance-report-filter-grid input {
+    padding: 0 13px;
+}
+
+.attendance-report-filter-grid select {
+    padding: 0 34px 0 13px;
+    cursor: pointer;
+}
+
+.attendance-report-filter-grid input:hover,
+.attendance-report-filter-grid select:hover {
+    border-color: #b7cbd0;
+}
+
+.attendance-report-filter-grid input:focus,
+.attendance-report-filter-grid select:focus {
+    border-color: #527b86;
+    box-shadow: 0 0 0 3px rgba(73,111,121,.10);
+}
+
+.attendance-report-search-control {
+    position: relative;
+    width: 100%;
+}
+
+.attendance-report-search-control > svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    z-index: 1;
+    transform: translateY(-50%);
+    color: #718990;
+    pointer-events: none;
+}
+
+.attendance-report-search-control input {
+    width: 100%;
+    height: 46px;
+    padding: 0 42px 0 40px !important;
+    border-radius: 9px;
+}
+
+.attendance-report-search-control input::placeholder {
+    color: #8da0a5;
+}
+
+.attendance-report-search-control .search-clear {
+    right: 7px;
+}
+
+@media (max-width: 1150px) {
+    .attendance-report-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 800px) {
+    .attendance-report-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 0 14px 14px;
+    }
+}
+
+@media (max-width: 560px) {
+    .attendance-report-filter-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .attendance-report-search-field {
+        grid-column: auto;
+    }
+}
+
+/* Keep the report table readable while allowing horizontal scrolling. */
+.attendance-report-table {
+    min-width: 1320px;
+}
+
+.attendance-report-table th {
+    background: #f3f7f8;
+    color: #56717a;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.attendance-report-table td {
+    color: #334f58;
+    font-size: 12px;
+}
+
+.attendance-report-table tbody tr:hover {
+    background: #f9fbfb;
+}
+
+/* Department-style action buttons in the report table. */
+.report-photo-button,
+.report-delete-button {
+    min-height: 34px;
+    border-radius: 7px;
+}
+
+.report-photo-button {
+    border-color: #d4e2e5;
+    background: #f7fafb;
+}
+
+.report-delete-button {
+    border-color: #efcaca;
+    background: #fff8f8;
+}

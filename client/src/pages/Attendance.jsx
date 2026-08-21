@@ -201,6 +201,9 @@ export default function Attendance() {
     const [location, setLocation] =
         useState(null);
 
+    const [locationCapturedAt, setLocationCapturedAt] =
+        useState(null);
+
     const [locationState, setLocationState] =
         useState("idle");
 
@@ -355,48 +358,42 @@ export default function Attendance() {
                 }
 
                 // ------------------------------------------------
-                // Restore saved GPS immediately.
+                // Never reuse an old GPS position for a new
+                // check-in/check-out. A saved position is only
+                // useful for displaying a completed record.
+                // Active attendance always requires a fresh GPS
+                // capture from the browser.
                 // ------------------------------------------------
 
-                const saved =
-                    data.attendance;
+                const saved = data.attendance;
 
-                const latitude =
-                    saved?.check_out_latitude ??
-                    saved?.check_in_latitude;
+                if (saved?.check_out_at) {
+                    const latitude =
+                        saved.check_out_latitude ??
+                        saved.check_in_latitude;
+                    const longitude =
+                        saved.check_out_longitude ??
+                        saved.check_in_longitude;
+                    const accuracy =
+                        saved.check_out_accuracy ??
+                        saved.check_in_accuracy;
 
-                const longitude =
-                    saved?.check_out_longitude ??
-                    saved?.check_in_longitude;
-
-                const accuracy =
-                    saved?.check_out_accuracy ??
-                    saved?.check_in_accuracy;
-
-                if (
-                    Number.isFinite(
-                        Number(latitude)
-                    ) &&
-                    Number.isFinite(
-                        Number(longitude)
-                    )
-                ) {
-                    setLocation({
-                        latitude:
-                            Number(latitude),
-
-                        longitude:
-                            Number(longitude),
-
-                        accuracy:
-                            Number(
-                                accuracy || 0
-                            ),
-                    });
-
-                    setLocationState(
-                        "ready"
-                    );
+                    if (
+                        Number.isFinite(Number(latitude)) &&
+                        Number.isFinite(Number(longitude))
+                    ) {
+                        setLocation({
+                            latitude: Number(latitude),
+                            longitude: Number(longitude),
+                            accuracy: Number(accuracy || 0),
+                        });
+                        setLocationCapturedAt(null);
+                        setLocationState("ready");
+                    }
+                } else {
+                    setLocation(null);
+                    setLocationCapturedAt(null);
+                    setLocationState("idle");
                 }
             } catch (err) {
                 setError(
@@ -867,6 +864,8 @@ export default function Attendance() {
                 "loading"
             );
 
+            setLocation(null);
+            setLocationCapturedAt(null);
             setError("");
 
             navigator.geolocation.getCurrentPosition(
@@ -888,6 +887,10 @@ export default function Attendance() {
 
                     setLocation(
                         nextLocation
+                    );
+
+                    setLocationCapturedAt(
+                        Date.now()
                     );
 
                     setLocationState(
@@ -948,13 +951,16 @@ export default function Attendance() {
             return;
         }
 
-        // ------------------------------------------------
-        // Always obtain a fresh GPS position.
-        //
-        // The saved database location is restored by load()
-        // immediately, while this gets the current location.
-        // ------------------------------------------------
+        // A completed attendance record should display the
+        // saved checkout/check-in location. There is no new
+        // attendance event to capture, so do not replace it
+        // with the employee's current location.
+        if (completed) {
+            stopLocationWatch();
+            return;
+        }
 
+        // Active attendance always obtains a fresh GPS position.
         getLocation();
 
         // ------------------------------------------------
@@ -984,6 +990,10 @@ export default function Attendance() {
                                     .accuracy,
                         });
 
+                        setLocationCapturedAt(
+                            Date.now()
+                        );
+
                         setLocationState(
                             "ready"
                         );
@@ -1010,6 +1020,7 @@ export default function Attendance() {
         };
     }, [
         context,
+        completed,
         getLocation,
         stopLocationWatch,
     ]);
@@ -1037,9 +1048,9 @@ export default function Attendance() {
         // GPS
         // ------------------------------------------------
 
-        if (!location) {
+        if (!location || !locationCapturedAt) {
             setError(
-                "Please wait for your location to be captured."
+                "Please wait for your current GPS location to be captured."
             );
 
             getLocation();

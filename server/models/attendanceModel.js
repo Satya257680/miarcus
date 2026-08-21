@@ -196,31 +196,30 @@ const getAssignedAttendanceStore = async (
 // Stored DATETIME is India Standard Time (IST).
 // ======================================================
 
-const getCurrentIndiaDateTime = async () => {
-    const rows = await query(`
-        SELECT
-            DATE_FORMAT(
-                CONVERT_TZ(
-                    UTC_TIMESTAMP(),
-                    'UTC',
-                    'Asia/Kolkata'
-                ),
-                '%Y-%m-%d %H:%i:%s'
-            ) AS current_datetime,
+const getCurrentIndiaDateTime = () => {
+    const now = new Date();
 
-            DATE(
-                CONVERT_TZ(
-                    UTC_TIMESTAMP(),
-                    'UTC',
-                    'Asia/Kolkata'
-                )
-            ) AS current_date
-    `);
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23"
+    }).formatToParts(now);
 
-    return {
-        date: rows[0]?.current_date,
-        datetime: rows[0]?.current_datetime
-    };
+    const values = Object.fromEntries(
+        parts
+            .filter((part) => part.type !== "literal")
+            .map((part) => [part.type, part.value])
+    );
+
+    const date = `${values.year}-${values.month}-${values.day}`;
+    const datetime = `${date} ${values.hour}:${values.minute}:${values.second}`;
+
+    return { date, datetime };
 };
 
 // ======================================================
@@ -446,42 +445,41 @@ const createCheckOut = async (data) => {
         );
     }
 
-    await query(
+    const result = await query(
         `
             UPDATE attendance_records
             SET
                 status = 'Completed',
-
                 check_out_at = ?,
-
                 check_out_latitude = ?,
                 check_out_longitude = ?,
                 check_out_accuracy = ?,
-
                 check_out_photo = ?,
                 check_out_remarks = ?
-
             WHERE id = ?
               AND employee_id = ?
               AND work_date = ?
+              AND check_in_at IS NOT NULL
               AND check_out_at IS NULL
         `,
         [
-            // SERVER GENERATED INDIA TIME
             current.datetime,
-
             data.latitude ?? null,
             data.longitude ?? null,
             data.accuracy ?? null,
-
             data.photo || null,
             data.remarks || null,
-
             data.id,
             data.employeeId,
             data.workDate
         ]
     );
+
+    if (!result.affectedRows) {
+        throw new Error(
+            "Attendance checkout could not be completed because the record changed or is already closed."
+        );
+    }
 
     return getRecord(
         data.employeeId,
