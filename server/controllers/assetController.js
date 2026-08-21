@@ -1,6 +1,6 @@
 const fs = require("fs");
 const Asset = require("../models/assetModel");
-const XLSX = require("xlsx");
+const csvParser = require("csv-parser");
 
 const normalizeHeader = (value) => String(value || "").trim().toLowerCase().replace(/[\s_\-/]+/g, "");
 
@@ -64,7 +64,7 @@ const csvEscape = (value) => {
 const csvRows = (type, rows) => {
     const headers = type === "marketing"
         ? [
-            ["particular_name", "Particular Name"], ["store_name", "Store Name"], ["category", "Category"], ["type", "Type"], ["rate", "Rate"], ["size", "Size"], ["color", "Color"], ["brand", "Brand"], ["department_name", "Department"], ["location_address", "Location/Address"], ["email", "Email"], ["mobile", "Mobile"], ["buy_date", "Buy Date"], ["expiry_date", "Expiry Date"], ["days_to_expire", "Days to Expire"], ["status", "Status"], ["remark", "Remark"], ["attachments", "Attachments"], ["created_at", "Created At"],
+            ["particular_name", "Particular Name"], ["store_name", "Store Name"], ["category", "Category"], ["type", "Type"], ["rate", "Rate"], ["size", "Size"], ["color", "Color"], ["brand", "Brand"], ["department_name", "Department"], ["location_address", "Location/Address"], ["email", "Email"], ["mobile", "Mobile"], ["buy_date", "Buy Date"], ["expiry_date", "Expiry Date"], ["days_to_expire", "Days to Expire"], ["remark", "Remark"], ["attachments", "Attachments"], ["created_at", "Created At"],
         ]
         : [
             ["name", "Name"], ["store_name", "Store Name"], ["department_name", "Department"], ["location_address", "Location/Address"], ["remark", "Remark"], ["short_description", "Short Description"], ["attachments", "Attachments"], ["created_at", "Created At"], ["date_of_issue", "Date of Issue"], ["status", "Status"], ["custom_field", "Custom Field"],
@@ -193,45 +193,26 @@ const remove = async (req, res) => {
 const importCsv = async (req, res) => {
     const { type } = req.params;
     if (!validateType(type)) return res.status(400).json({ success: false, message: "Invalid asset type." });
-    if (!req.file?.path) return res.status(400).json({ success: false, message: "CSV, XLSX or XLS file is required." });
+    if (!req.file?.path) return res.status(400).json({ success: false, message: "CSV file is required." });
+
     try {
-        const workbook = XLSX.readFile(req.file.path, { cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) return res.status(400).json({ success: false, message: "The uploaded file contains no worksheet." });
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false })
-            .map((row) => mapCsvRow(type, row))
-            .filter((row) => Object.values(row).some((value) => String(value ?? "").trim() !== ""));
+        const rows = [];
+        await new Promise((resolve, reject) => {
+            fs.createReadStream(req.file.path)
+                .pipe(csvParser())
+                .on("data", (row) => rows.push(mapCsvRow(type, row)))
+                .on("end", resolve)
+                .on("error", reject);
+        });
+
         const result = await Asset.importRows(type, rows, req.user?.id);
         return res.json({ success: true, message: `Imported ${result.imported} record(s). Skipped ${result.skipped}.`, data: result });
     } catch (error) {
-        console.error("Asset bulk import error:", error);
-        return res.status(500).json({ success: false, message: "Unable to process the uploaded file." });
+        console.error("Asset import error:", error);
+        return res.status(500).json({ success: false, message: "Unable to import CSV." });
     } finally {
         fs.promises.unlink(req.file.path).catch(() => {});
     }
-};
-
-const removeAll = async (req, res) => {
-    const { type } = req.params;
-    if (!validateType(type)) return res.status(400).json({ success: false, message: "Invalid asset type." });
-    try {
-        const deleted = await Asset.removeAll(type);
-        return res.json({ success: true, message: `${deleted} asset record(s) deleted successfully.`, deleted });
-    } catch (error) {
-        console.error("Asset delete all error:", error);
-        return res.status(500).json({ success: false, message: "Unable to delete all assets." });
-    }
-};
-
-const sample = async (req, res) => {
-    const { type } = req.params;
-    if (!validateType(type)) return res.status(400).json({ success: false, message: "Invalid asset type." });
-    const headers = type === "marketing"
-        ? ["Particular Name", "Store Name", "Department", "Category", "Type", "Rate", "Size", "Color", "Brand", "Location/Address", "Email", "Mobile", "Buy Date", "Expiry Date", "Remark"]
-        : ["Name", "Store Name", "Department", "Location/Address", "Remark", "Short Description", "Date of Issue", "Status", "Custom Field Name", "Custom Field Value"];
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${type}-assets-sample.csv"`);
-    return res.send(`${headers.join(",")}\r\n`);
 };
 
 const exportCsv = async (req, res) => {
@@ -251,4 +232,4 @@ const exportCsv = async (req, res) => {
     }
 };
 
-module.exports = { list, options, create, update, remove, removeAll, importCsv, exportCsv, sample };
+module.exports = { list, options, create, update, remove, importCsv, exportCsv };
