@@ -2739,3 +2739,594 @@
     border-color: #efcaca;
     background: #fff8f8;
 }
+
+/* =========================================================================
+   ================================================================
+   PREMIUM REPORTS REDESIGN — MI ARCUS WORKFORCE ANALYTICS
+   ------------------------------------------------------------------------
+   Scoped to the Attendance Reports screen (.report-page-hero,
+   .report-kpis, .report-filters, .report-table-card, .report-pagination)
+   so the check-in screen is untouched. Loaded after all rules above,
+   so it wins on equal specificity without needing !important spam.
+   ================================================================
+   ========================================================================= */
+
+:root {
+    --att-navy: #0f2b33;
+    --att-navy-2: #16414c;
+
+    --att-accent-1: #2f6f7e;
+    --att-accent-2: #3f8f7a;
+    --att-accent-3: #6d57c8;
+    --att-accent-4: #d98a3d;
+
+    --att-surface: #ffffff;
+    --att-surface-tint: #f6fafa;
+
+    --att-ring: rgba(47, 111, 126, 0.14);
+
+    --att-shadow-sm: 0 2px 8px rgba(15, 43, 51, 0.05);
+    --att-shadow-md: 0 10px 26px rgba(15, 43, 51, 0.08);
+    --att-shadow-lg: 0 22px 48px rgba(15, 43, 51, 0.12);
+
+    --att-radius-lg: 20px;
+    --att-radius-md: 14px;
+    --att-radius-sm: 10px;
+}
+
+/* ---------------------------------------------------------------
+   PAGE BACKDROP
+--------------------------------------------------------------- */
+
+.attendance-page:has(.report-page-hero) {
+    background:
+        radial-gradient(1100px 420px at 8% -8%, rgba(47, 111, 126, 0.08), transparent 60%),
+        radial-gradient(900px 380px at 100% 0%, rgba(109, 87, 200, 0.06), transparent 55%),
+        linear-gradient(180deg, #f4f8f9 0%, #f8fafb 55%, #f6f9f9 100%);
+}
+
+/* ---------------------------------------------------------------
+   HERO
+--------------------------------------------------------------- */
+
+.report-page-hero {
+    position: relative;
+    isolation: isolate;
+
+    padding: 26px 28px;
+    margin-bottom: 20px;
+
+    align-items: center;
+
+    border-radius: var(--att-radius-lg);
+    overflow: hidden;
+
+    background:
+        linear-gradient(120deg, var(--att-navy) 0%, var(--att-navy-2) 46%, #1c525f 100%);
+
+    box-shadow: var(--att-shadow-lg);
+}
+
+.report-page-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+
+    background:
+        radial-gradient(420px 220px at 92% -10%, rgba(255, 255, 255, 0.14), transparent 65%),
+        radial-gradient(320px 220px at 12% 120%, rgba(109, 87, 200, 0.22), transparent 60%);
+
+    pointer-events: none;
+}
+
+.report-page-hero > * {
+    position: relative;
+    z-index: 1;
+}
+
+.report-page-hero .attendance-eyebrow {
+    color: #bfe3d8;
+}
+
+.report-page-hero h1 {
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.report-page-hero p {
+    max-width: 480px;
+    color: rgba(255, 255, 255, 0.68);
+}
+
+.report-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.report-page-hero .attendance-btn {
+    height: 40px;
+    border-radius: 11px;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+    transition:
+        transform .16s ease,
+        box-shadow .16s ease,
+        background .16s ease,
+        border-color .16s ease;
+}
+
+.report-page-hero .attendance-btn.primary {
+    background: linear-gradient(135deg, #46b394, #2a8f75);
+    box-shadow: 0 10px 22px rgba(42, 143, 117, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.report-page-hero .attendance-btn.primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(42, 143, 117, 0.42);
+}
+
+.report-page-hero .attendance-btn.secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #eaf4f2;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(6px);
+}
+
+.report-page-hero .attendance-btn.secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+}
+
+.report-page-hero .attendance-btn.secondary.danger-outline {
+    background: rgba(217, 75, 75, 0.14);
+    color: #ffd9d9;
+    border-color: rgba(217, 75, 75, 0.4);
+}
+
+.report-page-hero .attendance-btn.secondary.danger-outline:hover:not(:disabled) {
+    background: rgba(217, 75, 75, 0.22);
+    border-color: rgba(217, 75, 75, 0.55);
+}
+
+.report-page-hero .attendance-btn.secondary .button-count {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+/* ---------------------------------------------------------------
+   KPI CARDS
+--------------------------------------------------------------- */
+
+.report-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.report-kpis .attendance-kpi {
+    position: relative;
+    overflow: hidden;
+
+    padding: 18px 20px 20px;
+
+    border: 1px solid rgba(15, 43, 51, 0.06);
+    border-radius: var(--att-radius-md);
+
+    background: var(--att-surface);
+
+    box-shadow: var(--att-shadow-sm);
+
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease;
+}
+
+.report-kpis .attendance-kpi::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 3px;
+
+    background: linear-gradient(90deg, var(--att-accent-1), var(--att-accent-2));
+}
+
+.report-kpis .attendance-kpi:nth-child(2)::before {
+    background: linear-gradient(90deg, #2a8f75, #46b394);
+}
+
+.report-kpis .attendance-kpi:nth-child(3)::before {
+    background: linear-gradient(90deg, var(--att-accent-4), #f0b25f);
+}
+
+.report-kpis .attendance-kpi:nth-child(4)::before {
+    background: linear-gradient(90deg, var(--att-accent-3), #9282e0);
+}
+
+.report-kpis .attendance-kpi:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--att-shadow-md);
+    border-color: rgba(15, 43, 51, 0.1);
+}
+
+.report-kpis .attendance-kpi span {
+    color: #7d9095;
+    font-size: 11px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.report-kpis .attendance-kpi strong {
+    margin-top: 9px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--att-navy);
+}
+
+.report-kpis .attendance-kpi strong.active {
+    background: linear-gradient(120deg, #1f8f68, #2fb385);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.report-kpis .attendance-kpi strong.ready {
+    background: linear-gradient(120deg, var(--att-accent-4), #e8a24e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.report-kpis .attendance-kpi small {
+    color: #9aacb1;
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------
+   FILTER PANEL
+--------------------------------------------------------------- */
+
+.report-filters {
+    border: 1px solid rgba(15, 43, 51, 0.06);
+    border-radius: var(--att-radius-md);
+    box-shadow: var(--att-shadow-sm);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.report-filters .report-section-head {
+    padding: 18px 20px;
+    background: linear-gradient(180deg, var(--att-surface-tint), #ffffff);
+    border-bottom: 1px solid rgba(15, 43, 51, 0.06);
+}
+
+.report-filters .card-kicker {
+    color: var(--att-accent-1);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.report-filters .report-section-head h2 {
+    color: var(--att-navy);
+    font-weight: 800;
+}
+
+.report-filters .filter-head-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--att-accent-1), var(--att-navy-2));
+    box-shadow: 0 8px 18px rgba(47, 111, 126, 0.3);
+}
+
+.report-filters .attendance-report-filter-grid {
+    padding: 18px 20px 20px;
+}
+
+.attendance-report-filter-grid input,
+.attendance-report-filter-grid select,
+.attendance-report-search-control input {
+    border-radius: 10px !important;
+    border-color: #dbe6e8 !important;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.attendance-report-filter-grid input:focus,
+.attendance-report-filter-grid select:focus,
+.attendance-report-search-control input:focus {
+    border-color: var(--att-accent-1) !important;
+    box-shadow: 0 0 0 4px var(--att-ring) !important;
+    outline: none;
+}
+
+/* ---------------------------------------------------------------
+   TABLE CARD
+--------------------------------------------------------------- */
+
+.report-table-card {
+    border: 1px solid rgba(15, 43, 51, 0.06);
+    border-radius: var(--att-radius-md);
+    box-shadow: var(--att-shadow-sm);
+}
+
+.report-table-card .report-table-head {
+    padding: 18px 20px;
+    background: linear-gradient(180deg, var(--att-surface-tint), #ffffff);
+}
+
+.report-table-card .card-kicker {
+    color: var(--att-accent-1);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.report-table-card .report-table-head h2 {
+    color: var(--att-navy);
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.record-count-wrap {
+    background: linear-gradient(135deg, rgba(47, 111, 126, 0.1), rgba(63, 143, 122, 0.08));
+    border-color: rgba(47, 111, 126, 0.18);
+}
+
+.record-count {
+    color: var(--att-navy-2);
+}
+
+.attendance-report-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    padding: 13px 14px;
+
+    background: linear-gradient(180deg, #eef4f5, #e7eff0);
+    color: #4c6a72;
+
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+
+    border-bottom: 1px solid #dde8ea;
+}
+
+.attendance-report-table tbody tr {
+    position: relative;
+    transition: background .14s ease;
+}
+
+.attendance-report-table tbody tr:nth-child(even) {
+    background: #fbfdfd;
+}
+
+.attendance-report-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(47, 111, 126, 0.06), rgba(47, 111, 126, 0.02));
+}
+
+.attendance-report-table tbody tr::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background .14s ease;
+}
+
+.attendance-report-table tbody tr:hover::after {
+    background: linear-gradient(180deg, var(--att-accent-1), var(--att-accent-2));
+}
+
+.attendance-report-table td {
+    border-bottom: 1px solid #eef3f4;
+}
+
+.employee-primary {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--att-navy);
+}
+
+.store-cell strong {
+    font-weight: 800;
+    color: var(--att-navy-2);
+}
+
+.time-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 3px 9px;
+    border-radius: 999px;
+
+    background: #f1f7f7;
+    color: var(--att-navy-2);
+
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.duration-value {
+    color: var(--att-accent-1);
+    font-weight: 850;
+}
+
+/* ---------- Status pills (premium) ---------- */
+
+.attendance-status {
+    padding: 6px 11px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 850;
+    letter-spacing: 0.02em;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.attendance-status i {
+    width: 6px;
+    height: 6px;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.attendance-status.present {
+    background: linear-gradient(120deg, #e6faf0, #d7f5e6);
+    color: #0f7a52;
+}
+
+.attendance-status.present i {
+    animation: attStatusPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes attStatusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+
+.attendance-status.completed {
+    background: linear-gradient(120deg, #eaf3f6, #dcedf1);
+    color: #2f5e6c;
+}
+
+.attendance-status.late {
+    background: linear-gradient(120deg, #fff3e0, #ffe7c4);
+    color: #a3630f;
+}
+
+.attendance-status.absent {
+    background: linear-gradient(120deg, #ffeef0, #ffe0e3);
+    color: #b23a3a;
+}
+
+/* ---------- Photo / delete / location buttons ---------- */
+
+.report-photo-button {
+    border-radius: 9px;
+    font-weight: 800;
+    box-shadow: var(--att-shadow-sm);
+}
+
+.report-photo-button:hover {
+    background: linear-gradient(135deg, #eef6f6, #e4f0f0);
+    border-color: var(--att-accent-1);
+    color: var(--att-navy-2);
+}
+
+.report-delete-button {
+    border-radius: 9px;
+    font-weight: 800;
+}
+
+.report-delete-button:hover:not(:disabled) {
+    box-shadow: 0 6px 14px rgba(217, 75, 75, 0.18);
+}
+
+.report-action-link {
+    border-radius: 9px !important;
+    font-weight: 800;
+}
+
+.report-action-link:hover {
+    box-shadow: var(--att-shadow-sm);
+}
+
+/* ---------------------------------------------------------------
+   PAGINATION
+--------------------------------------------------------------- */
+
+.report-pagination {
+    padding: 16px 20px;
+    background: linear-gradient(180deg, #ffffff, var(--att-surface-tint));
+    border-top: 1px solid rgba(15, 43, 51, 0.06);
+}
+
+.pagination-buttons button,
+.pagination-current {
+    border-radius: 999px;
+    font-weight: 800;
+    transition: all .15s ease;
+}
+
+.pagination-current {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--att-accent-1), var(--att-navy-2));
+    box-shadow: 0 8px 16px rgba(47, 111, 126, 0.28);
+}
+
+.pagination-buttons button:hover:not(:disabled) {
+    border-color: var(--att-accent-1);
+    color: var(--att-navy-2);
+    transform: translateY(-1px);
+}
+
+.pagination-buttons button:disabled {
+    opacity: .4;
+}
+
+/* ---------------------------------------------------------------
+   EMPTY / LOADING STATES
+--------------------------------------------------------------- */
+
+.empty-report > div {
+    background: linear-gradient(135deg, rgba(47, 111, 126, 0.12), rgba(109, 87, 200, 0.08));
+    color: var(--att-accent-1);
+}
+
+.table-loading > span {
+    border-top-color: var(--att-accent-1);
+}
+
+/* ---------------------------------------------------------------
+   RESPONSIVE
+--------------------------------------------------------------- */
+
+@media (max-width: 980px) {
+    .report-page-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .report-header-actions {
+        width: 100%;
+    }
+
+    .report-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .report-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .report-page-hero {
+        padding: 20px;
+    }
+
+    .report-page-hero h1 {
+        font-size: 22px;
+    }
+}

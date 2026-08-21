@@ -296,7 +296,34 @@ const getContext = async (userId, workDate) => {
     const attendance = await query(
         `
             SELECT
-                a.*,
+                a.id,
+                a.employee_id,
+                a.store_id,
+
+                DATE_FORMAT(a.work_date, '%Y-%m-%d') AS work_date,
+
+                a.status,
+
+                DATE_FORMAT(a.check_in_at, '%Y-%m-%d %H:%i:%s') AS check_in_at,
+                DATE_FORMAT(a.check_out_at, '%Y-%m-%d %H:%i:%s') AS check_out_at,
+
+                a.check_in_latitude,
+                a.check_in_longitude,
+                a.check_in_accuracy,
+
+                a.check_out_latitude,
+                a.check_out_longitude,
+                a.check_out_accuracy,
+
+                a.check_in_photo,
+                a.check_out_photo,
+
+                a.check_in_remarks,
+                a.check_out_remarks,
+
+                DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+                DATE_FORMAT(a.updated_at, '%Y-%m-%d %H:%i:%s') AS updated_at,
+
                 s.store_name,
                 s.store_code
             FROM attendance_records a
@@ -335,7 +362,34 @@ const getRecord = async (userId, workDate) => {
     const rows = await query(
         `
             SELECT
-                a.*,
+                a.id,
+                a.employee_id,
+                a.store_id,
+
+                DATE_FORMAT(a.work_date, '%Y-%m-%d') AS work_date,
+
+                a.status,
+
+                DATE_FORMAT(a.check_in_at, '%Y-%m-%d %H:%i:%s') AS check_in_at,
+                DATE_FORMAT(a.check_out_at, '%Y-%m-%d %H:%i:%s') AS check_out_at,
+
+                a.check_in_latitude,
+                a.check_in_longitude,
+                a.check_in_accuracy,
+
+                a.check_out_latitude,
+                a.check_out_longitude,
+                a.check_out_accuracy,
+
+                a.check_in_photo,
+                a.check_out_photo,
+
+                a.check_in_remarks,
+                a.check_out_remarks,
+
+                DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+                DATE_FORMAT(a.updated_at, '%Y-%m-%d %H:%i:%s') AS updated_at,
+
                 s.store_name,
                 s.store_code
             FROM attendance_records a
@@ -627,11 +681,11 @@ const getReport = async ({
             SELECT
 
                 a.id,
-                a.work_date,
+                DATE_FORMAT(a.work_date, '%Y-%m-%d') AS work_date,
                 a.status,
 
-                a.check_in_at,
-                a.check_out_at,
+                DATE_FORMAT(a.check_in_at, '%Y-%m-%d %H:%i:%s') AS check_in_at,
+                DATE_FORMAT(a.check_out_at, '%Y-%m-%d %H:%i:%s') AS check_out_at,
 
                 a.check_in_latitude,
                 a.check_in_longitude,
