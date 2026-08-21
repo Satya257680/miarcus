@@ -890,83 +890,6 @@ export default function AttendanceReports() {
                 )}
 
                 {/* ==================================================
-                    KPI CARDS
-                ================================================== */}
-
-                <section className="attendance-kpis report-kpis">
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Total records
-                        </span>
-
-                        <strong>
-                            {summary.total ||
-                                0}
-                        </strong>
-
-                        <small>
-                            Matching your
-                            filters
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Present
-                        </span>
-
-                        <strong className="active">
-                            {Number(
-                                summary.present ||
-                                    0
-                            ) +
-                                Number(
-                                    summary.completed ||
-                                        0
-                                )}
-                        </strong>
-
-                        <small>
-                            Employees with
-                            attendance
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Late check-ins
-                        </span>
-
-                        <strong className="ready">
-                            {summary.late ||
-                                0}
-                        </strong>
-
-                        <small>
-                            After 09:15 AM
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Open sessions
-                        </span>
-
-                        <strong className="active">
-                            {summary.open_sessions ||
-                                0}
-                        </strong>
-
-                        <small>
-                            Currently checked
-                            in
-                        </small>
-                    </div>
-
-                </section>
-
-                {/* ==================================================
                     FILTER PANEL
                 ================================================== */}
 
@@ -1258,6 +1181,83 @@ export default function AttendanceReports() {
 
                         </label>
 
+                    </div>
+
+                </section>
+
+                {/* ==================================================
+                    KPI CARDS
+                ================================================== */}
+
+                <section className="attendance-kpis report-kpis">
+
+                    <div className="attendance-kpi">
+                        <span>
+                            Total records
+                        </span>
+
+                        <strong>
+                            {summary.total ||
+                                0}
+                        </strong>
+
+                        <small>
+                            Matching your
+                            filters
+                        </small>
+                    </div>
+
+                    <div className="attendance-kpi">
+                        <span>
+                            Present
+                        </span>
+
+                        <strong className="active">
+                            {Number(
+                                summary.present ||
+                                    0
+                            ) +
+                                Number(
+                                    summary.completed ||
+                                        0
+                                )}
+                        </strong>
+
+                        <small>
+                            Employees with
+                            attendance
+                        </small>
+                    </div>
+
+                    <div className="attendance-kpi">
+                        <span>
+                            Late check-ins
+                        </span>
+
+                        <strong className="ready">
+                            {summary.late ||
+                                0}
+                        </strong>
+
+                        <small>
+                            After 09:15 AM
+                        </small>
+                    </div>
+
+                    <div className="attendance-kpi">
+                        <span>
+                            Open sessions
+                        </span>
+
+                        <strong className="active">
+                            {summary.open_sessions ||
+                                0}
+                        </strong>
+
+                        <small>
+                            Currently checked
+                            in
+                        </small>
                     </div>
 
                 </section>
