@@ -160,6 +160,7 @@ function AddUserModal({
     "Listing Tracker",
 
     "Inventory Planning",
+    "Collection Tracking",
 
     "Profile",
     "Settings",

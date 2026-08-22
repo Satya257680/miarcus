@@ -107,6 +107,7 @@ import AttendanceReports from "./pages/AttendanceReports";
 import AssetManagement from "./pages/AssetManagement";
 import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
 import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
+import {ProductList as CollectionTracking,AddProduct as CollectionAddProduct,Details as CollectionDetails,MasterData as CollectionMasterData,Insight as CollectionInsight,Requests as CollectionRequests,Permissions as CollectionPermissions} from "./pages/CollectionTracking/CollectionTracking";
 
 
 function App() {
@@ -650,6 +651,15 @@ function App() {
                             </ModulePermissionRoute>
                         }
                     />
+
+                    {/* COLLECTION TRACKING */}
+                    <Route path="/collection-tracking" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionTracking /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/add-products" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionAddProduct /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/sku-details/:id" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionDetails /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/insight" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionInsight /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/requests" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionRequests /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/permissions" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionPermissions /></ModulePermissionRoute>} />
+                    <Route path="/collection-tracking/master-data" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionMasterData /></ModulePermissionRoute>} />
 
                     {/* ==================================================
                         PROFILE

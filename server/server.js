@@ -110,6 +110,9 @@ const InventoryPlanning =
 const Notification =
     require("./services/notificationService");
 
+const CollectionTracking =
+    require("./models/collectionTrackingModel");
+
 const installNotificationEventMiddleware =
     require("./middleware/notificationEventMiddleware");
 
@@ -374,6 +377,16 @@ async function initializeDatabase() {
             console.log("✅ notifications table verified");
         } catch (error) {
             console.error("❌ notifications table initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
+        // COLLECTION TRACKING
+        // --------------------------------------------------
+        try {
+            await CollectionTracking.ensureTables();
+            console.log("✅ collection tracking tables verified");
+        } catch (error) {
+            console.error("❌ collection tracking table initialization failed:", error.message);
         }
 
         // ==================================================
@@ -1031,6 +1044,16 @@ loadRoute(
     "/api/notifications",
 
     "Notification Routes"
+
+);
+
+loadRoute(
+
+    "./routes/collectionTrackingRoutes",
+
+    "/api/collection-tracking",
+
+    "Collection Tracking Routes"
 
 );
 

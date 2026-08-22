@@ -34,7 +34,9 @@ import {
     FaCalendarCheck,
     FaBoxes,
     FaBalanceScale,
-    FaCloudUploadAlt
+    FaCloudUploadAlt,
+    FaTags,
+    FaPlus
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -329,6 +331,10 @@ function Sidebar({ collapsed }) {
     const canAccessInventoryPlanning =
         isAdministrator ||
         hasPermission("Inventory Planning");
+
+    const canAccessCollectionTracking =
+        isAdministrator ||
+        hasPermission("Collection Tracking");
 
     // ======================================================
     // SETTINGS PERMISSIONS
@@ -1045,6 +1051,28 @@ function Sidebar({ collapsed }) {
                             <div className="sidebar-submenu">
                                 <NavLink to="/inventory-planning/erp-upload" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCloudUploadAlt /><span>ERP Data Upload</span></NavLink>
                                 <NavLink to="/inventory-planning" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Inventory Planning</span></NavLink>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    COLLECTION TRACKING
+                ================================================== */}
+                {canAccessCollectionTracking && (
+                    <div className={`sidebar-group ${location.pathname.startsWith("/collection-tracking") ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${location.pathname.startsWith("/collection-tracking") ? "active" : ""}`} onClick={() => {}}>
+                            <span className="sidebar-group-content"><FaTags />{!collapsed && <span>Collection Tracking</span>}</span>
+                            {!collapsed && <FaChevronDown className="submenu-chevron rotated" />}
+                        </button>
+                        {!collapsed && (
+                            <div className="sidebar-submenu">
+                                <NavLink to="/collection-tracking/add-products" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaPlus /><span>Add Products</span></NavLink>
+                                <NavLink to="/collection-tracking" end className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaBoxes /><span>SKU Details</span></NavLink>
+                                <NavLink to="/collection-tracking/insight" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartBar /><span>Insight</span></NavLink>
+                                <NavLink to="/collection-tracking/requests" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaEnvelope /><span>Requests</span></NavLink>
+                                <NavLink to="/collection-tracking/permissions" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCheckDouble /><span>Collection Permissions</span></NavLink>
+                                <NavLink to="/collection-tracking/master-data" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaClipboard /><span>Master Data</span></NavLink>
                             </div>
                         )}
                     </div>
