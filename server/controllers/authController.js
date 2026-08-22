@@ -627,7 +627,7 @@ const resetPassword = async (req, res) => {
 
                     ],
 
-                    (updateErr, updateResult) => {
+                    async (updateErr, updateResult) => {
 
                         if (updateErr) {
 
@@ -677,21 +677,32 @@ const resetPassword = async (req, res) => {
 
                         };
 
-                        sendResetPasswordEmail(user)
+                        try {
 
-                            .catch((mailErr) => {
+                            await sendResetPasswordEmail(user);
 
-                                console.error(mailErr);
-
+                            return res.status(200).json({
+                                success: true,
+                                warning: false,
+                                emailSent: true,
+                                message: "Password Updated Successfully"
                             });
 
-                        return res.status(200).json({
+                        } catch (mailErr) {
 
-                            success: true,
+                            console.error(
+                                "Password reset confirmation email failed:",
+                                mailErr?.message || mailErr
+                            );
 
-                            message: "Password Updated Successfully"
+                            return res.status(200).json({
+                                success: true,
+                                warning: true,
+                                emailSent: false,
+                                message: "Password Updated Successfully, but the confirmation email could not be sent."
+                            });
 
-                        });
+                        }
 
                     }
 

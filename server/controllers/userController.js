@@ -21,6 +21,22 @@ const {
 
 const { getAppUrl } = require("../config/appUrl");
 
+// ==========================================================
+// EMAIL DELIVERY HELPER
+// Database actions remain successful when an email provider
+// fails, but the email failure is explicitly reported.
+// ==========================================================
+
+const sendLifecycleEmail = async (sendFunction, user, label) => {
+    try {
+        await sendFunction(user);
+        return { sent: true, error: null };
+    } catch (error) {
+        console.error(`❌ ${label} email failed:`, error?.message || error);
+        return { sent: false, error };
+    }
+};
+
 
 // ==========================================================
 // RBAC CONFIGURATION
@@ -1239,7 +1255,7 @@ const updateUser = (
 
         user,
 
-        (err) => {
+        async (err) => {
 
             if (err) {
 
@@ -1260,17 +1276,10 @@ const updateUser = (
             // Send Account Updated Email
             // --------------------------------------------------
 
-            sendAccountUpdatedEmail(
-                user
-            )
-
-            .catch(
-                (mailErr) => {
-
-                    console.log(
-                        mailErr
-                    );
-                }
+            const emailResult = await sendLifecycleEmail(
+                sendAccountUpdatedEmail,
+                user,
+                "Account updated"
             );
 
 
@@ -1314,8 +1323,13 @@ const updateUser = (
 
                 success: true,
 
-                message:
-                    "User Updated Successfully"
+                warning: !emailResult.sent,
+
+                emailSent: emailResult.sent,
+
+                message: emailResult.sent
+                    ? "User Updated Successfully"
+                    : "User Updated Successfully, but the email could not be sent."
 
             });
         }
@@ -1361,7 +1375,7 @@ const disableUser = (
 
                 req.params.id,
 
-                (
+                async (
                     userErr,
                     users
                 ) => {
@@ -1396,17 +1410,10 @@ const disableUser = (
                         // Send Account Disabled Email
                         // --------------------------------------------------
 
-                        sendAccountDisabledEmail(
-                            user
-                        )
-
-                        .catch(
-                            (mailErr) => {
-
-                                console.log(
-                                    mailErr
-                                );
-                            }
+                        const emailResult = await sendLifecycleEmail(
+                            sendAccountDisabledEmail,
+                            user,
+                            "Account disabled"
                         );
 
 
@@ -1451,8 +1458,13 @@ const disableUser = (
 
                         success: true,
 
-                        message:
-                            "User Disabled Successfully"
+                        warning: !emailResult.sent,
+
+                        emailSent: emailResult.sent,
+
+                        message: emailResult.sent
+                            ? "User Disabled Successfully"
+                            : "User Disabled Successfully, but the email could not be sent."
 
                     });
                 }
@@ -1496,7 +1508,7 @@ const enableUser = (
 
                 req.params.id,
 
-                (
+                async (
                     userErr,
                     users
                 ) => {
@@ -1529,17 +1541,10 @@ const enableUser = (
                             users[0];
 
 
-                        sendAccountEnabledEmail(
-                            user
-                        )
-
-                        .catch(
-                            (mailErr) => {
-
-                                console.log(
-                                    mailErr
-                                );
-                            }
+                        const emailResult = await sendLifecycleEmail(
+                            sendAccountEnabledEmail,
+                            user,
+                            "Account enabled"
                         );
 
 
@@ -1580,8 +1585,13 @@ const enableUser = (
 
                         success: true,
 
-                        message:
-                            "User Enabled Successfully"
+                        warning: !emailResult.sent,
+
+                        emailSent: emailResult.sent,
+
+                        message: emailResult.sent
+                            ? "User Enabled Successfully"
+                            : "User Enabled Successfully, but the email could not be sent."
 
                     });
                 }
@@ -1650,7 +1660,7 @@ const deleteUser = (
 
                 req.params.id,
 
-                (err) => {
+                async (err) => {
 
                     if (err) {
 
@@ -1671,17 +1681,10 @@ const deleteUser = (
                     // Send Account Deleted Email
                     // --------------------------------------------------
 
-                    sendAccountDeletedEmail(
-                        user
-                    )
-
-                    .catch(
-                        (mailErr) => {
-
-                            console.log(
-                                mailErr
-                            );
-                        }
+                    const emailResult = await sendLifecycleEmail(
+                        sendAccountDeletedEmail,
+                        user,
+                        "Account deleted"
                     );
 
 
@@ -1725,8 +1728,13 @@ const deleteUser = (
 
                         success: true,
 
-                        message:
-                            "User Deleted Successfully"
+                        warning: !emailResult.sent,
+
+                        emailSent: emailResult.sent,
+
+                        message: emailResult.sent
+                            ? "User Deleted Successfully"
+                            : "User Deleted Successfully, but the email could not be sent."
 
                     });
                 }
@@ -2022,10 +2030,15 @@ const activateUserAccount = async (
 
                             activation.user_id,
 
-                            (
+                            async (
                                 userErr,
                                 users
                             ) => {
+
+                                let emailResult = {
+                                    sent: true,
+                                    error: null
+                                };
 
                                 if (
                                     !userErr &&
@@ -2041,17 +2054,10 @@ const activateUserAccount = async (
                                     // Send Activation Email
                                     // ------------------------------------------
 
-                                    sendAccountActivatedEmail(
-                                        user
-                                    )
-
-                                    .catch(
-                                        (mailErr) => {
-
-                                            console.log(
-                                                mailErr
-                                            );
-                                        }
+                                    emailResult = await sendLifecycleEmail(
+                                        sendAccountActivatedEmail,
+                                        user,
+                                        "Account activated"
                                     );
 
 
@@ -2119,8 +2125,13 @@ const activateUserAccount = async (
                                             success:
                                                 true,
 
-                                            message:
-                                                "Account Activated Successfully"
+                                            warning: !emailResult.sent,
+
+                                            emailSent: emailResult.sent,
+
+                                            message: emailResult.sent
+                                                ? "Account Activated Successfully"
+                                                : "Account Activated Successfully, but the email could not be sent."
 
                                         });
                                     }

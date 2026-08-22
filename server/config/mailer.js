@@ -266,6 +266,35 @@ function createMimeMessage({
 }
 
 // ==========================================================
+// GOOGLE AUTH ERROR NORMALIZER
+// ==========================================================
+
+function normalizeGoogleAuthError(error) {
+
+    const apiError = error?.response?.data;
+    const code = apiError?.error || error?.errors?.[0]?.reason;
+    const description = apiError?.error_description;
+
+    if (code === "invalid_grant") {
+
+        const authError = new Error(
+            "Gmail OAuth2 refresh token is invalid, expired, or revoked. Update GMAIL_REFRESH_TOKEN in Render and redeploy the backend."
+        );
+
+        authError.code = "GMAIL_INVALID_GRANT";
+        authError.status = 401;
+        authError.originalCode = error?.code || 400;
+        authError.googleError = code;
+        authError.googleErrorDescription = description || "Token has been expired or revoked.";
+        authError.cause = error;
+
+        return authError;
+    }
+
+    return error;
+}
+
+// ==========================================================
 // VERIFY GMAIL API CONNECTION
 // ==========================================================
 
@@ -350,6 +379,8 @@ const verifyMailer = async () => {
     }
     catch (error) {
 
+        const normalizedError = normalizeGoogleAuthError(error);
+
         console.error(
             "=========================================="
         );
@@ -360,13 +391,20 @@ const verifyMailer = async () => {
 
         console.error(
             "Code:",
-            error?.code || "N/A"
+            normalizedError?.code || "N/A"
         );
 
         console.error(
             "Message:",
-            error?.message || error
+            normalizedError?.message || normalizedError
         );
+
+        if (normalizedError?.googleErrorDescription) {
+            console.error(
+                "Google:",
+                normalizedError.googleErrorDescription
+            );
+        }
 
         console.error(
             "=========================================="
@@ -554,6 +592,8 @@ const sendMail = async (mailOptions = {}) => {
     }
     catch (error) {
 
+        const normalizedError = normalizeGoogleAuthError(error);
+
         console.error(
             "=========================================="
         );
@@ -579,21 +619,25 @@ const sendMail = async (mailOptions = {}) => {
 
         console.error(
             "Code:",
-            error?.code || "N/A"
+            normalizedError?.code || "N/A"
         );
 
         console.error(
             "Status:",
-            error?.response?.status || "N/A"
+            normalizedError?.status || normalizedError?.response?.status || "N/A"
         );
 
         console.error(
             "Message:",
-            error?.message || error
+            normalizedError?.message || normalizedError
         );
 
-        if (error?.response?.data) {
-
+        if (normalizedError?.googleErrorDescription) {
+            console.error(
+                "Google API Error:",
+                normalizedError.googleErrorDescription
+            );
+        } else if (error?.response?.data) {
             console.error(
                 "Google API Error:",
                 JSON.stringify(
@@ -602,14 +646,13 @@ const sendMail = async (mailOptions = {}) => {
                     2
                 )
             );
-
         }
 
         console.error(
             "=========================================="
         );
 
-        throw error;
+        throw normalizedError;
 
     }
 
@@ -624,6 +667,8 @@ module.exports = {
     sendMail,
 
     verifyMailer,
+
+    normalizeGoogleAuthError,
 
     gmail,
 

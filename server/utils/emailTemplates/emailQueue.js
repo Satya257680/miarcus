@@ -1,10 +1,10 @@
 // ======================================================
-// Email Queue
-// Sends one email at a time to avoid SMTP connection issues
+// MIARCUS EMAIL QUEUE
+// Sends one email at a time and propagates failures back
+// to the caller instead of silently swallowing them.
 // ======================================================
 
 const queue = [];
-
 let processing = false;
 
 // ======================================================
@@ -13,7 +13,6 @@ let processing = false;
 
 async function processQueue() {
 
-    // Already processing
     if (processing) return;
 
     processing = true;
@@ -22,59 +21,71 @@ async function processQueue() {
 
         while (queue.length > 0) {
 
-            const job = queue.shift();
+            const item = queue.shift();
+
+            if (!item) continue;
 
             try {
 
-                await job();
+                const result = await item.job();
+                item.resolve(result);
 
             } catch (err) {
 
                 console.error(
-                    "Email Queue Error:",
-                    err.message || err
+                    "❌ Email Queue Error:",
+                    err?.message || err
                 );
 
-            }
+                item.reject(err);
 
+            }
         }
 
     } finally {
 
         processing = false;
 
-    }
+        // A job can be added immediately after the final while check.
+        // Make sure it is not left waiting.
+        if (queue.length > 0) {
+            void processQueue();
+        }
 
+    }
 }
 
 // ======================================================
 // Add Job to Queue
 // ======================================================
 
-async function addToQueue(job) {
+function addToQueue(job) {
 
     if (typeof job !== "function") {
-
-        throw new Error(
-            "Queue job must be a function."
+        return Promise.reject(
+            new Error("Queue job must be a function.")
         );
-
     }
 
-    queue.push(job);
+    return new Promise((resolve, reject) => {
 
-    await processQueue();
+        queue.push({
+            job,
+            resolve,
+            reject
+        });
 
+        void processQueue();
+
+    });
 }
 
 // ======================================================
-// Queue Status (Optional)
+// Queue Status
 // ======================================================
 
 function getQueueLength() {
-
     return queue.length;
-
 }
 
 // ======================================================
@@ -82,9 +93,6 @@ function getQueueLength() {
 // ======================================================
 
 module.exports = {
-
     addToQueue,
-
     getQueueLength
-
 };

@@ -3,10 +3,8 @@ const path = require("path");
 const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
-const transporter = require("../config/mailer");
+const { sendGenericEmail } = require("../services/emailService");
 const Notification = require("../services/notificationService");
-
-const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
 const escapeHtml = (value = "") =>
     String(value)
@@ -22,8 +20,7 @@ const sendAnnouncementEmail = async (recipient) => {
         ? `${baseUrl}/uploads/${encodeURIComponent(path.basename(recipient.attachment_path))}`
         : null;
 
-    return transporter.sendMail({
-        from: EMAIL_FROM,
+    return sendGenericEmail({
         to: recipient.email,
         subject: recipient.title,
         html: `
