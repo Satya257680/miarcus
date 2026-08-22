@@ -1,17 +1,821 @@
-.ct-shell{padding:18px 24px 40px;background:#f5f7fa;min-height:calc(100vh - 72px);color:#183b4a}
-.ct-hero{background:linear-gradient(135deg,#123f49,#236b73);color:#fff;border-radius:22px;padding:28px 30px;display:flex;justify-content:space-between;gap:20px;align-items:center;box-shadow:0 14px 32px rgba(19,63,73,.14)}
-.ct-kicker{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.82}.ct-hero h1{margin:6px 0 8px;font-size:30px}.ct-hero p{margin:0;opacity:.84}
-.ct-card{background:#fff;border:1px solid #e2e9ed;border-radius:16px;box-shadow:0 8px 24px rgba(22,58,70,.06);margin-top:16px;padding:18px}
-.ct-toolbar,.ct-actions,.ct-row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ct-search{flex:1;min-width:240px}
-.ct-input,.ct-select,.ct-textarea{width:100%;box-sizing:border-box;border:1px solid #d5e0e5;border-radius:9px;padding:10px 12px;font:inherit;background:#fff;color:#173844}.ct-textarea{min-height:90px;resize:vertical}
-.ct-btn{border:0;border-radius:9px;padding:10px 14px;font-weight:750;cursor:pointer;display:inline-flex;align-items:center;gap:7px}.ct-btn.primary{background:#8f7ac8;color:#fff}.ct-btn.teal{background:#20656e;color:#fff}.ct-btn.danger{background:#e44949;color:#fff}.ct-btn.light{background:#eef4f6;color:#315563}.ct-btn:disabled{opacity:.5;cursor:not-allowed}
-.ct-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.ct-tab{border:1px solid #d8e0e4;background:#fff;color:#234b58;padding:9px 14px;border-radius:9px;cursor:pointer;font-weight:700}.ct-tab.active{background:#9a87cb;color:#fff;border-color:#9a87cb}
-.ct-table{width:100%;border-collapse:collapse}.ct-table th{background:#dbeaec;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:12px}.ct-table td{padding:12px;border-bottom:1px solid #edf1f3;font-size:13px}.ct-table tr:hover td{background:#fafcfd}
-.ct-badge,.ct-chip{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;background:#edf1f5}.ct-badge.progress,.ct-chip{background:#f0ebfb;color:#6d58ad}.ct-badge.done{background:#dff5ea;color:#16734c}
-.ct-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ct-stat{padding:17px;border:1px solid #e2e9ed;border-radius:14px;background:#fff}.ct-stat small{color:#78909a;font-weight:700}.ct-stat strong{display:block;font-size:28px;margin-top:7px}
-.ct-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.ct-field label{display:block;font-size:12px;font-weight:800;margin-bottom:6px;color:#476572}.ct-field .req{color:#e44949}.ct-field.full{grid-column:1/-1}.ct-readonly{background:#f3f6f7}
-.ct-stage{border:1px solid #e0e8eb;border-radius:14px;overflow:hidden;margin-bottom:15px}.ct-stage-head{padding:14px 16px;background:#f7fafb;display:flex;justify-content:space-between;align-items:center}.ct-stage-head h3{margin:0;font-size:15px}.ct-stage-body{padding:16px}
-.ct-empty{padding:45px;text-align:center;color:#78909a}.ct-muted{font-size:12px;color:#78909a}.ct-progress{height:7px;background:#edf1f3;border-radius:99px;overflow:hidden}.ct-progress span{display:block;height:100%;background:#907bc9}.ct-pagination{display:flex;justify-content:flex-end;gap:7px;margin-top:14px}
-.ct-request{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;border:1px solid #e4eaed;border-radius:12px;margin-bottom:10px}.ct-alert{padding:11px 13px;border-radius:10px;background:#fff6df;color:#7b5b0b;margin-bottom:12px}.ct-file{border:1px dashed #bdcbd0;padding:18px;border-radius:12px;background:#fafcfd;text-align:center}
-.ct-history{border-left:3px solid #d5caed;padding-left:14px;margin:12px 0}.ct-comment{background:#f7f9fa;padding:11px;border-radius:10px;margin:8px 0}
-@media(max-width:1000px){.ct-grid{grid-template-columns:repeat(2,1fr)}.ct-form-grid{grid-template-columns:1fr}.ct-hero{align-items:flex-start;flex-direction:column}}@media(max-width:650px){.ct-shell{padding:12px}.ct-grid{grid-template-columns:1fr}.ct-table{min-width:850px}.ct-card{overflow:auto}}
+/* =========================================================
+   COLLECTION TRACKING
+   IMPORTANT:
+   All styles are scoped to .ct-shell / .ct-stage-navigation
+   so this module does not affect other Miarcus modules.
+========================================================= */
+
+.ct-shell {
+  padding: 18px 24px 40px;
+  background: #f5f7fa;
+  min-height: calc(100vh - 72px);
+  color: #183b4a;
+  box-sizing: border-box;
+}
+
+.ct-shell *,
+.ct-shell *::before,
+.ct-shell *::after {
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.ct-shell .ct-hero {
+  background: linear-gradient(
+    135deg,
+    #123f49,
+    #236b73
+  );
+  color: #fff;
+  border-radius: 22px;
+  padding: 28px 30px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  box-shadow: 0 14px 32px rgba(19, 63, 73, 0.14);
+}
+
+.ct-shell .ct-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.ct-shell .ct-hero h1 {
+  margin: 6px 0 8px;
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.ct-shell .ct-hero p {
+  margin: 0;
+  opacity: 0.84;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.ct-shell .ct-card {
+  background: #fff;
+  border: 1px solid #e2e9ed;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(22, 58, 70, 0.06);
+  margin-top: 16px;
+  padding: 18px;
+}
+
+/* =========================================================
+   TOOLBARS / ACTIONS
+========================================================= */
+
+.ct-shell .ct-toolbar,
+.ct-shell .ct-actions,
+.ct-shell .ct-row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ct-shell .ct-search {
+  flex: 1 1 280px;
+  min-width: 240px;
+}
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+.ct-shell .ct-input,
+.ct-shell .ct-select,
+.ct-shell .ct-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d5e0e5;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+  color: #173844;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.ct-shell .ct-input:focus,
+.ct-shell .ct-select:focus,
+.ct-shell .ct-textarea:focus {
+  border-color: #907bc9;
+  box-shadow: 0 0 0 3px rgba(144, 123, 201, 0.12);
+}
+
+.ct-shell .ct-textarea {
+  min-height: 90px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ct-shell .ct-readonly {
+  background: #f3f6f7;
+  color: #607d86;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.ct-shell .ct-btn {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-weight: 750;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.ct-shell .ct-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(30, 65, 75, 0.12);
+}
+
+.ct-shell .ct-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ct-shell .ct-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ct-shell .ct-btn.primary {
+  background: #8f7ac8;
+  color: #fff;
+}
+
+.ct-shell .ct-btn.teal {
+  background: #20656e;
+  color: #fff;
+}
+
+.ct-shell .ct-btn.danger {
+  background: #e44949;
+  color: #fff;
+}
+
+.ct-shell .ct-btn.light {
+  background: #eef4f6;
+  color: #315563;
+}
+
+/* =========================================================
+   TABS
+========================================================= */
+
+.ct-shell .ct-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.ct-shell .ct-tab {
+  border: 1px solid #d8e0e4;
+  background: #fff;
+  color: #234b58;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.ct-shell .ct-tab:hover {
+  border-color: #9a87cb;
+}
+
+.ct-shell .ct-tab.active {
+  background: #9a87cb;
+  color: #fff;
+  border-color: #9a87cb;
+}
+
+/* =========================================================
+   STAGE NAVIGATION / ARROWS
+========================================================= */
+
+.ct-shell .ct-stage-navigation {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 24px;
+  padding: 12px;
+  background: #f7fafb;
+  border: 1px solid #e2e9ed;
+  border-radius: 16px;
+}
+
+/* Left / Right large arrow buttons */
+
+.ct-shell .ct-stage-arrow {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d6e0e4;
+  border-radius: 11px;
+  background: #fff;
+  color: #315563;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.ct-shell .ct-stage-arrow:hover:not(:disabled) {
+  background: #8f7ac8;
+  border-color: #8f7ac8;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.ct-shell .ct-stage-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Stage track */
+
+.ct-shell .ct-stage-track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 3px 0;
+}
+
+/* Stage button */
+
+.ct-shell .ct-stage-step {
+  flex: 0 0 auto;
+  border: 1px solid #d8e0e4;
+  background: #fff;
+  color: #315563;
+  border-radius: 11px;
+  min-height: 48px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 750;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ct-shell .ct-stage-step:hover {
+  border-color: #9a87cb;
+}
+
+.ct-shell .ct-stage-step.active {
+  background: #9a87cb;
+  border-color: #9a87cb;
+  color: #fff;
+  box-shadow: 0 6px 15px rgba(144, 123, 201, 0.2);
+}
+
+.ct-shell .ct-stage-step.completed {
+  border-color: #b8d9cc;
+  background: #eef8f3;
+  color: #287152;
+}
+
+/* Stage number */
+
+.ct-shell .ct-stage-number {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  border-radius: 50%;
+  background: #edf1f3;
+  color: #55717c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ct-shell .ct-stage-step.active .ct-stage-number {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+
+.ct-shell .ct-stage-step.completed .ct-stage-number {
+  background: #d3eee2;
+  color: #287152;
+}
+
+/* Stage name */
+
+.ct-shell .ct-stage-name {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* Arrow connectors */
+
+.ct-shell .ct-stage-connector {
+  flex: 0 0 auto;
+  width: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #b5c2c7;
+  font-size: 10px;
+}
+
+.ct-shell .ct-stage-connector.completed {
+  color: #8f7ac8;
+}
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.ct-shell .ct-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 15px;
+  border-radius: 10px;
+}
+
+.ct-shell .ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.ct-shell .ct-table th {
+  background: #dbeaec;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px;
+  color: #315563;
+  white-space: nowrap;
+}
+
+.ct-shell .ct-table td {
+  padding: 12px;
+  border-bottom: 1px solid #edf1f3;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.ct-shell .ct-table tbody tr:hover td {
+  background: #fafcfd;
+}
+
+/* =========================================================
+   BADGES / CHIPS
+========================================================= */
+
+.ct-shell .ct-badge,
+.ct-shell .ct-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ct-shell .ct-chip {
+  background: #f0ebfb;
+  color: #6d58ad;
+}
+
+.ct-shell .ct-badge {
+  background: #edf1f5;
+  color: #536a73;
+}
+
+.ct-shell .ct-badge.progress {
+  background: #f0ebfb;
+  color: #6d58ad;
+}
+
+.ct-shell .ct-badge.done {
+  background: #dff5ea;
+  color: #16734c;
+}
+
+/* =========================================================
+   STATISTICS
+========================================================= */
+
+.ct-shell .ct-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    4,
+    minmax(0, 1fr)
+  );
+  gap: 12px;
+}
+
+.ct-shell .ct-stat {
+  padding: 17px;
+  border: 1px solid #e2e9ed;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.ct-shell .ct-stat small {
+  color: #78909a;
+  font-weight: 700;
+}
+
+.ct-shell .ct-stat strong {
+  display: block;
+  font-size: 28px;
+  margin-top: 7px;
+  color: #183b4a;
+}
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.ct-shell .ct-form-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 15px;
+}
+
+.ct-shell .ct-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #476572;
+}
+
+.ct-shell .ct-field .req {
+  color: #e44949;
+  margin-left: 3px;
+}
+
+.ct-shell .ct-field.full {
+  grid-column: 1 / -1;
+}
+
+/* =========================================================
+   STAGE CARDS
+========================================================= */
+
+.ct-shell .ct-stage {
+  border: 1px solid #e0e8eb;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+.ct-shell .ct-stage-head {
+  padding: 14px 16px;
+  background: #f7fafb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ct-shell .ct-stage-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.ct-shell .ct-stage-body {
+  padding: 16px;
+}
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.ct-shell .ct-progress {
+  height: 7px;
+  background: #edf1f3;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ct-shell .ct-progress span {
+  display: block;
+  height: 100%;
+  background: #907bc9;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+/* =========================================================
+   EMPTY / MUTED
+========================================================= */
+
+.ct-shell .ct-empty {
+  padding: 45px;
+  text-align: center;
+  color: #78909a;
+}
+
+.ct-shell .ct-muted {
+  font-size: 12px;
+  color: #78909a;
+}
+
+/* =========================================================
+   PAGINATION
+========================================================= */
+
+.ct-shell .ct-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   REQUESTS
+========================================================= */
+
+.ct-shell .ct-request {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e4eaed;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+/* =========================================================
+   ALERT
+========================================================= */
+
+.ct-shell .ct-alert {
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #fff6df;
+  color: #7b5b0b;
+  margin-bottom: 12px;
+  border: 1px solid #f2dfad;
+}
+
+/* =========================================================
+   FILE UPLOAD
+========================================================= */
+
+.ct-shell .ct-file {
+  border: 1px dashed #bdcbd0;
+  padding: 18px;
+  border-radius: 12px;
+  background: #fafcfd;
+  text-align: center;
+}
+
+/* =========================================================
+   HISTORY / COMMENTS
+========================================================= */
+
+.ct-shell .ct-history {
+  border-left: 3px solid #d5caed;
+  padding-left: 14px;
+  margin: 12px 0;
+}
+
+.ct-shell .ct-comment {
+  background: #f7f9fa;
+  padding: 11px;
+  border-radius: 10px;
+  margin: 8px 0;
+  border: 1px solid #e8edef;
+}
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.ct-shell .ct-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(16, 39, 47, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ct-shell .ct-modal-backdrop .ct-card {
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+/* =========================================================
+   CHECKBOX
+========================================================= */
+
+.ct-shell input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #8f7ac8;
+  vertical-align: middle;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1200px) {
+  .ct-shell .ct-stage-navigation {
+    align-items: stretch;
+  }
+
+  .ct-shell .ct-stage-track {
+    justify-content: flex-start;
+  }
+
+  .ct-shell .ct-stage-name {
+    font-size: 11px;
+  }
+
+  .ct-shell .ct-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+@media (max-width: 1000px) {
+  .ct-shell .ct-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+
+  .ct-shell .ct-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ct-shell .ct-field.full {
+    grid-column: auto;
+  }
+
+  .ct-shell .ct-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ct-shell .ct-hero > div:last-child {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .ct-shell .ct-stage-navigation {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .ct-shell .ct-stage-arrow {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .ct-shell .ct-stage-track {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .ct-shell .ct-stage-connector {
+    width: 22px;
+  }
+
+  .ct-shell .ct-stage-step {
+    min-height: 42px;
+    padding: 6px 9px;
+  }
+
+  .ct-shell .ct-stage-number {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+
+  .ct-shell .ct-request {
+    grid-template-columns: 1fr;
+  }
+
+  .ct-shell .ct-row-actions {
+    width: 100%;
+  }
+
+  .ct-shell .ct-row-actions .ct-btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 650px) {
+  .ct-shell {
+    padding: 12px;
+  }
+
+  .ct-shell .ct-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ct-shell .ct-card {
+    padding: 14px;
+  }
+
+  .ct-shell .ct-hero {
+    padding: 22px 20px;
+    border-radius: 17px;
+  }
+
+  .ct-shell .ct-hero h1 {
+    font-size: 24px;
+  }
+
+  .ct-shell .ct-table {
+    min-width: 850px;
+  }
+
+  .ct-shell .ct-pagination {
+    justify-content: center;
+  }
+
+  .ct-shell .ct-pagination .ct-muted {
+    width: 100%;
+    text-align: center;
+  }
+
+  .ct-shell .ct-toolbar > .ct-btn {
+    width: 100%;
+  }
+
+  .ct-shell .ct-actions > .ct-btn {
+    flex: 1 1 auto;
+  }
+
+  .ct-shell .ct-stage-navigation {
+    border-radius: 12px;
+  }
+}
