@@ -1,4 +1,6 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
+const db = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const auth = require("../middleware/authMiddleware");
@@ -45,6 +47,44 @@ const upload = multer({
     }
 });
 
+const streamAuth = async (req, res, next) => {
+    const token = String(req.query.token || "").trim();
+    if (!token) {
+        return res.status(401).json({ success: false, message: "Chat event token is missing." });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "miarcus_secret_key");
+        if (!decoded?.id) {
+            return res.status(401).json({ success: false, message: "Invalid chat event token." });
+        }
+
+        const rows = await db.query(
+            "SELECT id, name, email, status, is_admin FROM users WHERE id = ? LIMIT 1",
+            [decoded.id]
+        );
+
+        if (!rows.length || rows[0].status !== "Active") {
+            return res.status(401).json({ success: false, message: "User is not active." });
+        }
+
+        req.user = {
+            ...decoded,
+            id: rows[0].id,
+            name: rows[0].name,
+            email: rows[0].email,
+            is_admin: rows[0].is_admin
+        };
+        next();
+    } catch (error) {
+        return res.status(401).json({ success: false, message: "Token expired or invalid." });
+    }
+};
+
+// EventSource cannot send an Authorization header. Authenticate this one
+// endpoint from its short-lived JWT query parameter, then apply Chat RBAC.
+router.get("/events", streamAuth, permission("Chat", "View"), C.stream);
+
 router.use(auth);
 
 const viewAccess = permission("Chat", "View");
@@ -83,8 +123,7 @@ router.delete("/messages/:id", fullAccess, C.deleteMessage);
 router.post("/messages/:id/reactions", addAccess, C.react);
 
 router.put("/presence", viewAccess, C.presence);
-router.get("/events", viewAccess, C.stream);
-
+router.get("/calls/history", viewAccess, C.callHistory);
 router.post("/calls", addAccess, C.startCall);
 router.post("/calls/:id/signals", addAccess, C.callSignal);
 router.get("/calls/:id/signals", viewAccess, C.callSignals);

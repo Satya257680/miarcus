@@ -1256,3 +1256,226 @@
         min-height: 430px;
     }
 }
+
+
+/* =========================================================
+   MIARCUS CHAT — Emoji picker + Call history
+   ========================================================= */
+
+.chat-emoji-picker-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.chat-emoji-picker {
+    position: absolute;
+    left: 0;
+    bottom: 52px;
+    z-index: 2500;
+    width: min(390px, calc(100vw - 28px));
+    max-height: 430px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #dce6ea;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 20px 55px rgba(21, 56, 68, .20);
+}
+
+.chat-emoji-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px;
+    padding: 8px 10px;
+    border: 1px solid #d8e3e7;
+    border-radius: 10px;
+    background: #f7fafb;
+    color: #6e8790;
+}
+
+.chat-emoji-search input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--chat-ink);
+    font: inherit;
+    font-size: 12px;
+}
+
+.chat-emoji-categories {
+    display: flex;
+    gap: 5px;
+    padding: 0 10px 9px;
+    overflow-x: auto;
+    border-bottom: 1px solid #edf1f3;
+}
+
+.chat-emoji-categories button {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 9px;
+    background: transparent;
+    color: #58727c;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.chat-emoji-categories button:hover,
+.chat-emoji-categories button.active {
+    background: #eeeafb;
+    color: #6f5cb1;
+}
+
+.chat-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 2px;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.chat-emoji-grid button {
+    min-width: 0;
+    aspect-ratio: 1;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.chat-emoji-grid button:hover {
+    background: #eef4f6;
+    transform: scale(1.08);
+}
+
+.call-history-modal {
+    width: min(760px, 96vw);
+}
+
+.chat-call-history-list {
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 8px 16px 18px;
+}
+
+.chat-call-history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid #edf1f3;
+}
+
+.chat-call-history-item:last-child {
+    border-bottom: 0;
+}
+
+.chat-call-history-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.chat-call-history-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+
+.chat-call-history-title strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.chat-call-history-title span {
+    flex: 0 0 auto;
+    color: var(--chat-muted);
+    font-size: 10px;
+}
+
+.chat-call-history-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+    color: var(--chat-muted);
+    font-size: 10px;
+}
+
+.chat-call-history-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 99px;
+    background: #edf3f5;
+    color: #45636d;
+    font-weight: 800;
+}
+
+.chat-call-history-status.missed,
+.chat-call-history-status.rejected {
+    background: #fff0f0;
+    color: #c23c3c;
+}
+
+.chat-call-history-status.accepted,
+.chat-call-history-status.ended {
+    background: #e8f7ef;
+    color: #237451;
+}
+
+.chat-call-history-status.ringing {
+    background: #f0ebfb;
+    color: #6d58ad;
+}
+
+.chat-call-history-again {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    background: #eef4f6;
+    color: #315563;
+    cursor: pointer;
+}
+
+.chat-call-history-again:hover {
+    background: #e5eef1;
+}
+
+@media (max-width: 650px) {
+    .chat-emoji-picker {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 76px;
+        width: auto;
+        max-height: 55vh;
+    }
+
+    .chat-emoji-grid {
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    .chat-call-history-title {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+}

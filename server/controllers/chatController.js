@@ -579,6 +579,21 @@ exports.updateCall = async (req, res) => {
     res.json({ success: true, call: updated });
 };
 
+exports.callHistory = async (req, res) => {
+    const storeId = Number(req.query.store_id || 0) || null;
+    if (storeId) await requireStoreAccess(req, storeId);
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 300);
+    const calls = await Model.getCallHistory(
+        req.user.id,
+        isAdmin(req),
+        storeId,
+        limit
+    );
+
+    res.json({ success: true, calls });
+};
+
 exports.adminOverview = async (req, res) => {
     if (!isAdmin(req)) {
         return res.status(403).json({ success: false, message: "Administrator access required." });

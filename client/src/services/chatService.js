@@ -111,6 +111,12 @@ export const getCallSignals = (callId, after = 0) =>
 export const updateChatCall = (callId, status) =>
     axios.put(`${API}/calls/${callId}`, { status }, authConfig());
 
+export const getChatCallHistory = (params = {}) =>
+    axios.get(`${API}/calls/history`, {
+        ...authConfig(),
+        params
+    });
+
 export const getChatAdminOverview = () =>
     axios.get(`${API}/admin/overview`, authConfig());
 

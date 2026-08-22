@@ -629,6 +629,64 @@ const updateCall = async (callId, status) => {
     return getCall(callId);
 };
 
+const getCallHistory = async (userId, admin = false, storeId = null, limit = 100) => {
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 300);
+    const params = [];
+    const where = [];
+
+    if (!admin) {
+        where.push(`(c.caller_id = ? OR c.callee_id = ?)`);
+        params.push(userId, userId);
+        where.push(`c.store_id IN (
+            SELECT us.store_id
+            FROM user_stores us
+            WHERE us.user_id = ?
+        )`);
+        params.push(userId);
+    }
+
+    if (storeId) {
+        where.push(`c.store_id = ?`);
+        params.push(storeId);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    return db.query(`
+        SELECT
+            c.id,
+            c.conversation_id,
+            c.store_id,
+            s.store_name,
+            s.store_code,
+            c.caller_id,
+            c.callee_id,
+            caller.name AS caller_name,
+            caller.email AS caller_email,
+            caller.profile_photo AS caller_photo,
+            callee.name AS callee_name,
+            callee.email AS callee_email,
+            callee.profile_photo AS callee_photo,
+            c.call_type,
+            c.status,
+            c.started_at,
+            c.ended_at,
+            c.created_at,
+            CASE
+                WHEN c.started_at IS NOT NULL AND c.ended_at IS NOT NULL
+                THEN TIMESTAMPDIFF(SECOND, c.started_at, c.ended_at)
+                ELSE NULL
+            END AS duration_seconds
+        FROM chat_calls c
+        LEFT JOIN stores s ON s.id = c.store_id
+        INNER JOIN users caller ON caller.id = c.caller_id
+        INNER JOIN users callee ON callee.id = c.callee_id
+        ${whereSql}
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT ${safeLimit}
+    `, params);
+};
+
 const getStoreManager = async (storeId) => {
     const rows = await db.query(`
         SELECT

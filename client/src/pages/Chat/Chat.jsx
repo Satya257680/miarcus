@@ -20,13 +20,15 @@ import {
     FaTrash,
     FaEdit,
     FaUserShield,
-    FaChevronRight
+    FaChevronRight,
+    FaHistory
 } from "react-icons/fa";
 
 import {
     getChatBootstrap,
     getChatContacts,
     getChatConversations,
+    getChatConversation,
     getChatMessages,
     createDirectConversation,
     createGroupConversation,
@@ -40,14 +42,16 @@ import {
     sendCallSignal,
     getCallSignals,
     updateChatCall,
+    getChatCallHistory,
     getChatAdminOverview,
     assignChatStoreManager,
     openChatEventStream
 } from "../../services/chatService";
 
 import "../../styles/pages/Chat.css";
+import { EMOJI_CATEGORIES } from "./emojiData";
 
-const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "👏"];
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "👏"];
 
 const safeUser = () => {
     try {
@@ -105,6 +109,39 @@ function formatLastSeen(value) {
     })}`;
 }
 
+function formatCallDuration(seconds) {
+    const total = Number(seconds || 0);
+    if (!total) return "—";
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if (hours) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function formatCallDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString([], {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function callStatusLabel(call, currentUserId) {
+    const mine = Number(call.caller_id) === Number(currentUserId);
+    if (call.status === "missed") return "Missed";
+    if (call.status === "rejected") return mine ? "Rejected" : "Declined";
+    if (call.status === "ended") return mine ? "Outgoing" : "Incoming";
+    if (call.status === "accepted") return mine ? "Outgoing" : "Incoming";
+    if (call.status === "ringing") return mine ? "Calling" : "Incoming";
+    return call.status || "Unknown";
+}
+
 function Chat() {
     const [searchParams, setSearchParams] = useSearchParams();
     const currentUser = useMemo(() => safeUser(), []);
@@ -158,6 +195,12 @@ function Chat() {
     const [groupTitle, setGroupTitle] = useState("");
     const [groupMembers, setGroupMembers] = useState([]);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [showCallHistory, setShowCallHistory] = useState(false);
+    const [callHistory, setCallHistory] = useState([]);
+    const [callHistoryLoading, setCallHistoryLoading] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [emojiCategory, setEmojiCategory] = useState("Smileys");
+    const [emojiSearch, setEmojiSearch] = useState("");
     const [adminStores, setAdminStores] = useState([]);
     const [callState, setCallState] = useState(null);
     const [callError, setCallError] = useState("");
@@ -177,6 +220,7 @@ function Chat() {
     const remoteDescriptionSetRef = useRef(false);
     const signalCursorRef = useRef(0);
     const signalPollRef = useRef(null);
+    const incomingCallTimeoutRef = useRef(null);
 
     const selectedConversationId =
         selectedConversation?.id
@@ -246,6 +290,15 @@ function Chat() {
                 .includes(term)
         );
     }, [contacts, search]);
+
+    const visibleEmojis = useMemo(() => {
+        const term = emojiSearch.trim().toLowerCase();
+        const source = term
+            ? Object.values(EMOJI_CATEGORIES).flat()
+            : (EMOJI_CATEGORIES[emojiCategory] || EMOJI_CATEGORIES.Smileys || []);
+
+        return [...new Set(source)];
+    }, [emojiCategory, emojiSearch]);
 
     const loadConversations = async (storeId = selectedStoreId) => {
         const response = await getChatConversations(storeId || undefined);
@@ -417,6 +470,10 @@ function Chat() {
         };
     }, []);
 
+    useEffect(() => () => {
+        clearTimeout(incomingCallTimeoutRef.current);
+    }, []);
+
     useEffect(() => {
         eventCleanupRef.current?.();
 
@@ -461,11 +518,23 @@ function Chat() {
 
             incoming_call: (event) => {
                 if (event?.call) {
+                    clearTimeout(incomingCallTimeoutRef.current);
                     setCallState({
                         mode: "incoming",
                         call: event.call,
                         conversation: event.conversation
                     });
+
+                    incomingCallTimeoutRef.current = setTimeout(async () => {
+                        try {
+                            await updateChatCall(event.call.id, "missed");
+                        } catch {
+                            // The other side may have ended the call already.
+                        }
+                        setCallState(previous =>
+                            previous?.call?.id === event.call.id ? null : previous
+                        );
+                    }, 30000);
                 }
             },
 
@@ -924,6 +993,8 @@ function Chat() {
     };
 
     const acceptIncomingCall = async () => {
+        clearTimeout(incomingCallTimeoutRef.current);
+        incomingCallTimeoutRef.current = null;
         const call = callState?.call;
         if (!call) return;
 
@@ -943,6 +1014,8 @@ function Chat() {
     };
 
     const rejectIncomingCall = async () => {
+        clearTimeout(incomingCallTimeoutRef.current);
+        incomingCallTimeoutRef.current = null;
         const call = callState?.call;
         if (!call) return;
 
@@ -951,6 +1024,8 @@ function Chat() {
     };
 
     const finishCallUi = () => {
+        clearTimeout(incomingCallTimeoutRef.current);
+        incomingCallTimeoutRef.current = null;
         clearInterval(signalPollRef.current);
         signalPollRef.current = null;
 
@@ -1057,6 +1132,34 @@ function Chat() {
         }
     };
 
+    const loadCallHistory = async () => {
+        try {
+            setCallHistoryLoading(true);
+            const params = {
+                limit: 200
+            };
+            if (selectedStoreId && selectedStoreId !== "all") {
+                params.store_id = selectedStoreId;
+            }
+            const response = await getChatCallHistory(params);
+            setCallHistory(response.data?.calls || []);
+            setShowCallHistory(true);
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                "Call history could not be loaded."
+            );
+        } finally {
+            setCallHistoryLoading(false);
+        }
+    };
+
+    const insertEmoji = (emoji) => {
+        setMessage(previous => `${previous}${emoji}`);
+        setShowEmojiPicker(false);
+        setEmojiSearch("");
+    };
+
     const getConversationPreview = (conversation) => {
         if (conversation.last_message_text) {
             return conversation.last_message_text;
@@ -1161,6 +1264,17 @@ function Chat() {
                         >
                         <FaUsers />
                             New group
+                        </button>
+                    )}
+
+                    {chatRank >= 1 && (
+                        <button
+                            className="chat-header-button"
+                            onClick={loadCallHistory}
+                            title="Call history"
+                        >
+                            <FaHistory />
+                            Call history
                         </button>
                     )}
                 </div>
@@ -1483,7 +1597,7 @@ function Chat() {
 
                                                     {canAdd && (
                                                         <div className="chat-message-tools">
-                                                            {EMOJIS.map(emoji => (
+                                                            {REACTION_EMOJIS.map(emoji => (
                                                             <button
                                                                 key={emoji}
                                                                 onClick={() =>
@@ -1613,14 +1727,56 @@ function Chat() {
                                         />
                                     </label>
 
-                                    <button
-                                        disabled={!canAdd}
-                                        className="chat-icon-button"
-                                        title="Emoji"
-                                        onClick={() => setMessage(previous => `${previous} 😊`)}
-                                    >
-                                        <FaSmile />
-                                    </button>
+                                    <div className="chat-emoji-picker-wrap">
+                                        <button
+                                            disabled={!canAdd}
+                                            className="chat-icon-button"
+                                            title="Emoji"
+                                            onClick={() => setShowEmojiPicker(previous => !previous)}
+                                        >
+                                            <FaSmile />
+                                        </button>
+
+                                        {showEmojiPicker && (
+                                            <div className="chat-emoji-picker" onMouseDown={event => event.stopPropagation()}>
+                                                <div className="chat-emoji-search">
+                                                    <FaSearch />
+                                                    <input
+                                                        value={emojiSearch}
+                                                        onChange={event => setEmojiSearch(event.target.value)}
+                                                        placeholder="Search emoji…"
+                                                    />
+                                                </div>
+
+                                                <div className="chat-emoji-categories">
+                                                    {Object.keys(EMOJI_CATEGORIES).map(category => (
+                                                        <button
+                                                            key={category}
+                                                            className={emojiCategory === category ? "active" : ""}
+                                                            onClick={() => {
+                                                                setEmojiCategory(category);
+                                                                setEmojiSearch("");
+                                                            }}
+                                                        >
+                                                            {category}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <div className="chat-emoji-grid">
+                                                    {visibleEmojis.map((emoji, index) => (
+                                                        <button
+                                                            key={`${emoji}-${index}`}
+                                                            title={emoji}
+                                                            onClick={() => insertEmoji(emoji)}
+                                                        >
+                                                            {emoji}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <textarea
                                         disabled={!canAdd}
@@ -1820,6 +1976,86 @@ function Chat() {
                                     onAssign={assignManager}
                                 />
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCallHistory && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setShowCallHistory(false)}>
+                    <div
+                        className="chat-modal call-history-modal"
+                        onMouseDown={event => event.stopPropagation()}
+                    >
+                        <header>
+                            <div>
+                                <h2>Call history</h2>
+                                <p>
+                                    {selectedStoreId === "all"
+                                        ? "Calls across the stores you are allowed to access."
+                                        : "Calls for your selected store."}
+                                </p>
+                            </div>
+                            <button onClick={() => setShowCallHistory(false)}>
+                                <FaTimes />
+                            </button>
+                        </header>
+
+                        <div className="chat-call-history-list">
+                            {callHistoryLoading ? (
+                                <div className="chat-modal-empty">Loading call history…</div>
+                            ) : callHistory.length ? (
+                                callHistory.map(call => {
+                                    const mine = Number(call.caller_id) === Number(currentUser.id);
+                                    const peerName = mine ? call.callee_name : call.caller_name;
+                                    const peerPhoto = mine ? call.callee_photo : call.caller_photo;
+                                    const isVideo = call.call_type === "video";
+                                    const status = callStatusLabel(call, currentUser.id);
+
+                                    return (
+                                        <div className="chat-call-history-item" key={call.id}>
+                                            <div className="chat-avatar">
+                                                {peerPhoto ? (
+                                                    <img src={peerPhoto} alt="" />
+                                                ) : (
+                                                    initials(peerName || "User")
+                                                )}
+                                            </div>
+                                            <div className="chat-call-history-main">
+                                                <div className="chat-call-history-title">
+                                                    <strong>{peerName || "Unknown user"}</strong>
+                                                    <span>{formatCallDate(call.created_at)}</span>
+                                                </div>
+                                                <div className="chat-call-history-meta">
+                                                    <span className={`chat-call-history-status ${call.status}`}>
+                                                        {isVideo ? <FaVideo /> : <FaPhone />}
+                                                        {status}
+                                                    </span>
+                                                    <span>{formatCallDuration(call.duration_seconds)}</span>
+                                                    {call.store_name && <span>{call.store_name}</span>}
+                                                </div>
+                                            </div>
+                                            {selectedConversationId && selectedOtherMember && Number(selectedOtherMember.id) === Number(mine ? call.callee_id : call.caller_id) && canAdd && (
+                                                <button
+                                                    className="chat-call-history-again"
+                                                    title={`Call ${peerName}`}
+                                                    onClick={() => {
+                                                        setShowCallHistory(false);
+                                                        startCall(isVideo ? "video" : "audio");
+                                                    }}
+                                                >
+                                                    {isVideo ? <FaVideo /> : <FaPhone />}
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="chat-modal-empty">
+                                    <FaHistory />
+                                    <p>No calls recorded yet.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
