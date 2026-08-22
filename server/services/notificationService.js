@@ -106,20 +106,31 @@ async function createNotification(data = {}) {
     const link = data.link ? String(data.link).slice(0, 500) : null;
     const type = String(data.type || "info").slice(0, 50);
 
-    const result = await db.query(`
-        INSERT INTO notifications
-        (user_id, title, message, module_name, action_name, entity_id, link, type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [userId, title, message, moduleName, actionName, entityId, link, type]);
+    /*
+     * db.query() in MIARCUS returns only result rows, not the
+     * mysql2 ResultSetHeader. Use one native connection here so
+     * insertId is guaranteed to belong to this INSERT.
+     */
+    const connection = await db.getConnection();
 
-    const rows = await db.query(
-        "SELECT * FROM notifications WHERE id = ? LIMIT 1",
-        [result.insertId]
-    );
+    try {
+        const [result] = await connection.query(`
+            INSERT INTO notifications
+            (user_id, title, message, module_name, action_name, entity_id, link, type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [userId, title, message, moduleName, actionName, entityId, link, type]);
 
-    const notification = serialize(rows[0]);
-    broadcast(userId, notification);
-    return notification;
+        const [rows] = await connection.query(
+            "SELECT * FROM notifications WHERE id = ? LIMIT 1",
+            [result.insertId]
+        );
+
+        const notification = serialize(rows[0]);
+        broadcast(userId, notification);
+        return notification;
+    } finally {
+        connection.release();
+    }
 }
 
 async function createForUsers(userIds, data = {}) {

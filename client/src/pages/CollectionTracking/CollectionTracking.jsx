@@ -189,7 +189,8 @@ function StageNavigator({ currentStage, workflowStage, onStageChange }) {
         className="ct-stage-arrow"
         disabled={currentIndex === 0}
         onClick={goPrevious}
-        title="Previous stage"
+        aria-label="Preview previous stage"
+        title="Preview previous stage"
       >
         <FaArrowLeft />
       </button>
@@ -197,7 +198,9 @@ function StageNavigator({ currentStage, workflowStage, onStageChange }) {
       <div className="ct-stage-track">
         {STAGES.map((stage, index) => {
           const active = index === currentIndex;
-          const completed = index < currentIndex;
+          const completed = index < workflowIndex;
+          const future = index > workflowIndex;
+          const currentWorkflow = index === workflowIndex;
 
           return (
             <React.Fragment key={stage}>
@@ -207,29 +210,42 @@ function StageNavigator({ currentStage, workflowStage, onStageChange }) {
                   "ct-stage-step",
                   active ? "active" : "",
                   completed ? "completed" : "",
-                  index > workflowIndex
-                    ? "locked"
-                    : "",
+                  future ? "preview" : "",
+                  currentWorkflow ? "workflow-current" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 onClick={() => onStageChange(stage)}
+                aria-current={active ? "step" : undefined}
                 title={
-                  index > workflowIndex
-                    ? `Preview ${stage} (read-only until submitted)`
-                    : `Open ${stage}`
+                  currentWorkflow
+                    ? `${stage} — current workflow stage`
+                    : future
+                      ? `Preview ${stage} — read-only until the product reaches this stage`
+                      : `Preview ${stage}`
                 }
               >
-                <span className="ct-stage-number">{index + 1}</span>
+                <span className="ct-stage-number">
+                  {completed ? <FaCheck /> : index + 1}
+                </span>
 
                 <span className="ct-stage-name">{stage}</span>
+
+                <span className="ct-stage-status">
+                  {currentWorkflow
+                    ? "Current"
+                    : completed
+                      ? "Done"
+                      : "Preview"}
+                </span>
               </button>
 
               {index < STAGES.length - 1 && (
                 <span
                   className={`ct-stage-connector ${
-                    index < currentIndex ? "completed" : ""
+                    index < workflowIndex ? "completed" : ""
                   }`}
+                  aria-hidden="true"
                 >
                   <FaArrowRight />
                 </span>
@@ -244,7 +260,8 @@ function StageNavigator({ currentStage, workflowStage, onStageChange }) {
         className="ct-stage-arrow"
         disabled={currentIndex === STAGES.length - 1}
         onClick={goNext}
-        title="Next stage"
+        aria-label="Preview next stage"
+        title="Preview next stage"
       >
         <FaArrowRight />
       </button>
@@ -1675,6 +1692,47 @@ function Details() {
             changeStage
           }
         />
+
+        <div
+          className={`ct-workflow-banner ${
+            canEdit
+              ? "current"
+              : "preview"
+          }`}
+        >
+          <div>
+            <strong>
+              {canEdit
+                ? `You are working on ${workflowStage}`
+                : `You are previewing ${stage}`}
+            </strong>
+
+            <span>
+              {canEdit
+                ? nextWorkflowStage
+                  ? ` Save this stage, then submit it to ${nextWorkflowStage}.`
+                  : " This is the final stage. Saving completes the workflow."
+                : ` The product is currently at ${workflowStage}. ${stage} is read-only until the workflow reaches it.`}
+            </span>
+          </div>
+
+          {canEdit &&
+            nextWorkflowStage && (
+              <button
+                type="button"
+                className="ct-btn primary"
+                disabled={saving}
+                onClick={() =>
+                  saveStage(true)
+                }
+              >
+                <FaPaperPlane />
+                Send to{" "}
+                {nextWorkflowStage}
+                <FaArrowRight />
+              </button>
+            )}
+        </div>
 
         <div className="ct-form-grid">
           {fields.map(

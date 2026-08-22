@@ -357,6 +357,48 @@
   font-size: 12px;
 }
 
+
+.ct-shell .ct-stage-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  background: #eef2f4;
+  color: #6a7f87;
+}
+
+.ct-shell .ct-stage-step.active .ct-stage-status {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.ct-shell .ct-stage-step.completed .ct-stage-status {
+  background: #d8eee4;
+  color: #287152;
+}
+
+.ct-shell .ct-stage-step.preview {
+  background: #fbfcfd;
+  border-style: dashed;
+  color: #607781;
+}
+
+.ct-shell .ct-stage-step.preview:hover {
+  background: #f4f0fb;
+  border-color: #9a87cb;
+  color: #5e4c9e;
+}
+
+.ct-shell .ct-stage-step.workflow-current {
+  box-shadow:
+    0 0 0 2px rgba(143, 122, 200, 0.1),
+    0 6px 15px rgba(30, 65, 75, 0.08);
+}
+
 /* Arrow connectors */
 
 .ct-shell .ct-stage-connector {
@@ -371,6 +413,58 @@
 
 .ct-shell .ct-stage-connector.completed {
   color: #8f7ac8;
+}
+
+/* =========================================================
+   WORKFLOW ACTION BANNER
+========================================================= */
+
+.ct-shell .ct-workflow-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  border: 1px solid #e1e8eb;
+  background: #f8fafb;
+}
+
+.ct-shell .ct-workflow-banner > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ct-shell .ct-workflow-banner strong {
+  color: #183b4a;
+  font-size: 13px;
+}
+
+.ct-shell .ct-workflow-banner span {
+  color: #71868e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ct-shell .ct-workflow-banner.current {
+  border-color: #cfc4eb;
+  background: #faf8ff;
+}
+
+.ct-shell .ct-workflow-banner.current strong {
+  color: #624fa0;
+}
+
+.ct-shell .ct-workflow-banner.preview {
+  border-color: #eadfb9;
+  background: #fffaf0;
+}
+
+.ct-shell .ct-workflow-banner.preview strong {
+  color: #80600e;
 }
 
 /* =========================================================
@@ -991,5 +1085,18 @@
 
   .ct-shell .ct-request {
     grid-template-columns: 1fr;
+  }
+
+  .ct-shell .ct-workflow-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ct-shell .ct-workflow-banner .ct-btn {
+    width: 100%;
+  }
+
+  .ct-shell .ct-stage-status {
+    display: none;
   }
 }

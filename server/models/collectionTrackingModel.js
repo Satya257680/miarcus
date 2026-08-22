@@ -248,9 +248,9 @@ const DEFAULT_FIELDS = {
 
   Buyer: [
     ["Article Name", "readonly", false],
-    ["PPK Code", "readonly", true],
+    ["PPK Code", "text", true],
     ["Vendor", "select", true],
-    ["Buyer Name", "readonly", true],
+    ["Buyer Name", "text", true],
     ["Color", "readonly", true],
     ["Size", "readonly", true],
     ["Gender", "readonly", true],
@@ -650,6 +650,23 @@ async function ensureTablesInternal() {
       }
     }
   }
+
+  /*
+   * Existing installations may already have the first version of
+   * the Buyer master data. In that version PPK Code and Buyer Name
+   * were incorrectly marked readonly + mandatory, which made the
+   * Buyer stage impossible to complete when those values did not
+   * exist in Designer data. Repair only those two known fields.
+   */
+  await db.query(
+    `
+      UPDATE collection_stage_configs
+      SET display_type = 'text'
+      WHERE stage_name = 'Buyer'
+        AND field_name IN ('PPK Code', 'Buyer Name')
+        AND display_type = 'readonly'
+    `
+  );
 }
 
 /*
@@ -872,7 +889,15 @@ const createProduct = async ({
         ]
       );
 
-    const id = Number(result?.insertId || 0);
+    /*
+     * IMPORTANT:
+     * The project db.query() wrapper intentionally returns only
+     * result rows. This function uses the native connection.query()
+     * so mysql2 returns [result, fields] and insertId is available.
+     */
+    const id = Number(
+      result?.insertId || 0
+    );
 
     if (!id) {
       throw new Error(
@@ -1363,46 +1388,59 @@ const addComment = async ({
     );
   }
 
-  const result =
-    await db.query(
-      `
-        INSERT INTO
-        collection_comments
-        (
-          product_id,
-          stage_name,
-          user_id,
-          comment
-        )
-        VALUES (?, ?, ?, ?)
-      `,
-      [
-        id,
-        cleanStage,
-        userId || null,
-        cleanComment,
-      ]
-    );
+  /*
+   * Use one native MySQL connection for INSERT + SELECT.
+   * db.query() returns only rows in this project, so result.insertId
+   * is not available through that wrapper.
+   */
+  const connection =
+    await db.getConnection();
 
-  const rows =
-    await db.query(
-      `
-        SELECT
-          c.*,
-          u.name AS user_name,
-          u.email AS user_email
+  try {
+    const [result] =
+      await connection.query(
+        `
+          INSERT INTO
+          collection_comments
+          (
+            product_id,
+            stage_name,
+            user_id,
+            comment
+          )
+          VALUES (?, ?, ?, ?)
+        `,
+        [
+          id,
+          cleanStage,
+          userId || null,
+          cleanComment,
+        ]
+      );
 
-        FROM collection_comments c
+    const [rows] =
+      await connection.query(
+        `
+          SELECT
+            c.*,
+            u.name AS user_name,
+            u.email AS user_email
 
-        LEFT JOIN users u
-          ON u.id = c.user_id
+          FROM collection_comments c
 
-        WHERE c.id = ?
-      `,
-      [result.insertId]
-    );
+          LEFT JOIN users u
+            ON u.id = c.user_id
 
-  return rows?.[0] || null;
+          WHERE c.id = ?
+          LIMIT 1
+        `,
+        [result.insertId]
+      );
+
+    return rows?.[0] || null;
+  } finally {
+    connection.release();
+  }
 };
 
 /* =========================================================
@@ -1450,30 +1488,43 @@ const createRequest = async ({
     );
   }
 
-  const result =
-    await db.query(
-      `
-        INSERT INTO
-        collection_requests
-        (
-          product_id,
-          from_stage,
-          to_stage,
-          requested_by,
-          note
-        )
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      [
-        id,
-        from,
-        to,
-        userId || null,
-        note || null,
-      ]
-    );
+  /*
+   * Keep INSERT and insertId retrieval on the same MySQL
+   * connection. The shared db.query() helper returns rows only.
+   */
+  const connection =
+    await db.getConnection();
 
-  return result.insertId;
+  try {
+    const [result] =
+      await connection.query(
+        `
+          INSERT INTO
+          collection_requests
+          (
+            product_id,
+            from_stage,
+            to_stage,
+            requested_by,
+            note
+          )
+          VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          id,
+          from,
+          to,
+          userId || null,
+          note || null,
+        ]
+      );
+
+    return Number(
+      result?.insertId || 0
+    );
+  } finally {
+    connection.release();
+  }
 };
 
 /* =========================================================
