@@ -1,4 +1,5 @@
 const XLSX = require("xlsx");
+const fs = require("fs/promises");
 const { Parser } = require("json2csv");
 
 const Model = require("../models/collectionTrackingModel");
@@ -82,6 +83,82 @@ const getActor = async (userId) => {
       email: null,
     };
   }
+};
+
+
+const parseJsonObject = (value, fallback = {}) => {
+  if (value && typeof value === "object") return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object"
+        ? parsed
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+};
+
+/*
+ * Convert uploaded files into JSON-safe attachment metadata and
+ * attach each file to the Collection Tracking field that selected it.
+ *
+ * The frontend sends attachment_meta in the same order as files:
+ * [{ field_name: "Images" }, ...]
+ */
+const mergeUploadedFiles = (data, files = [], meta = []) => {
+  const result = {
+    ...(data || {}),
+  };
+
+  const metadata = Array.isArray(meta)
+    ? meta
+    : parseJsonObject(meta, []);
+
+  (files || []).forEach((file, index) => {
+    const fieldName =
+      String(metadata?.[index]?.field_name || "Attachments").trim() ||
+      "Attachments";
+
+    const attachment = {
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      url: `/uploads/${file.filename}`,
+    };
+
+    const existing = Array.isArray(result[fieldName])
+      ? result[fieldName]
+      : result[fieldName]
+        ? [result[fieldName]]
+        : [];
+
+    result[fieldName] = [
+      ...existing,
+      attachment,
+    ];
+  });
+
+  return result;
+};
+
+const getRequestData = (req) => {
+  const data = parseJsonObject(req.body?.data, {});
+  const meta = parseJsonObject(
+    req.body?.attachment_meta,
+    []
+  );
+
+  return mergeUploadedFiles(
+    data,
+    req.files || [],
+    meta
+  );
 };
 
 /* =========================================================
@@ -399,37 +476,46 @@ exports.create = async (
   res
 ) => {
   try {
-    const body = req.body || {};
-    const data = body.data || {};
+    const data = getRequestData(req);
 
     const productCode = String(
-      body.product_code ||
+      req.body?.product_code ||
         data.product_code ||
         data.sku ||
         data.SKU ||
-        `SKU-${Date.now()}`
+        ""
     ).trim();
 
+    const generatedCode =
+      productCode ||
+      `CT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Date.now()
+        .toString()
+        .slice(-6)}`;
+
     const productName = String(
-      body.product_name ||
+      req.body?.product_name ||
         data["Product Name"] ||
         data.product_name ||
         ""
     ).trim();
 
-    if (!productCode) {
-      return res.status(400).json({
+    const userId =
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message:
-          "Product code is required.",
+        message: "Unable to determine the logged-in user.",
       });
     }
 
     const product =
       await Model.createProduct({
-        productCode,
+        productCode: generatedCode,
         productName,
-        createdBy: req.user.id,
+        createdBy: userId,
         data,
       });
 
@@ -445,11 +531,20 @@ exports.create = async (
       error
     );
 
-    return res.status(500).json({
+    const duplicate =
+      error?.code === "ER_DUP_ENTRY";
+
+    return res.status(
+      duplicate
+        ? 409
+        : error?.statusCode || 500
+    ).json({
       success: false,
-      message:
-        "Unable to create product.",
-      error: error.message,
+      message: duplicate
+        ? "That product code/SKU already exists. Please use a unique code."
+        : error?.message ||
+          "Unable to create product.",
+      error: error?.message,
     });
   }
 };
@@ -580,6 +675,19 @@ exports.updateStage = async (
       });
     }
 
+    /*
+     * A product can only be edited by its actual current stage.
+     * Users can still browse other stages from the UI, but the
+     * server must prevent saving a future/previous stage by mistake.
+     */
+    if (stage !== product.current_stage) {
+      return res.status(409).json({
+        success: false,
+        message:
+          `This product is currently in ${product.current_stage}. Open that stage before saving an update.`,
+      });
+    }
+
     if (
       nextStage &&
       !STAGES.includes(nextStage)
@@ -590,10 +698,6 @@ exports.updateStage = async (
           "Invalid next workflow stage.",
       });
     }
-
-    /* -----------------------------------------
-       Prevent skipping forward in workflow
-    ----------------------------------------- */
 
     if (nextStage) {
       const currentIndex =
@@ -614,29 +718,32 @@ exports.updateStage = async (
       }
     }
 
+    const data = getRequestData(req);
+
+    const userId =
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.userId;
+
     const updated =
       await Model.updateStage({
         id: product.id,
         stage,
-        data: req.body?.data || {},
-        userId: req.user.id,
+        data,
+        userId,
         note: req.body?.note || null,
         nextStage,
       });
-
-    /* -----------------------------------------
-       Notify previous team
-    ----------------------------------------- */
 
     const recipients =
       await Model.getPreviousRecipients(
         product.id,
         stage,
-        req.user.id
+        userId
       );
 
     const actor =
-      await getActor(req.user.id);
+      await getActor(userId);
 
     const message = nextStage
       ? `${actor.name} submitted an update for ${stage} and moved ${product.product_code} to ${nextStage}.`
@@ -671,11 +778,14 @@ exports.updateStage = async (
       error
     );
 
-    return res.status(500).json({
+    return res.status(
+      error?.statusCode || 500
+    ).json({
       success: false,
       message:
+        error?.message ||
         "Unable to update collection stage.",
-      error: error.message,
+      error: error?.message,
     });
   }
 };
@@ -736,23 +846,36 @@ exports.comment = async (
       });
     }
 
+    if (stage !== product.current_stage) {
+      return res.status(409).json({
+        success: false,
+        message:
+          `Remarks can only be added to the current stage (${product.current_stage}).`,
+      });
+    }
+
+    const userId =
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.userId;
+
     const row =
       await Model.addComment({
         id: product.id,
         stage,
         comment,
-        userId: req.user.id,
+        userId,
       });
 
     const recipients =
       await Model.getPreviousRecipients(
         product.id,
         stage,
-        req.user.id
+        userId
       );
 
     const actor =
-      await getActor(req.user.id);
+      await getActor(userId);
 
     const notificationResult =
       await notifyAndEmail(
@@ -783,8 +906,9 @@ exports.comment = async (
     return res.status(500).json({
       success: false,
       message:
+        error?.message ||
         "Unable to save remark.",
-      error: error.message,
+      error: error?.message,
     });
   }
 };
@@ -851,12 +975,17 @@ exports.request = async (
       req.body?.note || ""
     ).trim();
 
+    const userId =
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.userId;
+
     const id =
       await Model.createRequest({
         id: product.id,
         fromStage,
         toStage,
-        userId: req.user.id,
+        userId,
         note,
       });
 
@@ -864,11 +993,11 @@ exports.request = async (
       await Model.getPreviousRecipients(
         product.id,
         fromStage,
-        req.user.id
+        userId
       );
 
     const actor =
-      await getActor(req.user.id);
+      await getActor(userId);
 
     const notificationResult =
       await notifyAndEmail(
@@ -1019,10 +1148,15 @@ exports.reviewRequest = async (
       });
     }
 
+    const reviewerId =
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.userId;
+
     await Model.reviewRequest({
       id: req.params.id,
       status,
-      userId: req.user.id,
+      userId: reviewerId,
     });
 
     /* -----------------------------------------
@@ -1247,6 +1381,24 @@ exports.bulk = async (
             defval: "",
           }
         );
+
+      /*
+       * The bulk-upload multer stores the temporary spreadsheet
+       * in server/uploads. Remove it after parsing so spreadsheets
+       * do not accumulate in the public upload directory.
+       */
+      if (req.file?.path) {
+        try {
+          await fs.unlink(
+            req.file.path
+          );
+        } catch (cleanupError) {
+          console.warn(
+            "Collection Tracking bulk temp-file cleanup:",
+            cleanupError.message
+          );
+        }
+      }
     }
 
     if (!Array.isArray(rows)) {
@@ -1293,7 +1445,9 @@ exports.bulk = async (
           productCode,
           productName,
           createdBy:
-            req.user.id,
+            req.user?.id ??
+            req.user?.user_id ??
+            req.user?.userId,
           data: row,
         });
 

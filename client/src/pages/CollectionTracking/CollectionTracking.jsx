@@ -45,9 +45,97 @@ const STAGES = [
 ];
 
 const inputType = (type) =>
-  ["select", "multiselect", "date", "textarea"].includes(type)
+  ["select", "multiselect", "date", "textarea"].includes(
+    type
+  )
     ? type
     : "text";
+
+const API_ORIGIN = (
+  import.meta.env.VITE_API_URL ||
+  "https://miarcus-backend.onrender.com"
+).replace(/\/+$/, "");
+
+const isAttachmentType = (type) =>
+  String(type || "").startsWith("attachment");
+
+const hasFieldValue = (value) => {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  return String(value).trim() !== "";
+};
+
+/*
+ * Convert the current stage state into:
+ * 1. JSON-safe data
+ * 2. real File objects that must be uploaded
+ *
+ * The server stores uploaded files as attachment metadata
+ * inside the stage's JSON data.
+ */
+const buildStageSubmission = (
+  source = {},
+  fields = []
+) => {
+  const data = {};
+  const attachments = [];
+
+  Object.entries(source || {}).forEach(
+    ([fieldName, value]) => {
+      const field = fields.find(
+        (item) =>
+          item.field_name === fieldName
+      );
+
+      if (
+        field &&
+        isAttachmentType(
+          field.display_type
+        )
+      ) {
+        const values = Array.isArray(value)
+          ? value
+          : value
+            ? [value]
+            : [];
+
+        data[fieldName] = values
+          .filter(
+            (item) =>
+              !(item instanceof File)
+          )
+          .map((item) => item);
+
+        values
+          .filter(
+            (item) =>
+              item instanceof File
+          )
+          .forEach((file) => {
+            attachments.push({
+              file,
+              field_name: fieldName,
+            });
+          });
+
+        return;
+      }
+
+      data[fieldName] = value;
+    }
+  );
+
+  return {
+    data,
+    attachments,
+  };
+};
 
 /* =========================================================
    COMMON HERO
@@ -75,8 +163,12 @@ function Hero({ title, subtitle, children }) {
    STAGE ARROW NAVIGATION
 ========================================================= */
 
-function StageNavigator({ currentStage, onStageChange }) {
+function StageNavigator({ currentStage, workflowStage, onStageChange }) {
   const currentIndex = Math.max(0, STAGES.indexOf(currentStage));
+  const workflowIndex = Math.max(
+    0,
+    STAGES.indexOf(workflowStage)
+  );
 
   const goPrevious = () => {
     if (currentIndex > 0) {
@@ -115,10 +207,18 @@ function StageNavigator({ currentStage, onStageChange }) {
                   "ct-stage-step",
                   active ? "active" : "",
                   completed ? "completed" : "",
+                  index > workflowIndex
+                    ? "locked"
+                    : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 onClick={() => onStageChange(stage)}
+                title={
+                  index > workflowIndex
+                    ? `Preview ${stage} (read-only until submitted)`
+                    : `Open ${stage}`
+                }
               >
                 <span className="ct-stage-number">{index + 1}</span>
 
@@ -162,60 +262,100 @@ function Field({
   onChange,
   readonly = false,
 }) {
-  const type = inputType(field.display_type);
-  const options = field.options || [];
+  const type = inputType(
+    field.display_type
+  );
+
+  const options =
+    Array.isArray(field.options)
+      ? field.options
+      : [];
 
   const isAttachment =
-    field.display_type?.startsWith("attachment");
+    isAttachmentType(
+      field.display_type
+    );
+
+  const attachmentValues =
+    Array.isArray(value)
+      ? value
+      : value
+        ? [value]
+        : [];
 
   return (
     <div
       className={`ct-field ${
-        type === "textarea" ? "full" : ""
+        type === "textarea"
+          ? "full"
+          : ""
       }`}
     >
       <label>
         {field.field_name}
 
         {field.is_mandatory && (
-          <span className="req">*</span>
+          <span className="req">
+            *
+          </span>
         )}
       </label>
 
       {type === "textarea" ? (
         <textarea
           className={`ct-textarea ${
-            readonly ? "ct-readonly" : ""
+            readonly
+              ? "ct-readonly"
+              : ""
           }`}
           disabled={readonly}
-          value={value || ""}
+          value={
+            value || ""
+          }
           onChange={(event) =>
-            onChange(event.target.value)
+            onChange(
+              event.target.value
+            )
           }
         />
       ) : type === "select" ? (
         <select
           className={`ct-select ${
-            readonly ? "ct-readonly" : ""
+            readonly
+              ? "ct-readonly"
+              : ""
           }`}
           disabled={readonly}
-          value={value || ""}
+          value={
+            value || ""
+          }
           onChange={(event) =>
-            onChange(event.target.value)
+            onChange(
+              event.target.value
+            )
           }
         >
-          <option value="">Select...</option>
+          <option value="">
+            Select...
+          </option>
 
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map(
+            (option) => (
+              <option
+                key={option}
+                value={option}
+              >
+                {option}
+              </option>
+            )
+          )}
         </select>
       ) : type === "multiselect" ? (
         <select
-          className={`ct-select ${
-            readonly ? "ct-readonly" : ""
+          className={`ct-select ct-multiselect ${
+            readonly
+              ? "ct-readonly"
+              : ""
           }`}
           disabled={readonly}
           multiple
@@ -223,62 +363,148 @@ function Field({
             Array.isArray(value)
               ? value
               : value
-              ? [value]
-              : []
+                ? [value]
+                : []
           }
           onChange={(event) =>
             onChange(
               Array.from(
-                event.target.selectedOptions
-              ).map((option) => option.value)
+                event.target
+                  .selectedOptions
+              ).map(
+                (option) =>
+                  option.value
+              )
             )
           }
         >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map(
+            (option) => (
+              <option
+                key={option}
+                value={option}
+              >
+                {option}
+              </option>
+            )
+          )}
         </select>
       ) : type === "date" ? (
         <input
           className={`ct-input ${
-            readonly ? "ct-readonly" : ""
+            readonly
+              ? "ct-readonly"
+              : ""
           }`}
           type="date"
           disabled={readonly}
-          value={value || ""}
-          onChange={(event) =>
-            onChange(event.target.value)
+          value={
+            value || ""
           }
-        />
-      ) : isAttachment ? (
-        <input
-          className="ct-input"
-          type="file"
-          multiple={field.display_type.includes(
-            "multiple"
-          )}
-          disabled={readonly}
           onChange={(event) =>
             onChange(
-              Array.from(
-                event.target.files || []
-              )
-                .map((file) => file.name)
-                .join(", ")
+              event.target.value
             )
           }
         />
+      ) : isAttachment ? (
+        <div className="ct-attachment-field">
+          <input
+            className="ct-input"
+            type="file"
+            multiple={
+              field.display_type.includes(
+                "multiple"
+              )
+            }
+            disabled={readonly}
+            onChange={(event) => {
+              const selected =
+                Array.from(
+                  event.target
+                    .files || []
+                );
+
+              if (!selected.length) {
+                return;
+              }
+
+              const existing =
+                attachmentValues.filter(
+                  (item) =>
+                    !(
+                      item instanceof
+                      File
+                    )
+                );
+
+              onChange([
+                ...existing,
+                ...selected,
+              ]);
+            }}
+          />
+
+          {attachmentValues.length > 0 && (
+            <div className="ct-attachment-list">
+              {attachmentValues.map(
+                (item, index) => {
+                  const name =
+                    item?.originalname ||
+                    item?.name ||
+                    String(
+                      item || ""
+                    );
+
+                  const url =
+                    item?.url
+                      ? item.url.startsWith(
+                          "http"
+                        )
+                        ? item.url
+                        : `${API_ORIGIN}${item.url}`
+                      : null;
+
+                  return (
+                    <div
+                      className="ct-attachment-item"
+                      key={`${name}-${index}`}
+                    >
+                      {url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {name}
+                        </a>
+                      ) : (
+                        <span>
+                          {name}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <input
           className={`ct-input ${
-            readonly ? "ct-readonly" : ""
+            readonly
+              ? "ct-readonly"
+              : ""
           }`}
           disabled={readonly}
-          value={value || ""}
+          value={
+            value || ""
+          }
           onChange={(event) =>
-            onChange(event.target.value)
+            onChange(
+              event.target.value
+            )
           }
         />
       )}
@@ -774,85 +1000,129 @@ function ProductList() {
 function AddProduct() {
   const navigate = useNavigate();
 
-  const [fields, setFields] = useState([]);
-  const [data, setData] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [fields, setFields] =
+    useState([]);
+
+  const [data, setData] =
+    useState({});
+
+  const [saving, setSaving] =
+    useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     const load = async () => {
       try {
         const response =
-          await getConfigs("Designer");
+          await getConfigs(
+            "Designer"
+          );
 
-        setFields(
-          response?.data?.configs || []
-        );
+        if (mounted) {
+          setFields(
+            response?.data
+              ?.configs || []
+          );
+        }
       } catch (error) {
-        console.error(error);
-
-        alert(
-          "Unable to load Designer fields."
+        console.error(
+          "Collection Tracking Designer fields:",
+          error
         );
+
+        if (mounted) {
+          alert(
+            error?.response
+              ?.data?.message ||
+              "Unable to load Designer fields."
+          );
+        }
       }
     };
 
     load();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const saveProduct = async () => {
-    const missing = fields.find(
-      (field) =>
-        field.is_mandatory &&
-        !data[field.field_name]
-    );
-
-    if (missing) {
-      alert(
-        `Please fill ${missing.field_name}`
-      );
-
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const response =
-        await createProduct({
-          product_code:
-            data["SKU"] ||
-            data["Article Name"] ||
-            undefined,
-
-          product_name:
-            data["Product Name"],
-
-          data,
-        });
-
-      const productId =
-        response?.data?.product?.id;
-
-      if (!productId) {
-        throw new Error(
-          "Product created but no product ID was returned."
+  const saveProduct =
+    async () => {
+      const missing =
+        fields.find(
+          (field) =>
+            field.is_mandatory &&
+            !hasFieldValue(
+              data[
+                field.field_name
+              ]
+            )
         );
+
+      if (missing) {
+        alert(
+          `Please fill ${missing.field_name}`
+        );
+        return;
       }
 
-      navigate(
-        `/collection-tracking/sku-details/${productId}`
-      );
-    } catch (error) {
-      console.error(error);
+      setSaving(true);
 
-      alert(
-        error?.response?.data?.message ||
-          "Unable to create product."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+      try {
+        const submission =
+          buildStageSubmission(
+            data,
+            fields
+          );
+
+        const response =
+          await createProduct({
+            product_code:
+              data["SKU"] ||
+              undefined,
+
+            product_name:
+              data["Product Name"] ||
+              "",
+
+            data:
+              submission.data,
+
+            attachments:
+              submission.attachments,
+          });
+
+        const productId =
+          response?.data
+            ?.product?.id;
+
+        if (!productId) {
+          throw new Error(
+            "Product created but no product ID was returned."
+          );
+        }
+
+        navigate(
+          `/collection-tracking/sku-details/${productId}`
+        );
+      } catch (error) {
+        console.error(
+          "Collection Tracking create product:",
+          error
+        );
+
+        alert(
+          error?.response?.data
+            ?.message ||
+            error?.message ||
+            "Unable to create product."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
   return (
     <div className="ct-shell">
@@ -862,28 +1132,50 @@ function AddProduct() {
       />
 
       <div className="ct-card">
+        <div className="ct-alert">
+          Fill the Designer information
+          once. After creation, the same
+          product moves through Buyer,
+          Tech Team, Quality, E-Com and
+          Warehouse.
+        </div>
+
         <div className="ct-form-grid">
-          {fields.map((field) => (
-            <Field
-              key={field.id}
-              field={field}
-              value={data[field.field_name]}
-              onChange={(value) =>
-                setData((previous) => ({
-                  ...previous,
-                  [field.field_name]: value,
-                }))
-              }
-            />
-          ))}
+          {fields.map(
+            (field) => (
+              <Field
+                key={field.id}
+                field={field}
+                value={
+                  data[
+                    field.field_name
+                  ]
+                }
+                onChange={(
+                  value
+                ) =>
+                  setData(
+                    (previous) => ({
+                      ...previous,
+                      [field.field_name]:
+                        value,
+                    })
+                  )
+                }
+              />
+            )
+          )}
         </div>
 
         <div className="ct-actions">
           <button
             type="button"
             className="ct-btn light"
+            disabled={saving}
             onClick={() =>
-              navigate("/collection-tracking")
+              navigate(
+                "/collection-tracking"
+              )
             }
           >
             <FaArrowLeft />
@@ -894,7 +1186,9 @@ function AddProduct() {
             type="button"
             className="ct-btn primary"
             disabled={saving}
-            onClick={saveProduct}
+            onClick={
+              saveProduct
+            }
           >
             <FaSave />
             {saving
@@ -915,242 +1209,367 @@ function Details() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const [result, setResult] = useState(null);
-  const [configs, setConfigs] = useState([]);
+  const [result, setResult] =
+    useState(null);
+
+  const [configs, setConfigs] =
+    useState([]);
 
   const [stage, setStage] =
     useState("Designer");
 
-  const [data, setData] = useState({});
+  const [data, setData] =
+    useState({});
+
   const [comment, setComment] =
     useState("");
 
   const [saving, setSaving] =
     useState(false);
 
-  const loadProduct = async (
-    preserveStage = true
-  ) => {
-    try {
-      const [
-        productResponse,
-        configResponse,
-      ] = await Promise.all([
-        getProduct(id),
-        getConfigs(),
-      ]);
+  const loadProduct =
+    async ({
+      keepSelectedStage = false,
+    } = {}) => {
+      try {
+        const [
+          productResponse,
+          configResponse,
+        ] = await Promise.all([
+          getProduct(id),
+          getConfigs(),
+        ]);
 
-      const product =
-        productResponse?.data;
+        const payload =
+          productResponse?.data;
 
-      const availableConfigs =
-        configResponse?.data?.configs || [];
+        const product =
+          payload?.product;
 
-      setResult(product);
-      setConfigs(availableConfigs);
+        if (!product) {
+          throw new Error(
+            "Collection product not found."
+          );
+        }
 
-      const productStage =
-        product?.product?.current_stage ||
-        "Designer";
+        const availableConfigs =
+          configResponse?.data
+            ?.configs || [];
 
-      if (!preserveStage) {
-        setStage(productStage);
+        const workflowStage =
+          product.current_stage ||
+          "Designer";
 
+        const selectedStage =
+          keepSelectedStage &&
+          STAGES.includes(stage)
+            ? stage
+            : workflowStage;
+
+        setResult(payload);
+        setConfigs(
+          availableConfigs
+        );
+        setStage(
+          selectedStage
+        );
         setData(
-          product?.product?.stage_data?.[
-            productStage
+          product.stage_data?.[
+            selectedStage
           ] || {}
         );
-      } else {
-        setData(
-          product?.product?.stage_data?.[
-            stage
-          ] || {}
+      } catch (error) {
+        console.error(
+          "Collection Tracking product load:",
+          error
+        );
+
+        alert(
+          error?.response
+            ?.data?.message ||
+            error?.message ||
+            "Unable to load product."
         );
       }
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        error?.response?.data?.message ||
-          "Unable to load product."
-      );
-    }
-  };
+    };
 
   useEffect(() => {
-    loadProduct(false);
+    loadProduct({
+      keepSelectedStage:
+        false,
+    });
+    // Product ID is the only dependency here.
+    // Stage changes are handled by changeStage().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  useEffect(() => {
-    if (!result) return;
+  const workflowStage =
+    result?.product
+      ?.current_stage ||
+    "Designer";
 
-    setData(
-      result.product?.stage_data?.[
-        stage
-      ] || {}
-    );
-  }, [stage, result]);
-
-  const fields = useMemo(
-    () =>
-      configs.filter(
-        (field) =>
-          field.stage_name === stage
-      ),
-    [configs, stage]
+  const workflowIndex = Math.max(
+    0,
+    STAGES.indexOf(
+      workflowStage
+    )
   );
 
-  const currentIndex = Math.max(
+  const selectedIndex = Math.max(
     0,
     STAGES.indexOf(stage)
   );
 
   const previousStage =
-    currentIndex > 0
-      ? STAGES[currentIndex - 1]
+    selectedIndex > 0
+      ? STAGES[
+          selectedIndex - 1
+        ]
       : null;
 
-  const nextStage =
-    currentIndex <
+  const nextSelectedStage =
+    selectedIndex <
     STAGES.length - 1
-      ? STAGES[currentIndex + 1]
+      ? STAGES[
+          selectedIndex + 1
+        ]
       : null;
+
+  const nextWorkflowStage =
+    workflowIndex <
+    STAGES.length - 1
+      ? STAGES[
+          workflowIndex + 1
+        ]
+      : null;
+
+  const canEdit =
+    stage === workflowStage;
+
+  const fields = useMemo(
+    () =>
+      configs.filter(
+        (field) =>
+          field.stage_name ===
+          stage
+      ),
+    [configs, stage]
+  );
 
   /*
-   * Merge previous stage information.
-   *
-   * Earlier stage data is visible to the current
-   * team. The current team's own values are placed
-   * over the copied values.
+   * Previous stage data is shown automatically.
+   * The current stage's own values override copied values.
    */
-  const mergedData = useMemo(() => {
-    if (!result?.product) {
-      return {};
-    }
+  const mergedData =
+    useMemo(() => {
+      if (!result?.product) {
+        return {};
+      }
 
-    const merged = {};
+      const merged = {};
 
-    for (
-      let index = 0;
-      index <= currentIndex;
-      index += 1
-    ) {
-      const stageName =
-        STAGES[index];
+      for (
+        let index = 0;
+        index <= selectedIndex;
+        index += 1
+      ) {
+        const stageName =
+          STAGES[index];
+
+        Object.assign(
+          merged,
+          result.product
+            .stage_data?.[
+            stageName
+          ] || {}
+        );
+      }
 
       Object.assign(
         merged,
-        result.product.stage_data?.[
-          stageName
+        data
+      );
+
+      return merged;
+    }, [
+      result,
+      selectedIndex,
+      data,
+    ]);
+
+  const changeStage =
+    (newStage) => {
+      if (
+        !STAGES.includes(
+          newStage
+        )
+      ) {
+        return;
+      }
+
+      setStage(newStage);
+
+      setData(
+        result?.product
+          ?.stage_data?.[
+          newStage
         ] || {}
       );
-    }
+    };
 
-    Object.assign(merged, data);
+  const saveStage =
+    async (
+      moveToNext = false
+    ) => {
+      if (!canEdit) {
+        alert(
+          `This product is currently in ${workflowStage}. You can view ${stage}, but only the current stage can be edited.`
+        );
+        return;
+      }
 
-    return merged;
-  }, [
-    result,
-    currentIndex,
-    data,
-  ]);
+      const missing =
+        fields.find(
+          (field) =>
+            field.is_mandatory &&
+            !hasFieldValue(
+              mergedData[
+                field.field_name
+              ]
+            )
+        );
 
-  const changeStage = (newStage) => {
-    if (!STAGES.includes(newStage)) {
-      return;
-    }
+      if (missing) {
+        alert(
+          `Please fill ${missing.field_name}`
+        );
+        return;
+      }
 
-    setStage(newStage);
-  };
+      if (
+        moveToNext &&
+        !nextWorkflowStage
+      ) {
+        return;
+      }
 
-  const saveStage = async (
-    moveToNext = false
-  ) => {
-    const missing = fields.find(
-      (field) =>
-        field.is_mandatory &&
-        !mergedData[field.field_name]
-    );
+      setSaving(true);
 
-    if (missing) {
-      alert(
-        `Please fill ${missing.field_name}`
-      );
+      try {
+        const submission =
+          buildStageSubmission(
+            data,
+            fields
+          );
 
-      return;
-    }
+        await updateProductStage(
+          id,
+          {
+            stage,
+            data:
+              submission.data,
+            attachments:
+              submission.attachments,
+            next_stage:
+              moveToNext
+                ? nextWorkflowStage
+                : null,
+          }
+        );
 
-    if (
-      moveToNext &&
-      !nextStage
-    ) {
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await updateProductStage(
-        id,
-        {
-          stage,
-          data: mergedData,
-          next_stage: moveToNext
-            ? nextStage
-            : null,
+        if (moveToNext) {
+          /*
+           * The backend changes current_stage.
+           * Reload without preserving the old selected stage
+           * so the UI immediately opens the new team's workspace.
+           */
+          await loadProduct({
+            keepSelectedStage:
+              false,
+          });
+        } else {
+          await loadProduct({
+            keepSelectedStage:
+              true,
+          });
         }
-      );
 
-      await loadProduct(true);
+        alert(
+          moveToNext
+            ? `Update sent to ${nextWorkflowStage}. The previous team was notified.`
+            : "Update saved successfully. The previous team was notified."
+        );
+      } catch (error) {
+        console.error(
+          "Collection Tracking stage save:",
+          error
+        );
 
-      alert(
-        moveToNext
-          ? `Update sent to ${nextStage}. The previous team was notified.`
-          : "Update saved successfully. The previous team was notified."
-      );
-    } catch (error) {
-      console.error(error);
+        alert(
+          error?.response
+            ?.data?.message ||
+            error?.message ||
+            "Unable to save product update."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
-      alert(
-        error?.response?.data?.message ||
-          "Unable to save product update."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  const sendRemark =
+    async () => {
+      if (!canEdit) {
+        alert(
+          `Remarks can only be sent from the current stage (${workflowStage}).`
+        );
+        return;
+      }
 
-  const sendRemark = async () => {
-    if (!comment.trim()) {
-      alert("Please write a remark first.");
+      const trimmed =
+        comment.trim();
 
-      return;
-    }
+      if (!trimmed) {
+        alert(
+          "Please write a remark first."
+        );
+        return;
+      }
 
-    try {
-      await addProductComment(id, {
-        stage,
-        comment:
-          comment.trim(),
-      });
+      try {
+        await addProductComment(
+          id,
+          {
+            stage:
+              workflowStage,
+            comment:
+              trimmed,
+          }
+        );
 
-      setComment("");
+        setComment("");
 
-      await loadProduct(true);
+        await loadProduct({
+          keepSelectedStage:
+            true,
+        });
 
-      alert(
-        "Remark sent through website notification and email."
-      );
-    } catch (error) {
-      console.error(error);
+        alert(
+          "Remark sent through website notification and email."
+        );
+      } catch (error) {
+        console.error(
+          "Collection Tracking remark:",
+          error
+        );
 
-      alert(
-        error?.response?.data?.message ||
-          "Unable to send remark."
-      );
-    }
-  };
+        alert(
+          error?.response
+            ?.data?.message ||
+            error?.message ||
+            "Unable to send remark."
+        );
+      }
+    };
 
   if (!result) {
     return (
@@ -1175,8 +1594,17 @@ function Details() {
           "Collection product"
         }
       >
-        <span className="ct-badge progress">
-          {result.product.current_stage}
+        <span
+          className={`ct-badge ${
+            result.product
+              .status ===
+            "Completed"
+              ? "done"
+              : "progress"
+          }`}
+        >
+          {result.product
+            .current_stage}
         </span>
       </Hero>
 
@@ -1188,33 +1616,47 @@ function Details() {
             </h3>
 
             <div className="ct-muted">
-              Information from previous stages
-              is automatically available.
-              Read-only fields cannot be changed
-              by the current stage.
+              Current workflow stage:
+              {" "}
+              <b>
+                {workflowStage}
+              </b>
+              . Previous information is
+              automatically available.
             </div>
           </div>
 
           <span className="ct-chip">
-            Step {currentIndex + 1} /{" "}
+            Step{" "}
+            {selectedIndex + 1}
+            {" / "}
             {STAGES.length}
           </span>
         </div>
 
-        {/* =================================================
-            PROGRESS BAR
-        ================================================= */}
+        {!canEdit && (
+          <div className="ct-alert">
+            You are viewing{" "}
+            <b>{stage}</b>.
+            This is a read-only preview because
+            the product is currently at{" "}
+            <b>{workflowStage}</b>.
+            Use the arrows to review stages
+            without changing the workflow.
+          </div>
+        )}
 
         <div
           className="ct-progress"
           style={{
-            margin: "18px 0",
+            margin:
+              "18px 0",
           }}
         >
           <span
             style={{
               width: `${
-                ((currentIndex + 1) /
+                ((workflowIndex + 1) /
                   STAGES.length) *
                 100
               }%`,
@@ -1222,52 +1664,57 @@ function Details() {
           />
         </div>
 
-        {/* =================================================
-            STAGE ARROWS
-        ================================================= */}
-
         <StageNavigator
-          currentStage={stage}
-          onStageChange={changeStage}
+          currentStage={
+            stage
+          }
+          workflowStage={
+            workflowStage
+          }
+          onStageChange={
+            changeStage
+          }
         />
 
-        {/* =================================================
-            CURRENT STAGE FIELDS
-        ================================================= */}
-
         <div className="ct-form-grid">
-          {fields.map((field) => (
-            <Field
-              key={field.id}
-              field={field}
-              readonly={
-                field.display_type ===
-                "readonly"
-              }
-              value={
-                mergedData[
-                  field.field_name
-                ]
-              }
-              onChange={(value) =>
-                setData((previous) => ({
-                  ...previous,
-                  [field.field_name]:
-                    value,
-                }))
-              }
-            />
-          ))}
+          {fields.map(
+            (field) => (
+              <Field
+                key={field.id}
+                field={field}
+                readonly={
+                  !canEdit ||
+                  field.display_type ===
+                    "readonly"
+                }
+                value={
+                  mergedData[
+                    field.field_name
+                  ]
+                }
+                onChange={(
+                  value
+                ) =>
+                  setData(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      [field.field_name]:
+                        value,
+                    })
+                  )
+                }
+              />
+            )
+          )}
         </div>
-
-        {/* =================================================
-            ACTIONS
-        ================================================= */}
 
         <div className="ct-actions">
           <button
             type="button"
             className="ct-btn light"
+            disabled={saving}
             onClick={() =>
               navigate(
                 "/collection-tracking"
@@ -1281,9 +1728,14 @@ function Details() {
           <button
             type="button"
             className="ct-btn light"
-            disabled={saving}
+            disabled={
+              saving ||
+              !canEdit
+            }
             onClick={() =>
-              saveStage(false)
+              saveStage(
+                false
+              )
             }
           >
             <FaSave />
@@ -1292,25 +1744,29 @@ function Details() {
               : "Save Update"}
           </button>
 
-          {nextStage && (
-            <button
-              type="button"
-              className="ct-btn primary"
-              disabled={saving}
-              onClick={() =>
-                saveStage(true)
-              }
-            >
-              <FaPaperPlane />
-              Submit to {nextStage}
-              <FaArrowRight />
-            </button>
-          )}
+          {nextWorkflowStage &&
+            canEdit && (
+              <button
+                type="button"
+                className="ct-btn primary"
+                disabled={
+                  saving
+                }
+                onClick={() =>
+                  saveStage(
+                    true
+                  )
+                }
+              >
+                <FaPaperPlane />
+                Submit to{" "}
+                {
+                  nextWorkflowStage
+                }
+                <FaArrowRight />
+              </button>
+            )}
         </div>
-
-        {/* =================================================
-            PREVIOUS / NEXT QUICK ACTION
-        ================================================= */}
 
         <div
           className="ct-actions"
@@ -1323,7 +1779,9 @@ function Details() {
           <button
             type="button"
             className="ct-btn light"
-            disabled={!previousStage}
+            disabled={
+              !previousStage
+            }
             onClick={() =>
               previousStage &&
               changeStage(
@@ -1340,48 +1798,59 @@ function Details() {
           <button
             type="button"
             className="ct-btn light"
-            disabled={!nextStage}
+            disabled={
+              !nextSelectedStage
+            }
             onClick={() =>
-              nextStage &&
-              changeStage(nextStage)
+              nextSelectedStage &&
+              changeStage(
+                nextSelectedStage
+              )
             }
           >
             Next:{" "}
-            {nextStage ||
+            {nextSelectedStage ||
               "Completed"}
             <FaArrowRight />
           </button>
         </div>
 
-        {/* =================================================
-            REMARK / UPDATE
-        ================================================= */}
-
         <div
           className="ct-card"
           style={{
             marginTop: 18,
-            boxShadow: "none",
-            borderStyle: "dashed",
+            boxShadow:
+              "none",
+            borderStyle:
+              "dashed",
           }}
         >
           <h3>
             <FaCommentDots />
-            {" "}Remark / Update
+            {" "}
+            Remark / Update
           </h3>
 
           <p className="ct-muted">
-            Write an update for the previous
-            team. The system will save it in the
-            product history and send a website
+            Write an update for the
+            previous team. The system
+            saves it in the product
+            history and sends a website
             notification and email.
           </p>
 
           <textarea
             className="ct-textarea"
-            placeholder="Write a remark for the previous team..."
+            disabled={!canEdit}
+            placeholder={
+              canEdit
+                ? "Write a remark for the previous team..."
+                : "Open the current workflow stage to send a remark."
+            }
             value={comment}
-            onChange={(event) =>
+            onChange={(
+              event
+            ) =>
               setComment(
                 event.target.value
               )
@@ -1392,7 +1861,13 @@ function Details() {
             <button
               type="button"
               className="ct-btn teal"
-              onClick={sendRemark}
+              disabled={
+                !canEdit ||
+                !comment.trim()
+              }
+              onClick={
+                sendRemark
+              }
             >
               <FaPaperPlane />
               Send Remark
@@ -1401,25 +1876,22 @@ function Details() {
         </div>
       </div>
 
-      {/* ===================================================
-          ACTIVITY HISTORY
-      =================================================== */}
-
       <div className="ct-card">
         <h3>
           Activity & Remarks
         </h3>
 
-        {(result.comments || [])
-          .length === 0 &&
-          (result.history || [])
-            .length === 0 && (
+        {(result.comments ||
+          []).length === 0 &&
+          (result.history ||
+            []).length === 0 && (
             <div className="ct-empty">
               No activity or remarks yet.
             </div>
           )}
 
-        {(result.comments || []).map(
+        {(result.comments ||
+          []).map(
           (commentItem) => (
             <div
               className="ct-comment"
@@ -1431,37 +1903,52 @@ function Details() {
               </b>
 
               <span className="ct-muted">
-                {" "}·{" "}
-                {commentItem.stage_name}
-                {" "}·{" "}
+                {" "}
+                ·{" "}
+                {
+                  commentItem.stage_name
+                }
+                {" "}
+                ·{" "}
                 {new Date(
                   commentItem.created_at
                 ).toLocaleString()}
               </span>
 
               <div>
-                {commentItem.comment}
+                {
+                  commentItem.comment
+                }
               </div>
             </div>
           )
         )}
 
-        {(result.history || []).map(
+        {(result.history ||
+          []).map(
           (historyItem) => (
             <div
               className="ct-history"
               key={`history-${historyItem.id}`}
             >
               <b>
-                {historyItem.action}
-                {" "}·{" "}
-                {historyItem.stage_name}
+                {
+                  historyItem.action
+                }
+                {" "}
+                ·{" "}
+                {
+                  historyItem.stage_name
+                }
               </b>
 
               <div className="ct-muted">
-                {historyItem.user_name ||
-                  "User"}
-                {" "}·{" "}
+                {
+                  historyItem.user_name ||
+                  "User"
+                }
+                {" "}
+                ·{" "}
                 {new Date(
                   historyItem.created_at
                 ).toLocaleString()}
@@ -1469,7 +1956,9 @@ function Details() {
 
               {historyItem.note && (
                 <div>
-                  {historyItem.note}
+                  {
+                    historyItem.note
+                  }
                 </div>
               )}
             </div>

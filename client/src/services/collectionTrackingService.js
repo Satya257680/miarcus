@@ -1,16 +1,16 @@
+import "../axiosConfig";
 import axios from "axios";
 
 /*
 |--------------------------------------------------------------------------
-| Collection Tracking API
+| MIARCUS Collection Tracking Service
 |--------------------------------------------------------------------------
-| All Collection Tracking API communication stays in this service.
-| Components should NOT call axios directly.
+| Collection Tracking pages use this service for every API request.
+| No component talks directly to the backend URL.
 |--------------------------------------------------------------------------
 */
 
-const API =
-  "https://miarcus-backend.onrender.com/api/collection-tracking";
+const API = "/api/collection-tracking";
 
 /* =========================================================
    AUTH
@@ -22,67 +22,134 @@ const authConfig = () => ({
   },
 });
 
-/* =========================================================
-   FILE UPLOAD AUTH
-========================================================= */
-
+/*
+ * Let Axios/browser create the multipart boundary automatically.
+ * Setting Content-Type manually can remove the boundary in some
+ * browser/proxy combinations.
+ */
 const uploadConfig = () => ({
   headers: {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
-    "Content-Type": "multipart/form-data",
   },
 });
 
 /* =========================================================
-   MASTER DATA / CONFIGURATION
+   HELPERS
 ========================================================= */
 
-/**
- * Get Collection Tracking configuration fields.
- *
- * @param {string} stage
- */
-export const getConfigs = async (stage = "") => {
-  const response = await axios.get(`${API}/configs`, {
-    ...authConfig(),
-    params: stage ? { stage } : {},
+const hasAttachments = (attachments) =>
+  Array.isArray(attachments) &&
+  attachments.some((item) => item?.file);
+
+const buildMultipartBody = ({
+  product_code,
+  product_name,
+  data = {},
+  attachments = [],
+  extra = {},
+}) => {
+  const formData = new FormData();
+
+  if (product_code !== undefined) {
+    formData.append(
+      "product_code",
+      String(product_code)
+    );
+  }
+
+  if (product_name !== undefined) {
+    formData.append(
+      "product_name",
+      String(product_name)
+    );
+  }
+
+  formData.append(
+    "data",
+    JSON.stringify(data || {})
+  );
+
+  Object.entries(extra || {}).forEach(
+    ([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null
+      ) {
+        formData.append(
+          key,
+          typeof value === "string"
+            ? value
+            : JSON.stringify(value)
+        );
+      }
+    }
+  );
+
+  const attachmentMeta = [];
+
+  (attachments || []).forEach((item) => {
+    if (!item?.file) return;
+
+    formData.append(
+      "attachments",
+      item.file,
+      item.file.name
+    );
+
+    attachmentMeta.push({
+      field_name:
+        item.field_name ||
+        "Attachments",
+    });
   });
 
-  return response;
+  formData.append(
+    "attachment_meta",
+    JSON.stringify(attachmentMeta)
+  );
+
+  return formData;
 };
 
-/**
- * Save Master Data configuration.
- *
- * @param {string} stage
- * @param {Array} fields
- */
+/* =========================================================
+   MASTER DATA
+========================================================= */
+
+export const getConfigs = async (
+  stage = ""
+) =>
+  axios.get(
+    `${API}/configs`,
+    {
+      ...authConfig(),
+      params: stage
+        ? { stage }
+        : {},
+    }
+  );
+
 export const updateConfigs = async (
   stage,
   fields
-) => {
-  const response = await axios.put(
-    `${API}/configs/${encodeURIComponent(stage)}`,
-    { fields },
+) =>
+  axios.put(
+    `${API}/configs/${encodeURIComponent(
+      stage
+    )}`,
+    {
+      fields,
+    },
     authConfig()
   );
-
-  return response;
-};
 
 /* =========================================================
    PRODUCTS
 ========================================================= */
 
-/**
- * Get Collection Tracking products.
- *
- * @param {Object} params
- */
 export const getProducts = async (
   params = {}
-) => {
-  const response = await axios.get(
+) =>
+  axios.get(
     `${API}/products`,
     {
       ...authConfig(),
@@ -90,204 +157,184 @@ export const getProducts = async (
     }
   );
 
-  return response;
-};
-
-/**
- * Get one Collection Tracking product.
- *
- * @param {string|number} id
- */
-export const getProduct = async (id) => {
-  const response = await axios.get(
+export const getProduct = async (
+  id
+) =>
+  axios.get(
     `${API}/products/${id}`,
     authConfig()
   );
 
-  return response;
-};
-
-/**
- * Create a new Collection Tracking product.
- *
- * @param {Object} data
- */
 export const createProduct = async (
-  data
+  payload = {}
 ) => {
-  const response = await axios.post(
+  const {
+    product_code,
+    product_name,
+    data = {},
+    attachments = [],
+  } = payload;
+
+  if (hasAttachments(attachments)) {
+    const formData =
+      buildMultipartBody({
+        product_code,
+        product_name,
+        data,
+        attachments,
+      });
+
+    return axios.post(
+      `${API}/products`,
+      formData,
+      uploadConfig()
+    );
+  }
+
+  return axios.post(
     `${API}/products`,
-    data,
+    {
+      product_code,
+      product_name,
+      data,
+    },
     authConfig()
   );
-
-  return response;
 };
 
-/**
- * Update a product's current stage.
- *
- * @param {string|number} id
- * @param {Object} data
- */
 export const updateProductStage = async (
   id,
-  data
+  payload = {}
 ) => {
-  const response = await axios.put(
+  const {
+    stage,
+    data = {},
+    next_stage = null,
+    note = null,
+    attachments = [],
+  } = payload;
+
+  if (hasAttachments(attachments)) {
+    const formData =
+      buildMultipartBody({
+        data,
+        attachments,
+        extra: {
+          stage,
+          next_stage,
+          note,
+        },
+      });
+
+    return axios.put(
+      `${API}/products/${id}/stage`,
+      formData,
+      uploadConfig()
+    );
+  }
+
+  return axios.put(
     `${API}/products/${id}/stage`,
-    data,
+    {
+      stage,
+      data,
+      next_stage,
+      note,
+    },
     authConfig()
   );
-
-  return response;
 };
 
-/**
- * Delete one product.
- *
- * @param {string|number} id
- */
 export const deleteProduct = async (
   id
-) => {
-  const response = await axios.delete(
+) =>
+  axios.delete(
     `${API}/products/${id}`,
     authConfig()
   );
 
-  return response;
-};
-
-/**
- * Delete all Collection Tracking products.
- */
-export const deleteAllProducts = async () => {
-  const response = await axios.delete(
-    `${API}/products`,
-    authConfig()
-  );
-
-  return response;
-};
+export const deleteAllProducts =
+  async () =>
+    axios.delete(
+      `${API}/products`,
+      authConfig()
+    );
 
 /* =========================================================
    BULK UPLOAD
 ========================================================= */
 
-/**
- * Upload CSV/XLS/XLSX Collection Tracking data.
- *
- * @param {File|FormData} file
- */
-export const bulkUploadProducts = async (
-  file
-) => {
-  /*
-   * Supports both:
-   *
-   * bulkUploadProducts(file)
-   *
-   * and
-   *
-   * bulkUploadProducts(formData)
-   *
-   * so existing code does not break.
-   */
+export const bulkUploadProducts =
+  async (file) => {
+    const formData =
+      file instanceof FormData
+        ? file
+        : (() => {
+            const value =
+              new FormData();
 
-  let formData;
+            value.append(
+              "file",
+              file
+            );
 
-  if (file instanceof FormData) {
-    formData = file;
-  } else {
-    formData = new FormData();
-    formData.append("file", file);
-  }
+            return value;
+          })();
 
-  const response = await axios.post(
-    `${API}/products/bulk`,
-    formData,
-    uploadConfig()
-  );
-
-  return response;
-};
+    return axios.post(
+      `${API}/products/bulk`,
+      formData,
+      uploadConfig()
+    );
+  };
 
 /* =========================================================
    EXPORT
 ========================================================= */
 
-/**
- * Export Collection Tracking products as CSV.
- */
-export const exportProducts = async () => {
-  return axios.get(
+export const exportProducts = async () =>
+  axios.get(
     `${API}/products/export`,
     {
       ...authConfig(),
       responseType: "blob",
     }
   );
-};
 
 /* =========================================================
    COMMENTS / REMARKS
 ========================================================= */
 
-/**
- * Add a remark/comment to a product.
- *
- * This endpoint is responsible for the backend workflow
- * that can notify the previous stage.
- *
- * @param {string|number} id
- * @param {Object} data
- */
-export const addProductComment = async (
-  id,
-  data
-) => {
-  const response = await axios.post(
-    `${API}/products/${id}/comments`,
-    data,
-    authConfig()
-  );
-
-  return response;
-};
+export const addProductComment =
+  async (
+    id,
+    data
+  ) =>
+    axios.post(
+      `${API}/products/${id}/comments`,
+      data,
+      authConfig()
+    );
 
 /* =========================================================
    REQUESTS
 ========================================================= */
 
-/**
- * Create a request for a product.
- *
- * @param {string|number} id
- * @param {Object} data
- */
-export const createProductRequest = async (
-  id,
-  data
-) => {
-  const response = await axios.post(
-    `${API}/products/${id}/requests`,
-    data,
-    authConfig()
-  );
+export const createProductRequest =
+  async (
+    id,
+    data
+  ) =>
+    axios.post(
+      `${API}/products/${id}/requests`,
+      data,
+      authConfig()
+    );
 
-  return response;
-};
-
-/**
- * Get Collection Tracking requests.
- *
- * @param {string} status
- */
 export const getRequests = async (
   status = ""
-) => {
-  const response = await axios.get(
+) =>
+  axios.get(
     `${API}/requests`,
     {
       ...authConfig(),
@@ -297,86 +344,51 @@ export const getRequests = async (
     }
   );
 
-  return response;
-};
-
-/**
- * Approve or reject a request.
- *
- * @param {string|number} id
- * @param {string} status
- */
 export const reviewRequest = async (
   id,
   status
-) => {
-  const response = await axios.put(
+) =>
+  axios.put(
     `${API}/requests/${id}`,
-    { status },
+    {
+      status,
+    },
     authConfig()
   );
-
-  return response;
-};
 
 /* =========================================================
    INSIGHT
 ========================================================= */
 
-/**
- * Get live Collection Tracking insight.
- */
-export const getInsight = async () => {
-  const response = await axios.get(
+export const getInsight = async () =>
+  axios.get(
     `${API}/insight`,
     authConfig()
   );
 
-  return response;
-};
-
 /* =========================================================
-   COLLECTION PERMISSIONS
+   PERMISSIONS
 ========================================================= */
 
-/**
- * Get Collection Tracking permissions.
- */
-export const getPermissions = async () => {
-  const response = await axios.get(
+export const getPermissions = async () =>
+  axios.get(
     `${API}/permissions`,
     authConfig()
   );
 
-  return response;
-};
-
-/**
- * Save Collection Tracking permissions.
- *
- * @param {Array} items
- */
-export const updatePermissions = async (
-  items
-) => {
-  const response = await axios.put(
-    `${API}/permissions`,
-    { items },
-    authConfig()
-  );
-
-  return response;
-};
+export const updatePermissions =
+  async (items) =>
+    axios.put(
+      `${API}/permissions`,
+      {
+        items,
+      },
+      authConfig()
+    );
 
 /* =========================================================
    BACKWARD COMPATIBILITY
 ========================================================= */
-
-/*
- * These aliases allow older Collection Tracking
- * components to continue working while everything
- * moves to the service architecture.
- */
 
 export const getCollectionConfigs =
   getConfigs;

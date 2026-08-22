@@ -819,3 +819,177 @@
     border-radius: 12px;
   }
 }
+
+/* =========================================================
+   WORKFLOW PREVIEW / LOCKED STAGES
+========================================================= */
+
+.ct-shell .ct-stage-step.locked {
+  background: #f8fafb;
+  color: #78909a;
+  border-style: dashed;
+}
+
+.ct-shell .ct-stage-step.locked .ct-stage-number {
+  background: #eef2f4;
+  color: #78909a;
+}
+
+.ct-shell .ct-stage-step.locked:hover {
+  background: #f0f3f5;
+  border-color: #b9c7cc;
+  color: #526d78;
+}
+
+.ct-shell .ct-stage-navigation {
+  position: relative;
+  z-index: 1;
+}
+
+.ct-shell .ct-stage-track {
+  scroll-behavior: smooth;
+}
+
+.ct-shell .ct-stage-arrow:focus-visible,
+.ct-shell .ct-stage-step:focus-visible,
+.ct-shell .ct-btn:focus-visible,
+.ct-shell .ct-tab:focus-visible {
+  outline: 3px solid rgba(144, 123, 201, 0.28);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   ATTACHMENTS
+========================================================= */
+
+.ct-shell .ct-attachment-field {
+  width: 100%;
+}
+
+.ct-shell .ct-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ct-shell .ct-attachment-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #e2e9ed;
+  border-radius: 8px;
+  background: #f8fafb;
+  color: #315563;
+  font-size: 12px;
+}
+
+.ct-shell .ct-attachment-item a {
+  color: #6d58ad;
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-shell .ct-attachment-item a:hover {
+  text-decoration: underline;
+}
+
+.ct-shell .ct-multiselect {
+  min-height: 112px;
+}
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.ct-shell .ct-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(17, 38, 46, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.ct-shell .ct-modal-backdrop .ct-card {
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+/* =========================================================
+   MOBILE WORKFLOW
+========================================================= */
+
+@media (max-width: 900px) {
+  .ct-shell .ct-stage-navigation {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .ct-shell .ct-stage-arrow {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .ct-shell .ct-stage-track {
+    justify-content: flex-start;
+  }
+
+  .ct-shell .ct-stage-step {
+    min-height: 44px;
+    padding: 6px 9px;
+  }
+
+  .ct-shell .ct-stage-connector {
+    width: 20px;
+  }
+}
+
+@media (max-width: 650px) {
+  .ct-shell {
+    padding: 12px;
+  }
+
+  .ct-shell .ct-hero {
+    padding: 22px;
+    border-radius: 17px;
+  }
+
+  .ct-shell .ct-hero h1 {
+    font-size: 24px;
+  }
+
+  .ct-shell .ct-card {
+    padding: 14px;
+  }
+
+  .ct-shell .ct-stage-navigation {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    align-items: center;
+  }
+
+  .ct-shell .ct-stage-track {
+    width: 100%;
+  }
+
+  .ct-shell .ct-stage-name {
+    font-size: 11px;
+  }
+
+  .ct-shell .ct-stage-connector {
+    width: 16px;
+  }
+
+  .ct-shell .ct-request {
+    grid-template-columns: 1fr;
+  }
+}

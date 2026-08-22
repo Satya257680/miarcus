@@ -404,7 +404,7 @@ const isValidStage = (stage) =>
    ENSURE DATABASE TABLES
 ========================================================= */
 
-async function ensureTables() {
+async function ensureTablesInternal() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS collection_stage_configs (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -652,6 +652,24 @@ async function ensureTables() {
   }
 }
 
+/*
+ * Table initialization is needed during server startup and is also
+ * called by the route guard. Cache the initialization promise so
+ * concurrent requests do not repeatedly run CREATE TABLE / seed queries.
+ */
+let ensureTablesPromise = null;
+
+async function ensureTables() {
+  if (!ensureTablesPromise) {
+    ensureTablesPromise = ensureTablesInternal().catch((error) => {
+      ensureTablesPromise = null;
+      throw error;
+    });
+  }
+
+  return ensureTablesPromise;
+}
+
 /* =========================================================
    GET MASTER DATA CONFIG
 ========================================================= */
@@ -823,7 +841,7 @@ const createProduct = async ({
   try {
     await connection.beginTransaction();
 
-    const result =
+    const [result] =
       await connection.query(
         `
           INSERT INTO
@@ -854,8 +872,13 @@ const createProduct = async ({
         ]
       );
 
-    const id =
-      result.insertId;
+    const id = Number(result?.insertId || 0);
+
+    if (!id) {
+      throw new Error(
+        "The database did not return a product ID after creating the product."
+      );
+    }
 
     await connection.query(
       `
@@ -1549,7 +1572,7 @@ const deleteProduct = async (
   try {
     await connection.beginTransaction();
 
-    const existing =
+    const [existingRows] =
       await connection.query(
         `
           SELECT id
@@ -1560,7 +1583,7 @@ const deleteProduct = async (
         [id]
       );
 
-    if (!existing?.[0]) {
+    if (!existingRows?.[0]) {
       await connection.rollback();
 
       const error =

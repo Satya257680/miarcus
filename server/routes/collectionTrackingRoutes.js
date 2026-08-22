@@ -4,6 +4,10 @@ const path = require("path");
 
 const auth = require("../middleware/authMiddleware");
 const C = require("../controllers/collectionTrackingController");
+const collectionUpload = require("../middleware/upload");
+const permissionMiddleware = require("../middleware/permissionMiddleware");
+
+const MODULE = "Collection Tracking";
 
 const router = express.Router();
 
@@ -75,6 +79,7 @@ router.use(
  */
 router.get(
   "/configs",
+  permissionMiddleware(MODULE, "View"),
   C.configs
 );
 
@@ -84,6 +89,7 @@ router.get(
  */
 router.put(
   "/configs/:stage",
+  permissionMiddleware(MODULE, "Full"),
   C.saveConfig
 );
 
@@ -97,6 +103,8 @@ router.put(
  */
 router.post(
   "/products",
+  permissionMiddleware(MODULE, "Add"),
+  collectionUpload.array("attachments", 20),
   C.create
 );
 
@@ -112,6 +120,7 @@ router.post(
  */
 router.post(
   "/products/bulk",
+  permissionMiddleware(MODULE, "Add"),
   upload.single("file"),
   C.bulk
 );
@@ -123,6 +132,7 @@ router.post(
  */
 router.get(
   "/products/export",
+  permissionMiddleware(MODULE, "View"),
   C.export
 );
 
@@ -131,6 +141,7 @@ router.get(
  */
 router.get(
   "/products",
+  permissionMiddleware(MODULE, "View"),
   C.list
 );
 
@@ -139,6 +150,7 @@ router.get(
  */
 router.get(
   "/products/:id",
+  permissionMiddleware(MODULE, "View"),
   C.view
 );
 
@@ -147,6 +159,8 @@ router.get(
  */
 router.put(
   "/products/:id/stage",
+  permissionMiddleware(MODULE, "Edit"),
+  collectionUpload.array("attachments", 20),
   C.updateStage
 );
 
@@ -155,6 +169,7 @@ router.put(
  */
 router.post(
   "/products/:id/comments",
+  permissionMiddleware(MODULE, "Edit"),
   C.comment
 );
 
@@ -163,6 +178,7 @@ router.post(
  */
 router.post(
   "/products/:id/requests",
+  permissionMiddleware(MODULE, "Edit"),
   C.request
 );
 
@@ -171,6 +187,7 @@ router.post(
  */
 router.delete(
   "/products/:id",
+  permissionMiddleware(MODULE, "Full"),
   C.delete
 );
 
@@ -179,6 +196,7 @@ router.delete(
  */
 router.delete(
   "/products",
+  permissionMiddleware(MODULE, "Full"),
   C.deleteAll
 );
 
@@ -191,6 +209,7 @@ router.delete(
  */
 router.get(
   "/requests",
+  permissionMiddleware(MODULE, "View"),
   C.requests
 );
 
@@ -199,6 +218,7 @@ router.get(
  */
 router.put(
   "/requests/:id",
+  permissionMiddleware(MODULE, "Edit"),
   C.reviewRequest
 );
 
@@ -211,6 +231,7 @@ router.put(
  */
 router.get(
   "/insight",
+  permissionMiddleware(MODULE, "View"),
   C.insight
 );
 
@@ -223,6 +244,7 @@ router.get(
  */
 router.get(
   "/permissions",
+  permissionMiddleware(MODULE, "Full"),
   C.permissions
 );
 
@@ -231,6 +253,7 @@ router.get(
  */
 router.put(
   "/permissions",
+  permissionMiddleware(MODULE, "Full"),
   C.savePermissions
 );
 
