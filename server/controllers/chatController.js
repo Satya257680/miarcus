@@ -501,6 +501,7 @@ exports.startCall = async (req, res) => {
     const callType = ["audio", "video"].includes(req.body.call_type) ? req.body.call_type : "audio";
     const call = await Model.createCall({
         conversationId: conversation.id,
+        storeId: conversation.store_id || null,
         callerId: req.user.id,
         calleeId,
         callType

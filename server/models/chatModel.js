@@ -92,6 +92,7 @@ const ensureTables = async () => {
         CREATE TABLE IF NOT EXISTS chat_calls (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             conversation_id BIGINT NOT NULL,
+            store_id INT NULL,
             caller_id INT NOT NULL,
             callee_id INT NOT NULL,
             call_type VARCHAR(20) NOT NULL DEFAULT 'audio',
@@ -100,9 +101,24 @@ const ensureTables = async () => {
             ended_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_chat_call_conversation (conversation_id),
+            INDEX idx_chat_call_store (store_id),
             INDEX idx_chat_call_callee (callee_id, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    // Older deployments may already have chat_calls without store_id.
+    // Add it safely so call history can remain store-aware.
+    try {
+        await db.query(`ALTER TABLE chat_calls ADD COLUMN store_id INT NULL AFTER conversation_id`);
+    } catch (error) {
+        if (!/duplicate column|1060/i.test(String(error.message || error))) throw error;
+    }
+
+    try {
+        await db.query(`ALTER TABLE chat_calls ADD INDEX idx_chat_call_store (store_id)`);
+    } catch (error) {
+        if (!/duplicate key name|1061/i.test(String(error.message || error))) throw error;
+    }
 
     await db.query(`
         CREATE TABLE IF NOT EXISTS chat_call_signals (
@@ -555,11 +571,11 @@ const getPresence = async (userId) => {
     return rows[0] || { user_id: userId, status: "offline", last_seen: null };
 };
 
-const createCall = async ({ conversationId, callerId, calleeId, callType }) => {
+const createCall = async ({ conversationId, storeId, callerId, calleeId, callType }) => {
     const result = await db.query(`
-        INSERT INTO chat_calls (conversation_id, caller_id, callee_id, call_type, status)
-        VALUES (?, ?, ?, ?, 'ringing')
-    `, [conversationId, callerId, calleeId, callType]);
+        INSERT INTO chat_calls (conversation_id, store_id, caller_id, callee_id, call_type, status)
+        VALUES (?, ?, ?, ?, ?, 'ringing')
+    `, [conversationId, storeId || null, callerId, calleeId, callType]);
 
     const rows = await db.query(`
         SELECT c.*, cu.name caller_name, ru.name callee_name
@@ -769,6 +785,7 @@ module.exports = {
     getPresence,
     createCall,
     getCall,
+    getCallHistory,
     addSignal,
     getSignals,
     updateCall,
