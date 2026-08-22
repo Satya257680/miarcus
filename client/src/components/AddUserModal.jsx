@@ -162,6 +162,8 @@ function AddUserModal({
     "Inventory Planning",
     "Collection Tracking",
 
+    "Chat",
+
     "Profile",
     "Settings",
 ];

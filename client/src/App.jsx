@@ -108,6 +108,7 @@ import AssetManagement from "./pages/AssetManagement";
 import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
 import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
 import {ProductList as CollectionTracking,AddProduct as CollectionAddProduct,Details as CollectionDetails,MasterData as CollectionMasterData,Insight as CollectionInsight,Requests as CollectionRequests,Permissions as CollectionPermissions} from "./pages/CollectionTracking/CollectionTracking";
+import Chat from "./pages/Chat/Chat";
 
 
 function App() {
@@ -193,6 +194,19 @@ function App() {
                     <Route
                         path="/dashboard-analytics"
                         element={<DashboardAnalytics />}
+                    />
+
+                    {/* ==================================================
+                        TEAM CHAT / CALLING
+                    ================================================== */}
+
+                    <Route
+                        path="/chat"
+                        element={
+                            <ModulePermissionRoute moduleName="Chat">
+                                <Chat />
+                            </ModulePermissionRoute>
+                        }
                     />
 
 

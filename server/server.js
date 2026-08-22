@@ -113,6 +113,9 @@ const Notification =
 const CollectionTracking =
     require("./models/collectionTrackingModel");
 
+const Chat =
+    require("./models/chatModel");
+
 const installNotificationEventMiddleware =
     require("./middleware/notificationEventMiddleware");
 
@@ -387,6 +390,16 @@ async function initializeDatabase() {
             console.log("✅ collection tracking tables verified");
         } catch (error) {
             console.error("❌ collection tracking table initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
+        // CHAT / MESSAGING
+        // --------------------------------------------------
+        try {
+            await Chat.ensureTables();
+            console.log("✅ chat tables verified");
+        } catch (error) {
+            console.error("❌ chat table initialization failed:", error.message);
         }
 
         // ==================================================
@@ -1044,6 +1057,16 @@ loadRoute(
     "/api/notifications",
 
     "Notification Routes"
+
+);
+
+loadRoute(
+
+    "./routes/chatRoutes",
+
+    "/api/chat",
+
+    "Chat Routes"
 
 );
 

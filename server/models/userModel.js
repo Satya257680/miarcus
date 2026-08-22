@@ -33,7 +33,8 @@ const RBAC_MODULES = [
     "Attendance",
     "Expenses",
     "Profile",
-    "Settings"
+    "Settings",
+    "Chat"
 ];
 
 const RBAC_LEVELS = new Set([

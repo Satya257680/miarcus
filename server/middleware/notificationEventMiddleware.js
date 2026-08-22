@@ -22,6 +22,7 @@ const ignoredPrefixes = [
     // These modules already create their own audience-aware
     // notifications or are not business-change events.
     "/api/notifications",
+    "/api/chat",
     "/api/auth",
     "/api/profile",
     "/api/activity",

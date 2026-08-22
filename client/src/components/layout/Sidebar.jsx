@@ -36,7 +36,8 @@ import {
     FaBalanceScale,
     FaCloudUploadAlt,
     FaTags,
-    FaPlus
+    FaPlus,
+    FaComments
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -350,6 +351,14 @@ function Sidebar({ collapsed }) {
         isAdministrator ||
         hasPermission("Collection Tracking");
 
+    // ==================================================
+    // TEAM CHAT
+    // ==================================================
+
+    const canAccessChat =
+        isAdministrator ||
+        hasPermission("Chat");
+
     // ======================================================
     // SETTINGS PERMISSIONS
     // ======================================================
@@ -544,6 +553,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Employee Location
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    TEAM CHAT
+                ================================================== */}
+
+                {canAccessChat && (
+                    <NavLink
+                        to="/chat"
+                        className={getMenuClass}
+                    >
+                        <FaComments />
+
+                        {!collapsed && (
+                            <span>
+                                Chat
                             </span>
                         )}
                     </NavLink>
