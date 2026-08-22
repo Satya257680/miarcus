@@ -1,0 +1,17 @@
+const express=require("express");const router=express.Router();const auth=require("../middleware/authMiddleware");const permission=require("../middleware/permissionMiddleware");const upload=require("../middleware/upload");const c=require("../controllers/inventoryPlanningController");const MODULE="Inventory Planning";
+router.get("/options",auth,permission(MODULE,"View"),c.getOptions);
+router.get("/erp-data/export",auth,permission(MODULE,"View"),c.exportSales);
+router.post("/erp-data/bulk-upload",auth,permission(MODULE,"Add"),upload.single("file"),c.bulkUploadSales);
+router.get("/erp-data",auth,permission(MODULE,"View"),c.getSales);
+router.post("/erp-data",auth,permission(MODULE,"Add"),c.createSale);
+router.get("/erp-data/:id",auth,permission(MODULE,"View"),c.getSaleById);
+router.delete("/erp-data/delete-all",auth,permission(MODULE,"Full"),c.deleteAllSales);
+router.delete("/erp-data/:id",auth,permission(MODULE,"Full"),c.deleteSale);
+router.post("/analyze",auth,permission(MODULE,"View"),c.analyze);
+router.get("/plans/export",auth,permission(MODULE,"View"),c.exportPlans);
+router.get("/plans",auth,permission(MODULE,"View"),c.getPlans);
+router.post("/plans",auth,permission(MODULE,"Add"),c.savePlan);
+router.get("/plans/:id",auth,permission(MODULE,"View"),c.getPlan);
+router.delete("/plans/delete-all",auth,permission(MODULE,"Full"),c.deleteAllPlans);
+router.delete("/plans/:id",auth,permission(MODULE,"Full"),c.deletePlan);
+module.exports=router;

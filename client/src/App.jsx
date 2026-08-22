@@ -105,6 +105,8 @@ import ListingTracker from "./pages/ListingTracker";
 import Attendance from "./pages/Attendance";
 import AttendanceReports from "./pages/AttendanceReports";
 import AssetManagement from "./pages/AssetManagement";
+import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
+import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
 
 
 function App() {
@@ -627,6 +629,24 @@ function App() {
                         element={
                             <ModulePermissionRoute moduleName="Listing Tracker">
                                 <ListingTracker />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/inventory-planning/erp-upload"
+                        element={
+                            <ModulePermissionRoute moduleName="Inventory Planning">
+                                <ERPDataUpload />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/inventory-planning"
+                        element={
+                            <ModulePermissionRoute moduleName="Inventory Planning">
+                                <InventoryPlanning />
                             </ModulePermissionRoute>
                         }
                     />

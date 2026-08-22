@@ -100,6 +100,9 @@ const Attendance =
 const Asset =
     require("./models/assetModel");
 
+const InventoryPlanning =
+    require("./models/inventoryPlanningModel");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -308,6 +311,11 @@ async function initializeDatabase() {
         await createTablesAsync(
             Asset,
             "Asset Master"
+        );
+
+        await createTablesAsync(
+            InventoryPlanning,
+            "Inventory Planning"
         );
 
         // --------------------------------------------------
@@ -1408,6 +1416,16 @@ loadRoute(
 
     "Listing Tracker Routes"
 
+);
+
+// ======================================================
+// INVENTORY PLANNING
+// ======================================================
+
+loadRoute(
+    "./routes/inventoryPlanningRoutes",
+    "/api/inventory-planning",
+    "Inventory Planning Routes"
 );
 
 // ======================================================

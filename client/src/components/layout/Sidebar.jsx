@@ -33,7 +33,8 @@ import {
     FaListAlt,
     FaCalendarCheck,
     FaBoxes,
-    FaBalanceScale
+    FaBalanceScale,
+    FaCloudUploadAlt
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -70,6 +71,10 @@ function Sidebar({ collapsed }) {
         location.pathname === "/travel-plan" ||
         location.pathname === "/travel-plan-approval" ||
         location.pathname === "/sales-review";
+
+    const inventoryPlanningOpenByPath =
+        location.pathname === "/inventory-planning" ||
+        location.pathname.startsWith("/inventory-planning/");
 
     const settingsOpenByPath =
         location.pathname === "/settings" ||
@@ -111,6 +116,9 @@ function Sidebar({ collapsed }) {
     const [salesTeamOpen, setSalesTeamOpen] =
         useState(salesTeamOpenByPath);
 
+    const [inventoryPlanningOpen, setInventoryPlanningOpen] =
+        useState(inventoryPlanningOpenByPath);
+
     const [settingsOpen, setSettingsOpen] =
         useState(settingsOpenByPath);
 
@@ -149,10 +157,12 @@ function Sidebar({ collapsed }) {
     }, [billingOpenByPath]);
 
     useEffect(() => {
-        if (salesTeamOpenByPath) {
-            setSalesTeamOpen(true);
-        }
+        if (salesTeamOpenByPath) setSalesTeamOpen(true);
     }, [salesTeamOpenByPath]);
+
+    useEffect(() => {
+        if (inventoryPlanningOpenByPath) setInventoryPlanningOpen(true);
+    }, [inventoryPlanningOpenByPath]);
 
     useEffect(() => {
         if (settingsOpenByPath) {
@@ -315,6 +325,10 @@ function Sidebar({ collapsed }) {
     const canAccessListingTracker =
         isAdministrator ||
         hasPermission("Listing Tracker");
+
+    const canAccessInventoryPlanning =
+        isAdministrator ||
+        hasPermission("Inventory Planning");
 
     // ======================================================
     // SETTINGS PERMISSIONS
@@ -1015,6 +1029,25 @@ function Sidebar({ collapsed }) {
                             </span>
                         )}
                     </NavLink>
+                )}
+
+                {/* ==================================================
+                    INVENTORY PLANNING
+                ================================================== */}
+
+                {canAccessInventoryPlanning && (
+                    <div className={`sidebar-group ${inventoryPlanningOpenByPath || inventoryPlanningOpen ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${inventoryPlanningOpenByPath ? "active" : ""}`} onClick={() => setInventoryPlanningOpen(v => !v)} aria-expanded={inventoryPlanningOpen || inventoryPlanningOpenByPath}>
+                            <span className="sidebar-group-content"><FaBoxes />{!collapsed && <span>Inventory Planning</span>}</span>
+                            {!collapsed && <FaChevronDown className={`submenu-chevron ${inventoryPlanningOpen || inventoryPlanningOpenByPath ? "rotated" : ""}`} />}
+                        </button>
+                        {!collapsed && (inventoryPlanningOpen || inventoryPlanningOpenByPath) && (
+                            <div className="sidebar-submenu">
+                                <NavLink to="/inventory-planning/erp-upload" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCloudUploadAlt /><span>ERP Data Upload</span></NavLink>
+                                <NavLink to="/inventory-planning" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Inventory Planning</span></NavLink>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* ==================================================

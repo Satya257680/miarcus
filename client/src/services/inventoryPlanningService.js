@@ -1,0 +1,18 @@
+import axios from "axios";
+const API="https://miarcus-backend.onrender.com/api/inventory-planning";
+const auth=()=>({headers:{Authorization:`Bearer ${localStorage.getItem("token")}`}});
+export const getInventoryOptions=async()=> (await axios.get(`${API}/options`,auth())).data;
+export const getErpSales=async(params={})=> (await axios.get(`${API}/erp-data`,{...auth(),params})).data;
+export const getErpSaleById=async(id)=> (await axios.get(`${API}/erp-data/${id}`,auth())).data;
+export const createErpSale=async(data)=> (await axios.post(`${API}/erp-data`,data,auth())).data;
+export const deleteErpSale=async(id)=> (await axios.delete(`${API}/erp-data/${id}`,auth())).data;
+export const deleteAllErpSales=async()=> (await axios.delete(`${API}/erp-data/delete-all`,auth())).data;
+export const exportErpSales=async()=> (await axios.get(`${API}/erp-data/export`,auth())).data;
+export const bulkUploadErpSales=async(file)=>{const f=new FormData();f.append("file",file);return (await axios.post(`${API}/erp-data/bulk-upload`,f,{headers:{Authorization:`Bearer ${localStorage.getItem("token")}`,"Content-Type":"multipart/form-data"}})).data;};
+export const analyzeInventoryPlan=async(data)=> (await axios.post(`${API}/analyze`,data,auth())).data;
+export const saveInventoryPlan=async(data)=> (await axios.post(`${API}/plans`,data,auth())).data;
+export const getInventoryPlans=async()=> (await axios.get(`${API}/plans`,auth())).data;
+export const getInventoryPlanById=async(id)=> (await axios.get(`${API}/plans/${id}`,auth())).data;
+export const deleteInventoryPlan=async(id)=> (await axios.delete(`${API}/plans/${id}`,auth())).data;
+export const deleteAllInventoryPlans=async()=> (await axios.delete(`${API}/plans/delete-all`,auth())).data;
+export const exportInventoryPlans=async()=> (await axios.get(`${API}/plans/export`,auth())).data;

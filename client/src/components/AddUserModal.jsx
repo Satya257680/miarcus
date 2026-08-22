@@ -159,6 +159,8 @@ function AddUserModal({
     "Sales Review",
     "Listing Tracker",
 
+    "Inventory Planning",
+
     "Profile",
     "Settings",
 ];
