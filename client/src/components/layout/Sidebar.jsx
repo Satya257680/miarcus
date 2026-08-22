@@ -124,6 +124,20 @@ function Sidebar({ collapsed }) {
     const [settingsOpen, setSettingsOpen] =
         useState(settingsOpenByPath);
 
+    // Collection Tracking has its own toggle state so its arrow
+    // behaves exactly like every other expandable sidebar group.
+    const collectionTrackingOpenByPath =
+        location.pathname.startsWith("/collection-tracking");
+
+    const [collectionTrackingOpen, setCollectionTrackingOpen] =
+        useState(collectionTrackingOpenByPath);
+
+    useEffect(() => {
+        if (collectionTrackingOpenByPath) {
+            setCollectionTrackingOpen(true);
+        }
+    }, [collectionTrackingOpenByPath]);
+
     useEffect(() => {
         if (assetMasterOpenByPath) {
             setAssetMasterOpen(true);
@@ -459,23 +473,23 @@ function Sidebar({ collapsed }) {
                 ================================================== */}
 
                 {hasPermission("Asset Master") && (
-                    <div className={`sidebar-group ${assetMasterOpenByPath || assetMasterOpen ? "open" : ""}`}>
+                    <div className={`sidebar-group ${assetMasterOpen ? "open" : ""}`}>
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${assetMasterOpenByPath ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${assetMasterOpen ? "active" : ""}`}
                             onClick={() => setAssetMasterOpen((previous) => !previous)}
-                            aria-expanded={assetMasterOpen || assetMasterOpenByPath}
+                            aria-expanded={assetMasterOpen}
                         >
                             <span className="sidebar-group-content">
                                 <FaBoxes />
                                 {!collapsed && <span>Asset Master</span>}
                             </span>
                             {!collapsed && (
-                                <FaChevronDown className={`submenu-chevron ${assetMasterOpen || assetMasterOpenByPath ? "rotated" : ""}`} />
+                                <FaChevronDown className={`submenu-chevron ${assetMasterOpen ? "rotated" : ""}`} />
                             )}
                         </button>
 
-                        {!collapsed && (assetMasterOpen || assetMasterOpenByPath) && (
+                        {!collapsed && assetMasterOpen && (
                             <div className="sidebar-submenu">
                                 <NavLink to="/asset-management" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
                                     <FaImages />
@@ -650,21 +664,14 @@ function Sidebar({ collapsed }) {
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${
-                                expenseOpenByPath
-                                    ? "active"
-                                    : ""
-                            }`}
+                            className={`sidebar-group-toggle ${expenseOpen ? "active" : ""}`}
                             onClick={() =>
                                 setExpenseOpen(
                                     (previous) =>
                                         !previous
                                 )
                             }
-                            aria-expanded={
-                                expenseOpen ||
-                                expenseOpenByPath
-                            }
+                            aria-expanded={expenseOpen}
                         >
                             <span className="sidebar-group-content">
 
@@ -680,21 +687,12 @@ function Sidebar({ collapsed }) {
 
                             {!collapsed && (
                                 <FaChevronDown
-                                    className={`submenu-chevron ${
-                                        expenseOpen ||
-                                        expenseOpenByPath
-                                            ? "rotated"
-                                            : ""
-                                    }`}
+                                    className={`submenu-chevron ${expenseOpen ? "rotated" : ""}`}
                                 />
                             )}
                         </button>
 
-                        {!collapsed &&
-                            (
-                                expenseOpen ||
-                                expenseOpenByPath
-                            ) && (
+                        {!collapsed && expenseOpen && (
                                 <div className="sidebar-submenu">
 
                                     {/* EXPENSE ENTRY */}
@@ -772,23 +770,23 @@ function Sidebar({ collapsed }) {
                 ================================================== */}
 
                 {canAccessPettyCash && (
-                    <div className={`sidebar-group ${pettyCashOpenByPath || pettyCashOpen ? "open" : ""}`}>
+                    <div className={`sidebar-group ${pettyCashOpen ? "open" : ""}`}>
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${pettyCashOpenByPath ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${pettyCashOpen ? "active" : ""}`}
                             onClick={() => setPettyCashOpen((previous) => !previous)}
-                            aria-expanded={pettyCashOpen || pettyCashOpenByPath}
+                            aria-expanded={pettyCashOpen}
                         >
                             <span className="sidebar-group-content">
                                 <FaMoneyBillWave />
                                 {!collapsed && <span>Petty Cash</span>}
                             </span>
                             {!collapsed && (
-                                <FaChevronDown className={`submenu-chevron ${pettyCashOpen || pettyCashOpenByPath ? "rotated" : ""}`} />
+                                <FaChevronDown className={`submenu-chevron ${pettyCashOpen ? "rotated" : ""}`} />
                             )}
                         </button>
 
-                        {!collapsed && (pettyCashOpen || pettyCashOpenByPath) && (
+                        {!collapsed && pettyCashOpen && (
                             <div className="sidebar-submenu">
                                 <NavLink to="/petty-cash" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
                                     <FaMoneyBillWave />
@@ -809,15 +807,13 @@ function Sidebar({ collapsed }) {
 
                 {canAccessBilling && (
                     <div
-                        className={`sidebar-group ${
-                            billingOpenByPath || billingOpen ? "open" : ""
-                        }`}
+                        className={`sidebar-group ${billingOpen ? "open" : ""}`}
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${billingOpenByPath ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${billingOpen ? "active" : ""}`}
                             onClick={() => setBillingOpen(previous => !previous)}
-                            aria-expanded={billingOpen || billingOpenByPath}
+                            aria-expanded={billingOpen}
                         >
                             <span className="sidebar-group-content">
                                 <FaMoneyBillWave />
@@ -825,12 +821,12 @@ function Sidebar({ collapsed }) {
                             </span>
                             {!collapsed && (
                                 <FaChevronDown
-                                    className={`submenu-chevron ${billingOpen || billingOpenByPath ? "rotated" : ""}`}
+                                    className={`submenu-chevron ${billingOpen ? "rotated" : ""}`}
                                 />
                             )}
                         </button>
 
-                        {!collapsed && (billingOpen || billingOpenByPath) && (
+                        {!collapsed && billingOpen && (
                             <div className="sidebar-submenu">
                                 {canAddBilling && (
                                     <NavLink to="/billing/entry" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
@@ -859,30 +855,18 @@ function Sidebar({ collapsed }) {
 
                 {canAccessQuiz && (
                     <div
-                        className={`sidebar-group ${
-                            quizOpenByPath ||
-                            quizOpen
-                                ? "open"
-                                : ""
-                        }`}
+                        className={`sidebar-group ${quizOpen ? "open" : ""}`}
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${
-                                quizOpenByPath
-                                    ? "active"
-                                    : ""
-                            }`}
+                            className={`sidebar-group-toggle ${quizOpen ? "active" : ""}`}
                             onClick={() =>
                                 setQuizOpen(
                                     (previous) =>
                                         !previous
                                 )
                             }
-                            aria-expanded={
-                                quizOpen ||
-                                quizOpenByPath
-                            }
+                            aria-expanded={quizOpen}
                         >
                             <span className="sidebar-group-content">
 
@@ -898,22 +882,13 @@ function Sidebar({ collapsed }) {
 
                             {!collapsed && (
                                 <FaChevronDown
-                                    className={`submenu-chevron ${
-                                        quizOpen ||
-                                        quizOpenByPath
-                                            ? "rotated"
-                                            : ""
-                                    }`}
+                                    className={`submenu-chevron ${quizOpen ? "rotated" : ""}`}
                                 />
                             )}
 
                         </button>
 
-                        {!collapsed &&
-                            (
-                                quizOpen ||
-                                quizOpenByPath
-                            ) && (
+                        {!collapsed && quizOpen && (
                                 <div className="sidebar-submenu">
 
                                     {/* TAKE QUIZ */}
@@ -1002,12 +977,12 @@ function Sidebar({ collapsed }) {
                 ================================================== */}
 
                 {canAccessSalesTeam && (
-                    <div className={`sidebar-group ${salesTeamOpenByPath || salesTeamOpen ? "open" : ""}`}>
-                        <button type="button" className={`sidebar-group-toggle ${salesTeamOpenByPath ? "active" : ""}`} onClick={() => setSalesTeamOpen((previous) => !previous)} aria-expanded={salesTeamOpen || salesTeamOpenByPath}>
+                    <div className={`sidebar-group ${salesTeamOpen ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${salesTeamOpen ? "active" : ""}`} onClick={() => setSalesTeamOpen((previous) => !previous)} aria-expanded={salesTeamOpen}>
                             <span className="sidebar-group-content"><FaUsers />{!collapsed && <span>Sales Team</span>}</span>
-                            {!collapsed && <FaChevronDown className={`submenu-chevron ${salesTeamOpen || salesTeamOpenByPath ? "rotated" : ""}`} />}
+                            {!collapsed && <FaChevronDown className={`submenu-chevron ${salesTeamOpen ? "rotated" : ""}`} />}
                         </button>
-                        {!collapsed && (salesTeamOpen || salesTeamOpenByPath) && (
+                        {!collapsed && salesTeamOpen && (
                             <div className="sidebar-submenu">
                                 {canSalesVisitPlanner && <NavLink to="/visit-planner" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaMapMarkerAlt /><span>Visit Planner</span></NavLink>}
                                 {canSalesTravelPlan && <NavLink to="/travel-plan" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaPlane /><span>Travel Plan</span></NavLink>}
@@ -1042,12 +1017,12 @@ function Sidebar({ collapsed }) {
                 ================================================== */}
 
                 {canAccessInventoryPlanning && (
-                    <div className={`sidebar-group ${inventoryPlanningOpenByPath || inventoryPlanningOpen ? "open" : ""}`}>
-                        <button type="button" className={`sidebar-group-toggle ${inventoryPlanningOpenByPath ? "active" : ""}`} onClick={() => setInventoryPlanningOpen(v => !v)} aria-expanded={inventoryPlanningOpen || inventoryPlanningOpenByPath}>
+                    <div className={`sidebar-group ${inventoryPlanningOpen ? "open" : ""}`}>
+                        <button type="button" className={`sidebar-group-toggle ${inventoryPlanningOpen ? "active" : ""}`} onClick={() => setInventoryPlanningOpen(v => !v)} aria-expanded={inventoryPlanningOpen}>
                             <span className="sidebar-group-content"><FaBoxes />{!collapsed && <span>Inventory Planning</span>}</span>
-                            {!collapsed && <FaChevronDown className={`submenu-chevron ${inventoryPlanningOpen || inventoryPlanningOpenByPath ? "rotated" : ""}`} />}
+                            {!collapsed && <FaChevronDown className={`submenu-chevron ${inventoryPlanningOpen ? "rotated" : ""}`} />}
                         </button>
-                        {!collapsed && (inventoryPlanningOpen || inventoryPlanningOpenByPath) && (
+                        {!collapsed && inventoryPlanningOpen && (
                             <div className="sidebar-submenu">
                                 <NavLink to="/inventory-planning/erp-upload" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCloudUploadAlt /><span>ERP Data Upload</span></NavLink>
                                 <NavLink to="/inventory-planning" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Inventory Planning</span></NavLink>
@@ -1060,19 +1035,121 @@ function Sidebar({ collapsed }) {
                     COLLECTION TRACKING
                 ================================================== */}
                 {canAccessCollectionTracking && (
-                    <div className={`sidebar-group ${location.pathname.startsWith("/collection-tracking") ? "open" : ""}`}>
-                        <button type="button" className={`sidebar-group-toggle ${location.pathname.startsWith("/collection-tracking") ? "active" : ""}`} onClick={() => {}}>
-                            <span className="sidebar-group-content"><FaTags />{!collapsed && <span>Collection Tracking</span>}</span>
-                            {!collapsed && <FaChevronDown className="submenu-chevron rotated" />}
+                    <div
+                        className={`sidebar-group ${
+                            collectionTrackingOpen ? "open" : ""
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            className={`sidebar-group-toggle ${
+                                collectionTrackingOpenByPath
+                                    ? "active"
+                                    : ""
+                            }`}
+                            onClick={() =>
+                                setCollectionTrackingOpen(
+                                    (previous) => !previous
+                                )
+                            }
+                            aria-expanded={collectionTrackingOpen}
+                            aria-controls="collection-tracking-submenu"
+                        >
+                            <span className="sidebar-group-content">
+                                <FaTags />
+                                {!collapsed && (
+                                    <span>Collection Tracking</span>
+                                )}
+                            </span>
+
+                            {!collapsed && (
+                                <FaChevronDown
+                                    className={`submenu-chevron ${
+                                        collectionTrackingOpen
+                                            ? "rotated"
+                                            : ""
+                                    }`}
+                                />
+                            )}
                         </button>
-                        {!collapsed && (
-                            <div className="sidebar-submenu">
-                                <NavLink to="/collection-tracking/add-products" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaPlus /><span>Add Products</span></NavLink>
-                                <NavLink to="/collection-tracking" end className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaBoxes /><span>SKU Details</span></NavLink>
-                                <NavLink to="/collection-tracking/insight" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartBar /><span>Insight</span></NavLink>
-                                <NavLink to="/collection-tracking/requests" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaEnvelope /><span>Requests</span></NavLink>
-                                <NavLink to="/collection-tracking/permissions" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCheckDouble /><span>Collection Permissions</span></NavLink>
-                                <NavLink to="/collection-tracking/master-data" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaClipboard /><span>Master Data</span></NavLink>
+
+                        {!collapsed && collectionTrackingOpen && (
+                            <div
+                                id="collection-tracking-submenu"
+                                className="sidebar-submenu"
+                            >
+                                <NavLink
+                                    to="/collection-tracking/add-products"
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaPlus />
+                                    <span>Add Products</span>
+                                </NavLink>
+
+                                <NavLink
+                                    to="/collection-tracking"
+                                    end
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaBoxes />
+                                    <span>SKU Details</span>
+                                </NavLink>
+
+                                <NavLink
+                                    to="/collection-tracking/insight"
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaChartBar />
+                                    <span>Insight</span>
+                                </NavLink>
+
+                                <NavLink
+                                    to="/collection-tracking/requests"
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaEnvelope />
+                                    <span>Requests</span>
+                                </NavLink>
+
+                                <NavLink
+                                    to="/collection-tracking/permissions"
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaCheckDouble />
+                                    <span>Collection Permissions</span>
+                                </NavLink>
+
+                                <NavLink
+                                    to="/collection-tracking/master-data"
+                                    className={({ isActive }) =>
+                                        `submenu-item ${
+                                            isActive ? "active" : ""
+                                        }`
+                                    }
+                                >
+                                    <FaClipboard />
+                                    <span>Master Data</span>
+                                </NavLink>
                             </div>
                         )}
                     </div>
@@ -1084,33 +1161,21 @@ function Sidebar({ collapsed }) {
 
                 {canAccessSettings && (
                     <div
-                        className={`sidebar-group ${
-                            settingsOpenByPath ||
-                            settingsOpen
-                                ? "open"
-                                : ""
-                        }`}
+                        className={`sidebar-group ${settingsOpen ? "open" : ""}`}
                     >
 
                         {/* SETTINGS HEADER */}
 
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${
-                                settingsOpenByPath
-                                    ? "active"
-                                    : ""
-                            }`}
+                            className={`sidebar-group-toggle ${settingsOpen ? "active" : ""}`}
                             onClick={() =>
                                 setSettingsOpen(
                                     (previous) =>
                                         !previous
                                 )
                             }
-                            aria-expanded={
-                                settingsOpen ||
-                                settingsOpenByPath
-                            }
+                            aria-expanded={settingsOpen}
                         >
 
                             <span className="sidebar-group-content">
@@ -1127,12 +1192,7 @@ function Sidebar({ collapsed }) {
 
                             {!collapsed && (
                                 <FaChevronDown
-                                    className={`submenu-chevron ${
-                                        settingsOpen ||
-                                        settingsOpenByPath
-                                            ? "rotated"
-                                            : ""
-                                    }`}
+                                    className={`submenu-chevron ${settingsOpen ? "rotated" : ""}`}
                                 />
                             )}
 
@@ -1140,11 +1200,7 @@ function Sidebar({ collapsed }) {
 
                         {/* SETTINGS SUBMENU */}
 
-                        {!collapsed &&
-                            (
-                                settingsOpen ||
-                                settingsOpenByPath
-                            ) && (
+                        {!collapsed && settingsOpen && (
                                 <div className="sidebar-submenu">
 
                                     {/* USERS */}

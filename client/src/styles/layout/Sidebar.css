@@ -346,24 +346,29 @@
 .submenu-chevron {
     width: 14px !important;
     min-width: 14px !important;
+    max-width: 14px !important;
 
-    height: 14px;
+    height: 14px !important;
+    flex: 0 0 14px !important;
 
-    flex: 0 0 14px;
+    margin-left: auto !important;
+    margin-right: 0 !important;
 
-    margin-left: auto;
-
-    display: block;
+    display: block !important;
 
     font-size: 12px !important;
+    line-height: 14px !important;
 
     color: #385661 !important;
 
     transform: rotate(0deg);
+    transform-origin: center center;
 
     transition:
         transform 0.25s ease,
         color 0.2s ease;
+
+    pointer-events: none;
 }
 
 
@@ -392,9 +397,9 @@
 
 .sidebar-submenu {
     width: 100%;
+    max-width: 100%;
 
     display: flex;
-
     flex-direction: column;
 
     margin: 0;
@@ -405,8 +410,8 @@
     background: rgba(255, 255, 255, 0.08);
 
     overflow: hidden;
-
-    animation: submenuOpen 0.18s ease;
+    animation: submenuOpen 0.18s ease both;
+    transform-origin: top center;
 }
 
 
@@ -770,5 +775,118 @@
     .sidebar-submenu {
         transition: none;
         animation: none;
+    }
+}
+
+
+/* =========================================================
+   EXPANDABLE SIDEBAR GROUPS — STABLE TOGGLE BEHAVIOUR
+   Works with Sidebar.jsx state: open / closed
+   ========================================================= */
+
+.sidebar-group-toggle {
+    flex: 0 0 auto !important;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-group-toggle .sidebar-group-content {
+    pointer-events: none;
+}
+
+.sidebar-group-toggle .submenu-chevron {
+    pointer-events: none;
+    transform-origin: center;
+    will-change: transform;
+}
+
+.sidebar-group-toggle[aria-expanded="true"] .submenu-chevron {
+    transform: rotate(180deg);
+}
+
+.sidebar-group-toggle[aria-expanded="false"] .submenu-chevron {
+    transform: rotate(0deg);
+}
+
+.sidebar-group.open > .sidebar-group-toggle {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-group.open > .sidebar-group-toggle:hover {
+    background: rgba(255, 255, 255, 0.30);
+}
+
+/* Keep the active route visually stronger than merely-open groups. */
+.sidebar-group > .sidebar-group-toggle.active {
+    background: #F9FCFD;
+    color: #0F4C5C;
+    border-left-color: #6D57C8;
+}
+
+/* Collection Tracking uses the same safe group behaviour as all
+   other expandable modules. */
+.sidebar-group .sidebar-submenu {
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.sidebar-group .sidebar-submenu .submenu-item {
+    box-sizing: border-box;
+}
+
+/* Do not allow a global button rule elsewhere in the application
+   to distort the sidebar arrow/toggle. */
+.sidebar-group-toggle,
+.sidebar-group-toggle:hover,
+.sidebar-group-toggle:focus,
+.sidebar-group-toggle:active {
+    outline: none;
+}
+
+.sidebar-group-toggle:focus-visible {
+    outline: 2px solid #6D57C8;
+    outline-offset: -2px;
+}
+
+/* =========================================================
+   COLLAPSED MODE — NO SUBMENU ARROW / NO LAYOUT SHIFT
+   ========================================================= */
+
+.sidebar.collapsed .sidebar-group-toggle {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.sidebar.collapsed .sidebar-group.open,
+.sidebar.collapsed .sidebar-group {
+    width: 100%;
+}
+
+.sidebar.collapsed .sidebar-group-toggle .sidebar-group-content {
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-group-toggle .submenu-chevron {
+    display: none !important;
+}
+
+/* =========================================================
+   MOBILE TOUCH TARGET
+   ========================================================= */
+
+@media (max-width: 768px) {
+    .sidebar-group-toggle {
+        min-height: 46px;
+        touch-action: manipulation;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar-group-toggle {
+        min-height: 46px;
     }
 }
