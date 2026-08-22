@@ -13,6 +13,7 @@ server/node_modules/
 # ENVIRONMENT VARIABLES / SECRETS
 # ======================================================
 
+# Never commit real environment files
 .env
 .env.*
 **/.env
@@ -28,32 +29,75 @@ server/node_modules/
 .env.test.local
 .env.production.local
 
+# Allow safe example/template files
+!.env.example
+!**/.env.example
+
 
 # ======================================================
 # GOOGLE OAUTH CREDENTIALS / TOKENS
 # NEVER COMMIT THESE FILES
 # ======================================================
 
+# OAuth client credentials
 credentials.json
 **/credentials.json
 
+client_secret*.json
+**/client_secret*.json
+
+client-secret*.json
+**/client-secret*.json
+
+oauth*.json
+**/oauth*.json
+
+oauth2*.json
+**/oauth2*.json
+
+# OAuth tokens
 gmail-token.json
 **/gmail-token.json
 
 token.json
 **/token.json
 
-client_secret*.json
-**/client_secret*.json
+tokens.json
+**/tokens.json
+
+token*.json
+**/token*.json
+
+# Google authentication files
+google-credentials.json
+**/google-credentials.json
+
+google-token.json
+**/google-token.json
+
+google-oauth*.json
+**/google-oauth*.json
 
 
 # ======================================================
-# PRIVATE KEYS / CERTIFICATES
+# GOOGLE SERVICE ACCOUNT / PRIVATE KEYS
+# NEVER COMMIT THESE FILES
 # ======================================================
+
+service-account*.json
+**/service-account*.json
+
+service_account*.json
+**/service_account*.json
+
+*-service-account*.json
+**/*-service-account*.json
 
 *.pem
 *.key
 *.crt
+*.p12
+*.pfx
 
 
 # ======================================================
@@ -61,6 +105,8 @@ client_secret*.json
 # ======================================================
 
 logs/
+**/logs/
+
 *.log
 
 npm-debug.log*
@@ -76,13 +122,20 @@ pnpm-debug.log*
 server/uploads/*
 !server/uploads/.gitkeep
 
+uploads/
+**/uploads/
+!**/uploads/.gitkeep
+
 
 # ======================================================
 # BUILD FILES
 # ======================================================
 
 dist/
+**/dist/
+
 build/
+**/build/
 
 client/dist/
 server/dist/
@@ -93,8 +146,16 @@ server/dist/
 # ======================================================
 
 .cache/
+**/.cache/
+
 .parcel-cache/
+**/.parcel-cache/
+
 .eslintcache
+
+.npm/
+.yarn/
+.pnpm-store/
 
 
 # ======================================================
@@ -102,6 +163,9 @@ server/dist/
 # ======================================================
 
 coverage/
+**/coverage/
+
+.nyc_output/
 
 
 # ======================================================
@@ -111,6 +175,10 @@ coverage/
 *.pid
 *.pid.lock
 *.seed
+
+*.sqlite
+*.sqlite3
+*.db
 
 
 # ======================================================
@@ -122,6 +190,8 @@ coverage/
 
 *.swp
 *.swo
+
+*.code-workspace
 
 
 # ======================================================
@@ -143,9 +213,15 @@ desktop.ini
 *.bak
 *.backup
 
+*.old
+
 
 # ======================================================
 # MISCELLANEOUS
 # ======================================================
 
 *.local
+
+# OS/editor temporary files
+~*
+.#*

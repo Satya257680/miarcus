@@ -21,8 +21,16 @@ const GMAIL_REFRESH_TOKEN = String(
     process.env.GMAIL_REFRESH_TOKEN || ""
 ).trim();
 
+// The Gmail account that owns the OAuth refresh token.
+// EMAIL_FROM remains supported for backwards compatibility.
+const GMAIL_USER = String(
+    process.env.GMAIL_USER || ""
+).trim();
+
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM || ""
+    process.env.EMAIL_FROM ||
+    GMAIL_USER ||
+    ""
 ).trim();
 
 // ==========================================================
@@ -47,9 +55,9 @@ if (!GMAIL_REFRESH_TOKEN) {
     );
 }
 
-if (!EMAIL_FROM) {
+if (!GMAIL_USER && !EMAIL_FROM) {
     console.error(
-        "❌ EMAIL_FROM is not configured."
+        "❌ GMAIL_USER or EMAIL_FROM is not configured."
     );
 }
 
@@ -330,7 +338,7 @@ const verifyMailer = async () => {
         );
 
         console.log(
-            "Authentication: OAuth2"
+            "Authentication: OAuth2 refresh token"
         );
 
         console.log(
