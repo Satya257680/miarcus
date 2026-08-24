@@ -30,9 +30,8 @@ const reportsToController = require("../controllers/reportsToController");
 // ======================================================
 
 const upload = multer({
-
-    dest:"uploads/"
-
+    dest: "uploads/",
+    limits: { fileSize: 10 * 1024 * 1024, files: 1, parts: 10, fields: 10, fieldSize: 1024 * 1024 }
 });
 
 

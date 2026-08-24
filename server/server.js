@@ -15,7 +15,7 @@ const fs = require("fs");
 
 process.env.MAX_UPLOAD_SIZE =
     process.env.MAX_UPLOAD_SIZE ||
-    String(2 * 1024 * 1024 * 1024);
+    String(25 * 1024 * 1024);
 
 // ======================================================
 // APP
@@ -690,7 +690,7 @@ app.use(
 
     express.json({
 
-        limit: "2gb"
+        limit: "10mb"
 
     })
 
@@ -702,7 +702,7 @@ app.use(
 
         extended: true,
 
-        limit: "2gb"
+        limit: "10mb"
 
     })
 

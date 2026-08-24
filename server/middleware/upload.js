@@ -1,154 +1,59 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
+const { validateUploadedFiles, MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
-// ======================================================
-// UPLOAD FOLDER
-// ======================================================
+const uploadFolder = path.join(process.cwd(), "uploads");
+fs.mkdirSync(uploadFolder, { recursive: true });
 
-const uploadFolder = path.join(
-    process.cwd(),
-    "uploads"
-);
-
-// ======================================================
-// CREATE UPLOAD FOLDER
-// ======================================================
-
-if (!fs.existsSync(uploadFolder)) {
-    fs.mkdirSync(
-        uploadFolder,
-        {
-            recursive: true
-        }
-    );
-}
-
-// ======================================================
-// STORAGE
-// ======================================================
+const allowed = new Map([
+    [".jpg", new Set(["image/jpeg"])],
+    [".jpeg", new Set(["image/jpeg"])],
+    [".png", new Set(["image/png"])],
+    [".gif", new Set(["image/gif"])],
+    [".webp", new Set(["image/webp"])],
+    [".pdf", new Set(["application/pdf"])],
+    [".doc", new Set(["application/msword", "application/octet-stream"])],
+    [".docx", new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"])],
+    [".xls", new Set(["application/vnd.ms-excel", "application/octet-stream"])],
+    [".xlsx", new Set(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"])],
+    [".csv", new Set(["text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "text/plain"])],
+]);
 
 const storage = multer.diskStorage({
-
-    destination: (req, file, cb) => {
-
-        cb(
-            null,
-            uploadFolder
-        );
-
-    },
-
-    filename: (req, file, cb) => {
-
-        const extension = path.extname(
-            file.originalname
-        );
-
-        const uniqueName =
-            Date.now() +
-            "-" +
-            Math.round(
-                Math.random() * 1000000000
-            ) +
-            extension;
-
-        cb(
-            null,
-            uniqueName
-        );
-
+    destination: (_req, _file, cb) => cb(null, uploadFolder),
+    filename: (_req, file, cb) => {
+        const extension = path.extname(file.originalname || "").toLowerCase();
+        cb(null, `${Date.now()}-${crypto.randomBytes(18).toString("hex")}${extension}`);
     }
-
 });
 
-// ======================================================
-// FILE FILTER
-//
-// Supported:
-// Images
-// PDF
-// Word
-// Excel
-// CSV
-// ======================================================
-
-const fileFilter = (req, file, cb) => {
-
-    const extension =
-        path
-            .extname(
-                file.originalname
-            )
-            .toLowerCase();
-
-    const allowedExtensions = [
-
-        // Images
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-
-        // PDF
-        ".pdf",
-
-        // Word
-        ".doc",
-        ".docx",
-
-        // Excel
-        ".xls",
-        ".xlsx",
-
-        // CSV
-        ".csv"
-
-    ];
-
-    if (
-        allowedExtensions.includes(
-            extension
-        )
-    ) {
-
-        cb(
-            null,
-            true
-        );
-
-    } else {
-
-        cb(
-            new Error(
-                "Only image, PDF, Word, Excel and CSV files are allowed."
-            )
-        );
-
+const fileFilter = (_req, file, cb) => {
+    const extension = path.extname(file.originalname || "").toLowerCase();
+    const mimeTypes = allowed.get(extension);
+    if (!mimeTypes || !mimeTypes.has(String(file.mimetype || "").toLowerCase())) {
+        return cb(new Error("The uploaded file type is not allowed."));
     }
-
+    cb(null, true);
 };
 
-// ======================================================
-// MULTER SETUP
-//
-// IMPORTANT:
-// NO fileSize LIMIT HERE.
-//
-// This allows files larger than 10MB.
-// ======================================================
-
-const upload = multer({
-
+const baseUpload = multer({
     storage,
-
-    fileFilter
-
+    fileFilter,
+    limits: {
+        fileSize: MAX_UPLOAD_SIZE,
+        files: 10,
+        parts: 30,
+        fields: 20,
+        fieldSize: 1024 * 1024
+    }
 });
 
-// ======================================================
-// EXPORT
-// ======================================================
+const wrap = method => (...args) => [baseUpload[method](...args), validateUploadedFiles];
 
-module.exports = upload;
+module.exports = {
+    single: wrap("single"),
+    array: wrap("array"),
+    uploadFolder
+};

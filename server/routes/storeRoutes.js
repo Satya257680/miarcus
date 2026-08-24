@@ -57,11 +57,8 @@ const storage = multer.diskStorage({
     filename:(req,file,cb)=>{
 
         cb(
-
             null,
-
-            `${Date.now()}-${file.originalname}`
-
+            `${Date.now()}-${require("crypto").randomBytes(18).toString("hex")}.csv`
         );
 
     }

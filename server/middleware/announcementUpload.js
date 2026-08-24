@@ -1,6 +1,8 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
+const { validateUploadedFiles, MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
 // ======================================================
 // ANNOUNCEMENT UPLOAD FOLDER
@@ -31,11 +33,12 @@ const storage = multer.diskStorage({
 
     filename: (req, file, cb) => {
 
+        const extension = path.extname(file.originalname || "").toLowerCase();
         const uniqueName =
             Date.now() +
             "-" +
-            Math.round(Math.random() * 1000000000) +
-            path.extname(file.originalname);
+            crypto.randomBytes(18).toString("hex") +
+            extension;
 
         cb(
             null,
@@ -116,12 +119,20 @@ const fileFilter = (req, file, cb) => {
 // upload limits.
 // ======================================================
 
-const upload = multer({
-
+const baseUpload = multer({
     storage,
-
-    fileFilter
-
+    fileFilter,
+    limits: {
+        fileSize: MAX_UPLOAD_SIZE,
+        files: 1,
+        parts: 20,
+        fields: 15,
+        fieldSize: 1024 * 1024
+    }
 });
+
+const upload = {
+    single: field => [baseUpload.single(field), validateUploadedFiles]
+};
 
 module.exports = upload;
