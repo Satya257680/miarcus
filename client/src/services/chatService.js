@@ -75,8 +75,20 @@ export const sendChatMessage = (conversationId, payload) => {
 export const editChatMessage = (messageId, message) =>
     axios.put(`${API}/messages/${messageId}`, { message }, authConfig());
 
-export const deleteChatMessage = (messageId) =>
-    axios.delete(`${API}/messages/${messageId}`, authConfig());
+export const deleteChatMessage = (messageId, scope = "everyone") =>
+    axios.delete(`${API}/messages/${messageId}`, {
+        ...authConfig(),
+        data: { scope }
+    });
+
+export const deleteChatConversation = (conversationId, scope = "me") =>
+    axios.delete(`${API}/conversations/${conversationId}`, {
+        ...authConfig(),
+        data: { scope }
+    });
+
+export const clearChatConversation = (conversationId) =>
+    axios.post(`${API}/conversations/${conversationId}/clear`, {}, authConfig());
 
 export const reactToChatMessage = (messageId, reaction) =>
     axios.post(`${API}/messages/${messageId}/reactions`, { reaction }, authConfig());
@@ -142,7 +154,10 @@ export const openChatEventStream = (handlers = {}) => {
     const eventNames = [
         "message",
         "message_updated",
+        "message_deleted_for_me",
         "conversation",
+        "conversation_deleted",
+        "conversation_cleared",
         "incoming_call",
         "call_signal",
         "call_status",

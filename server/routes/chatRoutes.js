@@ -117,6 +117,8 @@ router.get("/conversations/:id", viewAccess, async (req, res, next) => {
 router.get("/conversations/:id/messages", viewAccess, C.messages);
 router.post("/conversations/:id/messages", addAccess, upload.single("attachment"), C.sendMessage);
 router.post("/conversations/:id/read", viewAccess, C.read);
+router.post("/conversations/:id/clear", fullAccess, C.clearConversation);
+router.delete("/conversations/:id", fullAccess, C.deleteConversation);
 
 router.put("/messages/:id", editAccess, C.editMessage);
 router.delete("/messages/:id", fullAccess, C.deleteMessage);

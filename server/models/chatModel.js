@@ -16,12 +16,19 @@ const ensureTables = async () => {
             store_id INT NULL,
             title VARCHAR(255) NULL,
             created_by INT NULL,
+            deleted_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_chat_conv_store (store_id),
             INDEX idx_chat_conv_updated (updated_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    try {
+        await db.query(`ALTER TABLE chat_conversations ADD COLUMN deleted_at DATETIME NULL AFTER created_by`);
+    } catch (error) {
+        if (!/duplicate column|1060/i.test(String(error.message || error))) throw error;
+    }
 
     await db.query(`
         CREATE TABLE IF NOT EXISTS chat_conversation_members (
@@ -52,6 +59,28 @@ const ensureTables = async () => {
             deleted_at DATETIME NULL,
             INDEX idx_chat_message_conversation (conversation_id, id),
             INDEX idx_chat_message_sender (sender_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS chat_message_user_deletions (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            message_id BIGINT NOT NULL,
+            user_id INT NOT NULL,
+            deleted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_chat_message_user_delete (message_id, user_id),
+            INDEX idx_chat_message_user_delete_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS chat_conversation_user_hides (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            conversation_id BIGINT NOT NULL,
+            user_id INT NOT NULL,
+            hidden_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_chat_conversation_user_hide (conversation_id, user_id),
+            INDEX idx_chat_conversation_user_hide_user (user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -260,6 +289,7 @@ const findDirectConversation = async (userA, userB, storeId) => {
             ON m2.conversation_id = c.id AND m2.user_id = ?
         WHERE c.conversation_type = 'direct'
           AND c.store_id = ?
+          AND c.deleted_at IS NULL
         LIMIT 1
     `, [userA, userB, storeId]);
     return rows[0] || null;
@@ -304,7 +334,7 @@ const getConversation = async (conversationId) => {
             s.store_code
         FROM chat_conversations c
         LEFT JOIN stores s ON s.id = c.store_id
-        WHERE c.id = ?
+        WHERE c.id = ? AND c.deleted_at IS NULL
         LIMIT 1
     `, [conversationId]);
 
@@ -331,9 +361,19 @@ const getConversation = async (conversationId) => {
 };
 
 const getConversationsForUser = async (userId, admin = false, storeId = null) => {
-    // The first two parameters belong to the direct-chat display subqueries.
-    const params = [userId, userId];
-    const where = [];
+    // Parameters are ordered to match the SELECT subqueries first, then WHERE.
+    const paramsBeforeWhere = [userId, userId, userId, userId, userId, userId];
+    const params = [...paramsBeforeWhere, userId];
+    const where = [
+        `NOT EXISTS (
+            SELECT 1
+            FROM chat_conversation_user_hides h
+            WHERE h.conversation_id = c.id
+              AND h.user_id = ?
+              AND h.hidden_at >= COALESCE(lm.created_at, c.updated_at)
+        )`,
+        `c.deleted_at IS NULL`
+    ];
 
     if (!admin) {
         where.push(`EXISTS (
@@ -348,11 +388,11 @@ const getConversationsForUser = async (userId, admin = false, storeId = null) =>
         params.push(storeId);
     }
 
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const whereSql = `WHERE ${where.join(" AND ")}`;
 
     return db.query(`
         SELECT
-            c.id, c.conversation_type, c.store_id, c.title,
+            c.id, c.conversation_type, c.store_id, c.title, c.created_by,
             c.updated_at, s.store_name, s.store_code,
             lm.id AS last_message_id,
             lm.message_type AS last_message_type,
@@ -379,6 +419,23 @@ const getConversationsForUser = async (userId, admin = false, storeId = null) =>
             ) AS direct_photo,
             (
                 SELECT COUNT(*)
+                FROM chat_messages um
+                WHERE um.conversation_id = c.id
+                  AND um.deleted_at IS NULL
+                  AND um.sender_id <> ?
+                  AND um.id > COALESCE((
+                      SELECT cmr.last_read_message_id
+                      FROM chat_conversation_members cmr
+                      WHERE cmr.conversation_id = c.id AND cmr.user_id = ?
+                      LIMIT 1
+                  ), 0)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM chat_message_user_deletions md
+                      WHERE md.message_id = um.id AND md.user_id = ?
+                  )
+            ) AS unread_count,
+            (
+                SELECT COUNT(*)
                 FROM chat_conversation_members cm
                 WHERE cm.conversation_id = c.id
             ) AS member_count
@@ -387,7 +444,12 @@ const getConversationsForUser = async (userId, admin = false, storeId = null) =>
         LEFT JOIN chat_messages lm ON lm.id = (
             SELECT MAX(m2.id)
             FROM chat_messages m2
-            WHERE m2.conversation_id = c.id AND m2.deleted_at IS NULL
+            WHERE m2.conversation_id = c.id
+              AND m2.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM chat_message_user_deletions md2
+                  WHERE md2.message_id = m2.id AND md2.user_id = ?
+              )
         )
         LEFT JOIN users sender ON sender.id = lm.sender_id
         ${whereSql}
@@ -396,9 +458,16 @@ const getConversationsForUser = async (userId, admin = false, storeId = null) =>
     `, params);
 };
 
-const getMessages = async (conversationId, limit = 100, beforeId = null) => {
+const getMessages = async (conversationId, limit = 100, beforeId = null, userId = null) => {
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
     const params = [conversationId];
+    const userDeleteClause = userId
+        ? `AND NOT EXISTS (
+            SELECT 1 FROM chat_message_user_deletions md
+            WHERE md.message_id = m.id AND md.user_id = ?
+        )`
+        : "";
+    if (userId) params.push(userId);
     const beforeClause = beforeId ? "AND m.id < ?" : "";
     if (beforeId) params.push(beforeId);
 
@@ -408,12 +477,20 @@ const getMessages = async (conversationId, limit = 100, beforeId = null) => {
             u.name AS sender_name,
             u.profile_photo AS sender_photo,
             r.message_text AS reply_text,
-            rr.name AS reply_sender_name
+            rr.name AS reply_sender_name,
+            (
+                SELECT COUNT(*)
+                FROM chat_conversation_members cmr
+                WHERE cmr.conversation_id = m.conversation_id
+                  AND cmr.user_id <> m.sender_id
+                  AND cmr.last_read_message_id >= m.id
+            ) AS read_count
         FROM chat_messages m
         INNER JOIN users u ON u.id = m.sender_id
         LEFT JOIN chat_messages r ON r.id = m.reply_to_id
         LEFT JOIN users rr ON rr.id = r.sender_id
         WHERE m.conversation_id = ?
+          ${userDeleteClause}
           ${beforeClause}
         ORDER BY m.id DESC
         LIMIT ${safeLimit}
@@ -453,6 +530,17 @@ const createMessage = async ({
         attachmentMime,
         replyToId || null
     ]);
+
+    await db.query(`
+        UPDATE chat_conversations
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND deleted_at IS NULL
+    `, [conversationId]);
+
+    await db.query(`
+        DELETE FROM chat_conversation_user_hides
+        WHERE conversation_id = ? AND user_id = ?
+    `, [conversationId, senderId]);
 
     const rows = await db.query(`
         SELECT
@@ -515,7 +603,21 @@ const updateMessage = async (messageId, userId, text) => {
     `, [messageId]).then(r => r[0] || null);
 };
 
-const deleteMessage = async (messageId, userId) => {
+const deleteMessageForMe = async (messageId, userId) => {
+    const rows = await db.query(`
+        SELECT id FROM chat_messages WHERE id = ? LIMIT 1
+    `, [messageId]);
+    if (!rows.length) return false;
+
+    await db.query(`
+        INSERT INTO chat_message_user_deletions (message_id, user_id)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE deleted_at = CURRENT_TIMESTAMP
+    `, [messageId, userId]);
+    return true;
+};
+
+const deleteMessageForEveryone = async (messageId, userId) => {
     const rows = await db.query(`
         SELECT id FROM chat_messages
         WHERE id = ? AND sender_id = ? AND deleted_at IS NULL
@@ -532,7 +634,37 @@ const deleteMessage = async (messageId, userId) => {
         WHERE id = ?
     `, [messageId]);
 
+    await db.query(`DELETE FROM chat_reactions WHERE message_id = ?`, [messageId]);
     return true;
+};
+
+const clearConversationForMe = async (conversationId, userId) => {
+    await db.query(`
+        INSERT INTO chat_message_user_deletions (message_id, user_id)
+        SELECT id, ?
+        FROM chat_messages
+        WHERE conversation_id = ?
+        ON DUPLICATE KEY UPDATE deleted_at = CURRENT_TIMESTAMP
+    `, [userId, conversationId]);
+    return true;
+};
+
+const hideConversationForMe = async (conversationId, userId) => {
+    await db.query(`
+        INSERT INTO chat_conversation_user_hides (conversation_id, user_id)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE hidden_at = CURRENT_TIMESTAMP
+    `, [conversationId, userId]);
+    return true;
+};
+
+const deleteConversationForEveryone = async (conversationId) => {
+    const result = await db.query(`
+        UPDATE chat_conversations
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND deleted_at IS NULL
+    `, [conversationId]);
+    return Number(result.affectedRows || 0) > 0;
 };
 
 const toggleReaction = async (messageId, userId, reaction) => {
@@ -779,7 +911,11 @@ module.exports = {
     isConversationMember,
     markRead,
     updateMessage,
-    deleteMessage,
+    deleteMessageForMe,
+    deleteMessageForEveryone,
+    hideConversationForMe,
+    clearConversationForMe,
+    deleteConversationForEveryone,
     toggleReaction,
     updatePresence,
     getPresence,

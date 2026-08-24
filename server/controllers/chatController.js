@@ -283,7 +283,8 @@ exports.messages = async (req, res) => {
     const messages = await Model.getMessages(
         req.params.id,
         req.query.limit,
-        req.query.before
+        req.query.before,
+        req.user.id
     );
     res.json({ success: true, messages });
 };
@@ -387,16 +388,91 @@ exports.deleteMessage = async (req, res) => {
     }
 
     await requireConversationAccess(req, conversationId);
-    const deleted = await Model.deleteMessage(req.params.id, req.user.id);
+
+    const scope = String(req.body?.scope || req.query?.scope || "everyone").toLowerCase();
+    if (!["me", "everyone"].includes(scope)) {
+        return res.status(400).json({ success: false, message: "Invalid delete option." });
+    }
+
+    if (scope === "me") {
+        await Model.deleteMessageForMe(req.params.id, req.user.id);
+        ChatEvents.emitToUser(req.user.id, "message_deleted_for_me", {
+            conversation_id: Number(conversationId),
+            message_id: Number(req.params.id)
+        });
+        return res.json({ success: true, scope: "me" });
+    }
+
+    const deleted = await Model.deleteMessageForEveryone(req.params.id, req.user.id);
     if (!deleted) {
-        return res.status(403).json({ success: false, message: "You can only delete your own message." });
+        return res.status(403).json({
+            success: false,
+            message: "Only the message sender can delete this message for everyone."
+        });
     }
 
     const members = await Model.getConversationMemberIds(conversationId);
     ChatEvents.emitToUsers(members, "message_updated", {
-        message: { id: Number(req.params.id), message_type: "deleted", message_text: null }
+        conversation_id: Number(conversationId),
+        message: {
+            id: Number(req.params.id),
+            message_type: "deleted",
+            message_text: null,
+            attachment_url: null,
+            attachment_name: null,
+            attachment_mime: null,
+            deleted_at: new Date().toISOString()
+        }
     });
 
+    res.json({ success: true, scope: "everyone" });
+};
+
+exports.deleteConversation = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+    const scope = String(req.body?.scope || req.query?.scope || "me").toLowerCase();
+
+    if (!["me", "everyone"].includes(scope)) {
+        return res.status(400).json({ success: false, message: "Invalid delete option." });
+    }
+
+    const members = await Model.getConversationMemberIds(conversation.id);
+
+    if (scope === "me") {
+        await Model.hideConversationForMe(conversation.id, req.user.id);
+        ChatEvents.emitToUser(req.user.id, "conversation_deleted", {
+            conversation_id: Number(conversation.id),
+            scope: "me"
+        });
+        return res.json({ success: true, scope: "me" });
+    }
+
+    const canDeleteForEveryone =
+        isAdmin(req) ||
+        Number(conversation.created_by) === Number(req.user.id);
+
+    if (!canDeleteForEveryone) {
+        return res.status(403).json({
+            success: false,
+            message: "Only the conversation creator or an administrator can delete this chat for everyone."
+        });
+    }
+
+    await Model.deleteConversationForEveryone(conversation.id);
+    ChatEvents.emitToUsers(members, "conversation_deleted", {
+        conversation_id: Number(conversation.id),
+        scope: "everyone"
+    });
+
+    res.json({ success: true, scope: "everyone" });
+};
+
+exports.clearConversation = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+    await Model.clearConversationForMe(conversation.id, req.user.id);
+    ChatEvents.emitToUser(req.user.id, "conversation_cleared", {
+        conversation_id: Number(conversation.id)
+    });
     res.json({ success: true });
 };
 
@@ -414,7 +490,7 @@ exports.react = async (req, res) => {
     }
 
     await Model.toggleReaction(req.params.id, req.user.id, reaction);
-    const messages = await Model.getMessages(conversationId, 200);
+    const messages = await Model.getMessages(conversationId, 200, null, req.user.id);
     const message = messages.find(item => Number(item.id) === Number(req.params.id));
 
     ChatEvents.emitToUsers(
@@ -429,9 +505,10 @@ exports.react = async (req, res) => {
 exports.read = async (req, res) => {
     await requireConversationAccess(req, req.params.id);
     await Model.markRead(req.params.id, req.user.id, req.body.message_id || null);
-    ChatEvents.emitToUser(req.user.id, "read", {
+    ChatEvents.emitToUsers(await Model.getConversationMemberIds(req.params.id), "read", {
         conversation_id: Number(req.params.id),
-        message_id: Number(req.body.message_id || 0)
+        message_id: Number(req.body.message_id || 0),
+        reader_id: Number(req.user.id)
     });
     res.json({ success: true });
 };

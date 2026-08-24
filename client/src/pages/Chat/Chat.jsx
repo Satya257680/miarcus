@@ -21,7 +21,14 @@ import {
     FaEdit,
     FaUserShield,
     FaChevronRight,
-    FaHistory
+    FaHistory,
+    FaEllipsisV,
+    FaInfoCircle,
+    FaBell,
+    FaBellSlash,
+    FaFileAlt,
+    FaImage,
+    FaStar,
 } from "react-icons/fa";
 
 import {
@@ -35,6 +42,8 @@ import {
     sendChatMessage,
     editChatMessage,
     deleteChatMessage,
+    deleteChatConversation,
+    clearChatConversation,
     reactToChatMessage,
     markChatRead,
     updateChatPresence,
@@ -206,6 +215,10 @@ function Chat() {
     const [callError, setCallError] = useState("");
     const [micMuted, setMicMuted] = useState(false);
     const [cameraOff, setCameraOff] = useState(false);
+    const [deleteMessageTarget, setDeleteMessageTarget] = useState(null);
+    const [deleteChatTarget, setDeleteChatTarget] = useState(null);
+    const [showChatDetails, setShowChatDetails] = useState(true);
+    const [muted, setMuted] = useState(false);
 
     const bottomRef = useRef(null);
     const eventCleanupRef = useRef(null);
@@ -508,6 +521,47 @@ function Chat() {
                             : item
                     )
                 );
+                loadConversations(selectedStoreId).catch(() => {});
+            },
+
+            message_deleted_for_me: (event) => {
+                if (Number(event?.conversation_id) !== Number(selectedConversationId)) return;
+                setMessages(previous =>
+                    previous.filter(item => Number(item.id) !== Number(event.message_id))
+                );
+                loadConversations(selectedStoreId).catch(() => {});
+            },
+
+            read: (event) => {
+                if (Number(event?.conversation_id) !== Number(selectedConversationId)) return;
+                const messageId = Number(event?.message_id || 0);
+                if (!messageId) return;
+                setMessages(previous =>
+                    previous.map(item =>
+                        Number(item.id) <= messageId && Number(item.sender_id) === Number(currentUser.id)
+                            ? { ...item, read_count: Math.max(Number(item.read_count || 0), 1) }
+                            : item
+                    )
+                );
+            },
+
+            conversation_deleted: (event) => {
+                const conversationId = Number(event?.conversation_id || 0);
+                if (!conversationId) return;
+                setConversations(previous =>
+                    previous.filter(item => Number(item.id) !== conversationId)
+                );
+                if (Number(selectedConversationId) === conversationId) {
+                    setSelectedConversation(null);
+                    setMessages([]);
+                    setSearchParams({ store: String(selectedStoreId || "") });
+                }
+            },
+
+            conversation_cleared: (event) => {
+                if (Number(event?.conversation_id) === Number(selectedConversationId)) {
+                    setMessages([]);
+                }
             },
 
             conversation: (event) => {
@@ -626,27 +680,78 @@ function Chat() {
         }
     };
 
-    const handleDelete = async (messageId) => {
-        if (!window.confirm("Delete this message?")) return;
-
+    const handleDelete = async (messageId, scope) => {
         try {
-            await deleteChatMessage(messageId);
-            setMessages(previous =>
-                previous.map(item =>
-                    Number(item.id) === Number(messageId)
-                        ? {
-                            ...item,
-                            message_type: "deleted",
-                            message_text: null,
-                            attachment_url: null
-                        }
-                        : item
-                )
-            );
+            await deleteChatMessage(messageId, scope);
+
+            if (scope === "me") {
+                setMessages(previous =>
+                    previous.filter(item => Number(item.id) !== Number(messageId))
+                );
+            } else {
+                setMessages(previous =>
+                    previous.map(item =>
+                        Number(item.id) === Number(messageId)
+                            ? {
+                                ...item,
+                                message_type: "deleted",
+                                message_text: null,
+                                attachment_url: null,
+                                attachment_name: null,
+                                attachment_mime: null,
+                                reactions: []
+                            }
+                            : item
+                    )
+                );
+            }
         } catch (err) {
             setError(
                 err.response?.data?.message ||
                 "Message could not be deleted."
+            );
+        } finally {
+            setDeleteMessageTarget(null);
+        }
+    };
+
+    const handleDeleteConversation = async (scope) => {
+        if (!deleteChatTarget?.id) return;
+
+        try {
+            await deleteChatConversation(deleteChatTarget.id, scope);
+            setConversations(previous =>
+                previous.filter(item => Number(item.id) !== Number(deleteChatTarget.id))
+            );
+
+            if (Number(selectedConversationId) === Number(deleteChatTarget.id)) {
+                setSelectedConversation(null);
+                setMessages([]);
+                setSearchParams({
+                    store: String(selectedStoreId || "")
+                });
+            }
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                "Chat could not be deleted."
+            );
+        } finally {
+            setDeleteChatTarget(null);
+        }
+    };
+
+    const handleClearConversation = async () => {
+        if (!selectedConversationId) return;
+        if (!window.confirm("Clear all messages from this chat for you?")) return;
+
+        try {
+            await clearChatConversation(selectedConversationId);
+            setMessages([]);
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                "Chat could not be cleared."
             );
         }
     };
@@ -1289,7 +1394,7 @@ function Chat() {
                 </div>
             )}
 
-            <div className="chat-workspace">
+            <div className={`chat-workspace ${showChatDetails && selectedConversation ? "with-details" : ""}`}>
                 <aside className="chat-sidebar">
                     <div className="chat-sidebar-top">
                         <label>
@@ -1352,7 +1457,7 @@ function Chat() {
                                         : null;
 
                                 return (
-                                    <button
+                                    <div
                                         key={conversation.id}
                                         className={`chat-conversation-item ${
                                             Number(selectedConversationId) ===
@@ -1361,6 +1466,10 @@ function Chat() {
                                                 : ""
                                         }`}
                                         onClick={() => openConversation(conversation)}
+                                        onContextMenu={event => {
+                                            event.preventDefault();
+                                            setDeleteChatTarget(conversation);
+                                        }}
                                     >
                                         <div className="chat-avatar">
                                             {(other?.profile_photo || conversation.direct_photo) ? (
@@ -1404,7 +1513,22 @@ function Chat() {
                                                     selectedStore?.store_name}
                                             </small>
                                         </div>
-                                    </button>
+                                        <button
+                                            className="chat-conversation-menu"
+                                            title="Chat options"
+                                            onClick={event => {
+                                                event.stopPropagation();
+                                                setDeleteChatTarget(conversation);
+                                            }}
+                                        >
+                                            <FaEllipsisV />
+                                        </button>
+                                        {Number(conversation.unread_count || 0) > 0 && (
+                                            <span className="chat-unread-badge">
+                                                {Number(conversation.unread_count) > 99 ? "99+" : conversation.unread_count}
+                                            </span>
+                                        )}
+                                    </div>
                                 );
                             })
                         ) : (
@@ -1467,6 +1591,12 @@ function Chat() {
                                 </div>
 
                                 <div className="chat-call-actions">
+                                    <button
+                                        title="Search in chat"
+                                        onClick={() => setSearch(conversationTitle)}
+                                    >
+                                        <FaSearch />
+                                    </button>
                                     {selectedOtherMember && canAdd && (
                                         <>
                                             <button
@@ -1484,6 +1614,12 @@ function Chat() {
                                             </button>
                                         </>
                                     )}
+                                    <button
+                                        title="Chat details"
+                                        onClick={() => setShowChatDetails(previous => !previous)}
+                                    >
+                                        <FaInfoCircle />
+                                    </button>
                                 </div>
                             </header>
 
@@ -1572,7 +1708,9 @@ function Chat() {
                                                                 {formatTime(item.created_at)}
                                                             </time>
                                                             {mine && (
-                                                                <FaCheck />
+                                                                <span className={`chat-message-checks ${Number(item.read_count || 0) > 0 ? "read" : ""}`}>
+                                                                    <FaCheck /><FaCheck />
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1621,29 +1759,25 @@ function Chat() {
                                                         </button>
 
                                                         {mine && item.message_type !== "deleted" && canEdit && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setEditing(item);
-                                                                        setMessage(item.message_text || "");
-                                                                        setReplyTo(null);
-                                                                    }}
-                                                                    title="Edit"
-                                                                >
-                                                                    <FaEdit />
-                                                                </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setEditing(item);
+                                                                    setMessage(item.message_text || "");
+                                                                    setReplyTo(null);
+                                                                }}
+                                                                title="Edit"
+                                                            >
+                                                                <FaEdit />
+                                                            </button>
+                                                        )}
 
-                                                                {canDelete && (
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleDelete(item.id)
-                                                                        }
-                                                                        title="Delete"
-                                                                    >
-                                                                        <FaTrash />
-                                                                    </button>
-                                                                )}
-                                                            </>
+                                                        {item.message_type !== "deleted" && canDelete && (
+                                                            <button
+                                                                onClick={() => setDeleteMessageTarget(item)}
+                                                                title="Delete"
+                                                            >
+                                                                <FaTrash />
+                                                            </button>
                                                         )}
                                                         </div>
                                                     )}
@@ -1811,7 +1945,149 @@ function Chat() {
                         </>
                     )}
                 </main>
+
+                {showChatDetails && selectedConversation && (
+                    <aside className="chat-details-panel">
+                        <div className="chat-details-head">
+                            <div>
+                                <span>Contact info</span>
+                                <h3>{conversationTitle}</h3>
+                            </div>
+                            <button onClick={() => setShowChatDetails(false)} title="Close details">
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        <div className="chat-details-profile">
+                            <div className="chat-avatar profile">
+                                {selectedOtherMember?.profile_photo ? (
+                                    <img src={selectedOtherMember.profile_photo} alt="" />
+                                ) : (
+                                    initials(conversationTitle)
+                                )}
+                            </div>
+                            <strong>{conversationTitle}</strong>
+                            <span className={selectedOtherMember?.presence_status === "online" ? "online" : ""}>
+                                {conversationSubtitle}
+                            </span>
+                        </div>
+
+                        <div className="chat-details-section">
+                            <span className="chat-details-label">About</span>
+                            <strong>{selectedConversation.conversation_type === "group" ? "MIARCUS team group" : "Team communication"}</strong>
+                            <p>Work together, share updates and stay connected.</p>
+                        </div>
+
+                        <div className="chat-details-item">
+                            <div>
+                                <FaImage />
+                                <span>Media, Links & Docs</span>
+                            </div>
+                            <strong>{messages.filter(item => ["image", "video", "audio", "file"].includes(item.message_type)).length}</strong>
+                        </div>
+
+                        <div className="chat-details-item">
+                            <div>
+                                <FaStar />
+                                <span>Starred Messages</span>
+                            </div>
+                            <strong>0</strong>
+                        </div>
+
+                        <div className="chat-details-item">
+                            <div>
+                                {muted ? <FaBellSlash /> : <FaBell />}
+                                <span>Mute Notifications</span>
+                            </div>
+                            <button
+                                className={`chat-toggle ${muted ? "on" : ""}`}
+                                onClick={() => setMuted(previous => !previous)}
+                                aria-label="Toggle mute notifications"
+                            ><span /></button>
+                        </div>
+
+                        <div className="chat-details-item static">
+                            <div>
+                                <FaFileAlt />
+                                <span>Disappearing Messages</span>
+                            </div>
+                            <strong>Off</strong>
+                        </div>
+
+                        <div className="chat-details-actions">
+                            <button onClick={handleClearConversation}>
+                                <FaTrash /> Clear Chat
+                            </button>
+                            <button className="danger" onClick={() => setDeleteChatTarget(selectedConversation)}>
+                                <FaTrash /> Delete Chat
+                            </button>
+                        </div>
+                    </aside>
+                )}
             </div>
+
+            {deleteMessageTarget && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setDeleteMessageTarget(null)}>
+                    <div className="chat-modal delete-options-modal" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <div>
+                                <h2>Delete Message</h2>
+                                <p>Choose how you want to remove this message.</p>
+                            </div>
+                            <button onClick={() => setDeleteMessageTarget(null)}><FaTimes /></button>
+                        </header>
+                        <div className="chat-delete-options">
+                            <button onClick={() => handleDelete(deleteMessageTarget.id, "me")}>
+                                <FaTrash />
+                                <span><strong>Delete for me</strong><small>This message will be deleted only for you.</small></span>
+                            </button>
+                            {Number(deleteMessageTarget.sender_id) === Number(currentUser.id) && (
+                                <button onClick={() => handleDelete(deleteMessageTarget.id, "everyone")} className="danger">
+                                    <FaTrash />
+                                    <span><strong>Delete for everyone</strong><small>This message will be replaced with “This message was deleted”.</small></span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="chat-modal-footer">
+                            <button className="chat-secondary-button" onClick={() => setDeleteMessageTarget(null)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteChatTarget && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setDeleteChatTarget(null)}>
+                    <div className="chat-modal delete-options-modal" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <div>
+                                <h2>Delete Chat</h2>
+                                <p>This will remove the conversation from your chat list.</p>
+                            </div>
+                            <button onClick={() => setDeleteChatTarget(null)}><FaTimes /></button>
+                        </header>
+                        <div className="chat-delete-chat-warning">
+                            <FaTrash />
+                            <strong>{deleteChatTarget.conversation_type === "group" ? deleteChatTarget.title || "Store Group" : deleteChatTarget.direct_name || "This chat"}</strong>
+                            <span>Choose whether to remove it only for you or for everyone.</span>
+                        </div>
+                        <div className="chat-delete-options compact">
+                            <button onClick={() => handleDeleteConversation("me")}>
+                                <FaTrash />
+                                <span><strong>Delete for me</strong><small>Remove this chat from your list and history.</small></span>
+                            </button>
+                            {(admin || Number(deleteChatTarget.created_by) === Number(currentUser.id)) && (
+                                <button onClick={() => handleDeleteConversation("everyone")} className="danger">
+                                    <FaTrash />
+                                    <span><strong>Delete for everyone</strong><small>Remove this chat for all members.</small></span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="chat-modal-footer">
+                            <button className="chat-secondary-button" onClick={() => setDeleteChatTarget(null)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showContacts && (
                 <div className="chat-modal-backdrop" onMouseDown={() => setShowContacts(false)}>
