@@ -422,13 +422,17 @@ function AddUserModal({
 
     setIsAdmin(administrator);
 
-    // Administrator ALWAYS starts with Full access for EVERY module.
-    // The normal permissions are still kept separately so that if the
-    // administrator flag is later switched OFF, the previous selections
-    // can be restored.
+    // Administrator always displays Full access for every module.
+    // For an existing administrator, the API intentionally returns Full
+    // for every module, so those values are NOT a useful set of normal
+    // permissions to restore after demotion. Start the user from None
+    // when Admin is switched OFF so the administrator can configure
+    // specific module access. For a newly-created user, preserve the
+    // selections made before temporarily enabling Admin.
     if (administrator) {
-      permissionsBeforeAdminRef.current =
-        normalizedPermissions;
+      permissionsBeforeAdminRef.current = editingUser
+        ? null
+        : normalizedPermissions;
 
       setModulePermissions(
         modules.reduce((acc, module) => {
@@ -596,7 +600,10 @@ function AddUserModal({
     }
 
     // Switching Admin OFF restores the permissions that existed before
-    // Admin was enabled. If there were none, fall back to None.
+    // Admin was enabled. When an existing administrator is demoted, there
+    // are no meaningful pre-admin permissions because the stored admin
+    // state is Full for every module, so start from None and let the
+    // administrator choose the exact access level for each module.
     const restoredPermissions =
       permissionsBeforeAdminRef.current
         ? {
