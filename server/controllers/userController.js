@@ -66,10 +66,11 @@ const sendLifecycleEmail = async (sendFunction, user, label) => {
 
 const RBAC_MODULES = [
     "Dashboard",
+    "Activity Center",
     "Action Points",
     "Quiz",
     "Checklist Reports",
-    "Checklist Submit",
+    "Checklist Submission",
     "Checklist Types",
     "Questions",
     "Departments",
@@ -81,7 +82,20 @@ const RBAC_MODULES = [
     "New Store Openings",
     "Announcements",
     "Gallery",
+    "Asset Master",
+    "Employee Location",
+    "Attendance",
     "Expenses",
+    "Petty Cash",
+    "Billing",
+    "Visit Planner",
+    "Travel Plan",
+    "Travel Plan Approvals",
+    "Sales Review",
+    "Listing Tracker",
+    "Inventory Planning",
+    "Collection Tracking",
+    "Chat",
     "Profile",
     "Settings"
 ];

@@ -13,10 +13,11 @@ const db = require("../config/db");
 
 const RBAC_MODULES = [
     "Dashboard",
+    "Activity Center",
     "Action Points",
     "Quiz",
     "Checklist Reports",
-    "Checklist Submit",
+    "Checklist Submission",
     "Checklist Types",
     "Questions",
     "Departments",
@@ -32,9 +33,18 @@ const RBAC_MODULES = [
     "Employee Location",
     "Attendance",
     "Expenses",
+    "Petty Cash",
+    "Billing",
+    "Visit Planner",
+    "Travel Plan",
+    "Travel Plan Approvals",
+    "Sales Review",
+    "Listing Tracker",
+    "Inventory Planning",
+    "Collection Tracking",
+    "Chat",
     "Profile",
-    "Settings",
-    "Chat"
+    "Settings"
 ];
 
 const RBAC_LEVELS = new Set([
