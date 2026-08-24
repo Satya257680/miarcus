@@ -320,6 +320,15 @@ exports.sendMessage = async (req, res) => {
         return res.status(400).json({ success: false, message: "Write a message or attach a file." });
     }
 
+    const settings = await Model.getConversationSettings(
+        req.params.id,
+        req.user.id
+    );
+    const disappearingSeconds = Number(settings.disappearing_seconds || 0);
+    const expiresAt = disappearingSeconds
+        ? new Date(Date.now() + disappearingSeconds * 1000)
+        : null;
+
     const message = await Model.createMessage({
         conversationId: req.params.id,
         senderId: req.user.id,
@@ -328,7 +337,8 @@ exports.sendMessage = async (req, res) => {
         attachmentUrl,
         attachmentName,
         attachmentMime,
-        replyToId: req.body.reply_to_id || null
+        replyToId: req.body.reply_to_id || null,
+        expiresAt
     });
 
     const memberIds = await Model.getConversationMemberIds(req.params.id);
@@ -474,6 +484,78 @@ exports.clearConversation = async (req, res) => {
         conversation_id: Number(conversation.id)
     });
     res.json({ success: true });
+};
+
+exports.getConversationSettings = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+    const settings = await Model.getConversationSettings(conversation.id, req.user.id);
+    res.json({ success: true, settings });
+};
+
+exports.updateConversationSettings = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+
+    const payload = {};
+    if (req.body.disappearing_seconds !== undefined) {
+        payload.disappearingSeconds = Number(req.body.disappearing_seconds);
+    }
+    if (req.body.muted !== undefined) {
+        payload.muted = Boolean(req.body.muted);
+    }
+
+    const settings = await Model.updateConversationSettings(
+        conversation.id,
+        req.user.id,
+        payload
+    );
+
+    ChatEvents.emitToUsers(
+        await Model.getConversationMemberIds(conversation.id),
+        "conversation_settings_updated",
+        {
+            conversation_id: Number(conversation.id),
+            disappearing_seconds: Number(settings.disappearing_seconds || 0)
+        }
+    );
+
+    res.json({ success: true, settings });
+};
+
+exports.starMessage = async (req, res) => {
+    const conversationId = await getConversationIdFromMessage(req.params.id);
+    if (!conversationId) {
+        return res.status(404).json({ success: false, message: "Message not found." });
+    }
+
+    await requireConversationAccess(req, conversationId);
+    await Model.toggleMessageStar(req.params.id, req.user.id);
+
+    const messages = await Model.getMessages(
+        conversationId,
+        200,
+        null,
+        req.user.id
+    );
+    const message = messages.find(item => Number(item.id) === Number(req.params.id));
+
+    ChatEvents.emitToUser(req.user.id, "message_star_updated", {
+        conversation_id: Number(conversationId),
+        message
+    });
+
+    res.json({ success: true, message });
+};
+
+exports.starredMessages = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+    const messages = await Model.getStarredMessages(conversation.id, req.user.id);
+    res.json({ success: true, messages });
+};
+
+exports.mediaMessages = async (req, res) => {
+    const conversation = await requireConversationAccess(req, req.params.id);
+    const messages = await Model.getMediaMessages(conversation.id, req.user.id);
+    res.json({ success: true, messages });
 };
 
 exports.react = async (req, res) => {

@@ -117,12 +117,17 @@ router.get("/conversations/:id", viewAccess, async (req, res, next) => {
 router.get("/conversations/:id/messages", viewAccess, C.messages);
 router.post("/conversations/:id/messages", addAccess, upload.single("attachment"), C.sendMessage);
 router.post("/conversations/:id/read", viewAccess, C.read);
+router.get("/conversations/:id/settings", viewAccess, C.getConversationSettings);
+router.put("/conversations/:id/settings", viewAccess, C.updateConversationSettings);
+router.get("/conversations/:id/starred", viewAccess, C.starredMessages);
+router.get("/conversations/:id/media", viewAccess, C.mediaMessages);
 router.post("/conversations/:id/clear", fullAccess, C.clearConversation);
 router.delete("/conversations/:id", fullAccess, C.deleteConversation);
 
 router.put("/messages/:id", editAccess, C.editMessage);
 router.delete("/messages/:id", fullAccess, C.deleteMessage);
 router.post("/messages/:id/reactions", addAccess, C.react);
+router.post("/messages/:id/star", addAccess, C.starMessage);
 
 router.put("/presence", viewAccess, C.presence);
 router.get("/calls/history", viewAccess, C.callHistory);

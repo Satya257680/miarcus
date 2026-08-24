@@ -29,6 +29,7 @@ import {
     FaFileAlt,
     FaImage,
     FaStar,
+    FaArrowLeft,
 } from "react-icons/fa";
 
 import {
@@ -44,6 +45,11 @@ import {
     deleteChatMessage,
     deleteChatConversation,
     clearChatConversation,
+    getChatConversationSettings,
+    updateChatConversationSettings,
+    toggleChatStar,
+    getChatStarredMessages,
+    getChatMedia,
     reactToChatMessage,
     markChatRead,
     updateChatPresence,
@@ -217,8 +223,19 @@ function Chat() {
     const [cameraOff, setCameraOff] = useState(false);
     const [deleteMessageTarget, setDeleteMessageTarget] = useState(null);
     const [deleteChatTarget, setDeleteChatTarget] = useState(null);
-    const [showChatDetails, setShowChatDetails] = useState(true);
+    const [showChatDetails, setShowChatDetails] = useState(false);
     const [muted, setMuted] = useState(false);
+    const [disappearingSeconds, setDisappearingSeconds] = useState(0);
+    const [showMedia, setShowMedia] = useState(false);
+    const [mediaMessages, setMediaMessages] = useState([]);
+    const [mediaLoading, setMediaLoading] = useState(false);
+    const [showStarred, setShowStarred] = useState(false);
+    const [showDisappearing, setShowDisappearing] = useState(false);
+    const [starredMessages, setStarredMessages] = useState([]);
+    const [starredLoading, setStarredLoading] = useState(false);
+    const [showMessageSearch, setShowMessageSearch] = useState(false);
+    const [messageSearch, setMessageSearch] = useState("");
+    const [showChatMenu, setShowChatMenu] = useState(false);
 
     const bottomRef = useRef(null);
     const eventCleanupRef = useRef(null);
@@ -339,9 +356,15 @@ function Chat() {
             setSearchParams({ conversation: String(fullConversation.id) });
             setMessagesLoading(true);
 
-            const messagesResponse = await getChatMessages(fullConversation.id);
+            const [messagesResponse, settingsResponse] = await Promise.all([
+                getChatMessages(fullConversation.id),
+                getChatConversationSettings(fullConversation.id)
+            ]);
             const nextMessages = messagesResponse.data?.messages || [];
+            const settings = settingsResponse.data?.settings || {};
             setMessages(nextMessages);
+            setMuted(Boolean(settings.muted));
+            setDisappearingSeconds(Number(settings.disappearing_seconds || 0));
 
             const last = nextMessages[nextMessages.length - 1];
             if (last?.id) {
@@ -570,6 +593,29 @@ function Chat() {
                 }
             },
 
+            conversation_settings_updated: (event) => {
+                if (Number(event?.conversation_id) !== Number(selectedConversationId)) return;
+                setDisappearingSeconds(Number(event?.disappearing_seconds || 0));
+            },
+
+            message_star_updated: (event) => {
+                if (Number(event?.conversation_id) !== Number(selectedConversationId)) return;
+                const updated = event?.message;
+                if (!updated) return;
+                setMessages(previous => previous.map(item =>
+                    Number(item.id) === Number(updated.id) ? { ...item, ...updated } : item
+                ));
+                setStarredMessages(previous => {
+                    const exists = previous.some(item => Number(item.id) === Number(updated.id));
+                    if (Number(updated.is_starred || 0) === 1) {
+                        return exists
+                            ? previous.map(item => Number(item.id) === Number(updated.id) ? updated : item)
+                            : [updated, ...previous];
+                    }
+                    return previous.filter(item => Number(item.id) !== Number(updated.id));
+                });
+            },
+
             incoming_call: (event) => {
                 if (event?.call) {
                     clearTimeout(incomingCallTimeoutRef.current);
@@ -789,14 +835,7 @@ function Chat() {
             if (conversation) {
                 setShowContacts(false);
                 setSearch("");
-                setSelectedConversation(conversation);
-                setSearchParams({
-                    store: String(selectedStoreId),
-                    conversation: String(conversation.id)
-                });
-
-                const messagesResponse = await getChatMessages(conversation.id);
-                setMessages(messagesResponse.data?.messages || []);
+                await openConversation(conversation);
                 await loadConversations(selectedStoreId);
             }
         } catch (err) {
@@ -827,12 +866,7 @@ function Chat() {
             setGroupMembers([]);
 
             if (conversation) {
-                setSelectedConversation(conversation);
-                setSearchParams({
-                    store: String(selectedStoreId),
-                    conversation: String(conversation.id)
-                });
-                setMessages([]);
+                await openConversation(conversation);
                 await loadConversations(selectedStoreId);
             }
         } catch (err) {
@@ -1259,6 +1293,84 @@ function Chat() {
         }
     };
 
+    const loadMedia = async () => {
+        if (!selectedConversationId) return;
+        try {
+            setMediaLoading(true);
+            const response = await getChatMedia(selectedConversationId);
+            setMediaMessages(response.data?.messages || []);
+            setShowMedia(true);
+        } catch (err) {
+            setError(err.response?.data?.message || "Media could not be loaded.");
+        } finally {
+            setMediaLoading(false);
+        }
+    };
+
+    const loadStarred = async () => {
+        if (!selectedConversationId) return;
+        try {
+            setStarredLoading(true);
+            const response = await getChatStarredMessages(selectedConversationId);
+            setStarredMessages(response.data?.messages || []);
+            setShowStarred(true);
+        } catch (err) {
+            setError(err.response?.data?.message || "Starred messages could not be loaded.");
+        } finally {
+            setStarredLoading(false);
+        }
+    };
+
+    const handleStar = async (messageId) => {
+        try {
+            const response = await toggleChatStar(messageId);
+            const updated = response.data?.message;
+            if (!updated) return;
+            setMessages(previous => previous.map(item =>
+                Number(item.id) === Number(updated.id) ? { ...item, ...updated } : item
+            ));
+            setStarredMessages(previous => {
+                const exists = previous.some(item => Number(item.id) === Number(updated.id));
+                return Number(updated.is_starred || 0) === 1
+                    ? (exists ? previous.map(item => Number(item.id) === Number(updated.id) ? updated : item) : [updated, ...previous])
+                    : previous.filter(item => Number(item.id) !== Number(updated.id));
+            });
+        } catch (err) {
+            setError(err.response?.data?.message || "Message could not be starred.");
+        }
+    };
+
+    const updateSettings = async (changes) => {
+        if (!selectedConversationId) return;
+        try {
+            const response = await updateChatConversationSettings(selectedConversationId, changes);
+            const settings = response.data?.settings || {};
+            setMuted(Boolean(settings.muted));
+            setDisappearingSeconds(Number(settings.disappearing_seconds || 0));
+        } catch (err) {
+            setError(err.response?.data?.message || "Chat settings could not be updated.");
+        }
+    };
+
+    const disappearingLabel = {
+        0: "Off",
+        86400: "24 hours",
+        604800: "7 days",
+        7776000: "90 days"
+    }[disappearingSeconds] || "Off";
+
+    const visibleMessages = useMemo(() => {
+        const term = messageSearch.trim().toLowerCase();
+        if (!term) return messages;
+        return messages.filter(item =>
+            [item.message_text, item.sender_name, item.attachment_name]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(term)
+        );
+    }, [messages, messageSearch]);
+
     const insertEmoji = (emoji) => {
         setMessage(previous => `${previous}${emoji}`);
         setShowEmojiPicker(false);
@@ -1591,35 +1703,67 @@ function Chat() {
                                 </div>
 
                                 <div className="chat-call-actions">
+                                    {showMessageSearch && (
+                                        <div className="chat-inline-search">
+                                            <FaSearch />
+                                            <input
+                                                autoFocus
+                                                value={messageSearch}
+                                                onChange={event => setMessageSearch(event.target.value)}
+                                                placeholder="Search messages"
+                                            />
+                                            <button onClick={() => {
+                                                setShowMessageSearch(false);
+                                                setMessageSearch("");
+                                            }}><FaTimes /></button>
+                                        </div>
+                                    )}
                                     <button
-                                        title="Search in chat"
-                                        onClick={() => setSearch(conversationTitle)}
+                                        title="Search messages"
+                                        className={showMessageSearch ? "active" : ""}
+                                        onClick={() => setShowMessageSearch(true)}
                                     >
                                         <FaSearch />
                                     </button>
                                     {selectedOtherMember && canAdd && (
                                         <>
-                                            <button
-                                                title="Voice call"
-                                                onClick={() => startCall("audio")}
-                                            >
-                                                <FaPhone />
-                                            </button>
-
-                                            <button
-                                                title="Video call"
-                                                onClick={() => startCall("video")}
-                                            >
-                                                <FaVideo />
-                                            </button>
+                                            <button title="Voice call" onClick={() => startCall("audio")}><FaPhone /></button>
+                                            <button title="Video call" onClick={() => startCall("video")}><FaVideo /></button>
                                         </>
                                     )}
                                     <button
-                                        title="Chat details"
-                                        onClick={() => setShowChatDetails(previous => !previous)}
+                                        title="Contact info"
+                                        className={showChatDetails ? "active" : ""}
+                                        onClick={() => {
+                                            setShowChatMenu(false);
+                                            setShowChatDetails(previous => !previous);
+                                        }}
                                     >
                                         <FaInfoCircle />
                                     </button>
+                                    <button
+                                        title="More"
+                                        className={showChatMenu ? "active" : ""}
+                                        onClick={() => setShowChatMenu(previous => !previous)}
+                                    >
+                                        <FaEllipsisV />
+                                    </button>
+                                    {showChatMenu && (
+                                        <div className="chat-header-menu">
+                                            <button onClick={() => { setShowChatMenu(false); loadMedia(); }}>
+                                                <FaImage /> Media, links & docs
+                                            </button>
+                                            <button onClick={() => { setShowChatMenu(false); loadStarred(); }}>
+                                                <FaStar /> Starred messages
+                                            </button>
+                                            <button onClick={() => { setShowChatMenu(false); handleClearConversation(); }}>
+                                                <FaTrash /> Clear chat
+                                            </button>
+                                            <button className="danger" onClick={() => { setShowChatMenu(false); setDeleteChatTarget(selectedConversation); }}>
+                                                <FaTrash /> Delete chat
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </header>
 
@@ -1628,8 +1772,8 @@ function Chat() {
                                     <div className="chat-message-loading">
                                         Loading messages…
                                     </div>
-                                ) : messages.length ? (
-                                    messages.map(item => {
+                                ) : visibleMessages.length ? (
+                                    visibleMessages.map(item => {
                                         const mine =
                                             Number(item.sender_id) ===
                                             Number(currentUser.id);
@@ -1637,6 +1781,7 @@ function Chat() {
                                         return (
                                             <div
                                                 key={item.id}
+                                                data-message-id={item.id}
                                                 className={`chat-message-row ${
                                                     mine ? "mine" : "theirs"
                                                 }`}
@@ -1757,6 +1902,16 @@ function Chat() {
                                                         >
                                                             <FaReply />
                                                         </button>
+
+                                                        {item.message_type !== "deleted" && (
+                                                            <button
+                                                                className={Number(item.is_starred || 0) === 1 ? "starred" : ""}
+                                                                onClick={() => handleStar(item.id)}
+                                                                title={Number(item.is_starred || 0) === 1 ? "Unstar" : "Star"}
+                                                            >
+                                                                <FaStar />
+                                                            </button>
+                                                        )}
 
                                                         {mine && item.message_type !== "deleted" && canEdit && (
                                                             <button
@@ -1978,21 +2133,21 @@ function Chat() {
                             <p>Work together, share updates and stay connected.</p>
                         </div>
 
-                        <div className="chat-details-item">
+                        <button className="chat-details-item chat-details-button" onClick={loadMedia}>
                             <div>
                                 <FaImage />
                                 <span>Media, Links & Docs</span>
                             </div>
                             <strong>{messages.filter(item => ["image", "video", "audio", "file"].includes(item.message_type)).length}</strong>
-                        </div>
+                        </button>
 
-                        <div className="chat-details-item">
+                        <button className="chat-details-item chat-details-button" onClick={loadStarred}>
                             <div>
                                 <FaStar />
                                 <span>Starred Messages</span>
                             </div>
-                            <strong>0</strong>
-                        </div>
+                            <strong>{messages.filter(item => Number(item.is_starred || 0) === 1).length}</strong>
+                        </button>
 
                         <div className="chat-details-item">
                             <div>
@@ -2001,18 +2156,21 @@ function Chat() {
                             </div>
                             <button
                                 className={`chat-toggle ${muted ? "on" : ""}`}
-                                onClick={() => setMuted(previous => !previous)}
+                                onClick={() => updateSettings({ muted: !muted })}
                                 aria-label="Toggle mute notifications"
                             ><span /></button>
                         </div>
 
-                        <div className="chat-details-item static">
+                        <button
+                            className="chat-details-item chat-details-button"
+                            onClick={() => setShowDisappearing(true)}
+                        >
                             <div>
                                 <FaFileAlt />
                                 <span>Disappearing Messages</span>
                             </div>
-                            <strong>Off</strong>
-                        </div>
+                            <strong>{disappearingLabel}</strong>
+                        </button>
 
                         <div className="chat-details-actions">
                             <button onClick={handleClearConversation}>
@@ -2025,6 +2183,126 @@ function Chat() {
                     </aside>
                 )}
             </div>
+
+            {showDisappearing && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setShowDisappearing(false)}>
+                    <div className="chat-modal disappearing-modal" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <div>
+                                <h2>Disappearing messages</h2>
+                                <p>New messages will automatically expire after the selected time.</p>
+                            </div>
+                            <button onClick={() => setShowDisappearing(false)}><FaTimes /></button>
+                        </header>
+                        <div className="chat-disappearing-options">
+                            {[
+                                [0, "Off", "Messages stay in the chat"],
+                                [86400, "24 hours", "New messages disappear after 24 hours"],
+                                [604800, "7 days", "New messages disappear after 7 days"],
+                                [7776000, "90 days", "New messages disappear after 90 days"]
+                            ].map(([seconds, title, description]) => (
+                                <button
+                                    key={seconds}
+                                    className={Number(disappearingSeconds) === Number(seconds) ? "selected" : ""}
+                                    onClick={async () => {
+                                        await updateSettings({ disappearing_seconds: seconds });
+                                        setShowDisappearing(false);
+                                    }}
+                                >
+                                    <span>
+                                        <strong>{title}</strong>
+                                        <small>{description}</small>
+                                    </span>
+                                    <i>{Number(disappearingSeconds) === Number(seconds) ? "✓" : ""}</i>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showMedia && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setShowMedia(false)}>
+                    <div className="chat-modal chat-media-modal" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <div>
+                                <h2>Media, Links & Docs</h2>
+                                <p>{mediaMessages.length} shared items in this conversation</p>
+                            </div>
+                            <button onClick={() => setShowMedia(false)}><FaTimes /></button>
+                        </header>
+                        <div className="chat-media-grid">
+                            {mediaLoading ? (
+                                <div className="chat-modal-empty">Loading shared media…</div>
+                            ) : mediaMessages.length ? (
+                                mediaMessages.map(item => (
+                                    <a
+                                        key={item.id}
+                                        href={item.attachment_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={`chat-media-card ${item.message_type}`}
+                                    >
+                                        {item.message_type === "image" ? (
+                                            <img src={item.attachment_url} alt={item.attachment_name || "Shared image"} />
+                                        ) : item.message_type === "video" ? (
+                                            <video src={item.attachment_url} muted />
+                                        ) : (
+                                            <div className="chat-media-file">
+                                                {item.message_type === "audio" ? "🎵" : "📎"}
+                                            </div>
+                                        )}
+                                        <span>{item.attachment_name || item.message_type}</span>
+                                    </a>
+                                ))
+                            ) : (
+                                <div className="chat-modal-empty">No media or documents shared yet.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showStarred && (
+                <div className="chat-modal-backdrop" onMouseDown={() => setShowStarred(false)}>
+                    <div className="chat-modal starred-modal" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <div>
+                                <h2>Starred Messages</h2>
+                                <p>Messages you saved for quick access.</p>
+                            </div>
+                            <button onClick={() => setShowStarred(false)}><FaTimes /></button>
+                        </header>
+                        <div className="chat-starred-list">
+                            {starredLoading ? (
+                                <div className="chat-modal-empty">Loading starred messages…</div>
+                            ) : starredMessages.length ? (
+                                starredMessages.map(item => (
+                                    <button
+                                        key={item.id}
+                                        className="chat-starred-item"
+                                        onClick={() => {
+                                            setShowStarred(false);
+                                            setMessageSearch("");
+                                            const target = document.querySelector(`[data-message-id="${item.id}"]`);
+                                            target?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        }}
+                                    >
+                                        <FaStar />
+                                        <span>
+                                            <strong>{item.sender_name}</strong>
+                                            <small>{item.message_text || item.attachment_name || "Attachment"}</small>
+                                        </span>
+                                        <time>{formatTime(item.created_at)}</time>
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="chat-modal-empty">No starred messages yet.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {deleteMessageTarget && (
                 <div className="chat-modal-backdrop" onMouseDown={() => setDeleteMessageTarget(null)}>

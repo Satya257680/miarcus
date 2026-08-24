@@ -90,6 +90,21 @@ export const deleteChatConversation = (conversationId, scope = "me") =>
 export const clearChatConversation = (conversationId) =>
     axios.post(`${API}/conversations/${conversationId}/clear`, {}, authConfig());
 
+export const getChatConversationSettings = (conversationId) =>
+    axios.get(`${API}/conversations/${conversationId}/settings`, authConfig());
+
+export const updateChatConversationSettings = (conversationId, payload) =>
+    axios.put(`${API}/conversations/${conversationId}/settings`, payload, authConfig());
+
+export const toggleChatStar = (messageId) =>
+    axios.post(`${API}/messages/${messageId}/star`, {}, authConfig());
+
+export const getChatStarredMessages = (conversationId) =>
+    axios.get(`${API}/conversations/${conversationId}/starred`, authConfig());
+
+export const getChatMedia = (conversationId) =>
+    axios.get(`${API}/conversations/${conversationId}/media`, authConfig());
+
 export const reactToChatMessage = (messageId, reaction) =>
     axios.post(`${API}/messages/${messageId}/reactions`, { reaction }, authConfig());
 
@@ -158,6 +173,8 @@ export const openChatEventStream = (handlers = {}) => {
         "conversation",
         "conversation_deleted",
         "conversation_cleared",
+        "conversation_settings_updated",
+        "message_star_updated",
         "incoming_call",
         "call_signal",
         "call_status",
