@@ -1453,47 +1453,62 @@ function Chat() {
                 </div>
 
                 <div className="chat-header-actions">
-                    {admin && (
-                        <button
-                            className="chat-header-button"
-                            onClick={loadAdminPanel}
-                        >
-                            <FaUserShield />
-                            Store managers
-                        </button>
-                    )}
-
                     {canAdd && (
                         <button
-                            className="chat-header-button"
+                            className="chat-start-conversation-button"
                             onClick={() => setShowContacts(true)}
                         >
                             <FaUserPlus />
-                            New chat
+                            Start a conversation
                         </button>
                     )}
 
-                    {canAdd && (
-                        <button
-                            className="chat-header-button primary"
-                            onClick={() => setShowGroup(true)}
-                            disabled={!selectedStoreId}
-                        >
-                        <FaUsers />
-                            New group
-                        </button>
-                    )}
+                    <div className="chat-header-action-row">
+                        {admin && (
+                            <button
+                                className="chat-header-button"
+                                onClick={loadAdminPanel}
+                                title="Store managers"
+                            >
+                                <FaUserShield />
+                                Store managers
+                            </button>
+                        )}
 
-                    {chatRank >= 1 && (
-                        <button
-                            className="chat-header-button"
-                            onClick={loadCallHistory}
-                            title="Call history"
-                        >
-                            <FaHistory />
-                            Call history
-                        </button>
-                    )}
+                        {canAdd && (
+                            <button
+                                className="chat-header-button"
+                                onClick={() => setShowContacts(true)}
+                                title="New chat"
+                            >
+                                <FaUserPlus />
+                                New chat
+                            </button>
+                        )}
+
+                        {canAdd && (
+                            <button
+                                className="chat-header-button primary"
+                                onClick={() => setShowGroup(true)}
+                                disabled={!selectedStoreId}
+                                title="New group"
+                            >
+                                <FaUsers />
+                                New group
+                            </button>
+                        )}
+
+                        {chatRank >= 1 && (
+                            <button
+                                className="chat-header-button"
+                                onClick={loadCallHistory}
+                                title="Call history"
+                            >
+                                <FaHistory />
+                                Call history
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -1657,25 +1672,7 @@ function Chat() {
 
                 <main className="chat-main">
                     {!selectedConversation ? (
-                        <div className="chat-welcome">
-                            <div className="chat-welcome-icon">
-                                <FaComments />
-                            </div>
-                            <h2>Your team, in one place</h2>
-                            <p>
-                                Choose someone from your store or create a group.
-                                Admins can communicate across every store.
-                            </p>
-                            {canAdd && (
-                                <button
-                                    className="chat-primary-button"
-                                    onClick={() => setShowContacts(true)}
-                                >
-                                    <FaUserPlus />
-                                    Start a conversation
-                                </button>
-                            )}
-                        </div>
+                        <div className="chat-empty-main" aria-hidden="true" />
                     ) : (
                         <>
                             <header className="chat-conversation-header">
