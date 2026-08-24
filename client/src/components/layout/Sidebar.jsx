@@ -543,7 +543,7 @@ function Sidebar({ collapsed }) {
                     EMPLOYEE LOCATION
                 ================================================== */}
 
-                {hasPermission("Employee Location") && (
+                {isAdministrator && hasPermission("Employee Location") && (
                     <NavLink
                         to="/employee-location"
                         className={getMenuClass}
