@@ -3,7 +3,7 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM, FILE_TOKEN_TTL } = require("../config/security");
 const db = require("../config/db");
-const { safeRelativePath } = require("../utils/pathSecurity");
+const { safeFilename, safeRelativePath } = require("../utils/pathSecurity");
 
 const uploadRoot = path.resolve(path.join(__dirname, "..", "uploads"));
 
