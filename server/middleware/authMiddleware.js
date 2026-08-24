@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
-const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
+const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require("../config/security");
 
 // ======================================================
 // VERIFY JWT
@@ -45,7 +45,7 @@ const authMiddleware = (req, res, next) => {
         const decoded = jwt.verify(
             token,
             JWT_SECRET,
-            { algorithms: [JWT_ALGORITHM] }
+            { algorithms: [JWT_ALGORITHM], issuer: JWT_ISSUER, audience: JWT_AUDIENCE }
         );
 
         // ======================================================
@@ -54,7 +54,7 @@ const authMiddleware = (req, res, next) => {
 
         db.query(
 
-            "SELECT name, status, is_activated, is_admin FROM users WHERE id = ? LIMIT 1",
+            "SELECT name, status, is_activated, is_admin, COALESCE(token_version, 0) AS token_version FROM users WHERE id = ? LIMIT 1",
 
             [decoded.id],
 
@@ -105,10 +105,19 @@ miarcus Team`
 
                 }
 
+                const currentTokenVersion = Number(result[0].token_version || 0);
+                if (Number(decoded.tokenVersion || 0) !== currentTokenVersion) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Session revoked. Please login again."
+                    });
+                }
+
                 req.user = {
                     ...decoded,
-                    id: result[0].id || decoded.id,
+                    id: decoded.id,
                     is_admin: Number(result[0].is_admin) === 1,
+                    tokenVersion: currentTokenVersion,
                 };
 
                 next();

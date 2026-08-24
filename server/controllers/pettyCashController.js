@@ -5,7 +5,7 @@ const { sendGenericEmail } = require("../services/emailService");
 function actorId(req) { return Number(req.user?.id || req.user?.user_id || 0); }
 function isAdmin(req) {
     const u = req.user || {};
-    return u.is_admin === true || u.is_admin === 1 || u.is_admin === "1" || u.administrator === true || u.administrator === 1 || u.administrator === "1";
+    return Number(u?.is_admin) === 1;
 }
 function number(value, fallback=0) { const n=Number(value); return Number.isFinite(n)?n:fallback; }
 function clean(value) { return value===undefined || value===null ? "" : String(value).trim(); }

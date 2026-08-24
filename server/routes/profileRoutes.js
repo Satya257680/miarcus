@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
+const { incrementTokenVersion } = require("../models/securityModel");
 const multer = require("multer");
 
 const router = express.Router();
@@ -606,13 +607,11 @@ router.put(
                 });
             }
 
-            if (
-                newPassword.length < 8
-            ) {
+            const passwordError = validatePassword(newPassword);
+            if (passwordError) {
                 return res.status(400).json({
                     success: false,
-                    message:
-                        "New password must contain at least 8 characters.",
+                    message: passwordError,
                 });
             }
 
@@ -706,6 +705,8 @@ router.put(
                     userId,
                 ]
             );
+
+            await incrementTokenVersion(userId);
 
             return res.status(200).json({
                 success: true,

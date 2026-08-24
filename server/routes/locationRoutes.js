@@ -5,8 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const controller = require("../controllers/locationController");
 const adminOnlyLocation = (req, res, next) => {
-    const isAdmin = req.user?.is_admin === true || req.user?.is_admin === 1 || req.user?.is_admin === "1" ||
-        req.user?.administrator === true || req.user?.administrator === 1 || req.user?.administrator === "1";
+    const isAdmin = Number(req.user?.is_admin) === 1;
     if (!isAdmin) return res.status(403).json({ success: false, message: "Employee Location is restricted to administrators." });
     next();
 };

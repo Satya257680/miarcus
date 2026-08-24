@@ -13,11 +13,14 @@ const {
     generateResetJti,
     normalizeEmail,
     validatePassword,
+    JWT_ISSUER,
+    JWT_AUDIENCE,
 } = require("../config/security");
 const {
     sendForgotPasswordOTPEmail,
     sendResetPasswordEmail
 } = require("../services/emailService");
+const { incrementTokenVersion } = require("../models/securityModel");
 
 // ======================================================
 // SECURITY HELPERS
@@ -54,7 +57,8 @@ const loginUser = (req, res) => {
         designation_id,
         is_admin,
         status,
-        is_activated
+        is_activated,
+        COALESCE(token_version, 0) AS token_version
     FROM users
     WHERE email=?
     LIMIT 1
@@ -185,7 +189,8 @@ const token = jwt.sign(
 
         email: user.email,
 
-        is_admin: user.is_admin
+        is_admin: user.is_admin,
+        tokenVersion: Number(user.token_version || 0)
 
     },
 
@@ -193,6 +198,8 @@ const token = jwt.sign(
 
     {
         algorithm: JWT_ALGORITHM,
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
         expiresIn: ACCESS_TOKEN_TTL,
     }
 
@@ -517,6 +524,8 @@ const verifyOTP = (req, res) => {
                         JWT_SECRET,
                         {
                             algorithm: JWT_ALGORITHM,
+                            issuer: JWT_ISSUER,
+                            audience: JWT_AUDIENCE,
                             expiresIn: RESET_TOKEN_TTL,
                         }
                     );
@@ -562,6 +571,8 @@ const resetPassword = async (req, res) => {
     try {
         resetClaims = jwt.verify(resetToken, JWT_SECRET, {
             algorithms: [JWT_ALGORITHM],
+            issuer: JWT_ISSUER,
+            audience: JWT_AUDIENCE,
         });
     } catch {
         return res.status(400).json({
@@ -664,6 +675,8 @@ const resetPassword = async (req, res) => {
                             });
 
                         }
+
+                        await incrementTokenVersion(result[0].id);
 
                         // ======================================
                         // Delete OTP

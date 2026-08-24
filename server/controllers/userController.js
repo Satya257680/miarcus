@@ -21,6 +21,7 @@ const {
 } = require("../utils/emailTemplates/emailQueue");
 
 const { getAppUrl } = require("../config/appUrl");
+const db = require("../config/db");
 
 // ==========================================================
 // EMAIL DELIVERY HELPER
@@ -176,11 +177,13 @@ const isAdministrator = (
 // ==========================================================
 
 const prepareUserPayload = (
-    body = {}
+    body = {},
+    actorIsAdministrator = false
 ) => {
 
-    const administrator =
-        isAdministrator(body);
+    // A normal Users editor must never be able to self-promote or promote
+    // another account to administrator by posting is_admin/administrator.
+    const administrator = actorIsAdministrator && isAdministrator(body);
 
     return {
 
@@ -208,6 +211,14 @@ const prepareUserPayload = (
     };
 };
 
+const sanitizeUserSecurityFields = (body, actorIsAdministrator) => {
+    const clean = { ...body };
+    if (!actorIsAdministrator) {
+        delete clean.is_admin;
+        delete clean.administrator;
+    }
+    return clean;
+};
 
 // ==========================================================
 // GET ALL USERS
@@ -262,10 +273,11 @@ const createUser = (
     // Normalize user payload
     // ------------------------------------------------------
 
-    const user =
-        prepareUserPayload(
-            req.body
-        );
+    const actorIsAdministrator = Number(req.user?.is_admin) === 1;
+    const user = prepareUserPayload(
+        sanitizeUserSecurityFields(req.body, actorIsAdministrator),
+        actorIsAdministrator
+    );
 
 
     // ------------------------------------------------------
@@ -1244,10 +1256,11 @@ const updateUser = (
     // Normalize permissions before updating.
     // ------------------------------------------------------
 
-    const user =
-        prepareUserPayload(
-            req.body
-        );
+    const actorIsAdministrator = Number(req.user?.is_admin) === 1;
+    const user = prepareUserPayload(
+        sanitizeUserSecurityFields(req.body, actorIsAdministrator),
+        actorIsAdministrator
+    );
 
 
     User.updateUser(

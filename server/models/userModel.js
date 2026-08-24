@@ -119,8 +119,6 @@ const getAllUsers = (
 
             u.whatsapp_contact,
 
-            u.password,
-
             u.profile_photo,
 
             u.reports_to,

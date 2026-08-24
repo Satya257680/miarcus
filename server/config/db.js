@@ -48,18 +48,12 @@ const CA_CERT_PATH = path.resolve(
 let caCertificate = null;
 
 if (fs.existsSync(CA_CERT_PATH)) {
-    caCertificate = fs.readFileSync(
-        CA_CERT_PATH,
-        "utf8"
-    );
-
-    console.log("🔐 Aiven CA certificate loaded:");
-    console.log(CA_CERT_PATH);
+    caCertificate = fs.readFileSync(CA_CERT_PATH, "utf8");
+    console.log("🔐 Aiven CA certificate loaded:", CA_CERT_PATH);
+} else if (String(process.env.NODE_ENV || "development").toLowerCase() === "production") {
+    throw new Error(`FATAL: Aiven CA certificate is required in production: ${CA_CERT_PATH}`);
 } else {
-    console.warn("");
-    console.warn("⚠️ Aiven CA certificate NOT FOUND");
-    console.warn(CA_CERT_PATH);
-    console.warn("");
+    console.warn("⚠️ Aiven CA certificate NOT FOUND; local development only.");
 }
 
 // ============================================================
@@ -102,32 +96,17 @@ const dbConfig = {
     connectTimeout: 30000,
 
     // --------------------------------------------------------
-    // FORCE IPv4
-    // --------------------------------------------------------
-
-    family: 4,
-
-    // --------------------------------------------------------
     // SSL / TLS
     // --------------------------------------------------------
 
-    ssl: caCertificate
-        ? {
-              ca: caCertificate,
+    multipleStatements: false,
 
-              rejectUnauthorized: true,
-
-              minVersion: "TLSv1.2",
-
-              servername: DB_HOST
-          }
-        : {
-              rejectUnauthorized: false,
-
-              minVersion: "TLSv1.2",
-
-              servername: DB_HOST
-          }
+    ssl: {
+        ...(caCertificate ? { ca: caCertificate } : {}),
+        rejectUnauthorized: Boolean(caCertificate),
+        minVersion: "TLSv1.2",
+        servername: DB_HOST
+    }
 };
 
 // ============================================================

@@ -8,6 +8,14 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const securityHeaders = require("./middleware/securityHeaders");
+const { requestId, originGuard, contentTypeGuard } = require("./middleware/requestSecurity");
+const securityAudit = require("./middleware/securityAudit");
+const { apiLimiter, writeLimiter } = require("./middleware/apiRateLimit");
+const adminOnly = require("./middleware/adminOnly");
+const authMiddleware = require("./middleware/authMiddleware");
+const { sendPrivateFile } = require("./middleware/privateFileAccess");
+const SecurityModel = require("./models/securityModel");
 
 // ======================================================
 // UPLOAD CONFIGURATION
@@ -22,6 +30,10 @@ process.env.MAX_UPLOAD_SIZE =
 // ======================================================
 
 const app = express();
+
+app.disable("x-powered-by");
+app.use(requestId);
+app.use(securityHeaders);
 
 // Render sits behind a trusted reverse proxy. This keeps req.ip accurate
 // for authentication rate limiting without trusting arbitrary client headers.
@@ -485,13 +497,24 @@ async function initializeDatabase() {
 
 }
 
+SecurityModel.ensureSecuritySchema()
+    .then(() => console.log("✅ Security schema verified"))
+    .catch((error) => console.error("❌ Security schema initialization failed:", error.message));
+
 initializeDatabase();
 
 // ======================================================
 // CORS CONFIGURATION
 // ======================================================
 
+const configuredAllowedOrigins = String(process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
 const allowedOrigins = [
+
+    ...configuredAllowedOrigins,
 
     // Local Vite
     "http://localhost:5173",
@@ -683,6 +706,16 @@ app.use(
 );
 
 // ======================================================
+// API SECURITY CONTROLS
+// ======================================================
+
+app.use("/api", originGuard);
+app.use("/api", contentTypeGuard);
+app.use("/api", apiLimiter);
+app.use("/api", writeLimiter);
+app.use("/api", securityAudit);
+
+// ======================================================
 // BODY PARSER
 // ======================================================
 
@@ -757,61 +790,30 @@ if (
 }
 
 // ======================================================
-// SERVE UPLOADED FILES
+// UPLOAD ACCESS
 // ======================================================
+// Public directory serving is disabled in production by default.
+// Existing direct URLs can continue to work locally while the frontend
+// migrates to authenticated /api/files/:filename access.
 
-app.use(
+const allowPublicUploads = String(
+    process.env.ALLOW_PUBLIC_UPLOADS || (process.env.NODE_ENV === "production" ? "false" : "true")
+).toLowerCase() === "true";
 
-    "/uploads",
+if (allowPublicUploads) {
+    app.use("/uploads", express.static(uploadFolder, { fallthrough: true, index: false, dotfiles: "deny", redirect: false }));
+    app.use("/undefineduploads", express.static(uploadFolder, { fallthrough: true, index: false, dotfiles: "deny", redirect: false }));
+    console.warn("⚠️ PUBLIC UPLOAD ACCESS IS ENABLED. Set ALLOW_PUBLIC_UPLOADS=false for production security.");
+} else {
+    app.get("/uploads/:filename", (req, res) => sendPrivateFile(req, res));
+    app.get("/undefineduploads/:filename", (req, res) => sendPrivateFile(req, res));
+    console.log("🔒 Public upload access disabled; private file endpoint is active.");
+}
 
-    express.static(
+app.get("/api/files", sendPrivateFile);
+app.get("/api/files/:filename", sendPrivateFile);
 
-        uploadFolder,
-
-        {
-
-            fallthrough: true,
-
-            index: false
-
-        }
-
-    )
-
-);
-
-console.log(
-    "📂 Upload Path:",
-    uploadFolder
-);
-
-// ======================================================
-// BACKWARD COMPATIBILITY
-// ======================================================
-
-app.use(
-
-    "/undefineduploads",
-
-    express.static(
-
-        uploadFolder,
-
-        {
-
-            fallthrough: true,
-
-            index: false
-
-        }
-
-    )
-
-);
-
-console.log(
-    "📂 Legacy Upload URL Enabled: /undefineduploads"
-);
+console.log("📂 Upload Path:", uploadFolder);
 
 // ======================================================
 // PUBLIC IMAGES
@@ -898,9 +900,7 @@ app.get(
             message:
                 "🚀 Miarcus Backend Running",
 
-            environment:
-                process.env.NODE_ENV ||
-                "development"
+            requestId: req.requestId
 
         });
 
@@ -942,6 +942,10 @@ app.get(
 app.get(
 
     "/api/upload-test",
+
+    authMiddleware,
+
+    adminOnly,
 
     (req, res) => {
 
@@ -1651,6 +1655,10 @@ app.get(
 
     "/api/test",
 
+    authMiddleware,
+
+    adminOnly,
+
     (req, res) => {
 
         res.json({
@@ -1673,6 +1681,10 @@ app.get(
 app.get(
 
     "/api/routes/status",
+
+    authMiddleware,
+
+    adminOnly,
 
     (req, res) => {
 
@@ -1925,8 +1937,7 @@ app.use(
                 message:
                     "API Route Not Found",
 
-                path:
-                    req.originalUrl
+                requestId: req.requestId
 
             });
 
@@ -1956,13 +1967,11 @@ app.use(
                 success: false,
 
                 message:
+                    err?.type === "entity.too.large" || err?.status === 413
+                        ? "Request body is too large."
+                        : "Internal Server Error",
 
-                    err &&
-                    err.message
-
-                        ? err.message
-
-                        : "Internal Server Error"
+                requestId: req.requestId
 
             });
 
@@ -2054,6 +2063,7 @@ const httpServer = app.listen(
 
 );
 
-// Keep long-lived SSE connections alive.
-httpServer.keepAliveTimeout = 0;
-httpServer.headersTimeout = 0;
+// Reasonable HTTP parser timeouts reduce slow-header/slowloris exposure.
+httpServer.keepAliveTimeout = 5000;
+httpServer.headersTimeout = 65000;
+httpServer.requestTimeout = 120000;

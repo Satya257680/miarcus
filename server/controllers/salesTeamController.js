@@ -11,13 +11,7 @@ const { sendGenericEmail } = require("../services/emailService");
    HELPERS
 ========================================================= */
 
-const isAdmin = (user) =>
-  user?.is_admin === true ||
-  user?.is_admin === 1 ||
-  user?.is_admin === "1" ||
-  user?.administrator === true ||
-  user?.administrator === 1 ||
-  user?.administrator === "1";
+const isAdmin = (user) => Number(user?.is_admin) === 1;
 
 /* =========================================================
    CSV RESPONSE

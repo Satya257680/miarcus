@@ -9,7 +9,10 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 }
 
 const JWT_ALGORITHM = "HS256";
+const JWT_ISSUER = String(process.env.JWT_ISSUER || "miarcus-api").trim();
+const JWT_AUDIENCE = String(process.env.JWT_AUDIENCE || "miarcus-client").trim();
 const ACCESS_TOKEN_TTL = "30m";
+const FILE_TOKEN_TTL = "10m";
 const RESET_TOKEN_TTL = "10m";
 const BCRYPT_ROUNDS = 12;
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -64,7 +67,10 @@ function validatePassword(password) {
 module.exports = {
     JWT_SECRET,
     JWT_ALGORITHM,
+    JWT_ISSUER,
+    JWT_AUDIENCE,
     ACCESS_TOKEN_TTL,
+    FILE_TOKEN_TTL,
     RESET_TOKEN_TTL,
     BCRYPT_ROUNDS,
     OTP_TTL_MS,

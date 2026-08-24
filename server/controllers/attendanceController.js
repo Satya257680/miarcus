@@ -8,8 +8,7 @@ const Attendance = require("../models/attendanceModel");
 // ======================================================
 
 const isAdmin = (req) =>
-    [true, 1, "1"].includes(req.user?.is_admin) ||
-    [true, 1, "1"].includes(req.user?.administrator);
+    Number(req.user?.is_admin) === 1;
 
 // ======================================================
 // DATE VALIDATION

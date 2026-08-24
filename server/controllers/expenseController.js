@@ -100,9 +100,7 @@ async function getExpenseAccess(req) {
         user?.is_admin === true ||
         user?.is_admin === 1 ||
         String(user?.is_admin || "") === "1" ||
-        req.user?.administrator === true ||
-        req.user?.administrator === 1 ||
-        String(req.user?.administrator || "") === "1";
+        Number(req.user?.is_admin) === 1;
 
     const permissions = Array.isArray(permissionRows)
         ? permissionRows.map((row) =>

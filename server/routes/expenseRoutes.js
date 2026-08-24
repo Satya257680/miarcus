@@ -18,6 +18,12 @@ const authMiddleware = require(
     "../middleware/authMiddleware"
 );
 
+const {
+    scopeExpenseList,
+    scopeExpenseRecord,
+    requireExpensePermission,
+} = require("../middleware/expenseAccessMiddleware");
+
 // ======================================================
 // MULTER / UPLOAD
 // ======================================================
@@ -55,6 +61,7 @@ router.post(
 router.get(
     "/",
     authMiddleware,
+    scopeExpenseList,
     expenseController.getExpenses
 );
 
@@ -83,6 +90,7 @@ router.get(
 router.delete(
     "/delete-all",
     authMiddleware,
+    requireExpensePermission("Full"),
     expenseController.deleteAllExpenses
 );
 
@@ -94,6 +102,7 @@ router.delete(
 router.get(
     "/:id",
     authMiddleware,
+    scopeExpenseRecord,
     expenseController.getExpenseById
 );
 
@@ -107,6 +116,7 @@ router.get(
 router.patch(
     "/:id/review",
     authMiddleware,
+    requireExpensePermission("Edit"),
     expenseController.reviewExpense
 );
 
@@ -121,6 +131,7 @@ router.patch(
 router.put(
     "/:id/review",
     authMiddleware,
+    requireExpensePermission("Edit"),
     expenseController.reviewExpense
 );
 
@@ -132,6 +143,8 @@ router.put(
 router.delete(
     "/:id",
     authMiddleware,
+    requireExpensePermission("Full"),
+    scopeExpenseRecord,
     expenseController.deleteExpense
 );
 

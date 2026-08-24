@@ -36,13 +36,10 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
         // user_permissions database lookup.
         // ======================================================
 
-        const isAdministrator =
-            req.user.is_admin === true ||
-            req.user.is_admin === 1 ||
-            req.user.is_admin === "1" ||
-            req.user.administrator === true ||
-            req.user.administrator === 1 ||
-            req.user.administrator === "1";
+        // Authorization must use the current database-backed is_admin value
+        // populated by authMiddleware. Never trust legacy administrator claims
+        // copied from the JWT payload.
+        const isAdministrator = Number(req.user.is_admin) === 1;
 
         if (isAdministrator) {
 

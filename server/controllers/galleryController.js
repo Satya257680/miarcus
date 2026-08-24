@@ -304,7 +304,7 @@ const deletePhoto = async (req, res) => {
         const photo = await Gallery.getById(id);
         if (!photo) return res.status(404).json({ success: false, message: "Photo not found" });
 
-        const isAdmin = req.user?.is_admin === true || req.user?.is_admin === 1 || req.user?.administrator === true || req.user?.administrator === 1;
+        const isAdmin = Number(req.user?.is_admin) === 1;
         const isOwner = Number(photo.uploaded_by) === Number(req.user.id);
         if (!isAdmin && !isOwner) {
             return res.status(403).json({ success: false, message: "You can only delete photos you uploaded" });

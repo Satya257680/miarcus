@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const fs = require("fs");
+const path = require("path");
 const mysql = require("mysql2/promise");
 
 async function testAiven() {
@@ -7,30 +9,68 @@ async function testAiven() {
     console.log("       AIVEN MYSQL CONNECTION TEST");
     console.log("========================================");
 
+    const required = [
+        "DB_HOST",
+        "DB_PORT",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD"
+    ];
+
+    const missing = required.filter((key) => !process.env[key]);
+
+    if (missing.length > 0) {
+        console.error(
+            `\n❌ Missing required environment variables: ${missing.join(", ")}`
+        );
+        process.exit(1);
+    }
+
+    const caPath = process.env.DB_SSL_CA_PATH
+        ? path.resolve(process.env.DB_SSL_CA_PATH)
+        : path.resolve(__dirname, "../config/ca.pem");
+
+    if (!fs.existsSync(caPath)) {
+        console.error("\n❌ Aiven CA certificate was not found.");
+        console.error("Expected:", caPath);
+        console.error(
+            "\nDownload the Aiven CA certificate and configure DB_SSL_CA_PATH."
+        );
+        process.exit(1);
+    }
+
     console.log("Host     :", process.env.DB_HOST);
     console.log("Port     :", process.env.DB_PORT);
     console.log("Database :", process.env.DB_NAME);
     console.log("User     :", process.env.DB_USER);
-    console.log("Password :", process.env.DB_PASSWORD ? "********" : "MISSING");
+    console.log("Password :", "********");
+    console.log("TLS CA   :", caPath);
+
+    let connection;
 
     try {
-        const connection = await mysql.createConnection({
+        const ca = fs.readFileSync(caPath);
+
+        connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             port: Number(process.env.DB_PORT),
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME || "defaultdb",
+            database: process.env.DB_NAME,
 
             ssl: {
-                rejectUnauthorized: false
+                ca,
+                rejectUnauthorized: true
             },
 
-            connectTimeout: 30000
+            connectTimeout: 30000,
+
+            multipleStatements: false
         });
 
         console.log("\n✅ AIVEN MYSQL CONNECTED SUCCESSFULLY");
 
-        const [rows] = await connection.query(`
+        const [rows] = await connection.execute(`
             SELECT
                 @@hostname AS hostname,
                 @@port AS port,
@@ -41,28 +81,29 @@ async function testAiven() {
 
         console.table(rows);
 
-        const [databases] = await connection.query(`
-            SHOW DATABASES
-        `);
-
-        console.log("\nAVAILABLE DATABASES:");
-        console.table(databases);
+        console.log("\n========================================");
+        console.log("       TLS VERIFIED SUCCESSFULLY");
+        console.log("========================================");
 
         await connection.end();
 
         console.log("\n✅ CONNECTION TEST COMPLETED");
 
     } catch (error) {
+        console.error("\n❌ AIVEN MYSQL CONNECTION FAILED");
 
-        console.log("\n❌ AIVEN MYSQL CONNECTION FAILED");
+        console.error("Code    :", error.code || "UNKNOWN");
+        console.error("Errno   :", error.errno || "UNKNOWN");
+        console.error("Message :", error.message || "Unknown error");
+        console.error("SQLState:", error.sqlState || "UNKNOWN");
 
-        console.log("Code    :", error.code);
-        console.log("Errno   :", error.errno);
-        console.log("Message :", error.message);
-        console.log("SQLState:", error.sqlState);
-
-        console.log("\nFull error:");
-        console.error(error);
+        if (connection) {
+            try {
+                await connection.end();
+            } catch {
+                // Ignore cleanup errors
+            }
+        }
 
         process.exit(1);
     }

@@ -1,11 +1,14 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Miarcus backend",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/security.test.js",
+    "security:audit": "node test/security-audit.js",
+    "check": "node --check server.js"
   },
   "keywords": [],
   "author": "",
@@ -30,8 +33,5 @@
     "otp-generator": "^4.0.1",
     "resend": "^6.20.0",
     "xlsx": "^0.18.5"
-  },
-  "allowScripts": {
-    "bcrypt@6.0.0": true
   }
 }
