@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const Model = require("../models/chatModel");
 const ChatEvents = require("../services/chatEventService");
 const Notification = require("../services/notificationService");
@@ -607,7 +608,7 @@ exports.stream = async (req, res) => {
 
     let decoded;
     try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || "miarcus_secret_key");
+        decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
     } catch {
         return res.status(401).end();
     }

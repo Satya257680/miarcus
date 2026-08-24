@@ -1,4 +1,12 @@
 const express = require("express");
+const {
+    loginLimiter,
+    loginIpLimiter,
+    passwordResetLimiter,
+    otpVerifyLimiter,
+    signupLimiter,
+    publicSignupGate,
+} = require("../middleware/authRateLimit");
 
 const router = express.Router();
 
@@ -22,6 +30,8 @@ const {
 
 router.post(
     "/login",
+    loginIpLimiter,
+    loginLimiter,
     loginUser
 );
 
@@ -32,6 +42,7 @@ router.post(
 
 router.post(
     "/signup",
+    signupLimiter,
     signupUser
 );
 
@@ -51,6 +62,7 @@ router.post(
 
 router.get(
     "/signup-data",
+    publicSignupGate,
     getSignupData
 );
 
@@ -61,6 +73,7 @@ router.get(
 
 router.post(
     "/forgot-password",
+    passwordResetLimiter,
     forgotPassword
 );
 
@@ -71,6 +84,7 @@ router.post(
 
 router.post(
     "/verify-otp",
+    otpVerifyLimiter,
     verifyOTP
 );
 
@@ -81,6 +95,7 @@ router.post(
 
 router.post(
     "/reset-password",
+    passwordResetLimiter,
     resetPassword
 );
 

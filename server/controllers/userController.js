@@ -2,6 +2,7 @@ const fs = require("fs");
 const XLSX = require("xlsx");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
 
 const User = require("../models/userModel");
 const { logActivity } = require("../utils/activityLogger");
@@ -1990,10 +1991,19 @@ const activateUserAccount = async (
                     result[0];
 
 
+                const passwordError = validatePassword(password);
+
+                if (passwordError) {
+                    return res.status(400).json({
+                        success: false,
+                        message: passwordError
+                    });
+                }
+
                 const hashedPassword =
                     await bcrypt.hash(
                         password,
-                        10
+                        BCRYPT_ROUNDS
                     );
 
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const multer = require("multer");
 const path = require("path");
 const auth = require("../middleware/authMiddleware");
@@ -54,7 +55,7 @@ const streamAuth = async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "miarcus_secret_key");
+        const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
         if (!decoded?.id) {
             return res.status(401).json({ success: false, message: "Invalid chat event token." });
         }

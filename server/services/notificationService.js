@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const db = require("../config/db");
 
 // ======================================================
@@ -202,7 +203,8 @@ function authenticateStreamToken(token) {
     try {
         return jwt.verify(
             token,
-            process.env.JWT_SECRET || "miarcus_secret_key"
+            JWT_SECRET,
+            { algorithms: [JWT_ALGORITHM] }
         );
     } catch {
         return null;

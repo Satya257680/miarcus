@@ -42,10 +42,13 @@ function VerifyOTP() {
         return;
       }
 
-      // Save the verified reset session before navigating.
-      // ResetPassword uses these values to allow the reset page to open.
-      sessionStorage.setItem("passwordResetEmail", email);
-      sessionStorage.setItem("passwordResetVerified", "true");
+      if (!res.data?.resetToken) {
+        alert("OTP verified, but the password reset authorization was not issued. Please request a new OTP.");
+        return;
+      }
+
+      // Store only the short-lived, server-issued reset authorization.
+      sessionStorage.setItem("passwordResetToken", res.data.resetToken);
 
       alert(res.data.message || "OTP Verified Successfully");
 

@@ -37,7 +37,7 @@ function ForgotPassword() {
 
       if (response.data?.success) {
         // Start a fresh password-reset session for this OTP request.
-        sessionStorage.removeItem("passwordResetVerified");
+        sessionStorage.removeItem("passwordResetToken");
         sessionStorage.setItem("passwordResetEmail", trimmedEmail);
 
         alert(

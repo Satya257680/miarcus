@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const { logActivity } = require("../utils/activityLogger");
 
 // Global audit bridge. Existing controllers that already call logActivity are
@@ -60,7 +61,7 @@ function actorId(req) {
     if (!header.startsWith("Bearer ")) return null;
 
     try {
-        const decoded = jwt.verify(header.slice(7).trim(), process.env.JWT_SECRET);
+        const decoded = jwt.verify(header.slice(7).trim(), JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
         const id = Number(decoded?.id || 0);
         return Number.isInteger(id) && id > 0 ? id : null;
     } catch {

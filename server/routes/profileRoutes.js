@@ -1,5 +1,6 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
+const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
 const multer = require("multer");
 
 const router = express.Router();
@@ -685,7 +686,7 @@ router.put(
             const hashedPassword =
                 await bcrypt.hash(
                     newPassword,
-                    10
+                    BCRYPT_ROUNDS
                 );
 
             // ----------------------------------------------

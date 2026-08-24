@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const notificationService = require("../services/notificationService");
 const db = require("../config/db");
 
@@ -176,7 +177,7 @@ function getActorId(req) {
     if (!token) return 0;
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
         const id = Number(decoded?.id || 0);
         return Number.isInteger(id) && id > 0 ? id : 0;
     } catch {

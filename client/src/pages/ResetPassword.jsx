@@ -12,6 +12,8 @@ function ResetPassword() {
     sessionStorage.getItem("passwordResetEmail") ||
     "";
 
+  const resetToken = sessionStorage.getItem("passwordResetToken") || "";
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,17 +21,15 @@ function ResetPassword() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const verified = sessionStorage.getItem("passwordResetVerified");
-
-    if (!email || verified !== "true") {
+    if (!email || !resetToken) {
       sessionStorage.removeItem("passwordResetEmail");
-      sessionStorage.removeItem("passwordResetVerified");
+      sessionStorage.removeItem("passwordResetToken");
       navigate("/forgot-password", { replace: true });
     }
   }, [email, navigate]);
 
   const passwordRules = {
-    length: password.length >= 8,
+    length: password.length >= 12,
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
@@ -48,7 +48,7 @@ function ResetPassword() {
 
     if (!isStrongPassword) {
       alert(
-        "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character."
+        "Password must contain at least 12 characters, one uppercase letter, one lowercase letter, one number, and one special character."
       );
       return;
     }
@@ -63,13 +63,13 @@ function ResetPassword() {
     try {
       const res = await axios.post(
         "https://miarcus-backend.onrender.com/api/auth/reset-password",
-        { email, password }
+        { resetToken, password }
       );
 
       alert(res.data.message || "Password reset successfully.");
 
       sessionStorage.removeItem("passwordResetEmail");
-      sessionStorage.removeItem("passwordResetVerified");
+      sessionStorage.removeItem("passwordResetToken");
 
       navigate("/", { replace: true });
     } catch (err) {
@@ -182,7 +182,7 @@ function ResetPassword() {
               </div>
 
               <ul className="password-rules" aria-label="Password requirements">
-                <Rule valid={passwordRules.length}>At least 8 characters</Rule>
+                <Rule valid={passwordRules.length}>At least 12 characters</Rule>
                 <Rule valid={passwordRules.uppercase}>One uppercase letter (A-Z)</Rule>
                 <Rule valid={passwordRules.lowercase}>One lowercase letter (a-z)</Rule>
                 <Rule valid={passwordRules.number}>One number (0-9)</Rule>

@@ -23,6 +23,10 @@ process.env.MAX_UPLOAD_SIZE =
 
 const app = express();
 
+// Render sits behind a trusted reverse proxy. This keeps req.ip accurate
+// for authentication rate limiting without trusting arbitrary client headers.
+app.set("trust proxy", 1);
+
 // ======================================================
 // PROCESS LEVEL SAFETY NET
 // ======================================================

@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
+const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 
 // ======================================================
 // VERIFY JWT
@@ -42,11 +43,9 @@ const authMiddleware = (req, res, next) => {
     try {
 
         const decoded = jwt.verify(
-
             token,
-
-            process.env.JWT_SECRET
-
+            JWT_SECRET,
+            { algorithms: [JWT_ALGORITHM] }
         );
 
         // ======================================================
@@ -55,7 +54,7 @@ const authMiddleware = (req, res, next) => {
 
         db.query(
 
-            "SELECT name, status FROM users WHERE id = ? LIMIT 1",
+            "SELECT name, status, is_activated, is_admin FROM users WHERE id = ? LIMIT 1",
 
             [decoded.id],
 
@@ -85,7 +84,7 @@ const authMiddleware = (req, res, next) => {
 
                 }
 
-                if (result[0].status !== "Active") {
+                if (result[0].status !== "Active" || !result[0].is_activated) {
 
                     return res.status(401).json({
 
@@ -106,7 +105,11 @@ miarcus Team`
 
                 }
 
-                req.user = decoded;
+                req.user = {
+                    ...decoded,
+                    id: result[0].id || decoded.id,
+                    is_admin: Number(result[0].is_admin) === 1,
+                };
 
                 next();
 

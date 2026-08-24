@@ -1,30 +1,29 @@
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
-const otpGenerator = require("otp-generator");
-
 const jwt = require("jsonwebtoken");
+const {
+    JWT_SECRET,
+    JWT_ALGORITHM,
+    ACCESS_TOKEN_TTL,
+    RESET_TOKEN_TTL,
+    BCRYPT_ROUNDS,
+    OTP_TTL_MS,
+    hashOtp,
+    generateOtp,
+    generateResetJti,
+    normalizeEmail,
+    validatePassword,
+} = require("../config/security");
 const {
     sendForgotPasswordOTPEmail,
     sendResetPasswordEmail
 } = require("../services/emailService");
 
 // ======================================================
-// GENERATE OTP
+// SECURITY HELPERS
 // ======================================================
 
-const generateOTP = () => {
-
-    return otpGenerator.generate(6, {
-
-        upperCaseAlphabets: false,
-        lowerCaseAlphabets: false,
-        specialChars: false,
-        digits: true
-
-    });
-
-};
-
+const allowedResetDomain = /@(gmail\.com|jawandson\.com|miarcus\.com)$/i;
 
 // ======================================================
 // LOGIN USER
@@ -33,7 +32,15 @@ const generateOTP = () => {
 
 const loginUser = (req, res) => {
 
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+
+    if (!email || !password) {
+        return res.status(401).json({
+            success: false,
+            message: "Invalid Email or Password"
+        });
+    }
 
    const sql = `
     SELECT
@@ -84,71 +91,51 @@ const loginUser = (req, res) => {
 // Check User Status
 // =============================
 
-if (user.status !== "Active") {
-
-    return res.status(403).json({
-
+if (user.status !== "Active" || !user.is_activated) {
+    return res.status(401).json({
         success: false,
-
-        message: `Dear ${user.name},
-
-Your account is no longer active and access to the miarcus ERP application has been disabled.
-
-Please contact your administrator for further assistance.
-
-Thank you for using the miarcus ERP application.
-
-Regards,
-miarcus Team`
-
+        message: "Invalid Email or Password"
     });
-
-}
-
-// =============================
-// Check Account Activation
-// =============================
-
-if (!user.is_activated) {
-
-    return res.status(403).json({
-
-        success: false,
-
-        message: "Your account is not activated. Please activate it from the invitation email."
-
-    });
-
 }
 
 let passwordMatched = false;
 
-        // Check bcrypt password
+        // Only bcrypt hashes are accepted. Plain-text password fallback is removed.
         try {
-
             passwordMatched = await bcrypt.compare(
                 password,
-                user.password
+                user.password || ""
             );
-
-        }
-
-        catch {
-
-            // Fallback for old plain-text passwords
-            passwordMatched = password === user.password;
-
+        } catch (compareError) {
+            console.error("Password verification failed:", compareError);
+            passwordMatched = false;
         }
 
         if (!passwordMatched) {
 
             return res.status(401).json({
-
                 success: false,
                 message: "Invalid Email or Password"
-
             });
 
+        }
+
+        // Transparently upgrade older bcrypt hashes after a successful login.
+        // Plain-text passwords are never accepted.
+        try {
+            const rounds = bcrypt.getRounds(user.password || "");
+            if (Number.isInteger(rounds) && rounds < BCRYPT_ROUNDS) {
+                const upgradedHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+                db.query(
+                    "UPDATE users SET password=? WHERE id=?",
+                    [upgradedHash, user.id],
+                    (rehashErr) => {
+                        if (rehashErr) console.error("Password hash upgrade failed:", rehashErr);
+                    }
+                );
+            }
+        } catch (rehashError) {
+            console.error("Password hash inspection failed:", rehashError);
         }
 
      // ======================================================
@@ -202,12 +189,11 @@ const token = jwt.sign(
 
     },
 
-    process.env.JWT_SECRET || "miarcus_secret_key",
+    JWT_SECRET,
 
     {
-
-        expiresIn: "1d"
-
+        algorithm: JWT_ALGORITHM,
+        expiresIn: ACCESS_TOKEN_TTL,
     }
 
 );
@@ -259,11 +245,7 @@ const forgotPassword = (req, res) => {
         .trim()
         .toLowerCase();
 
-    // Only registered addresses from the supported Miarcus domains
-    // may request a password-reset OTP.
-    const allowedDomain = /@(gmail\.com|jawandson\.com|miarcus\.com)$/i.test(email);
-
-    if (!allowedDomain) {
+    if (!allowedResetDomain.test(email)) {
 
         return res.status(400).json({
 
@@ -298,26 +280,20 @@ const forgotPassword = (req, res) => {
         }
 
         if (result.length === 0) {
-
-            return res.status(404).json({
-
-                success: false,
-
-                message: "Email Not Found"
-
+            // Deliberately use the same response as a successful request to
+            // prevent account enumeration.
+            return res.status(200).json({
+                success: true,
+                message: "If the account exists, a password-reset OTP has been sent."
             });
-
         }
 
         const user = result[0];
 
-        const otp = generateOTP();
+        const otp = generateOtp();
+        const otpHash = hashOtp(otp);
 
-        const expiresAt = new Date(
-
-            Date.now() + 10 * 60 * 1000
-
-        );
+        const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
         // ======================================
         // Remove Previous OTP
@@ -357,8 +333,7 @@ const forgotPassword = (req, res) => {
 
                         email,
 
-                        otp,
-
+                        otpHash,
                         expiresAt
 
                     ],
@@ -428,12 +403,12 @@ const forgotPassword = (req, res) => {
 
 const verifyOTP = (req, res) => {
 
-    const {
+    const email = normalizeEmail(req.body?.email);
+    const otp = String(req.body?.otp || "").trim();
 
-        email,
-        otp
-
-    } = req.body;
+    if (!allowedResetDomain.test(email) || !/^\d{6}$/.test(otp)) {
+        return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
 
     const sql = `
         SELECT *
@@ -452,7 +427,7 @@ const verifyOTP = (req, res) => {
         [
 
             email,
-            otp
+            hashOtp(otp)
 
         ],
 
@@ -533,11 +508,23 @@ const verifyOTP = (req, res) => {
 
                     }
 
+                    const resetToken = jwt.sign(
+                        {
+                            sub: String(email),
+                            type: "password-reset",
+                            jti: generateResetJti(),
+                        },
+                        JWT_SECRET,
+                        {
+                            algorithm: JWT_ALGORITHM,
+                            expiresIn: RESET_TOKEN_TTL,
+                        }
+                    );
+
                     return res.status(200).json({
-
                         success: true,
-                        message: "OTP Verified Successfully"
-
+                        message: "OTP Verified Successfully",
+                        resetToken,
                     });
 
                 }
@@ -556,15 +543,47 @@ const verifyOTP = (req, res) => {
 
 const resetPassword = async (req, res) => {
 
-    const {
+    const password = String(req.body?.password || "");
+    const resetToken = String(req.body?.resetToken || "").trim();
 
-        email,
-        password
+    if (!resetToken) {
+        return res.status(400).json({
+            success: false,
+            message: "Password reset authorization is missing or expired."
+        });
+    }
 
-    } = req.body;
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        return res.status(400).json({ success: false, message: passwordError });
+    }
+
+    let resetClaims;
+    try {
+        resetClaims = jwt.verify(resetToken, JWT_SECRET, {
+            algorithms: [JWT_ALGORITHM],
+        });
+    } catch {
+        return res.status(400).json({
+            success: false,
+            message: "Password reset authorization is invalid or expired."
+        });
+    }
+
+    if (resetClaims?.type !== "password-reset" || !resetClaims?.sub) {
+        return res.status(400).json({
+            success: false,
+            message: "Password reset authorization is invalid or expired."
+        });
+    }
+
+    const email = normalizeEmail(resetClaims.sub);
+    if (!allowedResetDomain.test(email)) {
+        return res.status(400).json({ success: false, message: "Invalid password reset request." });
+    }
 
     const checkOtpSql = `
-        SELECT *
+        SELECT id
         FROM password_reset_otp
         WHERE email=?
         AND verified=1
@@ -573,14 +592,8 @@ const resetPassword = async (req, res) => {
     `;
 
     db.query(
-
         checkOtpSql,
-
-        [
-
-            email
-
-        ],
+        [email],
 
         async (err, result) => {
 
@@ -608,12 +621,13 @@ const resetPassword = async (req, res) => {
 
             try {
 
-                const hashedPassword = await bcrypt.hash(password, 10);
+                const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
                 const updateSql = `
                     UPDATE users
                     SET password=?
                     WHERE email=?
+                    AND status='Active'
                 `;
 
                 db.query(
@@ -738,6 +752,13 @@ const signupUser = async (req, res) => {
 
     try {
 
+        if (String(process.env.ALLOW_PUBLIC_SIGNUP || "false").toLowerCase() !== "true") {
+            return res.status(403).json({
+                success: false,
+                message: "Public registration is disabled. Please use an administrator invitation."
+            });
+        }
+
         const {
             fullName,
             employeeId,
@@ -776,17 +797,12 @@ const signupUser = async (req, res) => {
         }
 
 
-        if (password.length < 6) {
-
+        const passwordError = validatePassword(password);
+        if (passwordError) {
             return res.status(400).json({
-
                 success: false,
-
-                message:
-                    "Password must contain at least 6 characters."
-
+                message: passwordError
             });
-
         }
 
 
@@ -908,7 +924,7 @@ const signupUser = async (req, res) => {
                         const hashedPassword =
                             await bcrypt.hash(
                                 password,
-                                10
+                                BCRYPT_ROUNDS
                             );
 
 
@@ -943,7 +959,7 @@ const signupUser = async (req, res) => {
                                 is_activated
                             )
                             VALUES
-                            (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Active', 1)
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Inactive', 0)
                         `;
 
 
@@ -1020,127 +1036,11 @@ const signupUser = async (req, res) => {
                                 // CREATE PERMISSIONS
                                 // ==================================
 
-                                const permissionEntries =
-                                    Object.entries(
-                                        permissions || {}
-                                    )
-                                    .filter(
-                                        ([, permission]) =>
-                                            permission &&
-                                            permission !== "None"
-                                    );
-
-
-                                if (
-                                    permissionEntries.length === 0
-                                ) {
-
-                                    return res.status(201).json({
-
-                                        success: true,
-
-                                        message:
-                                            "Account created successfully.",
-
-                                        userId
-
-                                    });
-
-                                }
-
-
-                                const permissionValues =
-                                    permissionEntries.map(
-                                        (
-                                            [
-                                                moduleName,
-                                                permission
-                                            ]
-                                        ) => [
-
-                                            userId,
-
-                                            moduleName,
-
-                                            permission
-
-                                        ]
-                                    );
-
-
-                                const permissionSql = `
-                                    INSERT INTO user_permissions
-                                    (
-                                        user_id,
-                                        module_name,
-                                        permission
-                                    )
-                                    VALUES ?
-                                `;
-
-
-                                db.query(
-
-                                    permissionSql,
-
-                                    [
-                                        permissionValues
-                                    ],
-
-                                    (
-                                        permissionErr
-                                    ) => {
-
-                                        if (
-                                            permissionErr
-                                        ) {
-
-                                            console.error(
-                                                "Signup permission error:",
-                                                permissionErr
-                                            );
-
-                                            return res.status(500).json({
-
-                                                success: false,
-
-                                                message:
-                                                    "Account created, but permissions could not be saved."
-
-                                            });
-
-                                        }
-
-
-                                        // ==================================
-                                        // EMAIL SERVICE
-                                        //
-                                        // TEMPORARILY DISABLED
-                                        //
-                                        // DO NOT SEND EMAIL.
-                                        // ==================================
-
-                                        console.log(
-                                            "🧪 Signup email skipped for:",
-                                            cleanEmail
-                                        );
-
-
-                                        return res.status(201).json({
-
-                                            success: true,
-
-                                            message:
-                                                "Account created successfully.",
-
-                                            userId
-
-                                        });
-
-                                    }
-
-                                );
-
+                                return res.status(201).json({
+                                    success: true,
+                                    message: "Account created successfully. An administrator must activate the account before login.",
+                                    userId
+                                });
                             }
 
                         );
