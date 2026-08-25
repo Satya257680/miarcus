@@ -32,11 +32,17 @@ import Card from "../../../components/common/Card";
 import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
 import RecentActivity from "../components/RecentActivity";
+
 function Dashboard() {
 
   const [search, setSearch] = useState("");
 
-  const [nsoSummary, setNsoSummary] = useState({ total: 0, ready_for_opening: 0, opened: 0, on_hold: 0 });
+  const [nsoSummary, setNsoSummary] = useState({
+    total: 0,
+    ready_for_opening: 0,
+    opened: 0,
+    on_hold: 0
+  });
 
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
@@ -122,157 +128,160 @@ function Dashboard() {
     return <Navigate to="/unauthorized" replace />;
   }
 
- // ======================================================
-// Dashboard Modules
-// ======================================================
+  // ======================================================
+  // Dashboard Modules
+  // ======================================================
 
-const modules = [
-  {
-    title: "Action Points",
-    description: "Manage and track assigned action points.",
-    permission: ["Action Points"],
-    icon: <FaTasks />,
-    link: "/action-points",
-  },
-  {
-    title: "Announcements",
-    description: "View and manage company announcements.",
-    permission: ["Announcements"],
-    icon: <FaBullhorn />,
-    link: "/announcements",
-  },
-  {
-    title: "Asset Master",
-    description: "Maintain and monitor company assets.",
-    permission: ["Asset Master"],
-    icon: <FaBoxes />,
-    link: "/asset-master",
-  },
-  {
-    title: "Attendance",
-    description: "Track employee attendance records.",
-    permission: ["Attendance"],
-    icon: <FaCalendarAlt />,
-    link: "/attendance",
-  },
-  {
-    title: "Checklist",
-    description: "Submit and manage daily checklists.",
-    permission: ["Checklist Submit", "Checklist"],
-    icon: <FaClipboardList />,
-    link: "/checklist-submit",
-  },
-  {
-    title: "Reports",
-    description: "Generate and view business reports.",
-    permission: ["Checklist Reports", "Reports"],
-    icon: <FaChartBar />,
-    link: "/checklist-reports",
-  },
-  {
-    title: "Expenses",
-    description: "Manage employee expense records.",
-    permission: ["Expenses"],
-    icon: <FaMoneyBillWave />,
-    link: "/expenses",
-  },
-  {
-    title: "Collection Tracking",
-    description: "Monitor collections and payment status.",
-    permission: ["Collection Tracking"],
-    icon: <FaLayerGroup />,
-    link: "/collection-tracking",
-  },
-  {
-    title: "Inventory Planning",
-    description: "Plan and monitor inventory requirements.",
-    permission: ["Inventory Planning"],
-    icon: <FaLayerGroup />,
-    link: "/inventory-planning",
-  },
-  {
-    title: "Listing Tracker",
-    description: "Track listings and marketplace updates.",
-    permission: ["Listing Tracker"],
-    icon: <FaGlobe />,
-    link: "/listing-tracker",
-  },
-  {
-    title: "New Store Openings",
-    description: "Manage new store opening activities.",
-    permission: ["New Store Openings"],
-    icon: <FaStore />,
-    link: "/new-store-openings",
-  },
-  {
-    title: "NSO Rules",
-    description: "Configure and maintain NSO business rules.",
-    permission: ["NSO Rules"],
-    icon: <FaBook />,
-    link: "/nso-rules",
-  },
-  {
-    title: "Quiz",
-    description: "Take quizzes and evaluate knowledge.",
-    permission: ["Quiz"],
-    icon: <FaQuestionCircle />,
-    link: "/quiz",
-  },
-  {
-    title: "Sales Team",
-    description: "Manage sales team information.",
-    permission: ["Sales Team"],
-    icon: <FaUsers />,
-    link: "/sales-team",
-  },
-  {
-    title: "Settings",
-    description: "Configure users, stores, and system settings.",
-    permission: ["Settings"],
-    icon: <FaCog />,
-    link: "/settings",
-  },
-];
-// ======================================================
-// Greeting, Time & Date
-// ======================================================
-const now = currentDateTime;
+  const modules = [
+    {
+      title: "Action Points",
+      description: "Manage and track assigned action points.",
+      permission: ["Action Points"],
+      icon: <FaTasks />,
+      link: "/action-points",
+    },
+    {
+      title: "Announcements",
+      description: "View and manage company announcements.",
+      permission: ["Announcements"],
+      icon: <FaBullhorn />,
+      link: "/announcements",
+    },
+    {
+      title: "Asset Master",
+      description: "Maintain and monitor company assets.",
+      permission: ["Asset Master"],
+      icon: <FaBoxes />,
+      link: "/asset-master",
+    },
+    {
+      title: "Attendance",
+      description: "Track employee attendance records.",
+      permission: ["Attendance"],
+      icon: <FaCalendarAlt />,
+      link: "/attendance",
+    },
+    {
+      title: "Checklist",
+      description: "Submit and manage daily checklists.",
+      permission: ["Checklist Submit", "Checklist"],
+      icon: <FaClipboardList />,
+      link: "/checklist-submit",
+    },
+    {
+      title: "Reports",
+      description: "Generate and view business reports.",
+      permission: ["Checklist Reports", "Reports"],
+      icon: <FaChartBar />,
+      link: "/checklist-reports",
+    },
+    {
+      title: "Expenses",
+      description: "Manage employee expense records.",
+      permission: ["Expenses"],
+      icon: <FaMoneyBillWave />,
+      link: "/expenses",
+    },
+    {
+      title: "Collection Tracking",
+      description: "Monitor collections and payment status.",
+      permission: ["Collection Tracking"],
+      icon: <FaLayerGroup />,
+      link: "/collection-tracking",
+    },
+    {
+      title: "Inventory Planning",
+      description: "Plan and monitor inventory requirements.",
+      permission: ["Inventory Planning"],
+      icon: <FaLayerGroup />,
+      link: "/inventory-planning",
+    },
+    {
+      title: "Listing Tracker",
+      description: "Track listings and marketplace updates.",
+      permission: ["Listing Tracker"],
+      icon: <FaGlobe />,
+      link: "/listing-tracker",
+    },
+    {
+      title: "New Store Openings",
+      description: "Manage new store opening activities.",
+      permission: ["New Store Openings"],
+      icon: <FaStore />,
+      link: "/new-store-openings",
+    },
+    {
+      title: "NSO Rules",
+      description: "Configure and maintain NSO business rules.",
+      permission: ["NSO Rules"],
+      icon: <FaBook />,
+      link: "/nso-rules",
+    },
+    {
+      title: "Quiz",
+      description: "Take quizzes and evaluate knowledge.",
+      permission: ["Quiz"],
+      icon: <FaQuestionCircle />,
+      link: "/quiz",
+    },
+    {
+      title: "Sales Team",
+      description: "Manage sales team information.",
+      permission: ["Sales Team"],
+      icon: <FaUsers />,
+      link: "/sales-team",
+    },
+    {
+      title: "Settings",
+      description: "Configure users, stores, and system settings.",
+      permission: ["Settings"],
+      icon: <FaCog />,
+      link: "/settings",
+    },
+  ];
 
-const currentHour = now.getHours();
+  // ======================================================
+  // Greeting, Time & Date
+  // ======================================================
 
-let greeting = "";
+  const now = currentDateTime;
 
-if (currentHour >= 5 && currentHour < 12) {
+  const currentHour = now.getHours();
 
-  greeting = "Good Morning";
+  let greeting = "";
 
-} else if (currentHour >= 12 && currentHour < 17) {
+  if (currentHour >= 5 && currentHour < 12) {
 
-  greeting = "Good Afternoon";
+    greeting = "Good Morning";
 
-} else if (currentHour >= 17 && currentHour < 21) {
+  } else if (currentHour >= 12 && currentHour < 17) {
 
-  greeting = "Good Evening";
+    greeting = "Good Afternoon";
 
-} else {
+  } else if (currentHour >= 17 && currentHour < 21) {
 
-  greeting = "Good Night";
+    greeting = "Good Evening";
 
-}
+  } else {
 
-const currentTime = now.toLocaleTimeString("en-IN", {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: true,
-});
+    greeting = "Good Night";
 
-const currentDate = now.toLocaleDateString("en-IN", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+  }
+
+  const currentTime = now.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  const currentDate = now.toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   // ======================================================
   // Visible Modules
   // ======================================================
@@ -300,257 +309,269 @@ const currentDate = now.toLocaleDateString("en-IN", {
       .includes(search.toLowerCase())
   );
 
- return (
+  return (
 
     <div className="dashboard-page">
 
-        <PageHeader
-            title="Dashboard"
-            subtitle={
-                <>
-                    <span className="dashboard-greeting">
-                        {greeting}
-                    </span>
-                    {", "}
-                    <span className="dashboard-username">
-                        {user.name || "User"}
-                    </span>
-                    {" 👋"}
-                </>
-            }
-        />
+      <PageHeader
+        title="Dashboard"
+        subtitle={
+          <>
+            <span className="dashboard-greeting">
+              {greeting}
+            </span>
+            {", "}
+            <span className="dashboard-username">
+              {user.name || "User"}
+            </span>
+            {" 👋"}
+          </>
+        }
+      />
 
-        {/* ==========================================
-            Welcome Card
-        ========================================== */}
+      {/* ==========================================
+          Welcome Card
+      ========================================== */}
 
-        <Card className="dashboard-welcome-card">
+      <Card className="dashboard-welcome-card">
 
-            <div className="dashboard-welcome">
+        <div className="dashboard-welcome">
 
-                <div className="dashboard-welcome-left">
+          <div className="dashboard-welcome-left">
 
-                    <h2>
-                        MIARCUS Management Portal
-                    </h2>
+            <h2>
+              MIARCUS Management Portal
+            </h2>
 
-                    <p>
-                        Access all modules from one place. Use the search below to quickly find the module you need.
-                    </p>
+            <p>
+              Access all modules from one place. Use the search below to quickly find the module you need.
+            </p>
 
-                    <div className="dashboard-user-info">
+            <div className="dashboard-user-info">
 
-                        <span>
-                            👤 {user.name || "User"}
-                        </span>
+              <span>
+                👤 {user.name || "User"}
+              </span>
 
-                        <span>
-                            {user.designation || (isAdmin ? "Administrator" : "User")}
-                        </span>
+              <span>
+                {user.designation || (isAdmin ? "Administrator" : "User")}
+              </span>
 
-                        <span>
-                            🕒 {currentTime}
-                        </span>
+              <span>
+                🕒 {currentTime}
+              </span>
 
-                        <span>
-                            📅 {currentDate}
-                        </span>
-
-                    </div>
-
-                </div>
-
-                <div
-                    className="dashboard-welcome-right analytics-icon"
-                    onClick={() => navigate("/dashboard-analytics")}
-                    title="Dashboard Analytics"
-                >
-                    <FaChartLine />
-                </div>
+              <span>
+                📅 {currentDate}
+              </span>
 
             </div>
+
+          </div>
+
+          <div
+            className="dashboard-welcome-right analytics-icon"
+            onClick={() => navigate("/dashboard-analytics")}
+            title="Dashboard Analytics"
+          >
+            <FaChartLine />
+          </div>
+
+        </div>
+
+      </Card>
+
+      {/* ==========================================
+          Search
+      ========================================== */}
+
+      <div className="dashboard-search-wrapper">
+
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search modules..."
+        />
+
+      </div>
+
+      {/* ==========================================
+          Modules
+      ========================================== */}
+
+      <ModuleGrid
+        modules={filteredModules}
+      />
+
+      {/* ==========================================
+          Dashboard Statistics
+      ========================================== */}
+
+      <div className="dashboard-stats-grid">
+
+        <Card className="dashboard-stat-card">
+
+          <div className="dashboard-stat-top">
+
+            <div className="dashboard-stat-icon users">
+              <FaUserFriends />
+            </div>
+
+            <div>
+
+              <h3>Total Users</h3>
+
+              <h2>{dashboardStats.totalUsers}</h2>
+
+              <p>Registered Users</p>
+
+            </div>
+
+          </div>
 
         </Card>
 
-        {/* ==========================================
-            Search
-        ========================================== */}
+        <Card className="dashboard-stat-card">
 
-        <div className="dashboard-search-wrapper">
-
-            <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Search modules..."
-            />
-
-        </div>
-
-        {/* ==========================================
-            Modules
-        ========================================== */}
-
-        <ModuleGrid
-            modules={filteredModules}
-        />
-
-      {/* ==========================================
-    Dashboard Statistics
-========================================== */}
-
-<div className="dashboard-stats-grid">
-
-    <Card className="dashboard-stat-card">
-
-        <div className="dashboard-stat-top">
-
-            <div className="dashboard-stat-icon users">
-                <FaUserFriends />
-            </div>
-
-            <div>
-
-                <h3>Total Users</h3>
-
-                <h2>{dashboardStats.totalUsers}</h2>
-
-                <p>Registered Users</p>
-
-            </div>
-
-        </div>
-
-    </Card>
-
-    <Card className="dashboard-stat-card">
-
-        <div className="dashboard-stat-top">
+          <div className="dashboard-stat-top">
 
             <div className="dashboard-stat-icon stores">
-                <FaStore />
+              <FaStore />
             </div>
 
             <div>
 
-                <h3>Total Stores</h3>
+              <h3>Total Stores</h3>
 
-                <h2>{dashboardStats.totalStores}</h2>
+              <h2>{dashboardStats.totalStores}</h2>
 
-                <p>Active Stores</p>
+              <p>Active Stores</p>
 
             </div>
 
-        </div>
+          </div>
 
-    </Card>
+        </Card>
 
-    <Card className="dashboard-stat-card">
+        <Card className="dashboard-stat-card">
 
-        <div className="dashboard-stat-top">
+          <div className="dashboard-stat-top">
 
             <div className="dashboard-stat-icon checklist">
-                <FaClipboardCheck />
+              <FaClipboardCheck />
             </div>
 
             <div>
 
-                <h3>Checklist Submissions</h3>
+              <h3>Checklist Submissions</h3>
 
-                <h2>{dashboardStats.totalChecklists}</h2>
+              <h2>{dashboardStats.totalChecklists}</h2>
 
-                <p>Total Submissions</p>
+              <p>Total Submissions</p>
 
             </div>
 
-        </div>
+          </div>
 
-    </Card>
+        </Card>
 
-    <Card className="dashboard-stat-card">
+        <Card className="dashboard-stat-card">
 
-        <div className="dashboard-stat-top">
+          <div className="dashboard-stat-top">
 
             <div className="dashboard-stat-icon pending">
-                <FaExclamationTriangle />
+              <FaExclamationTriangle />
             </div>
 
             <div>
 
-                <h3>Pending Action Points</h3>
+              <h3>Pending Action Points</h3>
 
-                <h2>{dashboardStats.pendingActionPoints}</h2>
+              <h2>{dashboardStats.pendingActionPoints}</h2>
 
-                <p>Need Attention</p>
+              <p>Need Attention</p>
 
             </div>
 
-        </div>
+          </div>
 
-    </Card>
+        </Card>
 
-</div>
+      </div>
 
-{/* ==========================================
-    NSO BUSINESS SUMMARY
-========================================== */}
+      {/* ==========================================
+          NSO BUSINESS SUMMARY
+      ========================================== */}
 
-<div className="dashboard-stats-grid">
+      <div className="dashboard-stats-grid">
 
-    <Card className="dashboard-stat-card">
-        <div className="dashboard-stat-top">
-            <div className="dashboard-stat-icon stores"><FaStore /></div>
+        <Card className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon stores">
+              <FaStore />
+            </div>
+
             <div>
-                <h3>NSO Projects</h3>
-                <h2>{nsoSummary.total || 0}</h2>
-                <p>Total New Store Openings</p>
+              <h3>NSO Projects</h3>
+              <h2>{nsoSummary.total || 0}</h2>
+              <p>Total New Store Openings</p>
             </div>
-        </div>
-    </Card>
+          </div>
+        </Card>
 
-    <Card className="dashboard-stat-card">
-        <div className="dashboard-stat-top">
-            <div className="dashboard-stat-icon checklist"><FaClipboardCheck /></div>
+        <Card className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon checklist">
+              <FaClipboardCheck />
+            </div>
+
             <div>
-                <h3>Ready For Opening</h3>
-                <h2>{nsoSummary.ready_for_opening || 0}</h2>
-                <p>Projects at opening gate</p>
+              <h3>Ready For Opening</h3>
+              <h2>{nsoSummary.ready_for_opening || 0}</h2>
+              <p>Projects at opening gate</p>
             </div>
-        </div>
-    </Card>
+          </div>
+        </Card>
 
-    <Card className="dashboard-stat-card">
-        <div className="dashboard-stat-top">
-            <div className="dashboard-stat-icon checklist"><FaChartLine /></div>
+        <Card className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon checklist">
+              <FaChartLine />
+            </div>
+
             <div>
-                <h3>Opened</h3>
-                <h2>{nsoSummary.opened || 0}</h2>
-                <p>Successfully opened projects</p>
+              <h3>Opened</h3>
+              <h2>{nsoSummary.opened || 0}</h2>
+              <p>Successfully opened projects</p>
             </div>
-        </div>
-    </Card>
+          </div>
+        </Card>
 
-    <Card className="dashboard-stat-card">
-        <div className="dashboard-stat-top">
-            <div className="dashboard-stat-icon pending"><FaExclamationTriangle /></div>
+        <Card className="dashboard-stat-card">
+          <div className="dashboard-stat-top">
+            <div className="dashboard-stat-icon pending">
+              <FaExclamationTriangle />
+            </div>
+
             <div>
-                <h3>On Hold</h3>
-                <h2>{nsoSummary.on_hold || 0}</h2>
-                <p>Projects requiring attention</p>
+              <h3>On Hold</h3>
+              <h2>{nsoSummary.on_hold || 0}</h2>
+              <p>Projects requiring attention</p>
             </div>
-        </div>
-    </Card>
+          </div>
+        </Card>
 
-</div>
+      </div>
 
-{/* ==========================================
-    Recent Activity
-========================================== */}
+      {/* ==========================================
+          Recent Activity
+      ========================================== */}
 
-<RecentActivity />
+      <RecentActivity />
 
-</div>
+    </div>
 
-);
+  );
 
 }
 
