@@ -9,7 +9,6 @@ import {
     FaArrowRight,
     FaBullhorn,
     FaImages,
-    FaMapMarkerAlt,
     FaCalendarCheck,
     FaListAlt,
     FaTasks,
@@ -45,7 +44,10 @@ function RecentActivity() {
 
             const response = await getRecentActivities();
 
-            setActivities(response.data || []);
+            const visibleActivities = (response.data || []).filter((item) =>
+                String(item?.module_name || item?.type || "").trim().toLowerCase() !== "employee location"
+            );
+            setActivities(visibleActivities);
 
         } catch (err) {
 
@@ -64,7 +66,6 @@ function RecentActivity() {
         if (key.includes("user")) return <FaUser className="activity-icon user" />;
         if (key.includes("announcement")) return <FaBullhorn className="activity-icon announcement" />;
         if (key.includes("gallery")) return <FaImages className="activity-icon gallery" />;
-        if (key.includes("location")) return <FaMapMarkerAlt className="activity-icon location" />;
         if (key.includes("attendance")) return <FaCalendarCheck className="activity-icon attendance" />;
         if (key.includes("checklist")) return <FaClipboardCheck className="activity-icon checklist" />;
         if (key.includes("action point")) return <FaTasks className="activity-icon action" />;

@@ -35,6 +35,7 @@ Activity.getAll = (filters, user, callback) => {
         LEFT JOIN users au
             ON a.assigned_to = au.id
         WHERE 1 = 1
+          AND a.module_name <> 'Employee Location'
     `;
 
     const params = [];
@@ -203,6 +204,7 @@ Activity.getById = (activityId, user, callback) => {
         LEFT JOIN users au
             ON a.assigned_to = au.id
         WHERE a.id = ?
+          AND a.module_name <> 'Employee Location'
     `;
 
     const params = [activityId];
@@ -274,6 +276,7 @@ Activity.getDetails = (activityId, user, callback) => {
             ON des.id = assignee.designation_id
 
         WHERE a.id = ?
+          AND a.module_name <> 'Employee Location'
     `;
 
     const params = [activityId];
@@ -559,6 +562,7 @@ Activity.hasAccess = (activityId, user, callback) => {
         SELECT id
         FROM activities
         WHERE id = ?
+          AND module_name <> 'Employee Location'
     `;
 
     const params = [activityId];
@@ -781,7 +785,7 @@ Activity.deleteById = (activityId, user, callback) => {
 };
 
 Activity.deleteAll = (filters, user, callback) => {
-    let sql = `DELETE FROM activities WHERE 1 = 1`;
+    let sql = `DELETE FROM activities WHERE 1 = 1 AND module_name <> 'Employee Location'`;
     const params = [];
 
     if (!user.is_admin) {

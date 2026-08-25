@@ -56,7 +56,9 @@ function ActivityCenter() {
                 ...buildFilters(),
                 page: overridePage,
             });
-            const rows = response.data?.data || [];
+            const rows = (response.data?.data || []).filter((item) =>
+                String(item?.module_name || "").trim().toLowerCase() !== "employee location"
+            );
             setActivities(rows);
             setLastPageSize(rows.length);
         } catch (error) {

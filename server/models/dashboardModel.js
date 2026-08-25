@@ -199,6 +199,7 @@ Dashboard.getRecentActivities = (callback) => {
         LEFT JOIN new_store_openings nso
             ON a.module_name = 'New Store Openings'
             AND nso.id = a.reference_id
+        WHERE a.module_name <> 'Employee Location'
         ORDER BY a.created_at DESC
         LIMIT 10
     `;
