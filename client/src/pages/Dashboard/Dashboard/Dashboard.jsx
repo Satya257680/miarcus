@@ -222,14 +222,14 @@ function Dashboard() {
       description: "Take quizzes and evaluate knowledge.",
       permission: ["Quiz"],
       icon: <FaQuestionCircle />,
-      link: "/quiz",
+      link: "/quiz/take",
     },
     {
       title: "Sales Team",
       description: "Manage sales team information.",
       permission: ["Sales Team"],
       icon: <FaUsers />,
-      link: "/sales-team",
+      link: "/visit-planner",
     },
     {
       title: "Settings",

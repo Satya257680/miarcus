@@ -306,27 +306,94 @@ table tbody td{
 
 
 /* ==========================================================
-   ACTION BUTTONS
+   ACTION BUTTONS — PREMIUM TABLE CELL
 ========================================================== */
 
 .action-buttons{
-
-    display:flex;
-
-    flex-wrap:wrap;
-
-    justify-content:center;
-
+    display:grid;
+    grid-template-columns:repeat(2, minmax(92px, 1fr));
     align-items:center;
-
-    gap:10px;
-
-    min-width:280px;
-
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    min-width:210px;
+    max-width:230px;
     margin:0 auto;
-
+    padding:4px 0;
 }
 
+.action-buttons button{
+    box-sizing:border-box;
+    width:100%;
+    min-width:0;
+    height:38px;
+    padding:0 10px;
+    border:1px solid transparent;
+    border-radius:10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    white-space:nowrap;
+    cursor:pointer;
+    font-size:12.5px;
+    font-weight:700;
+    letter-spacing:.1px;
+    box-shadow:0 3px 9px rgba(15,23,42,.10);
+    transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.action-buttons button:hover{
+    transform:translateY(-1px);
+    box-shadow:0 6px 14px rgba(15,23,42,.16);
+    filter:brightness(.98);
+}
+
+.action-buttons button:active{
+    transform:translateY(0);
+}
+
+.action-buttons button:focus-visible{
+    outline:3px solid rgba(37,99,235,.22);
+    outline-offset:2px;
+}
+
+.action-buttons .edit-btn{
+    background:linear-gradient(135deg,#5b9cff,#3b82f6);
+    border-color:#3b82f6;
+    color:#fff;
+}
+
+.action-buttons .open-btn{
+    background:linear-gradient(135deg,#39a7e8,#258bd0);
+    border-color:#258bd0;
+    color:#fff;
+}
+
+.action-buttons .delete-btn{
+    grid-column:1 / -1;
+    background:linear-gradient(135deg,#ff6b6b,#ef4444);
+    border-color:#ef4444;
+    color:#fff;
+    height:34px;
+}
+
+.action-buttons .edit-btn svg,
+.action-buttons .open-btn svg,
+.action-buttons .delete-btn svg{
+    flex:0 0 auto;
+    font-size:12px;
+}
+
+/* Keep the Actions header and cell visually aligned. */
+.data-table th:last-child,
+.data-table td:last-child,
+table th:last-child,
+table td:last-child{
+    min-width:230px;
+    width:230px;
+    text-align:center;
+}
 
 /* ==========================================================
    MODAL
@@ -529,11 +596,13 @@ table tbody td{
     }
 
     .action-buttons{
+        grid-template-columns:1fr;
+        min-width:180px;
+        max-width:100%;
+    }
 
-        flex-direction:column;
-
-        min-width:100%;
-
+    .action-buttons .delete-btn{
+        grid-column:auto;
     }
 
     .question-cell{
