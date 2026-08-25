@@ -311,13 +311,13 @@ table tbody td{
 
 .action-buttons{
     display:grid;
-    grid-template-columns:repeat(2, minmax(92px, 1fr));
+    grid-template-columns:repeat(3, minmax(0, 1fr));
     align-items:center;
     justify-content:center;
     gap:8px;
     width:100%;
-    min-width:210px;
-    max-width:230px;
+    min-width:350px;
+    max-width:380px;
     margin:0 auto;
     padding:4px 0;
 }
@@ -371,7 +371,7 @@ table tbody td{
 }
 
 .action-buttons .delete-btn{
-    grid-column:1 / -1;
+    grid-column:auto;
     background:linear-gradient(135deg,#ff6b6b,#ef4444);
     border-color:#ef4444;
     color:#fff;
@@ -390,8 +390,8 @@ table tbody td{
 .data-table td:last-child,
 table th:last-child,
 table td:last-child{
-    min-width:230px;
-    width:230px;
+    min-width:390px;
+    width:390px;
     text-align:center;
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios, { API_BASE_URL } from "../axiosConfig.js";
+import axios from "axios";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -41,7 +41,7 @@ import "../styles/ActionPoints.css";
 // API
 // ======================================================
 
-const API = API_BASE_URL;
+const API = "https://miarcus-backend.onrender.com";
 
 // ======================================================
 // COMPONENT
@@ -1276,7 +1276,7 @@ if (loading) {
 
     title: "Actions",
 
-    width: "260px",
+    width: "390px",
 
     align: "center",
 
