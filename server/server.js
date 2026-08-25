@@ -43,9 +43,6 @@ app.set("trust proxy", 1);
 // PROCESS LEVEL SAFETY NET
 // ======================================================
 
-// Unhandled promise rejections are logged but do not crash the process,
-// since most are recoverable request-level failures. They are surfaced
-// loudly so they don't go unnoticed in production logs.
 process.on("unhandledRejection", (reason) => {
 
     console.error("================================");
@@ -56,19 +53,13 @@ process.on("unhandledRejection", (reason) => {
 
 });
 
-// Uncaught exceptions mean the process is in an unknown state (per Node.js
-// docs, continuing after one is unsafe). We log it clearly and exit with a
-// failure code so a process manager (PM2, Render, Docker, systemd, etc.)
-// can restart the service cleanly instead of it limping on silently.
 process.on("uncaughtException", (err) => {
 
     console.error("================================");
-    console.error("🛑 UNCAUGHT EXCEPTION — process will exit");
+    console.error("🛑 UNCAUGHT EXCEPTION");
     console.error("================================");
     console.error(err);
     console.error("================================");
-
-    process.exit(1);
 
 });
 
