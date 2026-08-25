@@ -1191,7 +1191,6 @@
   border:1px solid rgba(255,255,255,.10); border-radius:28px;
   background:linear-gradient(145deg,rgba(15,27,52,.96),rgba(7,15,30,.98));
   box-shadow:0 35px 100px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
-  backdrop-filter:blur(20px);
 }
 .login-card .card-inner { padding:52px; }
 .login-header h1,.login-header h2 { color:#fff; letter-spacing:-.03em; }

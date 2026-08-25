@@ -41,23 +41,3 @@ img {
 button {
   font: inherit;
 }
-/* ================================================================
-   MIARCUS ENTERPRISE DESIGN TOKENS
-   Shared baseline for all modules
-   ================================================================ */
-:root {
-  --mi-navy-950:#050b18;
-  --mi-navy-900:#0a1224;
-  --mi-navy-800:#101a31;
-  --mi-gold:#d4af37;
-  --mi-gold-soft:#f4d76b;
-  --mi-text:#f8fafc;
-  --mi-muted:#94a3b8;
-  --mi-border:rgba(148,163,184,.16);
-  --mi-surface:rgba(15,27,52,.82);
-  --mi-radius:16px;
-}
-body { color:var(--mi-text); background:linear-gradient(135deg,var(--mi-navy-950),var(--mi-navy-900)); }
-button,input,select,textarea { transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease,background .18s ease; }
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:3px solid rgba(212,175,55,.35); outline-offset:2px; }
-@media (prefers-reduced-motion:reduce){ *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;} }
