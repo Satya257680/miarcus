@@ -29,7 +29,7 @@ function allJsFiles(dir) {
 
 test("password policy rejects weak passwords", () => {
     assert.ok(validatePassword("password") !== null);
-    assert.equal(validatePassword("StrongPassword1!"), null);
+    assert.equal(validatePassword("Str0ng!A"), null);
 });
 
 test("file names reject traversal and absolute paths", () => {

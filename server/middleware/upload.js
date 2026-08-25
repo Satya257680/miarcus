@@ -3,8 +3,9 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { validateUploadedFiles, MAX_UPLOAD_SIZE } = require("./fileSecurity");
+const { UPLOAD_DIR } = require("../config/storage");
 
-const uploadFolder = path.join(process.cwd(), "uploads");
+const uploadFolder = UPLOAD_DIR;
 fs.mkdirSync(uploadFolder, { recursive: true });
 
 const allowed = new Map([

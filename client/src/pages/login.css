@@ -1169,3 +1169,46 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ================================================================
+   MIARCUS PREMIUM ENTERPRISE LOGIN OVERRIDES
+   ================================================================ */
+.login-page {
+  background: radial-gradient(circle at 15% 20%, rgba(212,175,55,.14), transparent 28%),
+              radial-gradient(circle at 85% 80%, rgba(37,99,235,.20), transparent 30%),
+              linear-gradient(135deg,#050b18 0%,#0a1224 52%,#101a31 100%);
+  color:#f8fafc;
+}
+.login-page .nursery-glow,
+.login-page .baby-scene,
+.login-page .toy,
+.login-page .cloud,
+.login-page .block,
+.login-page .moon,
+.login-page .star { display:none !important; }
+.login-card {
+  width:min(1080px,100%); max-width:1080px; padding:0; overflow:hidden;
+  border:1px solid rgba(255,255,255,.10); border-radius:28px;
+  background:linear-gradient(145deg,rgba(15,27,52,.96),rgba(7,15,30,.98));
+  box-shadow:0 35px 100px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(20px);
+}
+.login-card .card-inner { padding:52px; }
+.login-header h1,.login-header h2 { color:#fff; letter-spacing:-.03em; }
+.login-header p,.login-footer,.login-options,.forgot-password { color:#94a3b8; }
+.login-page input {
+  background:rgba(255,255,255,.045)!important; color:#f8fafc!important;
+  border:1px solid rgba(255,255,255,.12)!important; border-radius:14px!important;
+}
+.login-page input:focus { border-color:#d4af37!important; box-shadow:0 0 0 3px rgba(212,175,55,.12)!important; }
+.login-button {
+  border:0!important; border-radius:14px!important;
+  background:linear-gradient(135deg,#d4af37,#f4d76b)!important;
+  color:#101827!important; font-weight:800; box-shadow:0 12px 30px rgba(212,175,55,.20);
+}
+.login-button:hover { transform:translateY(-1px); filter:brightness(1.05); }
+.forgot-password,.signup-link { color:#e4c65b!important; }
+.logo-container { filter:drop-shadow(0 8px 20px rgba(212,175,55,.12)); }
+.login-message { border-radius:12px; }
+
+@media (max-width:700px){ .login-card .card-inner{padding:30px 22px;} .login-card{border-radius:20px;} }

@@ -2,8 +2,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { UPLOAD_DIR } = require("../config/storage");
 
-const root = path.join(process.cwd(), "uploads", "gallery");
+const root = path.join(UPLOAD_DIR, "gallery");
 
 const date = new Date();
 const year = String(date.getFullYear());

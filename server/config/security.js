@@ -41,8 +41,8 @@ function normalizeEmail(value) {
 function validatePassword(password) {
     const value = String(password || "");
 
-    if (value.length < 12) {
-        return "Password must contain at least 12 characters.";
+    if (value.length < 8 || value.length > 10) {
+        return "Password must be 8–10 characters long.";
     }
 
     if (!/[A-Z]/.test(value)) {

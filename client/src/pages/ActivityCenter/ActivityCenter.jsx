@@ -144,7 +144,6 @@ function ActivityCenter() {
                     <option>Action Points</option>
                     <option>Announcements</option>
                     <option>Gallery</option>
-                    <option>Employee Location</option>
                     <option>Attendance</option>
                     <option>Checklist Submission</option>
                     <option>Checklist Reports</option>

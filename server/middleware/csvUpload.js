@@ -1,13 +1,14 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { UPLOAD_DIR } = require("../config/storage");
 
 
 // ==========================================
 // Upload Folder
 // ==========================================
 
-const uploadFolder = "uploads";
+const uploadFolder = UPLOAD_DIR;
 
 
 if(!fs.existsSync(uploadFolder)){

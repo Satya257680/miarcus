@@ -381,3 +381,10 @@
     }
 
 }
+.password-requirements{margin:14px 0 20px;padding:14px 16px;border:1px solid rgba(212,175,55,.22);border-radius:14px;background:rgba(212,175,55,.06);color:#64748b;text-align:left}
+.password-requirements strong{display:block;color:#d4af37;margin-bottom:6px}
+.password-requirements p{margin:0 0 8px;font-size:13px}
+.password-requirements ul{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin:0;padding-left:18px;font-size:13px}
+.password-requirements li.valid{color:#16a34a;font-weight:700}
+.password-requirements li.valid::marker{content:'✓  '}
+@media(max-width:600px){.password-requirements ul{grid-template-columns:1fr}}

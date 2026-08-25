@@ -2,13 +2,14 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { UPLOAD_DIR } = require("../config/storage");
 const { validateUploadedFiles, MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
 // ======================================================
 // ANNOUNCEMENT UPLOAD FOLDER
 // ======================================================
 
-const uploadFolder = "uploads";
+const uploadFolder = UPLOAD_DIR;
 
 if (!fs.existsSync(uploadFolder)) {
     fs.mkdirSync(uploadFolder, {

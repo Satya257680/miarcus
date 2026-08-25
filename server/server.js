@@ -757,11 +757,7 @@ installActivityAuditMiddleware(app);
 // UPLOAD DIRECTORY
 // ======================================================
 
-const uploadFolder =
-    path.join(
-        __dirname,
-        "uploads"
-    );
+const { UPLOAD_DIR: uploadFolder } = require("./config/storage");
 
 // ======================================================
 // CREATE UPLOAD DIRECTORY
