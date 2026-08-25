@@ -1066,6 +1066,16 @@ loadRoute(
 
 loadRoute(
 
+    "./routes/notificationCenterRoutes",
+
+    "/api/notification-center",
+
+    "Notification Center Routes"
+
+);
+
+loadRoute(
+
     "./routes/chatRoutes",
 
     "/api/chat",

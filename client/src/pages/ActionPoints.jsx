@@ -24,11 +24,10 @@ import CreatePointModal from "../components/CreatePointModal";
 // ======================================================
 
 import {
-
     FaEdit,
-
-    FaTrash
-
+    FaTrash,
+    FaUpload,
+    FaDownload,
 } from "react-icons/fa";
 
 // ======================================================
@@ -47,6 +46,96 @@ const API = "https://miarcus-backend.onrender.com";
 // COMPONENT
 // ======================================================
 
+// ==================================================
+// SLA COUNTDOWN
+// ==================================================
+
+const getSlaMeta = (row, now = Date.now()) => {
+    const status = String(row?.status || "").toLowerCase();
+
+    if (status === "closed") {
+        return {
+            state: "completed",
+            label: "Completed",
+        };
+    }
+
+    let totalMinutes = Number(
+        row?.sla_minutes ??
+        0
+    );
+
+    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+        const legacyDays = Number(
+            row?.sla_days ??
+            row?.sla_value ??
+            0
+        );
+
+        totalMinutes = legacyDays > 0
+            ? legacyDays * 24 * 60
+            : 0;
+    }
+
+    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0 || !row?.created_at) {
+        return {
+            state: "none",
+            label: "No SLA",
+        };
+    }
+
+    const createdAt = new Date(row.created_at).getTime();
+
+    if (!Number.isFinite(createdAt)) {
+        return {
+            state: "none",
+            label: "SLA unavailable",
+        };
+    }
+
+    const deadline = createdAt + totalMinutes * 60 * 1000;
+    const diffMs = deadline - now;
+    const absoluteMinutes = Math.floor(Math.abs(diffMs) / 60000);
+
+    const formatRemaining = (minutes) => {
+        const days = Math.floor(minutes / 1440);
+        const hours = Math.floor((minutes % 1440) / 60);
+        const mins = minutes % 60;
+
+        return `${days}d ${String(hours).padStart(2, "0")}h ${String(mins).padStart(2, "0")}m`;
+    };
+
+    if (diffMs <= 0) {
+        return {
+            state: "overdue",
+            label: `OVERDUE · ${formatRemaining(absoluteMinutes)}`,
+        };
+    }
+
+    const remaining = formatRemaining(
+        Math.ceil(diffMs / 60000)
+    );
+
+    if (diffMs <= 24 * 60 * 60 * 1000) {
+        return {
+            state: "critical",
+            label: `IMPORTANT · ${remaining}`,
+        };
+    }
+
+    if (diffMs <= 48 * 60 * 60 * 1000) {
+        return {
+            state: "warning",
+            label: `WARNING · ${remaining}`,
+        };
+    }
+
+    return {
+        state: "normal",
+        label: remaining,
+    };
+};
+
 function ActionPoints() {
 
     // ======================================================
@@ -64,6 +153,9 @@ function ActionPoints() {
     const [nsoProjects, setNsoProjects] = useState([]);
 
     const [loading, setLoading] = useState(true);
+
+    // Re-render the SLA countdown every minute without changing the stored Action Point status.
+    const [slaNow, setSlaNow] = useState(() => Date.now());
 
     // ======================================================
     // SEARCH
@@ -114,6 +206,10 @@ function ActionPoints() {
     const [showOpenModal, setShowOpenModal] = useState(false);
 
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkUploading, setBulkUploading] = useState(false);
 
     // ======================================================
     // SELECTED DATA
@@ -140,6 +236,8 @@ function ActionPoints() {
         priority: "Medium",
 
         sla_days: 0,
+        sla_hours: 0,
+        sla_minutes_part: 0,
 
         remarks: "",
 
@@ -236,7 +334,7 @@ const fetchActionPoints = async () => {
 
         const res = await axios.get(
 
-            `${API}/api/action-points`,
+            `${API}/api/action-points-sla`,
 
             {
 
@@ -270,10 +368,23 @@ const fetchActionPoints = async () => {
 
         const result = res.data || {};
 
+        const rows = Array.isArray(result.data)
+            ? result.data
+            : [];
+
+        // Backend stores the configured SLA in sla_value. Keep a stable
+        // frontend alias and calculate the live countdown from created_at.
         setActionPoints(
-
-            result.data || []
-
+            rows.map((row) => ({
+                ...row,
+                sla_days:
+                    row.sla_days ??
+                    row.sla_value ??
+                    0,
+                sla_minutes:
+                    row.sla_minutes ??
+                    (Number(row.sla_value || 0) * 1440),
+            }))
         );
 
         setTotalRecords(
@@ -476,30 +587,16 @@ const updateActionPoint = async () => {
 
         await axios.put(
 
-            `${API}/api/action-points/${editData.id}`,
+            `${API}/api/action-points-sla/${editData.id}`,
 
             {
-
-                assigned_to:
-
-                    editData.assigned_to,
-
-                priority:
-
-                    editData.priority,
-
-                sla_days:
-
-                    editData.sla_days,
-
-                remarks:
-
-                    editData.remarks,
-
-                status:
-
-                    editData.status
-
+                assigned_to: editData.assigned_to,
+                priority: editData.priority,
+                sla_days: editData.sla_days,
+                sla_hours: editData.sla_hours,
+                sla_minutes: editData.sla_minutes_part,
+                remarks: editData.remarks,
+                status: editData.status
             }
 
         );
@@ -598,6 +695,131 @@ const confirmDelete = async () => {
 };
 
 
+
+
+// ======================================================
+// DELETE ALL
+// ======================================================
+
+const confirmDeleteAll = async () => {
+    if (!canDelete) return;
+
+    try {
+        await axios.delete(
+            `${API}/api/action-points-sla/bulk/all`
+        );
+
+        alert("All Action Points deleted successfully.");
+        setShowDeleteAllDialog(false);
+        await fetchActionPoints();
+    } catch (err) {
+        console.error(err);
+        alert(
+            err.response?.data?.message ||
+            "Unable to delete all Action Points."
+        );
+    }
+};
+
+// ======================================================
+// BULK UPLOAD
+// ======================================================
+
+const downloadBulkTemplate = () => {
+    const headers = [
+        "Store ID",
+        "Department ID",
+        "Question ID",
+        "Submission ID",
+        "Submission Answer ID",
+        "Assigned To",
+        "Priority",
+        "SLA Days",
+        "SLA Hours",
+        "SLA Minutes",
+        "Status",
+        "Remarks"
+    ];
+
+    const example = [
+        "1",
+        "1",
+        "1",
+        "",
+        "",
+        "",
+        "High",
+        "3",
+        "4",
+        "30",
+        "Open",
+        "Example action point"
+    ];
+
+    const csv = `${headers.join(",")}\n${example.map((value) => {
+        const text = String(value ?? "");
+        return `"${text.replace(/"/g, '""')}"`;
+    }).join(",")}\n`;
+
+    const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "miarcus-action-points-template.csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+};
+
+const handleBulkUpload = async () => {
+    if (!bulkFile || bulkUploading) return;
+
+    setBulkUploading(true);
+
+    try {
+        const token =
+            localStorage.getItem("token") ||
+            localStorage.getItem("accessToken");
+
+        const formData = new FormData();
+        formData.append("file", bulkFile);
+
+        await axios.post(
+            `${API}/api/action-points-sla/bulk-upload`,
+            formData,
+            {
+                headers: token
+                    ? { Authorization: `Bearer ${token}` }
+                    : {}
+            }
+        );
+
+        alert("Action Points bulk upload completed.");
+        setBulkFile(null);
+        setShowBulkModal(false);
+        await fetchActionPoints();
+    } catch (err) {
+        console.error(err);
+
+        const message =
+            err.response?.data?.message ||
+            "Unable to bulk upload Action Points.";
+
+        const errors =
+            Array.isArray(err.response?.data?.errors) &&
+            err.response.data.errors.length
+                ? `\n\n${err.response.data.errors.slice(0, 8).join("\n")}`
+                : "";
+
+        alert(`${message}${errors}`);
+    } finally {
+        setBulkUploading(false);
+    }
+};
 
 // ======================================================
 // OPEN TAKE ACTION MODAL
@@ -939,6 +1161,17 @@ const formatDate = (value) => {
 
 };
 
+// Keep countdown labels current while the page remains open.
+useEffect(() => {
+
+    const interval = window.setInterval(() => {
+        setSlaNow(Date.now());
+    }, 60 * 1000);
+
+    return () => window.clearInterval(interval);
+
+}, []);
+
 
 
 // ======================================================
@@ -1164,23 +1397,32 @@ if (loading) {
 // ==================================================
 
 {
-    key: "sla_days",
+    key: "sla_minutes",
 
-    title: "SLA Days",
+    title: "SLA Countdown",
 
-    render: (row) => (
+    render: (row) => {
 
-        <span className="sla-cell">
+        const meta = getSlaMeta(row, slaNow);
 
-            {row.sla_days != null
+        return (
+            <span
+                className={`sla-cell sla-${meta.state}`}
+                title={
+                    meta.state === "overdue"
+                        ? "SLA breached. Complete this Action Point immediately."
+                        : meta.state === "warning"
+                            ? "SLA is due soon."
+                            : meta.state === "critical"
+                            ? "SLA is due now. Immediate action is important."
+                            : "SLA countdown"
+                }
+            >
+                {meta.label}
+            </span>
+        );
 
-                ? `${row.sla_days} Days`
-
-                : "-"}
-
-        </span>
-
-    )
+    }
 
 },
 
@@ -1305,8 +1547,15 @@ if (loading) {
                             priority:
                                 row.priority || "Medium",
 
-                            sla_days:
-                                row.sla_days || 0,
+                            sla_days: Math.floor(
+                                Number(row.sla_minutes || 0) / 1440
+                            ),
+                            sla_hours: Math.floor(
+                                (Number(row.sla_minutes || 0) % 1440) / 60
+                            ),
+                            sla_minutes_part: Number(
+                                row.sla_minutes || 0
+                            ) % 60,
 
                             remarks:
                                 row.remarks || "",
@@ -1405,6 +1654,32 @@ return (
             onExport={handleExport}
 
         />
+
+        {(canAdd || canDelete) && (
+            <div className="action-point-management-actions">
+                {canDelete && (
+                    <button
+                        type="button"
+                        className="bulk-upload-btn"
+                        onClick={() => setShowBulkModal(true)}
+                    >
+                        <FaUpload />
+                        Bulk Upload
+                    </button>
+                )}
+
+                {canDelete && (
+                    <button
+                        type="button"
+                        className="delete-all-action-btn"
+                        onClick={() => setShowDeleteAllDialog(true)}
+                    >
+                        <FaTrash />
+                        Delete All
+                    </button>
+                )}
+            </div>
+        )}
 
         {/* ======================================================
             FILTER BAR
@@ -1751,6 +2026,131 @@ return (
 
 
 {/* ======================================================
+    DELETE ALL CONFIRMATION
+====================================================== */}
+
+<ConfirmDialog
+    open={showDeleteAllDialog}
+    title="Delete All Action Points"
+    message="This will permanently delete all Action Points. Are you sure?"
+    confirmText="Delete All"
+    cancelText="Cancel"
+    confirmVariant="danger"
+    onConfirm={confirmDeleteAll}
+    onCancel={() => setShowDeleteAllDialog(false)}
+/>
+
+{/* ======================================================
+    BULK UPLOAD MODAL
+====================================================== */}
+
+{showBulkModal && (
+    <div className="modal-overlay">
+        <div className="report-modal bulk-upload-modal">
+            <div className="modal-header">
+                <div>
+                    <h3>Bulk Upload Action Points</h3>
+                    <p className="bulk-upload-help">
+                        Upload CSV or Excel. Store ID, Question ID, Submission ID and Submission Answer ID are required.
+                    </p>
+                </div>
+
+                <button
+                    className="close-btn"
+                    onClick={() => {
+                        if (!bulkUploading) {
+                            setBulkFile(null);
+                            setShowBulkModal(false);
+                        }
+                    }}
+                >
+                    ×
+                </button>
+            </div>
+
+            <div className="modal-body">
+                <div className="bulk-template-row">
+                    <div>
+                        <strong>Recommended template</strong>
+                        <p>
+                            SLA supports Days + Hours + Minutes.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="bulk-template-btn"
+                        onClick={downloadBulkTemplate}
+                    >
+                        <FaDownload />
+                        Download Template
+                    </button>
+                </div>
+
+                <div className="bulk-file-drop">
+                    <input
+                        id="action-point-bulk-file"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        disabled={bulkUploading}
+                        onChange={(event) =>
+                            setBulkFile(
+                                event.target.files?.[0] || null
+                            )
+                        }
+                    />
+
+                    <label htmlFor="action-point-bulk-file">
+                        <FaUpload />
+                        <strong>
+                            {bulkFile
+                                ? bulkFile.name
+                                : "Choose CSV / Excel file"}
+                        </strong>
+                        <span>
+                            Maximum 10 MB
+                        </span>
+                    </label>
+                </div>
+
+                <div className="bulk-columns-info">
+                    <strong>Columns:</strong>
+                    Store ID, Department ID, Question ID, Submission ID,
+                    Submission Answer ID, Assigned To, Priority, SLA Days,
+                    SLA Hours, SLA Minutes, Status, Remarks.
+                </div>
+            </div>
+
+            <div className="modal-actions">
+                <button
+                    type="button"
+                    className="cancel-btn"
+                    disabled={bulkUploading}
+                    onClick={() => {
+                        setBulkFile(null);
+                        setShowBulkModal(false);
+                    }}
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="button"
+                    className="upload-btn"
+                    disabled={!bulkFile || bulkUploading}
+                    onClick={handleBulkUpload}
+                >
+                    <FaUpload />
+                    {bulkUploading
+                        ? "Uploading..."
+                        : "Upload Action Points"}
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+
+{/* ======================================================
     EDIT ACTION POINT MODAL
 ====================================================== */}
 
@@ -1907,29 +2307,56 @@ return (
 
 
                 <div className="filter-group">
+                    <label>SLA</label>
 
-                    <label>SLA Days</label>
+                    <div className="edit-sla-grid">
+                        <div>
+                            <span>Days</span>
+                            <input
+                                type="number"
+                                min="0"
+                                value={editData.sla_days}
+                                onChange={(e) =>
+                                    setEditData({
+                                        ...editData,
+                                        sla_days: e.target.value
+                                    })
+                                }
+                            />
+                        </div>
 
-                    <input
+                        <div>
+                            <span>Hours</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="23"
+                                value={editData.sla_hours}
+                                onChange={(e) =>
+                                    setEditData({
+                                        ...editData,
+                                        sla_hours: e.target.value
+                                    })
+                                }
+                            />
+                        </div>
 
-                        type="number"
-
-                        value={editData.sla_days}
-
-                        onChange={(e) =>
-
-                            setEditData({
-
-                                ...editData,
-
-                                sla_days: e.target.value
-
-                            })
-
-                        }
-
-                    />
-
+                        <div>
+                            <span>Minutes</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={editData.sla_minutes_part}
+                                onChange={(e) =>
+                                    setEditData({
+                                        ...editData,
+                                        sla_minutes_part: e.target.value
+                                    })
+                                }
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <br />
