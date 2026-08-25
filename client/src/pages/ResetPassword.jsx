@@ -29,7 +29,7 @@ function ResetPassword() {
   }, [email, navigate]);
 
   const passwordRules = {
-    length: password.length >= 8 && password.length <= 10,
+    length: password.length >= 10 && password.length <= 128,
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
@@ -48,7 +48,7 @@ function ResetPassword() {
 
     if (!isStrongPassword) {
       alert(
-        "Password must contain 8–10 characters, one uppercase letter, one lowercase letter, one number, and one special character."
+        "Password must contain 10–128 characters, one uppercase letter, one lowercase letter, one number, and one special character."
       );
       return;
     }
@@ -182,7 +182,7 @@ function ResetPassword() {
               </div>
 
               <ul className="password-rules" aria-label="Password requirements">
-                <Rule valid={passwordRules.length}>8–10 characters</Rule>
+                <Rule valid={passwordRules.length}>10–128 characters</Rule>
                 <Rule valid={passwordRules.uppercase}>One uppercase letter (A-Z)</Rule>
                 <Rule valid={passwordRules.lowercase}>One lowercase letter (a-z)</Rule>
                 <Rule valid={passwordRules.number}>One number (0-9)</Rule>

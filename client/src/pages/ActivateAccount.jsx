@@ -80,10 +80,10 @@ function ActivateAccount() {
 
         }
 
-        const passwordPolicy = /^(?=.{8,10}$)(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+        const passwordPolicy = /^(?=.{10,128}$)(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
         if (!passwordPolicy.test(password)) {
-            return alert("Password must be 8–10 characters and include uppercase, lowercase, number, and special character.");
+            return alert("Password must be 10–128 characters and include uppercase, lowercase, number, and special character.");
         }
 
         if (password !== confirmPassword) {

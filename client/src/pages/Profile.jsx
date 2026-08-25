@@ -403,8 +403,8 @@ function Profile() {
             return;
         }
 
-        if (newPassword.length < 8) {
-            setError("New password must contain at least 8 characters.");
+        if (newPassword.length < 10) {
+            setError("New password must contain at least 10 characters.");
             return;
         }
 
