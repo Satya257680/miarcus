@@ -310,8 +310,9 @@ table tbody td{
 ========================================================== */
 
 .action-buttons{
-    display:grid;
-    grid-template-columns:repeat(3, minmax(0, 1fr));
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:nowrap !important;
     align-items:center;
     justify-content:center;
     gap:8px;
@@ -320,12 +321,14 @@ table tbody td{
     max-width:380px;
     margin:0 auto;
     padding:4px 0;
+    white-space:nowrap;
 }
 
 .action-buttons button{
     box-sizing:border-box;
-    width:100%;
-    min-width:0;
+    width:auto !important;
+    min-width:96px;
+    flex:0 0 auto !important;
     height:38px;
     padding:0 10px;
     border:1px solid transparent;
@@ -596,9 +599,16 @@ table td:last-child{
     }
 
     .action-buttons{
-        grid-template-columns:1fr;
+        flex-direction:column !important;
+        flex-wrap:nowrap !important;
         min-width:180px;
         max-width:100%;
+    }
+
+    .action-buttons button{
+        width:100% !important;
+        min-width:0;
+        flex:0 0 auto !important;
     }
 
     .action-buttons .delete-btn{

@@ -1548,7 +1548,7 @@ if (loading) {
 
     render: (row) => (
 
-        <div className="action-buttons">
+        <div className="action-buttons action-buttons-horizontal">
 
             {canEdit && (
 
