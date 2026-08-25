@@ -1,5 +1,4 @@
-import { API_BASE_URL } from "../axiosConfig.js";
-import axios, { API_BASE_URL } from "../axiosConfig";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // Announcement API base is isolated so this module works in both
 // local development and Vercel/Render production.

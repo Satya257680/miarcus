@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "../../axiosConfig.js";
 import {
   FaBars,
   FaBell,
@@ -9,7 +8,7 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios, { API_BASE_URL } from "../../axiosConfig";
+import axios, { API_BASE_URL } from "../../axiosConfig.js";
 import miarcusLogo from "../../assets/Miarcus.png";
 import "../../styles/layout/Topbar.css";
 

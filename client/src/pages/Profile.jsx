@@ -1,6 +1,5 @@
-import { API_BASE_URL } from "../axiosConfig.js";
 import { useEffect, useMemo, useState } from "react";
-import axios, { API_BASE_URL } from "../axiosConfig";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/Profile.css";
 import { FaUserCircle, FaSave, FaKey, FaStore } from "react-icons/fa";
 
