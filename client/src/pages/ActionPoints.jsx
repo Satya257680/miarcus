@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "../axiosConfig.js";
+import axios from "axios";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -40,6 +40,7 @@ import "../styles/ActionPoints.css";
 // API
 // ======================================================
 
+const API = "https://miarcus-backend.onrender.com";
 
 // ======================================================
 // COMPONENT
@@ -333,7 +334,7 @@ const fetchActionPoints = async () => {
 
         const res = await axios.get(
 
-            "/api/action-points",
+            `${API}/api/action-points-sla`,
 
             {
 
@@ -447,25 +448,25 @@ const fetchFilters = async () => {
 
             axios.get(
 
-                "/api/stores"
+                `${API}/api/stores`
 
             ),
 
             axios.get(
 
-                "/api/departments"
+                `${API}/api/departments`
 
             ),
 
             axios.get(
 
-                "/api/checklist-types"
+                `${API}/api/checklist-types`
 
             ),
 
             axios.get(
 
-                "/api/new-store-openings",
+                `${API}/api/new-store-openings`,
                 { params: { page: 1, limit: 1000 } }
 
             )
@@ -586,7 +587,7 @@ const updateActionPoint = async () => {
 
         await axios.put(
 
-            `/api/action-points/${editData.id}`,
+            `${API}/api/action-points-sla/${editData.id}`,
 
             {
                 assigned_to: editData.assigned_to,
@@ -655,7 +656,7 @@ const confirmDelete = async () => {
 
         await axios.delete(
 
-            `/api/action-points/${deleteId}`
+            `${API}/api/action-points/${deleteId}`
 
         );
 
@@ -705,7 +706,7 @@ const confirmDeleteAll = async () => {
 
     try {
         await axios.delete(
-            "/api/action-points"
+            `${API}/api/action-points-sla/bulk/all`
         );
 
         alert("All Action Points deleted successfully.");
@@ -788,7 +789,7 @@ const handleBulkUpload = async () => {
         formData.append("file", bulkFile);
 
         await axios.post(
-            "/api/action-points/bulk-upload",
+            `${API}/api/action-points-sla/bulk-upload`,
             formData,
             {
                 headers: token
@@ -850,7 +851,7 @@ const saveActionPoint = async () => {
 
         await axios.put(
 
-            `/api/action-points/${selectedAction.id}/take-action`,
+            `${API}/api/action-points/${selectedAction.id}/take-action`,
 
             {
 
@@ -896,40 +897,15 @@ const saveActionPoint = async () => {
 // EXPORT
 // ======================================================
 
-const handleExport = async () => {
+const handleExport = () => {
 
-    try {
+    window.open(
 
-        const response = await axios.get(
-            "/api/action-points/export",
-            {
-                responseType: "blob"
-            }
-        );
+        `${API}/api/action-points/export`,
 
-        const blob = new Blob(
-            [response.data],
-            { type: "text/csv;charset=utf-8;" }
-        );
+        "_blank"
 
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = "ActionPoints.csv";
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-
-    } catch (err) {
-
-        console.error("ACTION POINT EXPORT ERROR:", err);
-
-        alert(
-            err.response?.data?.message ||
-            "Unable to export Action Points."
-        );
-    }
+    );
 
 };
 
