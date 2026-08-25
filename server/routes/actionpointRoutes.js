@@ -21,6 +21,7 @@ const {
     getActionPointById,
     getActionPointsByNSO,
     exportActionPointsCSV,
+    bulkUploadActionPoints,
     createActionPoint,
     updateActionPoint,
     takeAction,
@@ -90,6 +91,26 @@ router.get(
         "View"
     ),
     getActionPointsByNSO
+);
+
+
+// ======================================================
+// BULK UPLOAD ACTION POINTS
+// POST /api/action-points/bulk-upload
+//
+// Permission:
+// Add
+// ======================================================
+
+router.post(
+    "/bulk-upload",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "Add"
+    ),
+    upload.single("file"),
+    bulkUploadActionPoints
 );
 
 

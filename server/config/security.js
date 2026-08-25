@@ -11,7 +11,10 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 const JWT_ALGORITHM = "HS256";
 const JWT_ISSUER = String(process.env.JWT_ISSUER || "miarcus-api").trim();
 const JWT_AUDIENCE = String(process.env.JWT_AUDIENCE || "miarcus-client").trim();
-const ACCESS_TOKEN_TTL = "30m";
+// Keep the authenticated work session available for a full workday.
+// The previous 30-minute TTL caused the dashboard to force a login again
+// while the user was simply away from the application for a while.
+const ACCESS_TOKEN_TTL = "8h";
 const FILE_TOKEN_TTL = "10m";
 const RESET_TOKEN_TTL = "10m";
 const BCRYPT_ROUNDS = 12;

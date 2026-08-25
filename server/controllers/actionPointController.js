@@ -1,4 +1,5 @@
 const { Parser } = require("json2csv");
+const XLSX = require("xlsx");
 
 const actionPointService = require("../services/actionPointService");
 
@@ -163,6 +164,152 @@ exports.getActionPointsByNSO = async (req, res) => {
             message: "Unable to fetch Action Points for the NSO project.",
             error: error.message
         });
+    }
+
+};
+
+// ======================================================
+// BULK UPLOAD ACTION POINTS
+// POST /api/action-points/bulk-upload
+// ======================================================
+
+exports.bulkUploadActionPoints = async (req, res) => {
+
+    try {
+
+        if (!req.file?.path) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Please upload a CSV or Excel file."
+            });
+
+        }
+
+        const workbook = XLSX.readFile(req.file.path, {
+            cellDates: false
+        });
+
+        const firstSheet =
+            workbook.Sheets[workbook.SheetNames[0]];
+
+        if (!firstSheet) {
+
+            return res.status(400).json({
+                success: false,
+                message: "The uploaded file does not contain a worksheet."
+            });
+
+        }
+
+        const rows = XLSX.utils.sheet_to_json(firstSheet, {
+            defval: "",
+            raw: false
+        });
+
+        if (!rows.length) {
+
+            return res.status(400).json({
+                success: false,
+                message: "The uploaded file is empty."
+            });
+
+        }
+
+        const created = [];
+        const errors = [];
+
+        for (let index = 0; index < rows.length; index += 1) {
+
+            const row = rows[index];
+            const rowNumber = index + 2;
+
+            const normalized = {
+                store_id: row["Store ID"] ?? row.store_id,
+                department_id: row["Department ID"] ?? row.department_id,
+                question_id: row["Question ID"] ?? row.question_id,
+                submission_id: row["Submission ID"] ?? row.submission_id,
+                submission_answer_id:
+                    row["Submission Answer ID"] ??
+                    row.submission_answer_id,
+                assigned_to:
+                    row["Assigned To"] ??
+                    row.assigned_to,
+                priority:
+                    row.Priority ??
+                    row.priority ??
+                    "Medium",
+                sla_days:
+                    row["SLA Days"] ??
+                    row.sla_days ??
+                    0,
+                status:
+                    row.Status ??
+                    row.status ??
+                    "Open",
+                remarks:
+                    row.Remarks ??
+                    row.remarks ??
+                    ""
+            };
+
+            try {
+
+                const result =
+                    await actionPointService.createManual(
+                        normalized,
+                        null,
+                        req.user.id
+                    );
+
+                created.push({
+                    row: rowNumber,
+                    id: result.id
+                });
+
+            } catch (rowError) {
+
+                errors.push(
+                    `Row ${rowNumber}: ${rowError.message}`
+                );
+
+            }
+        }
+
+        if (!created.length) {
+
+            return res.status(400).json({
+                success: false,
+                message: "No Action Points were created.",
+                errors
+            });
+
+        }
+
+        return res.status(201).json({
+            success: true,
+            message:
+                `Bulk upload completed. ${created.length} Action Point(s) created.`,
+            data: {
+                created,
+                errors
+            }
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "BULK ACTION POINT UPLOAD ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to bulk upload Action Points.",
+            error: error.message
+        });
+
     }
 
 };
@@ -356,6 +503,7 @@ module.exports = {
     exportActionPointsCSV: exports.exportActionPointsCSV,
     getActionPointsByNSO: exports.getActionPointsByNSO,
     getActionPointById: exports.getActionPointById,
+    bulkUploadActionPoints: exports.bulkUploadActionPoints,
     createActionPoint: exports.createActionPoint,
     updateActionPoint: exports.updateActionPoint,
     takeAction: exports.takeAction,
