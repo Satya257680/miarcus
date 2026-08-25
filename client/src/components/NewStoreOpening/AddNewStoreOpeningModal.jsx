@@ -4,7 +4,7 @@ import React, {
     useState
 } from "react";
 
-import axios from "axios";
+import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
 import {
     FaTimes,
@@ -28,7 +28,7 @@ import "../../styles/AddNewStoreOpeningModal.css";
 ====================================================== */
 
 const API =
-    "https://miarcus-backend.onrender.com/api/new-store-openings";
+    API_BASE_URL + '/api/new-store-openings';
 
 
 const TOTAL_STEPS = 5;

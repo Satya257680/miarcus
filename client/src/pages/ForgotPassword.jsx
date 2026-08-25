@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { Link, useNavigate } from "react-router-dom";
 import "./login.css";
 
@@ -23,7 +23,7 @@ function ForgotPassword() {
 
     try {
       const response = await axios.post(
-        "https://miarcus-backend.onrender.com/api/auth/forgot-password",
+        API_BASE_URL + '/api/auth/forgot-password',
         {
           email: trimmedEmail,
         },

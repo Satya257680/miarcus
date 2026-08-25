@@ -21,7 +21,7 @@ import {
   LuPower,
 } from "react-icons/lu";
 
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 function AddUserModal({
   onClose,
@@ -476,7 +476,7 @@ function AddUserModal({
   const loadReports = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/reports"
+        API_BASE_URL + '/api/reports'
       );
 
       setReportsList(
@@ -503,7 +503,7 @@ function AddUserModal({
   const fetchDepartments = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/departments"
+        API_BASE_URL + '/api/departments'
       );
 
       setDepartments(
@@ -524,7 +524,7 @@ function AddUserModal({
   const fetchDesignations = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/designations"
+        API_BASE_URL + '/api/designations'
       );
 
       setDesignations(
@@ -545,7 +545,7 @@ function AddUserModal({
   const fetchStores = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/stores"
+        API_BASE_URL + '/api/stores'
       );
 
       setStores(
@@ -949,7 +949,7 @@ function AddUserModal({
 
       if (editingUser) {
         await axios.put(
-          `https://miarcus-backend.onrender.com/api/users/${editingUser.id}`,
+          `${API_BASE_URL}/api/users/${editingUser.id}`,
           payload
         );
 
@@ -958,7 +958,7 @@ function AddUserModal({
         );
       } else {
         await axios.post(
-          "https://miarcus-backend.onrender.com/api/users",
+          API_BASE_URL + '/api/users',
           payload
         );
 

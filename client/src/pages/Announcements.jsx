@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../axiosConfig.js";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -36,7 +37,7 @@ const API_BASE = (
     import.meta.env.VITE_API_URL?.trim() ||
     (
         import.meta.env.PROD
-            ? "https://miarcus-backend.onrender.com"
+            ? API_BASE_URL
             : "http://localhost:5000"
     )
 ).replace(/\/+$/, "");

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 import {
   createQuestion,
@@ -53,7 +53,7 @@ function AddQuestionModal({
   const loadChecklistTypes = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/checklist-types"
+        API_BASE_URL + '/api/checklist-types'
       );
 
       setChecklistTypes(res.data.data || []);
@@ -65,7 +65,7 @@ function AddQuestionModal({
   const loadDepartments = async () => {
     try {
       const res = await axios.get(
-        "https://miarcus-backend.onrender.com/api/departments"
+        API_BASE_URL + '/api/departments'
       );
 
       setDepartments(res.data.data || []);

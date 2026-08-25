@@ -15,7 +15,6 @@ const MODULES = [
     ["action-points", "Action Points", "/action-points"],
     ["announcements", "Announcements", "/announcements"],
     ["gallery", "Gallery", "/gallery"],
-    ["location", "Employee Location", "/employee-location"],
     ["attendance", "Attendance", "/attendance"],
     ["checklist-submissions", "Checklist Submission", "/checklist-submit"],
     ["checklist-reports", "Checklist Reports", "/checklist-reports"],

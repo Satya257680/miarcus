@@ -1,6 +1,6 @@
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
-const API = "https://miarcus-backend.onrender.com/api/departments";
+const API = API_BASE_URL + '/api/departments';
 
 // ======================================================
 // AUTH CONFIG

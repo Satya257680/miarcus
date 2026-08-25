@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "./login.css";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://miarcus-backend.onrender.com";
 
 function Login() {
   const navigate = useNavigate();

@@ -1,11 +1,12 @@
-import axios from "../axiosConfig";
+import { API_BASE_URL } from "../axiosConfig.js";
+import axios, { API_BASE_URL } from "../axiosConfig";
 
 // Announcement API base is isolated so this module works in both
 // local development and Vercel/Render production.
 const API_BASE =
     import.meta.env.VITE_API_URL?.trim() ||
     (import.meta.env.PROD
-        ? "https://miarcus-backend.onrender.com"
+        ? API_BASE_URL
         : "http://localhost:5000");
 
 const API = `${API_BASE.replace(/\/+$/, "")}/api/announcements`;

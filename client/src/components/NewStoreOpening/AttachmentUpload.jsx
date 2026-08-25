@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../axiosConfig.js";
 import React, {
     useRef
 } from "react";
@@ -12,33 +13,6 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
-
-
-/* ======================================================
-   API BASE URL
-====================================================== */
-
-const getApiBaseUrl = () => {
-
-    const envUrl =
-        import.meta?.env?.VITE_API_URL;
-
-    if (
-        envUrl &&
-        typeof envUrl === "string" &&
-        envUrl.trim()
-    ) {
-        return envUrl
-            .trim()
-            .replace(/\/+$/, "");
-    }
-
-    return "https://miarcus-backend.onrender.com";
-};
-
-
-const API_BASE_URL =
-    getApiBaseUrl();
 
 
 /* ======================================================

@@ -1,5 +1,6 @@
+import { API_BASE_URL } from "../axiosConfig.js";
 import { useEffect, useMemo, useState } from "react";
-import axios from "../axiosConfig";
+import axios, { API_BASE_URL } from "../axiosConfig";
 import "../styles/Profile.css";
 import { FaUserCircle, FaSave, FaKey, FaStore } from "react-icons/fa";
 
@@ -9,7 +10,7 @@ import { FaUserCircle, FaSave, FaKey, FaStore } from "react-icons/fa";
 const API =
     (axios.defaults.baseURL ||
         import.meta.env.VITE_API_URL ||
-        "https://miarcus-backend.onrender.com"
+        API_BASE_URL
     ).replace(/\/+$/, "");
 
 const getToken = () =>
@@ -403,8 +404,10 @@ function Profile() {
             return;
         }
 
-        if (newPassword.length < 8) {
-            setError("New password must contain at least 8 characters.");
+        const passwordPolicy = /^(?=.{8,10}$)(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+
+        if (!passwordPolicy.test(newPassword)) {
+            setError("New password must be 8–10 characters and include uppercase, lowercase, number, and special character.");
             return;
         }
 

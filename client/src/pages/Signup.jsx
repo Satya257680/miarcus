@@ -7,7 +7,7 @@ import {
     useNavigate
 } from "react-router-dom";
 
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 import "../styles/Signup.css";
 
@@ -17,7 +17,7 @@ import "../styles/Signup.css";
 // ======================================================
 
 const API =
-    "https://miarcus-backend.onrender.com";
+    API_BASE_URL;
 
 
 // ======================================================

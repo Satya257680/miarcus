@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../axiosConfig.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     FaPlus,
@@ -33,7 +34,7 @@ import {
 } from "../services/assetService";
 import "../styles/pages/AssetManagement.css";
 
-const API = "https://miarcus-backend.onrender.com";
+const API = API_BASE_URL;
 
 const MARKETING_COLUMNS = [
     ["particular_name", "Particular Name"],
@@ -617,7 +618,7 @@ export default function AssetManagement({ type = "marketing" }) {
             </section>
 
             <AssetModal type={type} open={modalOpen} initialData={editing} options={options} onClose={() => { setModalOpen(false); setEditing(null); }} onSaved={async () => { setModalOpen(false); setEditing(null); await load(); }} />
-            <BulkUploadModal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} title={`Bulk Upload ${title}`} uploadFunction={bulkUpload} onSuccess={load} acceptedFile=".csv,.xlsx,.xls" sampleFile={`https://miarcus-backend.onrender.com/api/assets/${type}/sample`} />
+            <BulkUploadModal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} title={`Bulk Upload ${title}`} uploadFunction={bulkUpload} onSuccess={load} acceptedFile=".csv,.xlsx,.xls" sampleFile={`${API_BASE_URL}/api/assets/${type}/sample`} />
             <ConfirmDialog open={showDeleteAllDialog} title={`Delete All ${title}`} message={`Are you sure you want to permanently delete all ${total} records? This action cannot be undone.`} confirmText={deletingAll ? "Deleting..." : "Delete All"} cancelText="Cancel" confirmVariant="danger" onConfirm={confirmDeleteAll} onCancel={() => !deletingAll && setShowDeleteAllDialog(false)} />
         </div>
     );

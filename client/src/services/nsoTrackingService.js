@@ -1,10 +1,10 @@
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
 // BASE URL
 // ======================================================
 
-const BASE_URL = "https://miarcus-backend.onrender.com/api";
+const BASE_URL = API_BASE_URL + '/api';
 
 // ======================================================
 // AUTH CONFIG

@@ -31,6 +31,9 @@ const API_URL =
 const cleanApiUrl =
     API_URL.replace(/\/+$/, "");
 
+// Canonical API origin used by modules instead of hard-coded deployment URLs.
+const API_BASE_URL = cleanApiUrl;
+
 
 // ======================================================
 // QUIZ API URL
@@ -48,7 +51,7 @@ const cleanApiUrl =
 
 const QUIZ_API_URL =
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
-    "https://miarcus-backend.onrender.com";
+    cleanApiUrl;
 
 const cleanQuizApiUrl =
     QUIZ_API_URL.replace(/\/+$/, "");
@@ -378,5 +381,7 @@ axios.interceptors.response.use(
 // ======================================================
 // EXPORT
 // ======================================================
+
+export { API_BASE_URL, cleanApiUrl, cleanQuizApiUrl };
 
 export default axios;

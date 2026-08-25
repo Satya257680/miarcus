@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import {
     FaLock,
     FaEye,
@@ -47,7 +47,7 @@ function ActivateAccount() {
         try {
 
             await axios.get(
-                `https://miarcus-backend.onrender.com/api/users/activate/${token}`
+                `${API_BASE_URL}/api/users/activate/${token}`
             );
 
             setValidToken(true);
@@ -98,7 +98,7 @@ function ActivateAccount() {
 
             await axios.post(
 
-                "https://miarcus-backend.onrender.com/api/users/activate",
+                API_BASE_URL + '/api/users/activate',
 
                 {
 

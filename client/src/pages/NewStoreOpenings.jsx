@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../axiosConfig.js";
 import { useEffect, useState } from "react";
 
 // ======================================================
@@ -1537,7 +1538,7 @@ function NewStoreOpenings() {
                 return (
 
                     <a
-                        href={`https://miarcus-backend.onrender.com/${attachmentPath}`}
+                        href={`${API_BASE_URL}/${attachmentPath}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="table-link"

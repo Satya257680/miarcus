@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../axiosConfig.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -53,7 +54,7 @@ const inputType = (type) =>
 
 const API_ORIGIN = (
   import.meta.env.VITE_API_URL ||
-  "https://miarcus-backend.onrender.com"
+  API_BASE_URL
 ).replace(/\/+$/, "");
 
 const isAttachmentType = (type) =>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./login.css";
 
@@ -30,7 +30,7 @@ function VerifyOTP() {
 
     try {
       const res = await axios.post(
-        "https://miarcus-backend.onrender.com/api/auth/verify-otp",
+        API_BASE_URL + '/api/auth/verify-otp',
         { email, otp }
       );
 

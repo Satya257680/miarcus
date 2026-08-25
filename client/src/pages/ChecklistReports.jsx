@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 
 // ======================================================
@@ -39,7 +39,7 @@ import "../styles/ChecklistReports.css";
 // API
 // ======================================================
 
-const API = "https://miarcus-backend.onrender.com/api";
+const API = API_BASE_URL + '/api';
 
 
 // ======================================================
@@ -1038,7 +1038,7 @@ const uploadChecklistReport = async (file) => {
         row.attachment ? (
 
             <a
-                href={`https://miarcus-backend.onrender.com/${row.attachment}`}
+                href={`${API_BASE_URL}/${row.attachment}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="table-link"
@@ -1548,7 +1548,7 @@ const uploadChecklistReport = async (file) => {
                                     {selectedReport.attachment ? (
 
                                         <a
-                                            href={`https://miarcus-backend.onrender.com/${selectedReport.attachment}`}
+                                            href={`${API_BASE_URL}/${selectedReport.attachment}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="table-link"

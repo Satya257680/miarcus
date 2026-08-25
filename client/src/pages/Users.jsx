@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { saveAs } from "file-saver";
 import AddUserModal from "../components/AddUserModal";
 import BulkUploadModal from "../components/common/BulkUploadModal";
@@ -94,7 +94,7 @@ const canDelete =
  const fetchUsers = async () => {
   try {
     const res = await axios.get(
-      "https://miarcus-backend.onrender.com/api/users"
+      API_BASE_URL + '/api/users'
     );
 
     console.log("Fetched Users:", res.data.users);
@@ -124,7 +124,7 @@ useEffect(() => {
 const fetchManagers = async () => {
   try {
     const res = await axios.get(
-      "https://miarcus-backend.onrender.com/api/reports"
+      API_BASE_URL + '/api/reports'
     );
 
     setReportsTo(res.data.reports);
@@ -183,7 +183,7 @@ const exportCSV = () => {
 const handleBulkUpload = async (formData) => {
   try {
     const res = await axios.post(
-      "https://miarcus-backend.onrender.com/api/users/bulk-upload",
+      API_BASE_URL + '/api/users/bulk-upload',
       formData,
       {
         headers: {
@@ -217,7 +217,7 @@ const deleteAllUsers = async () => {
   try {
 
     await axios.delete(
-      "https://miarcus-backend.onrender.com/api/users/delete-all"
+      API_BASE_URL + '/api/users/delete-all'
     );
 
     alert("Users Deleted Successfully");
@@ -245,7 +245,7 @@ const deleteUser = async (id) => {
   try {
 
     const res = await axios.delete(
-      `https://miarcus-backend.onrender.com/api/users/${id}`
+      `${API_BASE_URL}/api/users/${id}`
     );
 
     alert(res.data.message);
@@ -270,7 +270,7 @@ const disableUser = async (id) => {
   try {
 
     const res = await axios.put(
-      `https://miarcus-backend.onrender.com/api/users/disable/${id}`
+      `${API_BASE_URL}/api/users/disable/${id}`
     );
 
     alert(res.data.message);
@@ -336,7 +336,7 @@ const filteredUsers = users.filter((user) => {
 const fetchDepartments = async () => {
   try {
     const res = await axios.get(
-      "https://miarcus-backend.onrender.com/api/departments"
+      API_BASE_URL + '/api/departments'
     );
 
     setDepartments(res.data.data);
@@ -846,7 +846,7 @@ return (
   uploadFunction={handleBulkUpload}
   onSuccess={fetchUsers}
   acceptedFile=".csv,.xlsx,.xls"
-  sampleFile="https://miarcus-backend.onrender.com/api/users/sample"
+  sampleFile={API_BASE_URL + '/api/users/sample'}
 />
 {/* ============================
       Delete All Modal

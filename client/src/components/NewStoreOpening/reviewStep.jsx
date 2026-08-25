@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../axiosConfig.js";
 import React, { useEffect, useMemo, useState } from "react";
 
 import {
@@ -17,17 +18,6 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/AddNewStoreOpeningModal.css";
-
-
-/* ======================================================
-   API BASE URL
-====================================================== */
-
-const API_BASE_URL =
-    (typeof import.meta !== "undefined" &&
-        import.meta.env &&
-        import.meta.env.VITE_API_URL) ||
-    "https://miarcus-backend.onrender.com";
 
 
 /* ======================================================

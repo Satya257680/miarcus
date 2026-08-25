@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
 // Expense API is intentionally independent from the global axiosConfig.
 // This makes the Expense module work on Vercel without requiring
@@ -10,7 +10,7 @@ const configuredUrl = import.meta.env.VITE_EXPENSE_API_URL?.trim();
 const baseURL =
     (configuredUrl || (isLocal
         ? "http://localhost:5000"
-        : "https://miarcus-backend.onrender.com"))
+        : API_BASE_URL))
         .replace(/\/+$/, "");
 
 const expenseApi = axios.create({

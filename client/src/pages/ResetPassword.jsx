@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "./login.css";
 
 function ResetPassword() {
@@ -62,7 +62,7 @@ function ResetPassword() {
 
     try {
       const res = await axios.post(
-        "https://miarcus-backend.onrender.com/api/auth/reset-password",
+        API_BASE_URL + '/api/auth/reset-password',
         { resetToken, password }
       );
 

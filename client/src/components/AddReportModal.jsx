@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/AddReportModal.css";
 
 function AddReportModal({
@@ -119,12 +119,12 @@ function AddReportModal({
 
       if (editData) {
         await axios.put(
-          `https://miarcus-backend.onrender.com/api/reports/${editData.id}`,
+          `${API_BASE_URL}/api/reports/${editData.id}`,
           data
         );
       } else {
         await axios.post(
-          "https://miarcus-backend.onrender.com/api/reports",
+          `${API_BASE_URL}/api/reports`,
           data
         );
       }

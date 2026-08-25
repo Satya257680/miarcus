@@ -1,5 +1,5 @@
 import "../axiosConfig";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 const API = "/api/chat";
 
@@ -159,7 +159,7 @@ export const openChatEventStream = (handlers = {}) => {
     const base = (
         axios.defaults.baseURL ||
         import.meta.env.VITE_API_URL ||
-        "https://miarcus-backend.onrender.com"
+        API_BASE_URL
     ).replace(/\/+$/, "");
 
     const source = new EventSource(

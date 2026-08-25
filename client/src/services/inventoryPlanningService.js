@@ -1,5 +1,5 @@
-import axios from "axios";
-const API="https://miarcus-backend.onrender.com/api/inventory-planning";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
+const API=API_BASE_URL + '/api/inventory-planning';
 const auth=()=>({headers:{Authorization:`Bearer ${localStorage.getItem("token")}`}});
 export const getInventoryOptions=async()=> (await axios.get(`${API}/options`,auth())).data;
 export const getErpSales=async(params={})=> (await axios.get(`${API}/erp-data`,{...auth(),params})).data;

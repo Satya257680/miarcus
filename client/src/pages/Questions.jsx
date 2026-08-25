@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -41,7 +41,7 @@ import "../styles/Questions.css";
 // API
 // ======================================================
 
-const API = "https://miarcus-backend.onrender.com/api";
+const API = API_BASE_URL + '/api';
 
 // ======================================================
 // COMPONENT

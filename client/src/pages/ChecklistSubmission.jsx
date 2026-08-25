@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/ChecklistSubmission.css";
 
-const API = "https://miarcus-backend.onrender.com";
+const API = API_BASE_URL;
 
 function ChecklistSubmission() {
   // =========================================================

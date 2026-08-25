@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../axiosConfig.js";
 import {
   FaBars,
   FaBell,
@@ -8,7 +9,7 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios from "../../axiosConfig";
+import axios, { API_BASE_URL } from "../../axiosConfig";
 import miarcusLogo from "../../assets/Miarcus.png";
 import "../../styles/layout/Topbar.css";
 
@@ -17,7 +18,7 @@ import "../../styles/layout/Topbar.css";
 const API = (
   axios.defaults.baseURL ||
   import.meta.env.VITE_API_URL ||
-  "https://miarcus-backend.onrender.com"
+  API_BASE_URL
 ).replace(/\/+$/, "");
 
 const getPhotoUrl = (photo) => {

@@ -1,6 +1,6 @@
-import axios from "axios";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
-const API_URL = "https://miarcus-backend.onrender.com/api/checklist-types";
+const API_URL = API_BASE_URL + '/api/checklist-types';
 
 // ========================================
 // Axios Config
