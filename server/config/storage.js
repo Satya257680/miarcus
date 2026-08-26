@@ -1,8 +1,25 @@
 const path = require('path');
 const fs = require('fs');
 
-// Persistent storage root. In production set UPLOAD_DIR to a mounted disk or object-storage sync path.
-const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'));
+// Persistent storage root.
+// - Explicit UPLOAD_DIR always wins.
+// - Render persistent disks are mounted at /var/data when attached.
+// - Local development falls back to the repository uploads directory.
+//
+// Announcement attachments are also persisted in MySQL, so the application
+// does not depend on ephemeral Render storage for announcement data.
+const configuredUploadDir = String(process.env.UPLOAD_DIR || "").trim();
+const renderDiskDir =
+  process.env.NODE_ENV === "production" &&
+  fs.existsSync("/var/data")
+    ? path.join("/var/data", "miarcus", "uploads")
+    : null;
+
+const UPLOAD_DIR = path.resolve(
+  configuredUploadDir ||
+  renderDiskDir ||
+  path.join(process.cwd(), "uploads")
+);
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 function uploadPath(...parts) {

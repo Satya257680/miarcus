@@ -792,7 +792,7 @@ export default function ListingTracker() {
                                         <th>Photoshoot</th>
                                         <th>Listed</th>
                                         <th>Remark</th>
-                                        <th>Actions</th>
+                                        <th className="listing-actions-column">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -839,7 +839,7 @@ export default function ListingTracker() {
                                                     {row.remark || "Add Remark"}
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td className="listing-actions-column">
                                                 <div className="listing-actions">
                                                     {permissions.canEdit && (
                                                         <button

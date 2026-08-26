@@ -4,8 +4,9 @@ const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM, FILE_TOKEN_TTL } = require("../config/security");
 const db = require("../config/db");
 const { safeFilename, safeRelativePath } = require("../utils/pathSecurity");
+const { UPLOAD_DIR } = require("../config/storage");
 
-const uploadRoot = path.resolve(path.join(__dirname, "..", "uploads"));
+const uploadRoot = path.resolve(UPLOAD_DIR);
 
 
 function verifyFileToken(token, filename) {

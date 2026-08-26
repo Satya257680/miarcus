@@ -3419,3 +3419,32 @@ mask-composite: exclude;
   opacity:.55;
   cursor:not-allowed;
 }
+
+
+/* ---------- Training report action column ---------- */
+.report-table-wrap .quiz-table .quiz-action-column{
+  width:150px;
+  min-width:150px;
+  max-width:150px;
+  text-align:center;
+  position:sticky;
+  right:0;
+  background:#fff;
+  z-index:2;
+  box-shadow:-6px 0 10px rgba(41,55,78,.045);
+}
+.report-table-wrap .quiz-table th.quiz-action-column{
+  background:#fafbfc;
+  z-index:3;
+}
+.report-table-wrap .quiz-table tbody tr:hover td.quiz-action-column{
+  background:#fff;
+}
+.report-table-wrap .quiz-table td.quiz-action-column .quiz-row-actions{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}

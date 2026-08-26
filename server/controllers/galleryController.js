@@ -129,6 +129,7 @@ const createPhotoRecord = async ({ req, file, location, latitude, longitude, loc
         file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
         mime_type: file.mimetype,
         file_size: file.size,
+        file_data: fs.readFileSync(file.path),
         uploaded_by: req.user.id,
         category: String(req.body.category || "").trim().slice(0, 100),
         description: String(req.body.description || "").trim().slice(0, 2000),
@@ -206,6 +207,7 @@ const bulkUploadPhotos = async (req, res) => {
                 file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
                 mime_type: file.mimetype,
                 file_size: file.size,
+                file_data: fs.readFileSync(file.path),
                 uploaded_by: req.user.id,
                 category: String(req.body.category || "").trim().slice(0, 100),
                 description: String(req.body.description || "").trim().slice(0, 2000),
@@ -267,6 +269,43 @@ const deleteAllPhotos = async (_req, res) => {
     } catch (error) {
         console.error("Gallery delete-all error:", error);
         return res.status(500).json({ success: false, message: "Unable to clear Gallery." });
+    }
+};
+
+const servePhoto = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid photo id" });
+        }
+
+        const photo = await Gallery.getFile(id);
+        if (!photo) {
+            return res.status(404).json({ success: false, message: "Photo not found" });
+        }
+
+        let buffer = photo.file_data;
+
+        // Older Gallery records may pre-date database-backed files. Read the
+        // existing disk file once and migrate it into MySQL on first access.
+        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+            const diskPath = path.resolve(process.cwd(), String(photo.file_path || ""));
+            if (!fs.existsSync(diskPath)) {
+                return res.status(404).json({ success: false, message: "Photo file not found" });
+            }
+
+            buffer = fs.readFileSync(diskPath);
+            await Gallery.saveFileData(id, buffer);
+        }
+
+        res.setHeader("Content-Type", photo.mime_type || "application/octet-stream");
+        res.setHeader("Content-Length", String(buffer.length));
+        res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(photo.file_name || `gallery-${id}`)}`);
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        return res.end(buffer);
+    } catch (error) {
+        console.error("Gallery file serve error:", error);
+        return res.status(500).json({ success: false, message: "Unable to load photo" });
     }
 };
 
@@ -406,6 +445,7 @@ const mobileUpload = async (req, res) => {
             file_path: path.relative(process.cwd(), req.file.path).replace(/\\/g, "/"),
             mime_type: req.file.mimetype,
             file_size: req.file.size,
+            file_data: fs.readFileSync(req.file.path),
             uploaded_by: session.created_by,
             category: String(req.body.category || "").trim().slice(0, 100),
             description: String(req.body.description || "").trim().slice(0, 2000),
@@ -463,6 +503,7 @@ module.exports = {
     uploadPhoto,
     bulkUploadPhotos,
     deleteAllPhotos,
+    servePhoto,
     downloadPhoto,
     deletePhoto,
     createMobileSession,

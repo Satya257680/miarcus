@@ -61,6 +61,10 @@
 .petty-table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px;min-width:780px}
 .petty-table th{background:#f5f9fa;color:#657780;font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:900;padding:11px 10px;border-bottom:1px solid #dfe8ea;text-align:left;white-space:nowrap}
 .petty-table td{padding:11px 10px;border-bottom:1px solid #edf1f2;vertical-align:middle;white-space:nowrap}
+.petty-table .petty-action-column{width:150px;min-width:150px;max-width:150px;text-align:center;position:sticky;right:0;background:#fff;z-index:2;box-shadow:-6px 0 10px rgba(34,60,72,.035)}
+.petty-table th.petty-action-column{background:#f5f9fa;z-index:3}
+.petty-table tbody tr:hover td.petty-action-column{background:#fbfdfd}
+.petty-table .petty-row-actions{justify-content:center;min-height:32px}
 .petty-table tbody tr:hover td{background:#fbfdfd}
 .petty-table tfoot td{background:#f4f8f9;font-weight:900;color:#28505d;border-top:1px solid #dfe8ea}
 .petty-table .amount{font-weight:800;color:#214e5b}

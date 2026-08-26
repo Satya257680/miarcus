@@ -3,9 +3,6 @@ import axios from "axios";
 import { FaCamera, FaCloudUploadAlt, FaCheckCircle, FaImages, FaTimes } from "react-icons/fa";
 import "../styles/Gallery.css";
 
-const getApi = () => String(axios.defaults.baseURL || "").replace(/\/$/, "");
-const imageUrl = (filePath) => `${getApi()}${String(filePath || "").startsWith("/") ? "" : "/"}${filePath || ""}`;
-
 export default function GalleryMobile() {
     const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
     const [validating, setValidating] = useState(true);
@@ -83,7 +80,7 @@ export default function GalleryMobile() {
     }
 
     if (uploaded) {
-        return <div className="gallery-mobile-page"><div className="mobile-card success-card"><FaCheckCircle className="mobile-success-icon" /><h1>Photo uploaded</h1><p>Your photo is now available in the Miarcus Gallery.</p><img className="mobile-result-image" src={imageUrl(uploaded.file_path)} alt="Uploaded" /><button className="mobile-btn" onClick={() => window.location.reload()}>Upload another</button></div></div>;
+        return <div className="gallery-mobile-page"><div className="mobile-card success-card"><FaCheckCircle className="mobile-success-icon" /><h1>Photo uploaded</h1><p>Your photo is now available in the Miarcus Gallery.</p><img className="mobile-result-image" src={preview} alt="Uploaded" /><button className="mobile-btn" onClick={() => window.location.reload()}>Upload another</button></div></div>;
     }
 
     return (

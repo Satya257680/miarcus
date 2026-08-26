@@ -49,6 +49,34 @@ const getCounts = async (id) => {
     return response.data;
 };
 
+const getAttachmentUrl = async (id, download = false) => {
+    const response = await axios.get(
+        `${API}/${id}/attachment-token`
+    );
+
+    const token = encodeURIComponent(
+        String(response.data?.token || "")
+    );
+
+    if (!token) {
+        throw new Error("Unable to authorize announcement attachment");
+    }
+
+    // In production, load the actual file through the Vercel /api rewrite.
+    // This keeps the browser same-origin and avoids the private Render
+    // /uploads endpoint being blocked by browser security headers.
+    const base =
+        import.meta.env.PROD
+            ? window.location.origin
+            : API_BASE;
+
+    return `${base}/api/announcements/${encodeURIComponent(
+        String(id)
+    )}/attachment?token=${token}${
+        download ? "&download=1" : ""
+    }`;
+};
+
 const remove = async (id) => {
     const response = await axios.delete(`${API}/${id}`);
     return response.data;
@@ -82,6 +110,7 @@ const announcementService = {
     getRecipients,
     markRead,
     getCounts,
+    getAttachmentUrl,
     delete: remove,
     deleteAll,
     bulkUpload,

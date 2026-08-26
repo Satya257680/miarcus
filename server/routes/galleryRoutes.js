@@ -70,6 +70,12 @@ router.get(
 );
 
 router.get(
+    "/:id/file",
+    permissionMiddleware("Gallery", "View"),
+    controller.servePhoto
+);
+
+router.get(
     "/:id/download",
     permissionMiddleware("Gallery", "View"),
     controller.downloadPhoto

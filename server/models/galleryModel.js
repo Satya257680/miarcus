@@ -25,6 +25,7 @@ const Gallery = {
                 file_path VARCHAR(500) NOT NULL,
                 mime_type VARCHAR(100) NOT NULL,
                 file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                file_data MEDIUMBLOB NULL,
                 uploaded_by INT NOT NULL,
                 category VARCHAR(100) NULL,
                 description TEXT NULL,
@@ -53,6 +54,7 @@ const Gallery = {
 
         // Existing installations receive the new Gallery location fields without
         // requiring the company to manually rebuild the table.
+        await addColumnIfMissing("gallery_photos", "file_data", "MEDIUMBLOB NULL");
         await addColumnIfMissing("gallery_photos", "location_type", "ENUM('head_office','store') NOT NULL DEFAULT 'head_office'");
         await addColumnIfMissing("gallery_photos", "store_id", "INT NULL");
         await addColumnIfMissing("gallery_photos", "latitude", "DECIMAL(10,7) NULL");
@@ -198,15 +200,16 @@ const Gallery = {
     async create(data) {
         const result = await db.query(`
             INSERT INTO gallery_photos
-            (file_name, file_path, mime_type, file_size, uploaded_by, category, description,
+            (file_name, file_path, mime_type, file_size, file_data, uploaded_by, category, description,
              location_type, store_id, latitude, longitude, location_accuracy,
              source_module, source_record_id, source_field)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             data.file_name,
             data.file_path,
             data.mime_type,
             data.file_size || 0,
+            data.file_data || null,
             data.uploaded_by,
             data.category || null,
             data.description || null,
@@ -290,6 +293,25 @@ const Gallery = {
             [storeId]
         );
         return rows[0]?.store_name || null;
+    },
+
+    async getFile(id) {
+        const rows = await db.query(`
+            SELECT id, file_name, file_path, mime_type, file_size, file_data
+            FROM gallery_photos
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        `, [id]);
+        return rows[0] || null;
+    },
+
+    async saveFileData(id, buffer) {
+        if (!Buffer.isBuffer(buffer) || buffer.length === 0) return;
+        await db.query(`
+            UPDATE gallery_photos
+            SET file_data = ?, file_size = ?
+            WHERE id = ? AND status = 'active'
+        `, [buffer, buffer.length, id]);
     },
 
     async softDelete(id) {

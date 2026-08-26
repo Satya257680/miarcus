@@ -29,6 +29,8 @@ const syncGalleryAttachment = require(
 const {
     getAnnouncements,
     getUsers,
+    getAnnouncementAttachmentToken,
+    getAnnouncementAttachment,
     createAnnouncement,
     updateAnnouncement,
     getRecipientUsers,
@@ -69,6 +71,34 @@ router.get(
         "Add"
     ),
     getUsers
+);
+
+// ======================================================
+// SECURE ANNOUNCEMENT ATTACHMENT TOKEN
+//
+// Browser image/PDF elements cannot attach the Authorization
+// header themselves. A short-lived, user-scoped token is used
+// instead. The actual file is served from the database-backed
+// attachment endpoint below.
+// ======================================================
+
+router.get(
+    "/:id/attachment-token",
+    authMiddleware,
+    permissionMiddleware(
+        "Announcements",
+        "View"
+    ),
+    getAnnouncementAttachmentToken
+);
+
+// ======================================================
+// SECURE ANNOUNCEMENT ATTACHMENT
+// ======================================================
+
+router.get(
+    "/:id/attachment",
+    getAnnouncementAttachment
 );
 
 // ======================================================

@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "../axiosConfig.js";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -32,15 +31,6 @@ import "../styles/Announcements.css";
 
 const IMAGE_RE =
     /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
-
-const API_BASE = (
-    import.meta.env.VITE_API_URL?.trim() ||
-    (
-        import.meta.env.PROD
-            ? API_BASE_URL
-            : "http://localhost:5000"
-    )
-).replace(/\/+$/, "");
 
 // ======================================================
 // FILE HELPERS
@@ -116,6 +106,9 @@ function Announcements() {
     const [announcements, setAnnouncements] =
         useState([]);
 
+    const [attachmentUrls, setAttachmentUrls] =
+        useState({});
+
     const [search, setSearch] =
         useState("");
 
@@ -157,10 +150,64 @@ function Announcements() {
                     endDate,
                 });
 
-            setAnnouncements(
+            const nextAnnouncements =
                 Array.isArray(data?.announcements)
                     ? data.announcements
-                    : []
+                    : [];
+
+            setAnnouncements(
+                nextAnnouncements
+            );
+
+            // Attachment files are protected. Fetch a short-lived token
+            // for each visible announcement and then build a browser-safe
+            // URL. The actual file lives in MySQL, so a Vercel deployment
+            // cannot reset or delete it.
+            const attachmentEntries =
+                await Promise.all(
+                    nextAnnouncements
+                        .filter(
+                            (item) =>
+                                item?.attachment_original_name
+                        )
+                        .map(
+                            async (item) => {
+                                try {
+                                    const url =
+                                        await announcementService.getAttachmentUrl(
+                                            item.id
+                                        );
+
+                                    return [
+                                        String(item.id),
+                                        url
+                                    ];
+                                } catch (attachmentError) {
+                                    console.error(
+                                        "Announcement attachment:",
+                                        attachmentError
+                                    );
+
+                                    return null;
+                                }
+                            }
+                        )
+                );
+
+            const nextAttachmentUrls = {};
+
+            attachmentEntries.forEach(
+                (entry) => {
+                    if (entry) {
+                        nextAttachmentUrls[
+                            entry[0]
+                        ] = entry[1];
+                    }
+                }
+            );
+
+            setAttachmentUrls(
+                nextAttachmentUrls
             );
 
         } catch (error) {
@@ -170,12 +217,14 @@ function Announcements() {
                 error
             );
 
+            setAnnouncements([]);
+            setAttachmentUrls({});
+
         } finally {
 
             setLoading(false);
         }
     };
-
     // ==================================================
     // LOAD WHEN FILTER CHANGES
     // ==================================================
@@ -228,15 +277,15 @@ function Announcements() {
 
     const fileUrl = (item) => {
 
-        if (!item?.attachment_path) {
+        if (!item?.id) {
             return null;
         }
 
-        return `${API_BASE}/uploads/${encodeURIComponent(
-            String(item.attachment_path)
-                .split("/")
-                .pop()
-        )}`;
+        return (
+            attachmentUrls[
+                String(item.id)
+            ] || null
+        );
     };
 
     // ==================================================
@@ -245,7 +294,33 @@ function Announcements() {
 
     const openAnnouncement = async (item) => {
 
-        setSelected(item);
+        let selectedItem = item;
+
+        if (
+            item?.attachment_original_name &&
+            !fileUrl(item)
+        ) {
+            try {
+                const url =
+                    await announcementService.getAttachmentUrl(
+                        item.id
+                    );
+
+                setAttachmentUrls((prev) => ({
+                    ...prev,
+                    [String(item.id)]: url
+                }));
+
+                selectedItem = item;
+            } catch (attachmentError) {
+                console.error(
+                    "Announcement attachment authorization:",
+                    attachmentError
+                );
+            }
+        }
+
+        setSelected(selectedItem);
 
         if (
             item.in_app_status !== "read"

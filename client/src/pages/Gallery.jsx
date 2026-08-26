@@ -20,8 +20,6 @@ import {
 } from "react-icons/fa";
 import "../styles/Gallery.css";
 
-const getApi = () => String(axios.defaults.baseURL || "").replace(/\/$/, "");
-
 const getStoredUser = () => {
     try {
         return JSON.parse(localStorage.getItem("user") || "{}");
@@ -48,11 +46,56 @@ const formatSize = (bytes) => {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const imageUrl = (filePath) => {
-    if (!filePath) return "";
-    if (/^https?:\/\//i.test(filePath)) return filePath;
-    return `${getApi()}${filePath.startsWith("/") ? "" : "/"}${filePath}`;
-};
+// Gallery files are private API resources, so an <img src="..."> cannot
+// attach the JWT Authorization header. Load each image through axios instead
+// and expose only a temporary in-memory object URL to the browser.
+function ProtectedGalleryImage({ photo, alt, className = "" }) {
+    const [src, setSrc] = useState("");
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        let objectUrl = "";
+
+        setSrc("");
+        setFailed(false);
+
+        if (!photo?.id) return undefined;
+
+        axios.get(`/api/gallery/${photo.id}/file`, {
+            responseType: "blob"
+        }).then(response => {
+            if (!active) return;
+            objectUrl = URL.createObjectURL(response.data);
+            setSrc(objectUrl);
+        }).catch(() => {
+            if (active) setFailed(true);
+        });
+
+        return () => {
+            active = false;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [photo?.id]);
+
+    if (!src || failed) {
+        return (
+            <div className={`${className} gallery-image-placeholder${failed ? " failed" : ""}`}>
+                <FaImages />
+                {failed && <span>Unable to load photo</span>}
+            </div>
+        );
+    }
+
+    return (
+        <img
+            className={className}
+            src={src}
+            alt={alt || photo.file_name || "Gallery photo"}
+            loading="lazy"
+        />
+    );
+}
 
 const permissions = () => {
     try {
@@ -867,15 +910,12 @@ export default function Gallery() {
                             }
                         >
                             <div className="gallery-image-wrap">
-                                <img
-                                    src={imageUrl(
-                                        photo.file_path
-                                    )}
+                                <ProtectedGalleryImage
+                                    photo={photo}
                                     alt={
                                         photo.description ||
                                         photo.file_name
                                     }
-                                    loading="lazy"
                                 />
 
                                 <div className="gallery-card-overlay">
@@ -1668,10 +1708,8 @@ export default function Gallery() {
                             <FaTimes />
                         </button>
 
-                        <img
-                            src={imageUrl(
-                                selected.file_path
-                            )}
+                        <ProtectedGalleryImage
+                            photo={selected}
                             alt={
                                 selected.description ||
                                 selected.file_name

@@ -1888,7 +1888,7 @@ window.onload = function () {
                                         Result
                                     </th>
 
-                                    <th>
+                                    <th className="quiz-action-column">
                                         Actions
                                     </th>
 
@@ -2043,7 +2043,7 @@ window.onload = function () {
 
                                             {/* ACTIONS */}
 
-                                            <td>
+                                            <td className="quiz-action-column">
 
                                                 <div className="quiz-row-actions">
 

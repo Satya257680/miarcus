@@ -1,6 +1,92 @@
+const fs = require("fs");
+const path = require("path");
 const db = require("../config/db");
+const { UPLOAD_DIR } = require("../config/storage");
 
-const createTables = (callback) => {
+const columnExists = async (table, column) => {
+    const rows = await db.query(
+        `SELECT COUNT(*) AS count
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+           AND COLUMN_NAME = ?`,
+        [table, column]
+    );
+    return Number(rows[0]?.count || 0) > 0;
+};
+
+const addColumnIfMissing = async (table, column, definition) => {
+    if (!(await columnExists(table, column))) {
+        await db.query(
+            `ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`
+        );
+    }
+};
+
+const migrateDiskAttachmentsToDatabase = async () => {
+    const rows = await db.query(`
+        SELECT id, attachment_path
+        FROM announcements
+        WHERE attachment_path IS NOT NULL
+          AND attachment_path <> ''
+          AND attachment_data IS NULL
+    `);
+
+    let migrated = 0;
+
+    for (const row of rows || []) {
+        const filename = path.basename(String(row.attachment_path || ""));
+        if (!filename) continue;
+
+        const filePath = path.resolve(UPLOAD_DIR, filename);
+        if (!fs.existsSync(filePath)) continue;
+
+        try {
+            const buffer = fs.readFileSync(filePath);
+            const mimeType = (() => {
+                const ext = path.extname(filename).toLowerCase();
+                const map = {
+                    ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg",
+                    ".png": "image/png",
+                    ".gif": "image/gif",
+                    ".webp": "image/webp",
+                    ".pdf": "application/pdf",
+                    ".doc": "application/msword",
+                    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    ".xls": "application/vnd.ms-excel",
+                    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ".csv": "text/csv",
+                    ".txt": "text/plain"
+                };
+                return map[ext] || "application/octet-stream";
+            })();
+
+            await db.query(
+                `UPDATE announcements
+                 SET attachment_data = ?,
+                     attachment_mime_type = ?
+                 WHERE id = ?
+                   AND attachment_data IS NULL`,
+                [buffer, mimeType, row.id]
+            );
+
+            migrated++;
+        } catch (error) {
+            console.error(
+                `⚠️ Announcement attachment migration failed for #${row.id}:`,
+                error.message
+            );
+        }
+    }
+
+    if (migrated) {
+        console.log(`✅ Migrated ${migrated} announcement attachment(s) into MySQL`);
+    }
+};
+
+const createTables = async (callback) => {
+    try {
     const sql = `
         CREATE TABLE IF NOT EXISTS announcements (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8,6 +94,8 @@ const createTables = (callback) => {
             content TEXT NULL,
             attachment_original_name VARCHAR(255) NULL,
             attachment_path VARCHAR(500) NULL,
+            attachment_data LONGBLOB NULL,
+            attachment_mime_type VARCHAR(100) NULL,
             audience ENUM('everyone','managers','users','specific') NOT NULL DEFAULT 'everyone',
             status ENUM('draft','published') NOT NULL DEFAULT 'published',
             is_pinned TINYINT(1) NOT NULL DEFAULT 0,
@@ -52,13 +140,42 @@ const createTables = (callback) => {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     // mysql2 does not allow multiple statements unless configured.
-    const statements = sql.split(/;\s*(?=CREATE TABLE)/).map(s => s.trim()).filter(Boolean);
-    let i = 0;
-    const next = (err) => {
-        if (err || i >= statements.length) return callback(err || null);
-        db.query(statements[i++] + ";", next);
-    };
-    next();
+    const statements = sql
+        .split(/;\s*(?=CREATE TABLE)/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+    for (const statement of statements) {
+        await db.query(statement + ";");
+    }
+
+    // Existing deployments receive these columns without losing any
+    // announcement rows. Attachments are copied into MySQL so Vercel/Render
+    // deployments and restarts cannot reset uploaded announcement files.
+    await addColumnIfMissing(
+        "announcements",
+        "attachment_data",
+        "LONGBLOB NULL"
+    );
+
+    await addColumnIfMissing(
+        "announcements",
+        "attachment_mime_type",
+        "VARCHAR(100) NULL"
+    );
+
+    await migrateDiskAttachmentsToDatabase();
+
+    if (typeof callback === "function") {
+        callback(null);
+    }
+} catch (error) {
+    if (typeof callback === "function") {
+        callback(error);
+        return;
+    }
+    throw error;
+    }
 };
 
 const getAll = (userId, { search = "", startDate = "", endDate = "" }, callback) => {
@@ -152,14 +269,17 @@ const create = (data, callback) => {
     const sql = `
         INSERT INTO announcements
         (title, content, attachment_original_name, attachment_path,
+         attachment_data, attachment_mime_type,
          audience, status, is_pinned, published_at, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     db.query(sql, [
         data.title,
         data.content || null,
         data.attachmentOriginalName || null,
         data.attachmentPath || null,
+        data.attachmentData || null,
+        data.attachmentMimeType || null,
         data.audience,
         data.status || "published",
         data.isPinned ? 1 : 0,
@@ -183,28 +303,51 @@ const getById = (id, callback) => {
 };
 
 const update = (id, data, callback) => {
-    const sql = `
-        UPDATE announcements
-        SET title=?,
-            content=?,
-            attachment_original_name=?,
-            attachment_path=?,
-            audience=?,
-            is_pinned=?,
-            updated_at=CURRENT_TIMESTAMP
-        WHERE id=?
-    `;
+    const fields = [
+        "title=?",
+        "content=?",
+        "attachment_original_name=?",
+        "attachment_path=?",
+        "audience=?",
+        "is_pinned=?",
+        "updated_at=CURRENT_TIMESTAMP"
+    ];
 
-    db.query(sql, [
+    const params = [
         data.title,
         data.content || null,
         data.attachmentOriginalName || null,
         data.attachmentPath || null,
         data.audience,
-        data.isPinned ? 1 : 0,
-        id
-    ], callback);
+        data.isPinned ? 1 : 0
+    ];
+
+    if (data.attachmentChanged) {
+        fields.splice(
+            4,
+            0,
+            "attachment_data=?",
+            "attachment_mime_type=?"
+        );
+        params.splice(
+            4,
+            0,
+            data.attachmentData || null,
+            data.attachmentMimeType || null
+        );
+    }
+
+    params.push(id);
+
+    const sql = `
+        UPDATE announcements
+        SET ${fields.join(", ")}
+        WHERE id=?
+    `;
+
+    db.query(sql, params, callback);
 };
+
 
 const deleteRecipients = (announcementId, callback) => {
     db.query(`DELETE FROM announcement_recipients WHERE announcement_id=?`, [announcementId], callback);
@@ -228,6 +371,38 @@ const markRead = (announcementId, userId, callback) => {
         SET in_app_status='read', read_at=COALESCE(read_at, NOW())
         WHERE announcement_id=? AND user_id=?
     `, [announcementId, userId], callback);
+};
+
+const userCanViewAttachment = (announcementId, userId, callback) => {
+    db.query(`
+        SELECT a.id, a.attachment_original_name
+        FROM announcements a
+        INNER JOIN announcement_recipients ar
+            ON ar.announcement_id = a.id
+        INNER JOIN users u
+            ON u.id = ar.user_id
+        WHERE a.id = ?
+          AND ar.user_id = ?
+          AND a.status = 'published'
+          AND u.status = 'Active'
+        LIMIT 1
+    `, [announcementId, userId], (err, rows) => {
+        if (err) return callback(err);
+        callback(null, rows[0] || null);
+    });
+};
+
+const getAttachment = (announcementId, callback) => {
+    db.query(`
+        SELECT id, attachment_original_name, attachment_path,
+               attachment_data, attachment_mime_type
+        FROM announcements
+        WHERE id=?
+        LIMIT 1
+    `, [announcementId], (err, rows) => {
+        if (err) return callback(err);
+        callback(null, rows[0] || null);
+    });
 };
 
 const getRecipientsForEmail = (announcementId, callback) => {
@@ -323,7 +498,8 @@ const deleteAllAnnouncements = (callback) => {
 
 module.exports = {
     createTables, getAll, getById, getUsersForAudience, create, update,
-    addRecipients, deleteRecipients, markRead, getRecipientsForEmail,
+    addRecipients, deleteRecipients, markRead, userCanViewAttachment, getAttachment,
+    getRecipientsForEmail,
     updateEmailStatus, getUsers, getRecipientUsers, getCounts, unpinOthers, deleteAnnouncement,
     getAllForExport, getAttachmentPaths, deleteAllAnnouncements
 };

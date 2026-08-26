@@ -651,9 +651,36 @@
   border: 1px solid #f2d8d8;
 }
 
+.listing-actions-column {
+  width: 140px;
+  min-width: 140px;
+  text-align: center !important;
+  white-space: nowrap;
+
+  /* Keep actions anchored to the far-right edge when the wide table
+     is horizontally scrolled. */
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: #ffffff;
+  box-shadow: -5px 0 10px rgba(33, 63, 70, 0.04);
+}
+
+.listing-table th.listing-actions-column {
+  background: #f5f8f9;
+  z-index: 5;
+}
+
+.listing-table tbody tr:hover td.listing-actions-column {
+  background: #f8fbfb;
+}
+
 .listing-actions {
   display: flex;
-  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
 }
 
 .listing-remark {

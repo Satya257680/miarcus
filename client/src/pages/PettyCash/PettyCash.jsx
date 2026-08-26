@@ -685,7 +685,7 @@ function PettyCash() {
                 <div className="petty-card-title"><FaReceipt /><div><h2>RECENT ADVANCES</h2><p>Advance, expense, deposit and outstanding balance</p></div></div>
                 <div className="petty-table-wrap">
                     <table className="petty-table advances-table">
-                        <thead><tr><th>Advance No.</th><th>Date</th><th>Store</th><th>Received By</th><th>Advance (₹)</th><th>Expense (₹)</th><th>Deposit (₹)</th><th>Balance (₹)</th><th>Status</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Advance No.</th><th>Date</th><th>Store</th><th>Received By</th><th>Advance (₹)</th><th>Expense (₹)</th><th>Deposit (₹)</th><th>Balance (₹)</th><th>Status</th><th className="petty-action-column">Action</th></tr></thead>
                         <tbody>
                             {loading ? <tr><td colSpan="10" className="empty-cell">Loading petty cash...</td></tr> :
                                 visibleAdvances.length ? visibleAdvances.map((a) => (
@@ -694,7 +694,7 @@ function PettyCash() {
                                         <td className="amount">{money(a.advance_amount)}</td><td className="amount">{money(a.total_expense)}</td><td className="amount">{money(a.total_deposit)}</td>
                                         <td className={`amount ${Number(a.balance) === 0 ? "positive" : "warning"}`}>{money(a.balance)}</td>
                                         <td><span className={`petty-status ${statusClass(a.status)}`}>{statusLabel(a.status)}</span></td>
-                                        <td className="petty-row-actions">
+                                        <td className="petty-row-actions petty-action-column">
                                             <Link className="petty-view-link" to={`/petty-cash/${a.id}`}>View <FaArrowRight /></Link>
                                             {(access.admin || Number(a.paid_by) === access.userId) && access.canEdit && (
                                                 <button className="petty-icon-delete" title={`Permanently delete ${a.advance_no}`} onClick={async () => {
