@@ -239,7 +239,7 @@ const uploadPhoto = async (req, res) => {
         await notifyGalleryUpload({
             req,
             photoId,
-            fileName: file.originalname || file.filename,
+            fileName: req.file.originalname || req.file.filename,
             count: 1
         });
 
