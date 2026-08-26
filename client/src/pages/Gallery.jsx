@@ -16,7 +16,15 @@ import {
     FaChevronRight,
     FaMapMarkerAlt,
     FaLocationArrow,
-    FaLayerGroup
+    FaLayerGroup,
+    FaFilePdf,
+    FaFileAlt,
+    FaFileWord,
+    FaFileExcel,
+    FaFilePowerpoint,
+    FaFileArchive,
+    FaFileVideo,
+    FaFileAudio
 } from "react-icons/fa";
 import "../styles/Gallery.css";
 
@@ -46,10 +54,42 @@ const formatSize = (bytes) => {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// Gallery files are private API resources, so an <img src="..."> cannot
-// attach the JWT Authorization header. Load each image through axios instead
-// and expose only a temporary in-memory object URL to the browser.
-function ProtectedGalleryImage({ photo, alt, className = "" }) {
+// Gallery files are private API resources, so previews are fetched with the
+// authenticated axios client and exposed only as temporary in-memory URLs.
+const fileKind = (mime = "") => {
+    const value = String(mime).toLowerCase();
+    if (value.startsWith("image/")) return "image";
+    if (value.startsWith("video/")) return "video";
+    if (value.startsWith("audio/")) return "audio";
+    if (value === "application/pdf") return "pdf";
+    if (value.includes("word") || value.includes("msword")) return "word";
+    if (value.includes("excel") || value.includes("spreadsheet") || value === "text/csv") return "excel";
+    if (value.includes("powerpoint") || value.includes("presentation")) return "powerpoint";
+    if (value.includes("zip") || value.includes("compressed")) return "archive";
+    return "file";
+};
+
+const FileTypeIcon = ({ mime, large = false }) => {
+    const kind = fileKind(mime);
+    const Icon = {
+        pdf: FaFilePdf,
+        word: FaFileWord,
+        excel: FaFileExcel,
+        powerpoint: FaFilePowerpoint,
+        archive: FaFileArchive,
+        video: FaFileVideo,
+        audio: FaFileAudio
+    }[kind] || FaFileAlt;
+
+    return (
+        <div className={`gallery-file-icon ${large ? "large" : ""}`}>
+            <Icon />
+            <span>{String(mime || "file").split("/").pop().toUpperCase()}</span>
+        </div>
+    );
+};
+
+function ProtectedGalleryFile({ file, alt, className = "", compact = false }) {
     const [src, setSrc] = useState("");
     const [failed, setFailed] = useState(false);
 
@@ -60,9 +100,9 @@ function ProtectedGalleryImage({ photo, alt, className = "" }) {
         setSrc("");
         setFailed(false);
 
-        if (!photo?.id) return undefined;
+        if (!file?.id) return undefined;
 
-        axios.get(`/api/gallery/${photo.id}/file`, {
+        axios.get(`/api/gallery/${file.id}/file`, {
             responseType: "blob"
         }).then(response => {
             if (!active) return;
@@ -76,24 +116,78 @@ function ProtectedGalleryImage({ photo, alt, className = "" }) {
             active = false;
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
-    }, [photo?.id]);
+    }, [file?.id]);
 
-    if (!src || failed) {
+    const kind = fileKind(file?.mime_type);
+
+    if (failed) {
         return (
-            <div className={`${className} gallery-image-placeholder${failed ? " failed" : ""}`}>
-                <FaImages />
-                {failed && <span>Unable to load photo</span>}
+            <div className={`gallery-file-preview failed ${className}`}>
+                <FileTypeIcon mime={file?.mime_type} large={!compact} />
+                <span>Unable to load file</span>
             </div>
         );
     }
 
+    if (!src) {
+        return (
+            <div className={`gallery-file-preview loading ${className}`}>
+                <FaCloudUploadAlt />
+                <span>Loading file…</span>
+            </div>
+        );
+    }
+
+    if (kind === "image") {
+        return (
+            <img
+                className={className}
+                src={src}
+                alt={alt || file.file_name || "Gallery file"}
+                loading="lazy"
+            />
+        );
+    }
+
+    if (kind === "video") {
+        return (
+            <video
+                className={`gallery-media-preview ${className}`}
+                src={src}
+                controls={!compact}
+                muted={compact}
+                playsInline
+                preload="metadata"
+                aria-label={alt || file.file_name}
+            />
+        );
+    }
+
+    if (kind === "audio") {
+        return (
+            <div className={`gallery-file-preview ${className}`}>
+                <FileTypeIcon mime={file?.mime_type} large={!compact} />
+                <audio src={src} controls />
+            </div>
+        );
+    }
+
+    if (kind === "pdf" && !compact) {
+        return (
+            <iframe
+                className={`gallery-pdf-preview ${className}`}
+                src={src}
+                title={alt || file.file_name || "PDF attachment"}
+            />
+        );
+    }
+
     return (
-        <img
-            className={className}
-            src={src}
-            alt={alt || photo.file_name || "Gallery photo"}
-            loading="lazy"
-        />
+        <div className={`gallery-file-preview ${className}`}>
+            <FileTypeIcon mime={file?.mime_type} large={!compact} />
+            <strong>{file?.file_name || "Attachment"}</strong>
+            {!compact && <span>Use Download to open this file.</span>}
+        </div>
     );
 }
 
@@ -342,7 +436,7 @@ export default function Gallery() {
         event.preventDefault();
 
         if (!uploadFile) {
-            setUploadError("Please select an image.");
+            setUploadError("Please select a file.");
             return;
         }
 
@@ -401,7 +495,7 @@ export default function Gallery() {
         } catch (err) {
             setUploadError(
                 err?.response?.data?.message ||
-                "Unable to upload photo."
+                "Unable to upload file."
             );
         } finally {
             setUploading(false);
@@ -413,15 +507,12 @@ export default function Gallery() {
 
         const valid = files.filter(
             file =>
-                ["image/jpeg", "image/png", "image/webp"].includes(
-                    file.type
-                ) &&
-                file.size <= 15 * 1024 * 1024
+                file.size <= 25 * 1024 * 1024
         );
 
         if (valid.length !== files.length) {
             setBulkError(
-                "Only JPG, PNG and WEBP images up to 15 MB each are allowed."
+                "Files must be supported media/documents and 25 MB or smaller each."
             );
         } else {
             setBulkError("");
@@ -434,7 +525,7 @@ export default function Gallery() {
         event.preventDefault();
 
         if (!bulkFiles.length) {
-            setBulkError("Please select at least one image.");
+            setBulkError("Please select at least one file.");
             return;
         }
 
@@ -699,8 +790,8 @@ export default function Gallery() {
                     <div>
                         <h1>Gallery</h1>
                         <p>
-                            Store and share company photos and
-                            image attachments in one central place.
+                            Store and share company photos, videos,
+                            documents and attachments in one central place.
                         </p>
                     </div>
                 </div>
@@ -732,7 +823,7 @@ export default function Gallery() {
                                 onClick={() => setShowUpload(true)}
                             >
                                 <FaPlus />
-                                Add Photo
+                                Add File
                             </button>
                         </>
                     )}
@@ -849,12 +940,12 @@ export default function Gallery() {
 
             <div className="gallery-meta-row">
                 <span>
-                    {pagination.total} photo
+                    {pagination.total} file
                     {pagination.total === 1 ? "" : "s"}
                 </span>
 
                 <span>
-                    Gallery photos + image attachments
+                    Gallery files + module attachments
                 </span>
             </div>
 
@@ -879,12 +970,12 @@ export default function Gallery() {
                 <div className="gallery-empty">
                     <FaImages />
 
-                    <h2>No photos found</h2>
+                    <h2>No files found</h2>
 
                     <p>
-                        Upload a photo or use the mobile QR
-                        camera. Image attachments from other
-                        Miarcus modules also appear here.
+                        Upload a file or use the mobile QR
+                        uploader. Attachments from supported
+                        MIARCUS modules also appear here.
                     </p>
 
                     {canAdd && (
@@ -895,7 +986,7 @@ export default function Gallery() {
                             }
                         >
                             <FaCloudUploadAlt />
-                            Add Photo
+                            Add File
                         </button>
                     )}
                 </div>
@@ -910,17 +1001,18 @@ export default function Gallery() {
                             }
                         >
                             <div className="gallery-image-wrap">
-                                <ProtectedGalleryImage
-                                    photo={photo}
+                                <ProtectedGalleryFile
+                                    file={photo}
                                     alt={
                                         photo.description ||
                                         photo.file_name
                                     }
+                                    compact
                                 />
 
                                 <div className="gallery-card-overlay">
                                     <span>
-                                        Open photo
+                                        Open file
                                     </span>
                                 </div>
                             </div>
@@ -1015,10 +1107,10 @@ export default function Gallery() {
                     >
                         <div className="gallery-modal-header">
                             <div>
-                                <h2>Add Photo</h2>
+                                <h2>Add File</h2>
                                 <p>
-                                    Upload a JPG, PNG or WEBP
-                                    image up to 15 MB.
+                                    Upload an image, video, audio, PDF or common
+                                    document up to 25 MB.
                                 </p>
                             </div>
 
@@ -1037,7 +1129,7 @@ export default function Gallery() {
                         <label className="gallery-dropzone">
                             <input
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip"
                                 onChange={e =>
                                     setUploadFile(
                                         e.target.files?.[0] ||
@@ -1055,7 +1147,7 @@ export default function Gallery() {
                                 <>
                                     <FaCamera />
                                     <strong>
-                                        Choose a photo
+                                        Choose a file
                                     </strong>
                                     <span>
                                         Drag and drop or browse
@@ -1239,7 +1331,7 @@ export default function Gallery() {
                                 <FaCloudUploadAlt />
                                 {uploading
                                     ? "Uploading..."
-                                    : "Upload Photo"}
+                                    : "Upload File"}
                             </button>
                         </div>
                     </form>
@@ -1262,10 +1354,9 @@ export default function Gallery() {
                     >
                         <div className="gallery-modal-header">
                             <div>
-                                <h2>Bulk Upload Photos</h2>
+                                <h2>Bulk Upload Files</h2>
                                 <p>
-                                    Select up to 20 JPG, PNG or
-                                    WEBP images.
+                                    Select up to 20 supported files, 25 MB each.
                                 </p>
                             </div>
 
@@ -1284,20 +1375,20 @@ export default function Gallery() {
                             <input
                                 type="file"
                                 multiple
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip"
                                 onChange={handleBulkFiles}
                             />
 
                             <FaLayerGroup />
 
                             <strong>
-                                Choose multiple photos
+                                Choose multiple files
                             </strong>
 
                             <span>
                                 {bulkFiles.length
-                                    ? `${bulkFiles.length} photo${bulkFiles.length === 1 ? "" : "s"} selected`
-                                    : "Select up to 20 photos"}
+                                    ? `${bulkFiles.length} file${bulkFiles.length === 1 ? "" : "s"} selected`
+                                    : "Select up to 20 files"}
                             </span>
                         </label>
 
@@ -1487,7 +1578,7 @@ export default function Gallery() {
                                 <FaCloudUploadAlt />
                                 {bulkUploading
                                     ? "Uploading..."
-                                    : `Upload ${bulkFiles.length || ""} Photos`}
+                                    : `Upload ${bulkFiles.length || ""} Files`}
                             </button>
                         </div>
                     </form>
@@ -1708,8 +1799,8 @@ export default function Gallery() {
                             <FaTimes />
                         </button>
 
-                        <ProtectedGalleryImage
-                            photo={selected}
+                        <ProtectedGalleryFile
+                            file={selected}
                             alt={
                                 selected.description ||
                                 selected.file_name

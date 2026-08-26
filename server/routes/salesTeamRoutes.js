@@ -5,6 +5,7 @@ const path = require("path");
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const controller = require("../controllers/salesTeamController");
+const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 
 const router = express.Router();
 
@@ -186,6 +187,7 @@ router.post(
   authMiddleware,
   permissionMiddleware("Travel Plan", "Edit"),
   attachmentUpload.single("attachment"),
+  syncGalleryAttachment("Travel Plan", "attachment"),
   controller.addRemark
 );
 

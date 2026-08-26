@@ -16,6 +16,20 @@ const addColumnIfMissing = async (table, column, definition) => {
     }
 };
 
+const ensureLongBlob = async (table, column) => {
+    const rows = await db.query(
+        `SELECT DATA_TYPE AS data_type
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+         LIMIT 1`,
+        [table, column]
+    );
+
+    if (rows[0] && String(rows[0].data_type).toLowerCase() !== "longblob") {
+        await db.query(`ALTER TABLE ${table} MODIFY COLUMN ${column} LONGBLOB NULL`);
+    }
+};
+
 const Gallery = {
     async ensureTables() {
         await db.query(`
@@ -25,7 +39,7 @@ const Gallery = {
                 file_path VARCHAR(500) NOT NULL,
                 mime_type VARCHAR(100) NOT NULL,
                 file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
-                file_data MEDIUMBLOB NULL,
+                file_data LONGBLOB NULL,
                 uploaded_by INT NOT NULL,
                 category VARCHAR(100) NULL,
                 description TEXT NULL,
@@ -54,7 +68,9 @@ const Gallery = {
 
         // Existing installations receive the new Gallery location fields without
         // requiring the company to manually rebuild the table.
-        await addColumnIfMissing("gallery_photos", "file_data", "MEDIUMBLOB NULL");
+        await addColumnIfMissing("gallery_photos", "file_data", "LONGBLOB NULL");
+        // Upgrade older installations from MEDIUMBLOB (16 MB) only when needed.
+        await ensureLongBlob("gallery_photos", "file_data");
         await addColumnIfMissing("gallery_photos", "location_type", "ENUM('head_office','store') NOT NULL DEFAULT 'head_office'");
         await addColumnIfMissing("gallery_photos", "store_id", "INT NULL");
         await addColumnIfMissing("gallery_photos", "latitude", "DECIMAL(10,7) NULL");

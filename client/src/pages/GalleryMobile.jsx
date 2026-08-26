@@ -37,12 +37,8 @@ export default function GalleryMobile() {
     const chooseFile = (event) => {
         const selected = event.target.files?.[0];
         if (!selected) return;
-        if (!selected.type.startsWith("image/")) {
-            setError("Please choose an image file.");
-            return;
-        }
-        if (selected.size > 15 * 1024 * 1024) {
-            setError("The photo must be 15 MB or smaller.");
+        if (selected.size > 25 * 1024 * 1024) {
+            setError("The file must be 25 MB or smaller.");
             return;
         }
         setError("");
@@ -52,7 +48,7 @@ export default function GalleryMobile() {
     const upload = async (event) => {
         event.preventDefault();
         if (!file) {
-            setError("Please take or choose a photo first.");
+            setError("Please choose a file first.");
             return;
         }
         setUploading(true);
@@ -65,7 +61,7 @@ export default function GalleryMobile() {
             const response = await axios.post(`/api/gallery/mobile/${token}/upload`, data, { headers: { "Content-Type": "multipart/form-data" } });
             setUploaded(response.data.photo);
         } catch (err) {
-            setError(err?.response?.data?.message || "Unable to upload photo.");
+            setError(err?.response?.data?.message || "Unable to upload file.");
         } finally {
             setUploading(false);
         }
@@ -87,19 +83,24 @@ export default function GalleryMobile() {
         <div className="gallery-mobile-page">
             <form className="mobile-card" onSubmit={upload}>
                 <div className="mobile-brand"><FaImages /><span>MIARCUS</span></div>
-                <h1>Gallery Photo</h1>
-                <p>Take a photo with your phone or choose one from your gallery.</p>
+                <h1>Gallery Upload</h1>
+                <p>Upload a photo, video, audio file, PDF or supported document.</p>
 
                 <label className="mobile-camera-box">
-                    <input type="file" accept="image/*" capture="environment" onChange={chooseFile} />
-                    {preview ? <img src={preview} alt="Preview" /> : <><FaCamera /><strong>Take Photo</strong><span>or choose from gallery</span></>}
+                    <input type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" onChange={chooseFile} />
+                    {preview ? (
+                        file?.type?.startsWith("image/") ? <img src={preview} alt="Preview" /> :
+                        file?.type?.startsWith("video/") ? <video src={preview} controls playsInline /> :
+                        file?.type?.startsWith("audio/") ? <audio src={preview} controls /> :
+                        <div className="mobile-file-preview">{file?.name}</div>
+                    ) : <><FaCamera /><strong>Choose File</strong><span>or take a photo / choose from device</span></>}
                 </label>
 
                 <label className="mobile-field">Category<input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Optional" maxLength={100} /></label>
                 <label className="mobile-field">Description<textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" maxLength={2000} /></label>
                 {error && <div className="mobile-error">{error}</div>}
                 <button className="mobile-btn" type="submit" disabled={uploading || !file}><FaCloudUploadAlt /> {uploading ? "Uploading..." : "Upload Photo"}</button>
-                <small>This secure link can be used once and expires automatically.</small>
+                <small>This secure link can be used once and expires automatically. Maximum file size: 25 MB.</small>
             </form>
         </div>
     );

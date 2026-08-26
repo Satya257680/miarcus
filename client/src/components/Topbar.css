@@ -52,18 +52,45 @@
 =========================== */
 
 .topbar-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+
     display: flex;
-    justify-content: center;
     align-items: center;
-    flex: 1;
+    justify-content: center;
+
+    width: 58px;
+    height: 58px;
+
+    pointer-events: none;
 }
 
 .topbar-logo {
-    height: 45px;
-    width: auto;
-}
+    display: block;
+    width: 52px;
+    height: 52px;
+    max-width: 52px;
+    max-height: 52px;
 
-/* ===========================
+    object-fit: contain;
+    object-position: center;
+
+    border-radius: 14px;
+
+    /* The supplied Mi Arcus artwork contains its own
+       full-color background, so it stays visible on every
+       application theme, including dark/high-contrast. */
+    background: transparent;
+
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, .10),
+        0 0 0 1px rgba(255, 255, 255, .24);
+
+    user-select: none;
+    -webkit-user-drag: none;
+}/* ===========================
    Right
 =========================== */
 
@@ -161,6 +188,51 @@
     }
 
 }
+/* ===========================
+   Brand logo responsiveness
+=========================== */
+
+@media (max-width: 900px) {
+    .topbar-center {
+        width: 50px;
+        height: 50px;
+    }
+
+    .topbar-logo {
+        width: 44px;
+        height: 44px;
+        max-width: 44px;
+        max-height: 44px;
+        border-radius: 12px;
+    }
+}
+
+@media (max-width: 520px) {
+    .topbar {
+        height: 60px;
+        padding: 0 12px;
+    }
+
+    .topbar-center {
+        width: 46px;
+        height: 46px;
+    }
+
+    .topbar-logo {
+        width: 40px;
+        height: 40px;
+        max-width: 40px;
+        max-height: 40px;
+        border-radius: 10px;
+    }
+}
+
+:root[data-miarcus-theme="high-contrast"] .topbar-logo {
+    box-shadow:
+        0 0 0 2px #fff,
+        0 0 0 4px #000;
+}
+
 /* ===========================
    Logout Confirmation Modal
 =========================== */

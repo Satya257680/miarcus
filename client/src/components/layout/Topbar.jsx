@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
 
-import miarcusLogo from "../../assets/Miarcus.png";
 import NotificationCenter from "../common/NotificationCenter";
 
 import "../../styles/layout/Topbar.css";
@@ -246,7 +245,7 @@ function Topbar({ toggleSidebar }) {
 
       <div className="topbar-center">
         <img
-          src={miarcusLogo}
+          src="/miarcus-brand-theme.png?v=20260826-4"
           alt="MIARCUS"
           className="topbar-logo"
         />

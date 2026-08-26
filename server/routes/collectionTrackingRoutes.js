@@ -6,6 +6,7 @@ const auth = require("../middleware/authMiddleware");
 const C = require("../controllers/collectionTrackingController");
 const collectionUpload = require("../middleware/upload");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
+const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 
 const MODULE = "Collection Tracking";
 
@@ -105,6 +106,7 @@ router.post(
   "/products",
   permissionMiddleware(MODULE, "Add"),
   collectionUpload.array("attachments", 20),
+  syncGalleryAttachment("Collection Tracking", "attachments"),
   C.create
 );
 
@@ -161,6 +163,7 @@ router.put(
   "/products/:id/stage",
   permissionMiddleware(MODULE, "Edit"),
   collectionUpload.array("attachments", 20),
+  syncGalleryAttachment("Collection Tracking", "attachments"),
   C.updateStage
 );
 

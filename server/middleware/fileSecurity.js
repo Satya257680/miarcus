@@ -28,7 +28,31 @@ function isValidSignature(filePath, extension) {
     if (ext === ".webp") return header.subarray(0, 4).toString("ascii") === "RIFF" && header.subarray(8, 12).toString("ascii") === "WEBP";
     if (ext === ".pdf") return header.subarray(0, 5).toString("ascii") === "%PDF-";
     if ([".doc", ".xls"].includes(ext)) return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
-    if ([".docx", ".xlsx"].includes(ext)) return header.subarray(0, 4).toString("binary") === "PK\x03\x04" || header.subarray(0, 4).toString("binary") === "PK\x05\x06";
+    if ([".docx", ".xlsx", ".pptx", ".zip"].includes(ext)) {
+        return header.subarray(0, 4).toString("binary") === "PK\\x03\\x04" ||
+            header.subarray(0, 4).toString("binary") === "PK\\x05\\x06" ||
+            header.subarray(0, 4).toString("binary") === "PK\\x07\\x08";
+    }
+    if (ext === ".ppt") return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+    if ([".mp4", ".mov", ".m4a"].includes(ext)) {
+        return header.subarray(4, 8).toString("ascii") === "ftyp";
+    }
+    if (ext === ".webm" || ext === ".mkv") {
+        return hasPrefix(header, [0x1a, 0x45, 0xdf, 0xa3]);
+    }
+    if (ext === ".avi") {
+        return header.subarray(0, 4).toString("ascii") === "RIFF" &&
+            header.subarray(8, 12).toString("ascii") === "AVI ";
+    }
+    if (ext === ".mp3") {
+        return header.subarray(0, 3).toString("ascii") === "ID3" ||
+            (header.length >= 2 && header[0] === 0xff && (header[1] & 0xe0) === 0xe0);
+    }
+    if (ext === ".wav") {
+        return header.subarray(0, 4).toString("ascii") === "RIFF" &&
+            header.subarray(8, 12).toString("ascii") === "WAVE";
+    }
+    if (ext === ".ogg") return header.subarray(0, 4).toString("ascii") === "OggS";
     if ([".csv", ".txt"].includes(ext)) {
         const sample = fs.readFileSync(filePath).subarray(0, 8192);
         return !sample.includes(0);

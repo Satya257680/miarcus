@@ -125,7 +125,7 @@ const getLocations = async (_req, res) => {
 
 const createPhotoRecord = async ({ req, file, location, latitude, longitude, locationAccuracy }) => {
     return Gallery.create({
-        file_name: file.filename,
+        file_name: file.originalname || file.filename,
         file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
         mime_type: file.mimetype,
         file_size: file.size,
@@ -146,7 +146,7 @@ const createPhotoRecord = async ({ req, file, location, latitude, longitude, loc
 const uploadPhoto = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ success: false, message: "Please select an image" });
+            return res.status(400).json({ success: false, message: "Please select a file" });
         }
 
         const location = await normalizeLocation(req.body.location_type, req.body.store_id);
@@ -177,7 +177,7 @@ const uploadPhoto = async (req, res) => {
         console.error("Gallery upload error:", error);
         return res.status(error.statusCode || 500).json({
             success: false,
-            message: error.statusCode ? error.message : "Unable to upload photo"
+            message: error.statusCode ? error.message : "Unable to upload file"
         });
     }
 };
@@ -189,7 +189,7 @@ const bulkUploadPhotos = async (req, res) => {
 
     try {
         if (!files.length) {
-            return res.status(400).json({ success: false, message: "Please select at least one image." });
+            return res.status(400).json({ success: false, message: "Please select at least one file." });
         }
 
         const location = await normalizeLocation(req.body.location_type, req.body.store_id);
@@ -203,7 +203,7 @@ const bulkUploadPhotos = async (req, res) => {
 
         for (const file of files) {
             const photoId = await Gallery.create({
-                file_name: file.filename,
+                file_name: file.originalname || file.filename,
                 file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
                 mime_type: file.mimetype,
                 file_size: file.size,
@@ -224,7 +224,7 @@ const bulkUploadPhotos = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: `${createdIds.length} photo${createdIds.length === 1 ? "" : "s"} uploaded successfully.`,
+            message: `${createdIds.length} file${createdIds.length === 1 ? "" : "s"} uploaded successfully.`,
             ids: createdIds
         });
     } catch (error) {
@@ -236,7 +236,7 @@ const bulkUploadPhotos = async (req, res) => {
         console.error("Gallery bulk upload error:", error);
         return res.status(error.statusCode || 500).json({
             success: false,
-            message: error.statusCode ? error.message : "Unable to bulk upload photos."
+            message: error.statusCode ? error.message : "Unable to bulk upload files."
         });
     }
 };
@@ -305,7 +305,7 @@ const servePhoto = async (req, res) => {
         return res.end(buffer);
     } catch (error) {
         console.error("Gallery file serve error:", error);
-        return res.status(500).json({ success: false, message: "Unable to load photo" });
+        return res.status(500).json({ success: false, message: "Unable to load gallery file" });
     }
 };
 
@@ -313,23 +313,37 @@ const downloadPhoto = async (req, res) => {
     try {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({ success: false, message: "Invalid photo id" });
+            return res.status(400).json({ success: false, message: "Invalid gallery item id" });
         }
 
-        const photo = await Gallery.getById(id);
-        if (!photo) {
-            return res.status(404).json({ success: false, message: "Photo not found" });
+        const file = await Gallery.getFile(id);
+        if (!file) {
+            return res.status(404).json({ success: false, message: "Gallery file not found" });
         }
 
-        const diskPath = path.resolve(process.cwd(), photo.file_path);
-        if (!fs.existsSync(diskPath)) {
-            return res.status(404).json({ success: false, message: "Photo file not found" });
+        let buffer = file.file_data;
+
+        // Keep legacy files working and migrate them to MySQL on first access.
+        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+            const diskPath = path.resolve(process.cwd(), String(file.file_path || ""));
+            if (!fs.existsSync(diskPath)) {
+                return res.status(404).json({ success: false, message: "Gallery file not found" });
+            }
+            buffer = fs.readFileSync(diskPath);
+            await Gallery.saveFileData(id, buffer);
         }
 
-        return res.download(diskPath, photo.file_name);
+        res.setHeader("Content-Type", file.mime_type || "application/octet-stream");
+        res.setHeader("Content-Length", String(buffer.length));
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename*=UTF-8''${encodeURIComponent(file.file_name || `gallery-${id}`)}`
+        );
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        return res.end(buffer);
     } catch (error) {
         console.error("Gallery download error:", error);
-        return res.status(500).json({ success: false, message: "Unable to download photo" });
+        return res.status(500).json({ success: false, message: "Unable to download gallery file" });
     }
 };
 

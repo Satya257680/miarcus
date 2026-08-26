@@ -59,10 +59,25 @@ const getModuleLink = (moduleName) => {
         "New Store Openings": "/new-store-openings",
         "Expenses": "/expenses",
         "Petty Cash": "/petty-cash",
-        "Asset Master": "/asset-master"
+        "Asset Master": "/asset-master",
+        "Collection Tracking": "/collection-tracking",
+        "Travel Plan": "/travel-plan"
     };
 
     return map[moduleName] || "/gallery";
+};
+
+const MODULE_PERMISSION_ALIASES = {
+    "Announcements": ["Announcements"],
+    "Action Points": ["Action Points"],
+    "Checklist Submission": ["Checklist Submit", "Checklist Submission"],
+    "New Store Openings": ["New Store Openings"],
+    "Expenses": ["Expenses"],
+    "Petty Cash": ["Petty Cash"],
+    "Asset Master": ["Asset Master"],
+    "Activity Center": ["Activity Center"],
+    "Collection Tracking": ["Collection Tracking"],
+    "Travel Plan": ["Travel Plan", "Visit Planner", "Sales Team"]
 };
 
 const notifyAttachment = async ({
@@ -72,18 +87,26 @@ const notifyAttachment = async ({
     actorId
 }) => {
     try {
+        const aliases = MODULE_PERMISSION_ALIASES[moduleName] || [moduleName];
+        const placeholders = aliases.map(() => "?").join(",");
         const actor = Number(actorId || 0);
+
         const users = await db.query(`
-            SELECT id
-            FROM users
-            WHERE status = 'Active'
-            ORDER BY id ASC
-        `);
+            SELECT DISTINCT u.id
+            FROM users u
+            LEFT JOIN user_permissions p
+                ON p.user_id = u.id
+               AND p.module_name IN (${placeholders})
+            WHERE u.status = 'Active'
+              AND (
+                  u.is_admin = 1
+                  OR p.permission IN ('View', 'Add', 'Edit', 'Full')
+              )
+              AND u.id <> ?
+            ORDER BY u.id ASC
+        `, [...aliases, actor || 0]);
 
-        const recipients = users
-            .map(row => Number(row.id))
-            .filter(id => id > 0 && id !== actor);
-
+        const recipients = users.map(row => Number(row.id)).filter(Boolean);
         if (!recipients.length) return;
 
         await Notification.createForUsers(recipients, {
@@ -96,8 +119,6 @@ const notifyAttachment = async ({
             link: getModuleLink(moduleName)
         });
     } catch (error) {
-        // Gallery synchronization must never make the originating
-        // business transaction fail.
         console.error(
             `Gallery attachment notification failed (${moduleName}):`,
             error.message

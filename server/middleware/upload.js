@@ -9,17 +9,24 @@ const uploadFolder = UPLOAD_DIR;
 fs.mkdirSync(uploadFolder, { recursive: true });
 
 const allowed = new Map([
-    [".jpg", new Set(["image/jpeg"])],
-    [".jpeg", new Set(["image/jpeg"])],
-    [".png", new Set(["image/png"])],
-    [".gif", new Set(["image/gif"])],
+    [".jpg", new Set(["image/jpeg"])], [".jpeg", new Set(["image/jpeg"])],
+    [".png", new Set(["image/png"])], [".gif", new Set(["image/gif"])],
     [".webp", new Set(["image/webp"])],
+    [".mp4", new Set(["video/mp4"])], [".webm", new Set(["video/webm"])],
+    [".mov", new Set(["video/quicktime"])], [".avi", new Set(["video/x-msvideo"])],
+    [".mkv", new Set(["video/x-matroska"])],
+    [".mp3", new Set(["audio/mpeg"])], [".wav", new Set(["audio/wav", "audio/x-wav"])],
+    [".m4a", new Set(["audio/mp4", "audio/x-m4a"])], [".ogg", new Set(["audio/ogg"])],
     [".pdf", new Set(["application/pdf"])],
     [".doc", new Set(["application/msword", "application/octet-stream"])],
     [".docx", new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"])],
     [".xls", new Set(["application/vnd.ms-excel", "application/octet-stream"])],
     [".xlsx", new Set(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"])],
+    [".ppt", new Set(["application/vnd.ms-powerpoint", "application/octet-stream"])],
+    [".pptx", new Set(["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/octet-stream"])],
     [".csv", new Set(["text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "text/plain"])],
+    [".txt", new Set(["text/plain"])],
+    [".zip", new Set(["application/zip", "application/x-zip-compressed", "application/octet-stream"])],
 ]);
 
 const storage = multer.diskStorage({
