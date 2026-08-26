@@ -108,11 +108,15 @@ DailyCollection.getStoreManagers = async (storeId) => {
     const rows = await db.query(`
         SELECT DISTINCT
             u.id, u.name, u.email, u.call_contact,
-            s.store_name, s.manager_name, s.email AS store_email
+            s.store_name,
+            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+            s.email AS store_email
         FROM users u
         INNER JOIN user_stores us ON us.user_id = u.id
         INNER JOIN stores s ON s.id = us.store_id
         INNER JOIN user_permissions up ON up.user_id = u.id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
         WHERE us.store_id = ?
           AND u.status = 'Active'
           AND u.is_admin = 0
@@ -282,11 +286,13 @@ DailyCollection.getReport = async ({ userId, isAdmin, storeId, date }) => {
             r.*,
             s.store_name,
             s.store_code,
-            s.manager_name,
+            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
             u.name AS submitted_by_name,
             au.name AS approved_by_name
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
         LEFT JOIN users u ON u.id = r.submitted_by
         LEFT JOIN users au ON au.id = r.approved_by
         WHERE r.report_date = ?
@@ -311,9 +317,13 @@ DailyCollection.ensureDueRows = async (reportDate) => {
 
 DailyCollection.getEscalationCandidates = async (reportDate) => {
     return db.query(`
-        SELECT r.*, s.store_name, s.store_code, s.manager_name, s.email AS store_email
+        SELECT r.*, s.store_name, s.store_code,
+               COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+               s.email AS store_email
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' 
         WHERE r.report_date = ?
           AND r.escalation_sent_at IS NULL
           AND r.status IN ('missing', 'locked')
@@ -324,9 +334,13 @@ DailyCollection.getEscalationCandidates = async (reportDate) => {
 
 DailyCollection.getMissingReports = async (reportDate) => {
     return db.query(`
-        SELECT r.*, s.store_name, s.store_code, s.manager_name, s.email AS store_email
+        SELECT r.*, s.store_name, s.store_code,
+               COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+               s.email AS store_email
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' 
         WHERE r.report_date = ?
           AND r.status = 'missing'
         ORDER BY s.store_name ASC
@@ -368,9 +382,6 @@ DailyCollection.submitReport = async ({
     const totalCollected = num(amounts.upi + amounts.cash + amounts.bank + amounts.card);
     const totalBilled = num(summary.total_billed);
     const variance = num(totalCollected - totalBilled);
-
-    // A variance is recorded for reconciliation, but it must not prevent a valid
-    // Daily Collection submission. Administrators can review the variance later.
 
     const existing = await db.query(`
         SELECT id FROM daily_collection_reports
@@ -509,11 +520,13 @@ DailyCollection.getReportById = async ({ id, userId, isAdmin }) => {
             r.*,
             s.store_name,
             s.store_code,
-            s.manager_name,
+            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
             u.name AS submitted_by_name,
             au.name AS approved_by_name
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
         LEFT JOIN users u ON u.id = r.submitted_by
         LEFT JOIN users au ON au.id = r.approved_by
         WHERE r.id = ? ${scope}

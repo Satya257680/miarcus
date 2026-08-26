@@ -179,9 +179,21 @@ const submitDailyCollection = async (req, res) => {
         const userId = actorId(req);
         const storeId = Number(req.body?.store_id);
         const reportDate = dateOnly(req.body?.report_date);
-        const reportId = Number(req.body?.report_id);
-        if (!storeId || !reportDate || !reportId) {
-            return res.status(400).json({ success: false, message: "Store, report date and report ID are required." });
+        let reportId = Number(req.body?.report_id) || 0;
+        if (!storeId || !reportDate) {
+            return res.status(400).json({ success: false, message: "Store and report date are required." });
+        }
+
+        // The report ID is an internal database identifier. Older Daily Collection
+        // rows/frontends may not include it in the card payload, so resolve it
+        // safely from the unique store + report-date pair instead of rejecting a
+        // valid submission with a misleading "report ID required" error.
+        if (!reportId) {
+            const existingReport = await DailyCollection.getReportForStoreDate(storeId, reportDate);
+            reportId = Number(existingReport?.id || 0);
+        }
+        if (!reportId) {
+            return res.status(404).json({ success: false, message: "Daily Collection report was not found for the selected store and date." });
         }
 
         if (!isAdmin(req)) {

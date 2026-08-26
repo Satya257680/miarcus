@@ -7,6 +7,7 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import DailyCollectionViewModal from "../../components/DailyCollectionViewModal";
 import {
     getDailyCollections,
+    getDailyCollectionStores,
     getDailyCollectionById,
     bulkUploadDailyCollections,
     deleteDailyCollection,
@@ -37,6 +38,8 @@ export default function DailyCollectionReport() {
     const { canView, canAdd, canDelete } = permissions;
     const [date, setDate] = useState(today());
     const [reports, setReports] = useState([]);
+    const [stores, setStores] = useState([]);
+    const [selectedStore, setSelectedStore] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -45,6 +48,16 @@ export default function DailyCollectionReport() {
     const [deleteId, setDeleteId] = useState(null);
     const [deleteAllOpen, setDeleteAllOpen] = useState(false);
     const [viewReport, setViewReport] = useState(null);
+
+    const loadStores = async () => {
+        try {
+            const response = await getDailyCollectionStores();
+            setStores(response.data?.stores || []);
+        } catch (err) {
+            setStores([]);
+            setError(err.response?.data?.message || "Unable to load assigned stores.");
+        }
+    };
 
     const load = async () => {
         try {
@@ -69,11 +82,24 @@ export default function DailyCollectionReport() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [date]);
 
+    useEffect(() => {
+        if (!canView) return;
+        loadStores();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const filteredReports = useMemo(() => {
+        if (!selectedStore) return [];
+
+        const selected = String(selectedStore);
+        const scoped = selected === "all"
+            ? reports
+            : reports.filter((row) => String(row.store_id ?? "") === selected);
+
         const keyword = search.trim().toLowerCase();
-        if (!keyword) return reports;
-        return reports.filter((row) => [row.store_name, row.store_code, row.manager_name, row.submitted_by_name, row.status].some((value) => String(value || "").toLowerCase().includes(keyword)));
-    }, [reports, search]);
+        if (!keyword) return scoped;
+        return scoped.filter((row) => [row.store_name, row.store_code, row.manager_name, row.submitted_by_name, row.status].some((value) => String(value || "").toLowerCase().includes(keyword)));
+    }, [reports, search, selectedStore]);
 
     const totals = useMemo(() => filteredReports.reduce((acc, row) => {
         const summary = row.summary || {};
@@ -171,6 +197,18 @@ export default function DailyCollectionReport() {
                 <label>
                     <span>Report date</span>
                     <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+                </label>
+                <label>
+                    <span>Store</span>
+                    <select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>
+                        <option value="">Select store</option>
+                        <option value="all">All stores</option>
+                        {stores.map((store) => (
+                            <option key={store.id} value={store.id}>
+                                {store.store_name}{store.store_code ? ` (${store.store_code})` : ""}
+                            </option>
+                        ))}
+                    </select>
                 </label>
                 <button onClick={load} disabled={loading}><FaSyncAlt /> Refresh</button>
             </section>
