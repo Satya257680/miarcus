@@ -74,4 +74,4 @@ const build = (maxFiles) => {
 const upload = build(1);
 const uploadMany = build(20);
 
-module.exports = { ...upload, uploadMany, destination: root, root, commonAllowed };
+module.exports = { upload, single: upload.single, array: upload.array, uploadMany, destination: root, root, commonAllowed };

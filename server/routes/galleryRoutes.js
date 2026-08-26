@@ -8,6 +8,25 @@ const router = express.Router();
 const lazy = (loader) => (req, res, next) => {
     try {
         const middleware = loader();
+
+        // galleryUpload returns an array containing Multer + file-security
+        // middleware. Express accepts arrays when registered directly, but a
+        // lazy wrapper must execute the array itself.
+        if (Array.isArray(middleware)) {
+            let index = 0;
+            const run = (error) => {
+                if (error) return next(error);
+                const current = middleware[index++];
+                if (!current) return next();
+                return current(req, res, run);
+            };
+            return run();
+        }
+
+        if (typeof middleware !== "function") {
+            throw new Error("Gallery dependency did not return middleware");
+        }
+
         return middleware(req, res, next);
     } catch (error) {
         console.error("Gallery dependency load error:", error);
@@ -26,37 +45,24 @@ const controller = (method) =>
     lazy(() => require("../controllers/galleryController")[method]);
 
 const uploadSingle = lazy(() => {
-    const { upload } = require("../middleware/galleryUpload");
-    const middleware = upload.single("photo");
-    return Array.isArray(middleware)
-        ? (req, res, next) => {
-            let index = 0;
-            const run = (err) => {
-                if (err) return next(err);
-                const current = middleware[index++];
-                if (!current) return next();
-                return current(req, res, run);
-            };
-            return run();
-        }
-        : middleware;
+    const galleryUpload = require("../middleware/galleryUpload");
+    const uploader = galleryUpload.upload || galleryUpload;
+    const factory = uploader.single || galleryUpload.single;
+    if (typeof factory !== "function") {
+        throw new Error("Gallery single-file uploader is not configured");
+    }
+    const middleware = factory.call(uploader, "photo");
+    return middleware;
 });
 
 const uploadMany = lazy(() => {
-    const { uploadMany: uploader } = require("../middleware/galleryUpload");
-    const middleware = uploader.array("photos", 20);
-    return Array.isArray(middleware)
-        ? (req, res, next) => {
-            let index = 0;
-            const run = (err) => {
-                if (err) return next(err);
-                const current = middleware[index++];
-                if (!current) return next();
-                return current(req, res, run);
-            };
-            return run();
-        }
-        : middleware;
+    const galleryUpload = require("../middleware/galleryUpload");
+    const uploader = galleryUpload.uploadMany;
+    const factory = uploader && uploader.array;
+    if (typeof factory !== "function") {
+        throw new Error("Gallery bulk uploader is not configured");
+    }
+    return factory.call(uploader, "photos", 20);
 });
 
 // Public mobile uploader endpoints.
