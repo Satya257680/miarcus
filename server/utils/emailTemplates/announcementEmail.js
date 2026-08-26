@@ -40,7 +40,7 @@ const announcementEmail = ({
 <tr>
 <td align="center" style="background:#b8dce4;padding:24px 24px;">
 <a href="${website}" target="_blank" style="text-decoration:none;">
-<img src="${String(process.env.BACKEND_URL || "https://miarcus-backend.onrender.com").replace(/\/+$/,"")}/images/MiArcus-brand-theme.png"
+<img src="cid:miarcus-logo@miarcus"
      alt="Mi Arcus" width="110"
      style="display:block;border:0;max-width:150px;height:auto;">
 </a>

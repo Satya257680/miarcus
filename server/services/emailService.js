@@ -4,6 +4,8 @@
 // ==========================================================
 
 const mailer = require("../config/mailer");
+const path = require("path");
+const fs = require("fs");
 
 // ==========================================================
 // EMAIL TEMPLATES
@@ -58,6 +60,72 @@ const resetPassword = require(
 const EMAIL_FROM = String(
     process.env.EMAIL_FROM || ""
 ).trim();
+
+// ==========================================================
+// INLINE MI ARCUS BRANDING
+// ==========================================================
+// Keep the logo inside the email itself. This avoids broken
+// logos in Gmail caused by backend/static-image URL changes.
+// ==========================================================
+
+const MI_ARCUS_LOGO_CID = "miarcus-logo@miarcus";
+
+const MI_ARCUS_LOGO_PATH = path.join(
+    __dirname,
+    "../public/MiArcus-brand-theme.png"
+);
+
+const buildBrandedHtml = (html) => {
+
+    if (!html) return html;
+
+    const source = String(html);
+
+    // Templates such as baseTemplate/announcementEmail already
+    // contain the inline logo. Do not duplicate it.
+    if (source.includes(`cid:${MI_ARCUS_LOGO_CID}`)) {
+        return source;
+    }
+
+    const logoHeader = `
+        <div style="background:#b8dce4;padding:24px 20px;text-align:center;">
+            <img src="cid:${MI_ARCUS_LOGO_CID}" alt="Mi Arcus" width="110" style="display:inline-block;width:110px;max-width:110px;height:auto;border:0;outline:none;text-decoration:none;">
+        </div>
+    `;
+
+    // Preserve existing generic email markup while adding the logo
+    // at the top.
+    if (/<body\b[^>]*>/i.test(source)) {
+        return source.replace(/(<body\b[^>]*>)/i, `$1${logoHeader}`);
+    }
+
+    return logoHeader + source;
+};
+
+const buildEmailAttachments = (attachments) => {
+
+    const list = Array.isArray(attachments)
+        ? [...attachments]
+        : [];
+
+    // Do not add a duplicate CID attachment if a caller already did.
+    const hasLogo = list.some(
+        (attachment) =>
+            attachment &&
+            String(attachment.cid || "") === MI_ARCUS_LOGO_CID
+    );
+
+    if (!hasLogo && fs.existsSync(MI_ARCUS_LOGO_PATH)) {
+        list.push({
+            filename: "Mi-Arcus-logo.png",
+            path: MI_ARCUS_LOGO_PATH,
+            cid: MI_ARCUS_LOGO_CID,
+            contentType: "image/png"
+        });
+    }
+
+    return list;
+};
 
 // ==========================================================
 // COMMON VALIDATION
@@ -211,13 +279,13 @@ const sendEmail = async ({
                 subject,
 
             html:
-                html,
+                buildBrandedHtml(html),
 
             text:
                 text,
 
             attachments:
-                attachments
+                buildEmailAttachments(attachments)
 
         });
 

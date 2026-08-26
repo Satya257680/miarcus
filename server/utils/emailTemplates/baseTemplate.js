@@ -14,14 +14,13 @@ const baseTemplate = ({
     showInfoBox = true,
 }) => {
 
-const backendUrl =
-    process.env.BACKEND_URL || "https://miarcus-backend.onrender.com";
-
 // ======================================================
 // MI ARCUS LOGO
+// Rendered as an inline CID attachment so Gmail and other
+// mail clients do not depend on the backend public-image URL.
 // ======================================================
 
-const logo = `${backendUrl}/images/MiArcus-brand-theme.png`;
+const logo = "cid:miarcus-logo@miarcus";
 
 // ======================================================
 // OFFICIAL MIARCUS LINKS
