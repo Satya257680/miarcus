@@ -27,6 +27,8 @@ DailyCollection.ensureTables = async () => {
             status ENUM('missing','submitted','locked') NOT NULL DEFAULT 'missing',
             reminder_sent_at DATETIME NULL,
             escalation_sent_at DATETIME NULL,
+            reminder_claimed_at DATETIME NULL,
+            escalation_claimed_at DATETIME NULL,
             blocked_at DATETIME NULL,
             approved_at DATETIME NULL,
             approved_by INT NULL,
@@ -40,6 +42,36 @@ DailyCollection.ensureTables = async () => {
             CONSTRAINT fk_daily_collection_submitter FOREIGN KEY (submitted_by) REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
             CONSTRAINT fk_daily_collection_approver FOREIGN KEY (approved_by) REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Safe migrations for installations that already have the Daily Collection table.
+    for (const [column, definition] of [
+        ["reminder_claimed_at", "DATETIME NULL"],
+        ["escalation_claimed_at", "DATETIME NULL"]
+    ]) {
+        try {
+            await db.query(`ALTER TABLE daily_collection_reports ADD COLUMN ${column} ${definition}`);
+        } catch (error) {
+            if (error?.code !== "ER_DUP_FIELDNAME") {
+                console.error(`Daily Collection migration (${column}) skipped:`, error.message || error);
+            }
+        }
+    }
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS daily_collection_email_settings (
+            id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+            email_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            updated_by INT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            CONSTRAINT fk_daily_collection_email_admin FOREIGN KEY (updated_by) REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await db.query(`
+        INSERT INTO daily_collection_email_settings (id, email_enabled)
+        VALUES (1, 1)
+        ON DUPLICATE KEY UPDATE id = id
     `);
 
     await db.query(`
@@ -94,6 +126,74 @@ DailyCollection.getAdminRecipients = async () => {
           AND TRIM(email) <> ''
         ORDER BY id ASC
     `);
+};
+
+DailyCollection.getEmailSettings = async () => {
+    const rows = await db.query(`
+        SELECT email_enabled, updated_by, updated_at
+        FROM daily_collection_email_settings
+        WHERE id = 1
+        LIMIT 1
+    `);
+    const row = rows[0] || {};
+    return {
+        email_enabled: Boolean(row.email_enabled ?? 1),
+        updated_by: row.updated_by || null,
+        updated_at: row.updated_at || null
+    };
+};
+
+DailyCollection.updateEmailSettings = async (enabled, adminId) => {
+    await db.query(`
+        INSERT INTO daily_collection_email_settings (id, email_enabled, updated_by)
+        VALUES (1, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            email_enabled = VALUES(email_enabled),
+            updated_by = VALUES(updated_by)
+    `, [enabled ? 1 : 0, adminId]);
+    return DailyCollection.getEmailSettings();
+};
+
+// Atomic claims prevent duplicate emails when multiple scheduler instances
+// happen to execute the same deadline check at the same time.
+DailyCollection.claimReminder = async (id) => {
+    const result = await db.query(`
+        UPDATE daily_collection_reports
+        SET reminder_claimed_at = NOW()
+        WHERE id = ?
+          AND status = 'missing'
+          AND reminder_sent_at IS NULL
+          AND (reminder_claimed_at IS NULL OR reminder_claimed_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+    `, [id]);
+    return Number(result.affectedRows || 0) > 0;
+};
+
+DailyCollection.releaseReminderClaim = async (id) => {
+    await db.query(`
+        UPDATE daily_collection_reports
+        SET reminder_claimed_at = NULL
+        WHERE id = ? AND reminder_sent_at IS NULL
+    `, [id]);
+};
+
+DailyCollection.claimEscalation = async (id) => {
+    const result = await db.query(`
+        UPDATE daily_collection_reports
+        SET escalation_claimed_at = NOW()
+        WHERE id = ?
+          AND status = 'missing'
+          AND escalation_sent_at IS NULL
+          AND (escalation_claimed_at IS NULL OR escalation_claimed_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+    `, [id]);
+    return Number(result.affectedRows || 0) > 0;
+};
+
+DailyCollection.releaseEscalationClaim = async (id) => {
+    await db.query(`
+        UPDATE daily_collection_reports
+        SET escalation_claimed_at = NULL
+        WHERE id = ? AND escalation_sent_at IS NULL
+    `, [id]);
 };
 
 DailyCollection.getStoreScopeForUser = async (userId) => {
@@ -192,6 +292,19 @@ DailyCollection.ensureDueRows = async (reportDate) => {
     `, [reportDate, reportDate]);
 };
 
+DailyCollection.getEscalationCandidates = async (reportDate) => {
+    return db.query(`
+        SELECT r.*, s.store_name, s.store_code, s.manager_name, s.email AS store_email
+        FROM daily_collection_reports r
+        INNER JOIN stores s ON s.id = r.store_id
+        WHERE r.report_date = ?
+          AND r.escalation_sent_at IS NULL
+          AND r.status IN ('missing', 'locked')
+          AND r.blocked_at IS NOT NULL
+        ORDER BY s.store_name ASC
+    `, [reportDate]);
+};
+
 DailyCollection.getMissingReports = async (reportDate) => {
     return db.query(`
         SELECT r.*, s.store_name, s.store_code, s.manager_name, s.email AS store_email
@@ -211,14 +324,17 @@ DailyCollection.markReminderSent = async (id) => {
     `, [id]);
 };
 
-DailyCollection.lockReport = async (id) => {
+DailyCollection.lockReport = async (id, markEscalationSent = true) => {
     await db.query(`
         UPDATE daily_collection_reports
         SET status = 'locked',
             blocked_at = COALESCE(blocked_at, NOW()),
-            escalation_sent_at = COALESCE(escalation_sent_at, NOW())
+            escalation_sent_at = CASE
+                WHEN ? = 1 THEN COALESCE(escalation_sent_at, NOW())
+                ELSE escalation_sent_at
+            END
         WHERE id = ? AND status = 'missing'
-    `, [id]);
+    `, [markEscalationSent ? 1 : 0, id]);
 };
 
 DailyCollection.submitReport = async ({

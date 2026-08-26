@@ -89,6 +89,11 @@ const getLive = async (req, res) => {
 const getMyStatus = async (req, res) => {
     try {
         const target = await Location.getMobileTarget(req.user.id);
+        const userRows = await dbQuery(
+            `SELECT call_contact FROM users WHERE id = ? LIMIT 1`,
+            [req.user.id]
+        );
+        const registeredPhone = target?.phone_number || userRows[0]?.call_contact || null;
         const schedule = await getWorkingSchedule();
         res.json({
             success: true,
@@ -97,7 +102,7 @@ const getMyStatus = async (req, res) => {
             workHours: schedule ? `${schedule.start} - ${schedule.end}` : "OFF",
             timezone: schedule?.timezone || "Asia/Kolkata",
             provider: provider.providerName,
-            phoneNumber: target?.phone_number || null,
+            phoneNumber: registeredPhone,
             simIccid: target?.sim_iccid || null
         });
     } catch (error) {

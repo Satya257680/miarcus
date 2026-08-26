@@ -1,184 +1,120 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import { FaMapMarkerAlt, FaShieldAlt, FaTimes, FaCheckCircle } from "react-icons/fa";
+import { FaMapMarkerAlt, FaShieldAlt, FaCheckCircle } from "react-icons/fa";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const DEVICE_KEY = "miarcus_location_device_id";
+const getConsentKey = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.id || user?.user_id || user?.employee_id || "current";
+    return `miarcus_mobile_location_consent_completed_v1_${userId}`;
+  } catch {
+    return "miarcus_mobile_location_consent_completed_v1_current";
+  }
+};
 
 const authConfig = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
 });
 
-const getDeviceId = () => {
-  let id = localStorage.getItem(DEVICE_KEY);
-  if (!id) {
-    id = window.crypto?.randomUUID?.() || `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(DEVICE_KEY, id);
-  }
-  return id;
-};
-
 const LocationTrackingGate = () => {
   const [showConsent, setShowConsent] = useState(false);
   const [registered, setRegistered] = useState(false);
-  const [working, setWorking] = useState(false);
-  const [schedule, setSchedule] = useState("09:00 - 18:00");
+  const [schedule, setSchedule] = useState("09:00 - 21:00");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const watchIdRef = useRef(null);
-  const lastSentRef = useRef(0);
-  const statusRef = useRef(null);
-
-  const stopTracking = useCallback(() => {
-    if (watchIdRef.current !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-  }, []);
-
-  const sendLocation = useCallback(async (position) => {
-    const now = Date.now();
-    if (now - lastSentRef.current < 30000) return;
-    lastSentRef.current = now;
-
-    try {
-      await axios.post(
-        `${API}/api/location/update`,
-        {
-          deviceIdentifier: localStorage.getItem(DEVICE_KEY),
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          capturedAt: new Date(position.timestamp || Date.now()).toISOString(),
-        },
-        authConfig()
-      );
-    } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        stopTracking();
-      }
-    }
-  }, [stopTracking]);
-
-  const startTracking = useCallback(() => {
-    if (!navigator.geolocation || !registered || !working) return;
-    if (watchIdRef.current !== null) return;
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      sendLocation,
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-    );
-  }, [registered, working, sendLocation]);
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   const loadStatus = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/api/location/my-status`, authConfig());
       const data = response.data || {};
-      setRegistered(Boolean(data.registered));
-      setWorking(Boolean(data.trackingActive));
-      setSchedule(data.workHours || "09:00 - 18:00");
-      statusRef.current = data;
+      const isRegistered = Boolean(data.registered);
 
-      if (!data.registered) {
-        setShowConsent(true);
-        stopTracking();
-      } else if (localStorage.getItem(DEVICE_KEY)) {
+      setRegistered(isRegistered);
+      setSchedule(data.workHours || "09:00 - 21:00");
+      setPhoneNumber(data.phoneNumber || "");
+
+      // Once the employee has completed registration, this prompt must never
+      // appear again on this browser/account.
+      if (isRegistered) {
+        localStorage.setItem(getConsentKey(), "1");
         setShowConsent(false);
-      } else {
-        setMessage("This browser needs to be registered again before location tracking can resume.");
-        setShowConsent(true);
-        stopTracking();
+        return;
       }
+
+      // Only show the mandatory consent dialog when it has never been
+      // successfully completed. Do not poll and do not repeatedly prompt.
+      setShowConsent(localStorage.getItem(getConsentKey()) !== "1");
     } catch {
       // Do not interrupt normal application use if the location service is unavailable.
     }
-  }, [stopTracking]);
+  }, []);
 
   const registerLocation = async () => {
     setBusy(true);
     setMessage("");
 
-    if (!navigator.geolocation) {
-      setMessage("This browser does not support location services. Please use a supported browser/device.");
+    if (!phoneNumber) {
+      setMessage("Your registered mobile number is missing. Please contact your administrator before continuing.");
       setBusy(false);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const deviceIdentifier = getDeviceId();
-          await axios.post(
-            `${API}/api/location/device/register`,
-            { deviceIdentifier, deviceName: navigator.userAgent.slice(0, 255) },
-            authConfig()
-          );
-          setRegistered(true);
-          setShowConsent(false);
-          await sendLocation(position);
-        } catch (error) {
-          setMessage(error.response?.data?.message || "Unable to register this device.");
-        } finally {
-          setBusy(false);
-        }
-      },
-      (error) => {
-        const text = error.code === 1
-          ? "Location permission was denied. Please allow location for Miarcus in your browser settings."
-          : error.code === 2
-            ? "Your location could not be determined. Please check GPS/location services."
-            : "Location permission timed out. Please try again.";
-        setMessage(text);
-        setBusy(false);
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
+    try {
+      await axios.post(
+        `${API}/api/location/mobile/register`,
+        { phoneNumber },
+        authConfig()
+      );
+
+      setRegistered(true);
+      setShowConsent(false);
+      localStorage.setItem(getConsentKey(), "1");
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+        "Unable to register your mobile number for location tracking. Please contact your administrator."
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
     loadStatus();
-    const timer = setInterval(loadStatus, 60000);
-    return () => {
-      clearInterval(timer);
-      stopTracking();
-    };
-  }, [loadStatus, stopTracking]);
+  }, [loadStatus]);
 
-  useEffect(() => {
-    if (registered && working) startTracking();
-    else stopTracking();
-  }, [registered, working, startTracking, stopTracking]);
-
-  if (!showConsent) return null;
+  if (!showConsent || registered) return null;
 
   return (
-    <div className="location-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="location-consent-title">
+    <div
+      className="location-consent-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="location-consent-title"
+    >
       <div className="location-consent-card">
-        <button className="location-consent-close" onClick={() => setShowConsent(false)} aria-label="Close">
-          <FaTimes />
-        </button>
         <div className="location-consent-icon"><FaMapMarkerAlt /></div>
-        <div className="location-consent-eyebrow"><FaShieldAlt /> Miarcus location permission</div>
-        <h2 id="location-consent-title">Allow Miarcus to use your location?</h2>
+        <div className="location-consent-eyebrow"><FaShieldAlt /> Miarcus mobile-network permission</div>
+        <h2 id="location-consent-title">Allow Miarcus to use your mobile location?</h2>
         <p>
-          Your device location is used only for company location tracking during the configured working hours.
-          It is not collected outside that time window.
+          Your registered mobile number is used for authorized company network-location tracking
+          during the configured working hours. This permission is requested only once.
         </p>
         <div className="location-consent-points">
-          <div><FaCheckCircle /> One-time device registration</div>
+          <div><FaCheckCircle /> One-time mobile-number registration</div>
           <div><FaCheckCircle /> Tracking only during {schedule}</div>
           <div><FaCheckCircle /> Your registered mobile number identifies your employee account</div>
           <div><FaCheckCircle /> Only authorized administrators can view live location</div>
         </div>
         {message && <div className="location-consent-message">{message}</div>}
         <div className="location-consent-actions">
-          <button className="location-consent-secondary" onClick={() => setShowConsent(false)} disabled={busy}>Not now</button>
           <button className="location-consent-primary" onClick={registerLocation} disabled={busy}>
-            <FaMapMarkerAlt /> {busy ? "Registering..." : "Allow & Register Device"}
+            <FaMapMarkerAlt /> {busy ? "Registering..." : "Allow & Register Mobile"}
           </button>
         </div>
-        <small>Changing this permission later is controlled by your browser/device location settings.</small>
+        <small>This permission is requested once. After successful registration, Miarcus will not show this popup again.</small>
       </div>
     </div>
   );

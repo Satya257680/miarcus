@@ -47,41 +47,65 @@ const runDailyCollectionDeadlineCheck = async () => {
         await DailyCollection.ensureDueRows(reportDate);
         const missing = await DailyCollection.getMissingReports(reportDate);
 
-        if (!missing.length) return;
+        if (!missing.length && !(await DailyCollection.getEscalationCandidates(reportDate)).length) return;
 
         const afterMidnightReminderWindow = now.hour > 0 || (now.hour === 0 && now.minute >= 5);
         const afterTwelveHourEscalation = now.hour > 12 || (now.hour === 12 && now.minute >= 5);
 
-        if (afterMidnightReminderWindow) {
+        const emailSettings = await DailyCollection.getEmailSettings();
+
+        if (afterMidnightReminderWindow && emailSettings.email_enabled) {
             for (const report of missing) {
-                if (!report.reminder_sent_at) {
-                    try {
-                        await controller.sendMissingReminder(report);
+                if (report.reminder_sent_at) continue;
+                const claimed = await DailyCollection.claimReminder(report.id);
+                if (!claimed) continue;
+                try {
+                    const result = await controller.sendMissingReminder(report);
+                    if (result?.sent) {
                         await DailyCollection.markReminderSent(report.id);
-                    } catch (error) {
-                        console.error("Daily collection reminder failed:", report.store_name, error.message);
+                    } else {
+                        await DailyCollection.releaseReminderClaim(report.id);
                     }
+                } catch (error) {
+                    await DailyCollection.releaseReminderClaim(report.id);
+                    console.error("Daily collection reminder failed:", report.store_name, error.message);
                 }
             }
         }
 
         if (afterTwelveHourEscalation) {
-            for (const report of missing) {
-                const managers = await DailyCollection.blockManagersForStore(
-                    report.store_id,
-                    report.report_date,
-                    "Daily collection not submitted within 12 hours of the midnight deadline."
-                );
+            const escalationCandidates = await DailyCollection.getEscalationCandidates(reportDate);
 
-                if (!report.escalation_sent_at) {
+            for (const report of escalationCandidates) {
+                const managers = await DailyCollection.getStoreManagers(report.store_id);
+
+                // Access blocking is independent from email delivery.
+                if (report.status === 'missing') {
+                    await DailyCollection.blockManagersForStore(
+                        report.store_id,
+                        report.report_date,
+                        "Daily collection not submitted within 12 hours of the midnight deadline."
+                    );
+                    if (!emailSettings.email_enabled) {
+                        await DailyCollection.lockReport(report.id, false);
+                        continue;
+                    }
+                }
+
+                if (emailSettings.email_enabled && !report.escalation_sent_at) {
+                    const claimed = await DailyCollection.claimEscalation(report.id);
+                    if (!claimed) continue;
                     try {
-                        await controller.sendEscalation(report, managers);
-                        await DailyCollection.lockReport(report.id);
+                        const result = await controller.sendEscalation(report, managers);
+                        if (result?.sent) {
+                            await DailyCollection.lockReport(report.id, true);
+                        } else {
+                            await DailyCollection.releaseEscalationClaim(report.id);
+                        }
                     } catch (error) {
+                        await DailyCollection.releaseEscalationClaim(report.id);
                         console.error("Daily collection escalation failed:", report.store_name, error.message);
                     }
-                } else {
-                    await DailyCollection.lockReport(report.id);
                 }
             }
         }

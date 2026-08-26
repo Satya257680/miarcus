@@ -37,6 +37,20 @@ router.get(
     controller.getBlockedDailyCollections
 );
 
+router.get(
+    "/email-settings",
+    authMiddleware,
+    adminOnly,
+    controller.getDailyCollectionEmailSettings
+);
+
+router.put(
+    "/email-settings",
+    authMiddleware,
+    adminOnly,
+    controller.updateDailyCollectionEmailSettings
+);
+
 router.post(
     "/blocked/:controlId/unblock",
     authMiddleware,

@@ -18,7 +18,9 @@ import {
     getDailyCollectionStores,
     submitDailyCollection,
     getBlockedDailyCollections,
-    unblockDailyCollection
+    unblockDailyCollection,
+    getDailyCollectionEmailSettings,
+    updateDailyCollectionEmailSettings
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
 
@@ -39,6 +41,8 @@ const DailyCollection = () => {
     const [selectedStore, setSelectedStore] = useState("");
     const [blocked, setBlocked] = useState(null);
     const [blockedList, setBlockedList] = useState([]);
+    const [emailEnabled, setEmailEnabled] = useState(true);
+    const [emailSaving, setEmailSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(null);
     const [error, setError] = useState("");
@@ -77,8 +81,12 @@ const DailyCollection = () => {
 
             if (isAdmin) {
                 try {
-                    const blockedResponse = await getBlockedDailyCollections();
+                    const [blockedResponse, emailResponse] = await Promise.all([
+                        getBlockedDailyCollections(),
+                        getDailyCollectionEmailSettings()
+                    ]);
                     setBlockedList(blockedResponse.data?.blocked || []);
+                    setEmailEnabled(emailResponse.data?.settings?.email_enabled !== false);
                 } catch {
                     setBlockedList([]);
                 }
@@ -146,6 +154,21 @@ const DailyCollection = () => {
             await load();
         } catch (err) {
             setError(err.response?.data?.message || "Unable to restore access.");
+        }
+    };
+
+    const toggleEmailNotifications = async () => {
+        const next = !emailEnabled;
+        try {
+            setEmailSaving(true);
+            setError("");
+            await updateDailyCollectionEmailSettings(next);
+            setEmailEnabled(next);
+            setSuccess(`Daily Collection email notifications ${next ? "enabled" : "disabled"}.`);
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to update email notifications.");
+        } finally {
+            setEmailSaving(false);
         }
     };
 
@@ -263,7 +286,27 @@ const DailyCollection = () => {
 
             {isAdmin && (
                 <section className="blocked-admin-panel">
-                    <div className="blocked-admin-heading"><div><span>Administrator control</span><h2>Blocked Daily Collection Access</h2></div><FaLock /></div>
+                    <div className="blocked-admin-heading"><div><span>Administrator control</span><h2>Daily Collection Controls</h2></div><FaLock /></div>
+
+                    <div className="daily-email-control">
+                        <div className="daily-email-control-copy">
+                            <div className="daily-email-control-title">
+                                <strong>Daily Collection Email Notifications</strong>
+                                <span className={emailEnabled ? "email-state on" : "email-state off"}></span>
+                                <b>{emailEnabled ? "ON" : "OFF"}</b>
+                            </div>
+                            <p>{emailEnabled ? "Admins will receive missing-report reminders and 12-hour escalation emails." : "No Daily Collection reminder or escalation emails will be sent. Access blocking still works."}</p>
+                        </div>
+                        <button className={`email-toggle ${emailEnabled ? "on" : "off"}`} onClick={toggleEmailNotifications} disabled={emailSaving} aria-pressed={emailEnabled}>
+                            <span>{emailSaving ? "Saving..." : emailEnabled ? "ON" : "OFF"}</span>
+                            <span className="email-toggle-knob" />
+                        </button>
+                    </div>
+
+                    <div className="blocked-admin-subheading">
+                        <h3>Blocked Daily Collection Access</h3>
+                        <span>Admin can restore access after reviewing the report.</span>
+                    </div>
                     {!blockedList.length ? (
                         <p>No active Daily Collection blocks.</p>
                     ) : (
@@ -271,7 +314,7 @@ const DailyCollection = () => {
                             {blockedList.map((item) => (
                                 <div className="blocked-row" key={item.control_id}>
                                     <div><strong>{item.user_name}</strong><span>{item.store_name} · report {item.report_date}</span></div>
-                                    <button onClick={() => unlock(item.control_id)}><FaUnlock /> Restore Access</button>
+                                    <button onClick={() => unlock(item.control_id)}><FaUnlock /> Unblock Access</button>
                                 </div>
                             ))}
                         </div>

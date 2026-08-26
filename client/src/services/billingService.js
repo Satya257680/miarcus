@@ -195,6 +195,19 @@ export const unblockDailyCollection = (controlId) =>
     requestConfig()
   );
 
+export const getDailyCollectionEmailSettings = () =>
+  axios.get(
+    `${API}/daily-collections/email-settings`,
+    requestConfig()
+  );
+
+export const updateDailyCollectionEmailSettings = (email_enabled) =>
+  axios.put(
+    `${API}/daily-collections/email-settings`,
+    { email_enabled: Boolean(email_enabled) },
+    requestConfig()
+  );
+
 /* ======================================================
    DEFAULT EXPORT
 ====================================================== */

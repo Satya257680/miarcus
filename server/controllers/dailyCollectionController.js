@@ -163,28 +163,32 @@ const unblockDailyCollection = async (req, res) => {
 };
 
 const sendMissingReminder = async (report) => {
-    const managers = await DailyCollection.getStoreManagers(report.store_id);
+    const settings = await DailyCollection.getEmailSettings();
+    if (!settings.email_enabled) return { skipped: true, reason: "email_disabled" };
+
     const admins = await DailyCollection.getAdminRecipients();
-    const managerEmails = managers.map((u) => u.email).filter(Boolean);
-    const adminEmails = admins.map((u) => u.email).filter(Boolean);
-    const recipients = [...new Set([...managerEmails, ...adminEmails])];
-    if (!recipients.length) return;
+    const recipients = [...new Set(admins.map((u) => u.email).filter(Boolean))];
+    if (!recipients.length) return { skipped: true, reason: "no_admin_recipients" };
 
     const subject = `Action required: Daily Collection missing — ${report.store_name} (${report.report_date})`;
     const html = `
         <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto">
             <h2>Daily Collection Report Pending</h2>
             <p>The daily collection report for <b>${esc(report.store_name)}</b> for <b>${esc(report.report_date)}</b> was not submitted before the 12:00 AM deadline.</p>
-            <p>Please enter the UPI, cash, bank transfer and card collection amounts in Miarcus and ensure the total matches the bills recorded for the store.</p>
-            <p><b>12-hour escalation:</b> If it remains missing until 12:00 PM, Daily Collection permission for the store manager will be blocked and an administrator will need to restore access.</p>
+            <p>Please review the store report in Miarcus. The manager must enter the UPI, cash, bank transfer and card collection amounts and reconcile the total with the bills recorded for the store.</p>
+            <p><b>12-hour escalation:</b> If it remains missing until 12:00 PM, Daily Collection access for the linked store manager will be blocked.</p>
         </div>`;
     await emailService.sendGenericEmail({ to: recipients.join(","), subject, html });
+    return { sent: true };
 };
 
 const sendEscalation = async (report, managers) => {
+    const settings = await DailyCollection.getEmailSettings();
+    if (!settings.email_enabled) return { skipped: true, reason: "email_disabled" };
+
     const admins = await DailyCollection.getAdminRecipients();
-    const recipients = admins.map((u) => u.email).filter(Boolean);
-    if (!recipients.length) return;
+    const recipients = [...new Set(admins.map((u) => u.email).filter(Boolean))];
+    if (!recipients.length) return { skipped: true, reason: "no_admin_recipients" };
 
     const managerNames = managers.length ? managers.map((u) => u.name).join(", ") : "No linked store manager user";
     const subject = `URGENT: Daily Collection access blocked — ${report.store_name} (${report.report_date})`;
@@ -193,9 +197,34 @@ const sendEscalation = async (report, managers) => {
             <h2>Daily Collection Escalation</h2>
             <p>The collection report for <b>${esc(report.store_name)}</b> dated <b>${esc(report.report_date)}</b> is still missing 12 hours after the midnight deadline.</p>
             <p><b>Manager:</b> ${esc(managerNames)}</p>
-            <p>Daily Collection permission has been blocked for the linked manager account(s). Review the report and use the administrator control in Miarcus to restore access after the required permission is approved.</p>
+            <p>Daily Collection access has been blocked for the linked manager account(s). Use the administrator control in Miarcus to restore access after the required report is reviewed.</p>
         </div>`;
-    await emailService.sendGenericEmail({ to: [...new Set(recipients)].join(","), subject, html });
+    await emailService.sendGenericEmail({ to: recipients.join(","), subject, html });
+    return { sent: true };
+};
+
+const getDailyCollectionEmailSettings = async (req, res) => {
+    try {
+        res.json({ success: true, settings: await DailyCollection.getEmailSettings() });
+    } catch (error) {
+        console.error("Daily collection email settings load error:", error);
+        res.status(500).json({ success: false, message: "Unable to load Daily Collection email settings." });
+    }
+};
+
+const updateDailyCollectionEmailSettings = async (req, res) => {
+    try {
+        const enabled = req.body?.email_enabled !== false && req.body?.email_enabled !== 0;
+        const settings = await DailyCollection.updateEmailSettings(enabled, actorId(req));
+        res.json({
+            success: true,
+            message: `Daily Collection email notifications ${enabled ? "enabled" : "disabled"}.`,
+            settings
+        });
+    } catch (error) {
+        console.error("Daily collection email settings update error:", error);
+        res.status(500).json({ success: false, message: "Unable to update Daily Collection email settings." });
+    }
 };
 
 module.exports = {
@@ -204,6 +233,8 @@ module.exports = {
     submitDailyCollection,
     getBlockedDailyCollections,
     unblockDailyCollection,
+    getDailyCollectionEmailSettings,
+    updateDailyCollectionEmailSettings,
     sendMissingReminder,
     sendEscalation
 };
