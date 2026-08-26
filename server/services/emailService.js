@@ -110,8 +110,7 @@ const sendEmail = async ({
     to,
     subject,
     html,
-    text,
-    attachments = []
+    text
 }) => {
 
     // ------------------------------------------------------
@@ -214,10 +213,7 @@ const sendEmail = async ({
                 html,
 
             text:
-                text,
-
-            attachments:
-                attachments
+                text
 
         });
 
@@ -582,8 +578,7 @@ const sendGenericEmail = async ({
     to,
     subject,
     html,
-    text,
-    attachments = []
+    text
 }) => {
 
     return sendEmail({
@@ -594,9 +589,7 @@ const sendGenericEmail = async ({
 
         html,
 
-        text,
-
-        attachments
+        text
 
     });
 
