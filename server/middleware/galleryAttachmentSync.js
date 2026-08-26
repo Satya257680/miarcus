@@ -103,10 +103,10 @@ const notifyAttachment = async ({
                AND p.module_name IN (${placeholders})
             WHERE u.status = 'Active'
               AND (
-                  u.is_admin = 1
+                  u.id = ?
+                  OR u.is_admin = 1
                   OR p.permission IN ('View', 'Add', 'Edit', 'Full')
               )
-              AND u.id <> ?
             ORDER BY u.id ASC
         `, [...aliases, actor || 0]);
 

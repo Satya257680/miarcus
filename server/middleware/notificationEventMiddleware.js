@@ -366,12 +366,19 @@ function install(app) {
                 let recipientIds = await getActiveUsersExcept(excludedIds);
 
                 if (moduleName === "Gallery") {
+                    // Gallery notifications are intentionally visible to the
+                    // uploader as well. This is important for single-user/admin
+                    // deployments where excluding the actor would otherwise
+                    // make a successful Gallery upload look like it generated
+                    // no notification at all. Other authorized Gallery users
+                    // receive the same event.
                     const rows = await db.query(`
                         SELECT DISTINCT u.id
                         FROM users u
                         WHERE u.status = 'Active'
                           AND (
-                              u.is_admin = 1
+                              u.id = ?
+                              OR u.is_admin = 1
                               OR EXISTS (
                                   SELECT 1
                                   FROM user_permissions gp
@@ -380,9 +387,14 @@ function install(app) {
                                     AND gp.permission IN ('View', 'Add', 'Edit', 'Full')
                               )
                           )
-                          AND u.id NOT IN (${excludedIds.length ? excludedIds.map(() => '?').join(',') : '0'})
-                    `, excludedIds);
+                    `, [actorId || 0]);
                     recipientIds = rows.map(row => Number(row.id)).filter(Boolean);
+
+                    // Never send a public-quiz participant's unrelated Gallery
+                    // event back to that participant if this branch is reused.
+                    if (participantId) {
+                        recipientIds = recipientIds.filter(id => id !== participantId);
+                    }
                 }
 
                 if (recipientIds.length === 0) return;
