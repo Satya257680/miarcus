@@ -295,10 +295,20 @@ export default function DailyCollection() {
         }
     };
 
+    const normalizeControlDate = (value) => {
+        if (!value) return "";
+        const text = String(value);
+        // MySQL DATE values may arrive from the API as either
+        // YYYY-MM-DD or an ISO timestamp such as YYYY-MM-DDT00:00:00.000Z.
+        return text.slice(0, 10);
+    };
+
     const selectedControl = useMemo(() => {
         if (!controlStoreId) return null;
+        const targetDate = normalizeControlDate(date);
         return blockedControls.find((item) =>
-            String(item.store_id) === String(controlStoreId) && String(item.report_date) === String(date)
+            String(item.store_id) === String(controlStoreId) &&
+            normalizeControlDate(item.report_date) === targetDate
         ) || null;
     }, [blockedControls, controlStoreId, date]);
 
