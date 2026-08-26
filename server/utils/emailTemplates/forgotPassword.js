@@ -29,7 +29,7 @@ const forgotPassword = (user, resetLink) => {
         intro: `
             We received a request to reset the password for your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account.
 
@@ -113,7 +113,7 @@ const forgotPassword = (user, resetLink) => {
             <br><br>
 
             Thank you for trusting
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             to help keep your account secure.
         `,
 

@@ -29,7 +29,7 @@ const accountUpdated = (user) => {
         intro: `
             Your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account information has been updated successfully.
 
@@ -62,7 +62,7 @@ const accountUpdated = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Login to miarcus",
+        buttonText: "Login to Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -99,7 +99,7 @@ const accountUpdated = (user) => {
 
         bottomMessage: `
             Thank you for using
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
 
             <br><br>
 

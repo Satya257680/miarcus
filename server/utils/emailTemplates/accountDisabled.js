@@ -29,7 +29,7 @@ const accountDisabled = (user) => {
         intro: `
             Your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account has been temporarily disabled by your administrator.
 
@@ -48,7 +48,7 @@ const accountDisabled = (user) => {
             <br><br>
 
             While your account remains disabled, you will not be able to sign in or access any
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             features, modules, or services.
 
             <br><br>
@@ -64,7 +64,7 @@ const accountDisabled = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Visit miarcus",
+        buttonText: "Visit Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -113,7 +113,7 @@ const accountDisabled = (user) => {
             <br><br>
 
             We look forward to welcoming you back to
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             once your account has been reactivated.
         `,
 

@@ -169,7 +169,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "📧 MIARCUS EMAIL SERVICE"
+            "📧 MI ARCUS EMAIL SERVICE"
         );
 
         console.log(
@@ -230,7 +230,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "✅ MIARCUS EMAIL SENT SUCCESSFULLY"
+            "✅ MI ARCUS EMAIL SENT SUCCESSFULLY"
         );
 
         console.log(
@@ -273,7 +273,7 @@ const sendEmail = async ({
         );
 
         console.error(
-            "❌ MIARCUS EMAIL SEND FAILED"
+            "❌ MI ARCUS EMAIL SEND FAILED"
         );
 
         console.error(
@@ -363,7 +363,7 @@ const sendInvitationEmail = async (
             user.email,
 
         subject:
-            "Welcome to miarcus",
+            "Welcome to Mi Arcus",
 
         html:
             invitationEmail(
@@ -391,7 +391,7 @@ const sendAccountUpdatedEmail = async (
             user.email,
 
         subject:
-            "Your miarcus Account Has Been Updated",
+            "Your Mi Arcus Account Has Been Updated",
 
         html:
             accountUpdated(user)
@@ -416,7 +416,7 @@ const sendAccountActivatedEmail = async (
             user.email,
 
         subject:
-            "Your miarcus Account Has Been Activated",
+            "Your Mi Arcus Account Has Been Activated",
 
         html:
             accountActivated(user)
@@ -441,7 +441,7 @@ const sendAccountDisabledEmail = async (
             user.email,
 
         subject:
-            "Your miarcus Account Has Been Disabled",
+            "Your Mi Arcus Account Has Been Disabled",
 
         html:
             accountDisabled(user)
@@ -466,7 +466,7 @@ const sendAccountEnabledEmail = async (
             user.email,
 
         subject:
-            "Your miarcus Account Has Been Reactivated",
+            "Your Mi Arcus Account Has Been Reactivated",
 
         html:
             accountEnabled(user)
@@ -491,7 +491,7 @@ const sendAccountDeletedEmail = async (
             user.email,
 
         subject:
-            "Your miarcus Account Has Been Deleted",
+            "Your Mi Arcus Account Has Been Deleted",
 
         html:
             accountDeleted(user)

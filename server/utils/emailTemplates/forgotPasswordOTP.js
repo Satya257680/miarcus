@@ -28,7 +28,7 @@ const forgotPasswordOTP = (user, otp) => {
         intro: `
             We received a request to reset the password for your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account.
 
@@ -106,7 +106,7 @@ const forgotPasswordOTP = (user, otp) => {
 
             <br><br>
 
-            ✓ miarcus will never ask for your OTP by email, phone call, text message, or social media.
+            ✓ Mi Arcus will never ask for your OTP by email, phone call, text message, or social media.
 
             <br><br>
 
@@ -141,7 +141,7 @@ const forgotPasswordOTP = (user, otp) => {
             <br><br>
 
             Thank you for choosing
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
         `,
 
         // ===========================

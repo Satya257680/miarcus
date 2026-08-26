@@ -29,7 +29,7 @@ const accountActivated = (user) => {
         intro: `
             Welcome to
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>!
 
             <br><br>
@@ -47,7 +47,7 @@ const accountActivated = (user) => {
             <br><br>
 
             You can now sign in to the
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             platform using your registered email address and the password you created during activation.
 
             <br><br>
@@ -61,7 +61,7 @@ const accountActivated = (user) => {
             <br><br>
 
             We're excited to have you as part of the
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             community and look forward to supporting your success.
         `,
 
@@ -69,7 +69,7 @@ const accountActivated = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Login to miarcus",
+        buttonText: "Login to Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -110,7 +110,7 @@ const accountActivated = (user) => {
 
         bottomMessage: `
             Thank you for choosing
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
 
             <br><br>
 
@@ -123,7 +123,7 @@ const accountActivated = (user) => {
             <br><br>
 
             Welcome aboard, and thank you for being part of the
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             community.
         `,
 

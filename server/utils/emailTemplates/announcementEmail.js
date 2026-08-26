@@ -38,10 +38,10 @@ const announcementEmail = ({
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.08);">
 
 <tr>
-<td align="center" style="background:#b8dce4;padding:28px 24px;">
+<td align="center" style="background:#b8dce4;padding:24px 24px;">
 <a href="${website}" target="_blank" style="text-decoration:none;">
-<img src="${String(process.env.BACKEND_URL || "https://miarcus-backend.onrender.com").replace(/\/+$/,"")}/images/Miarcus.png"
-     alt="MIARCUS" width="150"
+<img src="${String(process.env.BACKEND_URL || "https://miarcus-backend.onrender.com").replace(/\/+$/,"")}/images/MiArcus-brand-theme.png"
+     alt="Mi Arcus" width="110"
      style="display:block;border:0;max-width:150px;height:auto;">
 </a>
 </td>
@@ -58,7 +58,7 @@ ${safeTitle}
 </h1>
 
 <p style="margin:0;font-size:16px;line-height:28px;color:#59686d;">
-A new announcement has been published for you on MIARCUS. Please review the details below.
+A new announcement has been published for you on Mi Arcus. Please review the details below.
 </p>
 </td>
 </tr>
@@ -123,7 +123,7 @@ The same file is included as a direct email attachment for easy opening or downl
 <tr>
 <td style="padding:4px 42px 36px;">
 <p style="margin:0;font-size:14px;line-height:24px;color:#718086;">
-You can also sign in to MIARCUS at any time to review your announcements and other assigned updates.
+You can also sign in to Mi Arcus at any time to review your announcements and other assigned updates.
 </p>
 <p style="margin:18px 0 0;font-size:14px;line-height:24px;color:#718086;">
 If you were not expecting this message, please contact your administrator.
@@ -134,7 +134,7 @@ If you were not expecting this message, please contact your administrator.
 <tr>
 <td align="center" style="background:#f5f9fa;padding:22px 24px;border-top:1px solid #e5edef;">
 <p style="margin:0;font-size:13px;color:#7a888d;">
-Sent from <strong style="color:#16879a;">MIARCUS</strong>
+Sent from <strong style="color:#16879a;">Mi Arcus</strong>
 </p>
 <p style="margin:7px 0 0;font-size:12px;color:#9aa5a9;">
 Internal Management Portal

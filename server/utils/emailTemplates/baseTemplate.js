@@ -18,10 +18,10 @@ const backendUrl =
     process.env.BACKEND_URL || "https://miarcus-backend.onrender.com";
 
 // ======================================================
-// MIARCUS LOGO
+// MI ARCUS LOGO
 // ======================================================
 
-const logo = `${backendUrl}/images/Miarcus.png`;
+const logo = `${backendUrl}/images/MiArcus-brand-theme.png`;
 
 // ======================================================
 // OFFICIAL MIARCUS LINKS
@@ -137,7 +137,7 @@ box-shadow:0 10px 30px rgba(0,0,0,.08);
 align="center"
 style="
 padding:40px 30px;
-background:#6C63FF;
+background:#B8DCE4;
 ">
 
 <a
@@ -151,9 +151,9 @@ text-decoration:none;
 
 <img
 src="${logo}"
-alt="miarcus"
+alt="Mi Arcus"
 style="
-max-width:180px;
+width:110px;\nmax-width:110px;
 height:auto;
 display:block;
 border:0;
@@ -351,7 +351,7 @@ font-weight:bold;
 color:#5F39FF;
 ">
 
-miarcus Team
+Mi Arcus Team
 
 </p>
 
@@ -550,7 +550,7 @@ Need help?
 
 <br><br>
 
-If you have any questions regarding your account or the miarcus ERP application,
+If you have any questions regarding your account or the Mi Arcus ERP application,
 please contact your administrator or visit our official website.
 
 <br><br>
@@ -583,7 +583,7 @@ font-size:13px;
 color:#999;
 ">
 
-© ${new Date().getFullYear()} miarcus. All Rights Reserved.
+© ${new Date().getFullYear()} Mi Arcus. All Rights Reserved.
 
 <br><br>
 

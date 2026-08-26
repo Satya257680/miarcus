@@ -9,7 +9,7 @@ const invitationEmail = (user, activationLink) => {
         // Page Title
         // ===========================
 
-        title: "Welcome to miarcus",
+        title: "Welcome to Mi Arcus",
 
         // ===========================
         // Greeting
@@ -29,7 +29,7 @@ const invitationEmail = (user, activationLink) => {
         intro: `
             Welcome to
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>!
 
             <br><br>
@@ -47,7 +47,7 @@ const invitationEmail = (user, activationLink) => {
 
         message: `
             We're delighted to welcome you to the
-            <strong>miarcus</strong> platform.
+            <strong>Mi Arcus</strong> platform.
 
             <br><br>
 
@@ -113,7 +113,7 @@ const invitationEmail = (user, activationLink) => {
             <br><br>
 
             We look forward to welcoming you to
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
         `,
 
         showButton: true,

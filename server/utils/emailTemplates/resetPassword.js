@@ -29,7 +29,7 @@ const resetPassword = (user) => {
         intro: `
             Your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account password has been changed successfully.
 
@@ -62,7 +62,7 @@ const resetPassword = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Login to miarcus",
+        buttonText: "Login to Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -99,7 +99,7 @@ const resetPassword = (user) => {
 
         bottomMessage: `
             Thank you for helping us keep your
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             account secure.
 
             <br><br>

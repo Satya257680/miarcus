@@ -29,7 +29,7 @@ const accountDeleted = (user) => {
         intro: `
             Your
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>
             account has been permanently deleted by your administrator.
 
@@ -44,7 +44,7 @@ const accountDeleted = (user) => {
 
         message: `
             Your account has been permanently removed from the
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             system.
 
             <br><br>
@@ -68,7 +68,7 @@ const accountDeleted = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Visit miarcus",
+        buttonText: "Visit Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -89,7 +89,7 @@ const accountDeleted = (user) => {
             <br><br>
 
             ✓ All access to
-            <strong>miarcus</strong>
+            <strong>Mi Arcus</strong>
             has been revoked.
 
             <br><br>
@@ -107,7 +107,7 @@ const accountDeleted = (user) => {
 
         bottomMessage: `
             Thank you for being a valued member of
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
 
             <br><br>
 
@@ -120,7 +120,7 @@ const accountDeleted = (user) => {
             <br><br>
 
             Thank you for choosing
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
         `,
 
         // ===========================

@@ -29,7 +29,7 @@ const accountEnabled = (user) => {
         intro: `
             Welcome back to
             <strong style="color:#5F39FF;">
-                miarcus
+                Mi Arcus
             </strong>!
 
             <br><br>
@@ -61,7 +61,7 @@ const accountEnabled = (user) => {
         // Button
         // ===========================
 
-        buttonText: "Login to miarcus",
+        buttonText: "Login to Mi Arcus",
 
         buttonLink:
             getAppUrl(),
@@ -98,7 +98,7 @@ const accountEnabled = (user) => {
 
         bottomMessage: `
             Thank you for being a valued member of
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
 
             <br><br>
 
@@ -111,7 +111,7 @@ const accountEnabled = (user) => {
             <br><br>
 
             We wish you a productive and successful experience with
-            <strong>miarcus</strong>.
+            <strong>Mi Arcus</strong>.
         `,
 
         // ===========================
