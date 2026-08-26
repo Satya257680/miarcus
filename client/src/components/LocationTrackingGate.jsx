@@ -24,16 +24,26 @@ const LocationTrackingGate = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [adminBypass, setAdminBypass] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/api/location/my-status`, authConfig());
       const data = response.data || {};
       const isRegistered = Boolean(data.registered);
+      const isAdmin = Boolean(data.isAdmin);
 
       setRegistered(isRegistered);
+      setAdminBypass(isAdmin);
       setSchedule(data.workHours || "09:00 - 21:00");
       setPhoneNumber(data.phoneNumber || "");
+
+      // Super administrators already have location-console access and must
+      // never be forced through employee mobile registration.
+      if (isAdmin) {
+        setShowConsent(false);
+        return;
+      }
 
       // Once the employee has completed registration, this prompt must never
       // appear again on this browser/account.
@@ -85,7 +95,7 @@ const LocationTrackingGate = () => {
     loadStatus();
   }, [loadStatus]);
 
-  if (!showConsent || registered) return null;
+  if (adminBypass || !showConsent || registered) return null;
 
   return (
     <div

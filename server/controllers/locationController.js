@@ -90,14 +90,16 @@ const getMyStatus = async (req, res) => {
     try {
         const target = await Location.getMobileTarget(req.user.id);
         const userRows = await dbQuery(
-            `SELECT call_contact FROM users WHERE id = ? LIMIT 1`,
+            `SELECT call_contact, is_admin FROM users WHERE id = ? LIMIT 1`,
             [req.user.id]
         );
         const registeredPhone = target?.phone_number || userRows[0]?.call_contact || null;
+        const isAdmin = Number(userRows[0]?.is_admin) === 1 || Boolean(req.user?.is_admin);
         const schedule = await getWorkingSchedule();
         res.json({
             success: true,
             registered: Boolean(target),
+            isAdmin,
             trackingActive: await isWithinWorkingHours(),
             workHours: schedule ? `${schedule.start} - ${schedule.end}` : "OFF",
             timezone: schedule?.timezone || "Asia/Kolkata",
