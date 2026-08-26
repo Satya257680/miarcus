@@ -64,7 +64,6 @@ const DailyCollection = () => {
     const [blockedList, setBlockedList] = useState([]);
     const [emailEnabled, setEmailEnabled] = useState(true);
     const [emailSaving, setEmailSaving] = useState(false);
-    const [blockStoreId, setBlockStoreId] = useState("");
     const [blocking, setBlocking] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(null);
@@ -86,13 +85,10 @@ const DailyCollection = () => {
             const storeList = storeResponse.data?.stores || [];
             setStores(storeList);
 
-            const selectedStillValid = selectedStore && storeList.some((store) => String(store.id) === String(selectedStore));
-            if (!selectedStillValid && storeList.length === 1) {
-                setSelectedStore(String(storeList[0].id));
-                return;
-            }
+            const selectedStillValid = selectedStore === "all" || (selectedStore && storeList.some((store) => String(store.id) === String(selectedStore)));
             if (!selectedStillValid && selectedStore) {
                 setSelectedStore("");
+                return;
             }
 
             if (isAdmin) {
@@ -112,10 +108,11 @@ const DailyCollection = () => {
             if (!selectedStore || !selectedStillValid) {
                 setReports([]);
                 setValues({});
+                setBlocked(null);
                 return;
             }
 
-            const reportResponse = await getDailyCollections({ date, store_id: selectedStore });
+            const reportResponse = await getDailyCollections(selectedStore === "all" ? { date } : { date, store_id: selectedStore });
             const reportList = reportResponse.data?.reports || [];
             setReports(reportList);
             setBlocked(reportResponse.data?.block || null);
@@ -187,17 +184,16 @@ const DailyCollection = () => {
         }
     };
 
-    const blockStoreAccess = async () => {
-        if (!blockStoreId) {
+    const blockStoreAccess = async (storeId) => {
+        if (!storeId) {
             setError("Select a store before blocking Daily Collection access.");
             return;
         }
         try {
             setBlocking(true);
             setError("");
-            await blockDailyCollection({ store_id: Number(blockStoreId), report_date: date, reason: "Blocked manually by administrator." });
+            await blockDailyCollection({ store_id: Number(storeId), report_date: date, reason: "Blocked manually by administrator." });
             setSuccess("Daily Collection access blocked for the selected store users.");
-            setBlockStoreId("");
             await load();
         } catch (err) {
             setError(err.response?.data?.message || "Unable to block Daily Collection access.");
@@ -332,6 +328,7 @@ const DailyCollection = () => {
                     <span>Store</span>
                     <select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>
                         <option value="">Select store</option>
+                        <option value="all">All stores</option>
                         {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}</option>)}
                     </select>
                 </label>
@@ -353,7 +350,7 @@ const DailyCollection = () => {
             </div>
 
             {!selectedStore ? (
-                <div className="collection-empty">Select a store to view or submit its Daily Collection.</div>
+                <div className="collection-empty">Select a store or All stores to view and submit Daily Collection.</div>
             ) : loading ? (
                 <div className="collection-empty">Loading daily collection...</div>
             ) : !filteredReports.length ? (
@@ -368,6 +365,7 @@ const DailyCollection = () => {
                         const submitted = report.status === "submitted";
                         const locked = report.status === "locked";
                         const notSubmitted = report.status === "missing";
+                        const reportBlocked = !isAdmin && blockedList.some((item) => String(item.store_id) === String(report.store_id));
 
                         return (
                             <article className={`collection-card ${submitted ? "submitted" : locked ? "locked" : ""}`} key={report.id}>
@@ -393,10 +391,10 @@ const DailyCollection = () => {
                                 </div>
 
                                 <div className="payment-grid">
-                                    <label><span><FaMobileAlt /> UPI</span><input type="number" min="0" step="0.01" value={value.upi_amount ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "upi_amount", e.target.value)} placeholder="0.00" /></label>
-                                    <label><span><FaMoneyBillWave /> Cash</span><input type="number" min="0" step="0.01" value={value.cash_amount ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "cash_amount", e.target.value)} placeholder="0.00" /></label>
-                                    <label><span><FaUniversity /> Bank Transfer</span><input type="number" min="0" step="0.01" value={value.bank_transfer_amount ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "bank_transfer_amount", e.target.value)} placeholder="0.00" /></label>
-                                    <label><span><FaCreditCard /> Card</span><input type="number" min="0" step="0.01" value={value.card_amount ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "card_amount", e.target.value)} placeholder="0.00" /></label>
+                                    <label><span><FaMobileAlt /> UPI</span><input type="number" min="0" step="0.01" value={value.upi_amount ?? ""} disabled={submitted || reportBlocked || Boolean(blocked)} onChange={(e) => updateValue(report.id, "upi_amount", e.target.value)} placeholder="0.00" /></label>
+                                    <label><span><FaMoneyBillWave /> Cash</span><input type="number" min="0" step="0.01" value={value.cash_amount ?? ""} disabled={submitted || reportBlocked || Boolean(blocked)} onChange={(e) => updateValue(report.id, "cash_amount", e.target.value)} placeholder="0.00" /></label>
+                                    <label><span><FaUniversity /> Bank Transfer</span><input type="number" min="0" step="0.01" value={value.bank_transfer_amount ?? ""} disabled={submitted || reportBlocked || Boolean(blocked)} onChange={(e) => updateValue(report.id, "bank_transfer_amount", e.target.value)} placeholder="0.00" /></label>
+                                    <label><span><FaCreditCard /> Card</span><input type="number" min="0" step="0.01" value={value.card_amount ?? ""} disabled={submitted || reportBlocked || Boolean(blocked)} onChange={(e) => updateValue(report.id, "card_amount", e.target.value)} placeholder="0.00" /></label>
                                 </div>
 
                                 <div className="system-payment-reference">
@@ -404,12 +402,12 @@ const DailyCollection = () => {
                                     <b>UPI {money(report.summary?.system_upi)} · Card {money(report.summary?.system_card)} · Bank {money(report.summary?.system_bank_transfer)} · Cash {money(report.summary?.system_cash)}</b>
                                 </div>
 
-                                <textarea value={value.notes ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "notes", e.target.value)} placeholder="Notes / reconciliation explanation (optional)" />
+                                <textarea value={value.notes ?? ""} disabled={submitted || reportBlocked || Boolean(blocked)} onChange={(e) => updateValue(report.id, "notes", e.target.value)} placeholder="Notes / reconciliation explanation (optional)" />
 
                                 <div className="collection-card-footer">
-                                    <span>{locked ? "Access was locked — administrator can restore submission access" : notSubmitted ? (Math.abs(variance) < 0.01 ? "Ready to submit" : `Difference ${money(variance)}`) : "Collection submitted"}</span>
-                                    {!submitted && (
-                                        <button onClick={() => submit(report)} disabled={saving === report.id || Boolean(blocked) || Math.abs(variance) > 0.01}>
+                                    <span>{locked ? "Access is locked — unblock this store before submitting" : notSubmitted ? (Math.abs(variance) < 0.01 ? "Ready to submit" : `Variance ${money(variance)} — submission allowed`) : "Collection submitted"}</span>
+                                    {!submitted && !locked && (
+                                        <button onClick={() => submit(report)} disabled={saving === report.id || reportBlocked || Boolean(blocked)}>
                                             {saving === report.id ? "Saving..." : "Submit Collection"}
                                         </button>
                                     )}
@@ -439,31 +437,35 @@ const DailyCollection = () => {
                         </button>
                     </div>
 
-                    <div className="daily-manual-block">
-                        <div><strong>Administrator block control</strong><span>Block Daily Collection access for eligible users assigned to a selected store.</span></div>
-                        <div className="daily-manual-block-actions">
-                            <select value={blockStoreId} onChange={(e) => setBlockStoreId(e.target.value)}>
-                                <option value="">Select store</option>
-                                {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}</option>)}
-                            </select>
-                            <button onClick={blockStoreAccess} disabled={blocking || !blockStoreId}><FaLock /> {blocking ? "Blocking..." : "Block Access"}</button>
-                        </div>
-                    </div>
-
                     <div className="blocked-admin-subheading">
-                        <h3>Blocked Daily Collection Access</h3>
-                        <span>Only blocked store access is shown; administrator accounts are excluded.</span>
+                        <h3>Store Access Control</h3>
+                        <span>Blocked stores are red; available stores are green. Administrator accounts are excluded.</span>
                     </div>
-                    {!blockedList.length ? (
-                        <p>No active Daily Collection blocks.</p>
+                    {!selectedStore ? (
+                        <p>Select a store or All stores to manage Daily Collection access.</p>
                     ) : (
                         <div className="blocked-list">
-                            {blockedList.map((item) => (
-                                <div className="blocked-row" key={`${item.store_id}-${item.report_date}`}>
-                                    <div><strong>{item.store_name}</strong><span>{item.report_date} · {Number(item.blocked_user_count || 0)} user(s) blocked</span></div>
-                                    <button onClick={() => unlockGroup(item.control_ids)}><FaUnlock /> Unblock Access</button>
-                                </div>
-                            ))}
+                            {(selectedStore === "all" ? stores : stores.filter((store) => String(store.id) === String(selectedStore))).map((store) => {
+                                const item = blockedList.find((blockedItem) => String(blockedItem.store_id) === String(store.id));
+                                const isBlocked = Boolean(item);
+                                return (
+                                    <div className={`blocked-row ${isBlocked ? "blocked" : "available"}`} key={`${store.id}-${date}`}>
+                                        <div>
+                                            <strong>{store.store_name}</strong>
+                                            <span>{isBlocked ? `${Number(item.blocked_user_count || 0)} user(s) blocked · ${item.report_date}` : "Daily Collection access available"}</span>
+                                        </div>
+                                        {isBlocked ? (
+                                            <button className="unblock-access" onClick={() => unlockGroup(item.control_ids)} disabled={blocking}>
+                                                <FaUnlock /> Unblock Access
+                                            </button>
+                                        ) : (
+                                            <button className="block-access" onClick={() => blockStoreAccess(store.id)} disabled={blocking}>
+                                                <FaLock /> Block Access
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </section>

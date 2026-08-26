@@ -369,13 +369,8 @@ DailyCollection.submitReport = async ({
     const totalBilled = num(summary.total_billed);
     const variance = num(totalCollected - totalBilled);
 
-    if (Math.abs(variance) > 0.01) {
-        const error = new Error(
-            `Collection total must match billed total. Billed ₹${totalBilled.toFixed(2)}, entered ₹${totalCollected.toFixed(2)}.`
-        );
-        error.status = 400;
-        throw error;
-    }
+    // A variance is recorded for reconciliation, but it must not prevent a valid
+    // Daily Collection submission. Administrators can review the variance later.
 
     const existing = await db.query(`
         SELECT id FROM daily_collection_reports

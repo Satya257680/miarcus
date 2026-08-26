@@ -79,3 +79,14 @@
 .daily-detail-note p { margin: 7px 0 0; color: #344054; line-height: 1.5; white-space: pre-wrap; }
 @media (max-width: 900px) { .daily-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .daily-detail-grid { grid-template-columns: 1fr; } .collection-card-actions { align-items: stretch; } .collection-card-actions .action-buttons { justify-content: flex-end; } }
+
+/* Store access state controls */
+.blocked-row.blocked { background:#fff1f0; border:1px solid #fecdca; }
+.blocked-row.available { background:#ecfdf3; border:1px solid #abefc6; }
+.blocked-row.blocked strong { color:#b42318; }
+.blocked-row.available strong { color:#087443; }
+.blocked-row .block-access, .blocked-row .unblock-access { border:0; border-radius:10px; padding:10px 14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+.blocked-row .block-access { background:#f04438; color:#fff; }
+.blocked-row .unblock-access { background:#d1fadf; color:#087443; }
+.blocked-row button:disabled { opacity:.55; cursor:not-allowed; }
+@media (max-width:800px){ .blocked-row .block-access, .blocked-row .unblock-access { width:100%; justify-content:center; } }
