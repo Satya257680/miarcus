@@ -408,6 +408,7 @@ const getAttachment = (announcementId, callback) => {
 const getRecipientsForEmail = (announcementId, callback) => {
     db.query(`
         SELECT ar.id AS recipient_id, ar.user_id,
+               ar.announcement_id,
                u.name, u.email,
                a.title, a.content,
                a.attachment_original_name, a.attachment_path

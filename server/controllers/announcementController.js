@@ -5,6 +5,7 @@ const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
 const { sendGenericEmail } = require("../services/emailService");
+const announcementEmail = require("../utils/emailTemplates/announcementEmail");
 const Notification = require("../services/notificationService");
 const { UPLOAD_DIR } = require("../config/storage");
 const {
@@ -21,30 +22,91 @@ const escapeHtml = (value = "") =>
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 
-const sendAnnouncementEmail = async (recipient) => {
+const getAnnouncementEmailAttachment = (announcementId) =>
+    new Promise((resolve) => {
+        Announcement.getAttachment(
+            announcementId,
+            (error, row) => {
+                if (error || !row) return resolve(null);
+
+                const buffer = row.attachment_data;
+
+                if (!buffer || !buffer.length) {
+                    return resolve(null);
+                }
+
+                resolve({
+                    filename: row.attachment_original_name || "announcement-attachment",
+                    contentType: row.attachment_mime_type || "application/octet-stream",
+                    content: Buffer.from(buffer)
+                });
+            }
+        );
+    });
+
+const sendAnnouncementEmail = async (recipient, attachment = null) => {
     const appUrl = String(
         process.env.PUBLIC_APP_URL ||
         "https://rytual-peach.vercel.app"
     ).trim().replace(/\/+$/, "");
 
-    const announcementUrl =
-        `${appUrl}/announcements`;
+    const announcementId = Number(recipient.announcement_id || recipient.id || 0);
+    const announcementUrl = `${appUrl}/announcements`;
+
+    let attachmentUrl = "";
+    if (announcementId > 0 && recipient.user_id) {
+        const token = createAnnouncementAttachmentToken(
+            announcementId,
+            recipient.user_id
+        );
+
+        attachmentUrl =
+            `${appUrl}/api/announcements/${announcementId}/attachment?token=${encodeURIComponent(token)}`;
+    }
+
+    const html = announcementEmail({
+        recipientName: recipient.name || "there",
+        title: recipient.title,
+        content: recipient.content,
+        announcementUrl,
+        attachmentUrl: recipient.attachment_original_name ? attachmentUrl : "",
+        attachmentName: recipient.attachment_original_name
+    });
+
+    const textLines = [
+        `Hello ${recipient.name || "there"},`,
+        "",
+        `A new announcement has been published on MIARCUS: ${recipient.title || "New Announcement"}`,
+        "",
+        recipient.content || "",
+        "",
+        `Open announcement: ${announcementUrl}`
+    ];
+
+    if (recipient.attachment_original_name && attachmentUrl) {
+        textLines.push(
+            `Open attachment directly: ${attachmentUrl}`,
+            `Attachment: ${recipient.attachment_original_name}`
+        );
+    }
+
+    textLines.push("", "Sent from MIARCUS");
 
     return sendGenericEmail({
         to: recipient.email,
-        subject: recipient.title,
-        html: `
-            <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto">
-                <h2>${escapeHtml(recipient.title)}</h2>
-                <div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(recipient.content || "")}</div>
-                ${recipient.attachment_original_name
-                    ? `<p><a href="${announcementUrl}">Open announcement and attachment</a></p>`
-                    : ""}
-                <p style="color:#777;font-size:12px">Sent from MIARCUS</p>
-            </div>
-        `
+        subject: `MIARCUS Announcement: ${recipient.title}`,
+        html,
+        text: textLines.join("\n"),
+        // Gmail receives the real binary file as a separate attachment.
+        // Keep large files available through the secure direct link even
+        // when they are too large for a practical email attachment.
+        attachments:
+            attachment && attachment.content.length <= (18 * 1024 * 1024)
+                ? [attachment]
+                : []
     });
 };
+
 
 const createAnnouncementAttachmentToken = (announcementId, userId) =>
     jwt.sign(
@@ -410,10 +472,11 @@ const createAnnouncement = (req, res) => {
 
                         let emailSent = 0;
                         let emailFailed = 0;
+                        const emailAttachment = await getAnnouncementEmailAttachment(announcementId);
 
                         for (const recipient of recipients) {
                             try {
-                                await sendAnnouncementEmail(recipient);
+                                await sendAnnouncementEmail(recipient, emailAttachment);
                                 await new Promise((resolve, reject) => {
                                     Announcement.updateEmailStatus(
                                         recipient.recipient_id,
@@ -611,9 +674,10 @@ const updateAnnouncement = (req, res) => {
                             // and do not make the announcement update fail.
                             Announcement.getRecipientsForEmail(id, async (emailLookupErr, recipients) => {
                                 if (!emailLookupErr) {
+                                    const emailAttachment = await getAnnouncementEmailAttachment(id);
                                     for (const recipient of recipients) {
                                         try {
-                                            await sendAnnouncementEmail(recipient);
+                                            await sendAnnouncementEmail(recipient, emailAttachment);
                                             Announcement.updateEmailStatus(
                                                 recipient.recipient_id,
                                                 "sent",
@@ -769,11 +833,12 @@ const createBulkAnnouncement = (req, row) => new Promise((resolve, reject) => {
                 Announcement.getRecipientsForEmail(announcementId, async (emailLookupErr, recipients) => {
                     let emailSent = 0;
                     let emailFailed = 0;
+                    const emailAttachment = await getAnnouncementEmailAttachment(announcementId);
 
                     if (!emailLookupErr) {
                         for (const recipient of recipients) {
                             try {
-                                await sendAnnouncementEmail(recipient);
+                                await sendAnnouncementEmail(recipient, emailAttachment);
                                 await new Promise((resolveUpdate, rejectUpdate) => {
                                     Announcement.updateEmailStatus(
                                         recipient.recipient_id,
