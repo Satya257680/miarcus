@@ -59,3 +59,23 @@
 .daily-manual-block-actions button { border: 0; border-radius: 10px; padding: 11px 14px; background: #b42318; color: #fff; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
 .daily-manual-block-actions button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 800px) { .daily-manual-block { flex-direction: column; align-items: stretch; } .daily-manual-block-actions { flex-direction: column; align-items: stretch; } .daily-manual-block-actions select { min-width: 0; } }
+
+/* Global CRUD toolbar / row actions */
+.daily-collection-page > .page-toolbar { margin-top: 20px; }
+.collection-card-actions { display: flex; align-items: flex-start; gap: 10px; flex-direction: column; }
+.collection-card-actions .action-buttons { width: auto; }
+.collection-status.missing { background: #fff4e5; color: #9a5a00; }
+.daily-report-table th:last-child, .daily-report-table td:last-child { min-width: 150px; text-align: center; }
+.daily-report-table td:last-child .action-buttons { width: auto; }
+.daily-modal-close { border: 0; border-radius: 9px; padding: 10px 18px; background: #172033; color: #fff; font-weight: 700; cursor: pointer; }
+.daily-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.daily-detail-grid > div { border: 1px solid #e5ebf2; background: #f8fafc; border-radius: 12px; padding: 13px; }
+.daily-detail-grid > div span { display: block; color: #718096; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+.daily-detail-grid > div strong { color: #172033; font-size: 14px; word-break: break-word; }
+.daily-detail-grid > div.match strong { color: #17834f; }
+.daily-detail-grid > div.mismatch strong { color: #b42318; }
+.daily-detail-note { margin-top: 14px; border: 1px solid #e5ebf2; border-radius: 12px; padding: 14px; background: #fff; }
+.daily-detail-note span { display: block; color: #718096; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.daily-detail-note p { margin: 7px 0 0; color: #344054; line-height: 1.5; white-space: pre-wrap; }
+@media (max-width: 900px) { .daily-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .daily-detail-grid { grid-template-columns: 1fr; } .collection-card-actions { align-items: stretch; } .collection-card-actions .action-buttons { justify-content: flex-end; } }

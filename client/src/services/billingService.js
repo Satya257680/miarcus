@@ -176,6 +176,35 @@ export const getDailyCollectionStores = () =>
     requestConfig()
   );
 
+export const getDailyCollectionById = (id) =>
+  axios.get(
+    `${DAILY_COLLECTION_API}/${id}`,
+    requestConfig()
+  );
+
+export const bulkUploadDailyCollections = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await axios.post(
+    `${DAILY_COLLECTION_API}/bulk-upload`,
+    formData,
+    requestConfig()
+  );
+  return response.data;
+};
+
+export const deleteDailyCollection = (id) =>
+  axios.delete(
+    `${DAILY_COLLECTION_API}/${id}`,
+    requestConfig()
+  );
+
+export const deleteAllDailyCollections = () =>
+  axios.delete(
+    `${DAILY_COLLECTION_API}/delete-all`,
+    requestConfig()
+  );
+
 export const submitDailyCollection = (data) =>
   axios.post(
     `${DAILY_COLLECTION_API}`,
@@ -231,6 +260,10 @@ const billingService = {
   getStores,
   getDailyCollections,
   getDailyCollectionStores,
+  getDailyCollectionById,
+  bulkUploadDailyCollections,
+  deleteDailyCollection,
+  deleteAllDailyCollections,
   submitDailyCollection,
   getBlockedDailyCollections,
   blockDailyCollection,

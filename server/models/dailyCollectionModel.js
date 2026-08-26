@@ -426,15 +426,19 @@ DailyCollection.submitReport = async ({
     };
 };
 
-DailyCollection.getActiveBlock = async (userId) => {
+DailyCollection.getActiveBlock = async (userId, storeId = null) => {
+    const params = [userId];
+    const storeFilter = storeId ? " AND c.store_id = ?" : "";
+    if (storeId) params.push(Number(storeId));
     const rows = await db.query(`
         SELECT c.*, s.store_name
         FROM daily_collection_access_controls c
         INNER JOIN stores s ON s.id = c.store_id
         WHERE c.user_id = ? AND c.unblocked_at IS NULL
+          ${storeFilter}
         ORDER BY c.blocked_at DESC
         LIMIT 1
-    `, [userId]);
+    `, params);
     return rows[0] || null;
 };
 
@@ -476,22 +480,133 @@ DailyCollection.blockUsersForStore = async (storeId, reportDate, reason, adminId
 DailyCollection.getBlockedReports = async () => {
     return db.query(`
         SELECT
-            c.id AS control_id,
-            c.user_id,
+            MIN(c.id) AS control_id,
             c.store_id,
             c.report_date,
-            c.blocked_at,
-            c.blocked_by,
-            c.reason,
-            u.name AS user_name,
-            u.email AS user_email,
-            s.store_name
+            MAX(c.blocked_at) AS blocked_at,
+            MAX(c.blocked_by) AS blocked_by,
+            MAX(c.reason) AS reason,
+            s.store_name,
+            COUNT(*) AS blocked_user_count,
+            GROUP_CONCAT(c.id ORDER BY c.id SEPARATOR ',') AS control_ids
         FROM daily_collection_access_controls c
         INNER JOIN users u ON u.id = c.user_id
         INNER JOIN stores s ON s.id = c.store_id
         WHERE c.unblocked_at IS NULL
-        ORDER BY c.blocked_at DESC
+          AND COALESCE(u.is_admin, 0) = 0
+          AND u.status = 'Active'
+        GROUP BY c.store_id, c.report_date, s.store_name
+        ORDER BY MAX(c.blocked_at) DESC
     `);
+};
+
+DailyCollection.getReportById = async ({ id, userId, isAdmin }) => {
+    const params = [Number(id)];
+    let scope = '';
+    if (!isAdmin) {
+        scope = ` AND r.store_id IN (
+            SELECT us.store_id FROM user_stores us WHERE us.user_id = ?
+        )`;
+        params.push(userId);
+    }
+    const rows = await db.query(`
+        SELECT
+            r.*,
+            s.store_name,
+            s.store_code,
+            s.manager_name,
+            u.name AS submitted_by_name,
+            au.name AS approved_by_name
+        FROM daily_collection_reports r
+        INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN users u ON u.id = r.submitted_by
+        LEFT JOIN users au ON au.id = r.approved_by
+        WHERE r.id = ? ${scope}
+        LIMIT 1
+    `, params);
+    return rows[0] || null;
+};
+
+DailyCollection.getReportForStoreDate = async (storeId, reportDate) => {
+    const rows = await db.query(`
+        SELECT id, store_id, report_date, status
+        FROM daily_collection_reports
+        WHERE store_id = ? AND report_date = ?
+        LIMIT 1
+    `, [storeId, reportDate]);
+    return rows[0] || null;
+};
+
+DailyCollection.getStoreByIdentifier = async ({ storeId, storeCode, storeName }) => {
+    if (storeId) {
+        const rows = await db.query(`
+            SELECT id, store_name, store_code, status
+            FROM stores WHERE id = ? AND status = 'Active' LIMIT 1
+        `, [Number(storeId)]);
+        if (rows[0]) return rows[0];
+    }
+    if (storeCode) {
+        const rows = await db.query(`
+            SELECT id, store_name, store_code, status
+            FROM stores WHERE store_code = ? AND status = 'Active' LIMIT 1
+        `, [String(storeCode).trim()]);
+        if (rows[0]) return rows[0];
+    }
+    if (storeName) {
+        const rows = await db.query(`
+            SELECT id, store_name, store_code, status
+            FROM stores WHERE store_name = ? AND status = 'Active' LIMIT 1
+        `, [String(storeName).trim()]);
+        if (rows[0]) return rows[0];
+    }
+    return null;
+};
+
+DailyCollection.deleteReport = async (id) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const rows = await connection.query(
+            `SELECT store_id, report_date FROM daily_collection_reports WHERE id = ? LIMIT 1`,
+            [Number(id)]
+        );
+        if (!rows[0]?.length) {
+            await connection.rollback();
+            return false;
+        }
+        const report = rows[0][0];
+        await connection.query(
+            `DELETE FROM daily_collection_access_controls WHERE store_id = ? AND report_date = ?`,
+            [report.store_id, report.report_date]
+        );
+        const result = await connection.query(
+            `DELETE FROM daily_collection_reports WHERE id = ?`,
+            [Number(id)]
+        );
+        await connection.commit();
+        return Number(result[0]?.affectedRows || 0) > 0;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
+
+DailyCollection.deleteAllReports = async () => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.query(`DELETE FROM daily_collection_access_controls`);
+        const result = await connection.query(`DELETE FROM daily_collection_reports`);
+        await connection.commit();
+        return Number(result[0]?.affectedRows || 0);
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };
 
 DailyCollection.unblock = async (controlId, adminId) => {

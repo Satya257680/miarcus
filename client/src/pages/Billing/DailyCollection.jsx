@@ -13,28 +13,48 @@ import {
     FaSyncAlt,
     FaReceipt
 } from "react-icons/fa";
+import PageToolbar from "../../components/common/PageToolbar";
+import ActionButtons from "../../components/common/ActionButtons";
+import BulkUploadModal from "../../components/common/BulkUploadModal";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import DailyCollectionViewModal from "../../components/DailyCollectionViewModal";
 import {
     getDailyCollections,
     getDailyCollectionStores,
+    getDailyCollectionById,
     submitDailyCollection,
     getBlockedDailyCollections,
     blockDailyCollection,
     unblockDailyCollection,
     getDailyCollectionEmailSettings,
-    updateDailyCollectionEmailSettings
+    updateDailyCollectionEmailSettings,
+    bulkUploadDailyCollections,
+    deleteDailyCollection,
+    deleteAllDailyCollections
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-})}`;
+const getUserPermissions = () => {
+    let user = {};
+    let permissions = {};
+    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
+    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
+    const admin = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
+    const permission = permissions?.["Daily Collection"] || "None";
+    return {
+        admin,
+        canView: admin || ["View", "Add", "Edit", "Full"].includes(permission),
+        canAdd: admin || ["Add", "Edit", "Full"].includes(permission),
+        canDelete: admin,
+    };
+};
 
 const DailyCollection = () => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const isAdmin = user?.administrator === true || Number(user?.is_admin) === 1;
+    const permissions = useMemo(getUserPermissions, []);
+    const { admin: isAdmin, canView, canAdd, canDelete } = permissions;
 
     const [date, setDate] = useState(today());
     const [stores, setStores] = useState([]);
@@ -51,22 +71,52 @@ const DailyCollection = () => {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [values, setValues] = useState({});
+    const [search, setSearch] = useState("");
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState(null);
+    const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+    const [viewReport, setViewReport] = useState(null);
 
     const load = async () => {
         try {
             setLoading(true);
             setError("");
-            const [storeResponse, reportResponse] = await Promise.all([
-                getDailyCollectionStores(),
-                getDailyCollections({
-                    date,
-                    ...(selectedStore ? { store_id: selectedStore } : {})
-                })
-            ]);
 
+            const storeResponse = await getDailyCollectionStores();
             const storeList = storeResponse.data?.stores || [];
-            const reportList = reportResponse.data?.reports || [];
             setStores(storeList);
+
+            const selectedStillValid = selectedStore && storeList.some((store) => String(store.id) === String(selectedStore));
+            if (!selectedStillValid && storeList.length === 1) {
+                setSelectedStore(String(storeList[0].id));
+                return;
+            }
+            if (!selectedStillValid && selectedStore) {
+                setSelectedStore("");
+            }
+
+            if (isAdmin) {
+                try {
+                    const [blockedResponse, emailResponse] = await Promise.all([
+                        getBlockedDailyCollections(),
+                        getDailyCollectionEmailSettings()
+                    ]);
+                    setBlockedList(blockedResponse.data?.blocked || []);
+                    setEmailEnabled(emailResponse.data?.settings?.email_enabled !== false);
+                } catch (adminError) {
+                    console.warn("Daily Collection admin controls could not be loaded.", adminError);
+                    setBlockedList([]);
+                }
+            }
+
+            if (!selectedStore || !selectedStillValid) {
+                setReports([]);
+                setValues({});
+                return;
+            }
+
+            const reportResponse = await getDailyCollections({ date, store_id: selectedStore });
+            const reportList = reportResponse.data?.reports || [];
             setReports(reportList);
             setBlocked(reportResponse.data?.block || null);
 
@@ -81,19 +131,6 @@ const DailyCollection = () => {
                 };
             });
             setValues(initial);
-
-            if (isAdmin) {
-                try {
-                    const [blockedResponse, emailResponse] = await Promise.all([
-                        getBlockedDailyCollections(),
-                        getDailyCollectionEmailSettings()
-                    ]);
-                    setBlockedList(blockedResponse.data?.blocked || []);
-                    setEmailEnabled(emailResponse.data?.settings?.email_enabled !== false);
-                } catch {
-                    setBlockedList([]);
-                }
-            }
         } catch (err) {
             setBlocked(err.response?.data?.block || null);
             setReports([]);
@@ -104,6 +141,10 @@ const DailyCollection = () => {
     };
 
     useEffect(() => {
+        if (!canView) {
+            setLoading(false);
+            return;
+        }
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [date, selectedStore]);
@@ -111,10 +152,7 @@ const DailyCollection = () => {
     const updateValue = (reportId, field, value) => {
         setValues((current) => ({
             ...current,
-            [reportId]: {
-                ...(current[reportId] || {}),
-                [field]: value
-            }
+            [reportId]: { ...(current[reportId] || {}), [field]: value }
         }));
     };
 
@@ -157,11 +195,7 @@ const DailyCollection = () => {
         try {
             setBlocking(true);
             setError("");
-            await blockDailyCollection({
-                store_id: Number(blockStoreId),
-                report_date: date,
-                reason: "Blocked manually by administrator."
-            });
+            await blockDailyCollection({ store_id: Number(blockStoreId), report_date: date, reason: "Blocked manually by administrator." });
             setSuccess("Daily Collection access blocked for the selected store users.");
             setBlockStoreId("");
             await load();
@@ -172,11 +206,12 @@ const DailyCollection = () => {
         }
     };
 
-    const unlock = async (controlId) => {
+    const unlockGroup = async (controlIds) => {
         try {
             setError("");
-            await unblockDailyCollection(controlId);
-            setSuccess("Daily Collection access restored.");
+            const ids = String(controlIds || "").split(",").map((id) => Number(id)).filter(Boolean);
+            await Promise.all(ids.map((id) => unblockDailyCollection(id)));
+            setSuccess("Daily Collection access restored for the selected store.");
             await load();
         } catch (err) {
             setError(err.response?.data?.message || "Unable to restore access.");
@@ -198,7 +233,69 @@ const DailyCollection = () => {
         }
     };
 
+    const handleView = async (report) => {
+        try {
+            const response = await getDailyCollectionById(report.id);
+            setViewReport(response.data?.data || response.data || report);
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to view Daily Collection record.");
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteId) return;
+        try {
+            await deleteDailyCollection(deleteId);
+            setSuccess("Daily Collection record deleted successfully.");
+            setDeleteId(null);
+            await load();
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to delete Daily Collection record.");
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        try {
+            const response = await deleteAllDailyCollections();
+            setSuccess(response.data?.message || "All Daily Collection records deleted successfully.");
+            setDeleteAllOpen(false);
+            await load();
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to delete all Daily Collection records.");
+        }
+    };
+
+    const exportCsv = () => {
+        if (!reports.length) return;
+        const headers = ["Date", "Store", "Store Code", "Status", "Bill Count", "System Billed", "UPI", "Cash", "Bank Transfer", "Card", "Total Collected", "Variance", "Submitted By", "Submitted At"];
+        const rows = reports.map((row) => [
+            row.report_date, row.store_name, row.store_code, row.status,
+            row.summary?.bill_count ?? row.bill_count ?? 0,
+            row.summary?.total_billed ?? row.total_billed ?? 0,
+            row.upi_amount || 0, row.cash_amount || 0, row.bank_transfer_amount || 0,
+            row.card_amount || 0, row.total_collected || 0, row.variance || 0,
+            row.submitted_by_name || "", row.submitted_at || ""
+        ]);
+        const csv = [headers, ...rows].map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `daily-collection-${date}.csv`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const filteredReports = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) return reports;
+        return reports.filter((report) => [report.store_name, report.store_code, report.manager_name].some((value) => String(value || "").toLowerCase().includes(keyword)));
+    }, [reports, search]);
+
     const titleDate = useMemo(() => new Date(`${date}T00:00:00`), [date]);
+
+    if (!canView) {
+        return <div className="daily-collection-page"><div className="collection-empty">You do not have permission to view Daily Collection.</div></div>;
+    }
 
     return (
         <div className="daily-collection-page">
@@ -214,6 +311,18 @@ const DailyCollection = () => {
                 </div>
             </section>
 
+            <PageToolbar
+                search={search}
+                setSearch={setSearch}
+                placeholder="Search selected store..."
+                showExport={canView && reports.length > 0}
+                onExport={exportCsv}
+                showBulk={canAdd}
+                onBulk={() => setBulkOpen(true)}
+                showDeleteAll={canDelete}
+                onDeleteAll={() => setDeleteAllOpen(true)}
+            />
+
             <section className="daily-collection-toolbar">
                 <label>
                     <span>Collection date</span>
@@ -222,7 +331,7 @@ const DailyCollection = () => {
                 <label>
                     <span>Store</span>
                     <select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>
-                        <option value="">All assigned stores</option>
+                        <option value="">Select store</option>
                         {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}</option>)}
                     </select>
                 </label>
@@ -232,42 +341,48 @@ const DailyCollection = () => {
             {blocked && (
                 <div className="collection-blocked">
                     <FaLock />
-                    <div>
-                        <strong>Daily Collection access is blocked</strong>
-                        <span>{blocked.store_name}: {blocked.reason}</span>
-                    </div>
+                    <div><strong>Daily Collection access is blocked</strong><span>{blocked.store_name}: {blocked.reason}</span></div>
                 </div>
             )}
-
             {error && <div className="collection-alert error"><FaExclamationTriangle /> {error}</div>}
             {success && <div className="collection-alert success"><FaCheckCircle /> {success}</div>}
 
             <div className="date-heading">
-                <div><h2>{titleDate.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</h2><span>{reports.length} store report(s)</span></div>
+                <div><h2>{titleDate.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</h2><span>{filteredReports.length} store report(s)</span></div>
                 <div className="reconciliation-note"><FaReceipt /> System bill totals are calculated automatically.</div>
             </div>
 
-            {loading ? (
+            {!selectedStore ? (
+                <div className="collection-empty">Select a store to view or submit its Daily Collection.</div>
+            ) : loading ? (
                 <div className="collection-empty">Loading daily collection...</div>
-            ) : !reports.length ? (
-                <div className="collection-empty">No active store reports found for this date.</div>
+            ) : !filteredReports.length ? (
+                <div className="collection-empty">No Daily Collection report found for the selected store and date.</div>
             ) : (
                 <div className="collection-grid">
-                    {reports.map((report) => {
+                    {filteredReports.map((report) => {
                         const value = values[report.id] || {};
                         const entered = totalEntered(report.id);
                         const billed = Number(report.summary?.total_billed ?? report.total_billed ?? 0);
                         const variance = entered - billed;
                         const submitted = report.status === "submitted";
                         const locked = report.status === "locked";
+                        const notSubmitted = report.status === "missing";
 
                         return (
                             <article className={`collection-card ${submitted ? "submitted" : locked ? "locked" : ""}`} key={report.id}>
                                 <div className="collection-card-header">
-                                    <div><span className="store-kicker"><FaStore /> {report.store_code || "Store"}</span><h3>{report.store_name}</h3><small>Manager: {report.manager_name || "Not linked"}</small></div>
-                                    <span className={`collection-status ${submitted ? "ok" : locked ? "locked" : "pending"}`}>
-                                        {submitted ? <><FaCheckCircle /> Submitted</> : locked ? <><FaLock /> Locked</> : <><FaClock /> Pending</>}
-                                    </span>
+                                    <div>
+                                        <span className="store-kicker"><FaStore /> {report.store_code || "Store"}</span>
+                                        <h3>{report.store_name}</h3>
+                                        <small>Manager: {report.manager_name || "Not linked"}</small>
+                                    </div>
+                                    <div className="collection-card-actions">
+                                        <span className={`collection-status ${submitted ? "ok" : locked ? "locked" : "missing"}`}>
+                                            {submitted ? <><FaCheckCircle /> Submitted</> : locked ? <><FaLock /> Locked</> : <><FaClock /> Not Submitted</>}
+                                        </span>
+                                        <ActionButtons showView onView={() => handleView(report)} showDelete={canDelete} onDelete={() => setDeleteId(report.id)} />
+                                    </div>
                                 </div>
 
                                 <div className="system-summary">
@@ -289,15 +404,10 @@ const DailyCollection = () => {
                                     <b>UPI {money(report.summary?.system_upi)} · Card {money(report.summary?.system_card)} · Bank {money(report.summary?.system_bank_transfer)} · Cash {money(report.summary?.system_cash)}</b>
                                 </div>
 
-                                <textarea
-                                    value={value.notes ?? ""}
-                                    disabled={submitted || Boolean(blocked)}
-                                    onChange={(e) => updateValue(report.id, "notes", e.target.value)}
-                                    placeholder="Notes / reconciliation explanation (optional)"
-                                />
+                                <textarea value={value.notes ?? ""} disabled={submitted || Boolean(blocked)} onChange={(e) => updateValue(report.id, "notes", e.target.value)} placeholder="Notes / reconciliation explanation (optional)" />
 
                                 <div className="collection-card-footer">
-                                    <span>{Math.abs(variance) < 0.01 ? "Ready to submit" : `Difference ${money(variance)}`}</span>
+                                    <span>{locked ? "Access was locked — administrator can restore submission access" : notSubmitted ? (Math.abs(variance) < 0.01 ? "Ready to submit" : `Difference ${money(variance)}`) : "Collection submitted"}</span>
                                     {!submitted && (
                                         <button onClick={() => submit(report)} disabled={saving === report.id || Boolean(blocked) || Math.abs(variance) > 0.01}>
                                             {saving === report.id ? "Saving..." : "Submit Collection"}
@@ -330,10 +440,7 @@ const DailyCollection = () => {
                     </div>
 
                     <div className="daily-manual-block">
-                        <div>
-                            <strong>Administrator block control</strong>
-                            <span>Block Daily Collection access for all eligible users assigned to a store.</span>
-                        </div>
+                        <div><strong>Administrator block control</strong><span>Block Daily Collection access for eligible users assigned to a selected store.</span></div>
                         <div className="daily-manual-block-actions">
                             <select value={blockStoreId} onChange={(e) => setBlockStoreId(e.target.value)}>
                                 <option value="">Select store</option>
@@ -345,22 +452,55 @@ const DailyCollection = () => {
 
                     <div className="blocked-admin-subheading">
                         <h3>Blocked Daily Collection Access</h3>
-                        <span>Admin can restore access after reviewing the report.</span>
+                        <span>Only blocked store access is shown; administrator accounts are excluded.</span>
                     </div>
                     {!blockedList.length ? (
                         <p>No active Daily Collection blocks.</p>
                     ) : (
                         <div className="blocked-list">
                             {blockedList.map((item) => (
-                                <div className="blocked-row" key={item.control_id}>
-                                    <div><strong>{item.user_name}</strong><span>{item.store_name} · report {item.report_date}</span></div>
-                                    <button onClick={() => unlock(item.control_id)}><FaUnlock /> Unblock Access</button>
+                                <div className="blocked-row" key={`${item.store_id}-${item.report_date}`}>
+                                    <div><strong>{item.store_name}</strong><span>{item.report_date} · {Number(item.blocked_user_count || 0)} user(s) blocked</span></div>
+                                    <button onClick={() => unlockGroup(item.control_ids)}><FaUnlock /> Unblock Access</button>
                                 </div>
                             ))}
                         </div>
                     )}
                 </section>
             )}
+
+            <BulkUploadModal
+                isOpen={bulkOpen}
+                onClose={() => setBulkOpen(false)}
+                uploadFunction={bulkUploadDailyCollections}
+                onSuccess={load}
+                title="Bulk Upload Daily Collection"
+                acceptedFile=".csv,.xlsx,.xls"
+            />
+
+            <ConfirmDialog
+                open={Boolean(deleteId)}
+                title="Delete Daily Collection Record"
+                message="This Daily Collection record will be permanently deleted. Any access block linked to the same store and date will also be cleared."
+                confirmText="Delete"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteId(null)}
+            />
+
+            <ConfirmDialog
+                open={deleteAllOpen}
+                title="Delete All Daily Collection Records"
+                message="Every Daily Collection report and active Daily Collection access block will be permanently deleted. This action cannot be undone."
+                confirmText="Delete All"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                onConfirm={handleDeleteAll}
+                onCancel={() => setDeleteAllOpen(false)}
+            />
+
+            <DailyCollectionViewModal report={viewReport} onClose={() => setViewReport(null)} />
         </div>
     );
 };
