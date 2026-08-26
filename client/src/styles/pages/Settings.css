@@ -203,3 +203,76 @@
     }
 
 }
+
+/* ==========================================
+   HIERARCHICAL SETTINGS
+========================================== */
+
+.settings-hierarchy{
+    display:flex;
+    flex-direction:column;
+    gap:34px;
+}
+
+.settings-section{
+    background:rgba(255,255,255,.45);
+    border:1px solid rgba(216,222,229,.8);
+    border-radius:22px;
+    padding:20px;
+}
+
+.settings-section-heading{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:20px;
+    padding:0 4px;
+}
+
+.settings-section-heading span{
+    display:block;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:#7a8790;
+    font-weight:800;
+}
+
+.settings-section-heading h2{
+    margin:4px 0 0;
+    font-size:21px;
+    color:#172033;
+}
+
+.settings-section-heading strong{
+    font-size:12px;
+    color:#667085;
+    background:#fff;
+    border:1px solid #d8dee5;
+    border-radius:999px;
+    padding:7px 10px;
+}
+
+.settings-section .settings-grid{
+    gap:18px;
+}
+
+.settings-section .settings-card{
+    min-height:220px;
+    padding:24px 20px;
+}
+
+.settings-section .settings-card-title{
+    font-size:22px;
+}
+
+@media(max-width:768px){
+    .settings-section{
+        padding:14px;
+    }
+
+    .settings-section-heading{
+        align-items:flex-start;
+    }
+}

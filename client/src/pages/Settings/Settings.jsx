@@ -45,6 +45,7 @@ function Settings() {
     const modules = [
 
         {
+            category: "Personal",
             permission: "Appearance",
             title: "Appearance",
             description: "Personalize your theme and display preferences.",
@@ -54,6 +55,7 @@ function Settings() {
         },
 
         {
+            category: "People & Access",
             permission: "Users",
             title: "Users",
             description: "Create and manage users.",
@@ -62,6 +64,7 @@ function Settings() {
         },
 
         {
+            category: "Organization",
             permission: "Departments",
             title: "Departments",
             description: "Manage departments.",
@@ -70,6 +73,7 @@ function Settings() {
         },
 
         {
+            category: "Organization",
             permission: "Designations",
             title: "Designations",
             description: "Manage designations.",
@@ -78,6 +82,7 @@ function Settings() {
         },
 
         {
+            category: "Operations",
             permission: "Stores",
             title: "Store Management",
             description: "Manage store information.",
@@ -86,6 +91,7 @@ function Settings() {
         },
 
         {
+            category: "Checklist & Controls",
             permission: "Questions",
             title: "Questions",
             description: "Manage checklist questions.",
@@ -94,6 +100,7 @@ function Settings() {
         },
 
         {
+            category: "Checklist & Controls",
             permission: "Checklist Types",
             title: "Checklist Types",
             description: "Manage checklist types.",
@@ -102,11 +109,12 @@ function Settings() {
         },
 
         {
-            permission: "Reports To",
-            title: "Reports To",
-            description: "Manage reporting hierarchy.",
+            category: "People & Access",
+            permission: "Hierarchy",
+            title: "Hierarchy",
+            description: "Manage reporting hierarchy and organizational levels.",
             icon: FaSitemap,
-            path: "/reports-to"
+            path: "/settings/hierarchy"
         }
 
     ];
@@ -162,21 +170,42 @@ function Settings() {
 
             </div>
 
-            {/* Cards */}
+            {/* Hierarchical settings groups */}
 
-            <div className="settings-grid">
+            <div className="settings-hierarchy">
 
-                {visibleModules.map((module) => (
+                {["People & Access", "Organization", "Operations", "Checklist & Controls", "Personal"].map((category) => {
 
-                    <SettingsCard
-                        key={module.permission}
-                        title={module.title}
-                        description={module.description}
-                        icon={module.icon}
-                        path={module.path}
-                    />
+                    const categoryModules = visibleModules.filter(
+                        (module) => module.category === category
+                    );
 
-                ))}
+                    if (!categoryModules.length) return null;
+
+                    return (
+                        <section className="settings-section" key={category}>
+                            <div className="settings-section-heading">
+                                <div>
+                                    <span>Settings level</span>
+                                    <h2>{category}</h2>
+                                </div>
+                                <strong>{categoryModules.length} option{categoryModules.length === 1 ? "" : "s"}</strong>
+                            </div>
+
+                            <div className="settings-grid">
+                                {categoryModules.map((module) => (
+                                    <SettingsCard
+                                        key={module.permission}
+                                        title={module.title}
+                                        description={module.description}
+                                        icon={module.icon}
+                                        path={module.path}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    );
+                })}
 
             </div>
 

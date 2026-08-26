@@ -119,6 +119,15 @@ const Asset =
 const InventoryPlanning =
     require("./models/inventoryPlanningModel");
 
+const DailyCollection =
+    require("./models/dailyCollectionModel");
+
+const { startDailyCollectionScheduler } =
+    require("./services/dailyCollectionScheduler");
+
+const { startMobileLocationScheduler } =
+    require("./services/mobileLocationScheduler");
+
 // ======================================================
 // REAL-TIME NOTIFICATIONS
 // ======================================================
@@ -341,6 +350,16 @@ async function initializeDatabase() {
         );
 
         // --------------------------------------------------
+        // DAILY COLLECTION / STORE MANAGER DEADLINES
+        // --------------------------------------------------
+        try {
+            await DailyCollection.ensureTables();
+            console.log("✅ daily collection tables verified");
+        } catch (error) {
+            console.error("❌ daily collection table initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
         // USER THEME / APPEARANCE PREFERENCES
         // --------------------------------------------------
         try {
@@ -502,6 +521,8 @@ SecurityModel.ensureSecuritySchema()
     .catch((error) => console.error("❌ Security schema initialization failed:", error.message));
 
 initializeDatabase();
+startDailyCollectionScheduler();
+startMobileLocationScheduler();
 
 // ======================================================
 // CORS CONFIGURATION
@@ -1468,6 +1489,16 @@ loadRoute(
 // ======================================================
 // BILLING
 // ======================================================
+
+loadRoute(
+
+    "./routes/dailyCollectionRoutes",
+
+    "/api/billing/daily-collections",
+
+    "Daily Collection Routes"
+
+);
 
 loadRoute(
 

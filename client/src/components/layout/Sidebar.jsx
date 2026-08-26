@@ -24,6 +24,7 @@ import {
     FaClipboard,
     FaSitemap,
     FaMoneyBillWave,
+    FaMoneyCheckAlt,
     FaImages,
     FaMapMarkedAlt,
     FaMapMarkerAlt,
@@ -872,6 +873,11 @@ function Sidebar({ collapsed }) {
                                     <FaChartBar />
                                     <span>Daily Report</span>
                                 </NavLink>
+
+                                <NavLink to="/billing/daily-collection" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaMoneyCheckAlt />
+                                    <span>Daily Collection</span>
+                                </NavLink>
                             </div>
                         )}
                     </div>
@@ -1361,7 +1367,7 @@ function Sidebar({ collapsed }) {
 
                                     {canReportsTo && (
                                         <NavLink
-                                            to="/settings/reports-to"
+                                            to="/settings/hierarchy"
                                             className={({ isActive }) =>
                                                 `submenu-item ${
                                                     isActive
@@ -1373,7 +1379,7 @@ function Sidebar({ collapsed }) {
                                             <FaSitemap />
 
                                             <span>
-                                                Reports To
+                                                Hierarchy
                                             </span>
                                         </NavLink>
                                     )}

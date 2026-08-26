@@ -96,6 +96,7 @@ import PettyCash from "./pages/PettyCash/PettyCash";
 import BillingEntry from "./pages/Billing/BillingEntry";
 import Bills from "./pages/Billing/Bills";
 import DailyBillingReport from "./pages/Billing/DailyBillingReport";
+import DailyCollection from "./pages/Billing/DailyCollection";
 import BillingAudit from "./pages/Billing/BillingAudit";
 import VisitPlanner from "./pages/SalesTeam/VisitPlanner";
 import TravelPlan from "./pages/SalesTeam/TravelPlan";
@@ -415,6 +416,11 @@ function App() {
                     -------------------------------------------------- */}
 
                     <Route
+                        path="/settings/hierarchy"
+                        element={<ReportsTo />}
+                    />
+
+                    <Route
                         path="/settings/reports-to"
                         element={<ReportsTo />}
                     />
@@ -628,6 +634,15 @@ function App() {
                     <Route
                         path="/billing/daily-report"
                         element={<DailyBillingReport />}
+                    />
+
+                    <Route
+                        path="/billing/daily-collection"
+                        element={
+                            <ModulePermissionRoute moduleName="Billing">
+                                <DailyCollection />
+                            </ModulePermissionRoute>
+                        }
                     />
 
 

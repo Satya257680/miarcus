@@ -128,12 +128,12 @@ const EmployeeLocation = () => {
             <section className="location-hero">
                 <div>
                     <div className="eyebrow"><FaShieldAlt /> Employee privacy controlled</div>
-                    <h1>Live Employee Location</h1>
-                    <p>Monitor authorized employee locations during configured working hours.</p>
+                    <h1>Employee Mobile Location</h1>
+                    <p>Track authorized employee mobile-network locations during the 09:00 AM–09:00 PM policy window. Location comes from the configured carrier/telecom provider, not browser GPS.</p>
                 </div>
                 <div className="provider-pill">
-                    <span className="provider-dot" /> Live Browser GPS
-                    <small>Authorized employee devices</small>
+                    <span className="provider-dot" /> Live Mobile Network
+                    <small>SIM / mobile-number based tracking</small>
                 </div>
             </section>
 
@@ -142,17 +142,17 @@ const EmployeeLocation = () => {
                 <div className="flow-arrow">→</div>
                 <div className="flow-card"><b>2</b><FaLock /><strong>Permission</strong><span>Company policy applies</span></div>
                 <div className="flow-arrow">→</div>
-                <div className="flow-card"><b>3</b><FaClock /><strong>Working Hours</strong><span>09:00 AM – 06:00 PM</span></div>
+                <div className="flow-card"><b>3</b><FaClock /><strong>Working Hours</strong><span>09:00 AM – 09:00 PM</span></div>
                 <div className="flow-arrow">→</div>
-                <div className="flow-card"><b>4</b><FaSignal /><strong>Location Updates</strong><span>Every ~30 seconds</span></div>
+                <div className="flow-card"><b>4</b><FaSignal /><strong>Location Updates</strong><span>Provider updates</span></div>
                 <div className="flow-arrow">→</div>
-                <div className="flow-card"><b>5</b><FaMapMarkerAlt /><strong>Admin Map</strong><span>Live + history</span></div>
+                <div className="flow-card"><b>5</b><FaMapMarkerAlt /><strong>Admin Map</strong><span>Last known + history</span></div>
             </div>
 
             <div className="location-stats">
                 <div className="stat-card stat-green"><FaWifi /><div><strong>{onlineCount}</strong><span>Online now</span></div></div>
                 <div className="stat-card stat-gray"><FaUsers /><div><strong>{employees.length}</strong><span>Employees shown</span></div></div>
-                <div className="stat-card stat-orange"><FaClock /><div><strong>09:00 – 18:00</strong><span>Company tracking window</span></div></div>
+                <div className="stat-card stat-orange"><FaClock /><div><strong>09:00 – 21:00</strong><span>Company tracking window</span></div></div>
                 <div className="stat-card stat-blue"><FaHistory /><div><strong>{lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong><span>Last refresh</span></div></div>
             </div>
 
@@ -240,13 +240,13 @@ const EmployeeLocation = () => {
                                 <div><span>Mobile</span><strong>{selected.mobile}</strong></div>
                                 <div><span>Department</span><strong>{selected.department}</strong></div>
                                 <div><span>Designation</span><strong>{selected.designation}</strong></div>
-                                <div><span>Accuracy</span><strong>±{selected.accuracy} metres</strong></div>
-                                <div><span>Last GPS update</span><strong>{selected.last_update ? new Date(selected.last_update).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</strong></div>
+                                <div><span>Location accuracy</span><strong>±{selected.accuracy} metres</strong></div>
+                                <div><span>Last mobile-network update</span><strong>{selected.last_update ? new Date(selected.last_update).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</strong></div>
                             </div>
                             <div className="today-summary">
                                 <h3>Today's Summary</h3>
                                 <div><span>Location points today</span><strong>{history.length}</strong></div>
-                                <div><span>Tracking window</span><strong>09:00 – 18:00</strong></div>
+                                <div><span>Tracking window</span><strong>09:00 – 21:00</strong></div>
                                 <div><span>Current status</span><strong>{selected.status === "online" ? "Live" : "Offline"}</strong></div>
                                 <div><span>Last update</span><strong>{selected.last_update}</strong></div>
                             </div>
@@ -257,14 +257,14 @@ const EmployeeLocation = () => {
             </section>
 
             <section className="timeline-section">
-                <div className="section-title"><div><h2>Today's Location Flow</h2><span>Real GPS updates received today</span></div><FaRoute /></div>
+                <div className="section-title"><div><h2>Today's Location Flow</h2><span>Mobile-network updates received today</span></div><FaRoute /></div>
                 {historyLoading ? <div className="location-empty">Loading timeline...</div> : (
                     <div className="timeline-row">
                         {history.map((point, index) => (
                             <div className="timeline-item" key={point.id}>
                                 <strong>{new Date(point.captured_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong>
                                 <div className={`timeline-icon tone-${index % 4}`}><FaMapMarkerAlt /></div>
-                                <b>GPS location</b>
+                                <b>Mobile-network location</b>
                                 <span>Location captured</span>
                                 {index < history.length - 1 && <div className="timeline-line">→</div>}
                             </div>
@@ -274,9 +274,9 @@ const EmployeeLocation = () => {
             </section>
 
             <section className="privacy-grid">
-                <div className="privacy-card green"><FaClock /><div><h3>Working Hours</h3><p>Tracking window: <b>09:00 AM – 06:00 PM</b>, Asia/Kolkata.</p><span>Outside this window, the production provider must not collect location.</span></div></div>
+                <div className="privacy-card green"><FaClock /><div><h3>Working Hours</h3><p>Tracking window: <b>09:00 AM – 09:00 PM</b>, Asia/Kolkata.</p><span>Outside this window, the production provider must not collect location.</span></div></div>
                 <div className="privacy-card purple"><FaLock /><div><h3>Privacy & Access</h3><p>Location data is restricted by Miarcus RBAC.</p><span>Every live/history lookup is recorded in the access log.</span></div></div>
-                <div className="privacy-card blue"><FaSignal /><div><h3>Live GPS Provider</h3><p>Current mode: <b>Authorized browser GPS</b>.</p><span>Employee devices send their own GPS coordinates only during the company tracking window. A future authorized telecom connector can replace this provider.</span></div></div>
+                <div className="privacy-card blue"><FaSignal /><div><h3>Mobile Network Provider</h3><p>Current mode: <b>Carrier / telecom network location</b>.</p><span>The production provider supplies location from the employee mobile number or SIM. Last known network location remains visible when a new update is unavailable.</span></div></div>
             </section>
         </div>
     );

@@ -11,11 +11,14 @@ const adminOnlyLocation = (req, res, next) => {
 };
 
 
+router.post("/mobile/provider-update", controller.providerUpdate);
+
 router.use(authMiddleware);
 
 // Employee self-service: only the logged-in employee can register/update their own device.
 router.get("/my-status", controller.getMyStatus);
 router.post("/device/register", controller.registerDevice);
+router.post("/mobile/register", controller.registerMobileNumber);
 router.post("/update", controller.submitLocation);
 
 // Admin/authorized location console: Full permission is required.

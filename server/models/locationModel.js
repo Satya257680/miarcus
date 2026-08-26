@@ -55,6 +55,23 @@ const EmployeeLocation = {
         `);
 
         await db.query(`
+            CREATE TABLE IF NOT EXISTS mobile_location_targets (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                employee_id INT NOT NULL,
+                phone_number VARCHAR(32) NOT NULL,
+                sim_iccid VARCHAR(64) NULL,
+                provider VARCHAR(100) NULL,
+                status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_mobile_location_employee (employee_id),
+                UNIQUE KEY uq_mobile_location_phone (phone_number),
+                CONSTRAINT fk_mobile_location_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        await db.query(`
             CREATE TABLE IF NOT EXISTS location_access_logs (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 accessed_by INT NOT NULL,
@@ -68,15 +85,14 @@ const EmployeeLocation = {
                 CONSTRAINT fk_location_access_user FOREIGN KEY (accessed_by) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
-        // Default company schedule: Monday-Friday, 09:00-18:00.
-        // Admin scheduling can later update these rows to 09:00-21:00 or another policy.
+        // Company mobile-network tracking window: 09:00-21:00 IST.
         await db.query(`
             INSERT INTO location_work_schedules
                 (employee_id, day_of_week, start_time, end_time, timezone, enabled)
-            SELECT NULL, days.day_of_week, '09:00:00', '18:00:00', 'Asia/Kolkata', 1
+            SELECT NULL, days.day_of_week, '09:00:00', '21:00:00', 'Asia/Kolkata', 1
             FROM (
                 SELECT 1 AS day_of_week UNION ALL SELECT 2 UNION ALL SELECT 3
-                UNION ALL SELECT 4 UNION ALL SELECT 5
+                UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
             ) days
             WHERE NOT EXISTS (
                 SELECT 1 FROM location_work_schedules s
@@ -84,6 +100,57 @@ const EmployeeLocation = {
                   AND s.day_of_week = days.day_of_week
             )
         `);
+
+        await db.query(`
+            UPDATE location_work_schedules
+            SET start_time = '09:00:00',
+                end_time = '21:00:00',
+                timezone = 'Asia/Kolkata',
+                enabled = 1
+            WHERE employee_id IS NULL
+        `);
+    },
+
+    async syncMobileTarget({ employeeId, phoneNumber, simIccid = null, provider = null }) {
+        const normalized = String(phoneNumber || "").replace(/[^0-9+]/g, "");
+        if (!normalized) throw new Error("A valid mobile number is required.");
+        await db.query(`
+            INSERT INTO mobile_location_targets (employee_id, phone_number, sim_iccid, provider, status)
+            VALUES (?, ?, ?, ?, 'active')
+            ON DUPLICATE KEY UPDATE
+                phone_number = VALUES(phone_number),
+                sim_iccid = VALUES(sim_iccid),
+                provider = VALUES(provider),
+                status = 'active'
+        `, [employeeId, normalized, simIccid || null, provider || null]);
+    },
+
+    async getMobileTargets() {
+        return db.query(`
+            SELECT
+                u.id AS employee_id,
+                u.employee_id AS employee_code,
+                u.name,
+                u.email,
+                u.call_contact AS mobile,
+                t.phone_number,
+                t.sim_iccid,
+                t.provider
+            FROM users u
+            LEFT JOIN mobile_location_targets t ON t.employee_id = u.id AND t.status = 'active'
+            WHERE u.status = 'Active'
+              AND TRIM(COALESCE(t.phone_number, u.call_contact, '')) <> ''
+            ORDER BY u.name ASC
+        `);
+    },
+
+    async getMobileTarget(employeeId) {
+        const rows = await db.query(`
+            SELECT * FROM mobile_location_targets
+            WHERE employee_id = ? AND status = 'active'
+            LIMIT 1
+        `, [employeeId]);
+        return rows[0] || null;
     },
 
     async registerDevice({ employeeId, deviceIdentifier, deviceName }) {
@@ -173,22 +240,25 @@ const EmployeeLocation = {
         const params = [];
         let sql = `
             SELECT u.id AS employee_id, u.employee_id AS employee_code, u.name,
-                   u.call_contact AS mobile, d.department_name AS department,
+                   COALESCE(t.phone_number, u.call_contact) AS mobile, d.department_name AS department,
                    dg.designation_name AS designation, lr.latitude, lr.longitude,
                    lr.accuracy, lr.captured_at, lr.source
             FROM users u
             LEFT JOIN departments d ON d.id = u.department_id
             LEFT JOIN designations dg ON dg.id = u.designation_id
+            LEFT JOIN mobile_location_targets t ON t.employee_id = u.id AND t.status = 'active'
             LEFT JOIN (
                 SELECT r.* FROM location_records r
                 INNER JOIN (
                     SELECT employee_id, MAX(captured_at) AS max_captured_at
-                    FROM location_records GROUP BY employee_id
+                    FROM location_records
+                    WHERE source = 'mobile-network'
+                    GROUP BY employee_id
                 ) latest ON latest.employee_id = r.employee_id
                        AND latest.max_captured_at = r.captured_at
             ) lr ON lr.employee_id = u.id
-            INNER JOIN location_devices ld ON ld.employee_id = u.id AND ld.status = 'active'
             WHERE u.status = 'Active'
+              AND TRIM(COALESCE(t.phone_number, u.call_contact, '')) <> ''
         `;
         if (query) {
             sql += ` AND (LOWER(u.name) LIKE ? OR LOWER(u.employee_id) LIKE ? OR LOWER(COALESCE(u.call_contact,'')) LIKE ?)`;
@@ -214,14 +284,14 @@ const EmployeeLocation = {
                 status: online ? 'online' : 'offline',
                 last_update: captured ? captured.toISOString() : null,
                 address: row.latitude != null ? `${Number(row.latitude).toFixed(6)}, ${Number(row.longitude).toFixed(6)}` : 'No location received',
-                provider: row.source || 'browser'
+                provider: row.source || 'mobile-network'
             };
         });
     },
 
     async getHistory(employeeId, date) {
         return db.query(`SELECT id, employee_id, latitude, longitude, accuracy, source, captured_at
-                         FROM location_records WHERE employee_id = ? AND DATE(captured_at) = ?
+                         FROM location_records WHERE employee_id = ? AND DATE(captured_at) = ? AND source = 'mobile-network'
                          ORDER BY captured_at ASC`, [employeeId, date]);
     },
 

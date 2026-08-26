@@ -160,6 +160,42 @@ export const getStores = () =>
   );
 
 /* ======================================================
+   DAILY COLLECTION
+====================================================== */
+
+export const getDailyCollections = (params = {}) =>
+  axios.get(
+    `${API}/daily-collections`,
+    requestConfig({ params })
+  );
+
+export const getDailyCollectionStores = () =>
+  axios.get(
+    `${API}/daily-collections/stores`,
+    requestConfig()
+  );
+
+export const submitDailyCollection = (data) =>
+  axios.post(
+    `${API}/daily-collections`,
+    data,
+    requestConfig()
+  );
+
+export const getBlockedDailyCollections = () =>
+  axios.get(
+    `${API}/daily-collections/blocked`,
+    requestConfig()
+  );
+
+export const unblockDailyCollection = (controlId) =>
+  axios.post(
+    `${API}/daily-collections/blocked/${controlId}/unblock`,
+    {},
+    requestConfig()
+  );
+
+/* ======================================================
    DEFAULT EXPORT
 ====================================================== */
 
@@ -172,6 +208,11 @@ const billingService = {
   getDailyReport,
   getBillingAudit,
   getStores,
+  getDailyCollections,
+  getDailyCollectionStores,
+  submitDailyCollection,
+  getBlockedDailyCollections,
+  unblockDailyCollection,
 };
 
 export default billingService;

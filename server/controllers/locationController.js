@@ -88,20 +88,21 @@ const getLive = async (req, res) => {
 
 const getMyStatus = async (req, res) => {
     try {
-        const device = await Location.getActiveDeviceForEmployee(req.user.id);
+        const target = await Location.getMobileTarget(req.user.id);
         const schedule = await getWorkingSchedule();
         res.json({
             success: true,
-            registered: Boolean(device),
+            registered: Boolean(target),
             trackingActive: await isWithinWorkingHours(),
             workHours: schedule ? `${schedule.start} - ${schedule.end}` : "OFF",
             timezone: schedule?.timezone || "Asia/Kolkata",
-            registeredAt: device?.registered_at || null,
-            lastSeenAt: device?.last_seen_at || null
+            provider: provider.providerName,
+            phoneNumber: target?.phone_number || null,
+            simIccid: target?.sim_iccid || null
         });
     } catch (error) {
         console.error("Location status error:", error);
-        res.status(500).json({ success: false, message: "Unable to check location registration." });
+        res.status(500).json({ success: false, message: "Unable to check mobile location registration." });
     }
 };
 
@@ -133,49 +134,83 @@ const registerDevice = async (req, res) => {
     }
 };
 
-const submitLocation = async (req, res) => {
+const registerMobileNumber = async (req, res) => {
     try {
-        if (!(await isWithinWorkingHours())) {
-            return res.status(403).json({
-                success: false,
-                trackingActive: false,
-                message: "Location tracking is disabled outside company working hours."
-            });
+        const phoneNumber = String(req.body?.phoneNumber || req.body?.deviceIdentifier || "").trim();
+        const simIccid = String(req.body?.simIccid || "").trim() || null;
+        if (!phoneNumber || phoneNumber.length > 32) {
+            return res.status(400).json({ success: false, message: "A valid mobile number is required." });
         }
 
-        const latitude = Number(req.body?.latitude);
-        const longitude = Number(req.body?.longitude);
-        const accuracy = Number(req.body?.accuracy || 0);
-        const deviceIdentifier = String(req.body?.deviceIdentifier || "").trim();
-
-        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
-            !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-            return res.status(400).json({ success: false, message: "Invalid location coordinates." });
-        }
-
-        if (!deviceIdentifier) {
-            return res.status(403).json({ success: false, message: "This device has not been registered for location tracking." });
-        }
-
-        const device = await Location.getDeviceForEmployee(req.user.id, deviceIdentifier);
-        if (!device) {
-            return res.status(403).json({ success: false, message: "This device is not registered to your Miarcus account." });
-        }
-
-        const recordId = await Location.saveRecord({
-            employee_id: req.user.id,
-            device_id: device.id,
-            latitude,
-            longitude,
-            accuracy: Number.isFinite(accuracy) ? accuracy : null,
-            source: "browser-gps",
-            captured_at: req.body?.capturedAt ? new Date(req.body.capturedAt) : new Date()
+        await Location.syncMobileTarget({
+            employeeId: req.user.id,
+            phoneNumber,
+            simIccid,
+            provider: provider.providerName
         });
 
-        res.json({ success: true, recordId, trackingActive: true });
+        await Location.logAccess({
+            accessedBy: req.user.id,
+            employeeId: req.user.id,
+            action: "REGISTER_MOBILE_LOCATION_NUMBER",
+            metadata: { provider: provider.providerName, simIccidProvided: Boolean(simIccid) }
+        });
+
+        res.json({
+            success: true,
+            provider: provider.providerName,
+            message: "Mobile number registered for carrier/mobile-network location tracking."
+        });
     } catch (error) {
-        console.error("Location update error:", error);
-        res.status(500).json({ success: false, message: "Unable to save location." });
+        console.error("Mobile location registration error:", error);
+        res.status(409).json({ success: false, message: error.message || "Unable to register mobile number." });
+    }
+};
+
+const submitLocation = async (req, res) => {
+    return res.status(410).json({
+        success: false,
+        message: "Browser GPS tracking is disabled. Employee Location uses the configured mobile-network/carrier provider."
+    });
+};
+
+const providerUpdate = async (req, res) => {
+    try {
+        const secret = String(process.env.MOBILE_LOCATION_WEBHOOK_SECRET || "");
+        if (!secret || String(req.headers["x-mobile-location-secret"] || "") !== secret) {
+            return res.status(401).json({ success: false, message: "Unauthorized provider callback." });
+        }
+
+        const locations = Array.isArray(req.body?.locations)
+            ? req.body.locations
+            : [];
+
+        let saved = 0;
+        for (const location of locations) {
+            const phoneNumber = String(location.phoneNumber || location.phone || location.msisdn || "").trim();
+            const targets = await Location.getMobileTargets();
+            const target = targets.find((item) =>
+                String(item.phone_number || item.mobile || "").replace(/[^0-9+]/g, "") === phoneNumber.replace(/[^0-9+]/g, "")
+            );
+            const latitude = Number(location.latitude);
+            const longitude = Number(location.longitude);
+            if (!target || !Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+
+            await Location.saveRecord({
+                employee_id: target.employee_id,
+                latitude,
+                longitude,
+                accuracy: Number.isFinite(Number(location.accuracy)) ? Number(location.accuracy) : null,
+                source: "mobile-network",
+                captured_at: location.capturedAt ? new Date(location.capturedAt) : new Date()
+            });
+            saved += 1;
+        }
+
+        res.json({ success: true, saved });
+    } catch (error) {
+        console.error("Mobile provider callback error:", error);
+        res.status(500).json({ success: false, message: "Unable to process mobile location callback." });
     }
 };
 
@@ -216,11 +251,13 @@ const getConfig = async (req, res) => {
             success: true,
             provider: provider.providerName,
             demo: false,
-            workHours: schedule || { start: "09:00", end: "18:00", timezone: "Asia/Kolkata" },
+            workHours: schedule || { start: "09:00", end: "21:00", timezone: "Asia/Kolkata" },
             privacy: {
                 trackingOutsideWorkHours: false,
                 employeeNoticeRequired: true,
-                oneTimeDeviceRegistration: true,
+                phoneNumberOrSimRequired: true,
+                carrierProviderRequired: true,
+                lastKnownLocationRetainedWhenNetworkIsOffline: true,
                 adminOnlyLiveView: true
             }
         });
@@ -233,8 +270,11 @@ module.exports = {
     getLive,
     getMyStatus,
     registerDevice,
+    registerMobileNumber,
     submitLocation,
+    providerUpdate,
     getHistory,
+    isWithinWorkingHours,
     getAccessLogs,
     getConfig
 };
