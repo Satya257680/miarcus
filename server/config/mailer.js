@@ -178,9 +178,15 @@ function createMimeMessage({
             contentType: item.contentType || "application/octet-stream",
             content: Buffer.isBuffer(item.content)
                 ? item.content
-                : require("fs").readFileSync(item.path)
+                : require("fs").readFileSync(item.path),
+            cid: item.cid ? String(item.cid).replace(/[<>\r\n]/g, "") : "",
+            disposition: String(item.disposition || "attachment").toLowerCase() === "inline"
+                ? "inline"
+                : "attachment"
         }));
 
+    const inlineAttachments = normalizedAttachments.filter(item => item.disposition === "inline");
+    const regularAttachments = normalizedAttachments.filter(item => item.disposition !== "inline");
     const lines = [];
 
     lines.push(`From: ${from}`);
@@ -188,54 +194,98 @@ function createMimeMessage({
     lines.push(`Subject: ${encodeHeader(subject)}`);
     lines.push("MIME-Version: 1.0");
 
-    if (normalizedAttachments.length) {
-        const mixedBoundary = `----=_MiarcusMixed_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-        lines.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`);
-        lines.push("");
-
-        // Message body is itself a multipart/alternative section when both
-        // HTML and plain text are supplied.
+    // ------------------------------------------------------
+    // BODY PART
+    // ------------------------------------------------------
+    const appendBodyPart = (target, boundary) => {
         if (html && text) {
             const alternativeBoundary = `----=_MiarcusAlternative_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
-            lines.push(`--${mixedBoundary}`);
-            lines.push(`Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`);
-            lines.push("");
+            target.push(`--${boundary}`);
+            target.push(`Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`);
+            target.push("");
 
-            lines.push(`--${alternativeBoundary}`);
-            lines.push("Content-Type: text/plain; charset=UTF-8");
-            lines.push("Content-Transfer-Encoding: 8bit");
-            lines.push("");
-            lines.push(text);
-            lines.push("");
+            target.push(`--${alternativeBoundary}`);
+            target.push("Content-Type: text/plain; charset=UTF-8");
+            target.push("Content-Transfer-Encoding: 8bit");
+            target.push("");
+            target.push(text);
+            target.push("");
 
-            lines.push(`--${alternativeBoundary}`);
-            lines.push("Content-Type: text/html; charset=UTF-8");
-            lines.push("Content-Transfer-Encoding: 8bit");
-            lines.push("");
-            lines.push(html);
-            lines.push("");
+            target.push(`--${alternativeBoundary}`);
+            target.push("Content-Type: text/html; charset=UTF-8");
+            target.push("Content-Transfer-Encoding: 8bit");
+            target.push("");
+            target.push(html);
+            target.push("");
 
-            lines.push(`--${alternativeBoundary}--`);
-            lines.push("");
-        } else if (html) {
-            lines.push(`--${mixedBoundary}`);
-            lines.push("Content-Type: text/html; charset=UTF-8");
-            lines.push("Content-Transfer-Encoding: 8bit");
-            lines.push("");
-            lines.push(html);
-            lines.push("");
-        } else {
-            lines.push(`--${mixedBoundary}`);
-            lines.push("Content-Type: text/plain; charset=UTF-8");
-            lines.push("Content-Transfer-Encoding: 8bit");
-            lines.push("");
-            lines.push(text || "");
-            lines.push("");
+            target.push(`--${alternativeBoundary}--`);
+            target.push("");
+            return;
         }
 
-        for (const attachment of normalizedAttachments) {
+        target.push(`--${boundary}`);
+        if (html) {
+            target.push("Content-Type: text/html; charset=UTF-8");
+            target.push("Content-Transfer-Encoding: 8bit");
+            target.push("");
+            target.push(html);
+        } else {
+            target.push("Content-Type: text/plain; charset=UTF-8");
+            target.push("Content-Transfer-Encoding: 8bit");
+            target.push("");
+            target.push(text || "");
+        }
+        target.push("");
+    };
+
+    // ------------------------------------------------------
+    // INLINE IMAGES (multipart/related)
+    // ------------------------------------------------------
+    // CID images must be inside multipart/related and marked inline.
+    // Otherwise Gmail treats them as ordinary downloadable attachments.
+    // ------------------------------------------------------
+    const appendRelatedBody = (target, relatedBoundary) => {
+        appendBodyPart(target, relatedBoundary);
+
+        for (const attachment of inlineAttachments) {
+            target.push(`--${relatedBoundary}`);
+            target.push(
+                `Content-Type: ${attachment.contentType}; name=${encodeMimeFilename(attachment.filename)}`
+            );
+            target.push("Content-Transfer-Encoding: base64");
+            target.push("Content-Disposition: inline");
+            if (attachment.cid) {
+                target.push(`Content-ID: <${attachment.cid}>`);
+            }
+            target.push("");
+            target.push(wrapBase64(attachment.content.toString("base64")));
+            target.push("");
+        }
+
+        target.push(`--${relatedBoundary}--`);
+        target.push("");
+    };
+
+    // ------------------------------------------------------
+    // REGULAR ATTACHMENTS (multipart/mixed)
+    // ------------------------------------------------------
+    if (regularAttachments.length) {
+        const mixedBoundary = `----=_MiarcusMixed_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        lines.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`);
+        lines.push("");
+
+        if (inlineAttachments.length) {
+            const relatedBoundary = `----=_MiarcusRelated_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            lines.push(`--${mixedBoundary}`);
+            lines.push(`Content-Type: multipart/related; boundary="${relatedBoundary}"`);
+            lines.push("");
+            appendRelatedBody(lines, relatedBoundary);
+        } else {
+            appendBodyPart(lines, mixedBoundary);
+        }
+
+        for (const attachment of regularAttachments) {
             lines.push(`--${mixedBoundary}`);
             lines.push(
                 `Content-Type: ${attachment.contentType}; name=${encodeMimeFilename(attachment.filename)}`
@@ -253,9 +303,17 @@ function createMimeMessage({
         return lines.join("\r\n");
     }
 
+    if (inlineAttachments.length) {
+        const relatedBoundary = `----=_MiarcusRelated_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        lines.push(`Content-Type: multipart/related; boundary="${relatedBoundary}"`);
+        lines.push("");
+        appendRelatedBody(lines, relatedBoundary);
+        return lines.join("\r\n");
+    }
+
+    // No attachments at all: keep the normal simple message structure.
     if (html && text) {
         const boundary = `----=_MiarcusBoundary_${Date.now()}`;
-
         lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
         lines.push("");
 

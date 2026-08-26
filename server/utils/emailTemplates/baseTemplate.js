@@ -16,9 +16,9 @@ const baseTemplate = ({
 
 // ======================================================
 // MI ARCUS LOGO
-// Rendered as an inline CID attachment so Gmail and other
-// mail clients do not depend on the backend public-image URL.
 // ======================================================
+// The mailer embeds this image as an inline MIME resource.
+// Using CID avoids broken remote-image URLs in Gmail.
 
 const logo = "cid:miarcus-logo@miarcus";
 
@@ -152,7 +152,8 @@ text-decoration:none;
 src="${logo}"
 alt="Mi Arcus"
 style="
-width:110px;\nmax-width:110px;
+width:110px;
+max-width:110px;
 height:auto;
 display:block;
 border:0;

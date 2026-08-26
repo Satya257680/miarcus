@@ -62,69 +62,54 @@ const EMAIL_FROM = String(
 ).trim();
 
 // ==========================================================
-// INLINE MI ARCUS BRANDING
+// MI ARCUS INLINE EMAIL BRANDING
 // ==========================================================
-// Keep the logo inside the email itself. This avoids broken
-// logos in Gmail caused by backend/static-image URL changes.
-// ==========================================================
+// The logo is embedded as an inline MIME resource so Gmail renders it
+// in the template header instead of showing it as a downloadable attachment.
 
 const MI_ARCUS_LOGO_CID = "miarcus-logo@miarcus";
-
 const MI_ARCUS_LOGO_PATH = path.join(
     __dirname,
     "../public/MiArcus-brand-theme.png"
 );
 
-const buildBrandedHtml = (html) => {
+const normalizeBrandLogoHtml = (html = "") => {
 
-    if (!html) return html;
+    const value = String(html);
 
-    const source = String(html);
-
-    // Templates such as baseTemplate/announcementEmail already
-    // contain the inline logo. Do not duplicate it.
-    if (source.includes(`cid:${MI_ARCUS_LOGO_CID}`)) {
-        return source;
-    }
-
-    const logoHeader = `
-        <div style="background:#b8dce4;padding:24px 20px;text-align:center;">
-            <img src="cid:${MI_ARCUS_LOGO_CID}" alt="Mi Arcus" width="110" style="display:inline-block;width:110px;max-width:110px;height:auto;border:0;outline:none;text-decoration:none;">
-        </div>
-    `;
-
-    // Preserve existing generic email markup while adding the logo
-    // at the top.
-    if (/<body\b[^>]*>/i.test(source)) {
-        return source.replace(/(<body\b[^>]*>)/i, `$1${logoHeader}`);
-    }
-
-    return logoHeader + source;
+    // Replace any old/public URL references to the brand logo with the
+    // inline CID used by the MIME message. This also protects older
+    // templates that still point at /images/MiArcus-brand-theme.png.
+    return value
+        .replace(
+            /https?:\/\/[^\s"'<>]+\/images\/MiArcus-brand-theme\.png(?:\?[^\s"'<>]*)?/gi,
+            `cid:${MI_ARCUS_LOGO_CID}`
+        )
+        .replace(
+            /(?:https?:\/\/[^\s"'<>]+)?\/images\/MiArcus-brand-theme\.png(?:\?[^\s"'<>]*)?/gi,
+            `cid:${MI_ARCUS_LOGO_CID}`
+        )
+        .replace(
+            /https?:\/\/[^\s"'<>]+\/MiArcus-brand-theme\.png(?:\?[^\s"'<>]*)?/gi,
+            `cid:${MI_ARCUS_LOGO_CID}`
+        );
 };
 
-const buildEmailAttachments = (attachments) => {
+const getBrandAttachments = () => {
 
-    const list = Array.isArray(attachments)
-        ? [...attachments]
-        : [];
-
-    // Do not add a duplicate CID attachment if a caller already did.
-    const hasLogo = list.some(
-        (attachment) =>
-            attachment &&
-            String(attachment.cid || "") === MI_ARCUS_LOGO_CID
-    );
-
-    if (!hasLogo && fs.existsSync(MI_ARCUS_LOGO_PATH)) {
-        list.push({
-            filename: "Mi-Arcus-logo.png",
-            path: MI_ARCUS_LOGO_PATH,
-            cid: MI_ARCUS_LOGO_CID,
-            contentType: "image/png"
-        });
+    if (!fs.existsSync(MI_ARCUS_LOGO_PATH)) {
+        throw new Error(
+            `Mi Arcus email logo not found at ${MI_ARCUS_LOGO_PATH}`
+        );
     }
 
-    return list;
+    return [{
+        filename: "Mi-Arcus.png",
+        contentType: "image/png",
+        content: fs.readFileSync(MI_ARCUS_LOGO_PATH),
+        cid: MI_ARCUS_LOGO_CID,
+        disposition: "inline"
+    }];
 };
 
 // ==========================================================
@@ -267,6 +252,26 @@ const sendEmail = async ({
         // SEND THROUGH GMAIL OAUTH2 MAILER
         // --------------------------------------------------
 
+        const suppliedAttachments =
+            Array.isArray(attachments)
+                ? attachments
+                : [];
+
+        const hasBrandLogo = suppliedAttachments.some(
+            attachment =>
+                attachment &&
+                String(attachment.cid || "").replace(/[<>]/g, "") === MI_ARCUS_LOGO_CID
+        );
+
+        const emailAttachments = hasBrandLogo
+            ? suppliedAttachments
+            : [
+                ...getBrandAttachments(),
+                ...suppliedAttachments
+            ];
+
+        const normalizedHtml = normalizeBrandLogoHtml(html);
+
         const result = await mailer.sendMail({
 
             from:
@@ -279,13 +284,13 @@ const sendEmail = async ({
                 subject,
 
             html:
-                buildBrandedHtml(html),
+                normalizedHtml,
 
             text:
                 text,
 
             attachments:
-                buildEmailAttachments(attachments)
+                emailAttachments
 
         });
 
