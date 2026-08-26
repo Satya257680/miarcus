@@ -29,9 +29,9 @@ function isValidSignature(filePath, extension) {
     if (ext === ".pdf") return header.subarray(0, 5).toString("ascii") === "%PDF-";
     if ([".doc", ".xls"].includes(ext)) return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
     if ([".docx", ".xlsx", ".pptx", ".zip"].includes(ext)) {
-        return header.subarray(0, 4).toString("binary") === "PK\\x03\\x04" ||
-            header.subarray(0, 4).toString("binary") === "PK\\x05\\x06" ||
-            header.subarray(0, 4).toString("binary") === "PK\\x07\\x08";
+        return hasPrefix(header, [0x50, 0x4b, 0x03, 0x04]) ||
+            hasPrefix(header, [0x50, 0x4b, 0x05, 0x06]) ||
+            hasPrefix(header, [0x50, 0x4b, 0x07, 0x08]);
     }
     if (ext === ".ppt") return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
     if ([".mp4", ".mov", ".m4a"].includes(ext)) {

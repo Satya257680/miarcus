@@ -1098,7 +1098,7 @@ loadRoute(
 // GALLERY
 // ======================================================
 
-loadRoute(
+const galleryRoutesLoaded = loadRoute(
 
     "./routes/galleryRoutes",
 
@@ -1107,6 +1107,31 @@ loadRoute(
     "Gallery Routes"
 
 );
+
+// Never let a failed Gallery module degrade into an opaque generic 404.
+// Return a clear 503 so deployment logs and the frontend can distinguish
+// a missing route from a temporarily unavailable Gallery dependency.
+if (!galleryRoutesLoaded) {
+
+    app.all(
+
+        "/api/gallery{*path}",
+
+        (req, res) => {
+
+            res.status(503).json({
+                success: false,
+                message: "Gallery API is unavailable because galleryRoutes.js failed to load.",
+                route: "/api/gallery",
+                routeFile: "./routes/galleryRoutes",
+                requestId: req.requestId
+            });
+
+        }
+
+    );
+
+}
 
 loadRoute(
 
