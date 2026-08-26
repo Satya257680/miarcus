@@ -142,6 +142,7 @@ function AddUserModal({
     "Expenses",
     "Petty Cash",
     "Billing",
+    "Daily Collection",
     "Visit Planner",
     "Travel Plan",
     "Travel Plan Approvals",
@@ -614,9 +615,14 @@ function AddUserModal({
     // Turn Admin OFF first if individual permissions need to be changed.
     if (isAdmin) return;
 
+    const safePermission =
+      module === "Daily Collection" && permission === "Full"
+        ? "Edit"
+        : permission;
+
     setModulePermissions((previous) => ({
       ...previous,
-      [module]: permission,
+      [module]: safePermission,
     }));
   };
 

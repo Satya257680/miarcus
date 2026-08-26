@@ -70,6 +70,10 @@ function Sidebar({ collapsed }) {
         location.pathname === "/billing" ||
         location.pathname.startsWith("/billing/");
 
+    const dailyCollectionOpenByPath =
+        location.pathname === "/daily-collection" ||
+        location.pathname.startsWith("/daily-collection/");
+
     const salesTeamOpenByPath =
         location.pathname === "/visit-planner" ||
         location.pathname === "/travel-plan" ||
@@ -116,6 +120,9 @@ function Sidebar({ collapsed }) {
 
     const [billingOpen, setBillingOpen] =
         useState(billingOpenByPath);
+
+    const [dailyCollectionOpen, setDailyCollectionOpen] =
+        useState(dailyCollectionOpenByPath);
 
     const [salesTeamOpen, setSalesTeamOpen] =
         useState(salesTeamOpenByPath);
@@ -173,6 +180,12 @@ function Sidebar({ collapsed }) {
             setBillingOpen(true);
         }
     }, [billingOpenByPath]);
+
+    useEffect(() => {
+        if (dailyCollectionOpenByPath) {
+            setDailyCollectionOpen(true);
+        }
+    }, [dailyCollectionOpenByPath]);
 
     useEffect(() => {
         if (salesTeamOpenByPath) setSalesTeamOpen(true);
@@ -325,6 +338,10 @@ function Sidebar({ collapsed }) {
     const canAddBilling =
         isAdministrator ||
         ["Add", "Edit", "Full"].includes(permissions?.Billing);
+
+    const canAccessDailyCollection =
+        isAdministrator ||
+        hasPermission("Daily Collection");
 
     // ======================================================
     // SALES TEAM PERMISSIONS
@@ -874,9 +891,41 @@ function Sidebar({ collapsed }) {
                                     <span>Daily Report</span>
                                 </NavLink>
 
-                                <NavLink to="/billing/daily-collection" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ==================================================
+                    DAILY COLLECTION — SEPARATE MODULE
+                ================================================== */}
+
+                {canAccessDailyCollection && (
+                    <div className={`sidebar-group ${dailyCollectionOpen ? "open" : ""}`}>
+                        <button
+                            type="button"
+                            className={`sidebar-group-toggle ${dailyCollectionOpen ? "active" : ""}`}
+                            onClick={() => setDailyCollectionOpen((previous) => !previous)}
+                            aria-expanded={dailyCollectionOpen}
+                        >
+                            <span className="sidebar-group-content">
+                                <FaMoneyCheckAlt />
+                                {!collapsed && <span>Daily Collection</span>}
+                            </span>
+                            {!collapsed && (
+                                <FaChevronDown className={`submenu-chevron ${dailyCollectionOpen ? "rotated" : ""}`} />
+                            )}
+                        </button>
+
+                        {!collapsed && dailyCollectionOpen && (
+                            <div className="sidebar-submenu">
+                                <NavLink to="/daily-collection" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/daily-collection" ? "active" : ""}`}>
                                     <FaMoneyCheckAlt />
-                                    <span>Daily Collection</span>
+                                    <span>Daily Entry</span>
+                                </NavLink>
+                                <NavLink to="/daily-collection/report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaChartBar />
+                                    <span>Daily Data Report</span>
                                 </NavLink>
                             </div>
                         )}

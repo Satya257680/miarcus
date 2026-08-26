@@ -6,8 +6,8 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 const adminOnly = require("../middleware/adminOnly");
 const controller = require("../controllers/dailyCollectionController");
 
-const canViewBilling = permissionMiddleware("Billing", "View");
-const canAddBilling = permissionMiddleware("Billing", "Add");
+const canViewBilling = permissionMiddleware("Daily Collection", "View");
+const canAddBilling = permissionMiddleware("Daily Collection", "Add");
 
 router.get(
     "/",
@@ -49,6 +49,13 @@ router.put(
     authMiddleware,
     adminOnly,
     controller.updateDailyCollectionEmailSettings
+);
+
+router.post(
+    "/blocked",
+    authMiddleware,
+    adminOnly,
+    controller.blockDailyCollection
 );
 
 router.post(

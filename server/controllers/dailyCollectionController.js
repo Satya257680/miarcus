@@ -147,6 +147,40 @@ const getBlockedDailyCollections = async (req, res) => {
     }
 };
 
+const blockDailyCollection = async (req, res) => {
+    try {
+        const storeId = Number(req.body?.store_id);
+        const reportDate = dateOnly(req.body?.report_date);
+        const reason = String(req.body?.reason || "Blocked by administrator").trim().slice(0, 255);
+
+        if (!storeId || !reportDate) {
+            return res.status(400).json({ success: false, message: "Store and report date are required." });
+        }
+
+        const store = await DailyCollection.getActiveStore(storeId);
+        if (!store) {
+            return res.status(404).json({ success: false, message: "Active store was not found." });
+        }
+
+        await DailyCollection.ensureDueRows(reportDate);
+        const users = await DailyCollection.blockUsersForStore(
+            storeId,
+            reportDate,
+            reason || "Blocked by administrator",
+            actorId(req)
+        );
+
+        if (!users.length) {
+            return res.status(404).json({ success: false, message: "No active Daily Collection users are assigned to this store." });
+        }
+
+        res.json({ success: true, message: `Daily Collection access blocked for ${users.length} user(s).`, users });
+    } catch (error) {
+        console.error("Daily collection manual block error:", error);
+        res.status(500).json({ success: false, message: "Unable to block Daily Collection access." });
+    }
+};
+
 const unblockDailyCollection = async (req, res) => {
     try {
         const controlId = Number(req.params.controlId);
@@ -167,8 +201,12 @@ const sendMissingReminder = async (report) => {
     if (!settings.email_enabled) return { skipped: true, reason: "email_disabled" };
 
     const admins = await DailyCollection.getAdminRecipients();
-    const recipients = [...new Set(admins.map((u) => u.email).filter(Boolean))];
-    if (!recipients.length) return { skipped: true, reason: "no_admin_recipients" };
+    const managers = await DailyCollection.getStoreManagers(report.store_id);
+    const recipients = [...new Set([
+        ...admins.map((u) => u.email),
+        ...managers.map((u) => u.email)
+    ].filter(Boolean))];
+    if (!recipients.length) return { skipped: true, reason: "no_recipients" };
 
     const subject = `Action required: Daily Collection missing — ${report.store_name} (${report.report_date})`;
     const html = `
@@ -232,6 +270,7 @@ module.exports = {
     getDailyCollectionStores,
     submitDailyCollection,
     getBlockedDailyCollections,
+    blockDailyCollection,
     unblockDailyCollection,
     getDailyCollectionEmailSettings,
     updateDailyCollectionEmailSettings,

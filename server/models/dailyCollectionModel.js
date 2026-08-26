@@ -30,6 +30,7 @@ DailyCollection.ensureTables = async () => {
             reminder_claimed_at DATETIME NULL,
             escalation_claimed_at DATETIME NULL,
             blocked_at DATETIME NULL,
+            blocked_by INT NULL,
             approved_at DATETIME NULL,
             approved_by INT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -58,6 +59,14 @@ DailyCollection.ensureTables = async () => {
         }
     }
 
+    try {
+        await db.query(`ALTER TABLE daily_collection_access_controls ADD COLUMN blocked_by INT NULL`);
+    } catch (error) {
+        if (error?.code !== "ER_DUP_FIELDNAME") {
+            console.error("Daily Collection access-control migration skipped:", error.message || error);
+        }
+    }
+
     await db.query(`
         CREATE TABLE IF NOT EXISTS daily_collection_email_settings (
             id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
@@ -81,6 +90,7 @@ DailyCollection.ensureTables = async () => {
             store_id INT NOT NULL,
             report_date DATE NOT NULL,
             blocked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            blocked_by INT NULL,
             unblocked_at DATETIME NULL,
             unblocked_by INT NULL,
             reason VARCHAR(255) NOT NULL,
@@ -102,16 +112,13 @@ DailyCollection.getStoreManagers = async (storeId) => {
         FROM users u
         INNER JOIN user_stores us ON us.user_id = u.id
         INNER JOIN stores s ON s.id = us.store_id
-        LEFT JOIN designations dg ON dg.id = u.designation_id
+        INNER JOIN user_permissions up ON up.user_id = u.id
         WHERE us.store_id = ?
           AND u.status = 'Active'
-          AND (
-              LOWER(TRIM(u.name)) = LOWER(TRIM(s.manager_name))
-              OR LOWER(COALESCE(dg.designation_name, '')) LIKE '%manager%'
-          )
-        ORDER BY
-            CASE WHEN LOWER(TRIM(u.name)) = LOWER(TRIM(s.manager_name)) THEN 0 ELSE 1 END,
-            u.id ASC
+          AND u.is_admin = 0
+          AND up.module_name = 'Daily Collection'
+          AND up.permission IN ('View', 'Add', 'Edit', 'Full')
+        ORDER BY u.id ASC
     `, [storeId]);
     return rows;
 };
@@ -205,6 +212,16 @@ DailyCollection.getStoreScopeForUser = async (userId) => {
           AND s.status = 'Active'
         ORDER BY s.store_name ASC
     `, [userId]);
+};
+
+DailyCollection.getActiveStore = async (storeId) => {
+    const rows = await db.query(`
+        SELECT id, store_name, store_code
+        FROM stores
+        WHERE id = ? AND status = 'Active'
+        LIMIT 1
+    `, [storeId]);
+    return rows[0] || null;
 };
 
 DailyCollection.getStores = async () => {
@@ -438,6 +455,24 @@ DailyCollection.blockManagersForStore = async (storeId, reportDate, reason) => {
     return managers;
 };
 
+DailyCollection.blockUsersForStore = async (storeId, reportDate, reason, adminId) => {
+    const users = await DailyCollection.getStoreManagers(storeId);
+    for (const user of users) {
+        await db.query(`
+            INSERT INTO daily_collection_access_controls
+                (user_id, store_id, report_date, reason, blocked_by)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                blocked_at = NOW(),
+                reason = VALUES(reason),
+                blocked_by = VALUES(blocked_by),
+                unblocked_at = NULL,
+                unblocked_by = NULL
+        `, [user.id, storeId, reportDate, reason, adminId]);
+    }
+    return users;
+};
+
 DailyCollection.getBlockedReports = async () => {
     return db.query(`
         SELECT
@@ -446,6 +481,7 @@ DailyCollection.getBlockedReports = async () => {
             c.store_id,
             c.report_date,
             c.blocked_at,
+            c.blocked_by,
             c.reason,
             u.name AS user_name,
             u.email AS user_email,

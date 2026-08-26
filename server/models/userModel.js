@@ -35,6 +35,7 @@ const RBAC_MODULES = [
     "Expenses",
     "Petty Cash",
     "Billing",
+    "Daily Collection",
     "Visit Planner",
     "Travel Plan",
     "Travel Plan Approvals",
@@ -91,7 +92,9 @@ const normalizePermissions = (
             ) {
 
                 normalized[moduleName] =
-                    requested;
+                    moduleName === "Daily Collection" && requested === "Full"
+                        ? "Edit"
+                        : requested;
 
             } else {
 

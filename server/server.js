@@ -1494,7 +1494,7 @@ loadRoute(
 
     "./routes/dailyCollectionRoutes",
 
-    "/api/billing/daily-collections",
+    "/api/daily-collection",
 
     "Daily Collection Routes"
 

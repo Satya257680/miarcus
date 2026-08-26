@@ -18,6 +18,7 @@ import {
     getDailyCollectionStores,
     submitDailyCollection,
     getBlockedDailyCollections,
+    blockDailyCollection,
     unblockDailyCollection,
     getDailyCollectionEmailSettings,
     updateDailyCollectionEmailSettings
@@ -43,6 +44,8 @@ const DailyCollection = () => {
     const [blockedList, setBlockedList] = useState([]);
     const [emailEnabled, setEmailEnabled] = useState(true);
     const [emailSaving, setEmailSaving] = useState(false);
+    const [blockStoreId, setBlockStoreId] = useState("");
+    const [blocking, setBlocking] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(null);
     const [error, setError] = useState("");
@@ -146,6 +149,29 @@ const DailyCollection = () => {
         }
     };
 
+    const blockStoreAccess = async () => {
+        if (!blockStoreId) {
+            setError("Select a store before blocking Daily Collection access.");
+            return;
+        }
+        try {
+            setBlocking(true);
+            setError("");
+            await blockDailyCollection({
+                store_id: Number(blockStoreId),
+                report_date: date,
+                reason: "Blocked manually by administrator."
+            });
+            setSuccess("Daily Collection access blocked for the selected store users.");
+            setBlockStoreId("");
+            await load();
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to block Daily Collection access.");
+        } finally {
+            setBlocking(false);
+        }
+    };
+
     const unlock = async (controlId) => {
         try {
             setError("");
@@ -178,7 +204,7 @@ const DailyCollection = () => {
         <div className="daily-collection-page">
             <section className="daily-collection-hero">
                 <div>
-                    <div className="eyebrow"><FaMoneyBillWave /> Billing control</div>
+                    <div className="eyebrow"><FaMoneyBillWave /> Daily Collection module</div>
                     <h1>Daily Collection</h1>
                     <p>Record each store's daily UPI, cash, bank transfer and card collection. The entered total must reconcile with bills recorded in Miarcus.</p>
                 </div>
@@ -301,6 +327,20 @@ const DailyCollection = () => {
                             <span>{emailSaving ? "Saving..." : emailEnabled ? "ON" : "OFF"}</span>
                             <span className="email-toggle-knob" />
                         </button>
+                    </div>
+
+                    <div className="daily-manual-block">
+                        <div>
+                            <strong>Administrator block control</strong>
+                            <span>Block Daily Collection access for all eligible users assigned to a store.</span>
+                        </div>
+                        <div className="daily-manual-block-actions">
+                            <select value={blockStoreId} onChange={(e) => setBlockStoreId(e.target.value)}>
+                                <option value="">Select store</option>
+                                {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}</option>)}
+                            </select>
+                            <button onClick={blockStoreAccess} disabled={blocking || !blockStoreId}><FaLock /> {blocking ? "Blocking..." : "Block Access"}</button>
+                        </div>
                     </div>
 
                     <div className="blocked-admin-subheading">

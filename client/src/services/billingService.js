@@ -6,6 +6,7 @@ import axios from "axios";
 ====================================================== */
 
 const API = "/api/billing";
+const DAILY_COLLECTION_API = "/api/daily-collection";
 const REQUEST_TIMEOUT = 30000;
 
 /* ======================================================
@@ -165,45 +166,52 @@ export const getStores = () =>
 
 export const getDailyCollections = (params = {}) =>
   axios.get(
-    `${API}/daily-collections`,
+    `${DAILY_COLLECTION_API}`,
     requestConfig({ params })
   );
 
 export const getDailyCollectionStores = () =>
   axios.get(
-    `${API}/daily-collections/stores`,
+    `${DAILY_COLLECTION_API}/stores`,
     requestConfig()
   );
 
 export const submitDailyCollection = (data) =>
   axios.post(
-    `${API}/daily-collections`,
+    `${DAILY_COLLECTION_API}`,
     data,
     requestConfig()
   );
 
 export const getBlockedDailyCollections = () =>
   axios.get(
-    `${API}/daily-collections/blocked`,
+    `${DAILY_COLLECTION_API}/blocked`,
+    requestConfig()
+  );
+
+export const blockDailyCollection = (data) =>
+  axios.post(
+    `${DAILY_COLLECTION_API}/blocked`,
+    data,
     requestConfig()
   );
 
 export const unblockDailyCollection = (controlId) =>
   axios.post(
-    `${API}/daily-collections/blocked/${controlId}/unblock`,
+    `${DAILY_COLLECTION_API}/blocked/${controlId}/unblock`,
     {},
     requestConfig()
   );
 
 export const getDailyCollectionEmailSettings = () =>
   axios.get(
-    `${API}/daily-collections/email-settings`,
+    `${DAILY_COLLECTION_API}/email-settings`,
     requestConfig()
   );
 
 export const updateDailyCollectionEmailSettings = (email_enabled) =>
   axios.put(
-    `${API}/daily-collections/email-settings`,
+    `${DAILY_COLLECTION_API}/email-settings`,
     { email_enabled: Boolean(email_enabled) },
     requestConfig()
   );
@@ -225,6 +233,7 @@ const billingService = {
   getDailyCollectionStores,
   submitDailyCollection,
   getBlockedDailyCollections,
+  blockDailyCollection,
   unblockDailyCollection,
 };
 
