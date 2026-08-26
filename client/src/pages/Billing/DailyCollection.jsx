@@ -4,7 +4,12 @@ import {
     FaMoneyBillWave,
     FaSyncAlt,
     FaEye,
-    FaTrashAlt
+    FaTrashAlt,
+    FaLock,
+    FaUnlock,
+    FaEnvelope,
+    FaCheckCircle,
+    FaTimesCircle
 } from "react-icons/fa";
 import PageToolbar from "../../components/common/PageToolbar";
 import BulkUploadModal from "../../components/common/BulkUploadModal";
@@ -17,7 +22,12 @@ import {
     bulkUploadDailyCollections,
     deleteDailyCollection,
     deleteAllDailyCollections,
-    submitDailyCollection
+    submitDailyCollection,
+    getBlockedDailyCollections,
+    blockDailyCollection,
+    unblockDailyCollection,
+    getDailyCollectionEmailSettings,
+    updateDailyCollectionEmailSettings
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
 
@@ -75,6 +85,10 @@ export default function DailyCollection() {
     const [viewReport, setViewReport] = useState(null);
     const [blockedStore, setBlockedStore] = useState(null);
     const [submittingId, setSubmittingId] = useState(null);
+    const [emailSettings, setEmailSettings] = useState({ email_enabled: true });
+    const [blockedControls, setBlockedControls] = useState([]);
+    const [controlStoreId, setControlStoreId] = useState("");
+    const [controlLoading, setControlLoading] = useState(false);
 
     const loadStores = async () => {
         try {
@@ -83,6 +97,9 @@ export default function DailyCollection() {
             const response = await getDailyCollectionStores();
             const nextStores = response.data?.stores || [];
             setStores(nextStores);
+            if (admin && !controlStoreId && selectedStore && selectedStore !== "all") {
+                setControlStoreId(String(selectedStore));
+            }
 
             if (!admin) {
                 if (nextStores.length === 1) {
@@ -106,8 +123,10 @@ export default function DailyCollection() {
     const load = async () => {
         if (!canView || loadingStores) return;
 
-        // Nothing selected for administrators means nothing is shown.
-        if (admin && !selectedStore) {
+        // Nothing selected means nothing is shown for either role.
+        // Managers with one assigned store are auto-selected in loadStores;
+        // managers with multiple assignments must choose the store they are entering.
+        if (!selectedStore) {
             setReports([]);
             setBlockedStore(null);
             return;
@@ -119,7 +138,7 @@ export default function DailyCollection() {
             setSuccess("");
             setBlockedStore(null);
 
-            const params = { date };
+            const params = { date, entry: admin ? 0 : 1 };
             if (selectedStore && selectedStore !== "all") {
                 params.store_id = Number(selectedStore);
             }
@@ -156,6 +175,20 @@ export default function DailyCollection() {
         }
     };
 
+    const loadAdminControls = async () => {
+        if (!admin) return;
+        try {
+            const [emailResponse, blockedResponse] = await Promise.all([
+                getDailyCollectionEmailSettings(),
+                getBlockedDailyCollections()
+            ]);
+            setEmailSettings(emailResponse.data?.settings || { email_enabled: true });
+            setBlockedControls(blockedResponse.data?.blocked || []);
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to load Daily Collection administrator controls.");
+        }
+    };
+
     useEffect(() => {
         if (canView) loadStores();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,6 +198,17 @@ export default function DailyCollection() {
         if (canView && !loadingStores) load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [date, selectedStore, loadingStores]);
+
+    useEffect(() => {
+        if (admin && canView) loadAdminControls();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [admin, canView, date]);
+
+    useEffect(() => {
+        if (admin && selectedStore && selectedStore !== "all") {
+            setControlStoreId(String(selectedStore));
+        }
+    }, [admin, selectedStore]);
 
     const filteredReports = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -248,6 +292,53 @@ export default function DailyCollection() {
             await load();
         } catch (err) {
             setError(err.response?.data?.message || "Unable to delete all Daily Collection records.");
+        }
+    };
+
+    const selectedControl = useMemo(() => {
+        if (!controlStoreId) return null;
+        return blockedControls.find((item) =>
+            String(item.store_id) === String(controlStoreId) && String(item.report_date) === String(date)
+        ) || null;
+    }, [blockedControls, controlStoreId, date]);
+
+    const handleEmailToggle = async () => {
+        if (!admin || controlLoading) return;
+        try {
+            setControlLoading(true);
+            setError("");
+            const nextEnabled = !Boolean(emailSettings.email_enabled);
+            const response = await updateDailyCollectionEmailSettings(nextEnabled);
+            setEmailSettings(response.data?.settings || { email_enabled: nextEnabled });
+            setSuccess(response.data?.message || `Daily Collection email notifications ${nextEnabled ? "enabled" : "disabled"}.`);
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to update Daily Collection email settings.");
+        } finally {
+            setControlLoading(false);
+        }
+    };
+
+    const handleBlockToggle = async () => {
+        if (!admin || !controlStoreId || controlLoading) return;
+        try {
+            setControlLoading(true);
+            setError("");
+            if (selectedControl?.control_id) {
+                const response = await unblockDailyCollection(selectedControl.control_id);
+                setSuccess(response.data?.message || "Daily Collection access restored.");
+            } else {
+                const response = await blockDailyCollection({
+                    store_id: Number(controlStoreId),
+                    report_date: date,
+                    reason: "Blocked by administrator"
+                });
+                setSuccess(response.data?.message || "Daily Collection access blocked.");
+            }
+            await Promise.all([loadAdminControls(), load()]);
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to update Daily Collection access.");
+        } finally {
+            setControlLoading(false);
         }
     };
 
@@ -359,7 +450,7 @@ export default function DailyCollection() {
                         const variance = entered - billed;
                         const isSubmitted = report.status === "submitted";
                         const isLocked = report.status === "locked";
-                        const disabled = isLocked || submittingId === report.id || Boolean(blockedStore);
+                        const disabled = (!admin && (isLocked || Boolean(blockedStore))) || submittingId === report.id;
 
                         return (
                             <article className="daily-collection-card" key={report.id}>
@@ -454,8 +545,8 @@ export default function DailyCollection() {
 
                                 <div className="daily-card-footer">
                                     <span>
-                                        {isLocked
-                                            ? "This Daily Collection is locked."
+                                        {isLocked && !admin
+                                            ? "This Daily Collection is locked until an administrator restores access."
                                             : isSubmitted
                                                 ? "Submitted successfully."
                                                 : `Variance ${money(variance)} — submission allowed`}
@@ -471,6 +562,72 @@ export default function DailyCollection() {
                             </article>
                         );
                     })}
+                </section>
+            )}
+
+            {admin && (
+                <section className="blocked-admin-panel daily-admin-controls">
+                    <div className="blocked-admin-heading">
+                        <div>
+                            <span>Administrator Control</span>
+                            <h2>Daily Collection Controls</h2>
+                        </div>
+                        <FaLock />
+                    </div>
+
+                    <div className="daily-email-control">
+                        <div className="daily-email-control-copy">
+                            <div className="daily-email-control-title">
+                                <FaEnvelope />
+                                <strong>Daily Collection Email Notifications</strong>
+                                <span className={`email-state ${emailSettings.email_enabled ? "on" : "off"}`} />
+                                <b>{emailSettings.email_enabled ? "ON" : "OFF"}</b>
+                            </div>
+                            <p>When ON, missing reports trigger the midnight email to the administrator and linked store manager. When OFF, no Daily Collection emails are sent; access blocking still follows the 12-hour deadline.</p>
+                        </div>
+                        <button
+                            type="button"
+                            className={`email-toggle ${emailSettings.email_enabled ? "on" : "off"}`}
+                            onClick={handleEmailToggle}
+                            disabled={controlLoading}
+                        >
+                            {emailSettings.email_enabled ? "ON" : "OFF"}
+                            <span className="email-toggle-knob" />
+                        </button>
+                    </div>
+
+                    <div className="daily-manual-block">
+                        <div>
+                            <strong>Store access control</strong>
+                            <span>Only administrators can block or unblock Daily Collection entry for a store and date.</span>
+                        </div>
+                        <div className="daily-manual-block-actions">
+                            <select value={controlStoreId} onChange={(e) => setControlStoreId(e.target.value)} disabled={controlLoading}>
+                                <option value="">Select store</option>
+                                {stores.map((store) => (
+                                    <option key={store.id} value={store.id}>{storeLabel(store)}</option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                className={selectedControl ? "daily-unblock-button" : "daily-block-button"}
+                                onClick={handleBlockToggle}
+                                disabled={!controlStoreId || controlLoading}
+                            >
+                                {selectedControl ? <><FaUnlock /> Unblock Access</> : <><FaLock /> Block Access</>}
+                            </button>
+                        </div>
+                    </div>
+
+                    {controlStoreId && (
+                        <div className={`daily-access-state ${selectedControl ? "blocked" : "available"}`}>
+                            {selectedControl ? <FaTimesCircle /> : <FaCheckCircle />}
+                            <div>
+                                <strong>{selectedControl ? "Access blocked" : "Access available"}</strong>
+                                <span>{stores.find((store) => String(store.id) === String(controlStoreId))?.store_name || "Selected store"} · {date}</span>
+                            </div>
+                        </div>
+                    )}
                 </section>
             )}
 

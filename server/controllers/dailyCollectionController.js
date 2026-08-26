@@ -22,8 +22,11 @@ const indiaToday = () =>
 
 const dateOnly = (value) => {
     const text = String(value || "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
-    return text;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const match = text.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (!match) return null;
+    const [, day, month, year] = match;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
 
 const normalizeHeader = (value) => String(value || "")
@@ -127,6 +130,7 @@ const getDailyCollection = async (req, res) => {
         const date = dateOnly(req.query.date) || indiaToday();
         await DailyCollection.ensureDueRows(date);
         const selectedStoreId = req.query.store_id ? Number(req.query.store_id) : null;
+        const entryOnly = String(req.query.entry || "") === "1";
         const blocked = isAdmin(req) || !selectedStoreId ? null : await DailyCollection.getActiveBlock(actorId(req), selectedStoreId);
         if (blocked) {
             return res.status(423).json({
@@ -141,7 +145,8 @@ const getDailyCollection = async (req, res) => {
             userId: actorId(req),
             isAdmin: isAdmin(req),
             storeId: req.query.store_id ? Number(req.query.store_id) : null,
-            date
+            date,
+            entryOnly
         });
 
         const enriched = await Promise.all(rows.map(async (row) => ({
@@ -179,17 +184,23 @@ const getDailyCollectionStores = async (req, res) => {
 const submitDailyCollection = async (req, res) => {
     try {
         const userId = actorId(req);
-        const storeId = Number(req.body?.store_id);
-        const reportDate = dateOnly(req.body?.report_date);
+        let storeId = Number(req.body?.store_id) || 0;
+        let reportDate = dateOnly(req.body?.report_date);
         let reportId = Number(req.body?.report_id) || 0;
+
+        // Be tolerant of older entry cards: a report ID is enough to resolve the
+        // store/date pair, and store/date is enough to resolve the report ID.
+        if (reportId && (!storeId || !reportDate)) {
+            const identity = await DailyCollection.getReportIdentity(reportId);
+            if (identity) {
+                storeId = storeId || Number(identity.store_id);
+                reportDate = reportDate || identity.report_date;
+            }
+        }
         if (!storeId || !reportDate) {
             return res.status(400).json({ success: false, message: "Store and report date are required." });
         }
 
-        // The report ID is an internal database identifier. Older Daily Collection
-        // rows/frontends may not include it in the card payload, so resolve it
-        // safely from the unique store + report-date pair instead of rejecting a
-        // valid submission with a misleading "report ID required" error.
         if (!reportId) {
             const existingReport = await DailyCollection.getReportForStoreDate(storeId, reportDate);
             reportId = Number(existingReport?.id || 0);
@@ -220,6 +231,18 @@ const submitDailyCollection = async (req, res) => {
                     message: "Only the assigned store manager can submit this Daily Collection."
                 });
             }
+        }
+
+        const currentReport = await DailyCollection.getReportForStoreDate(storeId, reportDate);
+        if (!currentReport || Number(currentReport.id) !== Number(reportId)) {
+            return res.status(404).json({ success: false, message: "Daily Collection report was not found for the selected store and date." });
+        }
+        if (!isAdmin(req) && currentReport.status === "locked") {
+            return res.status(423).json({
+                success: false,
+                blocked: true,
+                message: "Daily Collection access is locked for this store. An administrator must unblock the store before submission."
+            });
         }
 
         const report = await DailyCollection.submitReport({

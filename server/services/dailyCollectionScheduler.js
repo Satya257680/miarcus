@@ -44,17 +44,16 @@ const runDailyCollectionDeadlineCheck = async () => {
         const now = getIndiaNowParts();
         const reportDate = yesterdayIndia();
 
+        // Ensure every active store has a report row for the completed day.
         await DailyCollection.ensureDueRows(reportDate);
-        const missing = await DailyCollection.getMissingReports(reportDate);
-
-        if (!missing.length && !(await DailyCollection.getEscalationCandidates(reportDate)).length) return;
-
-        const afterMidnightReminderWindow = now.hour > 0 || (now.hour === 0 && now.minute >= 5);
-        const afterTwelveHourEscalation = now.hour > 12 || (now.hour === 12 && now.minute >= 5);
-
         const emailSettings = await DailyCollection.getEmailSettings();
 
+        // At/just after midnight: notify admins + the linked store manager(s)
+        // only when yesterday's report is still missing. The claim fields make
+        // this safe when more than one server instance is running.
+        const afterMidnightReminderWindow = now.hour > 0 || (now.hour === 0 && now.minute >= 1);
         if (afterMidnightReminderWindow && emailSettings.email_enabled) {
+            const missing = await DailyCollection.getMissingReports(reportDate);
             for (const report of missing) {
                 if (report.reminder_sent_at) continue;
                 const claimed = await DailyCollection.claimReminder(report.id);
@@ -73,24 +72,24 @@ const runDailyCollectionDeadlineCheck = async () => {
             }
         }
 
+        // Twelve hours after the midnight deadline: block the store manager's
+        // Daily Collection entry access. Blocking is independent of the email
+        // toggle, so turning emails off never bypasses the security deadline.
+        const afterTwelveHourEscalation = now.hour > 12 || (now.hour === 12 && now.minute >= 1);
         if (afterTwelveHourEscalation) {
-            const escalationCandidates = await DailyCollection.getEscalationCandidates(reportDate);
+            const missing = await DailyCollection.getMissingReports(reportDate);
 
-            for (const report of escalationCandidates) {
-                const managers = await DailyCollection.getStoreManagers(report.store_id);
+            for (const report of missing) {
+                const managers = await DailyCollection.blockUsersForStore(
+                    report.store_id,
+                    report.report_date,
+                    "Daily collection not submitted within 12 hours of the midnight deadline.",
+                    null
+                );
 
-                // Access blocking is independent from email delivery.
-                if (report.status === 'missing') {
-                    await DailyCollection.blockManagersForStore(
-                        report.store_id,
-                        report.report_date,
-                        "Daily collection not submitted within 12 hours of the midnight deadline."
-                    );
-                    if (!emailSettings.email_enabled) {
-                        await DailyCollection.lockReport(report.id, false);
-                        continue;
-                    }
-                }
+                // Lock the report after access is blocked. The administrator
+                // unblock action reopens it as 'missing' so the manager can submit.
+                await DailyCollection.lockReport(report.id, false);
 
                 if (emailSettings.email_enabled && !report.escalation_sent_at) {
                     const claimed = await DailyCollection.claimEscalation(report.id);
@@ -105,6 +104,28 @@ const runDailyCollectionDeadlineCheck = async () => {
                     } catch (error) {
                         await DailyCollection.releaseEscalationClaim(report.id);
                         console.error("Daily collection escalation failed:", report.store_name, error.message);
+                    }
+                }
+            }
+
+            // Retry an escalation email if a previous email attempt failed after
+            // the store was already blocked/locked.
+            if (emailSettings.email_enabled) {
+                const retryCandidates = await DailyCollection.getEscalationCandidates(reportDate);
+                for (const report of retryCandidates) {
+                    const managers = await DailyCollection.getStoreManagers(report.store_id);
+                    const claimed = await DailyCollection.claimEscalation(report.id);
+                    if (!claimed) continue;
+                    try {
+                        const result = await controller.sendEscalation(report, managers);
+                        if (result?.sent) {
+                            await DailyCollection.lockReport(report.id, true);
+                        } else {
+                            await DailyCollection.releaseEscalationClaim(report.id);
+                        }
+                    } catch (error) {
+                        await DailyCollection.releaseEscalationClaim(report.id);
+                        console.error("Daily collection escalation retry failed:", report.store_name, error.message);
                     }
                 }
             }

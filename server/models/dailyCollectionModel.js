@@ -109,19 +109,14 @@ DailyCollection.getStoreManagers = async (storeId) => {
         SELECT DISTINCT
             u.id, u.name, u.email, u.call_contact,
             s.store_name,
-            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+            u.name AS manager_name,
             s.email AS store_email
-        FROM users u
-        INNER JOIN user_stores us ON us.user_id = u.id
-        INNER JOIN stores s ON s.id = us.store_id
-        INNER JOIN user_permissions up ON up.user_id = u.id
-        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
-        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
-        WHERE us.store_id = ?
+        FROM chat_store_managers csm
+        INNER JOIN stores s ON s.id = csm.store_id
+        INNER JOIN users u ON u.id = csm.user_id
+        WHERE csm.store_id = ?
           AND u.status = 'Active'
           AND u.is_admin = 0
-          AND up.module_name = 'Daily Collection'
-          AND up.permission IN ('View', 'Add', 'Edit', 'Full')
         ORDER BY u.id ASC
     `, [storeId]);
     return rows;
@@ -287,14 +282,21 @@ DailyCollection.getBillSummary = async (storeId, reportDate) => {
     };
 };
 
-DailyCollection.getReport = async ({ userId, isAdmin, storeId, date }) => {
+DailyCollection.getReport = async ({ userId, isAdmin, storeId, date, entryOnly = false }) => {
     const params = [date];
     let scope = "";
 
     if (!isAdmin) {
-        scope = ` AND s.id IN (
-            SELECT us.store_id FROM user_stores us WHERE us.user_id = ?
-        )`;
+        scope = entryOnly
+            ? ` AND s.id IN (
+                SELECT csm.store_id
+                FROM chat_store_managers csm
+                INNER JOIN users mu ON mu.id = csm.user_id
+                WHERE csm.user_id = ? AND mu.status = 'Active' AND mu.is_admin = 0
+            )`
+            : ` AND s.id IN (
+                SELECT us.store_id FROM user_stores us WHERE us.user_id = ?
+            )`;
         params.push(userId);
     }
 
@@ -308,13 +310,13 @@ DailyCollection.getReport = async ({ userId, isAdmin, storeId, date }) => {
             r.*,
             s.store_name,
             s.store_code,
-            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+            mu.name AS manager_name,
             u.name AS submitted_by_name,
             au.name AS approved_by_name
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
         LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
-        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' AND mu.is_admin = 0
         LEFT JOIN users u ON u.id = r.submitted_by
         LEFT JOIN users au ON au.id = r.approved_by
         WHERE r.report_date = ?
@@ -340,12 +342,12 @@ DailyCollection.ensureDueRows = async (reportDate) => {
 DailyCollection.getEscalationCandidates = async (reportDate) => {
     return db.query(`
         SELECT r.*, s.store_name, s.store_code,
-               COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+               mu.name AS manager_name,
                s.email AS store_email
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
         LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
-        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' 
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' AND mu.is_admin = 0 
         WHERE r.report_date = ?
           AND r.escalation_sent_at IS NULL
           AND r.status IN ('missing', 'locked')
@@ -357,12 +359,12 @@ DailyCollection.getEscalationCandidates = async (reportDate) => {
 DailyCollection.getMissingReports = async (reportDate) => {
     return db.query(`
         SELECT r.*, s.store_name, s.store_code,
-               COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+               mu.name AS manager_name,
                s.email AS store_email
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
         LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
-        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' 
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' AND mu.is_admin = 0 
         WHERE r.report_date = ?
           AND r.status = 'missing'
         ORDER BY s.store_name ASC
@@ -386,7 +388,7 @@ DailyCollection.lockReport = async (id, markEscalationSent = true) => {
                 WHEN ? = 1 THEN COALESCE(escalation_sent_at, NOW())
                 ELSE escalation_sent_at
             END
-        WHERE id = ? AND status = 'missing'
+        WHERE id = ? AND status IN ('missing', 'locked')
     `, [markEscalationSent ? 1 : 0, id]);
 };
 
@@ -542,18 +544,28 @@ DailyCollection.getReportById = async ({ id, userId, isAdmin }) => {
             r.*,
             s.store_name,
             s.store_code,
-            COALESCE(NULLIF(TRIM(mu.name), ''), NULLIF(TRIM(s.manager_name), '')) AS manager_name,
+            mu.name AS manager_name,
             u.name AS submitted_by_name,
             au.name AS approved_by_name
         FROM daily_collection_reports r
         INNER JOIN stores s ON s.id = r.store_id
         LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
-        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active'
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' AND mu.is_admin = 0
         LEFT JOIN users u ON u.id = r.submitted_by
         LEFT JOIN users au ON au.id = r.approved_by
         WHERE r.id = ? ${scope}
         LIMIT 1
     `, params);
+    return rows[0] || null;
+};
+
+DailyCollection.getReportIdentity = async (reportId) => {
+    const rows = await db.query(`
+        SELECT id, store_id, report_date, status
+        FROM daily_collection_reports
+        WHERE id = ?
+        LIMIT 1
+    `, [Number(reportId)]);
     return rows[0] || null;
 };
 
@@ -640,12 +652,32 @@ DailyCollection.deleteAllReports = async () => {
 };
 
 DailyCollection.unblock = async (controlId, adminId) => {
+    const controls = await db.query(`
+        SELECT store_id, report_date
+        FROM daily_collection_access_controls
+        WHERE id = ? AND unblocked_at IS NULL
+        LIMIT 1
+    `, [Number(controlId)]);
+    const control = controls[0];
+    if (!control) return false;
+
     const result = await db.query(`
         UPDATE daily_collection_access_controls
         SET unblocked_at = NOW(), unblocked_by = ?
-        WHERE id = ? AND unblocked_at IS NULL
-    `, [adminId, controlId]);
-    return result.affectedRows > 0;
+        WHERE store_id = ? AND report_date = ? AND unblocked_at IS NULL
+    `, [adminId, control.store_id, control.report_date]);
+
+    // Restoring access reopens the missing report so the manager can submit it.
+    await db.query(`
+        UPDATE daily_collection_reports
+        SET status = CASE WHEN status = 'locked' THEN 'missing' ELSE status END,
+            blocked_at = NULL,
+            escalation_claimed_at = NULL,
+            escalation_sent_at = NULL
+        WHERE store_id = ? AND report_date = ? AND status <> 'submitted'
+    `, [control.store_id, control.report_date]);
+
+    return Number(result.affectedRows || 0) > 0;
 };
 
 module.exports = DailyCollection;

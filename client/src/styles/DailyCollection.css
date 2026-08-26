@@ -129,3 +129,17 @@
   .daily-card-footer { flex-direction:column; align-items:stretch; }
   .daily-submit-button { width:100%; }
 }
+
+.daily-admin-controls { margin-top: 28px; }
+.daily-manual-block-actions .daily-block-button,
+.daily-manual-block-actions .daily-unblock-button { min-width: 150px; justify-content: center; }
+.daily-manual-block-actions .daily-block-button { background: #f04438; color: #fff; }
+.daily-manual-block-actions .daily-unblock-button { background: #12b76a; color: #fff; }
+.daily-access-state { margin-top: 12px; display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:12px; border:1px solid; }
+.daily-access-state > svg { font-size:20px; flex:0 0 auto; }
+.daily-access-state > div { display:flex; flex-direction:column; gap:3px; }
+.daily-access-state strong { font-size:13px; }
+.daily-access-state span { font-size:12px; color:#667085; }
+.daily-access-state.available { background:#ecfdf3; border-color:#abefc6; color:#087443; }
+.daily-access-state.blocked { background:#fff1f0; border-color:#fecdca; color:#b42318; }
+@media(max-width:800px){.daily-manual-block-actions .daily-block-button,.daily-manual-block-actions .daily-unblock-button{width:100%;}}
