@@ -90,3 +90,42 @@
 .blocked-row .unblock-access { background:#d1fadf; color:#087443; }
 .blocked-row button:disabled { opacity:.55; cursor:not-allowed; }
 @media (max-width:800px){ .blocked-row .block-access, .blocked-row .unblock-access { width:100%; justify-content:center; } }
+
+
+/* Daily Collection entry cards */
+.daily-report-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:20px; }
+.daily-collection-card { background:#fff; border:1px solid #e3e9f0; border-radius:18px; padding:18px; box-shadow:0 8px 24px rgba(15,23,42,.06); }
+.daily-card-header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+.daily-card-header small { color:#667085; font-size:11px; font-weight:800; letter-spacing:.08em; }
+.daily-card-header h2 { margin:4px 0 3px; color:#172033; font-size:20px; }
+.daily-card-header p { margin:0; color:#667085; font-size:13px; }
+.daily-card-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.daily-card-actions button { border:0; border-radius:9px; padding:9px 12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.daily-card-actions .action-view { background:#ffd21f; color:#172033; }
+.daily-card-actions .action-delete { background:#f04438; color:#fff; }
+.daily-card-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:16px 0; }
+.daily-card-summary > div { background:#f8fafc; border:1px solid #e7edf3; border-radius:10px; padding:10px; }
+.daily-card-summary span { display:block; color:#667085; font-size:10px; font-weight:700; margin-bottom:4px; }
+.daily-card-summary strong { color:#172033; font-size:14px; }
+.daily-payment-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.daily-payment-grid label, .daily-notes-field { display:flex; flex-direction:column; gap:6px; }
+.daily-payment-grid label > span, .daily-notes-field > span { color:#344054; font-size:12px; font-weight:700; }
+.daily-payment-grid input, .daily-notes-field textarea { width:100%; box-sizing:border-box; border:1px solid #d7dee7; border-radius:10px; padding:11px 12px; background:#fff; color:#172033; outline:none; }
+.daily-payment-grid input:focus, .daily-notes-field textarea:focus { border-color:#667085; box-shadow:0 0 0 3px rgba(102,112,133,.10); }
+.daily-payment-grid input:disabled, .daily-notes-field textarea:disabled { background:#f2f4f7; color:#667085; cursor:not-allowed; }
+.daily-notes-field { margin-top:12px; }
+.daily-notes-field textarea { min-height:72px; resize:vertical; font:inherit; }
+.daily-card-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:14px; padding-top:14px; border-top:1px solid #edf0f4; }
+.daily-card-footer > span { color:#667085; font-size:12px; }
+.daily-submit-button { border:0; border-radius:10px; padding:11px 16px; background:#172033; color:#fff; font-weight:800; cursor:pointer; white-space:nowrap; }
+.daily-submit-button:hover { filter:brightness(1.08); }
+.daily-submit-button:disabled { opacity:.5; cursor:not-allowed; }
+@media (max-width:1100px) { .daily-report-cards { grid-template-columns:1fr; } }
+@media (max-width:700px) {
+  .daily-card-header { flex-direction:column; }
+  .daily-card-actions { justify-content:flex-start; }
+  .daily-card-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .daily-payment-grid { grid-template-columns:1fr; }
+  .daily-card-footer { flex-direction:column; align-items:stretch; }
+  .daily-submit-button { width:100%; }
+}

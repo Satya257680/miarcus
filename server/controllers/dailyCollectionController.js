@@ -164,13 +164,15 @@ const getDailyCollection = async (req, res) => {
 
 const getDailyCollectionStores = async (req, res) => {
     try {
+        // Administrators can enter any active store. Non-admin users only
+        // receive stores for which they are the explicitly assigned manager.
         const stores = isAdmin(req)
             ? await DailyCollection.getStores()
-            : await DailyCollection.getStoreScopeForUser(actorId(req));
+            : await DailyCollection.getEntryStoresForUser(actorId(req));
         res.json({ success: true, stores });
     } catch (error) {
         console.error("Daily collection stores error:", error);
-        res.status(500).json({ success: false, message: "Unable to load stores." });
+        res.status(500).json({ success: false, message: "Unable to load Daily Collection entry stores." });
     }
 };
 
@@ -209,9 +211,14 @@ const submitDailyCollection = async (req, res) => {
         }
 
         if (!isAdmin(req)) {
-            const scope = await DailyCollection.getStoreScopeForUser(userId);
-            if (!scope.some((store) => Number(store.id) === storeId)) {
-                return res.status(403).json({ success: false, message: "You are not assigned to this store." });
+            // Submission is stricter than general Daily Collection/report
+            // visibility: only the explicitly linked store manager may submit.
+            const managerStores = await DailyCollection.getEntryStoresForUser(userId);
+            if (!managerStores.some((store) => Number(store.id) === storeId)) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Only the assigned store manager can submit this Daily Collection."
+                });
             }
         }
 

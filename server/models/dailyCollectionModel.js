@@ -218,6 +218,28 @@ DailyCollection.getStoreScopeForUser = async (userId) => {
     `, [userId]);
 };
 
+DailyCollection.getEntryStoresForUser = async (userId) => {
+    // Daily Entry is intentionally restricted to stores where this user is
+    // the explicitly assigned store manager. This keeps the entry screen
+    // separate from the broader user_stores/report visibility scope.
+    return db.query(`
+        SELECT
+            s.id,
+            s.store_name,
+            s.store_code,
+            s.email,
+            s.manager_name,
+            m.user_id AS manager_id
+        FROM chat_store_managers m
+        INNER JOIN stores s ON s.id = m.store_id
+        INNER JOIN users u ON u.id = m.user_id
+        WHERE m.user_id = ?
+          AND u.status = 'Active'
+          AND s.status = 'Active'
+        ORDER BY s.store_name ASC
+    `, [userId]);
+};
+
 DailyCollection.getActiveStore = async (storeId) => {
     const rows = await db.query(`
         SELECT id, store_name, store_code
