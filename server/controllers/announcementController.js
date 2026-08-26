@@ -1,17 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const jwt = require("jsonwebtoken");
 const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
 const { sendGenericEmail } = require("../services/emailService");
 const Notification = require("../services/notificationService");
 const { UPLOAD_DIR } = require("../config/storage");
-const {
-    JWT_SECRET,
-    JWT_ALGORITHM,
-    FILE_TOKEN_TTL
-} = require("../config/security");
 
 const escapeHtml = (value = "") =>
     String(value)
@@ -21,14 +15,54 @@ const escapeHtml = (value = "") =>
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 
-const sendAnnouncementEmail = async (recipient) => {
-    const appUrl = String(
-        process.env.PUBLIC_APP_URL ||
-        "https://rytual-peach.vercel.app"
-    ).trim().replace(/\/+$/, "");
+const getAttachmentContentType = (fileName = "") => {
+    const ext = path.extname(fileName).toLowerCase();
+    const map = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".pdf": "application/pdf",
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xls": "application/vnd.ms-excel",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".csv": "text/csv",
+        ".txt": "text/plain"
+    };
+    return map[ext] || "application/octet-stream";
+};
 
-    const announcementUrl =
-        `${appUrl}/announcements`;
+const resolveAnnouncementAttachment = (attachmentPath) => {
+    if (!attachmentPath) return null;
+
+    const fileName = path.basename(String(attachmentPath));
+    const candidate = path.resolve(UPLOAD_DIR, fileName);
+
+    if (!fs.existsSync(candidate)) {
+        return null;
+    }
+
+    return candidate;
+};
+
+const sendAnnouncementEmail = async (recipient) => {
+    const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const attachmentName = recipient.attachment_original_name ||
+        (recipient.attachment_path ? path.basename(recipient.attachment_path) : "");
+    const attachmentUrl = recipient.attachment_path
+        ? `${baseUrl}/uploads/${encodeURIComponent(path.basename(recipient.attachment_path))}`
+        : null;
+
+    const attachmentFile = resolveAnnouncementAttachment(recipient.attachment_path);
+    const attachments = attachmentFile
+        ? [{
+            filename: attachmentName || path.basename(attachmentFile),
+            content: fs.readFileSync(attachmentFile),
+            contentType: getAttachmentContentType(attachmentName || attachmentFile)
+        }]
+        : [];
 
     return sendGenericEmail({
         to: recipient.email,
@@ -37,246 +71,13 @@ const sendAnnouncementEmail = async (recipient) => {
             <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto">
                 <h2>${escapeHtml(recipient.title)}</h2>
                 <div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(recipient.content || "")}</div>
-                ${recipient.attachment_original_name
-                    ? `<p><a href="${announcementUrl}">Open announcement and attachment</a></p>`
-                    : ""}
+                ${attachmentUrl ? `<p><a href="${attachmentUrl}">Open attachment online</a></p>` : ""}
+                ${attachmentName ? `<p style="color:#555;font-size:13px">Attachment: <strong>${escapeHtml(attachmentName)}</strong></p>` : ""}
                 <p style="color:#777;font-size:12px">Sent from MIARCUS</p>
             </div>
-        `
+        `,
+        attachments
     });
-};
-
-const createAnnouncementAttachmentToken = (announcementId, userId) =>
-    jwt.sign(
-        {
-            type: "announcement-attachment",
-            announcementId: Number(announcementId),
-            userId: Number(userId)
-        },
-        JWT_SECRET,
-        {
-            algorithm: JWT_ALGORITHM,
-            expiresIn: FILE_TOKEN_TTL
-        }
-    );
-
-const verifyAnnouncementAttachmentToken = (token, announcementId) => {
-    const claims = jwt.verify(
-        String(token || ""),
-        JWT_SECRET,
-        { algorithms: [JWT_ALGORITHM] }
-    );
-
-    if (
-        claims?.type !== "announcement-attachment" ||
-        Number(claims.announcementId) !== Number(announcementId) ||
-        !Number.isInteger(Number(claims.userId))
-    ) {
-        throw new Error("Invalid announcement attachment token");
-    }
-
-    return claims;
-};
-
-const getAnnouncementAttachmentToken = (req, res) => {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid announcement id"
-        });
-    }
-
-    Announcement.userCanViewAttachment(
-        id,
-        req.user.id,
-        (accessErr, announcement) => {
-            if (accessErr) {
-                console.error(
-                    "Announcement attachment access:",
-                    accessErr
-                );
-                return res.status(500).json({
-                    success: false,
-                    message: "Unable to authorize attachment"
-                });
-            }
-
-            if (!announcement) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Announcement attachment not found"
-                });
-            }
-
-            return res.json({
-                success: true,
-                token: createAnnouncementAttachmentToken(
-                    id,
-                    req.user.id
-                )
-            });
-        }
-    );
-};
-
-const getAnnouncementAttachment = (req, res) => {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid announcement id"
-        });
-    }
-
-    let claims;
-
-    try {
-        claims = verifyAnnouncementAttachmentToken(
-            req.query.token,
-            id
-        );
-    } catch (_) {
-        return res.status(401).json({
-            success: false,
-            message: "Invalid or expired attachment token"
-        });
-    }
-
-    Announcement.userCanViewAttachment(
-        id,
-        claims.userId,
-        (accessErr, announcement) => {
-            if (accessErr) {
-                console.error(
-                    "Announcement attachment authorization:",
-                    accessErr
-                );
-                return res.status(500).json({
-                    success: false,
-                    message: "Unable to authorize attachment"
-                });
-            }
-
-            if (!announcement) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Attachment access denied"
-                });
-            }
-
-            Announcement.getAttachment(
-                id,
-                (attachmentErr, row) => {
-                    if (attachmentErr) {
-                        console.error(
-                            "Announcement attachment load:",
-                            attachmentErr
-                        );
-                        return res.status(500).json({
-                            success: false,
-                            message: "Unable to load attachment"
-                        });
-                    }
-
-                    if (!row) {
-                        return res.status(404).json({
-                            success: false,
-                            message: "Attachment not found"
-                        });
-                    }
-
-                    let buffer = row.attachment_data;
-
-                    // Backward-compatible fallback for an attachment that
-                    // has not yet been migrated from the old disk storage.
-                    if (
-                        (!buffer || !buffer.length) &&
-                        row.attachment_path
-                    ) {
-                        const filename = path.basename(
-                            String(row.attachment_path)
-                        );
-                        const filePath = path.resolve(
-                            UPLOAD_DIR,
-                            filename
-                        );
-
-                        try {
-                            buffer = fs.readFileSync(filePath);
-                        } catch (_) {
-                            buffer = null;
-                        }
-                    }
-
-                    if (!buffer || !buffer.length) {
-                        return res.status(404).json({
-                            success: false,
-                            message: "Attachment file is no longer available"
-                        });
-                    }
-
-                    const mimeType =
-                        row.attachment_mime_type ||
-                        "application/octet-stream";
-
-                    const originalName =
-                        String(
-                            row.attachment_original_name ||
-                            "attachment"
-                        )
-                            .replace(/[/\\\\?%*:|"<>]/g, "_")
-                            .slice(0, 180);
-
-                    const disposition =
-                        String(req.query.download || "") === "1"
-                            ? "attachment"
-                            : "inline";
-
-                    res.setHeader(
-                        "Content-Type",
-                        mimeType
-                    );
-                    res.setHeader(
-                        "Content-Length",
-                        String(buffer.length)
-                    );
-                    res.setHeader(
-                        "Content-Disposition",
-                        `${disposition}; filename="${originalName}"`
-                    );
-
-                    // The frontend loads this endpoint through the Vercel
-                    // /api rewrite, so SAMEORIGIN keeps PDF iframes protected
-                    // without using the insecure public upload directory.
-                    res.setHeader(
-                        "X-Frame-Options",
-                        "SAMEORIGIN"
-                    );
-                    res.setHeader(
-                        "Content-Security-Policy",
-                        "default-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
-                    );
-                    res.setHeader(
-                        "Cross-Origin-Resource-Policy",
-                        "same-origin"
-                    );
-                    res.setHeader(
-                        "X-Content-Type-Options",
-                        "nosniff"
-                    );
-                    res.setHeader(
-                        "Cache-Control",
-                        "private, no-store, max-age=0"
-                    );
-
-                    return res.send(buffer);
-                }
-            );
-        }
-    );
 };
 
 const getAnnouncements = (req, res) => {
@@ -341,11 +142,7 @@ const createAnnouncement = (req, res) => {
                 isPinned,
                 createdBy: req.user.id,
                 attachmentOriginalName: req.file?.originalname,
-                attachmentPath: req.file?.filename,
-                attachmentData: req.file
-                    ? fs.readFileSync(req.file.path)
-                    : null,
-                attachmentMimeType: req.file?.mimetype || null
+                attachmentPath: req.file?.filename
             }, (createErr, result) => {
                 if (createErr) {
                     console.error(createErr);
@@ -534,14 +331,7 @@ const updateAnnouncement = (req, res) => {
                 audience,
                 isPinned,
                 attachmentOriginalName: newAttachmentName,
-                attachmentPath: newAttachmentPath,
-                attachmentChanged: Boolean(req.file) || removeAttachment,
-                attachmentData: req.file
-                    ? fs.readFileSync(req.file.path)
-                    : (removeAttachment ? null : undefined),
-                attachmentMimeType: req.file
-                    ? req.file.mimetype
-                    : (removeAttachment ? null : undefined)
+                attachmentPath: newAttachmentPath
             }, (updateErr) => {
                 if (updateErr) {
                     if (req.file?.path) fs.unlink(req.file.path, () => {});
@@ -556,7 +346,7 @@ const updateAnnouncement = (req, res) => {
                         oldAttachment !== newAttachmentPath
                     ) {
                         fs.unlink(
-                            path.join(UPLOAD_DIR, path.basename(oldAttachment)),
+                            path.join(process.cwd(), "uploads", path.basename(oldAttachment)),
                             () => {}
                         );
                     }
@@ -900,7 +690,7 @@ const deleteAllAnnouncements = (req, res) => {
 
             for (const row of rows || []) {
                 if (!row.attachment_path) continue;
-                fs.unlink(path.join(UPLOAD_DIR, path.basename(row.attachment_path)), () => {});
+                fs.unlink(path.join(process.cwd(), "uploads", path.basename(row.attachment_path)), () => {});
             }
 
             return res.json({ success: true, message: "All announcements deleted successfully" });
@@ -911,8 +701,6 @@ const deleteAllAnnouncements = (req, res) => {
 module.exports = {
     getAnnouncements,
     getUsers,
-    getAnnouncementAttachmentToken,
-    getAnnouncementAttachment,
     createAnnouncement,
     updateAnnouncement,
     getRecipientUsers,

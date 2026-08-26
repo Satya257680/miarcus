@@ -145,131 +145,97 @@ function createMimeMessage({
 
     html,
 
-    text
+    text,
+
+    attachments = []
 
 }) {
 
+    const safeAttachments = Array.isArray(attachments)
+        ? attachments.filter(item => item && item.content)
+        : [];
+
     const lines = [];
 
-    lines.push(
-        `From: ${from}`
-    );
-
-    lines.push(
-        `To: ${to}`
-    );
-
-    lines.push(
-        `Subject: ${encodeHeader(subject)}`
-    );
-
-    lines.push(
-        "MIME-Version: 1.0"
-    );
+    lines.push(`From: ${from}`);
+    lines.push(`To: ${to}`);
+    lines.push(`Subject: ${encodeHeader(subject)}`);
+    lines.push('MIME-Version: 1.0');
 
     // ------------------------------------------------------
-    // HTML + TEXT
+    // BODY BUILDER
     // ------------------------------------------------------
+    const bodyParts = [];
 
     if (html && text) {
-
-        const boundary =
-            "----=_MiarcusBoundary_" +
-            Date.now();
-
-        lines.push(
-            `Content-Type: multipart/alternative; boundary="${boundary}"`
-        );
-
-        lines.push("");
-
-        // TEXT PART
-
-        lines.push(
-            `--${boundary}`
-        );
-
-        lines.push(
-            "Content-Type: text/plain; charset=UTF-8"
-        );
-
-        lines.push(
-            "Content-Transfer-Encoding: 8bit"
-        );
-
-        lines.push("");
-
-        lines.push(text);
-
-        lines.push("");
-
-        // HTML PART
-
-        lines.push(
-            `--${boundary}`
-        );
-
-        lines.push(
-            "Content-Type: text/html; charset=UTF-8"
-        );
-
-        lines.push(
-            "Content-Transfer-Encoding: 8bit"
-        );
-
-        lines.push("");
-
-        lines.push(html);
-
-        lines.push("");
-
-        lines.push(
-            `--${boundary}--`
-        );
-
+        const boundary = '----=_MiarcusAlternative_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+        bodyParts.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+        bodyParts.push('');
+        bodyParts.push(`--${boundary}`);
+        bodyParts.push('Content-Type: text/plain; charset=UTF-8');
+        bodyParts.push('Content-Transfer-Encoding: 8bit');
+        bodyParts.push('');
+        bodyParts.push(text);
+        bodyParts.push('');
+        bodyParts.push(`--${boundary}`);
+        bodyParts.push('Content-Type: text/html; charset=UTF-8');
+        bodyParts.push('Content-Transfer-Encoding: 8bit');
+        bodyParts.push('');
+        bodyParts.push(html);
+        bodyParts.push('');
+        bodyParts.push(`--${boundary}--`);
+    } else if (html) {
+        bodyParts.push('Content-Type: text/html; charset=UTF-8');
+        bodyParts.push('Content-Transfer-Encoding: 8bit');
+        bodyParts.push('');
+        bodyParts.push(html);
+    } else {
+        bodyParts.push('Content-Type: text/plain; charset=UTF-8');
+        bodyParts.push('Content-Transfer-Encoding: 8bit');
+        bodyParts.push('');
+        bodyParts.push(text || '');
     }
 
     // ------------------------------------------------------
-    // HTML ONLY
+    // NO ATTACHMENTS
     // ------------------------------------------------------
-
-    else if (html) {
-
-        lines.push(
-            "Content-Type: text/html; charset=UTF-8"
-        );
-
-        lines.push(
-            "Content-Transfer-Encoding: 8bit"
-        );
-
-        lines.push("");
-
-        lines.push(html);
-
+    if (!safeAttachments.length) {
+        lines.push(...bodyParts);
+        return lines.join('\r\n');
     }
 
     // ------------------------------------------------------
-    // TEXT ONLY
+    // MULTIPART/MIXED WITH REAL EMAIL ATTACHMENTS
     // ------------------------------------------------------
+    const mixedBoundary = '----=_MiarcusMixed_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+    lines.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`);
+    lines.push('');
+    lines.push(`--${mixedBoundary}`);
+    lines.push(...bodyParts);
 
-    else {
+    for (const attachment of safeAttachments) {
+        const filename = String(attachment.filename || 'attachment').replace(/[\r\n"\\]/g, '_');
+        const contentType = String(attachment.contentType || 'application/octet-stream').replace(/[\r\n;]/g, '');
+        const buffer = Buffer.isBuffer(attachment.content)
+            ? attachment.content
+            : Buffer.from(attachment.content);
+        const base64 = buffer.toString('base64');
 
-        lines.push(
-            "Content-Type: text/plain; charset=UTF-8"
-        );
-
-        lines.push(
-            "Content-Transfer-Encoding: 8bit"
-        );
-
-        lines.push("");
-
-        lines.push(text);
-
+        lines.push('');
+        lines.push(`--${mixedBoundary}`);
+        lines.push(`Content-Type: ${contentType}; name="${filename}"`);
+        lines.push('Content-Transfer-Encoding: base64');
+        lines.push(`Content-Disposition: attachment; filename="${filename}"`);
+        lines.push('');
+        for (let i = 0; i < base64.length; i += 76) {
+            lines.push(base64.slice(i, i + 76));
+        }
     }
 
-    return lines.join("\r\n");
+    lines.push('');
+    lines.push(`--${mixedBoundary}--`);
+
+    return lines.join('\r\n');
 
 }
 
@@ -516,7 +482,9 @@ const sendMail = async (mailOptions = {}) => {
 
         html: mailOptions.html,
 
-        text: mailOptions.text
+        text: mailOptions.text,
+
+        attachments: mailOptions.attachments
 
     });
 

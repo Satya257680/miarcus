@@ -203,7 +203,7 @@ const Gallery = {
             (file_name, file_path, mime_type, file_size, file_data, uploaded_by, category, description,
              location_type, store_id, latitude, longitude, location_accuracy,
              source_module, source_record_id, source_field)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             data.file_name,
             data.file_path,
