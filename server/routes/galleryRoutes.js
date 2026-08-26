@@ -19,12 +19,8 @@ router.post(
 
 router.use(authMiddleware);
 
-router.get(
-    "/",
-    permissionMiddleware("Gallery", "View"),
-    controller.getAll
-);
-
+// Keep metadata endpoints ahead of the collection endpoint so they remain
+// explicit and easy to diagnose in production.
 router.get(
     "/categories",
     permissionMiddleware("Gallery", "View"),
@@ -35,6 +31,12 @@ router.get(
     "/locations",
     permissionMiddleware("Gallery", "View"),
     controller.getLocations
+);
+
+router.get(
+    "/",
+    permissionMiddleware("Gallery", "View"),
+    controller.getAll
 );
 
 router.post(

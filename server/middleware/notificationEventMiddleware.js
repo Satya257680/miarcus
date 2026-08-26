@@ -51,11 +51,17 @@ const moduleMap = [
     ["users", "Users", "/settings/users"],
     ["reports-to", "Reports To", "/settings/reports-to"],
     ["announcements", "Announcements", "/announcements"],
-    ["gallery", "Gallery", "/gallery"],
     ["new-store-openings", "New Store Openings", "/new-store-openings"],
     ["nso-rules", "NSO Rules", "/nso-rules"],
     ["nso-tracking", "NSO Tracking", "/nso-tracking"],
     ["expenses", "Expenses", "/expenses"],
+    ["petty-cash", "Petty Cash", "/petty-cash"],
+    ["asset-master", "Asset Master", "/asset-master"],
+    ["attendance", "Attendance", "/attendance"],
+    ["collection-tracking", "Collection Tracking", "/collection-tracking"],
+    ["travel-plan", "Travel Plan", "/travel-plan"],
+    ["sales-team", "Sales Team", "/sales-team"],
+    ["gallery", "Gallery", "/gallery"],
     ["quiz", "Quiz", "/quiz/report"]
 ];
 
@@ -338,6 +344,10 @@ function install(app) {
             if (handled || res.statusCode < 200 || res.statusCode >= 300) return;
             handled = true;
 
+            // Attachment-aware routes create their own audience-scoped
+            // notification after the file is safely registered in Gallery.
+            if (req._galleryAttachmentSync) return;
+
             try {
                 const actorId = getActorId(req);
                 const [moduleName, label, link] = getModule(path);
@@ -359,7 +369,6 @@ function install(app) {
                     const rows = await db.query(`
                         SELECT DISTINCT u.id
                         FROM users u
-                        INNER JOIN user_permissions p ON p.user_id = u.id
                         WHERE u.status = 'Active'
                           AND (
                               u.is_admin = 1
@@ -385,8 +394,8 @@ function install(app) {
 
                 if (isGalleryMutation && action === "Created") {
                     const uploaderName = responsePayload?.uploader_name || "An employee";
-                    title = "New Gallery Photo";
-                    message = `${uploaderName} uploaded a new photo to Gallery.`;
+                    title = "New Gallery File";
+                    message = `${uploaderName} uploaded a new file to Gallery.`;
                 }
 
                 if (isPublicQuizSubmit) {

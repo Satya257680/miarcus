@@ -40,8 +40,51 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
 
     useEffect(() => {
         load(true);
+
+        // Use the backend SSE notification stream for immediate updates.
+        // Polling remains as a reliable fallback for reconnects/proxies.
+        const token = localStorage.getItem("token");
+        const apiOrigin = String(axios.defaults.baseURL || "").replace(/\/+$/, "");
+        let stream = null;
+        let reconnectTimer = null;
+
+        const connect = () => {
+            if (!token || !apiOrigin || typeof window.EventSource === "undefined") return;
+            try {
+                stream = new EventSource(`${apiOrigin}/api/notifications/stream?token=${encodeURIComponent(token)}`);
+                stream.addEventListener("notification", (event) => {
+                    try {
+                        const incoming = JSON.parse(event.data || "{}");
+                        if (!incoming?.id) return;
+                        setItems((current) => [incoming, ...current.filter((item) => idOf(item) !== idOf(incoming))].slice(0, 100));
+                        setUnread((value) => value + (isRead(incoming) ? 0 : 1));
+                    } catch (error) {
+                        console.error("Notification stream payload failed:", error);
+                    }
+                });
+                stream.onerror = () => {
+                    stream?.close();
+                    stream = null;
+                    if (!reconnectTimer) {
+                        reconnectTimer = window.setTimeout(() => {
+                            reconnectTimer = null;
+                            connect();
+                        }, 5000);
+                    }
+                };
+            } catch (error) {
+                console.error("Notification stream connection failed:", error);
+            }
+        };
+
+        connect();
         const timer = window.setInterval(() => load(true), Math.max(10000, refreshMs));
-        return () => window.clearInterval(timer);
+
+        return () => {
+            window.clearInterval(timer);
+            if (reconnectTimer) window.clearTimeout(reconnectTimer);
+            stream?.close();
+        };
     }, [refreshMs]);
 
     useEffect(() => {

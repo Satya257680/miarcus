@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const { UPLOAD_DIR } = require("../config/storage");
 const Gallery = require("../models/galleryModel");
 const Notification = require("../services/notificationService");
 const db = require("../config/db");
@@ -60,6 +62,7 @@ const getModuleLink = (moduleName) => {
         "Expenses": "/expenses",
         "Petty Cash": "/petty-cash",
         "Asset Master": "/asset-master",
+        "Attendance": "/attendance",
         "Collection Tracking": "/collection-tracking",
         "Travel Plan": "/travel-plan"
     };
@@ -75,6 +78,7 @@ const MODULE_PERMISSION_ALIASES = {
     "Expenses": ["Expenses"],
     "Petty Cash": ["Petty Cash"],
     "Asset Master": ["Asset Master"],
+    "Attendance": ["Attendance"],
     "Activity Center": ["Activity Center"],
     "Collection Tracking": ["Collection Tracking"],
     "Travel Plan": ["Travel Plan", "Visit Planner", "Sales Team"]
@@ -132,6 +136,23 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
 
         if (!files.length) return next();
 
+        // Snapshot the upload before the controller runs. Some controllers
+        // move/delete their temporary upload after saving the business record.
+        // Keeping the bytes here makes Gallery synchronization reliable for
+        // both diskStorage and memoryStorage multer configurations.
+        const attachmentSnapshots = files.map((file) => {
+            let buffer = null;
+            if (Buffer.isBuffer(file?.buffer)) buffer = file.buffer;
+            else if (file?.path && fs.existsSync(file.path)) buffer = fs.readFileSync(file.path);
+            return { file, buffer };
+        }).filter((item) => item.buffer && item.buffer.length);
+
+        if (!attachmentSnapshots.length) return next();
+
+        // The attachment sync owns the notification for this mutation.
+        // This prevents the generic event bridge from creating a duplicate.
+        req._galleryAttachmentSync = { moduleName, fieldName };
+
         let responsePayload = null;
         const originalJson = res.json.bind(res);
 
@@ -146,11 +167,23 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
             void (async () => {
                 const recordId = getRecordId(responsePayload, req);
 
-                for (const file of files) {
-                    if (!file?.path || !fs.existsSync(file.path)) continue;
-
+                for (const { file, buffer } of attachmentSnapshots) {
                     try {
-                        const buffer = fs.readFileSync(file.path);
+                        const extension = path.extname(file.originalname || file.filename || "").toLowerCase();
+                        const now = new Date();
+                        const galleryDir = path.join(
+                            UPLOAD_DIR,
+                            "gallery",
+                            String(now.getFullYear()),
+                            String(now.getMonth() + 1).padStart(2, "0"),
+                            String(now.getDate()).padStart(2, "0")
+                        );
+                        fs.mkdirSync(galleryDir, { recursive: true });
+
+                        const galleryFileName = `${Date.now()}-${crypto.randomBytes(12).toString("hex")}${extension}`;
+                        const galleryAbsolutePath = path.join(galleryDir, galleryFileName);
+                        fs.writeFileSync(galleryAbsolutePath, buffer);
+
                         const storeIdValue = req.body?.store_id ?? req.body?.storeId;
                         const storeId = Number.isInteger(Number(storeIdValue)) && Number(storeIdValue) > 0
                             ? Number(storeIdValue)
@@ -161,9 +194,9 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                         const accuracy = toNumberOrNull(req.body?.location_accuracy, 0, 100000);
 
                         const galleryId = await Gallery.registerAttachment({
-                            file_name: file.originalname || file.filename,
-                            file_path: path.relative(process.cwd(), file.path).replace(/\\/g, "/"),
-                            mime_type: file.mimetype,
+                            file_name: file.originalname || file.filename || galleryFileName,
+                            file_path: path.relative(process.cwd(), galleryAbsolutePath).replace(/\\/g, "/"),
+                            mime_type: file.mimetype || "application/octet-stream",
                             file_size: buffer.length,
                             file_data: buffer,
                             uploaded_by: req.user?.id,
@@ -182,7 +215,7 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                         await notifyAttachment({
                             moduleName,
                             recordId: recordId || galleryId,
-                            fileName: file.originalname || file.filename,
+                            fileName: file.originalname || file.filename || galleryFileName,
                             actorId: req.user?.id
                         });
                     } catch (error) {

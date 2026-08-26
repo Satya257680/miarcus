@@ -17,6 +17,10 @@ const permissionMiddleware = require(
     "../middleware/permissionMiddleware"
 );
 
+const syncGalleryAttachment = require(
+    "../middleware/galleryAttachmentSync"
+);
+
 // ======================================================
 // CONTROLLER
 // ======================================================
@@ -143,6 +147,7 @@ router.get(
 router.post(
     "/check-in",
     upload.single("photo"),
+    syncGalleryAttachment("Attendance", "photo"),
     controller.checkIn
 );
 
@@ -157,6 +162,7 @@ router.post(
 router.post(
     "/check-out",
     upload.single("photo"),
+    syncGalleryAttachment("Attendance", "photo"),
     controller.checkOut
 );
 
