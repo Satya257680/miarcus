@@ -344,9 +344,10 @@ function install(app) {
             if (handled || res.statusCode < 200 || res.statusCode >= 300) return;
             handled = true;
 
-            // Attachment-aware routes create their own audience-scoped
-            // notification after the file is safely registered in Gallery.
-            if (req._galleryAttachmentSync) return;
+            // Attachment-aware routes and direct Gallery uploads create their
+            // own audience-scoped notification after the file is safely
+            // registered. Never create a duplicate generic event.
+            if (req._galleryAttachmentSync || req._galleryNotificationCreated) return;
 
             try {
                 const actorId = getActorId(req);

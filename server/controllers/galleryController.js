@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const Gallery = require("../models/galleryModel");
+const db = require("../config/db");
+const notificationService = require("../services/notificationService");
 
 const publicFilePath = (filePath) => {
     const normalized = String(filePath || "").replace(/\\/g, "/");
@@ -63,6 +65,72 @@ const serialize = (row) => ({
     source_field: row.source_field || null,
     uploaded_at: row.uploaded_at
 });
+
+const notifyGalleryUpload = async ({ req, photoId, fileName, count = 1 }) => {
+    const actorId = Number(req.user?.id || 0);
+    if (!Number.isInteger(actorId) || actorId <= 0) return;
+
+    // Always notify the uploader. This is deliberately independent of the
+    // permission lookup so a permission-table/query problem can never make a
+    // successful Gallery upload appear to have produced no notification.
+    const recipients = new Set([actorId]);
+
+    try {
+        const rows = await db.query(`
+            SELECT DISTINCT u.id
+            FROM users u
+            LEFT JOIN user_permissions p
+              ON p.user_id = u.id
+             AND LOWER(p.module_name) = LOWER('Gallery')
+            WHERE LOWER(COALESCE(u.status, 'active')) = 'active'
+              AND (
+                  u.id = ?
+                  OR COALESCE(u.is_admin, 0) = 1
+                  OR p.permission IN ('View', 'Add', 'Edit', 'Full')
+              )
+            ORDER BY u.id ASC
+        `, [actorId]);
+
+        for (const row of rows || []) {
+            const id = Number(row.id);
+            if (Number.isInteger(id) && id > 0) recipients.add(id);
+        }
+    } catch (error) {
+        // Do not lose the uploader notification because the optional audience
+        // expansion query failed. The actor still receives the event below.
+        console.error("Gallery notification audience lookup failed:", error.message);
+    }
+
+    const isBulk = Number(count) > 1;
+    const title = isBulk ? "New Gallery Files" : "New Gallery File";
+    const message = isBulk
+        ? `${Number(count)} files were uploaded to Gallery.`
+        : `${fileName || "A file"} was uploaded to Gallery.`;
+
+    try {
+        const created = await notificationService.createForUsers(
+            [...recipients],
+            {
+                title,
+                message,
+                module_name: "Gallery",
+                action_name: isBulk ? "Bulk Upload" : "Upload",
+                entity_id: photoId || null,
+                link: "/gallery",
+                type: "info"
+            }
+        );
+
+        // Tell the global mutation bridge that Gallery already owns this
+        // notification. This prevents a second generic notification.
+        req._galleryNotificationCreated = true;
+        console.info(
+            `Gallery notification created: ${created.length} recipient(s), entity=${photoId || "bulk"}`
+        );
+    } catch (error) {
+        console.error("Gallery notification creation failed:", error.message);
+    }
+};
 
 const getFrontendOrigin = (req) => {
     const origin = String(req.get("origin") || "").replace(/\/$/, "");
@@ -164,6 +232,17 @@ const uploadPhoto = async (req, res) => {
         });
 
         const photo = await Gallery.getById(photoId);
+
+        // Create the persistent + SSE notification before returning success.
+        // The notification service is isolated from the upload transaction, so
+        // notification failures never invalidate an already-saved file.
+        await notifyGalleryUpload({
+            req,
+            photoId,
+            fileName: file.originalname || file.filename,
+            count: 1
+        });
+
         return res.status(201).json({
             success: true,
             id: photoId,
@@ -221,6 +300,13 @@ const bulkUploadPhotos = async (req, res) => {
             });
             createdIds.push(photoId);
         }
+
+        await notifyGalleryUpload({
+            req,
+            photoId: createdIds[0] || null,
+            fileName: files.length === 1 ? (files[0].originalname || files[0].filename) : null,
+            count: createdIds.length
+        });
 
         return res.status(201).json({
             success: true,
