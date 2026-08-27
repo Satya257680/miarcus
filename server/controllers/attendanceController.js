@@ -493,6 +493,8 @@ const checkOut = async (req, res) => {
         return res.json({
             success: true,
 
+            id: attendance?.id || existing.id,
+
             message:
                 "Attendance checked out successfully.",
 

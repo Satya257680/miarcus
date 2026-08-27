@@ -1,128 +1,77 @@
 const express = require("express");
-const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
-
 const router = express.Router();
 
 // ======================================================
 // MIDDLEWARE
 // ======================================================
 
-const authMiddleware = require(
-    "../middleware/authMiddleware"
-);
-
-const permissionMiddleware = require(
-    "../middleware/permissionMiddleware"
-);
-
-const syncGalleryAttachment = require(
-    "../middleware/galleryAttachmentSync"
-);
-
-// ======================================================
-// CONTROLLER
-// ======================================================
-
-const controller = require(
-    "../controllers/attendanceController"
-);
-
-// ======================================================
-// ATTENDANCE PHOTO UPLOAD DIRECTORY
-// ======================================================
-
-const { UPLOAD_DIR } = require("../config/storage");
-
-const uploadDir = path.join(
-    UPLOAD_DIR,
-    "attendance"
-);
-
-fs.mkdirSync(
-    uploadDir,
-    {
-        recursive: true
-    }
-);
-
-// ======================================================
-// MULTER STORAGE
-// ======================================================
-
-const storage = multer.diskStorage({
-
-    destination: (_req, _file, cb) => {
-        cb(
-            null,
-            uploadDir
-        );
-    },
-
-    filename: (_req, file, cb) => {
-
-        const ext =
-            path.extname(
-                file.originalname || ".jpg"
-            ).toLowerCase() || ".jpg";
-
-        const uniqueName =
-            `attendance-${Date.now()}-${Math.random()
-                .toString(36)
-                .slice(2, 9)}${ext}`;
-
-        cb(
-            null,
-            uniqueName
-        );
-    }
-});
-
-// ======================================================
-// MULTER UPLOAD CONFIGURATION
-// ======================================================
-
-const upload = multer({
-
-    storage,
-
-    limits: {
-        fileSize: 5 * 1024 * 1024
-    },
-
-    fileFilter: (_req, file, cb) => {
-
-        // ------------------------------------------------
-        // Only image files are accepted.
-        // ------------------------------------------------
-
-        if (
-            /^image\/(jpeg|png|webp)$/i.test(
-                file.mimetype
-            )
-        ) {
-            return cb(
-                null,
-                true
-            );
+// Attendance is loaded with lazy dependencies so a startup-time problem in
+// database/gallery/notification modules cannot silently prevent the entire
+// /api/attendance router from mounting and turn every report request into a
+// generic 404. Dependencies are loaded when the specific endpoint is used.
+const lazy = (loader) => (req, res, next) => {
+    try {
+        const middleware = loader();
+        if (typeof middleware !== "function") {
+            throw new Error("Attendance dependency did not return middleware");
         }
-
-        return cb(
-            new Error(
-                "Only JPG, PNG or WEBP attendance photos are allowed."
-            )
-        );
+        return middleware(req, res, next);
+    } catch (error) {
+        console.error("Attendance dependency load error:", error);
+        return res.status(503).json({
+            success: false,
+            message: "Attendance service is temporarily unavailable.",
+            requestId: req.requestId
+        });
     }
-});
+};
+
+const auth = lazy(() => require("../middleware/authMiddleware"));
+const permission = (moduleName, requiredPermission) =>
+    lazy(() => require("../middleware/permissionMiddleware")(moduleName, requiredPermission));
+const controller = (method) =>
+    lazy(() => require("../controllers/attendanceController")[method]);
+
+const createUploadMiddleware = () => {
+    const multer = require("multer");
+    const fs = require("fs");
+    const path = require("path");
+    const { UPLOAD_DIR } = require("../config/storage");
+
+    const uploadDir = path.join(UPLOAD_DIR, "attendance");
+    fs.mkdirSync(uploadDir, { recursive: true });
+
+    const storage = multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, uploadDir),
+        filename: (_req, file, cb) => {
+            const ext = path.extname(file.originalname || ".jpg").toLowerCase() || ".jpg";
+            const uniqueName =
+                `attendance-${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
+            cb(null, uniqueName);
+        }
+    });
+
+    return multer({
+        storage,
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: (_req, file, cb) => {
+            if (/^image\/(jpeg|png|webp)$/i.test(file.mimetype)) {
+                return cb(null, true);
+            }
+            return cb(new Error("Only JPG, PNG or WEBP attendance photos are allowed."));
+        }
+    }).single("photo");
+};
+
+const upload = lazy(createUploadMiddleware);
+const syncGalleryAttachment = (fieldName) =>
+    lazy(() => require("../middleware/galleryAttachmentSync")("Attendance", fieldName));
 
 // ======================================================
 // AUTHENTICATION
 // ======================================================
 
-router.use(
-    authMiddleware
-);
+router.use(auth);
 
 // ======================================================
 // EMPLOYEE ATTENDANCE WORKSPACE
@@ -134,7 +83,7 @@ router.use(
 
 router.get(
     "/context",
-    controller.context
+    controller("context")
 );
 
 // ------------------------------------------------------
@@ -148,9 +97,9 @@ router.get(
 
 router.post(
     "/check-in",
-    upload.single("photo"),
-    syncGalleryAttachment("Attendance", "check-in-photo"),
-    controller.checkIn
+    upload,
+    syncGalleryAttachment("check-in-photo"),
+    controller("checkIn")
 );
 
 // ------------------------------------------------------
@@ -163,9 +112,9 @@ router.post(
 
 router.post(
     "/check-out",
-    upload.single("photo"),
-    syncGalleryAttachment("Attendance", "check-out-photo"),
-    controller.checkOut
+    upload,
+    syncGalleryAttachment("check-out-photo"),
+    controller("checkOut")
 );
 
 // ======================================================
@@ -187,24 +136,24 @@ router.post(
 router.get(
     "/photo-token",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.photoToken
+    controller("photoToken")
 );
 
 // Stream the database-backed Gallery copy using Attendance permissions.
 router.get(
     "/photo/:id/:type",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.serveAttendancePhoto
+    controller("serveAttendancePhoto")
 );
 
 // ------------------------------------------------------
@@ -214,12 +163,12 @@ router.get(
 router.get(
     "/reports",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.reports
+    controller("reports")
 );
 
 // ------------------------------------------------------
@@ -229,12 +178,12 @@ router.get(
 router.get(
     "/employees",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.employees
+    controller("employees")
 );
 
 // ------------------------------------------------------
@@ -244,12 +193,12 @@ router.get(
 router.get(
     "/stores",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.stores
+    controller("stores")
 );
 
 // ======================================================
@@ -270,12 +219,12 @@ router.get(
 router.delete(
     "/delete-all",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.deleteAll
+    controller("deleteAll")
 );
 
 // ======================================================
@@ -285,12 +234,12 @@ router.delete(
 router.delete(
     "/:id",
 
-    permissionMiddleware(
+    permission(
         "Attendance",
         "Full"
     ),
 
-    controller.deleteRecord
+    controller("deleteRecord")
 );
 
 // ======================================================

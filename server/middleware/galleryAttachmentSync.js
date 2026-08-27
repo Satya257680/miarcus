@@ -15,6 +15,8 @@ const toNumberOrNull = (value, min, max) => {
 const getRecordId = (payload, req) => {
     const candidates = [
         payload?.data?.submission_id,
+        payload?.data?.attendance?.id,
+        payload?.attendance?.id,
         payload?.data?.id,
         payload?.data?.insertId,
         payload?.data?.entity_id,

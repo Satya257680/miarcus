@@ -1164,7 +1164,7 @@ loadRoute(
 
 );
 
-loadRoute(
+const attendanceRoutesLoaded = loadRoute(
 
     "./routes/attendanceRoutes",
 
@@ -1173,6 +1173,32 @@ loadRoute(
     "Attendance Routes"
 
 );
+
+// Never turn an Attendance startup/dependency failure into a misleading 404.
+// The Attendance router itself is lazy-loaded, so this should remain true in
+// normal production deployments. If a future dependency breaks route loading,
+// return an explicit 503 that points to the affected API instead.
+if (!attendanceRoutesLoaded) {
+
+    app.all(
+
+        "/api/attendance{*path}",
+
+        (req, res) => {
+
+            res.status(503).json({
+                success: false,
+                message: "Attendance API is unavailable because attendanceRoutes.js failed to load.",
+                route: "/api/attendance",
+                routeFile: "./routes/attendanceRoutes",
+                requestId: req.requestId
+            });
+
+        }
+
+    );
+
+}
 
 // ======================================================
 // API ROUTES
