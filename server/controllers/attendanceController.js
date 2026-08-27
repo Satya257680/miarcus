@@ -3,7 +3,8 @@ const path = require("path");
 
 const Attendance = require("../models/attendanceModel");
 const db = require("../config/db");
-const { createFileAccessToken, safeRelativePath } = require("../middleware/privateFileAccess");
+const { createFileAccessToken } = require("../middleware/privateFileAccess");
+const { safeRelativePath } = require("../utils/pathSecurity");
 
 // ======================================================
 // ADMIN CHECK
