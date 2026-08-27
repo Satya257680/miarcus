@@ -121,7 +121,7 @@ export default function CollectionReports() {
                     <label><span>Report date</span><input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} /></label>
                     <label><span>Store</span>
                         <select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>
-                            <option value="" disabled>Select store</option>
+                            <option value="">Select store</option>
                             {admin && <option value="all">All stores</option>}
                             {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}{store.store_code ? ` (${store.store_code})` : ""}</option>)}
                         </select>
