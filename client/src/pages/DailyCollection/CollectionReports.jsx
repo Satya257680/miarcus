@@ -47,7 +47,6 @@ export default function CollectionReports() {
             if (!admin && nextStores.length && !nextStores.some((store) => String(store.id) === String(selectedStore))) {
                 setSelectedStore(String(nextStores[0].id));
             }
-            if (admin && !selectedStore) setSelectedStore("all");
         } catch (err) {
             setStores([]);
             setError(err.response?.data?.message || "Unable to load collection report stores.");
@@ -122,21 +121,21 @@ export default function CollectionReports() {
                     <label><span>Report date</span><input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} /></label>
                     <label><span>Store</span>
                         <select value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)}>
+                            <option value="" disabled>Select store</option>
                             {admin && <option value="all">All stores</option>}
-                            {!admin && <option value="">Select assigned store</option>}
                             {stores.map((store) => <option key={store.id} value={store.id}>{store.store_name}{store.store_code ? ` (${store.store_code})` : ""}</option>)}
                         </select>
                     </label>
-                    <button className="collection-refresh" type="button" onClick={loadReports} disabled={loading}><FaSyncAlt /> Refresh</button>
-                    <button className="collection-export" type="button" onClick={exportCsv} disabled={!filteredReports.length}><FaFileExport /> Export</button>
+                    <button className="collection-refresh" type="button" onClick={loadReports} disabled={loading || !selectedStore}><FaSyncAlt /> Refresh</button>
+                    <button className="collection-export" type="button" onClick={exportCsv} disabled={!selectedStore || !filteredReports.length}><FaFileExport /> Export</button>
                 </div>
             </section>
 
-            <div className="collection-reports-period-label"><strong>{label || "Selected period"}</strong><span>{admin && selectedStore === "all" ? "All active stores" : "Selected store"}</span></div>
+            <div className="collection-reports-period-label"><strong>{selectedStore ? (label || "Selected period") : "Select a store to view collection reports"}</strong><span>{selectedStore === "all" ? "All active stores" : selectedStore ? "Selected store" : "No store selected"}</span></div>
 
             {error && <div className="collection-reports-alert">{error}</div>}
 
-            <section className="collection-summary-grid">
+            {selectedStore && <section className="collection-summary-grid">
                 <div><span>Stores</span><strong>{totals.stores || 0}</strong></div>
                 <div><span>Submitted Days</span><strong>{totals.submitted_days || 0}</strong></div>
                 <div><span>Missing Days</span><strong>{totals.missing_days || 0}</strong></div>
@@ -144,10 +143,10 @@ export default function CollectionReports() {
                 <div><span>System Billed</span><strong>{money(totals.system_billed)}</strong></div>
                 <div><span>Total Collected</span><strong>{money(totals.total_collected)}</strong></div>
                 <div><span>Variance</span><strong className={Math.abs(Number(totals.variance || 0)) < 0.01 ? "match" : "mismatch"}>{money(totals.variance)}</strong></div>
-            </section>
+            </section>}
 
             <section className="collection-report-table-wrap">
-                {loading ? <div className="collection-reports-empty">Loading Collection Reports...</div> : !filteredReports.length ? <div className="collection-reports-empty">No Collection data is available for the selected period.</div> : (
+                {!selectedStore ? <div className="collection-reports-empty">Select a specific store or choose All stores to display Collection Reports.</div> : loading ? <div className="collection-reports-empty">Loading Collection Reports...</div> : !filteredReports.length ? <div className="collection-reports-empty">No Collection data is available for the selected period.</div> : (
                     <div className="collection-report-scroll">
                         <table className="collection-report-table">
                             <thead><tr><th>Store</th><th>Period</th><th>Days</th><th>Submitted</th><th>Missing</th><th>Locked</th><th>Bills</th><th>System Billed</th><th>UPI</th><th>Cash</th><th>Bank</th><th>Card</th><th>Collected</th><th>Variance</th></tr></thead>
@@ -174,12 +173,12 @@ export default function CollectionReports() {
                 )}
             </section>
 
-            <section className="collection-payment-summary">
+            {selectedStore && <section className="collection-payment-summary">
                 <div><FaMoneyBillWave /><span>UPI</span><strong>{money(totals.upi_amount)}</strong></div>
                 <div><FaMoneyBillWave /><span>Cash</span><strong>{money(totals.cash_amount)}</strong></div>
                 <div><FaMoneyBillWave /><span>Bank Transfer</span><strong>{money(totals.bank_transfer_amount)}</strong></div>
                 <div><FaMoneyBillWave /><span>Card</span><strong>{money(totals.card_amount)}</strong></div>
-            </section>
+            </section>}
         </div>
     );
 }
