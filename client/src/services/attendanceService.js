@@ -203,6 +203,41 @@ export const deleteAllAttendance = () =>
         );
 
 // ======================================================
+// ATTENDANCE PHOTO ACCESS URL
+// ======================================================
+//
+// Production upload files are private. Request a short-lived,
+// file-specific token so the browser can load the image in an <img>.
+// ======================================================
+
+export const getAttendancePhotoAccess = (
+    photoPath
+) =>
+    axios
+        .get(
+            `${BASE_URL}/photo-token`,
+            {
+                ...getAuthConfig(),
+                params: {
+                    path: photoPath,
+                },
+            }
+        )
+        .then((response) => {
+            const data = response.data;
+
+            if (!data?.success || !data?.token || !data?.path) {
+                throw new Error(
+                    "Unable to authorize attendance photo."
+                );
+            }
+
+            return `${API}/api/files?path=${encodeURIComponent(
+                data.path
+            )}&token=${encodeURIComponent(data.token)}`;
+        });
+
+// ======================================================
 // ATTENDANCE PHOTO URL
 // ======================================================
 //

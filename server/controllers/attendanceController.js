@@ -2,6 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const Attendance = require("../models/attendanceModel");
+const { createFileAccessToken, safeRelativePath } = require("../middleware/privateFileAccess");
 
 // ======================================================
 // ADMIN CHECK
@@ -516,6 +517,68 @@ const checkOut = async (req, res) => {
 };
 
 // ======================================================
+// ATTENDANCE PHOTO ACCESS TOKEN
+// ======================================================
+//
+// Attendance photos are stored as private uploads in production.
+// A browser <img> element cannot attach the normal Authorization
+// header, so the reports screen requests a short-lived, file-specific
+// token before opening a photo.
+// ======================================================
+
+const photoToken = async (req, res) => {
+    if (!(await canManageAttendance(req))) {
+        return res.status(403).json({
+            success: false,
+            message:
+                "Attendance Reports require administrator or Full Attendance access."
+        });
+    }
+
+    const requestedPath = String(
+        req.query?.path || ""
+    ).trim();
+
+    const relativePath = safeRelativePath(
+        requestedPath.replace(/^\/+/, "")
+    );
+
+    if (
+        !relativePath ||
+        !relativePath.startsWith("uploads/attendance/")
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid attendance photo path."
+        });
+    }
+
+    const filePath = relativePath
+        .replace(/^uploads\//, "")
+        .replace(/^\/+/, "");
+
+    try {
+        const token = createFileAccessToken(filePath);
+
+        return res.json({
+            success: true,
+            token,
+            path: filePath
+        });
+    } catch (error) {
+        console.error(
+            "Attendance photo token error:",
+            error
+        );
+
+        return res.status(400).json({
+            success: false,
+            message: "Unable to authorize attendance photo."
+        });
+    }
+};
+
+// ======================================================
 // ATTENDANCE REPORTS
 // ======================================================
 // Restricted to:
@@ -827,6 +890,7 @@ module.exports = {
     checkIn,
     checkOut,
     reports,
+    photoToken,
     employees,
     stores,
     deleteRecord,

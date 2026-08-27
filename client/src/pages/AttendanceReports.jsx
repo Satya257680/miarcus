@@ -20,7 +20,7 @@ import {
     deleteAllAttendance,
     deleteAttendanceRecord,
     getAttendanceEmployees,
-    getAttendancePhotoUrl,
+    getAttendancePhotoAccess,
     getAttendanceReports,
     getAttendanceStores,
 } from "../services/attendanceService";
@@ -322,6 +322,11 @@ export default function AttendanceReports() {
         setPhoto,
     ] = useState(null);
 
+    const [
+        photoLoadingId,
+        setPhotoLoadingId,
+    ] = useState(null);
+
     // ==================================================
     // DELETE
     // ==================================================
@@ -511,6 +516,50 @@ export default function AttendanceReports() {
                     .length,
             [filters]
         );
+
+    const handlePhotoView = async (row, type) => {
+        const photoPath =
+            type === "check-in"
+                ? row.check_in_photo
+                : row.check_out_photo;
+
+        if (!photoPath) {
+            return;
+        }
+
+        const loadingKey = `${row.id}-${type}`;
+        setPhotoLoadingId(loadingKey);
+
+        try {
+            const url = await getAttendancePhotoAccess(
+                photoPath
+            );
+
+            const timestamp =
+                type === "check-in"
+                    ? row.check_in_at
+                    : row.check_out_at;
+
+            setPhoto({
+                url,
+                title: `${row.name || "Employee"} · ${
+                    type === "check-in"
+                        ? "Check-in"
+                        : "Check-out"
+                }`,
+                subtitle: `${fmtDate(row.work_date)} · ${fmt(
+                    timestamp
+                )}`,
+            });
+        } catch (error) {
+            console.error(
+                "Unable to load attendance photo:",
+                error
+            );
+        } finally {
+            setPhotoLoadingId(null);
+        }
+    };
 
     // ==================================================
     // EXPORT CSV
@@ -1385,18 +1434,10 @@ export default function AttendanceReports() {
                                         ) => {
 
                                             const checkInPhoto =
-                                                row.check_in_photo
-                                                    ? getAttendancePhotoUrl(
-                                                          row.check_in_photo
-                                                      )
-                                                    : "";
+                                                row.check_in_photo || "";
 
                                             const checkOutPhoto =
-                                                row.check_out_photo
-                                                    ? getAttendancePhotoUrl(
-                                                          row.check_out_photo
-                                                      )
-                                                    : "";
+                                                row.check_out_photo || "";
 
                                             const locationUrl =
                                                 getMapsUrl(
@@ -1557,31 +1598,21 @@ export default function AttendanceReports() {
                                                             <button
                                                                 type="button"
                                                                 className="report-photo-button"
+                                                                disabled={
+                                                                    photoLoadingId === `${row.id}-check-in`
+                                                                }
                                                                 onClick={() =>
-                                                                    setPhoto(
-                                                                        {
-                                                                            url:
-                                                                                checkInPhoto,
-
-                                                                            title:
-                                                                                `${
-                                                                                    row.name ||
-                                                                                    "Employee"
-                                                                                } · Check-in`,
-
-                                                                            subtitle:
-                                                                                `${fmtDate(
-                                                                                    row.work_date
-                                                                                )} · ${fmt(
-                                                                                    row.check_in_at
-                                                                                )}`,
-                                                                        }
+                                                                    handlePhotoView(
+                                                                        row,
+                                                                        "check-in"
                                                                     )
                                                                 }
                                                             >
                                                                 <FaCamera />
 
-                                                                View
+                                                                {photoLoadingId === `${row.id}-check-in`
+                                                                    ? "Loading…"
+                                                                    : "View"}
                                                             </button>
                                                         ) : (
                                                             <span className="table-muted">
@@ -1599,31 +1630,21 @@ export default function AttendanceReports() {
                                                             <button
                                                                 type="button"
                                                                 className="report-photo-button"
+                                                                disabled={
+                                                                    photoLoadingId === `${row.id}-check-out`
+                                                                }
                                                                 onClick={() =>
-                                                                    setPhoto(
-                                                                        {
-                                                                            url:
-                                                                                checkOutPhoto,
-
-                                                                            title:
-                                                                                `${
-                                                                                    row.name ||
-                                                                                    "Employee"
-                                                                                } · Check-out`,
-
-                                                                            subtitle:
-                                                                                `${fmtDate(
-                                                                                    row.work_date
-                                                                                )} · ${fmt(
-                                                                                    row.check_out_at
-                                                                                )}`,
-                                                                        }
+                                                                    handlePhotoView(
+                                                                        row,
+                                                                        "check-out"
                                                                     )
                                                                 }
                                                             >
                                                                 <FaCamera />
 
-                                                                View
+                                                                {photoLoadingId === `${row.id}-check-out`
+                                                                    ? "Loading…"
+                                                                    : "View"}
                                                             </button>
                                                         ) : (
                                                             <span className="table-muted">
