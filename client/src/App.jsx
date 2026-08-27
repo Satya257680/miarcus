@@ -98,6 +98,7 @@ import Bills from "./pages/Billing/Bills";
 import DailyBillingReport from "./pages/Billing/DailyBillingReport";
 import DailyCollection from "./pages/Billing/DailyCollection";
 import DailyCollectionReport from "./pages/DailyCollection/DailyCollectionReport";
+import CollectionReports from "./pages/DailyCollection/CollectionReports";
 import BillingAudit from "./pages/Billing/BillingAudit";
 import VisitPlanner from "./pages/SalesTeam/VisitPlanner";
 import TravelPlan from "./pages/SalesTeam/TravelPlan";
@@ -651,6 +652,15 @@ function App() {
                         element={
                             <ModulePermissionRoute moduleName="Daily Collection" requiredPermission="View">
                                 <DailyCollectionReport />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/daily-collection/reports"
+                        element={
+                            <ModulePermissionRoute moduleName="Daily Collection" requiredPermission="View">
+                                <CollectionReports />
                             </ModulePermissionRoute>
                         }
                     />

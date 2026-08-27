@@ -927,6 +927,10 @@ function Sidebar({ collapsed }) {
                                     <FaChartBar />
                                     <span>Daily Data Report</span>
                                 </NavLink>
+                                <NavLink to="/daily-collection/reports" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                    <FaChartLine />
+                                    <span>Collection Reports</span>
+                                </NavLink>
                             </div>
                         )}
                     </div>

@@ -125,13 +125,152 @@ const parseImportRows = (filePath) => {
     });
 };
 
+const resolveCollectionReportRange = (period, value) => {
+    const selected = dateOnly(value) || indiaToday();
+    const date = new Date(`${selected}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const iso = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    const normalizedPeriod = ["daily", "weekly", "monthly", "yearly"].includes(period) ? period : "daily";
+
+    if (normalizedPeriod === "daily") {
+        return { period: normalizedPeriod, fromDate: selected, toDate: selected, label: selected };
+    }
+
+    if (normalizedPeriod === "weekly") {
+        const day = date.getUTCDay();
+        const mondayOffset = day === 0 ? -6 : 1 - day;
+        const start = new Date(date);
+        start.setUTCDate(start.getUTCDate() + mondayOffset);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 6);
+        return { period: normalizedPeriod, fromDate: iso(start), toDate: iso(end), label: `${iso(start)} to ${iso(end)}` };
+    }
+
+    if (normalizedPeriod === "monthly") {
+        const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+        const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+        return { period: normalizedPeriod, fromDate: iso(start), toDate: iso(end), label: start.toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }) };
+    }
+
+    const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const end = new Date(Date.UTC(date.getUTCFullYear(), 11, 31));
+    return { period: normalizedPeriod, fromDate: iso(start), toDate: iso(end), label: String(date.getUTCFullYear()) };
+};
+
+const getCollectionReports = async (req, res) => {
+    try {
+        const range = resolveCollectionReportRange(String(req.query.period || "daily").toLowerCase(), req.query.date);
+        if (!range) return res.status(400).json({ success: false, message: "Invalid collection report date." });
+
+        const requestedStoreId = req.query.store_id && String(req.query.store_id) !== "all"
+            ? Number(req.query.store_id)
+            : null;
+        if (req.query.store_id && String(req.query.store_id) !== "all" && !requestedStoreId) {
+            return res.status(400).json({ success: false, message: "Invalid store selection." });
+        }
+
+        const rows = await DailyCollection.getCollectionReportRows({
+            userId: actorId(req),
+            isAdmin: isAdmin(req),
+            storeId: requestedStoreId,
+            fromDate: range.fromDate,
+            toDate: range.toDate
+        });
+
+        const grouped = new Map();
+        for (const row of rows) {
+            const key = String(row.store_id);
+            if (!grouped.has(key)) {
+                grouped.set(key, {
+                    store_id: Number(row.store_id),
+                    store_name: row.store_name,
+                    store_code: row.store_code,
+                    manager_name: row.manager_name || "",
+                    from_date: range.fromDate,
+                    to_date: range.toDate,
+                    days: 0,
+                    submitted_days: 0,
+                    missing_days: 0,
+                    locked_days: 0,
+                    bill_count: 0,
+                    system_billed: 0,
+                    upi_amount: 0,
+                    cash_amount: 0,
+                    bank_transfer_amount: 0,
+                    card_amount: 0,
+                    total_collected: 0,
+                    variance: 0
+                });
+            }
+            const item = grouped.get(key);
+            item.days += 1;
+            if (row.status === "submitted") item.submitted_days += 1;
+            if (row.status === "missing") item.missing_days += 1;
+            if (row.status === "locked") item.locked_days += 1;
+            item.bill_count += Number(row.system_bill_count || 0);
+            item.system_billed += Number(row.system_total_billed || 0);
+            item.upi_amount += Number(row.upi_amount || 0);
+            item.cash_amount += Number(row.cash_amount || 0);
+            item.bank_transfer_amount += Number(row.bank_transfer_amount || 0);
+            item.card_amount += Number(row.card_amount || 0);
+            item.total_collected += Number(row.total_collected || 0);
+            item.variance += Number(row.variance || 0);
+        }
+
+        const reports = Array.from(grouped.values()).map((item) => ({
+            ...item,
+            bill_count: Number(item.bill_count),
+            system_billed: Number(item.system_billed.toFixed(2)),
+            upi_amount: Number(item.upi_amount.toFixed(2)),
+            cash_amount: Number(item.cash_amount.toFixed(2)),
+            bank_transfer_amount: Number(item.bank_transfer_amount.toFixed(2)),
+            card_amount: Number(item.card_amount.toFixed(2)),
+            total_collected: Number(item.total_collected.toFixed(2)),
+            variance: Number(item.variance.toFixed(2))
+        }));
+
+        const totals = reports.reduce((acc, row) => {
+            acc.stores += 1;
+            acc.submitted_days += row.submitted_days;
+            acc.missing_days += row.missing_days;
+            acc.locked_days += row.locked_days;
+            acc.bill_count += row.bill_count;
+            acc.system_billed += row.system_billed;
+            acc.upi_amount += row.upi_amount;
+            acc.cash_amount += row.cash_amount;
+            acc.bank_transfer_amount += row.bank_transfer_amount;
+            acc.card_amount += row.card_amount;
+            acc.total_collected += row.total_collected;
+            acc.variance += row.variance;
+            return acc;
+        }, {
+            stores: 0, submitted_days: 0, missing_days: 0, locked_days: 0,
+            bill_count: 0, system_billed: 0, upi_amount: 0, cash_amount: 0,
+            bank_transfer_amount: 0, card_amount: 0, total_collected: 0, variance: 0
+        });
+
+        Object.keys(totals).forEach((key) => {
+            if (key !== "stores" && key !== "submitted_days" && key !== "missing_days" && key !== "locked_days" && key !== "bill_count") {
+                totals[key] = Number(totals[key].toFixed(2));
+            }
+        });
+
+        res.json({ success: true, period: range.period, from_date: range.fromDate, to_date: range.toDate, label: range.label, reports, totals });
+    } catch (error) {
+        console.error("Collection reports error:", error);
+        res.status(500).json({ success: false, message: "Unable to load Collection Reports." });
+    }
+};
+
 const getDailyCollection = async (req, res) => {
     try {
         const date = dateOnly(req.query.date) || indiaToday();
         await DailyCollection.ensureDueRows(date);
         const selectedStoreId = req.query.store_id ? Number(req.query.store_id) : null;
         const entryOnly = String(req.query.entry || "") === "1";
-        const blocked = isAdmin(req) || !selectedStoreId ? null : await DailyCollection.getActiveBlock(actorId(req), selectedStoreId);
+        const blocked = isAdmin(req) || !selectedStoreId ? null : await DailyCollection.getActiveBlock(actorId(req), selectedStoreId, date);
         if (blocked) {
             return res.status(423).json({
                 success: false,
@@ -210,7 +349,7 @@ const submitDailyCollection = async (req, res) => {
         }
 
         if (!isAdmin(req)) {
-            const block = await DailyCollection.getActiveBlock(userId, storeId);
+            const block = await DailyCollection.getActiveBlock(userId, storeId, reportDate);
             if (block) {
                 return res.status(423).json({
                     success: false,
@@ -491,6 +630,7 @@ const updateDailyCollectionEmailSettings = async (req, res) => {
 
 module.exports = {
     getDailyCollection,
+    getCollectionReports,
     getDailyCollectionById,
     getDailyCollectionStores,
     submitDailyCollection,

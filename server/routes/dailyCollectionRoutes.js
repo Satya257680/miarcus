@@ -12,6 +12,7 @@ const canAddBilling = permissionMiddleware("Daily Collection", "Add");
 
 router.get("/", authMiddleware, canViewBilling, controller.getDailyCollection);
 router.get("/stores", authMiddleware, canViewBilling, controller.getDailyCollectionStores);
+router.get("/reports", authMiddleware, canViewBilling, controller.getCollectionReports);
 
 router.get("/blocked", authMiddleware, adminOnly, controller.getBlockedDailyCollections);
 router.get("/email-settings", authMiddleware, adminOnly, controller.getDailyCollectionEmailSettings);

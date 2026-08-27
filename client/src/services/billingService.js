@@ -176,6 +176,12 @@ export const getDailyCollectionStores = () =>
     requestConfig()
   );
 
+export const getCollectionReports = (params = {}) =>
+  axios.get(
+    `${DAILY_COLLECTION_API}/reports`,
+    requestConfig({ params })
+  );
+
 export const getDailyCollectionById = (id) =>
   axios.get(
     `${DAILY_COLLECTION_API}/${id}`,
@@ -260,6 +266,7 @@ const billingService = {
   getStores,
   getDailyCollections,
   getDailyCollectionStores,
+  getCollectionReports,
   getDailyCollectionById,
   bulkUploadDailyCollections,
   deleteDailyCollection,

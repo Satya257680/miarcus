@@ -325,6 +325,71 @@ DailyCollection.getReport = async ({ userId, isAdmin, storeId, date, entryOnly =
     `, params);
 };
 
+DailyCollection.getCollectionReportRows = async ({ userId, isAdmin, storeId, fromDate, toDate }) => {
+    let scope = "";
+
+    if (!isAdmin) {
+        scope = ` AND r.store_id IN (
+            SELECT us.store_id
+            FROM user_stores us
+            WHERE us.user_id = ?
+        )`;
+    }
+
+    if (storeId) {
+        scope += " AND r.store_id = ?";
+    }
+
+    return db.query(`
+        SELECT
+            r.id,
+            r.store_id,
+            r.report_date,
+            r.status,
+            r.submitted_by,
+            r.submitted_at,
+            r.upi_amount,
+            r.cash_amount,
+            r.bank_transfer_amount,
+            r.card_amount,
+            r.total_collected,
+            r.variance,
+            r.notes,
+            s.store_name,
+            s.store_code,
+            mu.name AS manager_name,
+            u.name AS submitted_by_name,
+            COALESCE(bs.bill_count, 0) AS system_bill_count,
+            COALESCE(bs.total_billed, 0) AS system_total_billed
+        FROM daily_collection_reports r
+        INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN (
+            SELECT csm.store_id, MIN(csm.user_id) AS manager_id
+            FROM chat_store_managers csm
+            INNER JOIN users cmu ON cmu.id = csm.user_id
+                AND cmu.status = 'Active'
+                AND cmu.is_admin = 0
+            GROUP BY csm.store_id
+        ) cm ON cm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = cm.manager_id
+        LEFT JOIN users u ON u.id = r.submitted_by
+        LEFT JOIN (
+            SELECT
+                b.store_id,
+                DATE(b.bill_date) AS bill_date,
+                COUNT(DISTINCT b.id) AS bill_count,
+                COALESCE(SUM(b.grand_total), 0) AS total_billed
+            FROM bills b
+            WHERE DATE(b.bill_date) BETWEEN ? AND ?
+              AND b.status <> 'CANCELLED'
+            GROUP BY b.store_id, DATE(b.bill_date)
+        ) bs ON bs.store_id = r.store_id AND bs.bill_date = r.report_date
+        WHERE r.report_date BETWEEN ? AND ?
+          ${scope}
+        ORDER BY s.store_name ASC, r.report_date ASC
+    `, [fromDate, toDate, fromDate, toDate, ...(isAdmin ? [] : [userId]), ...(storeId ? [Number(storeId)] : [])]);
+};
+
 DailyCollection.ensureDueRows = async (reportDate) => {
     await db.query(`
         INSERT INTO daily_collection_reports (store_id, report_date, status)
@@ -456,16 +521,19 @@ DailyCollection.submitReport = async ({
     };
 };
 
-DailyCollection.getActiveBlock = async (userId, storeId = null) => {
+DailyCollection.getActiveBlock = async (userId, storeId = null, reportDate = null) => {
     const params = [userId];
     const storeFilter = storeId ? " AND c.store_id = ?" : "";
+    const dateFilter = reportDate ? " AND c.report_date = ?" : "";
     if (storeId) params.push(Number(storeId));
+    if (reportDate) params.push(reportDate);
     const rows = await db.query(`
         SELECT c.*, s.store_name
         FROM daily_collection_access_controls c
         INNER JOIN stores s ON s.id = c.store_id
         WHERE c.user_id = ? AND c.unblocked_at IS NULL
           ${storeFilter}
+          ${dateFilter}
         ORDER BY c.blocked_at DESC
         LIMIT 1
     `, params);
