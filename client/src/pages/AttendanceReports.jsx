@@ -532,7 +532,9 @@ export default function AttendanceReports() {
 
         try {
             const url = await getAttendancePhotoAccess(
-                photoPath
+                photoPath,
+                row.id,
+                type
             );
 
             const timestamp =
@@ -555,6 +557,10 @@ export default function AttendanceReports() {
             console.error(
                 "Unable to load attendance photo:",
                 error
+            );
+            setError(
+                error?.response?.data?.message ||
+                "Unable to load attendance photo. Please try again."
             );
         } finally {
             setPhotoLoadingId(null);

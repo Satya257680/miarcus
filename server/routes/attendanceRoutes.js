@@ -147,7 +147,7 @@ router.get(
 router.post(
     "/check-in",
     upload.single("photo"),
-    syncGalleryAttachment("Attendance", "photo"),
+    syncGalleryAttachment("Attendance", "check-in-photo"),
     controller.checkIn
 );
 
@@ -162,7 +162,7 @@ router.post(
 router.post(
     "/check-out",
     upload.single("photo"),
-    syncGalleryAttachment("Attendance", "photo"),
+    syncGalleryAttachment("Attendance", "check-out-photo"),
     controller.checkOut
 );
 

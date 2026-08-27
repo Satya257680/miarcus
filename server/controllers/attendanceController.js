@@ -2,6 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const Attendance = require("../models/attendanceModel");
+const db = require("../config/db");
 const { createFileAccessToken, safeRelativePath } = require("../middleware/privateFileAccess");
 
 // ======================================================
@@ -539,23 +540,72 @@ const photoToken = async (req, res) => {
         req.query?.path || ""
     ).trim();
 
-    const relativePath = safeRelativePath(
-        requestedPath.replace(/^\/+/, "")
-    );
+    const attendanceId = Number(req.query?.attendanceId || 0);
+    const photoType = String(req.query?.type || "").trim().toLowerCase();
 
-    if (
-        !relativePath ||
-        !relativePath.startsWith("uploads/attendance/")
-    ) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid attendance photo path."
-        });
+    let filePath = "";
+
+    // Prefer the persistent Gallery copy. Attendance photos are synchronized
+    // to Gallery at upload time, so this also fixes photos created before the
+    // private attendance-file endpoint was introduced.
+    if (Number.isInteger(attendanceId) && attendanceId > 0) {
+        try {
+            const preferredFields =
+                photoType === "check-out"
+                    ? ["check-out-photo", "photo"]
+                    : ["check-in-photo", "photo"];
+
+            for (const sourceField of preferredFields) {
+                const rows = await db.query(
+                    `SELECT file_path, uploaded_at
+                     FROM gallery_photos
+                     WHERE source_module = 'Attendance'
+                       AND source_record_id = ?
+                       AND source_field = ?
+                       AND status = 'active'
+                     ORDER BY uploaded_at ${photoType === "check-out" ? "DESC" : "ASC"}
+                     LIMIT 1`,
+                    [attendanceId, sourceField]
+                );
+
+                if (rows?.[0]?.file_path) {
+                    const galleryPath = safeRelativePath(
+                        String(rows[0].file_path).replace(/^\/+/, "")
+                    );
+                    if (galleryPath) {
+                        filePath = galleryPath.replace(/^uploads\//, "");
+                        break;
+                    }
+                }
+            }
+        } catch (galleryError) {
+            console.warn(
+                "Attendance Gallery photo lookup failed:",
+                galleryError.message
+            );
+        }
     }
 
-    const filePath = relativePath
-        .replace(/^uploads\//, "")
-        .replace(/^\/+/, "");
+    // Fallback for installations where Gallery synchronization is unavailable.
+    if (!filePath) {
+        const relativePath = safeRelativePath(
+            requestedPath.replace(/^\/+/, "")
+        );
+
+        if (
+            !relativePath ||
+            !relativePath.startsWith("uploads/attendance/")
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Attendance photo is not available."
+            });
+        }
+
+        filePath = relativePath
+            .replace(/^uploads\//, "")
+            .replace(/^\/+/, "");
+    }
 
     try {
         const token = createFileAccessToken(filePath);

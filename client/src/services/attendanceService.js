@@ -211,7 +211,9 @@ export const deleteAllAttendance = () =>
 // ======================================================
 
 export const getAttendancePhotoAccess = (
-    photoPath
+    photoPath,
+    attendanceId = null,
+    photoType = ""
 ) =>
     axios
         .get(
@@ -220,6 +222,8 @@ export const getAttendancePhotoAccess = (
                 ...getAuthConfig(),
                 params: {
                     path: photoPath,
+                    attendanceId: attendanceId || undefined,
+                    type: photoType || undefined,
                 },
             }
         )
