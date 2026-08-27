@@ -327,6 +327,14 @@ export default function AttendanceReports() {
         setPhotoLoadingId,
     ] = useState(null);
 
+    useEffect(() => {
+        return () => {
+            if (photo?.url?.startsWith("blob:")) {
+                URL.revokeObjectURL(photo.url);
+            }
+        };
+    }, [photo]);
+
     // ==================================================
     // DELETE
     // ==================================================
@@ -532,9 +540,7 @@ export default function AttendanceReports() {
 
         try {
             const url = await getAttendancePhotoAccess(
-                photoPath,
-                row.id,
-                type
+                photoPath
             );
 
             const timestamp =
@@ -557,10 +563,6 @@ export default function AttendanceReports() {
             console.error(
                 "Unable to load attendance photo:",
                 error
-            );
-            setError(
-                error?.response?.data?.message ||
-                "Unable to load attendance photo. Please try again."
             );
         } finally {
             setPhotoLoadingId(null);

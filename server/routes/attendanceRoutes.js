@@ -33,9 +33,11 @@ const controller = require(
 // ATTENDANCE PHOTO UPLOAD DIRECTORY
 // ======================================================
 
+const { UPLOAD_DIR } = require("../config/storage");
+
 const uploadDir = path.join(
-    __dirname,
-    "../uploads/attendance"
+    UPLOAD_DIR,
+    "attendance"
 );
 
 fs.mkdirSync(
@@ -191,6 +193,18 @@ router.get(
     ),
 
     controller.photoToken
+);
+
+// Stream the database-backed Gallery copy using Attendance permissions.
+router.get(
+    "/photo/:id/:type",
+
+    permissionMiddleware(
+        "Attendance",
+        "Full"
+    ),
+
+    controller.serveAttendancePhoto
 );
 
 // ------------------------------------------------------

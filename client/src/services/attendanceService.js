@@ -210,36 +210,38 @@ export const deleteAllAttendance = () =>
 // file-specific token so the browser can load the image in an <img>.
 // ======================================================
 
-export const getAttendancePhotoAccess = (
-    photoPath,
-    attendanceId = null,
-    photoType = ""
-) =>
-    axios
-        .get(
-            `${BASE_URL}/photo-token`,
-            {
-                ...getAuthConfig(),
-                params: {
-                    path: photoPath,
-                    attendanceId: attendanceId || undefined,
-                    type: photoType || undefined,
-                },
-            }
-        )
-        .then((response) => {
-            const data = response.data;
+export const getAttendancePhotoAccess = async (
+    photoPath
+) => {
+    const response = await axios.get(
+        `${BASE_URL}/photo-token`,
+        {
+            ...getAuthConfig(),
+            params: { path: photoPath },
+        }
+    );
 
-            if (!data?.success || !data?.token || !data?.path) {
-                throw new Error(
-                    "Unable to authorize attendance photo."
-                );
-            }
+    const data = response.data;
 
-            return `${API}/api/files?path=${encodeURIComponent(
-                data.path
-            )}&token=${encodeURIComponent(data.token)}`;
-        });
+    if (!data?.success) {
+        throw new Error(
+            data?.message || "Unable to authorize attendance photo."
+        );
+    }
+
+    const url = data.mode === "attendance-gallery" && data.attendanceId && data.photoType
+        ? `${BASE_URL}/photo/${data.attendanceId}/${data.photoType}`
+        : `${API}/api/files?path=${encodeURIComponent(data.path)}&token=${encodeURIComponent(data.token)}`;
+
+    // Both private-file and Gallery endpoints require Authorization. Fetch
+    // the image with Axios, then give the <img> element a local object URL.
+    const imageResponse = await axios.get(url, {
+        ...getAuthConfig(),
+        responseType: "blob",
+    });
+
+    return URL.createObjectURL(imageResponse.data);
+};
 
 // ======================================================
 // ATTENDANCE PHOTO URL

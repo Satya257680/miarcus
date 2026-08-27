@@ -2,9 +2,8 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const Attendance = require("../models/attendanceModel");
-const db = require("../config/db");
-const { createFileAccessToken } = require("../middleware/privateFileAccess");
-const { safeRelativePath } = require("../utils/pathSecurity");
+const Gallery = require("../models/galleryModel");
+const { createFileAccessToken, safeRelativePath, uploadRoot } = require("../middleware/privateFileAccess");
 
 // ======================================================
 // ADMIN CHECK
@@ -541,80 +540,101 @@ const photoToken = async (req, res) => {
         req.query?.path || ""
     ).trim();
 
-    const attendanceId = Number(req.query?.attendanceId || 0);
-    const photoType = String(req.query?.type || "").trim().toLowerCase();
+    const relativePath = safeRelativePath(
+        requestedPath.replace(/^\/+/, "")
+    );
 
-    let filePath = "";
-
-    // Prefer the persistent Gallery copy. Attendance photos are synchronized
-    // to Gallery at upload time, so this also fixes photos created before the
-    // private attendance-file endpoint was introduced.
-    if (Number.isInteger(attendanceId) && attendanceId > 0) {
-        try {
-            const preferredFields =
-                photoType === "check-out"
-                    ? ["check-out-photo", "photo"]
-                    : ["check-in-photo", "photo"];
-
-            for (const sourceField of preferredFields) {
-                const rows = await db.query(
-                    `SELECT file_path, uploaded_at
-                     FROM gallery_photos
-                     WHERE source_module = 'Attendance'
-                       AND source_record_id = ?
-                       AND source_field = ?
-                       AND status = 'active'
-                     ORDER BY uploaded_at ${photoType === "check-out" ? "DESC" : "ASC"}
-                     LIMIT 1`,
-                    [attendanceId, sourceField]
-                );
-
-                if (rows?.[0]?.file_path) {
-                    const galleryPath = safeRelativePath(
-                        String(rows[0].file_path).replace(/^\/+/, "")
-                    );
-                    if (galleryPath) {
-                        filePath = galleryPath.replace(/^uploads\//, "");
-                        break;
-                    }
-                }
-            }
-        } catch (galleryError) {
-            console.warn(
-                "Attendance Gallery photo lookup failed:",
-                galleryError.message
-            );
-        }
+    if (
+        !relativePath ||
+        !relativePath.startsWith("uploads/attendance/")
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid attendance photo path."
+        });
     }
 
-    // Fallback for installations where Gallery synchronization is unavailable.
-    if (!filePath) {
-        const relativePath = safeRelativePath(
-            requestedPath.replace(/^\/+/, "")
+    const filePath = relativePath
+        .replace(/^uploads\//, "")
+        .replace(/^\/+/, "");
+
+    try {
+        // New uploads are stored under the same persistent UPLOAD_DIR used by
+        // the private file service. Keep the direct-file path for these files.
+        const absolutePath = require("path").resolve(
+            uploadRoot,
+            filePath
         );
 
-        if (
-            !relativePath ||
-            !relativePath.startsWith("uploads/attendance/")
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Attendance photo is not available."
+        if (require("fs").existsSync(absolutePath)) {
+            const token = createFileAccessToken(filePath);
+
+            return res.json({
+                success: true,
+                token,
+                path: filePath,
+                mode: "private-file"
             });
         }
 
-        filePath = relativePath
-            .replace(/^uploads\//, "")
-            .replace(/^\/+/, "");
-    }
+        // Older attendance uploads may live on the old application disk.
+        // Gallery synchronization stores a database copy, so resolve the
+        // report photo to that Gallery record instead of returning a broken
+        // image URL.
+        const attendanceRows = await require("../config/db").query(`
+            SELECT id, check_in_photo, check_out_photo
+            FROM attendance_records
+            WHERE check_in_photo = ? OR check_out_photo = ?
+            ORDER BY id DESC
+            LIMIT 1
+        `, [relativePath, relativePath]);
 
-    try {
-        const token = createFileAccessToken(filePath);
+        const attendanceRow = attendanceRows[0];
+        if (attendanceRow) {
+            const type = attendanceRow.check_out_photo === relativePath
+                ? "check-out-photo"
+                : "check-in-photo";
 
-        return res.json({
-            success: true,
-            token,
-            path: filePath
+            let galleryRows = await require("../config/db").query(`
+                SELECT id
+                FROM gallery_photos
+                WHERE source_module = 'Attendance'
+                  AND source_record_id = ?
+                  AND source_field = ?
+                  AND status = 'active'
+                ORDER BY uploaded_at DESC
+                LIMIT 1
+            `, [attendanceRow.id, type]);
+
+            // Existing Gallery records created before source_field was split
+            // into check-in/check-out can still be used. For those records,
+            // the first upload is check-in and the last upload is check-out.
+            if (!galleryRows.length) {
+                galleryRows = await require("../config/db").query(`
+                    SELECT id
+                    FROM gallery_photos
+                    WHERE source_module = 'Attendance'
+                      AND source_record_id = ?
+                      AND status = 'active'
+                    ORDER BY uploaded_at ${type === "check-in-photo" ? "ASC" : "DESC"}
+                    LIMIT 1
+                `, [attendanceRow.id]);
+            }
+
+            if (galleryRows[0]?.id) {
+                return res.json({
+                    success: true,
+                    mode: "attendance-gallery",
+                    galleryId: Number(galleryRows[0].id),
+                    attendanceId: Number(attendanceRow.id),
+                    photoType: type === "check-in-photo" ? "check-in" : "check-out"
+                });
+            }
+        }
+
+        return res.status(404).json({
+            success: false,
+            message: "Attendance photo not found."
         });
     } catch (error) {
         console.error(
@@ -626,6 +646,102 @@ const photoToken = async (req, res) => {
             success: false,
             message: "Unable to authorize attendance photo."
         });
+    }
+};
+
+// ======================================================
+// ATTENDANCE PHOTO STREAM
+// ======================================================
+//
+// Used by Attendance Reports for older photos whose original upload was
+// stored on the old application disk. The synchronized Gallery copy is
+// stored in MySQL, but this endpoint intentionally uses Attendance
+// permissions rather than Gallery permissions.
+// ======================================================
+
+const serveAttendancePhoto = async (req, res) => {
+    if (!(await canManageAttendance(req))) {
+        return res.status(403).json({
+            success: false,
+            message: "Attendance Reports require administrator or Full Attendance access."
+        });
+    }
+
+    const id = Number(req.params.id);
+    const type = String(req.params.type || "").trim();
+
+    if (!Number.isInteger(id) || id <= 0 || !["check-in", "check-out"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Invalid attendance photo request." });
+    }
+
+    try {
+        const column = type === "check-in" ? "check_in_photo" : "check_out_photo";
+        const sourceField = type === "check-in" ? "check-in-photo" : "check-out-photo";
+
+        const rows = await require("../config/db").query(`
+            SELECT ${column} AS photo_path
+            FROM attendance_records
+            WHERE id = ?
+            LIMIT 1
+        `, [id]);
+
+        if (!rows[0]?.photo_path) {
+            return res.status(404).json({ success: false, message: "Attendance photo not found." });
+        }
+
+        let galleryRows = await require("../config/db").query(`
+            SELECT id
+            FROM gallery_photos
+            WHERE source_module = 'Attendance'
+              AND source_record_id = ?
+              AND source_field = ?
+              AND status = 'active'
+            ORDER BY uploaded_at DESC
+            LIMIT 1
+        `, [id, sourceField]);
+
+        if (!galleryRows.length) {
+            galleryRows = await require("../config/db").query(`
+                SELECT id
+                FROM gallery_photos
+                WHERE source_module = 'Attendance'
+                  AND source_record_id = ?
+                  AND status = 'active'
+                ORDER BY uploaded_at ${type === "check-in" ? "ASC" : "DESC"}
+                LIMIT 1
+            `, [id]);
+        }
+
+        const galleryId = Number(galleryRows[0]?.id || 0);
+        if (!galleryId) {
+            return res.status(404).json({ success: false, message: "Attendance photo is not available in Gallery." });
+        }
+
+        const file = await Gallery.getFile(galleryId);
+        if (!file) {
+            return res.status(404).json({ success: false, message: "Gallery photo not found." });
+        }
+
+        let buffer = file.file_data;
+
+        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+            const diskPath = path.resolve(process.cwd(), String(file.file_path || ""));
+            const fsSync = require("fs");
+            if (!fsSync.existsSync(diskPath)) {
+                return res.status(404).json({ success: false, message: "Gallery photo file not found." });
+            }
+            buffer = fsSync.readFileSync(diskPath);
+            await Gallery.saveFileData(galleryId, buffer);
+        }
+
+        res.setHeader("Content-Type", file.mime_type || "image/jpeg");
+        res.setHeader("Content-Length", String(buffer.length));
+        res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(file.file_name || `attendance-${id}-${type}.jpg`)}`);
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        return res.end(buffer);
+    } catch (error) {
+        console.error("Attendance photo stream error:", error);
+        return res.status(500).json({ success: false, message: "Unable to load attendance photo." });
     }
 };
 
