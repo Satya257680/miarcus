@@ -661,7 +661,94 @@ const photoToken = async (req, res) => {
 // permissions rather than Gallery permissions.
 // ======================================================
 
-const serveAttendancePhoto = async (req, res) => {
+const getAttendancePhotoRecord = async (id, type) => {
+    const column = type === "check-in" ? "check_in_photo" : "check_out_photo";
+    const sourceField = type === "check-in" ? "check-in-photo" : "check-out-photo";
+
+    const rows = await require("../config/db").query(`
+        SELECT id, ${column} AS photo_path
+        FROM attendance_records
+        WHERE id = ?
+        LIMIT 1
+    `, [id]);
+
+    const attendance = rows[0];
+    if (!attendance?.photo_path) return null;
+
+    // Prefer the exact source field. This is the normal path for new records.
+    let galleryRows = await require("../config/db").query(`
+        SELECT id, file_name, file_path, mime_type, file_size, file_data, uploaded_by
+        FROM gallery_photos
+        WHERE source_module = 'Attendance'
+          AND source_record_id = ?
+          AND source_field = ?
+          AND status = 'active'
+        ORDER BY uploaded_at DESC, id DESC
+        LIMIT 1
+    `, [id, sourceField]);
+
+    // Compatibility with older synchronized attendance records that did not
+    // have source_field populated correctly. Pick the first/last attachment
+    // for the session according to the requested photo type.
+    if (!galleryRows.length) {
+        galleryRows = await require("../config/db").query(`
+            SELECT id, file_name, file_path, mime_type, file_size, file_data, uploaded_by
+            FROM gallery_photos
+            WHERE source_module = 'Attendance'
+              AND source_record_id = ?
+              AND status = 'active'
+            ORDER BY uploaded_at ${type === "check-in" ? "ASC" : "DESC"}, id ${type === "check-in" ? "ASC" : "DESC"}
+            LIMIT 1
+        `, [id]);
+    }
+
+    // Final compatibility fallback: some very early Gallery syncs could have
+    // lost source_record_id. The attendance filename is unique, so compare it
+    // against the Gallery file name/path before giving up.
+    if (!galleryRows.length) {
+        const normalizedPath = String(attendance.photo_path || "").replace(/\\/g, "/");
+        const baseName = path.basename(normalizedPath);
+        galleryRows = await require("../config/db").query(`
+            SELECT id, file_name, file_path, mime_type, file_size, file_data, uploaded_by
+            FROM gallery_photos
+            WHERE source_module = 'Attendance'
+              AND status = 'active'
+              AND (
+                    file_name = ?
+                    OR file_path LIKE ?
+                  )
+            ORDER BY uploaded_at DESC, id DESC
+            LIMIT 1
+        `, [baseName, `%${baseName}`]);
+    }
+
+    const gallery = galleryRows[0];
+    if (!gallery) return null;
+
+    return { attendance, gallery };
+};
+
+const loadAttendancePhotoBuffer = async (record) => {
+    let buffer = record.gallery.file_data;
+
+    if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+        const diskPath = path.resolve(process.cwd(), String(record.gallery.file_path || ""));
+        const fsSync = require("fs");
+
+        if (!fsSync.existsSync(diskPath)) return null;
+
+        buffer = fsSync.readFileSync(diskPath);
+        await Gallery.saveFileData(Number(record.gallery.id), buffer);
+    }
+
+    return buffer;
+};
+
+// ======================================================
+// ATTENDANCE PHOTO STREAM / DOWNLOAD / DELETE
+// ======================================================
+
+const serveAttendancePhoto = async (req, res, download = false) => {
     if (!(await canManageAttendance(req))) {
         return res.status(403).json({
             success: false,
@@ -677,73 +764,142 @@ const serveAttendancePhoto = async (req, res) => {
     }
 
     try {
-        const column = type === "check-in" ? "check_in_photo" : "check_out_photo";
-        const sourceField = type === "check-in" ? "check-in-photo" : "check-out-photo";
-
-        const rows = await require("../config/db").query(`
-            SELECT ${column} AS photo_path
-            FROM attendance_records
-            WHERE id = ?
-            LIMIT 1
-        `, [id]);
-
-        if (!rows[0]?.photo_path) {
+        const record = await getAttendancePhotoRecord(id, type);
+        if (!record) {
             return res.status(404).json({ success: false, message: "Attendance photo not found." });
         }
 
-        let galleryRows = await require("../config/db").query(`
-            SELECT id
-            FROM gallery_photos
-            WHERE source_module = 'Attendance'
-              AND source_record_id = ?
-              AND source_field = ?
-              AND status = 'active'
-            ORDER BY uploaded_at DESC
-            LIMIT 1
-        `, [id, sourceField]);
-
-        if (!galleryRows.length) {
-            galleryRows = await require("../config/db").query(`
-                SELECT id
-                FROM gallery_photos
-                WHERE source_module = 'Attendance'
-                  AND source_record_id = ?
-                  AND status = 'active'
-                ORDER BY uploaded_at ${type === "check-in" ? "ASC" : "DESC"}
-                LIMIT 1
-            `, [id]);
+        const buffer = await loadAttendancePhotoBuffer(record);
+        if (!buffer) {
+            return res.status(404).json({ success: false, message: "Attendance photo file not found." });
         }
 
-        const galleryId = Number(galleryRows[0]?.id || 0);
-        if (!galleryId) {
-            return res.status(404).json({ success: false, message: "Attendance photo is not available in Gallery." });
-        }
-
-        const file = await Gallery.getFile(galleryId);
-        if (!file) {
-            return res.status(404).json({ success: false, message: "Gallery photo not found." });
-        }
-
-        let buffer = file.file_data;
-
-        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
-            const diskPath = path.resolve(process.cwd(), String(file.file_path || ""));
-            const fsSync = require("fs");
-            if (!fsSync.existsSync(diskPath)) {
-                return res.status(404).json({ success: false, message: "Gallery photo file not found." });
-            }
-            buffer = fsSync.readFileSync(diskPath);
-            await Gallery.saveFileData(galleryId, buffer);
-        }
-
-        res.setHeader("Content-Type", file.mime_type || "image/jpeg");
+        const fileName = record.gallery.file_name || `attendance-${id}-${type}.jpg`;
+        res.setHeader("Content-Type", record.gallery.mime_type || "image/jpeg");
         res.setHeader("Content-Length", String(buffer.length));
-        res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(file.file_name || `attendance-${id}-${type}.jpg`)}`);
+        res.setHeader(
+            "Content-Disposition",
+            `${download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(fileName)}`
+        );
         res.setHeader("Cache-Control", "private, no-store, max-age=0");
         return res.end(buffer);
     } catch (error) {
         console.error("Attendance photo stream error:", error);
         return res.status(500).json({ success: false, message: "Unable to load attendance photo." });
+    }
+};
+
+const downloadAttendancePhoto = (req, res) => serveAttendancePhoto(req, res, true);
+
+const deleteAttendancePhoto = async (req, res) => {
+    if (!(await canManageAttendance(req))) {
+        return res.status(403).json({
+            success: false,
+            message: "Attendance Reports require administrator or Full Attendance access."
+        });
+    }
+
+    const id = Number(req.params.id);
+    const type = String(req.params.type || "").trim();
+
+    if (!Number.isInteger(id) || id <= 0 || !["check-in", "check-out"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Invalid attendance photo request." });
+    }
+
+    try {
+        const record = await getAttendancePhotoRecord(id, type);
+        if (!record) {
+            return res.status(404).json({ success: false, message: "Attendance photo not found." });
+        }
+
+        const db = require("../config/db");
+        const column = type === "check-in" ? "check_in_photo" : "check_out_photo";
+
+        await db.query(`
+            UPDATE attendance_records
+            SET ${column} = NULL
+            WHERE id = ?
+            LIMIT 1
+        `, [id]);
+
+        await Gallery.softDelete(Number(record.gallery.id));
+
+        return res.json({
+            success: true,
+            message: `${type === "check-in" ? "Check-in" : "Check-out"} photo deleted successfully.`,
+            id,
+            type
+        });
+    } catch (error) {
+        console.error("Attendance photo delete error:", error);
+        return res.status(500).json({ success: false, message: "Unable to delete attendance photo." });
+    }
+};
+
+const photoDetails = async (req, res) => {
+    if (!(await canManageAttendance(req))) {
+        return res.status(403).json({ success: false, message: "Attendance Reports require administrator or Full Attendance access." });
+    }
+
+    const id = Number(req.params.id);
+    const type = String(req.params.type || "").trim();
+    if (!Number.isInteger(id) || id <= 0 || !["check-in", "check-out"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Invalid attendance photo request." });
+    }
+
+    try {
+        const record = await getAttendancePhotoRecord(id, type);
+        if (!record) return res.status(404).json({ success: false, message: "Attendance photo not found." });
+
+        const rows = await require("../config/db").query(`
+            SELECT
+                a.id,
+                a.employee_id,
+                DATE_FORMAT(a.work_date, '%Y-%m-%d') AS work_date,
+                a.status,
+                DATE_FORMAT(a.check_in_at, '%Y-%m-%d %H:%i:%s') AS check_in_at,
+                DATE_FORMAT(a.check_out_at, '%Y-%m-%d %H:%i:%s') AS check_out_at,
+                ${type === "check-in" ? "a.check_in_latitude" : "a.check_out_latitude"} AS latitude,
+                ${type === "check-in" ? "a.check_in_longitude" : "a.check_out_longitude"} AS longitude,
+                ${type === "check-in" ? "a.check_in_accuracy" : "a.check_out_accuracy"} AS accuracy,
+                u.name,
+                u.employee_id AS employee_code,
+                u.email,
+                s.store_name,
+                s.store_code
+            FROM attendance_records a
+            INNER JOIN users u ON u.id = a.employee_id
+            LEFT JOIN stores s ON s.id = a.store_id
+            WHERE a.id = ?
+            LIMIT 1
+        `, [id]);
+
+        const row = rows[0];
+        if (!row) return res.status(404).json({ success: false, message: "Attendance record not found." });
+
+        return res.json({
+            success: true,
+            photo: {
+                id,
+                type,
+                fileName: record.gallery.file_name || `attendance-${id}-${type}.jpg`,
+                mimeType: record.gallery.mime_type || "image/jpeg",
+                name: row.name || "Employee",
+                employeeCode: row.employee_code || "",
+                email: row.email || "",
+                storeName: row.store_name || "Head Office",
+                storeCode: row.store_code || "",
+                workDate: row.work_date,
+                timestamp: type === "check-in" ? row.check_in_at : row.check_out_at,
+                status: row.status || "Present",
+                latitude: row.latitude !== null && row.latitude !== undefined ? Number(row.latitude) : null,
+                longitude: row.longitude !== null && row.longitude !== undefined ? Number(row.longitude) : null,
+                accuracy: row.accuracy !== null && row.accuracy !== undefined ? Number(row.accuracy) : null
+            }
+        });
+    } catch (error) {
+        console.error("Attendance photo details error:", error);
+        return res.status(500).json({ success: false, message: "Unable to load attendance photo details." });
     }
 };
 
@@ -1060,6 +1216,10 @@ module.exports = {
     checkOut,
     reports,
     photoToken,
+    serveAttendancePhoto,
+    downloadAttendancePhoto,
+    deleteAttendancePhoto,
+    photoDetails,
     employees,
     stores,
     deleteRecord,

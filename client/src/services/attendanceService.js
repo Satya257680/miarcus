@@ -203,45 +203,67 @@ export const deleteAllAttendance = () =>
         );
 
 // ======================================================
-// ATTENDANCE PHOTO ACCESS URL
+// ATTENDANCE PHOTO ACCESS
 // ======================================================
 //
-// Production upload files are private. Request a short-lived,
-// file-specific token so the browser can load the image in an <img>.
-// ======================================================
+// Fetch the protected attendance image with the normal Bearer token and
+// expose it to the browser as a temporary object URL. This avoids relying on
+// an <img> request being able to send Authorization headers.
+//
+export const getAttendancePhotoAccess = async (attendanceId, photoType) => {
+    if (!attendanceId || !["check-in", "check-out"].includes(photoType)) {
+        throw new Error("Invalid attendance photo request.");
+    }
 
-export const getAttendancePhotoAccess = async (
-    photoPath
-) => {
     const response = await axios.get(
-        `${BASE_URL}/photo-token`,
+        `${BASE_URL}/photo/${attendanceId}/${photoType}`,
         {
             ...getAuthConfig(),
-            params: { path: photoPath },
+            responseType: "blob",
         }
     );
 
-    const data = response.data;
-
-    if (!data?.success) {
-        throw new Error(
-            data?.message || "Unable to authorize attendance photo."
-        );
+    if (!response.data || response.data.size === 0) {
+        throw new Error("Attendance photo is empty.");
     }
 
-    const url = data.mode === "attendance-gallery" && data.attendanceId && data.photoType
-        ? `${BASE_URL}/photo/${data.attendanceId}/${data.photoType}`
-        : `${API}/api/files?path=${encodeURIComponent(data.path)}&token=${encodeURIComponent(data.token)}`;
-
-    // Both private-file and Gallery endpoints require Authorization. Fetch
-    // the image with Axios, then give the <img> element a local object URL.
-    const imageResponse = await axios.get(url, {
-        ...getAuthConfig(),
-        responseType: "blob",
-    });
-
-    return URL.createObjectURL(imageResponse.data);
+    return URL.createObjectURL(response.data);
 };
+
+export const getAttendancePhotoDetails = (attendanceId, photoType) =>
+    axios
+        .get(
+            `${BASE_URL}/photo/${attendanceId}/${photoType}/details`,
+            getAuthConfig()
+        )
+        .then(response => response.data);
+
+export const downloadAttendancePhoto = async (attendanceId, photoType, fileName = "attendance-photo.jpg") => {
+    const response = await axios.get(
+        `${BASE_URL}/photo/${attendanceId}/${photoType}/download`,
+        {
+            ...getAuthConfig(),
+            responseType: "blob",
+        }
+    );
+
+    const objectUrl = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName || "attendance-photo.jpg";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+};
+
+export const deleteAttendancePhoto = (attendanceId, photoType) =>
+    axios
+        .delete(
+            `${BASE_URL}/photo/${attendanceId}/${photoType}`,
+            getAuthConfig()
+        )
+        .then(response => response.data);
 
 // ======================================================
 // ATTENDANCE PHOTO URL

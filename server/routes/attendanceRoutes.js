@@ -156,6 +156,24 @@ router.get(
     controller("serveAttendancePhoto")
 );
 
+router.get(
+    "/photo/:id/:type/details",
+    permission("Attendance", "Full"),
+    controller("photoDetails")
+);
+
+router.get(
+    "/photo/:id/:type/download",
+    permission("Attendance", "Full"),
+    controller("downloadAttendancePhoto")
+);
+
+router.delete(
+    "/photo/:id/:type",
+    permission("Attendance", "Full"),
+    controller("deleteAttendancePhoto")
+);
+
 // ------------------------------------------------------
 // Reports
 // ------------------------------------------------------

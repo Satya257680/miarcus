@@ -19,6 +19,8 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
     deleteAllAttendance,
     deleteAttendanceRecord,
+    deleteAttendancePhoto,
+    downloadAttendancePhoto,
     getAttendanceEmployees,
     getAttendancePhotoAccess,
     getAttendanceReports,
@@ -531,41 +533,78 @@ export default function AttendanceReports() {
                 ? row.check_in_photo
                 : row.check_out_photo;
 
-        if (!photoPath) {
-            return;
-        }
+        if (!photoPath || !row?.id) return;
 
         const loadingKey = `${row.id}-${type}`;
         setPhotoLoadingId(loadingKey);
+        setError("");
 
         try {
-            const url = await getAttendancePhotoAccess(
-                photoPath
-            );
-
-            const timestamp =
-                type === "check-in"
-                    ? row.check_in_at
-                    : row.check_out_at;
+            const url = await getAttendancePhotoAccess(row.id, type);
+            const timestamp = type === "check-in" ? row.check_in_at : row.check_out_at;
+            const latitude = type === "check-in" ? row.check_in_latitude : row.check_out_latitude;
+            const longitude = type === "check-in" ? row.check_in_longitude : row.check_out_longitude;
 
             setPhoto({
                 url,
-                title: `${row.name || "Employee"} · ${
-                    type === "check-in"
-                        ? "Check-in"
-                        : "Check-out"
-                }`,
-                subtitle: `${fmtDate(row.work_date)} · ${fmt(
-                    timestamp
-                )}`,
+                id: row.id,
+                type,
+                fileName: `attendance-${row.id}-${type}.jpg`,
+                title: `${row.name || "Employee"} · ${type === "check-in" ? "Check-in" : "Check-out"}`,
+                subtitle: `${fmtDate(row.work_date)} · ${fmt(timestamp)}`,
+                name: row.name || "Employee",
+                employeeCode: row.employee_id || "",
+                storeName: row.store_name || "Head Office",
+                storeCode: row.store_code || "",
+                timestamp,
+                latitude,
+                longitude,
             });
         } catch (error) {
-            console.error(
-                "Unable to load attendance photo:",
-                error
+            console.error("Unable to load attendance photo:", error);
+            setError(
+                error?.response?.data?.message ||
+                error?.message ||
+                "Unable to load attendance photo."
             );
         } finally {
             setPhotoLoadingId(null);
+        }
+    };
+
+    const handlePhotoDownload = async () => {
+        if (!photo?.id || !photo?.type) return;
+        try {
+            await downloadAttendancePhoto(photo.id, photo.type, photo.fileName);
+        } catch (error) {
+            console.error("Unable to download attendance photo:", error);
+            setError("Unable to download attendance photo.");
+        }
+    };
+
+    const handlePhotoDelete = async () => {
+        if (!photo?.id || !photo?.type) return;
+
+        const confirmed = window.confirm(
+            `Delete this ${photo.type === "check-in" ? "check-in" : "check-out"} photo? This will remove only the photo, not the attendance record.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setBusy(true);
+            await deleteAttendancePhoto(photo.id, photo.type);
+            if (photo.url?.startsWith("blob:")) URL.revokeObjectURL(photo.url);
+            setPhoto(null);
+            await load();
+            setMessage("Attendance photo deleted successfully.");
+        } catch (error) {
+            console.error("Unable to delete attendance photo:", error);
+            setError(
+                error?.response?.data?.message ||
+                "Unable to delete attendance photo."
+            );
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -1834,7 +1873,7 @@ export default function AttendanceReports() {
             </div>
 
             {/* ======================================================
-                PHOTO MODAL
+                FULL-SCREEN ATTENDANCE PHOTO VIEWER
             ====================================================== */}
 
             {photo && (
@@ -1842,72 +1881,70 @@ export default function AttendanceReports() {
                     className="attendance-photo-modal"
                     role="dialog"
                     aria-modal="true"
-                    onClick={() =>
-                        setPhoto(null)
-                    }
+                    onClick={() => setPhoto(null)}
                 >
+                    <button
+                        type="button"
+                        className="attendance-photo-close"
+                        onClick={() => setPhoto(null)}
+                        aria-label="Close photo"
+                    >
+                        <FaTimes />
+                    </button>
 
                     <div
-                        className="attendance-photo-dialog"
-                        onClick={(
-                            event
-                        ) =>
-                            event.stopPropagation()
-                        }
+                        className="attendance-photo-fullscreen"
+                        onClick={(event) => event.stopPropagation()}
                     >
+                        <div className="attendance-photo-image-area">
+                            <img
+                                src={photo.url}
+                                alt={photo.title}
+                                className="attendance-photo-full-image"
+                            />
+                        </div>
 
-                        <div className="attendance-photo-dialog-head">
-
-                            <div>
-                                <span className="card-kicker">
-                                    Photo evidence
-                                </span>
-
-                                <h2>
-                                    {
-                                        photo.title
-                                    }
-                                </h2>
-
-                                {photo.subtitle && (
-                                    <p>
-                                        {
-                                            photo.subtitle
-                                        }
-                                    </p>
-                                )}
+                        <div className="attendance-photo-info-bar">
+                            <div className="attendance-photo-info">
+                                <span className="attendance-photo-kicker">Attendance</span>
+                                <h2>Attendance attachment</h2>
+                                <p>
+                                    Uploaded by <strong>{photo.name}</strong>
+                                    {photo.employeeCode ? ` (${photo.employeeCode})` : ""}
+                                    {photo.timestamp ? ` · ${fmt(photo.timestamp)}` : ""}
+                                </p>
+                                <div className="attendance-photo-location">
+                                    <FaMapMarkerAlt />
+                                    <strong>{photo.storeName}</strong>
+                                    {photo.storeCode ? <span>{photo.storeCode}</span> : null}
+                                    {photo.latitude !== null && photo.longitude !== null ? (
+                                        <span>{Number(photo.latitude).toFixed(6)}, {Number(photo.longitude).toFixed(6)}</span>
+                                    ) : null}
+                                </div>
                             </div>
 
-                            <button
-                                type="button"
-                                className="photo-modal-close"
-                                onClick={() =>
-                                    setPhoto(
-                                        null
-                                    )
-                                }
-                                aria-label="Close photo"
-                            >
-                                <FaTimes />
-                            </button>
-
+                            <div className="attendance-photo-actions">
+                                <button
+                                    type="button"
+                                    className="attendance-photo-download"
+                                    onClick={handlePhotoDownload}
+                                    disabled={busy}
+                                >
+                                    <FaDownload />
+                                    Download
+                                </button>
+                                <button
+                                    type="button"
+                                    className="attendance-photo-delete"
+                                    onClick={handlePhotoDelete}
+                                    disabled={busy}
+                                >
+                                    <FaTrash />
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-
-                        <div className="attendance-photo-viewer">
-
-                            <img
-                                src={
-                                    photo.url
-                                }
-                                alt={
-                                    photo.title
-                                }
-                            />
-
-                        </div>
-
                     </div>
-
                 </div>
             )}
 
