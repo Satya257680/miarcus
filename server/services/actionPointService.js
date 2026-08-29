@@ -853,6 +853,8 @@ const update = async (
         priority,
         sla_days,
         sla_value,
+        sla_hours,
+        sla_minutes,
         remarks,
         status
     } = body;
@@ -892,19 +894,46 @@ const update = async (
         finalSlaValue = Number(sla_days) || oldData.sla_value;
     }
 
+    // Keep the existing exact SLA when the caller does not send SLA fields.
+    // When SLA fields are supplied (the Edit modal sends all three parts),
+    // rebuild the exact duration in minutes.
     let finalSlaMinutes =
         Number(oldData.sla_minutes) ||
         (Number(oldData.sla_value) || 0) * 24 * 60;
 
-    if (
+    const hasSlaParts =
         sla_days !== undefined ||
         sla_hours !== undefined ||
-        sla_minutes !== undefined
-    ) {
+        sla_minutes !== undefined;
+
+    if (hasSlaParts) {
+        const oldTotalMinutes =
+            Number(oldData.sla_minutes) ||
+            (Number(oldData.sla_value) || 0) * 24 * 60;
+
+        const oldDays = Math.floor(oldTotalMinutes / 1440);
+        const oldHours = Math.floor((oldTotalMinutes % 1440) / 60);
+        const oldMinutes = oldTotalMinutes % 60;
+
+        const nextDays =
+            sla_days !== undefined && sla_days !== ""
+                ? Number(sla_days) || 0
+                : oldDays;
+
+        const nextHours =
+            sla_hours !== undefined && sla_hours !== ""
+                ? Number(sla_hours) || 0
+                : oldHours;
+
+        const nextMinutes =
+            sla_minutes !== undefined && sla_minutes !== ""
+                ? Number(sla_minutes) || 0
+                : oldMinutes;
+
         finalSlaMinutes =
-            (Number(sla_days) || 0) * 24 * 60 +
-            (Number(sla_hours) || 0) * 60 +
-            (Number(sla_minutes) || 0);
+            nextDays * 24 * 60 +
+            nextHours * 60 +
+            nextMinutes;
     }
 
 
