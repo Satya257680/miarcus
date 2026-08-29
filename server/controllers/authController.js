@@ -12,6 +12,7 @@ const {
     generateOtp,
     generateResetJti,
     normalizeEmail,
+    validateEmail,
     validatePassword,
     JWT_ISSUER,
     JWT_AUDIENCE,
@@ -26,7 +27,6 @@ const { incrementTokenVersion } = require("../models/securityModel");
 // SECURITY HELPERS
 // ======================================================
 
-const allowedResetDomain = /@(gmail\.com|jawandson\.com|miarcus\.com)$/i;
 
 // ======================================================
 // LOGIN USER
@@ -248,23 +248,18 @@ const token = jwt.sign(
 
 const forgotPassword = (req, res) => {
 
-    const email = String(req.body?.email || "")
-        .trim()
-        .toLowerCase();
+    const email = normalizeEmail(req.body?.email);
 
-    if (!allowedResetDomain.test(email)) {
+    const emailError = validateEmail(email);
 
+    if (emailError) {
         return res.status(400).json({
-
             success: false,
-
-            message:
-                "Password reset OTP is available only for @gmail.com, @jawandson.com, and @miarcus.com email addresses."
-
+            message: emailError
         });
     }
 
-    const checkUserSql = `
+const checkUserSql = `
         SELECT id, name, email
         FROM users
         WHERE email=?
@@ -413,7 +408,7 @@ const verifyOTP = (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const otp = String(req.body?.otp || "").trim();
 
-    if (!allowedResetDomain.test(email) || !/^\d{6}$/.test(otp)) {
+    if (validateEmail(email) || !/^\d{6}$/.test(otp)) {
         return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
 
@@ -589,8 +584,12 @@ const resetPassword = async (req, res) => {
     }
 
     const email = normalizeEmail(resetClaims.sub);
-    if (!allowedResetDomain.test(email)) {
-        return res.status(400).json({ success: false, message: "Invalid password reset request." });
+
+    if (validateEmail(email)) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid password reset request."
+        });
     }
 
     const checkOtpSql = `
@@ -819,10 +818,16 @@ const signupUser = async (req, res) => {
         }
 
 
-        const cleanEmail =
-            String(email)
-                .trim()
-                .toLowerCase();
+        const cleanEmail = normalizeEmail(email);
+
+        const emailError = validateEmail(cleanEmail);
+
+        if (emailError) {
+            return res.status(400).json({
+                success: false,
+                message: emailError
+            });
+        }
 
 
         // ==================================================
