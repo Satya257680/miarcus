@@ -175,18 +175,18 @@ exports.getActionPointsByNSO = async (req, res) => {
 
 exports.bulkUploadActionPoints = async (req, res) => {
 
+    const uploadedPath = req.file?.path;
+
     try {
 
-        if (!req.file?.path) {
-
+        if (!uploadedPath) {
             return res.status(400).json({
                 success: false,
                 message: "Please upload a CSV or Excel file."
             });
-
         }
 
-        const workbook = XLSX.readFile(req.file.path, {
+        const workbook = XLSX.readFile(uploadedPath, {
             cellDates: false
         });
 
@@ -194,12 +194,10 @@ exports.bulkUploadActionPoints = async (req, res) => {
             workbook.Sheets[workbook.SheetNames[0]];
 
         if (!firstSheet) {
-
             return res.status(400).json({
                 success: false,
                 message: "The uploaded file does not contain a worksheet."
             });
-
         }
 
         const rows = XLSX.utils.sheet_to_json(firstSheet, {
@@ -208,13 +206,20 @@ exports.bulkUploadActionPoints = async (req, res) => {
         });
 
         if (!rows.length) {
-
             return res.status(400).json({
                 success: false,
                 message: "The uploaded file is empty."
             });
-
         }
+
+        const value = (row, ...keys) => {
+            for (const key of keys) {
+                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
+                    return row[key];
+                }
+            }
+            return "";
+        };
 
         const created = [];
         const errors = [];
@@ -224,37 +229,30 @@ exports.bulkUploadActionPoints = async (req, res) => {
             const row = rows[index];
             const rowNumber = index + 2;
 
+            // Global upload: no store selection is taken from the page.
+            // Store ID may be supplied per row OR resolved from Submission ID.
             const normalized = {
-                store_id: row["Store ID"] ?? row.store_id,
-                department_id: row["Department ID"] ?? row.department_id,
-                question_id: row["Question ID"] ?? row.question_id,
-                submission_id: row["Submission ID"] ?? row.submission_id,
-                submission_answer_id:
-                    row["Submission Answer ID"] ??
-                    row.submission_answer_id,
-                assigned_to:
-                    row["Assigned To"] ??
-                    row.assigned_to,
-                priority:
-                    row.Priority ??
-                    row.priority ??
-                    "Medium",
-                sla_days:
-                    row["SLA Days"] ??
-                    row.sla_days ??
-                    0,
-                status:
-                    row.Status ??
-                    row.status ??
-                    "Open",
-                remarks:
-                    row.Remarks ??
-                    row.remarks ??
-                    ""
+                store_id: value(row,
+                    "Store ID", "store_id", "Store", "store", "Store Name", "store_name"),
+                store_name: value(row, "Store Name", "store_name", "Store", "store"),
+                department_id: value(row,
+                    "Department ID", "department_id", "Department", "department"),
+                question_id: value(row,
+                    "Question ID", "question_id"),
+                submission_id: value(row,
+                    "Submission ID", "submission_id"),
+                submission_answer_id: value(row,
+                    "Submission Answer ID", "submission_answer_id", "Answer ID", "answer_id"),
+                assigned_to: value(row,
+                    "Assigned To", "assigned_to", "Employee ID", "employee_id"),
+                priority: value(row, "Priority", "priority") || "Medium",
+                sla_days: value(row, "SLA Days", "sla_days") || 0,
+                sla_value: value(row, "SLA Value", "sla_value"),
+                status: value(row, "Status", "status") || "Open",
+                remarks: value(row, "Remarks", "remarks")
             };
 
             try {
-
                 const result =
                     await actionPointService.createManual(
                         normalized,
@@ -268,36 +266,30 @@ exports.bulkUploadActionPoints = async (req, res) => {
                 });
 
             } catch (rowError) {
-
                 errors.push(
                     `Row ${rowNumber}: ${rowError.message}`
                 );
-
             }
         }
 
         if (!created.length) {
-
             return res.status(400).json({
                 success: false,
                 message: "No Action Points were created.",
                 errors
             });
-
         }
 
         return res.status(201).json({
             success: true,
-            message:
-                `Bulk upload completed. ${created.length} Action Point(s) created.`,
+            message: `Bulk upload completed. ${created.length} Action Point(s) created.`,
             data: {
                 created,
                 errors
             }
         });
 
-    }
-    catch (error) {
+    } catch (error) {
 
         console.error(
             "BULK ACTION POINT UPLOAD ERROR:",
@@ -310,6 +302,17 @@ exports.bulkUploadActionPoints = async (req, res) => {
             error: error.message
         });
 
+    } finally {
+        // The upload middleware stores the temporary import file on disk.
+        // Remove it after processing so repeated uploads do not accumulate files.
+        if (uploadedPath) {
+            try {
+                const fs = require("fs");
+                if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+            } catch (cleanupError) {
+                console.warn("Unable to remove Action Point bulk-upload file:", cleanupError.message);
+            }
+        }
     }
 
 };

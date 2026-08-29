@@ -1,3 +1,4 @@
+const db = require("../config/db");
 const ActionPoint = require("../models/actionPointModel");
 const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
@@ -14,6 +15,98 @@ const asPromise = (fn, ...args) =>
             resolve(result);
         });
     });
+
+
+const queryOne = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.query(sql, params, (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows?.[0] || null);
+        });
+    });
+
+
+// Resolve references for global/bulk uploads. A bulk file can contain
+// multiple stores, and checklist-based rows do not need to repeat Store ID
+// when Submission ID is supplied because the submission already identifies
+// the store.
+const resolveGlobalReferences = async (data) => {
+    const resolved = { ...data };
+
+    const hasValue = (value) =>
+        value !== undefined && value !== null && String(value).trim() !== "";
+
+    // 1. Resolve Store ID from a store name/code when the global file
+    // provides a human-readable Store/Store Name instead of an ID.
+    const numericStoreId = hasValue(resolved.store_id)
+        ? Number(resolved.store_id)
+        : NaN;
+
+    if ((!Number.isFinite(numericStoreId) || numericStoreId <= 0) && hasValue(resolved.store_name)) {
+        const store = await queryOne(
+            `SELECT id
+             FROM stores
+             WHERE store_name = ? OR store_code = ?
+             LIMIT 1`,
+            [String(resolved.store_name).trim(), String(resolved.store_name).trim()]
+        );
+
+        if (store?.id) {
+            resolved.store_id = store.id;
+        }
+    }
+
+    // 2. Resolve Store ID from the checklist submission. A submission already
+    // identifies its store, so Store ID is optional for checklist-based rows.
+    if (!hasValue(resolved.store_id) && hasValue(resolved.submission_id)) {
+        const submission = await queryOne(
+            `SELECT store_id FROM checklist_submissions WHERE id = ? LIMIT 1`,
+            [Number(resolved.submission_id)]
+        );
+
+        if (submission?.store_id) {
+            resolved.store_id = submission.store_id;
+        }
+    }
+
+    // 3. Resolve Question ID from the submission answer when omitted.
+    if (!hasValue(resolved.question_id) && hasValue(resolved.submission_answer_id)) {
+        const answer = await queryOne(
+            `SELECT question_id, submission_id
+             FROM checklist_submission_answers
+             WHERE id = ? LIMIT 1`,
+            [Number(resolved.submission_answer_id)]
+        );
+
+        if (answer?.question_id) {
+            resolved.question_id = answer.question_id;
+        }
+
+        if (!hasValue(resolved.submission_id) && answer?.submission_id) {
+            resolved.submission_id = answer.submission_id;
+        }
+    }
+
+    // 4. If Department ID is omitted, use the first department configured
+    // for the question. This keeps the global upload useful while preserving
+    // the existing optional department field.
+    if (!hasValue(resolved.department_id) && hasValue(resolved.question_id)) {
+        const department = await queryOne(
+            `SELECT department_id
+             FROM question_departments
+             WHERE question_id = ?
+             ORDER BY department_id ASC
+             LIMIT 1`,
+            [Number(resolved.question_id)]
+        );
+
+        if (department?.department_id) {
+            resolved.department_id = department.department_id;
+        }
+    }
+
+    return resolved;
+};
 
 
 // ======================================================
@@ -362,6 +455,7 @@ const createManual = async (
         submission_answer_id,
         rule_id,
         store_id,
+        store_name,
         department_id,
         question_id,
         assigned_to,
@@ -376,23 +470,36 @@ const createManual = async (
 
 
     // ==================================================
+    // GLOBAL/BULK REFERENCE RESOLUTION
+    // ==================================================
+
+    // When a bulk row comes from a checklist submission, Store ID can be
+    // omitted safely because it is available on checklist_submissions.
+    const resolvedBody = await resolveGlobalReferences({
+        ...body,
+        store_name
+    });
+
+    const resolvedStoreId = resolvedBody.store_id;
+
+    // ==================================================
     // NORMALIZE OPTIONAL VALUES
     // ==================================================
 
     const normalizedSubmissionId =
-        submission_id === undefined ||
-        submission_id === null ||
-        submission_id === ""
+        resolvedBody.submission_id === undefined ||
+        resolvedBody.submission_id === null ||
+        resolvedBody.submission_id === ""
             ? null
-            : Number(submission_id);
+            : Number(resolvedBody.submission_id);
 
 
     const normalizedSubmissionAnswerId =
-        submission_answer_id === undefined ||
-        submission_answer_id === null ||
-        submission_answer_id === ""
+        resolvedBody.submission_answer_id === undefined ||
+        resolvedBody.submission_answer_id === null ||
+        resolvedBody.submission_answer_id === ""
             ? null
-            : Number(submission_answer_id);
+            : Number(resolvedBody.submission_answer_id);
 
 
     const normalizedRuleId =
@@ -404,27 +511,27 @@ const createManual = async (
 
 
     const normalizedStoreId =
-        store_id === undefined ||
-        store_id === null ||
-        store_id === ""
+        resolvedStoreId === undefined ||
+        resolvedStoreId === null ||
+        resolvedStoreId === ""
             ? null
-            : Number(store_id);
+            : Number(resolvedStoreId);
 
 
     const normalizedDepartmentId =
-        department_id === undefined ||
-        department_id === null ||
-        department_id === ""
+        resolvedBody.department_id === undefined ||
+        resolvedBody.department_id === null ||
+        resolvedBody.department_id === ""
             ? null
-            : Number(department_id);
+            : Number(resolvedBody.department_id);
 
 
     const normalizedQuestionId =
-        question_id === undefined ||
-        question_id === null ||
-        question_id === ""
+        resolvedBody.question_id === undefined ||
+        resolvedBody.question_id === null ||
+        resolvedBody.question_id === ""
             ? null
-            : Number(question_id);
+            : Number(resolvedBody.question_id);
 
 
     // ==================================================
