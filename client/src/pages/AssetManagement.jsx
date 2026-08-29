@@ -126,6 +126,17 @@ const attachmentUrl = (item) => {
     return `${API}/uploads/${item.filename || ""}`;
 };
 
+// Small form-field wrapper used by both Marketing and Legal asset forms.
+// Keeping it local prevents the Add/Edit modal from crashing when it renders.
+function Field({ label, children, full = false }) {
+    return (
+        <label className={`asset-field ${full ? "full" : ""}`}>
+            <span className="asset-field-label">{label}</span>
+            {children}
+        </label>
+    );
+}
+
 function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
     const isMarketing = type === "marketing";
     const [form, setForm] = useState(isMarketing ? MARKETING_DEFAULT : LEGAL_DEFAULT);
@@ -260,13 +271,13 @@ function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
                             <Field label="Department">
                                 <select value={form.department_id} onChange={(e) => setValue("department_id", e.target.value)}>
                                     <option value="">Select an option</option>
-                                    {options.departments.map((item) => <option key={item.id} value={item.id}>{item.department_name}</option>)}
+                                    {(options.departments || []).map((item) => <option key={item.id} value={item.id}>{item.department_name}</option>)}
                                 </select>
                             </Field>
                             <Field label="Store">
                                 <select value={form.store_id} onChange={(e) => setValue("store_id", e.target.value)}>
                                     <option value="">Select an option</option>
-                                    {options.stores.map((item) => <option key={item.id} value={item.id}>{item.store_name}</option>)}
+                                    {(options.stores || []).map((item) => <option key={item.id} value={item.id}>{item.store_name}</option>)}
                                 </select>
                             </Field>
                             <Field label="Particular Name"><input value={form.particular_name} onChange={(e) => setValue("particular_name", e.target.value)} placeholder="Particular Name" required /></Field>
@@ -297,13 +308,13 @@ function AssetModal({ type, open, initialData, options, onClose, onSaved }) {
                             <Field label="Store Name">
                                 <select value={form.store_id} onChange={(e) => setValue("store_id", e.target.value)}>
                                     <option value="">Select store</option>
-                                    {options.stores.map((item) => <option key={item.id} value={item.id}>{item.store_name}</option>)}
+                                    {(options.stores || []).map((item) => <option key={item.id} value={item.id}>{item.store_name}</option>)}
                                 </select>
                             </Field>
                             <Field label="Department">
                                 <select value={form.department_id} onChange={(e) => setValue("department_id", e.target.value)}>
                                     <option value="">Select department</option>
-                                    {options.departments.map((item) => <option key={item.id} value={item.id}>{item.department_name}</option>)}
+                                    {(options.departments || []).map((item) => <option key={item.id} value={item.id}>{item.department_name}</option>)}
                                 </select>
                             </Field>
                             <Field label="Location/Address">
