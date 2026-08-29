@@ -2696,3 +2696,163 @@
         justify-content: flex-start;
     }
 }
+
+/* =========================================================
+   FINAL WHATSAPP-LIKE CHAT VIEWPORT FIX
+   Keep the portal/chat headers visible while only the message
+   history scrolls. This prevents long conversations from pushing
+   the selected user's header and actions off-screen.
+   ========================================================= */
+
+.chat-page {
+    height: calc(100vh - 72px);
+    min-height: 0;
+    max-height: calc(100vh - 72px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 20;
+}
+
+.chat-alert {
+    flex: 0 0 auto;
+}
+
+.chat-workspace {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+}
+
+.chat-sidebar,
+.chat-main {
+    min-height: 0;
+    height: 100%;
+}
+
+.chat-conversation-header {
+    flex: 0 0 74px;
+    position: relative;
+    z-index: 15;
+    min-height: 74px;
+    overflow: visible;
+    box-shadow: 0 1px 0 rgba(17, 27, 33, .04);
+}
+
+.chat-person {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.chat-person > div:last-child {
+    min-width: 0;
+}
+
+.chat-person h2,
+.chat-person p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-call-actions {
+    position: relative;
+    flex: 0 0 auto;
+    align-items: center;
+    z-index: 16;
+}
+
+.chat-message-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+}
+
+.chat-composer {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 15;
+}
+
+/* The message header behaves like WhatsApp Web: it belongs to the
+   fixed-height chat column and never scrolls with message history. */
+.chat-main > .chat-conversation-header {
+    flex-shrink: 0;
+}
+
+/* Keep the top action row usable on narrower desktop windows. */
+@media (max-width: 1100px) and (min-width: 801px) {
+    .chat-page {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .chat-header {
+        gap: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .chat-workspace {
+        grid-template-columns: 280px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 800px) {
+    .chat-page {
+        height: calc(100vh - 72px);
+        max-height: calc(100vh - 72px);
+        padding: 8px;
+    }
+
+    .chat-header {
+        flex: 0 0 auto;
+    }
+
+    .chat-workspace,
+    .chat-workspace.with-details {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+    }
+
+    .chat-conversation-header {
+        flex-basis: 64px;
+        min-height: 64px;
+        padding: 8px 10px;
+    }
+
+    .chat-avatar.large {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+    }
+
+    .chat-person h2 {
+        font-size: 14px;
+    }
+
+    .chat-call-actions {
+        gap: 3px;
+    }
+
+    .chat-call-actions button {
+        width: 34px;
+        height: 34px;
+    }
+
+    .chat-message-area {
+        min-height: 0;
+    }
+}
