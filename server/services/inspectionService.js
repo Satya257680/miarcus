@@ -1446,6 +1446,19 @@ const createActionPoints = (
                                 rule.sla_days
                             ) || 0,
 
+                        sla_minutes:
+                            Number(rule.sla_minutes) ||
+                            (() => {
+                                const value = Number(item.question_sla_value) || 0;
+                                const unit = String(item.question_sla_unit || '').toLowerCase();
+                                if (value > 0) {
+                                    if (unit.includes('minute')) return Math.round(value);
+                                    if (unit.includes('hour')) return Math.round(value * 60);
+                                    return Math.round(value * 24 * 60);
+                                }
+                                return (Number(rule.sla_days) || 0) * 24 * 60;
+                            })(),
+
                         status:
                             "Open",
 

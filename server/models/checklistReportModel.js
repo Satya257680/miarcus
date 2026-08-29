@@ -113,7 +113,7 @@ ChecklistReport.getAll = (
 
             ON u.id = cs.submitted_by
 
-        LEFT JOIN checklist_submission_answers csa
+        INNER JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
 
@@ -614,6 +614,13 @@ ChecklistReport.getById = (
 
         WHERE cs.id = ?
 
+        AND NOT EXISTS (
+            SELECT 1
+            FROM action_points open_ap
+            WHERE open_ap.submission_answer_id = csa.id
+              AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
+        )
+
         GROUP BY
 
             cs.id,
@@ -1058,7 +1065,7 @@ ChecklistReport.countAll = (
 LEFT JOIN users u
     ON u.id = cs.submitted_by
 
-LEFT JOIN checklist_submission_answers csa
+INNER JOIN checklist_submission_answers csa
     ON csa.submission_id = cs.id
 
 LEFT JOIN action_points ap
@@ -1344,6 +1351,13 @@ ChecklistReport.exportReports = (
         LEFT JOIN departments d
 
             ON d.id = qd.department_id
+
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM action_points open_ap
+            WHERE open_ap.submission_answer_id = csa.id
+              AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
+        )
 
         GROUP BY
 

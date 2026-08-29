@@ -170,7 +170,7 @@ function ActionPoints() {
 
     const [department, setDepartment] = useState("");
 
-    const [status, setStatus] = useState("");
+    const [status, setStatus] = useState("Open");
 
     const [priority, setPriority] = useState("");
 
@@ -890,7 +890,7 @@ const handleClearFilters = () => {
 
     setNsoProject("");
 
-    setStatus("");
+    setStatus("Open");
 
     setPriority("");
 

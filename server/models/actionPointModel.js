@@ -1034,7 +1034,8 @@ ActionPoint.create = (
             data.sla_days
         ) || 0,
 
-        Number(data.sla_minutes) || 0,
+        Number(data.sla_minutes) ||
+            ((Number(data.sla_value ?? data.sla_days) || 0) * 24 * 60),
 
         data.status || "Open",
 

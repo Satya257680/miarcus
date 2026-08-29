@@ -695,6 +695,9 @@ const createManual = async (
         sla_value:
             finalSlaValue,
 
+        sla_minutes:
+            finalSlaMinutes,
+
 
         // ----------------------------------------------
         // STATUS
