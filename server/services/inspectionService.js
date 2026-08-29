@@ -11,7 +11,6 @@ const ActionPoint = require("../models/actionPointModel");
 const Activity = require("../models/activityModel");
 
 const Audit = require("../models/auditModel");
-const notificationService = require("../services/notificationService");
 
 const {
     logActivity
@@ -444,11 +443,12 @@ const evaluateRules = (
                     answer.answer ?? ""
                 ).trim();
 
-            // Blank/unanswered checklist questions are NOT Action Points.
-            // They must remain visible in Checklist Reports.
+            // Blank answers are not failures and must not create Action Points.
+            // They remain visible in Checklist Reports.
             if (!submittedAnswer) {
                 return;
             }
+
 
             const expectedAnswer =
                 String(
@@ -549,8 +549,8 @@ const isAutomaticProblem = (
         );
 
 
-    // Blank/unanswered questions are report rows, not Action Points.
-    // An Action Point is raised only when an actual answer indicates a problem.
+    // Empty answer is not an Action Point by itself.
+    // Blank/unanswered questions remain available in Checklist Reports.
     if (!value) {
 
         return false;
@@ -1291,20 +1291,6 @@ const notifyActionPoint = async ({
 
         });
 
-        // Persist the same event in the Notification Center.
-        await notificationService.createForUsers(
-            [responsibleUser?.id, userId],
-            {
-                title: "Action Point Created",
-                message: `Action Point #${actionPointId} was created for checklist submission #${submissionId}.`,
-                module_name: "Action Points",
-                action_name: "Created",
-                entity_id: actionPointId,
-                link: "/action-points",
-                type: "warning"
-            }
-        );
-
 
         return responsibleUser;
 
@@ -1459,21 +1445,6 @@ const createActionPoints = (
                             Number(
                                 rule.sla_days
                             ) || 0,
-
-                        // Preserve the exact SLA configured on the question/rule.
-                        // Do not silently convert every Action Point to 3 days.
-                        sla_minutes:
-                            Number(rule.sla_minutes) ||
-                            (() => {
-                                const value = Number(item.question_sla_value) || 0;
-                                const unit = normalizeText(item.question_sla_unit);
-                                if (value <= 0) {
-                                    return (Number(rule.sla_days) || 0) * 24 * 60;
-                                }
-                                if (unit.includes("minute")) return Math.round(value);
-                                if (unit.includes("hour")) return Math.round(value * 60);
-                                return Math.round(value * 24 * 60);
-                            })(),
 
                         status:
                             "Open",

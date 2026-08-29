@@ -24,8 +24,11 @@ ChecklistReport.getAll = (
         SELECT
 
             cs.id,
-            cs.store_id,
+
             cs.checklist_type_id,
+
+            cs.store_id,
+
             cs.submitted_by,
 
             cs.submission_date,
@@ -67,6 +70,7 @@ ChecklistReport.getAll = (
             q.sequence_no,
 
             csa.id AS answer_id,
+
             csa.answer,
 
             csa.remarks,
@@ -113,15 +117,14 @@ ChecklistReport.getAll = (
 
             ON csa.submission_id = cs.id
 
-        LEFT JOIN (
-            SELECT ap1.*
-            FROM action_points ap1
-            LEFT JOIN action_points ap2
-                ON ap2.submission_answer_id = ap1.submission_answer_id
-               AND ap2.id > ap1.id
-            WHERE ap2.id IS NULL
-        ) ap
-            ON ap.submission_answer_id = csa.id
+        LEFT JOIN action_points ap
+            ON ap.id = (
+                SELECT ap1.id
+                FROM action_points ap1
+                WHERE ap1.submission_answer_id = csa.id
+                ORDER BY ap1.id DESC
+                LIMIT 1
+            )
 
         LEFT JOIN questions q
 
@@ -140,9 +143,11 @@ ChecklistReport.getAll = (
             -- A checklist answer belongs in Reports immediately when no
             -- Action Point is required. If an Action Point exists, keep
             -- the answer out of Reports until that Action Point is closed.
-            AND (
-                ap.id IS NULL
-                OR ap.status = 'Closed'
+            AND NOT EXISTS (
+                SELECT 1
+                FROM action_points open_ap
+                WHERE open_ap.submission_answer_id = csa.id
+                  AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
             )
 
     `;
@@ -400,8 +405,11 @@ sql += `
     GROUP BY
 
         cs.id,
-        cs.store_id,
+
         cs.checklist_type_id,
+
+        cs.store_id,
+
         cs.submitted_by,
 
         cs.submission_date,
@@ -431,6 +439,7 @@ sql += `
         q.question,
 
         q.sequence_no,
+
         csa.id,
 
         csa.answer,
@@ -499,6 +508,12 @@ ChecklistReport.getById = (
         SELECT
 
             cs.id,
+
+            cs.checklist_type_id,
+
+            cs.store_id,
+
+            cs.submitted_by,
 
             cs.submission_date,
 
@@ -576,15 +591,14 @@ ChecklistReport.getById = (
 
             ON csa.submission_id = cs.id
 
-        LEFT JOIN (
-            SELECT ap1.*
-            FROM action_points ap1
-            LEFT JOIN action_points ap2
-                ON ap2.submission_answer_id = ap1.submission_answer_id
-               AND ap2.id > ap1.id
-            WHERE ap2.id IS NULL
-        ) ap
-            ON ap.submission_answer_id = csa.id
+        LEFT JOIN action_points ap
+            ON ap.id = (
+                SELECT ap1.id
+                FROM action_points ap1
+                WHERE ap1.submission_answer_id = csa.id
+                ORDER BY ap1.id DESC
+                LIMIT 1
+            )
 
         LEFT JOIN questions q
 
@@ -603,6 +617,12 @@ ChecklistReport.getById = (
         GROUP BY
 
             cs.id,
+
+            cs.checklist_type_id,
+
+            cs.store_id,
+
+            cs.submitted_by,
 
             cs.submission_date,
 
@@ -1041,15 +1061,14 @@ LEFT JOIN users u
 LEFT JOIN checklist_submission_answers csa
     ON csa.submission_id = cs.id
 
-LEFT JOIN (
-    SELECT ap1.*
-    FROM action_points ap1
-    LEFT JOIN action_points ap2
-        ON ap2.submission_answer_id = ap1.submission_answer_id
-       AND ap2.id > ap1.id
-    WHERE ap2.id IS NULL
-) ap
-    ON ap.submission_answer_id = csa.id
+LEFT JOIN action_points ap
+    ON ap.id = (
+        SELECT ap1.id
+        FROM action_points ap1
+        WHERE ap1.submission_answer_id = csa.id
+        ORDER BY ap1.id DESC
+        LIMIT 1
+    )
 
 LEFT JOIN questions q
     ON q.id = csa.question_id
@@ -1064,11 +1083,12 @@ LEFT JOIN departments d
 
         WHERE 1=1
 
-        AND csa.id IS NOT NULL
-        AND (
-            ap.id IS NULL
-            OR ap.status = 'Closed'
-        )
+        AND NOT EXISTS (
+                SELECT 1
+                FROM action_points open_ap
+                WHERE open_ap.submission_answer_id = csa.id
+                  AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
+            )
 
 
     `;
@@ -1156,6 +1176,17 @@ LEFT JOIN departments d
 
 
 
+
+
+    if(filters.from_date){
+        sql += ` AND DATE(cs.submission_date) >= ? `;
+        values.push(filters.from_date);
+    }
+
+    if(filters.to_date){
+        sql += ` AND DATE(cs.submission_date) <= ? `;
+        values.push(filters.to_date);
+    }
 
 
     if(filters.search){
