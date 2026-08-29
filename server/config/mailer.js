@@ -279,6 +279,12 @@ async function sendMail(mailOptions = {}) {
                         attachment.content,
                     ...(attachment.path
                         ? { path: attachment.path }
+                        : {}),
+                    ...(attachment.cid
+                        ? { contentId: String(attachment.cid).replace(/[<>\r\n]/g, "") }
+                        : {}),
+                    ...(attachment.contentType
+                        ? { contentType: attachment.contentType }
                         : {})
                 })
             );
