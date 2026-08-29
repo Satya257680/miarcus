@@ -57,7 +57,8 @@ const resetPassword = require(
 // ==========================================================
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM || ""
+    process.env.RESEND_FROM ||
+    "onboarding@resend.dev"
 ).trim();
 
 // ==========================================================
@@ -153,7 +154,7 @@ const validateUserEmail = (user) => {
 //
 // Every Miarcus email goes through this function.
 //
-// Gmail SMTP authentication is handled by:
+// Resend API authentication and sender configuration are handled by:
 // server/config/mailer.js
 //
 // ==========================================================
@@ -177,6 +178,32 @@ const sendEmail = async ({
         );
 
     }
+
+    const recipients = Array.isArray(to)
+        ? to
+            .map((email) => String(email || "").trim().toLowerCase())
+            .filter(Boolean)
+        : [String(to).trim().toLowerCase()];
+
+    const emailPattern =
+        /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+
+    if (
+        recipients.length === 0 ||
+        recipients.some(
+            (email) =>
+                email.length > 254 ||
+                !emailPattern.test(email)
+        )
+    ) {
+        throw new Error(
+            "Invalid recipient email address."
+        );
+    }
+
+    const normalizedTo = Array.isArray(to)
+        ? recipients
+        : recipients[0];
 
     // ------------------------------------------------------
     // Validate subject
@@ -235,7 +262,7 @@ const sendEmail = async ({
 
         console.log(
             "To:",
-            to
+            normalizedTo
         );
 
         console.log(
@@ -273,11 +300,8 @@ const sendEmail = async ({
 
         const result = await mailer.sendMail({
 
-            from:
-                EMAIL_FROM,
-
             to:
-                to,
+                normalizedTo,
 
             subject:
                 subject,
@@ -312,7 +336,7 @@ const sendEmail = async ({
 
         console.log(
             "To:",
-            to
+            normalizedTo
         );
 
         console.log(
@@ -355,7 +379,7 @@ const sendEmail = async ({
 
         console.error(
             "To:",
-            to
+            normalizedTo
         );
 
         console.error(
