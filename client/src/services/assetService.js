@@ -1,6 +1,6 @@
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
-const API = API_BASE_URL + '/api/assets';
+const API = `${API_BASE_URL}/api/assets`;
 
 const authConfig = () => ({
     headers: {
@@ -8,37 +8,34 @@ const authConfig = () => ({
     },
 });
 
+const uploadConfig = () => ({
+    headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+});
+
 export const fetchAssets = async (type, params = {}) => {
-    const response = await axios.get(`${API}/${type}`, {
-        ...authConfig(),
-        params,
-    });
+    const response = await axios.get(`${API}/${type}`, { ...authConfig(), params });
     return response.data;
 };
 
 export const fetchAssetOptions = async () => {
     const response = await axios.get(`${API}/options`, authConfig());
-    return response.data?.data || { departments: [], stores: [] };
+    return response.data?.data || { departments: [], stores: [], categories: [], statuses: [] };
 };
 
 export const createAsset = async (type, formData) => {
     const response = await axios.post(`${API}/${type}`, formData, {
-        ...authConfig(),
-        headers: {
-            ...authConfig().headers,
-            "Content-Type": "multipart/form-data",
-        },
+        ...uploadConfig(),
+        headers: { ...uploadConfig().headers, "Content-Type": "multipart/form-data" },
     });
     return response.data;
 };
 
 export const updateAsset = async (type, id, formData) => {
     const response = await axios.put(`${API}/${type}/${id}`, formData, {
-        ...authConfig(),
-        headers: {
-            ...authConfig().headers,
-            "Content-Type": "multipart/form-data",
-        },
+        ...uploadConfig(),
+        headers: { ...uploadConfig().headers, "Content-Type": "multipart/form-data" },
     });
     return response.data;
 };
@@ -53,18 +50,11 @@ export const deleteAllAssets = async (type) => {
     return response.data;
 };
 
+// Same upload pattern used by the working Departments module.
 export const importAssets = async (type, file) => {
     const formData = new FormData();
     formData.append("file", file);
-
-    const response = await axios.post(`${API}/${type}/import`, formData, {
-        ...authConfig(),
-        headers: {
-            ...authConfig().headers,
-            "Content-Type": "multipart/form-data",
-        },
-    });
-
+    const response = await axios.post(`${API}/${type}/import`, formData, uploadConfig());
     return response.data;
 };
 

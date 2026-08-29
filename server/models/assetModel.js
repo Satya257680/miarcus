@@ -110,18 +110,38 @@ const createTables = async (callback) => {
 const resolveNames = async (data) => {
     let departmentName = clean(data.department_name);
     let storeName = clean(data.store_name);
+    let departmentId = data.department_id ? Number(data.department_id) : null;
+    let storeId = data.store_id ? Number(data.store_id) : null;
 
-    if (data.department_id && !departmentName) {
-        const rows = await db.query("SELECT department_name FROM departments WHERE id = ? LIMIT 1", [data.department_id]);
-        departmentName = rows[0]?.department_name || null;
+    if (departmentId) {
+        const rows = await db.query("SELECT id, department_name FROM departments WHERE id = ? LIMIT 1", [departmentId]);
+        if (rows[0]) departmentName = rows[0].department_name;
+    } else if (departmentName) {
+        const rows = await db.query(
+            "SELECT id, department_name FROM departments WHERE LOWER(TRIM(department_name)) = LOWER(TRIM(?)) LIMIT 1",
+            [departmentName]
+        );
+        if (rows[0]) {
+            departmentId = Number(rows[0].id);
+            departmentName = rows[0].department_name;
+        }
     }
 
-    if (data.store_id && !storeName) {
-        const rows = await db.query("SELECT store_name FROM stores WHERE id = ? LIMIT 1", [data.store_id]);
-        storeName = rows[0]?.store_name || null;
+    if (storeId) {
+        const rows = await db.query("SELECT id, store_name FROM stores WHERE id = ? LIMIT 1", [storeId]);
+        if (rows[0]) storeName = rows[0].store_name;
+    } else if (storeName) {
+        const rows = await db.query(
+            "SELECT id, store_name FROM stores WHERE LOWER(TRIM(store_name)) = LOWER(TRIM(?)) LIMIT 1",
+            [storeName]
+        );
+        if (rows[0]) {
+            storeId = Number(rows[0].id);
+            storeName = rows[0].store_name;
+        }
     }
 
-    return { departmentName, storeName };
+    return { departmentId, departmentName, storeId, storeName };
 };
 
 const parseRow = (type, row) => {
@@ -221,7 +241,7 @@ const findById = async (type, id) => {
 };
 
 const create = async (type, data, userId) => {
-    const { departmentName, storeName } = await resolveNames(data);
+    const { departmentId, departmentName, storeId, storeName } = await resolveNames(data);
 
     if (type === "marketing") {
         const result = await db.query(
@@ -229,7 +249,7 @@ const create = async (type, data, userId) => {
             (department_id, department_name, store_id, store_name, particular_name, category, type, size, color, brand, rate, buy_date, expiry_date, location_address, location_lat, location_lng, email, mobile, remark, additional_fields, attachments, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                numberOrNull(data.department_id), departmentName, numberOrNull(data.store_id), storeName,
+                numberOrNull(departmentId), departmentName, numberOrNull(storeId), storeName,
                 clean(data.particular_name), clean(data.category), clean(data.type), clean(data.size), clean(data.color), clean(data.brand),
                 numberOrNull(data.rate), clean(data.buy_date), clean(data.expiry_date), clean(data.location_address), numberOrNull(data.location_lat), numberOrNull(data.location_lng),
                 clean(data.email), clean(data.mobile), clean(data.remark), JSON.stringify(jsonOrEmpty(data.additional_fields, [])), JSON.stringify(normalizeAttachments(data.attachments)), userId || null, userId || null,
@@ -255,7 +275,7 @@ const update = async (type, id, data, userId) => {
     const existing = await findById(type, id);
     if (!existing) return null;
 
-    const { departmentName, storeName } = await resolveNames({
+    const { departmentId, departmentName, storeId, storeName } = await resolveNames({
         ...existing,
         ...data,
         department_name: data.department_name || existing.department_name,
@@ -272,7 +292,7 @@ const update = async (type, id, data, userId) => {
                 department_id=?, department_name=?, store_id=?, store_name=?, particular_name=?, category=?, type=?, size=?, color=?, brand=?, rate=?, buy_date=?, expiry_date=?, location_address=?, location_lat=?, location_lng=?, email=?, mobile=?, remark=?, additional_fields=?, attachments=?, updated_by=?
              WHERE id=?`,
             [
-                numberOrNull(data.department_id ?? existing.department_id), departmentName, numberOrNull(data.store_id ?? existing.store_id), storeName,
+                numberOrNull(data.department_id ?? departmentId ?? existing.department_id), departmentName, numberOrNull(data.store_id ?? storeId ?? existing.store_id), storeName,
                 clean(data.particular_name ?? existing.particular_name), clean(data.category ?? existing.category), clean(data.type ?? existing.type), clean(data.size ?? existing.size), clean(data.color ?? existing.color), clean(data.brand ?? existing.brand),
                 numberOrNull(data.rate ?? existing.rate), clean(data.buy_date ?? existing.buy_date), clean(data.expiry_date ?? existing.expiry_date), clean(data.location_address ?? existing.location_address), numberOrNull(data.location_lat ?? existing.location_lat), numberOrNull(data.location_lng ?? existing.location_lng),
                 clean(data.email ?? existing.email), clean(data.mobile ?? existing.mobile), clean(data.remark ?? existing.remark), JSON.stringify(data.additional_fields ?? existing.additional_fields ?? []), JSON.stringify(attachmentList), userId || null, id,
@@ -284,7 +304,7 @@ const update = async (type, id, data, userId) => {
                 name=?, store_id=?, store_name=?, department_id=?, department_name=?, location_address=?, location_lat=?, location_lng=?, remark=?, short_description=?, attachments=?, date_of_issue=?, status=?, custom_field_name=?, custom_field_value=?, updated_by=?
              WHERE id=?`,
             [
-                clean(data.name ?? existing.name), numberOrNull(data.store_id ?? existing.store_id), storeName, numberOrNull(data.department_id ?? existing.department_id), departmentName,
+                clean(data.name ?? existing.name), numberOrNull(data.store_id ?? storeId ?? existing.store_id), storeName, numberOrNull(data.department_id ?? departmentId ?? existing.department_id), departmentName,
                 clean(data.location_address ?? existing.location_address), numberOrNull(data.location_lat ?? existing.location_lat), numberOrNull(data.location_lng ?? existing.location_lng), clean(data.remark ?? existing.remark), clean(data.short_description ?? existing.short_description), JSON.stringify(attachmentList), clean(data.date_of_issue ?? existing.date_of_issue), clean(data.status ?? existing.status) || "Unresolved", clean(data.custom_field_name ?? existing.custom_field_name), clean(data.custom_field_value ?? existing.custom_field_value), userId || null, id,
             ]
         );

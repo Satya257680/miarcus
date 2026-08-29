@@ -4,6 +4,28 @@ const XLSX = require("xlsx");
 
 const normalizeHeader = (value) => String(value || "").trim().toLowerCase().replace(/[\s_\-/]+/g, "");
 
+const normalizeDate = (value) => {
+    if (value === undefined || value === null || String(value).trim() === "") return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+
+    const text = String(value).trim();
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+        const [y, m, d] = text.split("-").map(Number);
+        return `${y.toString().padStart(4, "0")}-${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+    }
+
+    const slash = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (slash) {
+        const [, first, second, year] = slash;
+        // Asset exports use DD/MM/YYYY. If the first number is > 12, this is unambiguous.
+        // For ambiguous values, prefer DD/MM/YYYY to match the application's en-IN display.
+        return `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}`;
+    }
+
+    const date = new Date(text);
+    return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+};
+
 const MARKETING_MAP = {
     department: "department_name",
     departmentname: "department_name",
@@ -49,7 +71,11 @@ const mapCsvRow = (type, row) => {
 
     Object.entries(row).forEach(([header, value]) => {
         const key = map[normalizeHeader(header)];
-        if (key) mapped[key] = value;
+        if (key) {
+            mapped[key] = ["buy_date", "expiry_date", "date_of_issue"].includes(key)
+                ? normalizeDate(value)
+                : value;
+        }
     });
 
     return mapped;
@@ -198,11 +224,29 @@ const importCsv = async (req, res) => {
         const workbook = XLSX.readFile(req.file.path, { cellDates: true });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) return res.status(400).json({ success: false, message: "The uploaded file contains no worksheet." });
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false })
+        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+            defval: "",
+            raw: false,
+            blankrows: false,
+        });
+
+        const rows = rawRows
             .map((row) => mapCsvRow(type, row))
             .filter((row) => Object.values(row).some((value) => String(value ?? "").trim() !== ""));
+
+        if (!rows.length) {
+            return res.status(400).json({
+                success: false,
+                message: "The uploaded file has no valid data rows. Please use the sample file format.",
+            });
+        }
+
         const result = await Asset.importRows(type, rows, req.user?.id);
-        return res.json({ success: true, message: `Imported ${result.imported} record(s). Skipped ${result.skipped}.`, data: result });
+        const message = result.skipped
+            ? `Imported ${result.imported} record(s). Skipped ${result.skipped}.`
+            : `${result.imported} record(s) uploaded successfully.`;
+
+        return res.json({ success: result.imported > 0, message, data: result });
     } catch (error) {
         console.error("Asset bulk import error:", error);
         return res.status(500).json({ success: false, message: "Unable to process the uploaded file." });
