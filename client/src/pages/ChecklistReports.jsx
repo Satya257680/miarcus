@@ -343,6 +343,13 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         loadData();
 
+        const handleFocus = () => loadData();
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
+
     }, [canView]);
 
     // ======================================================
@@ -554,6 +561,14 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             Answer: r.answer || "-",
 
             Comment: r.remarks || "-",
+
+            "Action Status": r.action_point_id
+                ? (r.action_point_status || "Open")
+                : "Not Required",
+
+            "Action Taken": r.action_taken || "-",
+
+            "Action Completed At": r.action_point_completed_at || r.completion_date || "-",
 
             Device: r.device || "-",
 
@@ -1021,6 +1036,59 @@ const uploadChecklistReport = async (file) => {
                     {row.remarks || "-"}
                 </div>
             )
+        },
+
+        // ==================================================
+        // ACTION POINT STATUS / COMPLETION
+        // ==================================================
+
+        {
+            key: "action_point_status",
+            title: "Action Status",
+            render: (row) => {
+                if (!row.action_point_id) {
+                    return <span className="status-badge">Not Required</span>;
+                }
+
+                const status = row.action_point_status || "Open";
+                return (
+                    <span
+                        className={`status-badge ${String(status)
+                            .toLowerCase()
+                            .replace(/\s+/g, "-")}`}
+                    >
+                        {status}
+                    </span>
+                );
+            }
+        },
+
+        {
+            key: "action_taken",
+            title: "Action Taken",
+            render: (row) => row.action_taken || "-"
+        },
+
+        {
+            key: "action_point_completed_at",
+            title: "Action Completed At",
+            render: (row) =>
+                row.action_point_completed_at || row.completion_date
+                    ? formatDate(row.action_point_completed_at || row.completion_date)
+                    : "-"
+        },
+
+        {
+            key: "action_point_sla_minutes",
+            title: "SLA",
+            render: (row) => {
+                const minutes = Number(row.action_point_sla_minutes || 0);
+                if (!row.action_point_id || minutes <= 0) return "No SLA";
+                const days = Math.floor(minutes / 1440);
+                const hours = Math.floor((minutes % 1440) / 60);
+                const mins = minutes % 60;
+                return `${days}d ${String(hours).padStart(2, "0")}h ${String(mins).padStart(2, "0")}m`;
+            }
         },
 
        // ==================================================

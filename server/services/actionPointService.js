@@ -349,6 +349,17 @@ const createFromRules = async (
             sla_value:
                 Number(rule.sla_days) || 0,
 
+            sla_minutes:
+                Number(rule.sla_minutes) ||
+                (() => {
+                    const value = Number(item.question_sla_value) || 0;
+                    const unit = String(item.question_sla_unit || "").toLowerCase();
+                    if (value <= 0) return (Number(rule.sla_days) || 0) * 24 * 60;
+                    if (unit.includes("minute")) return Math.round(value);
+                    if (unit.includes("hour")) return Math.round(value * 60);
+                    return Math.round(value * 24 * 60);
+                })(),
+
             status:
                 "Open",
 
@@ -481,6 +492,8 @@ const createManual = async (
         sla_days,
         sla_value,
         sla_type,
+        sla_hours,
+        sla_minutes,
         answer,
         remarks,
         status
@@ -594,18 +607,33 @@ const createManual = async (
         sla_value !== null &&
         sla_value !== ""
     ) {
-
-        finalSlaValue =
-            Number(sla_value) || 0;
-
+        finalSlaValue = Number(sla_value) || 0;
     } else if (
         sla_days !== undefined &&
         sla_days !== null &&
         sla_days !== ""
     ) {
+        finalSlaValue = Number(sla_days) || 0;
+    }
 
-        finalSlaValue =
-            Number(sla_days) || 0;
+    // Keep an exact countdown duration while retaining sla_value as the
+    // legacy/day value used by existing Action Point records.
+    const hasSlaParts =
+        sla_days !== undefined ||
+        sla_hours !== undefined ||
+        sla_minutes !== undefined;
+
+    let finalSlaMinutes = 0;
+
+    if (hasSlaParts) {
+        finalSlaMinutes =
+            (Number(sla_days) || 0) * 24 * 60 +
+            (Number(sla_hours) || 0) * 60 +
+            (Number(sla_minutes) || 0);
+    }
+
+    if (finalSlaMinutes <= 0 && finalSlaValue > 0) {
+        finalSlaMinutes = finalSlaValue * 24 * 60;
     }
 
 
@@ -846,26 +874,33 @@ const update = async (
     let finalSlaValue =
         oldData.sla_value;
 
-
     if (
         sla_value !== undefined &&
         sla_value !== null &&
         sla_value !== ""
     ) {
-
-        finalSlaValue =
-            Number(sla_value) ||
-            oldData.sla_value;
-
+        finalSlaValue = Number(sla_value) || oldData.sla_value;
     } else if (
         sla_days !== undefined &&
         sla_days !== null &&
         sla_days !== ""
     ) {
+        finalSlaValue = Number(sla_days) || oldData.sla_value;
+    }
 
-        finalSlaValue =
-            Number(sla_days) ||
-            oldData.sla_value;
+    let finalSlaMinutes =
+        Number(oldData.sla_minutes) ||
+        (Number(oldData.sla_value) || 0) * 24 * 60;
+
+    if (
+        sla_days !== undefined ||
+        sla_hours !== undefined ||
+        sla_minutes !== undefined
+    ) {
+        finalSlaMinutes =
+            (Number(sla_days) || 0) * 24 * 60 +
+            (Number(sla_hours) || 0) * 60 +
+            (Number(sla_minutes) || 0);
     }
 
 
@@ -880,6 +915,9 @@ const update = async (
 
         sla_value:
             finalSlaValue,
+
+        sla_minutes:
+            finalSlaMinutes,
 
         remarks:
             remarks !== undefined

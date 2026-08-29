@@ -482,6 +482,12 @@ const evaluateRules = (
                     department_ids:
                         answer.department_ids,
 
+                    question_sla_value:
+                        answer.question_sla_value,
+
+                    question_sla_unit:
+                        answer.question_sla_unit,
+
                     rule
 
                 });
@@ -838,29 +844,25 @@ const createAutomaticNSORule = async (
         );
 
 
-    const slaDays =
+    // Use the SLA configured on the checklist question. Do not fall back
+    // to an arbitrary 3-day SLA. The Action Point countdown uses the exact
+    // duration in minutes when one is configured.
+    let slaMinutes = 0;
 
-        questionSlaValue > 0
+    if (questionSlaValue > 0) {
 
-            ? Math.max(
+        if (questionSlaUnit.includes("minute")) {
+            slaMinutes = Math.round(questionSlaValue);
+        } else if (questionSlaUnit.includes("hour")) {
+            slaMinutes = Math.round(questionSlaValue * 60);
+        } else {
+            slaMinutes = Math.round(questionSlaValue * 24 * 60);
+        }
+    }
 
-                1,
-
-                questionSlaUnit.includes(
-                    "hour"
-                )
-
-                    ? Math.ceil(
-                        questionSlaValue / 24
-                    )
-
-                    : Math.ceil(
-                        questionSlaValue
-                    )
-
-            )
-
-            : 3;
+    const slaDays = slaMinutes > 0
+        ? Math.ceil(slaMinutes / (24 * 60))
+        : 0;
 
 
     const rule = {
@@ -877,6 +879,9 @@ const createAutomaticNSORule = async (
 
         sla_days:
             slaDays,
+
+        sla_minutes:
+            slaMinutes,
 
         create_action_point:
             1,

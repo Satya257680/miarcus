@@ -67,6 +67,20 @@ ChecklistReport.getAll = (
 
             csa.remarks,
 
+            ap.id AS action_point_id,
+
+            ap.status AS action_point_status,
+
+            csa.action_taken,
+
+            csa.action_remarks,
+
+            csa.completion_date,
+
+            ap.completed_at AS action_point_completed_at,
+
+            ap.sla_minutes AS action_point_sla_minutes,
+
             (
 
                 SELECT COUNT(*)
@@ -94,6 +108,16 @@ ChecklistReport.getAll = (
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
+
+        LEFT JOIN (
+            SELECT ap1.*
+            FROM action_points ap1
+            LEFT JOIN action_points ap2
+                ON ap2.submission_answer_id = ap1.submission_answer_id
+               AND ap2.id > ap1.id
+            WHERE ap2.id IS NULL
+        ) ap
+            ON ap.submission_answer_id = csa.id
 
         LEFT JOIN questions q
 
@@ -395,7 +419,21 @@ sql += `
 
         csa.answer,
 
-        csa.remarks
+        csa.remarks,
+
+        ap.id,
+
+        ap.status,
+
+        csa.action_taken,
+
+        csa.action_remarks,
+
+        csa.completion_date,
+
+        ap.completed_at,
+
+        ap.sla_minutes
 
     ORDER BY
 
@@ -488,7 +526,21 @@ ChecklistReport.getById = (
 
             csa.answer,
 
-            csa.remarks
+            csa.remarks,
+
+            ap.id AS action_point_id,
+
+            ap.status AS action_point_status,
+
+            csa.action_taken,
+
+            csa.action_remarks,
+
+            csa.completion_date,
+
+            ap.completed_at AS action_point_completed_at,
+
+            ap.sla_minutes AS action_point_sla_minutes
 
         FROM checklist_submissions cs
 
@@ -507,6 +559,16 @@ ChecklistReport.getById = (
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
+
+        LEFT JOIN (
+            SELECT ap1.*
+            FROM action_points ap1
+            LEFT JOIN action_points ap2
+                ON ap2.submission_answer_id = ap1.submission_answer_id
+               AND ap2.id > ap1.id
+            WHERE ap2.id IS NULL
+        ) ap
+            ON ap.submission_answer_id = csa.id
 
         LEFT JOIN questions q
 
@@ -558,7 +620,21 @@ ChecklistReport.getById = (
 
             csa.answer,
 
-            csa.remarks
+            csa.remarks,
+
+            ap.id,
+
+            ap.status,
+
+            csa.action_taken,
+
+            csa.action_remarks,
+
+            csa.completion_date,
+
+            ap.completed_at,
+
+            ap.sla_minutes
 
         ORDER BY
 

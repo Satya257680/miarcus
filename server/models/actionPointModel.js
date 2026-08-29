@@ -38,6 +38,9 @@ ActionPoint.createTables = (callback) => {
 
             sla_value INT DEFAULT 0,
 
+            /* Exact SLA duration in minutes; sla_value is retained for legacy/day display. */
+            sla_minutes INT DEFAULT 0,
+
             status ENUM(
                 'Open',
                 'In Progress',
@@ -234,6 +237,47 @@ ActionPoint.ensureQuestionColumn = async () => {
 
 
 // ======================================================
+// ENSURE EXACT SLA COLUMN
+// Existing databases need an explicit migration because
+// CREATE TABLE IF NOT EXISTS does not alter old tables.
+// ======================================================
+
+ActionPoint.ensureSlaMinutesColumn = async () => {
+
+    const column = await new Promise((resolve, reject) => {
+
+        db.query(
+            `SHOW COLUMNS FROM action_points LIKE 'sla_minutes'`,
+            (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows?.[0] || null);
+            }
+        );
+
+    });
+
+    if (!column) {
+
+        await new Promise((resolve, reject) => {
+
+            db.query(
+                `ALTER TABLE action_points
+                 ADD COLUMN sla_minutes INT DEFAULT 0
+                 AFTER sla_value`,
+                (err) => {
+                    if (err) return reject(err);
+                    resolve();
+                }
+            );
+
+        });
+
+        console.log("✅ action_points.sla_minutes added");
+    }
+};
+
+
+// ======================================================
 // GET ALL ACTION POINTS
 // ======================================================
 
@@ -266,6 +310,8 @@ ActionPoint.getAll = (
             ap.priority,
 
             ap.sla_value,
+
+            ap.sla_minutes,
 
             ap.status,
 
@@ -782,6 +828,10 @@ ActionPoint.getById = (
 
             ap.sla_value AS sla_days,
 
+            ap.sla_value,
+
+            ap.sla_minutes,
+
             ap.status,
 
             ap.remarks AS remarks,
@@ -914,6 +964,7 @@ ActionPoint.create = (
             assigned_to,
             priority,
             sla_value,
+            sla_minutes,
             status,
             remarks,
             attachment,
@@ -923,7 +974,7 @@ ActionPoint.create = (
         VALUES
         (
             ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?
         )
 
     `;
@@ -983,6 +1034,8 @@ ActionPoint.create = (
             data.sla_days
         ) || 0,
 
+        Number(data.sla_minutes) || 0,
+
         data.status || "Open",
 
         data.remarks || null,
@@ -1023,6 +1076,8 @@ ActionPoint.update = (
 
             sla_value = ?,
 
+            sla_minutes = ?,
+
             remarks = ?,
 
             attachment = ?,
@@ -1046,6 +1101,8 @@ ActionPoint.update = (
                 data.sla_value ??
                 data.sla_days
             ) || 0,
+
+            Number(data.sla_minutes) || 0,
 
             data.remarks || null,
 
@@ -1126,7 +1183,9 @@ ActionPoint.takeAction = async (
         ] = await connection.execute(
             `
             SELECT
-                submission_answer_id
+                submission_answer_id,
+
+                submission_id
 
             FROM action_points
 
@@ -1153,6 +1212,9 @@ ActionPoint.takeAction = async (
 
         const submissionAnswerId =
             rows[0].submission_answer_id;
+
+        const submissionId =
+            rows[0].submission_id;
 
 
         // ============================================
@@ -1219,6 +1281,34 @@ ActionPoint.takeAction = async (
                     submissionAnswerId
                 ]
             );
+        }
+
+        // A checklist submission is considered completed only when every
+        // Action Point raised from that submission has been closed.
+        if (submissionId) {
+
+            const [openRows] = await connection.execute(
+                `
+                SELECT COUNT(*) AS open_count
+                FROM action_points
+                WHERE submission_id = ?
+                  AND status <> 'Closed'
+                `,
+                [submissionId]
+            );
+
+            if (Number(openRows?.[0]?.open_count || 0) === 0) {
+
+                await connection.execute(
+                    `
+                    UPDATE checklist_submissions
+                    SET status = 'Completed',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    `,
+                    [submissionId]
+                );
+            }
         }
 
 
@@ -1329,6 +1419,8 @@ ActionPoint.getOpenActionPoints = (
             ap.status,
 
             ap.sla_value,
+
+            ap.sla_minutes,
 
             ap.created_at,
 
@@ -1551,6 +1643,8 @@ ActionPoint.exportData = (
             ap.priority,
 
             ap.sla_value AS sla_days,
+
+            ap.sla_minutes,
 
             ap.status,
 

@@ -462,6 +462,31 @@ async function initializeDatabase() {
         }
 
         // ==================================================
+        // ACTION POINT EXACT SLA MIGRATION
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ActionPoint.ensureSlaMinutesColumn ===
+                "function"
+            ) {
+                await ActionPoint.ensureSlaMinutesColumn();
+                console.log(
+                    "✅ action_points exact SLA duration verified"
+                );
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ action_points SLA migration failed:",
+                error.message
+            );
+
+        }
+
+        // ==================================================
         // ACTION POINT NSO MIGRATION
         // ==================================================
 
