@@ -538,7 +538,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         if (!canDelete) return;
 
-        if (!reports.length) {
+        if (!filteredReports.length) {
             alert("No Checklist Reports found.");
             return;
         }
@@ -942,6 +942,13 @@ const uploadChecklistReport = async (file) => {
         toDate
 
     ]);
+
+
+
+    useEffect(() => {
+        const pages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+        if (currentPage > pages) setCurrentPage(pages);
+    }, [filteredReports.length, pageSize, currentPage]);
 
     // ======================================================
     // FORMAT DATE

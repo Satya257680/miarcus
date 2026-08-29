@@ -2,6 +2,7 @@ const db = require("../config/db");
 const ActionPoint = require("../models/actionPointModel");
 const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
+const notificationService = require("../services/notificationService");
 
 // ======================================================
 // HELPER
@@ -849,6 +850,8 @@ const update = async (
         priority,
         sla_days,
         sla_value,
+        sla_hours,
+        sla_minutes,
         remarks,
         status
     } = body;
@@ -1149,6 +1152,55 @@ const takeAction = async (
 
         () => {}
     );
+
+    // Persistent notifications for Action Point completion and the report
+    // becoming available after the Action Point is closed.
+    try {
+        let submissionOwnerId = null;
+        let openCount = 0;
+
+        if (oldData.submission_id) {
+            const submission = await queryOne(
+                `SELECT submitted_by FROM checklist_submissions WHERE id = ? LIMIT 1`,
+                [oldData.submission_id]
+            );
+            submissionOwnerId = Number(submission?.submitted_by || 0) || null;
+
+            const openRow = await queryOne(
+                `SELECT COUNT(*) AS open_count
+                 FROM action_points
+                 WHERE submission_id = ? AND status <> 'Closed'`,
+                [oldData.submission_id]
+            );
+            openCount = Number(openRow?.open_count || 0);
+        }
+
+        const recipients = [
+            userId,
+            oldData.assigned_to,
+            submissionOwnerId
+        ];
+
+        await notificationService.createForUsers(
+            recipients,
+            {
+                title: "Action Point Completed",
+                message: openCount === 0 && oldData.submission_id
+                    ? `Action Point #${id} was completed. The Checklist Report for submission #${oldData.submission_id} is now available.`
+                    : `Action Point #${id} was completed successfully.`,
+                module_name: "Action Points",
+                action_name: "Completed",
+                entity_id: id,
+                link: oldData.submission_id ? "/checklist-reports" : "/action-points",
+                type: "success"
+            }
+        );
+    } catch (notificationError) {
+        console.error(
+            "ACTION POINT COMPLETION NOTIFICATION ERROR:",
+            notificationError.message
+        );
+    }
 
 
     return {

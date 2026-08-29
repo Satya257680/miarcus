@@ -24,6 +24,9 @@ ChecklistReport.getAll = (
         SELECT
 
             cs.id,
+            cs.store_id,
+            cs.checklist_type_id,
+            cs.submitted_by,
 
             cs.submission_date,
 
@@ -63,6 +66,7 @@ ChecklistReport.getAll = (
 
             q.sequence_no,
 
+            csa.id AS answer_id,
             csa.answer,
 
             csa.remarks,
@@ -396,6 +400,9 @@ sql += `
     GROUP BY
 
         cs.id,
+        cs.store_id,
+        cs.checklist_type_id,
+        cs.submitted_by,
 
         cs.submission_date,
 
@@ -424,6 +431,7 @@ sql += `
         q.question,
 
         q.sequence_no,
+        csa.id,
 
         csa.answer,
 
@@ -1006,7 +1014,7 @@ ChecklistReport.countAll = (
 
         SELECT
 
-        COUNT(DISTINCT cs.id) AS total
+        COUNT(DISTINCT csa.id) AS total
 
 
         FROM checklist_submissions cs
@@ -1056,6 +1064,7 @@ LEFT JOIN departments d
 
         WHERE 1=1
 
+        AND csa.id IS NOT NULL
         AND (
             ap.id IS NULL
             OR ap.status = 'Closed'
