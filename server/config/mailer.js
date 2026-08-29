@@ -1,58 +1,38 @@
 // ==========================================================
 // MI ARCUS MAILER
-// Gmail SMTP + Google App Password
+// Resend API - Free plan compatible
 // ==========================================================
 //
-// This mailer intentionally uses Gmail SMTP.
+// This mailer uses Resend's HTTP API instead of SMTP.
+// It does NOT require Gmail SMTP, an App Password, or
+// SMTP ports that may be blocked by the hosting provider.
+//
+// Required Render Environment Variable:
+// RESEND_API_KEY=re_...
+//
+// Optional:
+// RESEND_FROM=onboarding@resend.dev
 //
 // IMPORTANT:
-// - Do NOT use Gmail OAuth2 here.
-// - Do NOT use GMAIL_CLIENT_ID.
-// - Do NOT use GMAIL_CLIENT_SECRET.
-// - Do NOT use GMAIL_REFRESH_TOKEN.
-// - Use a Google App Password in SMTP_PASS.
-//
-// Required Render Environment Variables:
-//
-// SMTP_HOST=smtp.gmail.com
-// SMTP_PORT=465
-// SMTP_SECURE=true
-// SMTP_USER=miarcus.notifications@gmail.com
-// SMTP_PASS=YOUR_16_CHARACTER_GOOGLE_APP_PASSWORD
-// EMAIL_FROM=miarcus.notifications@gmail.com
-//
-// SMTP_PASS must NEVER be logged.
-//
+// - Keep RESEND_API_KEY secret.
+// - For Resend's free/test sender, use onboarding@resend.dev.
+// - To send to arbitrary employee addresses, configure a
+//   domain in Resend and set RESEND_FROM to an address on it.
 // ==========================================================
 
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 // ==========================================================
 // ENVIRONMENT
 // ==========================================================
 
-const SMTP_HOST = String(
-    process.env.SMTP_HOST || "smtp.gmail.com"
+const RESEND_API_KEY = String(
+    process.env.RESEND_API_KEY || ""
 ).trim();
-
-const SMTP_PORT = Number(
-    process.env.SMTP_PORT || 465
-);
-
-const SMTP_SECURE = String(
-    process.env.SMTP_SECURE ?? "true"
-).trim().toLowerCase() === "true";
-
-const SMTP_USER = String(
-    process.env.SMTP_USER || ""
-).trim();
-
-const SMTP_PASS = String(
-    process.env.SMTP_PASS || ""
-).replace(/\s+/g, "");
 
 const EMAIL_FROM = String(
-    process.env.EMAIL_FROM || SMTP_USER
+    process.env.RESEND_FROM ||
+    "onboarding@resend.dev"
 ).trim();
 
 // ==========================================================
@@ -61,107 +41,56 @@ const EMAIL_FROM = String(
 
 const mailerConfigErrors = [];
 
-if (!SMTP_HOST) {
-    mailerConfigErrors.push("SMTP_HOST");
-}
-
-if (
-    !Number.isInteger(SMTP_PORT) ||
-    SMTP_PORT < 1 ||
-    SMTP_PORT > 65535
-) {
-    mailerConfigErrors.push("SMTP_PORT");
-}
-
-if (!SMTP_USER) {
-    mailerConfigErrors.push("SMTP_USER");
-}
-
-if (!SMTP_PASS) {
-    mailerConfigErrors.push("SMTP_PASS");
+if (!RESEND_API_KEY) {
+    mailerConfigErrors.push("RESEND_API_KEY");
 }
 
 if (!EMAIL_FROM) {
-    mailerConfigErrors.push("EMAIL_FROM");
-}
-
-// Gmail SMTP configuration sanity check.
-if (SMTP_HOST === "smtp.gmail.com") {
-    if (SMTP_SECURE && SMTP_PORT !== 465) {
-        console.warn(
-            "⚠️ Gmail SMTP: secure=true normally requires port 465."
-        );
-    }
-
-    if (!SMTP_SECURE && SMTP_PORT !== 587) {
-        console.warn(
-            "⚠️ Gmail SMTP: secure=false normally requires port 587."
-        );
-    }
+    mailerConfigErrors.push("RESEND_FROM");
 }
 
 // ==========================================================
-// STARTUP CONFIGURATION LOG
+// CLIENT
+// ==========================================================
+
+const resend = RESEND_API_KEY
+    ? new Resend(RESEND_API_KEY)
+    : null;
+
+// ==========================================================
+// STARTUP LOG
 // ==========================================================
 
 console.log("==========================================");
 console.log("📧 MI ARCUS MAILER INITIALIZING");
-console.log("Transport: Gmail SMTP");
-console.log("SMTP Host:", SMTP_HOST);
-console.log("SMTP Port:", SMTP_PORT);
-console.log("SMTP Secure:", SMTP_SECURE);
-console.log("SMTP User:", SMTP_USER);
+console.log("Transport: Resend API");
 console.log("From:", EMAIL_FROM);
-console.log("Authentication: Google App Password");
 
 if (mailerConfigErrors.length) {
     console.error(
-        "❌ SMTP CONFIGURATION ERROR:",
+        "❌ RESEND CONFIGURATION ERROR:",
         mailerConfigErrors.join(", ")
     );
 } else {
-    console.log("✅ SMTP configuration loaded");
+    console.log("✅ Resend configuration loaded");
 }
 
 console.log("==========================================");
-
-// ==========================================================
-// SMTP TRANSPORT
-// ==========================================================
-
-const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-
-    auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
-    },
-
-    // Prevent requests from hanging forever.
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 60000,
-
-    // Gmail TLS security.
-    tls: {
-        minVersion: "TLSv1.2",
-        servername: SMTP_HOST
-    }
-});
 
 // ==========================================================
 // ERROR NORMALIZATION
 // ==========================================================
 
 function normalizeMailerError(error) {
+
     const normalized =
         error instanceof Error
             ? error
             : new Error(
                 String(
-                    error || "Email sending failed."
+                    error?.message ||
+                    error ||
+                    "Email sending failed."
                 )
             );
 
@@ -169,66 +98,69 @@ function normalizeMailerError(error) {
         normalized?.code || ""
     ).toUpperCase();
 
-    const responseCode = Number(
-        normalized?.responseCode || 0
-    );
-
-    // ------------------------------------------------------
-    // Authentication errors
-    // ------------------------------------------------------
+    const status =
+        Number(
+            normalized?.statusCode ||
+            normalized?.status ||
+            normalized?.response?.statusCode ||
+            normalized?.response?.status ||
+            0
+        );
 
     if (
-        originalCode === "EAUTH" ||
-        responseCode === 535 ||
-        responseCode === 534
+        originalCode === "RESEND_API_KEY_MISSING" ||
+        originalCode === "API_KEY_MISSING"
     ) {
-        normalized.code = "SMTP_AUTH_FAILED";
-        normalized.status = 401;
-
+        normalized.code = "RESEND_API_KEY_MISSING";
+        normalized.status = 500;
         normalized.message =
-            "Gmail SMTP authentication failed. Verify SMTP_USER and SMTP_PASS in Render. SMTP_PASS must be a valid Google App Password.";
+            "RESEND_API_KEY is not configured in Render.";
     }
 
-    // ------------------------------------------------------
-    // Connection errors
-    // ------------------------------------------------------
-
     else if (
-        originalCode === "ECONNECTION" ||
-        originalCode === "ETIMEDOUT" ||
-        originalCode === "ESOCKET"
+        status === 401 ||
+        status === 403 ||
+        /api.?key|unauthoriz|forbidden/i.test(
+            normalized?.message || ""
+        )
     ) {
-        normalized.code = "SMTP_CONNECTION_FAILED";
-        normalized.status = 503;
-
+        normalized.code = "RESEND_AUTH_FAILED";
+        normalized.status = status || 401;
         normalized.message =
-            "Unable to connect to Gmail SMTP. Please verify SMTP_HOST, SMTP_PORT and SMTP_SECURE.";
+            "Resend authentication failed. Verify RESEND_API_KEY in Render.";
     }
 
-    // ------------------------------------------------------
-    // DNS error
-    // ------------------------------------------------------
-
     else if (
-        originalCode === "ENOTFOUND"
+        /from|sender|domain/i.test(
+            normalized?.message || ""
+        ) &&
+        /verify|invalid|not allowed|not authorized/i.test(
+            normalized?.message || ""
+        )
     ) {
-        normalized.code = "SMTP_HOST_NOT_FOUND";
-        normalized.status = 503;
-
+        normalized.code = "RESEND_SENDER_ERROR";
+        normalized.status = status || 400;
         normalized.message =
-            "Gmail SMTP host could not be resolved.";
+            `Resend rejected the sender address "${EMAIL_FROM}". Use onboarding@resend.dev for testing, or a sender address on a verified Resend domain.`;
     }
 
     return normalized;
 }
 
 // ==========================================================
-// VERIFY SMTP CONNECTION
+// VERIFY RESEND CONFIGURATION
+// ==========================================================
+//
+// Resend does not require an SMTP-style connection test.
+// The API key is validated when the first email is sent.
+// This startup check only verifies that the required
+// configuration exists.
 // ==========================================================
 
 async function verifyMailer() {
 
     if (mailerConfigErrors.length) {
+
         console.error(
             "❌ MI ARCUS EMAIL SERVICE IS NOT READY."
         );
@@ -241,45 +173,14 @@ async function verifyMailer() {
         return false;
     }
 
-    try {
+    console.log("==========================================");
+    console.log("📧 VERIFYING MI ARCUS RESEND CONFIG");
+    console.log("Transport: Resend API");
+    console.log("From:", EMAIL_FROM);
+    console.log("Status: Configuration ready");
+    console.log("==========================================");
 
-        console.log("==========================================");
-        console.log("📧 VERIFYING MI ARCUS SMTP");
-        console.log("SMTP:", `${SMTP_HOST}:${SMTP_PORT}`);
-        console.log("User:", SMTP_USER);
-        console.log("==========================================");
-
-        await transporter.verify();
-
-        console.log("==========================================");
-        console.log("✅ MI ARCUS SMTP CONNECTION SUCCESSFUL");
-        console.log("==========================================");
-
-        return true;
-
-    } catch (error) {
-
-        const normalizedError =
-            normalizeMailerError(error);
-
-        console.error("==========================================");
-        console.error("❌ MI ARCUS SMTP CONNECTION FAILED");
-        console.error(
-            "Code:",
-            normalizedError?.code || "N/A"
-        );
-        console.error(
-            "Status:",
-            normalizedError?.status || "N/A"
-        );
-        console.error(
-            "Message:",
-            normalizedError?.message || "Unknown error"
-        );
-        console.error("==========================================");
-
-        return false;
-    }
+    return true;
 }
 
 // ==========================================================
@@ -288,27 +189,20 @@ async function verifyMailer() {
 
 async function sendMail(mailOptions = {}) {
 
-    // ------------------------------------------------------
-    // Configuration check
-    // ------------------------------------------------------
-
-    if (mailerConfigErrors.length) {
+    if (mailerConfigErrors.length || !resend) {
 
         const error = new Error(
-            `MI ARCUS SMTP configuration is incomplete: ${mailerConfigErrors.join(", ")}.`
+            `MI ARCUS Resend configuration is incomplete: ${mailerConfigErrors.join(", ")}.`
         );
 
-        error.code = "SMTP_CONFIG_ERROR";
+        error.code = "RESEND_CONFIG_ERROR";
         error.status = 500;
 
         throw error;
     }
 
-    // ------------------------------------------------------
-    // Validate recipient
-    // ------------------------------------------------------
-
     if (!mailOptions.to) {
+
         const error = new Error(
             "Email recipient is missing."
         );
@@ -319,11 +213,8 @@ async function sendMail(mailOptions = {}) {
         throw error;
     }
 
-    // ------------------------------------------------------
-    // Validate subject
-    // ------------------------------------------------------
-
     if (!mailOptions.subject) {
+
         const error = new Error(
             "Email subject is missing."
         );
@@ -334,14 +225,11 @@ async function sendMail(mailOptions = {}) {
         throw error;
     }
 
-    // ------------------------------------------------------
-    // Validate content
-    // ------------------------------------------------------
-
     if (
         !mailOptions.html &&
         !mailOptions.text
     ) {
+
         const error = new Error(
             "Email content is missing."
         );
@@ -352,99 +240,86 @@ async function sendMail(mailOptions = {}) {
         throw error;
     }
 
-    // ------------------------------------------------------
-    // IMPORTANT:
-    // Always send through the configured Mi Arcus account.
-    //
-    // This prevents another caller from accidentally using
-    // a different "from" address that Gmail may reject.
-    // ------------------------------------------------------
-
-    const from = EMAIL_FROM;
-
     try {
 
         console.log("==========================================");
         console.log("📧 MI ARCUS EMAIL SEND");
-        console.log("Transport: Gmail SMTP");
-        console.log("From:", from);
+        console.log("Transport: Resend API");
+        console.log("From:", EMAIL_FROM);
         console.log("To:", mailOptions.to);
         console.log("Subject:", mailOptions.subject);
         console.log("==========================================");
 
-        const result =
-            await transporter.sendMail({
+        const payload = {
+            from: EMAIL_FROM,
+            to: mailOptions.to,
+            subject: mailOptions.subject
+        };
 
-                from,
+        if (mailOptions.html) {
+            payload.html = mailOptions.html;
+        }
 
-                to: mailOptions.to,
+        if (mailOptions.text) {
+            payload.text = mailOptions.text;
+        }
 
-                subject:
-                    mailOptions.subject,
-
-                html:
-                    mailOptions.html,
-
-                text:
-                    mailOptions.text,
-
-                attachments:
-                    Array.isArray(
-                        mailOptions.attachments
-                    )
-                        ? mailOptions.attachments
-                        : []
-            });
-
-        // --------------------------------------------------
-        // Verify Gmail accepted the message
-        // --------------------------------------------------
-
-        const accepted =
-            Array.isArray(result?.accepted)
-                ? result.accepted
+        const suppliedAttachments =
+            Array.isArray(mailOptions.attachments)
+                ? mailOptions.attachments
                 : [];
 
-        const rejected =
-            Array.isArray(result?.rejected)
-                ? result.rejected
-                : [];
+        if (suppliedAttachments.length) {
+            payload.attachments = suppliedAttachments.map(
+                (attachment) => ({
+                    filename:
+                        attachment.filename ||
+                        "attachment",
+                    content:
+                        attachment.content,
+                    ...(attachment.path
+                        ? { path: attachment.path }
+                        : {})
+                })
+            );
+        }
 
-        if (
-            rejected.length > 0 &&
-            accepted.length === 0
-        ) {
-            const error = new Error(
-                "Gmail rejected the email recipient."
+        const { data, error } =
+            await resend.emails.send(payload);
+
+        if (error) {
+
+            const apiError = new Error(
+                error.message ||
+                "Resend rejected the email."
             );
 
-            error.code =
-                "SMTP_RECIPIENT_REJECTED";
+            apiError.code =
+                error.name ||
+                "RESEND_API_ERROR";
 
-            error.status = 502;
+            apiError.status =
+                error.statusCode ||
+                error.status ||
+                400;
 
-            error.rejected = rejected;
+            apiError.response = {
+                data: error
+            };
 
-            throw error;
+            throw apiError;
         }
 
         console.log("==========================================");
-        console.log("✅ MI ARCUS EMAIL SENT");
-        console.log(
-            "Message ID:",
-            result?.messageId || "N/A"
-        );
-        console.log(
-            "Accepted:",
-            accepted
-        );
-        console.log(
-            "Rejected:",
-            rejected
-        );
+        console.log("✅ MI ARCUS EMAIL SENT SUCCESSFULLY");
+        console.log("Transport: Resend API");
+        console.log("Message ID:", data?.id || "N/A");
+        console.log("From:", EMAIL_FROM);
+        console.log("To:", mailOptions.to);
+        console.log("Subject:", mailOptions.subject);
         console.log("==========================================");
 
-        return result;
+        return data;
 
     } catch (error) {
 
@@ -453,13 +328,10 @@ async function sendMail(mailOptions = {}) {
 
         console.error("==========================================");
         console.error("❌ MI ARCUS EMAIL SEND FAILED");
-        console.error("Transport: Gmail SMTP");
-        console.error("From:", from);
+        console.error("Transport: Resend API");
+        console.error("From:", EMAIL_FROM);
         console.error("To:", mailOptions.to);
-        console.error(
-            "Subject:",
-            mailOptions.subject
-        );
+        console.error("Subject:", mailOptions.subject);
         console.error(
             "Code:",
             normalizedError?.code || "N/A"
@@ -467,10 +339,6 @@ async function sendMail(mailOptions = {}) {
         console.error(
             "Status:",
             normalizedError?.status || "N/A"
-        );
-        console.error(
-            "Command:",
-            normalizedError?.command || "N/A"
         );
         console.error(
             "Message:",
@@ -490,5 +358,5 @@ module.exports = {
     sendMail,
     verifyMailer,
     normalizeMailerError,
-    transporter
+    resend
 };

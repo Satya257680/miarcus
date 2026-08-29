@@ -1,6 +1,6 @@
 // ==========================================================
 // MIARCUS EMAIL SERVICE
-// Gmail SMTP / App Password
+// Resend API
 // ==========================================================
 
 const mailer = require("../config/mailer");
@@ -47,13 +47,12 @@ const resetPassword = require(
 // EMAIL CONFIGURATION
 // ==========================================================
 //
-// Gmail SMTP is handled inside:
+// Resend is handled inside:
 // ../config/mailer.js
 //
-// EMAIL_FROM is the Gmail account that sends the emails.
-//
-// Example:
-// EMAIL_FROM=nayaksatyajit372@gmail.com
+// The sender is configured with RESEND_FROM.
+// For free/test sending use onboarding@resend.dev,
+// or use an address on a verified Resend domain.
 //
 // ==========================================================
 
@@ -226,7 +225,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "Authentication: Gmail SMTP + App Password"
+            "Transport: Resend API"
         );
 
         console.log(
@@ -249,7 +248,7 @@ const sendEmail = async ({
         );
 
         // --------------------------------------------------
-        // SEND THROUGH GMAIL SMTP MAILER
+        // SEND THROUGH RESEND API
         // --------------------------------------------------
 
         const suppliedAttachments =
@@ -386,7 +385,7 @@ const sendEmail = async ({
         if (error?.response?.data) {
 
             console.error(
-                "Google API Response:",
+                "Resend API Response:",
                 JSON.stringify(
                     error.response.data,
                     null,
