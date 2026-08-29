@@ -12,6 +12,7 @@ import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
 import Pagination from "../components/common/Pagination";
 import ConfirmDialog from "../components/common/ConfirmDialog";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 
 // ======================================================
 // MODALS
@@ -27,7 +28,6 @@ import {
     FaEdit,
     FaTrash,
     FaUpload,
-    FaDownload,
 } from "react-icons/fa";
 
 // ======================================================
@@ -207,8 +207,6 @@ function ActionPoints() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
-    const [bulkFile, setBulkFile] = useState(null);
-    const [bulkUploading, setBulkUploading] = useState(false);
 
     // ======================================================
     // SELECTED DATA
@@ -722,102 +720,32 @@ const confirmDeleteAll = async () => {
 
 // ======================================================
 // BULK UPLOAD
+// Uses the shared/global BulkUploadModal used by other master modules.
+// The shared modal passes the selected File directly to this handler.
 // ======================================================
 
-const downloadBulkTemplate = () => {
-    const headers = [
-        "Store ID",
-        "Department ID",
-        "Question ID",
-        "Submission ID",
-        "Submission Answer ID",
-        "Assigned To",
-        "Priority",
-        "SLA Days",
-        "SLA Hours",
-        "SLA Minutes",
-        "Status",
-        "Remarks"
-    ];
+const handleBulkUpload = async (file) => {
+    const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("accessToken");
 
-    const example = [
-        "1",
-        "1",
-        "1",
-        "",
-        "",
-        "",
-        "High",
-        "3",
-        "4",
-        "30",
-        "Open",
-        "Example action point"
-    ];
+    const formData = new FormData();
+    formData.append("file", file);
 
-    const csv = `${headers.join(",")}\n${example.map((value) => {
-        const text = String(value ?? "");
-        return `"${text.replace(/"/g, '""')}"`;
-    }).join(",")}\n`;
-
-    const blob = new Blob([csv], {
-        type: "text/csv;charset=utf-8;"
-    });
-
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "miarcus-action-points-template.csv";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-};
-
-const handleBulkUpload = async () => {
-    if (!bulkFile || bulkUploading) return;
-
-    setBulkUploading(true);
-
-    try {
-        const token =
-            localStorage.getItem("token") ||
-            localStorage.getItem("accessToken");
-
-        const formData = new FormData();
-        formData.append("file", bulkFile);
-
-        await axios.post(
-            "/api/action-points/bulk-upload",
-            formData,
-            {
-                headers: token
+    const response = await axios.post(
+        "/api/action-points/bulk-upload",
+        formData,
+        {
+            headers: {
+                ...(token
                     ? { Authorization: `Bearer ${token}` }
-                    : {}
+                    : {}),
+                "Content-Type": "multipart/form-data"
             }
-        );
+        }
+    );
 
-        alert("Action Points bulk upload completed.");
-        setBulkFile(null);
-        setShowBulkModal(false);
-        await fetchActionPoints();
-    } catch (err) {
-        console.error(err);
-
-        const message =
-            err.response?.data?.message ||
-            "Unable to bulk upload Action Points.";
-
-        const errors =
-            Array.isArray(err.response?.data?.errors) &&
-            err.response.data.errors.length
-                ? `\n\n${err.response.data.errors.slice(0, 8).join("\n")}`
-                : "";
-
-        alert(`${message}${errors}`);
-    } finally {
-        setBulkUploading(false);
-    }
+    return response.data;
 };
 
 // ======================================================
@@ -1681,7 +1609,7 @@ return (
 
         {(canAdd || canDelete) && (
             <div className="action-point-management-actions">
-                {canDelete && (
+                {canAdd && (
                     <button
                         type="button"
                         className="bulk-upload-btn"
@@ -2068,111 +1996,14 @@ return (
     BULK UPLOAD MODAL
 ====================================================== */}
 
-{showBulkModal && (
-    <div className="modal-overlay">
-        <div className="report-modal bulk-upload-modal">
-            <div className="modal-header">
-                <div>
-                    <h3>Bulk Upload Action Points</h3>
-                    <p className="bulk-upload-help">
-                        Upload CSV or Excel. Store ID, Question ID, Submission ID and Submission Answer ID are required.
-                    </p>
-                </div>
-
-                <button
-                    className="close-btn"
-                    onClick={() => {
-                        if (!bulkUploading) {
-                            setBulkFile(null);
-                            setShowBulkModal(false);
-                        }
-                    }}
-                >
-                    ×
-                </button>
-            </div>
-
-            <div className="modal-body">
-                <div className="bulk-template-row">
-                    <div>
-                        <strong>Recommended template</strong>
-                        <p>
-                            SLA supports Days + Hours + Minutes.
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="bulk-template-btn"
-                        onClick={downloadBulkTemplate}
-                    >
-                        <FaDownload />
-                        Download Template
-                    </button>
-                </div>
-
-                <div className="bulk-file-drop">
-                    <input
-                        id="action-point-bulk-file"
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        disabled={bulkUploading}
-                        onChange={(event) =>
-                            setBulkFile(
-                                event.target.files?.[0] || null
-                            )
-                        }
-                    />
-
-                    <label htmlFor="action-point-bulk-file">
-                        <FaUpload />
-                        <strong>
-                            {bulkFile
-                                ? bulkFile.name
-                                : "Choose CSV / Excel file"}
-                        </strong>
-                        <span>
-                            Maximum 10 MB
-                        </span>
-                    </label>
-                </div>
-
-                <div className="bulk-columns-info">
-                    <strong>Columns:</strong>
-                    Store ID, Department ID, Question ID, Submission ID,
-                    Submission Answer ID, Assigned To, Priority, SLA Days,
-                    SLA Hours, SLA Minutes, Status, Remarks.
-                </div>
-            </div>
-
-            <div className="modal-actions">
-                <button
-                    type="button"
-                    className="cancel-btn"
-                    disabled={bulkUploading}
-                    onClick={() => {
-                        setBulkFile(null);
-                        setShowBulkModal(false);
-                    }}
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="button"
-                    className="upload-btn"
-                    disabled={!bulkFile || bulkUploading}
-                    onClick={handleBulkUpload}
-                >
-                    <FaUpload />
-                    {bulkUploading
-                        ? "Uploading..."
-                        : "Upload Action Points"}
-                </button>
-            </div>
-        </div>
-    </div>
-)}
+<BulkUploadModal
+    isOpen={showBulkModal}
+    onClose={() => setShowBulkModal(false)}
+    title="Bulk Upload Action Points"
+    uploadFunction={handleBulkUpload}
+    onSuccess={fetchActionPoints}
+    acceptedFile=".csv,.xlsx,.xls"
+/>
 
 {/* ======================================================
     EDIT ACTION POINT MODAL
