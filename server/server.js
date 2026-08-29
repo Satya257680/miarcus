@@ -69,8 +69,9 @@ process.on("uncaughtException", (err) => {
 
 const db = require("./config/db");
 
-// Gmail email service health check. This does not stop the API from
-// starting, but it immediately exposes OAuth2 problems in Render logs.
+// Gmail SMTP email service health check. This does not stop the API from
+// starting, but it immediately exposes SMTP/App Password configuration
+// problems in Render logs.
 const { verifyMailer } = require("./config/mailer");
 
 // ======================================================
@@ -2179,13 +2180,13 @@ const httpServer = app.listen(
         );
 
         // --------------------------------------------------
-        // Verify Gmail OAuth2 at startup.
+        // Verify Gmail SMTP at startup.
         // --------------------------------------------------
         verifyMailer()
             .then((ok) => {
                 if (!ok) {
                     console.error(
-                        "⚠️ MIARCUS EMAIL SERVICE IS NOT READY. Check GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN and EMAIL_FROM in Render Environment."
+                        "⚠️ MIARCUS EMAIL SERVICE IS NOT READY. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS and EMAIL_FROM in Render Environment."
                     );
                 }
             })

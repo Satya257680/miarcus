@@ -1,761 +1,494 @@
 // ==========================================================
-// MIARCUS MAILER
-// Gmail API / OAuth2
+// MI ARCUS MAILER
+// Gmail SMTP + Google App Password
+// ==========================================================
+//
+// This mailer intentionally uses Gmail SMTP.
+//
+// IMPORTANT:
+// - Do NOT use Gmail OAuth2 here.
+// - Do NOT use GMAIL_CLIENT_ID.
+// - Do NOT use GMAIL_CLIENT_SECRET.
+// - Do NOT use GMAIL_REFRESH_TOKEN.
+// - Use a Google App Password in SMTP_PASS.
+//
+// Required Render Environment Variables:
+//
+// SMTP_HOST=smtp.gmail.com
+// SMTP_PORT=465
+// SMTP_SECURE=true
+// SMTP_USER=miarcus.notifications@gmail.com
+// SMTP_PASS=YOUR_16_CHARACTER_GOOGLE_APP_PASSWORD
+// EMAIL_FROM=miarcus.notifications@gmail.com
+//
+// SMTP_PASS must NEVER be logged.
+//
 // ==========================================================
 
-const { google } = require("googleapis");
+const nodemailer = require("nodemailer");
 
 // ==========================================================
-// ENVIRONMENT VARIABLES
+// ENVIRONMENT
 // ==========================================================
 
-const GMAIL_CLIENT_ID = String(
-    process.env.GMAIL_CLIENT_ID || ""
+const SMTP_HOST = String(
+    process.env.SMTP_HOST || "smtp.gmail.com"
 ).trim();
 
-const GMAIL_CLIENT_SECRET = String(
-    process.env.GMAIL_CLIENT_SECRET || ""
-).trim();
-
-const GMAIL_REFRESH_TOKEN = String(
-    process.env.GMAIL_REFRESH_TOKEN || ""
-).trim();
-
-// The Gmail account that owns the OAuth refresh token.
-// EMAIL_FROM remains supported for backwards compatibility.
-const GMAIL_USER = String(
-    process.env.GMAIL_USER || ""
-).trim();
-
-const EMAIL_FROM = String(
-    process.env.EMAIL_FROM ||
-    GMAIL_USER ||
-    ""
-).trim();
-
-// ==========================================================
-// VALIDATION
-// ==========================================================
-
-if (!GMAIL_CLIENT_ID) {
-    console.error(
-        "❌ GMAIL_CLIENT_ID is not configured."
-    );
-}
-
-if (!GMAIL_CLIENT_SECRET) {
-    console.error(
-        "❌ GMAIL_CLIENT_SECRET is not configured."
-    );
-}
-
-if (!GMAIL_REFRESH_TOKEN) {
-    console.error(
-        "❌ GMAIL_REFRESH_TOKEN is not configured."
-    );
-}
-
-if (!GMAIL_USER && !EMAIL_FROM) {
-    console.error(
-        "❌ GMAIL_USER or EMAIL_FROM is not configured."
-    );
-}
-
-// ==========================================================
-// GOOGLE OAUTH2 CLIENT
-// ==========================================================
-
-const oauth2Client = new google.auth.OAuth2(
-    GMAIL_CLIENT_ID,
-    GMAIL_CLIENT_SECRET
+const SMTP_PORT = Number(
+    process.env.SMTP_PORT || 465
 );
 
+const SMTP_SECURE = String(
+    process.env.SMTP_SECURE ?? "true"
+).trim().toLowerCase() === "true";
+
+const SMTP_USER = String(
+    process.env.SMTP_USER || ""
+).trim();
+
+const SMTP_PASS = String(
+    process.env.SMTP_PASS || ""
+).replace(/\s+/g, "");
+
+const EMAIL_FROM = String(
+    process.env.EMAIL_FROM || SMTP_USER
+).trim();
+
 // ==========================================================
-// SET REFRESH TOKEN
+// CONFIGURATION VALIDATION
 // ==========================================================
 
-if (GMAIL_REFRESH_TOKEN) {
+const mailerConfigErrors = [];
 
-    oauth2Client.setCredentials({
-        refresh_token: GMAIL_REFRESH_TOKEN
-    });
+if (!SMTP_HOST) {
+    mailerConfigErrors.push("SMTP_HOST");
+}
 
+if (
+    !Number.isInteger(SMTP_PORT) ||
+    SMTP_PORT < 1 ||
+    SMTP_PORT > 65535
+) {
+    mailerConfigErrors.push("SMTP_PORT");
+}
+
+if (!SMTP_USER) {
+    mailerConfigErrors.push("SMTP_USER");
+}
+
+if (!SMTP_PASS) {
+    mailerConfigErrors.push("SMTP_PASS");
+}
+
+if (!EMAIL_FROM) {
+    mailerConfigErrors.push("EMAIL_FROM");
+}
+
+// Gmail SMTP configuration sanity check.
+if (SMTP_HOST === "smtp.gmail.com") {
+    if (SMTP_SECURE && SMTP_PORT !== 465) {
+        console.warn(
+            "⚠️ Gmail SMTP: secure=true normally requires port 465."
+        );
+    }
+
+    if (!SMTP_SECURE && SMTP_PORT !== 587) {
+        console.warn(
+            "⚠️ Gmail SMTP: secure=false normally requires port 587."
+        );
+    }
 }
 
 // ==========================================================
-// GMAIL API
+// STARTUP CONFIGURATION LOG
 // ==========================================================
 
-const gmail = google.gmail({
-    version: "v1",
-    auth: oauth2Client
+console.log("==========================================");
+console.log("📧 MI ARCUS MAILER INITIALIZING");
+console.log("Transport: Gmail SMTP");
+console.log("SMTP Host:", SMTP_HOST);
+console.log("SMTP Port:", SMTP_PORT);
+console.log("SMTP Secure:", SMTP_SECURE);
+console.log("SMTP User:", SMTP_USER);
+console.log("From:", EMAIL_FROM);
+console.log("Authentication: Google App Password");
+
+if (mailerConfigErrors.length) {
+    console.error(
+        "❌ SMTP CONFIGURATION ERROR:",
+        mailerConfigErrors.join(", ")
+    );
+} else {
+    console.log("✅ SMTP configuration loaded");
+}
+
+console.log("==========================================");
+
+// ==========================================================
+// SMTP TRANSPORT
+// ==========================================================
+
+const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+
+    auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+    },
+
+    // Prevent requests from hanging forever.
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+
+    // Gmail TLS security.
+    tls: {
+        minVersion: "TLSv1.2",
+        servername: SMTP_HOST
+    }
 });
 
 // ==========================================================
-// BASE64URL ENCODER
-// Gmail API requires URL-safe Base64
+// ERROR NORMALIZATION
 // ==========================================================
 
-function encodeBase64Url(value) {
-
-    return Buffer
-        .from(value, "utf8")
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
-
-}
-
-// ==========================================================
-// MIME HEADER ENCODER
-// Handles special characters in subject/from
-// ==========================================================
-
-function encodeHeader(value) {
-
-    if (!value) {
-        return "";
-    }
-
-    // ASCII-safe headers can be returned directly
-    if (/^[\x00-\x7F]*$/.test(value)) {
-        return value;
-    }
-
-    return "=?UTF-8?B?" +
-        Buffer
-            .from(value, "utf8")
-            .toString("base64") +
-        "?=";
-
-}
-
-// ==========================================================
-// CREATE MIME MESSAGE
-// ==========================================================
-
-function encodeMimeFilename(filename = "attachment") {
-    const safe = String(filename)
-        .replace(/[\r\n"]/g, "_")
-        .slice(0, 180);
-
-    if (/^[\x20-\x7E]*$/.test(safe)) {
-        return `"${safe}"`;
-    }
-
-    return `"=?UTF-8?B?${Buffer.from(safe, "utf8").toString("base64")}?="`;
-}
-
-function wrapBase64(value, width = 76) {
-    const text = String(value || "");
-    const lines = [];
-    for (let i = 0; i < text.length; i += width) {
-        lines.push(text.slice(i, i + width));
-    }
-    return lines.join("\r\n");
-}
-
-// ==========================================================
-// CREATE MIME MESSAGE
-// Supports:
-// - text/html
-// - multipart/alternative
-// - real binary email attachments
-// ==========================================================
-function createMimeMessage({
-    from,
-    to,
-    subject,
-    html,
-    text,
-    attachments = []
-}) {
-    const normalizedAttachments = (Array.isArray(attachments) ? attachments : [])
-        .filter(item => item && (Buffer.isBuffer(item.content) || item.path))
-        .map(item => ({
-            filename: item.filename || "attachment",
-            contentType: item.contentType || "application/octet-stream",
-            content: Buffer.isBuffer(item.content)
-                ? item.content
-                : require("fs").readFileSync(item.path),
-            cid: item.cid ? String(item.cid).replace(/[<>\r\n]/g, "") : "",
-            disposition: String(item.disposition || "attachment").toLowerCase() === "inline"
-                ? "inline"
-                : "attachment"
-        }));
-
-    const inlineAttachments = normalizedAttachments.filter(item => item.disposition === "inline");
-    const regularAttachments = normalizedAttachments.filter(item => item.disposition !== "inline");
-    const lines = [];
-
-    lines.push(`From: ${from}`);
-    lines.push(`To: ${to}`);
-    lines.push(`Subject: ${encodeHeader(subject)}`);
-    lines.push("MIME-Version: 1.0");
-
-    // ------------------------------------------------------
-    // BODY PART
-    // ------------------------------------------------------
-    const appendBodyPart = (target, boundary) => {
-        if (html && text) {
-            const alternativeBoundary = `----=_MiarcusAlternative_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-            target.push(`--${boundary}`);
-            target.push(`Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`);
-            target.push("");
-
-            target.push(`--${alternativeBoundary}`);
-            target.push("Content-Type: text/plain; charset=UTF-8");
-            target.push("Content-Transfer-Encoding: 8bit");
-            target.push("");
-            target.push(text);
-            target.push("");
-
-            target.push(`--${alternativeBoundary}`);
-            target.push("Content-Type: text/html; charset=UTF-8");
-            target.push("Content-Transfer-Encoding: 8bit");
-            target.push("");
-            target.push(html);
-            target.push("");
-
-            target.push(`--${alternativeBoundary}--`);
-            target.push("");
-            return;
-        }
-
-        target.push(`--${boundary}`);
-        if (html) {
-            target.push("Content-Type: text/html; charset=UTF-8");
-            target.push("Content-Transfer-Encoding: 8bit");
-            target.push("");
-            target.push(html);
-        } else {
-            target.push("Content-Type: text/plain; charset=UTF-8");
-            target.push("Content-Transfer-Encoding: 8bit");
-            target.push("");
-            target.push(text || "");
-        }
-        target.push("");
-    };
-
-    // ------------------------------------------------------
-    // INLINE IMAGES (multipart/related)
-    // ------------------------------------------------------
-    // CID images must be inside multipart/related and marked inline.
-    // Otherwise Gmail treats them as ordinary downloadable attachments.
-    // ------------------------------------------------------
-    const appendRelatedBody = (target, relatedBoundary) => {
-        appendBodyPart(target, relatedBoundary);
-
-        for (const attachment of inlineAttachments) {
-            target.push(`--${relatedBoundary}`);
-            target.push(
-                `Content-Type: ${attachment.contentType}; name=${encodeMimeFilename(attachment.filename)}`
+function normalizeMailerError(error) {
+    const normalized =
+        error instanceof Error
+            ? error
+            : new Error(
+                String(
+                    error || "Email sending failed."
+                )
             );
-            target.push("Content-Transfer-Encoding: base64");
-            target.push("Content-Disposition: inline");
-            if (attachment.cid) {
-                target.push(`Content-ID: <${attachment.cid}>`);
-            }
-            target.push("");
-            target.push(wrapBase64(attachment.content.toString("base64")));
-            target.push("");
-        }
 
-        target.push(`--${relatedBoundary}--`);
-        target.push("");
-    };
+    const originalCode = String(
+        normalized?.code || ""
+    ).toUpperCase();
+
+    const responseCode = Number(
+        normalized?.responseCode || 0
+    );
 
     // ------------------------------------------------------
-    // REGULAR ATTACHMENTS (multipart/mixed)
+    // Authentication errors
     // ------------------------------------------------------
-    if (regularAttachments.length) {
-        const mixedBoundary = `----=_MiarcusMixed_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        lines.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`);
-        lines.push("");
-
-        if (inlineAttachments.length) {
-            const relatedBoundary = `----=_MiarcusRelated_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-            lines.push(`--${mixedBoundary}`);
-            lines.push(`Content-Type: multipart/related; boundary="${relatedBoundary}"`);
-            lines.push("");
-            appendRelatedBody(lines, relatedBoundary);
-        } else {
-            appendBodyPart(lines, mixedBoundary);
-        }
-
-        for (const attachment of regularAttachments) {
-            lines.push(`--${mixedBoundary}`);
-            lines.push(
-                `Content-Type: ${attachment.contentType}; name=${encodeMimeFilename(attachment.filename)}`
-            );
-            lines.push("Content-Transfer-Encoding: base64");
-            lines.push(
-                `Content-Disposition: attachment; filename=${encodeMimeFilename(attachment.filename)}`
-            );
-            lines.push("");
-            lines.push(wrapBase64(attachment.content.toString("base64")));
-            lines.push("");
-        }
-
-        lines.push(`--${mixedBoundary}--`);
-        return lines.join("\r\n");
-    }
-
-    if (inlineAttachments.length) {
-        const relatedBoundary = `----=_MiarcusRelated_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        lines.push(`Content-Type: multipart/related; boundary="${relatedBoundary}"`);
-        lines.push("");
-        appendRelatedBody(lines, relatedBoundary);
-        return lines.join("\r\n");
-    }
-
-    // No attachments at all: keep the normal simple message structure.
-    if (html && text) {
-        const boundary = `----=_MiarcusBoundary_${Date.now()}`;
-        lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
-        lines.push("");
-
-        lines.push(`--${boundary}`);
-        lines.push("Content-Type: text/plain; charset=UTF-8");
-        lines.push("Content-Transfer-Encoding: 8bit");
-        lines.push("");
-        lines.push(text);
-        lines.push("");
-
-        lines.push(`--${boundary}`);
-        lines.push("Content-Type: text/html; charset=UTF-8");
-        lines.push("Content-Transfer-Encoding: 8bit");
-        lines.push("");
-        lines.push(html);
-        lines.push("");
-
-        lines.push(`--${boundary}--`);
-    } else if (html) {
-        lines.push("Content-Type: text/html; charset=UTF-8");
-        lines.push("Content-Transfer-Encoding: 8bit");
-        lines.push("");
-        lines.push(html);
-    } else {
-        lines.push("Content-Type: text/plain; charset=UTF-8");
-        lines.push("Content-Transfer-Encoding: 8bit");
-        lines.push("");
-        lines.push(text || "");
-    }
-
-    return lines.join("\r\n");
-}
-
-// ==========================================================
-// GOOGLE AUTH ERROR NORMALIZER
-// ==========================================================
-
-function normalizeGoogleAuthError(error) {
-
-    const apiError = error?.response?.data;
-    const code = apiError?.error || error?.errors?.[0]?.reason;
-    const description = apiError?.error_description;
-
-    if (code === "invalid_grant") {
-
-        const authError = new Error(
-            "Gmail OAuth2 refresh token is invalid, expired, or revoked. Update GMAIL_REFRESH_TOKEN in Render and redeploy the backend."
-        );
-
-        authError.code = "GMAIL_INVALID_GRANT";
-        authError.status = 401;
-        authError.originalCode = error?.code || 400;
-        authError.googleError = code;
-        authError.googleErrorDescription = description || "Token has been expired or revoked.";
-        authError.cause = error;
-
-        return authError;
-    }
-
-    return error;
-}
-
-// ==========================================================
-// VERIFY GMAIL API CONNECTION
-// ==========================================================
-
-const verifyMailer = async () => {
 
     if (
-        !GMAIL_CLIENT_ID ||
-        !GMAIL_CLIENT_SECRET ||
-        !GMAIL_REFRESH_TOKEN ||
-        !EMAIL_FROM
+        originalCode === "EAUTH" ||
+        responseCode === 535 ||
+        responseCode === 534
     ) {
+        normalized.code = "SMTP_AUTH_FAILED";
+        normalized.status = 401;
 
+        normalized.message =
+            "Gmail SMTP authentication failed. Verify SMTP_USER and SMTP_PASS in Render. SMTP_PASS must be a valid Google App Password.";
+    }
+
+    // ------------------------------------------------------
+    // Connection errors
+    // ------------------------------------------------------
+
+    else if (
+        originalCode === "ECONNECTION" ||
+        originalCode === "ETIMEDOUT" ||
+        originalCode === "ESOCKET"
+    ) {
+        normalized.code = "SMTP_CONNECTION_FAILED";
+        normalized.status = 503;
+
+        normalized.message =
+            "Unable to connect to Gmail SMTP. Please verify SMTP_HOST, SMTP_PORT and SMTP_SECURE.";
+    }
+
+    // ------------------------------------------------------
+    // DNS error
+    // ------------------------------------------------------
+
+    else if (
+        originalCode === "ENOTFOUND"
+    ) {
+        normalized.code = "SMTP_HOST_NOT_FOUND";
+        normalized.status = 503;
+
+        normalized.message =
+            "Gmail SMTP host could not be resolved.";
+    }
+
+    return normalized;
+}
+
+// ==========================================================
+// VERIFY SMTP CONNECTION
+// ==========================================================
+
+async function verifyMailer() {
+
+    if (mailerConfigErrors.length) {
         console.error(
-            "❌ Gmail API cannot be verified."
+            "❌ MI ARCUS EMAIL SERVICE IS NOT READY."
         );
 
         console.error(
-            "Required environment variables are missing."
+            "Missing/invalid:",
+            mailerConfigErrors.join(", ")
         );
 
         return false;
-
     }
 
     try {
 
-        console.log(
-            "=========================================="
-        );
+        console.log("==========================================");
+        console.log("📧 VERIFYING MI ARCUS SMTP");
+        console.log("SMTP:", `${SMTP_HOST}:${SMTP_PORT}`);
+        console.log("User:", SMTP_USER);
+        console.log("==========================================");
 
-        console.log(
-            "📧 VERIFYING GMAIL API CONNECTION"
-        );
+        await transporter.verify();
 
-        console.log(
-            "Authentication: OAuth2 refresh token"
-        );
-
-        console.log(
-            "Gmail API: Enabled"
-        );
-
-        console.log(
-            "From:",
-            EMAIL_FROM
-        );
-
-        console.log(
-            "=========================================="
-        );
-
-        // --------------------------------------------------
-        // Ask Google for a fresh access token.
-        // This automatically uses the refresh token.
-        // --------------------------------------------------
-
-        const accessTokenResponse =
-            await oauth2Client.getAccessToken();
-
-        if (!accessTokenResponse?.token) {
-
-            throw new Error(
-                "Google did not return an access token."
-            );
-
-        }
-
-        console.log(
-            "=========================================="
-        );
-
-        console.log(
-            "✅ GMAIL OAUTH2 CONNECTION SUCCESSFUL"
-        );
-
-        console.log(
-            "=========================================="
-        );
+        console.log("==========================================");
+        console.log("✅ MI ARCUS SMTP CONNECTION SUCCESSFUL");
+        console.log("==========================================");
 
         return true;
 
-    }
-    catch (error) {
+    } catch (error) {
 
-        const normalizedError = normalizeGoogleAuthError(error);
+        const normalizedError =
+            normalizeMailerError(error);
 
-        console.error(
-            "=========================================="
-        );
-
-        console.error(
-            "❌ GMAIL OAUTH2 CONNECTION FAILED"
-        );
-
+        console.error("==========================================");
+        console.error("❌ MI ARCUS SMTP CONNECTION FAILED");
         console.error(
             "Code:",
             normalizedError?.code || "N/A"
         );
-
+        console.error(
+            "Status:",
+            normalizedError?.status || "N/A"
+        );
         console.error(
             "Message:",
-            normalizedError?.message || normalizedError
+            normalizedError?.message || "Unknown error"
         );
-
-        if (normalizedError?.googleErrorDescription) {
-            console.error(
-                "Google:",
-                normalizedError.googleErrorDescription
-            );
-        }
-
-        console.error(
-            "=========================================="
-        );
+        console.error("==========================================");
 
         return false;
-
     }
-
-};
+}
 
 // ==========================================================
-// SEND MAIL
+// SEND EMAIL
 // ==========================================================
 
-const sendMail = async (mailOptions = {}) => {
+async function sendMail(mailOptions = {}) {
 
     // ------------------------------------------------------
-    // CONFIGURATION CHECK
+    // Configuration check
     // ------------------------------------------------------
 
-    if (!GMAIL_CLIENT_ID) {
+    if (mailerConfigErrors.length) {
 
-        throw new Error(
-            "GMAIL_CLIENT_ID is missing."
+        const error = new Error(
+            `MI ARCUS SMTP configuration is incomplete: ${mailerConfigErrors.join(", ")}.`
         );
 
-    }
+        error.code = "SMTP_CONFIG_ERROR";
+        error.status = 500;
 
-    if (!GMAIL_CLIENT_SECRET) {
-
-        throw new Error(
-            "GMAIL_CLIENT_SECRET is missing."
-        );
-
-    }
-
-    if (!GMAIL_REFRESH_TOKEN) {
-
-        throw new Error(
-            "GMAIL_REFRESH_TOKEN is missing."
-        );
-
-    }
-
-    if (!EMAIL_FROM) {
-
-        throw new Error(
-            "EMAIL_FROM is missing."
-        );
-
+        throw error;
     }
 
     // ------------------------------------------------------
-    // MAIL VALIDATION
+    // Validate recipient
     // ------------------------------------------------------
 
     if (!mailOptions.to) {
-
-        throw new Error(
+        const error = new Error(
             "Email recipient is missing."
         );
 
+        error.code = "EMAIL_RECIPIENT_MISSING";
+        error.status = 400;
+
+        throw error;
     }
 
-    if (!mailOptions.subject) {
+    // ------------------------------------------------------
+    // Validate subject
+    // ------------------------------------------------------
 
-        throw new Error(
+    if (!mailOptions.subject) {
+        const error = new Error(
             "Email subject is missing."
         );
 
+        error.code = "EMAIL_SUBJECT_MISSING";
+        error.status = 400;
+
+        throw error;
     }
 
-    if (!mailOptions.html && !mailOptions.text) {
+    // ------------------------------------------------------
+    // Validate content
+    // ------------------------------------------------------
 
-        throw new Error(
+    if (
+        !mailOptions.html &&
+        !mailOptions.text
+    ) {
+        const error = new Error(
             "Email content is missing."
         );
 
+        error.code = "EMAIL_CONTENT_MISSING";
+        error.status = 400;
+
+        throw error;
     }
 
     // ------------------------------------------------------
-    // SENDER
+    // IMPORTANT:
+    // Always send through the configured Mi Arcus account.
+    //
+    // This prevents another caller from accidentally using
+    // a different "from" address that Gmail may reject.
     // ------------------------------------------------------
 
-    const from =
-        mailOptions.from ||
-        EMAIL_FROM;
-
-    // ------------------------------------------------------
-    // MIME MESSAGE
-    // ------------------------------------------------------
-
-    const rawMessage = createMimeMessage({
-
-        from,
-
-        to: mailOptions.to,
-
-        subject: mailOptions.subject,
-
-        html: mailOptions.html,
-
-        text: mailOptions.text,
-
-        attachments: mailOptions.attachments
-
-    });
-
-    // ------------------------------------------------------
-    // ENCODE MESSAGE
-    // ------------------------------------------------------
-
-    const encodedMessage =
-        encodeBase64Url(rawMessage);
+    const from = EMAIL_FROM;
 
     try {
 
-        console.log(
-            "=========================================="
-        );
-
-        console.log(
-            "📧 SENDING EMAIL USING GMAIL API"
-        );
-
-        console.log(
-            "From:",
-            from
-        );
-
-        console.log(
-            "To:",
-            mailOptions.to
-        );
-
-        console.log(
-            "Subject:",
-            mailOptions.subject
-        );
-
-        console.log(
-            "=========================================="
-        );
-
-        // --------------------------------------------------
-        // SEND THROUGH GMAIL API
-        // --------------------------------------------------
+        console.log("==========================================");
+        console.log("📧 MI ARCUS EMAIL SEND");
+        console.log("Transport: Gmail SMTP");
+        console.log("From:", from);
+        console.log("To:", mailOptions.to);
+        console.log("Subject:", mailOptions.subject);
+        console.log("==========================================");
 
         const result =
-            await gmail.users.messages.send({
+            await transporter.sendMail({
 
-                userId: "me",
+                from,
 
-                requestBody: {
+                to: mailOptions.to,
 
-                    raw: encodedMessage
+                subject:
+                    mailOptions.subject,
 
-                }
+                html:
+                    mailOptions.html,
 
+                text:
+                    mailOptions.text,
+
+                attachments:
+                    Array.isArray(
+                        mailOptions.attachments
+                    )
+                        ? mailOptions.attachments
+                        : []
             });
 
+        // --------------------------------------------------
+        // Verify Gmail accepted the message
+        // --------------------------------------------------
+
+        const accepted =
+            Array.isArray(result?.accepted)
+                ? result.accepted
+                : [];
+
+        const rejected =
+            Array.isArray(result?.rejected)
+                ? result.rejected
+                : [];
+
+        if (
+            rejected.length > 0 &&
+            accepted.length === 0
+        ) {
+            const error = new Error(
+                "Gmail rejected the email recipient."
+            );
+
+            error.code =
+                "SMTP_RECIPIENT_REJECTED";
+
+            error.status = 502;
+
+            error.rejected = rejected;
+
+            throw error;
+        }
+
+        console.log("==========================================");
+        console.log("✅ MI ARCUS EMAIL SENT");
         console.log(
-            "=========================================="
+            "Message ID:",
+            result?.messageId || "N/A"
         );
-
         console.log(
-            "✅ EMAIL SENT SUCCESSFULLY"
+            "Accepted:",
+            accepted
         );
-
         console.log(
-            "Gmail Message ID:",
-            result?.data?.id || "N/A"
+            "Rejected:",
+            rejected
         );
+        console.log("==========================================");
 
-        console.log(
-            "Thread ID:",
-            result?.data?.threadId || "N/A"
-        );
+        return result;
 
-        console.log(
-            "=========================================="
-        );
+    } catch (error) {
 
-        return result?.data;
+        const normalizedError =
+            normalizeMailerError(error);
 
-    }
-    catch (error) {
-
-        const normalizedError = normalizeGoogleAuthError(error);
-
-        console.error(
-            "=========================================="
-        );
-
-        console.error(
-            "❌ GMAIL API EMAIL SEND FAILED"
-        );
-
-        console.error(
-            "From:",
-            from
-        );
-
-        console.error(
-            "To:",
-            mailOptions.to
-        );
-
+        console.error("==========================================");
+        console.error("❌ MI ARCUS EMAIL SEND FAILED");
+        console.error("Transport: Gmail SMTP");
+        console.error("From:", from);
+        console.error("To:", mailOptions.to);
         console.error(
             "Subject:",
             mailOptions.subject
         );
-
         console.error(
             "Code:",
             normalizedError?.code || "N/A"
         );
-
         console.error(
             "Status:",
-            normalizedError?.status || normalizedError?.response?.status || "N/A"
+            normalizedError?.status || "N/A"
         );
-
+        console.error(
+            "Command:",
+            normalizedError?.command || "N/A"
+        );
         console.error(
             "Message:",
-            normalizedError?.message || normalizedError
+            normalizedError?.message || "Unknown error"
         );
-
-        if (normalizedError?.googleErrorDescription) {
-            console.error(
-                "Google API Error:",
-                normalizedError.googleErrorDescription
-            );
-        } else if (error?.response?.data) {
-            console.error(
-                "Google API Error:",
-                JSON.stringify(
-                    error.response.data,
-                    null,
-                    2
-                )
-            );
-        }
-
-        console.error(
-            "=========================================="
-        );
+        console.error("==========================================");
 
         throw normalizedError;
-
     }
-
-};
+}
 
 // ==========================================================
-// EXPORT
+// EXPORTS
 // ==========================================================
 
 module.exports = {
-
     sendMail,
-
     verifyMailer,
-
-    normalizeGoogleAuthError,
-
-    gmail,
-
-    oauth2Client
-
+    normalizeMailerError,
+    transporter
 };

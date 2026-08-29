@@ -1329,35 +1329,225 @@ const enableUser = (
 
 
 // ==========================================================
+// DELETE USER - DEPENDENCY CLEANUP
+// ==========================================================
+//
+// Several Mi Arcus modules intentionally use ON DELETE RESTRICT
+// for user-owned operational data. A direct DELETE FROM users
+// therefore fails when one of those records exists.
+//
+// User deletion is an explicit admin action, so we clean only
+// records that are owned by the user and would otherwise block
+// deletion, then delete the user in the same database transaction.
+//
+// Nullable foreign-key columns are preserved by setting them to
+// NULL. Non-nullable restrictive references are removed because
+// retaining them would make the requested user deletion impossible.
+//
+// The cleanup is driven from INFORMATION_SCHEMA so newly-added
+// restrictive user foreign keys are handled without requiring
+// another code change.
+// ==========================================================
+
+const quoteIdentifier = (value) => {
+
+    return "`" +
+        String(value || "")
+            .replace(/`/g, "``") +
+        "`";
+
+};
+
+const cleanupRestrictiveUserReferences = async (
+    connection,
+    userId
+) => {
+
+    const databaseName = String(
+        process.env.DB_NAME || "defaultdb"
+    ).trim();
+
+    const references = await connection.query(
+        `
+            SELECT
+                kcu.TABLE_NAME AS table_name,
+                kcu.COLUMN_NAME AS column_name,
+                kcu.CONSTRAINT_NAME AS constraint_name,
+                rc.DELETE_RULE AS delete_rule,
+                c.IS_NULLABLE AS is_nullable
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            INNER JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+                AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+            INNER JOIN INFORMATION_SCHEMA.COLUMNS c
+                ON c.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                AND c.TABLE_NAME = kcu.TABLE_NAME
+                AND c.COLUMN_NAME = kcu.COLUMN_NAME
+            WHERE
+                kcu.CONSTRAINT_SCHEMA = ?
+                AND kcu.REFERENCED_TABLE_NAME = 'users'
+                AND kcu.REFERENCED_COLUMN_NAME = 'id'
+                AND rc.DELETE_RULE IN ('RESTRICT', 'NO ACTION')
+            ORDER BY
+                kcu.TABLE_NAME ASC,
+                kcu.CONSTRAINT_NAME ASC,
+                kcu.ORDINAL_POSITION ASC
+        `,
+        [databaseName]
+    );
+
+    const rows = references[0] || [];
+
+    for (const reference of rows) {
+
+        const tableName = quoteIdentifier(reference.table_name);
+        const columnName = quoteIdentifier(reference.column_name);
+
+        // Never process the users table itself.
+        if (
+            String(reference.table_name).toLowerCase() === "users"
+        ) {
+            continue;
+        }
+
+        if (
+            String(reference.is_nullable).toUpperCase() === "YES"
+        ) {
+
+            await connection.query(
+                `
+                    UPDATE ${tableName}
+                    SET ${columnName} = NULL
+                    WHERE ${columnName} = ?
+                `,
+                [userId]
+            );
+
+        } else {
+
+            await connection.query(
+                `
+                    DELETE FROM ${tableName}
+                    WHERE ${columnName} = ?
+                `,
+                [userId]
+            );
+        }
+    }
+};
+
+const performDeleteUser = async (
+    connection,
+    userId
+) => {
+
+    await connection.beginTransaction();
+
+    try {
+
+        // Remove the user's direct RBAC/profile relationship rows
+        // even on installations where these tables do not have
+        // cascading foreign keys.
+        const relationshipTables = [
+            "user_permissions",
+            "user_stores",
+            "user_theme_preferences",
+            "user_activation_tokens"
+        ];
+
+        for (const tableName of relationshipTables) {
+
+            await connection.query(
+                `
+                    DELETE FROM ${quoteIdentifier(tableName)}
+                    WHERE user_id = ?
+                `,
+                [userId]
+            );
+        }
+
+        // Handle every remaining restrictive FK that points to users.id.
+        await cleanupRestrictiveUserReferences(
+            connection,
+            userId
+        );
+
+        // ON DELETE CASCADE / SET NULL foreign keys are handled by MySQL.
+        const [result] = await connection.query(
+            `
+                DELETE
+                FROM users
+                WHERE id = ?
+            `,
+            [userId]
+        );
+
+        if (!result || result.affectedRows !== 1) {
+
+            throw new Error(
+                "User was not found or could not be deleted."
+            );
+        }
+
+        await connection.commit();
+
+        return result;
+
+    } catch (error) {
+
+        try {
+            await connection.rollback();
+        } catch (rollbackError) {
+            console.error(
+                "User delete rollback failed:",
+                rollbackError
+            );
+        }
+
+        throw error;
+
+    }
+};
+
+// ==========================================================
 // DELETE USER
 // ==========================================================
 
 const deleteUser = (
-
     id,
-
     callback
-
 ) => {
 
-    db.query(
+    const operation = (async () => {
 
-        `
+        const connection =
+            await db.getConnection();
 
-            DELETE
+        try {
 
-            FROM users
+            return await performDeleteUser(
+                connection,
+                id
+            );
 
-            WHERE id = ?
+        } finally {
 
-        `,
+            connection.release();
 
-        [
-            id
-        ],
+        }
 
-        callback
-    );
+    })();
+
+    if (typeof callback === "function") {
+
+        operation
+            .then((result) => callback(null, result))
+            .catch((error) => callback(error));
+
+        return undefined;
+    }
+
+    return operation;
 };
 
 
@@ -1366,25 +1556,101 @@ const deleteUser = (
 // ==========================================================
 
 const deleteAllUsers = (
-
     callback
-
 ) => {
 
-    db.query(
+    const operation = (async () => {
 
-        `
+        const connection =
+            await db.getConnection();
 
-            DELETE
+        try {
 
-            FROM users
+            await connection.beginTransaction();
 
-            WHERE is_admin = 0
+            try {
 
-        `,
+                const [users] = await connection.query(
+                    `
+                        SELECT id
+                        FROM users
+                        WHERE is_admin = 0
+                        ORDER BY id ASC
+                    `
+                );
 
-        callback
-    );
+                for (const user of (users || [])) {
+
+                    const userId = user.id;
+
+                    const relationshipTables = [
+                        "user_permissions",
+                        "user_stores",
+                        "user_theme_preferences",
+                        "user_activation_tokens"
+                    ];
+
+                    for (const tableName of relationshipTables) {
+
+                        await connection.query(
+                            `
+                                DELETE FROM ${quoteIdentifier(tableName)}
+                                WHERE user_id = ?
+                            `,
+                            [userId]
+                        );
+                    }
+
+                    await cleanupRestrictiveUserReferences(
+                        connection,
+                        userId
+                    );
+                }
+
+                const [result] = await connection.query(
+                    `
+                        DELETE
+                        FROM users
+                        WHERE is_admin = 0
+                    `
+                );
+
+                await connection.commit();
+
+                return result;
+
+            } catch (error) {
+
+                try {
+                    await connection.rollback();
+                } catch (rollbackError) {
+                    console.error(
+                        "Delete-all rollback failed:",
+                        rollbackError
+                    );
+                }
+
+                throw error;
+            }
+
+        } finally {
+
+            connection.release();
+
+        }
+
+    })();
+
+    if (typeof callback === "function") {
+
+        operation
+            .then((result) => callback(null, result))
+            .catch((error) => callback(error));
+
+        return undefined;
+    }
+
+    return operation;
 };
 
 

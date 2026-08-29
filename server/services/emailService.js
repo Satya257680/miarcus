@@ -1,6 +1,6 @@
 // ==========================================================
 // MIARCUS EMAIL SERVICE
-// Gmail API / OAuth2
+// Gmail SMTP / App Password
 // ==========================================================
 
 const mailer = require("../config/mailer");
@@ -47,7 +47,7 @@ const resetPassword = require(
 // EMAIL CONFIGURATION
 // ==========================================================
 //
-// Gmail OAuth2 is handled inside:
+// Gmail SMTP is handled inside:
 // ../config/mailer.js
 //
 // EMAIL_FROM is the Gmail account that sends the emails.
@@ -154,7 +154,7 @@ const validateUserEmail = (user) => {
 //
 // Every Miarcus email goes through this function.
 //
-// Gmail OAuth2 authentication is handled by:
+// Gmail SMTP authentication is handled by:
 // server/config/mailer.js
 //
 // ==========================================================
@@ -226,7 +226,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "Authentication: Gmail OAuth2"
+            "Authentication: Gmail SMTP + App Password"
         );
 
         console.log(
@@ -249,7 +249,7 @@ const sendEmail = async ({
         );
 
         // --------------------------------------------------
-        // SEND THROUGH GMAIL OAUTH2 MAILER
+        // SEND THROUGH GMAIL SMTP MAILER
         // --------------------------------------------------
 
         const suppliedAttachments =
