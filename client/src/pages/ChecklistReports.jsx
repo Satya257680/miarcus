@@ -102,6 +102,8 @@ function ChecklistReports() {
 
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+
     // ======================================================
     // SELECTED DATA
     // ======================================================
@@ -205,7 +207,9 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             const results = await Promise.allSettled([
 
-                axios.get(`${API}/checklist-reports`),
+                // Fetch the complete report set once; the shared Pagination
+                // component then handles page navigation locally.
+                axios.get(`${API}/checklist-reports?limit=10000`),
 
                 axios.get(`${API}/stores`),
 
@@ -521,6 +525,57 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             setDeleteId(null);
 
             setShowDeleteDialog(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // DELETE ALL
+    // ======================================================
+
+    const handleDeleteAll = () => {
+
+        if (!canDelete) return;
+
+        if (!reports.length) {
+            alert("No Checklist Reports found.");
+            return;
+        }
+
+        setShowDeleteAllDialog(true);
+    };
+
+    const confirmDeleteAll = async () => {
+
+        try {
+
+            const response = await axios.delete(
+                `${API}/checklist-reports/all`
+            );
+
+            alert(
+                response.data?.message ||
+                "Checklist Reports deleted successfully."
+            );
+
+            setCurrentPage(1);
+            await loadData();
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Unable to delete Checklist Reports."
+            );
+
+        }
+        finally {
+
+            setShowDeleteAllDialog(false);
 
         }
 
@@ -1269,7 +1324,9 @@ const uploadChecklistReport = async (file) => {
 
     onBulkUpload={() => setShowBulkUpload(true)}
 
-    showDeleteAll={false}
+    showDeleteAll={canDelete}
+
+    onDeleteAll={handleDeleteAll}
 
 />
             {/* ======================================================
@@ -1496,9 +1553,20 @@ const uploadChecklistReport = async (file) => {
                 }}
             />
 
+            <ConfirmDialog
+                open={showDeleteAllDialog}
+                title="Delete All Checklist Reports"
+                message="Are you sure you want to delete all available Checklist Reports? Active Action Points will be preserved."
+                confirmText="Delete All"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                onConfirm={confirmDeleteAll}
+                onCancel={() => setShowDeleteAllDialog(false)}
+            />
+
             {/* ======================================================
                 VIEW MODAL
-            ====================================================== */}
+            ======================================================}
 
             {showViewModal && selectedReport && (
 

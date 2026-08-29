@@ -1187,6 +1187,68 @@ exports.deleteReport = (req,res)=>{
 
 
 // ======================================================
+// DELETE ALL CHECKLIST REPORTS
+// DELETE /api/checklist-reports/all
+// ======================================================
+
+exports.deleteAllReports = (req, res) => {
+
+    ChecklistReport.deleteAll((err, result) => {
+
+        if (err) {
+
+            console.error("DELETE ALL CHECKLIST REPORTS ERROR:", err);
+
+            return res.status(500).json({
+                success: false,
+                message: "Unable to delete Checklist Reports.",
+                error: err.message
+            });
+        }
+
+        const count = Number(result?.affectedSubmissions || 0);
+
+        Activity.create(
+            {
+                title: "Checklist Reports Deleted",
+                description: `${count} checklist report submission(s) deleted.`,
+                module_name: "Checklist Reports",
+                status: "Closed",
+                priority: "High",
+                created_by: req.user.id,
+                assigned_to: null
+            },
+            () => {}
+        );
+
+        Audit.create(
+            {
+                module_name: "Checklist Reports",
+                reference_id: null,
+                action: "DELETE_ALL",
+                old_data: null,
+                new_data: {
+                    affected_submissions: count
+                },
+                changed_by: req.user.id
+            },
+            () => {}
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: count
+                ? `${count} checklist report submission(s) deleted successfully.`
+                : "No Checklist Reports were available to delete.",
+            data: {
+                affectedSubmissions: count
+            }
+        });
+    });
+};
+
+
+// ======================================================
 // IMPORT CSV REPORTS
 // POST /api/checklist-reports/bulk-upload
 // ======================================================

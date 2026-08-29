@@ -35,6 +35,8 @@ const {
 
     deleteReport,
 
+    deleteAllReports,
+
     bulkUploadChecklistReports,
 
     exportReports
@@ -116,6 +118,23 @@ router.post(
     bulkUploadChecklistReports
 
 );
+
+// ======================================================
+// DELETE ALL REPORTS
+// DELETE /api/checklist-reports/all
+// IMPORTANT: must be before /:id.
+// ======================================================
+
+router.delete(
+    "/all",
+    authMiddleware,
+    permissionMiddleware(
+        "Checklist Reports",
+        "Full"
+    ),
+    deleteAllReports
+);
+
 
 // ======================================================
 // GET REPORT BY ID

@@ -133,6 +133,14 @@ ChecklistReport.getAll = (
 
         WHERE 1=1
 
+            -- A checklist answer belongs in Reports immediately when no
+            -- Action Point is required. If an Action Point exists, keep
+            -- the answer out of Reports until that Action Point is closed.
+            AND (
+                ap.id IS NULL
+                OR ap.status = 'Closed'
+            )
+
     `;
 
     const values = [];
@@ -812,21 +820,27 @@ ChecklistReport.delete = async (
         await connection.beginTransaction();
 
         // ==========================================
-        // DELETE ANSWERS FIRST
+        // DELETE ACTION POINTS FIRST
         // ==========================================
 
         await connection.query(
-
             `
-
-            DELETE FROM checklist_submission_answers
-
+            DELETE FROM action_points
             WHERE submission_id = ?
-
             `,
-
             [id]
+        );
 
+        // ==========================================
+        // DELETE ANSWERS
+        // ==========================================
+
+        await connection.query(
+            `
+            DELETE FROM checklist_submission_answers
+            WHERE submission_id = ?
+            `,
+            [id]
         );
 
         // ==========================================
@@ -875,6 +889,105 @@ ChecklistReport.delete = async (
 
 };
 // ======================================================
+// DELETE ALL VISIBLE CHECKLIST REPORTS
+//
+// Only submissions that currently have no open Action Point are
+// removed. Active/open Action Points are deliberately preserved.
+// ======================================================
+
+ChecklistReport.deleteAll = async (callback) => {
+
+    let connection;
+
+    try {
+
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        // Select submissions represented by the current Checklist Reports
+        // view: at least one answer is visible (no AP or closed AP), and
+        // there are no open Action Points for the submission.
+        const [rows] = await connection.query(`
+            SELECT DISTINCT cs.id
+            FROM checklist_submissions cs
+            LEFT JOIN checklist_submission_answers csa
+                ON csa.submission_id = cs.id
+            LEFT JOIN (
+                SELECT ap1.*
+                FROM action_points ap1
+                LEFT JOIN action_points ap2
+                    ON ap2.submission_answer_id = ap1.submission_answer_id
+                   AND ap2.id > ap1.id
+                WHERE ap2.id IS NULL
+            ) ap
+                ON ap.submission_answer_id = csa.id
+            WHERE (
+                ap.id IS NULL
+                OR ap.status = 'Closed'
+            )
+            AND NOT EXISTS (
+                SELECT 1
+                FROM action_points open_ap
+                WHERE open_ap.submission_id = cs.id
+                  AND open_ap.status <> 'Closed'
+            )
+        `);
+
+        const ids = rows.map(row => row.id);
+
+        if (ids.length) {
+
+            const placeholders = ids.map(() => '?').join(',');
+
+            // Remove Action Points belonging to the reports first so
+            // submission-answer references cannot be left orphaned.
+            await connection.query(
+                `DELETE FROM action_points
+                 WHERE submission_id IN (${placeholders})`,
+                ids
+            );
+
+            await connection.query(
+                `DELETE FROM checklist_submission_answers
+                 WHERE submission_id IN (${placeholders})`,
+                ids
+            );
+
+            await connection.query(
+                `DELETE FROM checklist_submissions
+                 WHERE id IN (${placeholders})`,
+                ids
+            );
+        }
+
+        await connection.commit();
+
+        callback(null, {
+            affectedSubmissions: ids.length
+        });
+
+    } catch (error) {
+
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback failed:", rollbackError.message);
+            }
+        }
+
+        callback(error);
+
+    } finally {
+
+        if (connection) {
+            connection.release();
+        }
+    }
+};
+
+
+// ======================================================
 // COUNT REPORTS
 // FOR PAGINATION
 // ======================================================
@@ -920,6 +1033,16 @@ LEFT JOIN users u
 LEFT JOIN checklist_submission_answers csa
     ON csa.submission_id = cs.id
 
+LEFT JOIN (
+    SELECT ap1.*
+    FROM action_points ap1
+    LEFT JOIN action_points ap2
+        ON ap2.submission_answer_id = ap1.submission_answer_id
+       AND ap2.id > ap1.id
+    WHERE ap2.id IS NULL
+) ap
+    ON ap.submission_answer_id = csa.id
+
 LEFT JOIN questions q
     ON q.id = csa.question_id
 
@@ -932,6 +1055,11 @@ LEFT JOIN departments d
 
 
         WHERE 1=1
+
+        AND (
+            ap.id IS NULL
+            OR ap.status = 'Closed'
+        )
 
 
     `;
