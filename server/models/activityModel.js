@@ -638,6 +638,8 @@ Activity.create = (
 
             module_name,
 
+            activity_type,
+
             status,
 
             priority,
@@ -648,7 +650,7 @@ Activity.create = (
 
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 
     `;
 
@@ -664,6 +666,8 @@ Activity.create = (
             data.description,
 
             data.module_name,
+
+            data.activity_type || "General Activity",
 
             data.status || "Open",
 

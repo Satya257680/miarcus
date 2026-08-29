@@ -438,6 +438,30 @@ async function initializeDatabase() {
         }
 
         // ==================================================
+        // ACTION POINT QUESTION MIGRATION
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ActionPoint.ensureQuestionColumn ===
+                "function"
+            ) {
+
+                await ActionPoint.ensureQuestionColumn();
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ action_points question migration failed:",
+                error.message
+            );
+
+        }
+
+        // ==================================================
         // ACTION POINT NSO MIGRATION
         // ==================================================
 

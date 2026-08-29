@@ -239,6 +239,8 @@ exports.bulkUploadActionPoints = async (req, res) => {
                     "Department ID", "department_id", "Department", "department"),
                 question_id: value(row,
                     "Question ID", "question_id"),
+                question: value(row,
+                    "Question", "question", "Question Text", "question_text"),
                 submission_id: value(row,
                     "Submission ID", "submission_id"),
                 submission_answer_id: value(row,

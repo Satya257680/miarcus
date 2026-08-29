@@ -87,7 +87,25 @@ const resolveGlobalReferences = async (data) => {
         }
     }
 
-    // 4. If Department ID is omitted, use the first department configured
+    // 4. Resolve Question ID from Question text when supplied.
+    // Question is optional for manual/bulk Action Points. If the uploaded
+    // file contains a matching question, use it; otherwise leave question_id
+    // NULL and still allow the Action Point to be created.
+    if (!hasValue(resolved.question_id) && hasValue(resolved.question)) {
+        const question = await queryOne(
+            `SELECT id
+             FROM questions
+             WHERE question = ?
+             LIMIT 1`,
+            [String(resolved.question).trim()]
+        );
+
+        if (question?.id) {
+            resolved.question_id = question.id;
+        }
+    }
+
+    // 5. If Department ID is omitted, use the first department configured
     // for the question. This keeps the global upload useful while preserving
     // the existing optional department field.
     if (!hasValue(resolved.department_id) && hasValue(resolved.question_id)) {
@@ -551,17 +569,13 @@ const createManual = async (
     }
 
 
-    if (!normalizedQuestionId) {
-
-        const err =
-            new Error(
-                "Question is required."
-            );
-
-        err.statusCode = 400;
-
-        throw err;
-    }
+    // Question is intentionally OPTIONAL.
+    //
+    // Manual and bulk Action Points may be created without a checklist
+    // question. Checklist/rule-generated Action Points still provide their
+    // question_id through createFromRules().
+    //
+    // Do not reject the row when question_id is missing.
 
 
     // ==================================================

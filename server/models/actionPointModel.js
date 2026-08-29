@@ -25,7 +25,7 @@ ActionPoint.createTables = (callback) => {
 
             department_id INT NULL,
 
-            question_id INT NOT NULL,
+            question_id INT NULL,
 
             assigned_to INT NULL,
 
@@ -169,6 +169,71 @@ ActionPoint.ensureParentColumn = async () => {
 
 
 // ======================================================
+// ENSURE QUESTION IS OPTIONAL
+//
+// Older installations created question_id as NOT NULL. Bulk/manual
+// Action Points are allowed without a checklist question, so migrate the
+// existing column to nullable as well as keeping CREATE TABLE compatible.
+// ======================================================
+
+ActionPoint.ensureQuestionColumn = async () => {
+
+    const column = await new Promise((resolve, reject) => {
+
+        db.query(
+            `SHOW COLUMNS FROM action_points LIKE 'question_id'`,
+            (err, rows) => {
+
+                if (err) return reject(err);
+
+                resolve(rows?.[0] || null);
+            }
+        );
+
+    });
+
+    if (!column) return;
+
+    const type =
+        String(column.Type || "").toUpperCase();
+
+    const isNullable =
+        String(column.Null || "").toUpperCase() === "YES";
+
+    if (!isNullable) {
+
+        await new Promise((resolve, reject) => {
+
+            db.query(
+                `ALTER TABLE action_points
+                 MODIFY COLUMN question_id INT NULL`,
+                (err) => {
+
+                    if (err) return reject(err);
+
+                    resolve();
+                }
+            );
+
+        });
+
+        console.log(
+            "✅ action_points.question_id changed to nullable"
+        );
+
+    } else if (!type.includes("INT")) {
+
+        console.warn(
+            "⚠️ action_points.question_id has unexpected type:",
+            column.Type
+        );
+
+    }
+
+};
+
+
+// ======================================================
 // GET ALL ACTION POINTS
 // ======================================================
 
@@ -263,7 +328,7 @@ ActionPoint.getAll = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         LEFT JOIN checklist_types ct
@@ -516,7 +581,7 @@ ActionPoint.count = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         LEFT JOIN checklist_types ct
@@ -787,7 +852,7 @@ ActionPoint.getById = (
         LEFT JOIN checklist_submission_answers csa
             ON ap.submission_answer_id = csa.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         INNER JOIN stores s
@@ -1280,7 +1345,7 @@ ActionPoint.getOpenActionPoints = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         LEFT JOIN departments d
@@ -1361,7 +1426,7 @@ ActionPoint.getByNSO = (
         LEFT JOIN checklist_submissions cs
             ON ap.submission_id = cs.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         INNER JOIN stores s
@@ -1427,7 +1492,7 @@ ActionPoint.getBySubmission = (
 
         FROM action_points ap
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         INNER JOIN stores s
@@ -1510,7 +1575,7 @@ ActionPoint.exportData = (
         INNER JOIN stores s
             ON ap.store_id = s.id
 
-        INNER JOIN questions q
+        LEFT JOIN questions q
             ON ap.question_id = q.id
 
         LEFT JOIN checklist_types ct
