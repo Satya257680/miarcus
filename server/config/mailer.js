@@ -15,9 +15,10 @@
 //
 // IMPORTANT:
 // - Keep RESEND_API_KEY secret.
-// - For Resend's free/test sender, use onboarding@resend.dev.
-// - To send to arbitrary employee addresses, configure a
-//   domain in Resend and set RESEND_FROM to an address on it.
+// - The default test sender is onboarding@resend.dev.
+// - The application does not restrict recipient domains.
+// - For production delivery to arbitrary recipients, Resend requires
+//   a sender address on a verified domain.
 // ==========================================================
 
 const { Resend } = require("resend");
@@ -33,7 +34,7 @@ const RESEND_API_KEY = String(
 const EMAIL_FROM = String(
     process.env.RESEND_FROM ||
     process.env.EMAIL_FROM ||
-    ""
+    "onboarding@resend.dev"
 ).trim();
 
 // ==========================================================
