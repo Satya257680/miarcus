@@ -69,8 +69,8 @@ process.on("uncaughtException", (err) => {
 
 const db = require("./config/db");
 
-// Resend email service configuration health check. This does not stop the API from
-// starting; the Resend API key is used when an email is sent.
+// Gmail SMTP email service configuration health check. This does not stop the API
+// from starting; email errors are reported when an email is sent.
 const { verifyMailer } = require("./config/mailer");
 
 // ======================================================
@@ -2179,13 +2179,13 @@ const httpServer = app.listen(
         );
 
         // --------------------------------------------------
-        // Verify Resend configuration at startup.
+        // Verify Gmail SMTP configuration at startup.
         // --------------------------------------------------
         verifyMailer()
             .then((ok) => {
                 if (!ok) {
                     console.error(
-                        "⚠️ MIARCUS EMAIL SERVICE IS NOT READY. Check RESEND_API_KEY and RESEND_FROM in Render Environment."
+                        "⚠️ MIARCUS EMAIL SERVICE IS NOT READY. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER and SMTP_PASS in Render Environment."
                     );
                 }
             })

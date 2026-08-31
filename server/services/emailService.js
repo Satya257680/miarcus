@@ -1,6 +1,6 @@
 // ==========================================================
 // MIARCUS EMAIL SERVICE
-// Resend API
+// Gmail SMTP / Nodemailer
 // ==========================================================
 
 const mailer = require("../config/mailer");
@@ -47,12 +47,11 @@ const resetPassword = require(
 // EMAIL CONFIGURATION
 // ==========================================================
 //
-// Resend is handled inside:
+// Gmail SMTP is handled inside:
 // ../config/mailer.js
 //
-// The sender is configured with RESEND_FROM.
-// For free/test sending use onboarding@resend.dev,
-// or use an address on a verified Resend domain.
+// The sender is configured with SMTP_FROM.
+// If SMTP_FROM is not provided, SMTP_USER is used.
 //
 // ==========================================================
 
@@ -153,7 +152,7 @@ const validateUserEmail = (user) => {
 //
 // Every Miarcus email goes through this function.
 //
-// Resend API authentication and sender configuration are handled by:
+// Gmail SMTP / Nodemailer authentication and sender configuration are handled by:
 // server/config/mailer.js
 //
 // ==========================================================
@@ -239,7 +238,7 @@ const sendEmail = async ({
     if (!EMAIL_FROM) {
 
         throw new Error(
-            "RESEND_FROM (or EMAIL_FROM) is not configured. Configure a verified Resend sender domain for production email delivery."
+            "SMTP_FROM (or SMTP_USER) is not configured. Configure the Gmail SMTP sender in Render."
         );
 
     }
@@ -255,7 +254,7 @@ const sendEmail = async ({
         );
 
         console.log(
-            "Transport: Resend API"
+            "Transport: Gmail SMTP"
         );
 
         console.log(
@@ -412,7 +411,7 @@ const sendEmail = async ({
         if (error?.response?.data) {
 
             console.error(
-                "Resend API Response:",
+                "SMTP Response:",
                 JSON.stringify(
                     error.response.data,
                     null,
