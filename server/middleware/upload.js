@@ -51,9 +51,12 @@ const baseUpload = multer({
     fileFilter,
     limits: {
         fileSize: MAX_UPLOAD_SIZE,
+        // New Store Opening sends many legitimate form fields plus the optional
+        // attachment. Keep the limits high enough for the complete form while
+        // retaining strict file count, file-size and field-size protections.
         files: 10,
-        parts: 30,
-        fields: 20,
+        parts: 70,
+        fields: 60,
         fieldSize: 1024 * 1024
     }
 });
