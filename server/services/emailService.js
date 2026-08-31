@@ -57,8 +57,7 @@ const resetPassword = require(
 // ==========================================================
 
 const EMAIL_FROM = String(
-    process.env.RESEND_FROM ||
-    "onboarding@resend.dev"
+    mailer.EMAIL_FROM || ""
 ).trim();
 
 // ==========================================================
@@ -185,6 +184,10 @@ const sendEmail = async ({
             .filter(Boolean)
         : [String(to).trim().toLowerCase()];
 
+    // Accept any syntactically valid email domain:
+    // gmail.com, miarcus.com, jawandson.com, .in, .co.in,
+    // .co.uk, subdomains, and other normal public domains.
+    // There is intentionally NO domain whitelist here.
     const emailPattern =
         /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 
@@ -236,7 +239,7 @@ const sendEmail = async ({
     if (!EMAIL_FROM) {
 
         throw new Error(
-            "EMAIL_FROM is not configured."
+            "RESEND_FROM (or EMAIL_FROM) is not configured. Configure a verified Resend sender domain for production email delivery."
         );
 
     }

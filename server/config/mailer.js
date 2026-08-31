@@ -32,7 +32,8 @@ const RESEND_API_KEY = String(
 
 const EMAIL_FROM = String(
     process.env.RESEND_FROM ||
-    "onboarding@resend.dev"
+    process.env.EMAIL_FROM ||
+    ""
 ).trim();
 
 // ==========================================================
@@ -213,6 +214,39 @@ async function sendMail(mailOptions = {}) {
         throw error;
     }
 
+    // Accept any normal public email domain.
+    // No Gmail / Miarcus / Jawandson-only whitelist is used.
+    const recipients = Array.isArray(mailOptions.to)
+        ? mailOptions.to
+            .map((email) => String(email || "").trim().toLowerCase())
+            .filter(Boolean)
+        : [String(mailOptions.to).trim().toLowerCase()];
+
+    const emailPattern =
+        /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+
+    if (
+        recipients.length === 0 ||
+        recipients.some(
+            (email) =>
+                email.length > 254 ||
+                !emailPattern.test(email)
+        )
+    ) {
+        const error = new Error(
+            "Invalid recipient email address."
+        );
+
+        error.code = "EMAIL_RECIPIENT_INVALID";
+        error.status = 400;
+
+        throw error;
+    }
+
+    const normalizedTo = Array.isArray(mailOptions.to)
+        ? recipients
+        : recipients[0];
+
     if (!mailOptions.subject) {
 
         const error = new Error(
@@ -246,13 +280,13 @@ async function sendMail(mailOptions = {}) {
         console.log("📧 MI ARCUS EMAIL SEND");
         console.log("Transport: Resend API");
         console.log("From:", EMAIL_FROM);
-        console.log("To:", mailOptions.to);
+        console.log("To:", normalizedTo);
         console.log("Subject:", mailOptions.subject);
         console.log("==========================================");
 
         const payload = {
             from: EMAIL_FROM,
-            to: mailOptions.to,
+            to: normalizedTo,
             subject: mailOptions.subject
         };
 
@@ -321,7 +355,7 @@ async function sendMail(mailOptions = {}) {
         console.log("Transport: Resend API");
         console.log("Message ID:", data?.id || "N/A");
         console.log("From:", EMAIL_FROM);
-        console.log("To:", mailOptions.to);
+        console.log("To:", normalizedTo);
         console.log("Subject:", mailOptions.subject);
         console.log("==========================================");
 
@@ -350,6 +384,14 @@ async function sendMail(mailOptions = {}) {
             "Message:",
             normalizedError?.message || "Unknown error"
         );
+
+        if (normalizedError?.response?.data) {
+            console.error(
+                "Provider Response:",
+                JSON.stringify(normalizedError.response.data)
+            );
+        }
+
         console.error("==========================================");
 
         throw normalizedError;
@@ -364,5 +406,6 @@ module.exports = {
     sendMail,
     verifyMailer,
     normalizeMailerError,
-    resend
+    resend,
+    EMAIL_FROM
 };
