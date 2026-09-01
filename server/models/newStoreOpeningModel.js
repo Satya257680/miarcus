@@ -339,9 +339,15 @@ NewStoreOpening.create = (
 
             broker_name,
 
+            broker_email,
+
             operation_head_assigned,
 
+            operation_head_email,
+
             asm_assigned,
+
+            asm_email,
 
             deal_days,
 
@@ -365,9 +371,17 @@ NewStoreOpening.create = (
 
             approver_name,
 
+            approver_email,
+
             construction_vendor,
 
+            construction_vendor_email,
+
             project_taken_by,
+
+            project_taken_by_email,
+
+            timeline_mode,
 
             visit_by_op_team,
 
@@ -406,6 +420,20 @@ NewStoreOpening.create = (
         VALUES
 
         (
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
 
             ?,
 
@@ -548,9 +576,15 @@ NewStoreOpening.create = (
 
         data.broker_name ?? null,
 
+        data.broker_email ?? null,
+
         data.operation_head_assigned ?? null,
 
+        data.operation_head_email ?? null,
+
         data.asm_assigned ?? null,
+
+        data.asm_email ?? null,
 
         // ----------------------------------------------
         // DEAL INFORMATION
@@ -590,13 +624,21 @@ NewStoreOpening.create = (
 
         data.approver_name ?? null,
 
+        data.approver_email ?? null,
+
         // ----------------------------------------------
         // CONSTRUCTION
         // ----------------------------------------------
 
         data.construction_vendor ?? null,
 
+        data.construction_vendor_email ?? null,
+
         data.project_taken_by ?? null,
+
+        data.project_taken_by_email ?? null,
+
+        data.timeline_mode ?? "automatic",
 
         data.visit_by_op_team ?? null,
 
@@ -701,8 +743,11 @@ db.query(
         data.possession_date_loi,
         data.possession_date_broker,
         data.broker_name,
+        data.broker_email,
         data.operation_head_assigned,
+        data.operation_head_email,
         data.asm_assigned,
+        data.asm_email,
         data.deal_days,
         data.actual_possession_date,
         data.remarks,
@@ -715,8 +760,12 @@ db.query(
         data.revised_layout_by_nso,
         data.approval_deadline,
         data.approver_name,
+        data.approver_email,
         data.construction_vendor,
+        data.construction_vendor_email,
         data.project_taken_by,
+        data.project_taken_by_email,
+        data.timeline_mode ?? "automatic",
         data.visit_by_op_team,
         data.gst_deadline,
 
@@ -812,9 +861,15 @@ NewStoreOpening.update = (
 
             broker_name = ?,
 
+            broker_email = ?,
+
             operation_head_assigned = ?,
 
+            operation_head_email = ?,
+
             asm_assigned = ?,
+
+            asm_email = ?,
 
             deal_days = ?,
 
@@ -838,9 +893,17 @@ NewStoreOpening.update = (
 
             approver_name = ?,
 
+            approver_email = ?,
+
             construction_vendor = ?,
 
+            construction_vendor_email = ?,
+
             project_taken_by = ?,
+
+            project_taken_by_email = ?,
+
+            timeline_mode = ?,
 
             visit_by_op_team = ?,
 
@@ -893,8 +956,11 @@ NewStoreOpening.update = (
         data.possession_date_loi,
         data.possession_date_broker,
         data.broker_name,
+        data.broker_email,
         data.operation_head_assigned,
+        data.operation_head_email,
         data.asm_assigned,
+        data.asm_email,
         data.deal_days,
         data.actual_possession_date,
         data.remarks,
@@ -907,8 +973,12 @@ NewStoreOpening.update = (
         data.revised_layout_by_nso,
         data.approval_deadline,
         data.approver_name,
+        data.approver_email,
         data.construction_vendor,
+        data.construction_vendor_email,
         data.project_taken_by,
+        data.project_taken_by_email,
+        data.timeline_mode ?? "automatic",
         data.visit_by_op_team,
         data.gst_deadline,
 
@@ -925,7 +995,6 @@ NewStoreOpening.update = (
 
         data.billing_start_date,
         data.status ?? "Planning",
-        data.created_by,
         data.updated_by
     ],
     (err, result) => {
@@ -1492,6 +1561,28 @@ NewStoreOpening.getNSOTrackingData = (
 
     );
 
+};
+
+// ======================================================
+// NSO CONTACT + TIMELINE SCHEMA MIGRATION
+// ======================================================
+NewStoreOpening.ensureColumns = async () => {
+    const columns = [
+        ["broker_email", "VARCHAR(255) NULL"],
+        ["operation_head_email", "VARCHAR(255) NULL"],
+        ["asm_email", "VARCHAR(255) NULL"],
+        ["approver_email", "VARCHAR(255) NULL"],
+        ["construction_vendor_email", "VARCHAR(255) NULL"],
+        ["project_taken_by_email", "VARCHAR(255) NULL"],
+        ["timeline_mode", "VARCHAR(20) NOT NULL DEFAULT 'automatic'"]
+    ];
+    for (const [column, definition] of columns) {
+        try {
+            await db.query(`ALTER TABLE new_store_openings ADD COLUMN ${column} ${definition}`);
+        } catch (error) {
+            if (error?.code !== "ER_DUP_FIELDNAME") throw error;
+        }
+    }
 };
 
 // ======================================================

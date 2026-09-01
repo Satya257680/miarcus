@@ -65,6 +65,7 @@ import NSOTracking from "./pages/NSOTracking";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
 import Appearance from "./pages/Settings/Appearance";
+import NSOEmailSettings from "./pages/Settings/NSOEmailSettings";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -350,6 +351,11 @@ function App() {
                     <Route
                         path="/settings/appearance"
                         element={<Appearance />}
+                    />
+
+                    <Route
+                        path="/settings/new-store-openings-email"
+                        element={<ModulePermissionRoute adminOnly><NSOEmailSettings /></ModulePermissionRoute>}
                     />
 
 

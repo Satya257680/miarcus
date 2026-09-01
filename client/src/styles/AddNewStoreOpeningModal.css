@@ -2295,3 +2295,7 @@
     }
 
 }
+/* =====================================================
+   NSO EMAIL CONTACTS + MANUAL TIMELINE
+===================================================== */
+.nso-timeline-mode{display:flex;gap:10px;margin:0 0 14px;padding:5px;background:#f1f5f9;border-radius:11px;width:max-content}.nso-timeline-mode button{border:1px solid transparent;background:transparent;color:#64748b;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px}.nso-timeline-mode button.active{background:#fff;border-color:#bfdbfe;color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.10)}.nso-timeline-help{margin:0 0 16px;padding:11px 13px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:12px}.nso-timeline-date{width:100%;box-sizing:border-box;border:1px solid #d8e1eb;border-radius:8px;padding:8px;color:#334155;background:#fff}.nso-email-contact-grid{margin-top:0}.nso-email-contact-grid .nso-form-group{margin-bottom:0}

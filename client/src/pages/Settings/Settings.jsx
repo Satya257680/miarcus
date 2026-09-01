@@ -9,7 +9,8 @@ import {
     FaQuestionCircle,
     FaClipboardList,
     FaSitemap,
-    FaPalette
+    FaPalette,
+    FaEnvelope
 } from "react-icons/fa";
 
 import { SettingsCard } from "./components";
@@ -30,7 +31,7 @@ function Settings() {
         localStorage.getItem("permissions") || "{}"
     );
 
-    const isAdministrator = user?.administrator === true;
+    const isAdministrator = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
 
     // ==========================================
     // SEARCH
@@ -91,6 +92,16 @@ function Settings() {
         },
 
         {
+            category: "Operations",
+            permission: "NSO Email Routing",
+            title: "NSO Email Routing",
+            description: "Set New Store Opening email recipients, roles and Select All/Specific routing.",
+            icon: FaEnvelope,
+            path: "/settings/new-store-openings-email",
+            adminOnly: true
+        },
+
+        {
             category: "Checklist & Controls",
             permission: "Questions",
             title: "Questions",
@@ -130,9 +141,7 @@ function Settings() {
             const hasPermission =
                 module.personal ||
                 isAdministrator ||
-                ["View", "Add", "Edit", "Full"].includes(
-                    permissions[module.permission]
-                );
+                (module.adminOnly ? false : ["View", "Add", "Edit", "Full"].includes(permissions[module.permission]));
 
             const matchesSearch =
                 module.title

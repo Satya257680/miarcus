@@ -5,6 +5,7 @@ const timelineService = require("./nsoTimelineService");
 const statusService = require("./nsoStatusService");
 
 const historyService = require("./nsoHistoryService");
+const nsoEmailService = require("./nsoEmailService");
 
 
 // ======================================================
@@ -114,6 +115,12 @@ const createWorkflow = async (
         userId
     );
 
+    try {
+        await nsoEmailService.sendProjectNotification(project.id, "created");
+    } catch (emailError) {
+        console.error("NSO create email notification failed:", emailError.message || emailError);
+    }
+
 
     return project;
 
@@ -219,6 +226,12 @@ const updateWorkflow = async (
         id,
         userId
     );
+
+    try {
+        await nsoEmailService.sendProjectNotification(id, "updated");
+    } catch (emailError) {
+        console.error("NSO update email notification failed:", emailError.message || emailError);
+    }
 
 
     return result;

@@ -119,6 +119,12 @@ const Asset =
 const InventoryPlanning =
     require("./models/inventoryPlanningModel");
 
+const NewStoreOpening =
+    require("./models/newStoreOpeningModel");
+
+const NsoEmailSettings =
+    require("./models/nsoEmailSettingsModel");
+
 const DailyCollection =
     require("./models/dailyCollectionModel");
 
@@ -348,6 +354,17 @@ async function initializeDatabase() {
             InventoryPlanning,
             "Inventory Planning"
         );
+
+        // --------------------------------------------------
+        // NEW STORE OPENING CONTACTS / TIMELINE
+        // --------------------------------------------------
+        try {
+            await NewStoreOpening.ensureColumns();
+            await NsoEmailSettings.ensureTables();
+            console.log("✅ New Store Opening email/timeline schema verified");
+        } catch (error) {
+            console.error("❌ New Store Opening schema initialization failed:", error.message);
+        }
 
         // --------------------------------------------------
         // DAILY COLLECTION / STORE MANAGER DEADLINES
@@ -1489,6 +1506,15 @@ loadRoute(
 
     "New Store Opening Routes"
 
+);
+
+// ======================================================
+// NEW STORE OPENING EMAIL SETTINGS
+// ======================================================
+loadRoute(
+    "./routes/nsoEmailSettingsRoutes",
+    "/api/new-store-opening-email-settings",
+    "New Store Opening Email Settings Routes"
 );
 
 // ======================================================

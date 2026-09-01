@@ -214,6 +214,12 @@ export default function PossessionDetails({
                 </div>
 
 
+                <div className="nso-form-group">
+                    <label>Email - Broker</label>
+                    <input type="email" name="broker_email" value={formData.broker_email || ""} onChange={handleChange} placeholder="broker@example.com" />
+                </div>
+
+
                 {/* ==================================================
                    OPERATION HEAD
                 ================================================== */}
@@ -239,6 +245,12 @@ export default function PossessionDetails({
                         placeholder="Operation Head"
                     />
 
+                </div>
+
+
+                <div className="nso-form-group">
+                    <label>Email - Operation Head</label>
+                    <input type="email" name="operation_head_email" value={formData.operation_head_email || ""} onChange={handleChange} placeholder="operation@example.com" />
                 </div>
 
 
@@ -270,6 +282,14 @@ export default function PossessionDetails({
                 </div>
 
 
+            </div>
+
+
+            <div className="nso-form-grid nso-email-contact-grid">
+                <div className="nso-form-group">
+                    <label>Email - ASM</label>
+                    <input type="email" name="asm_email" value={formData.asm_email || ""} onChange={handleChange} placeholder="asm@example.com" />
+                </div>
             </div>
 
 
@@ -362,6 +382,12 @@ export default function PossessionDetails({
                     </div>
 
 
+                    <div className="nso-form-group">
+                        <label>Email - Approver</label>
+                        <input type="email" name="approver_email" value={formData.approver_email || ""} onChange={handleChange} placeholder="approver@example.com" />
+                    </div>
+
+
                     {/* ==================================================
                        CONSTRUCTION VENDOR
                     ================================================== */}
@@ -405,6 +431,12 @@ export default function PossessionDetails({
                     </div>
 
 
+                    <div className="nso-form-group">
+                        <label>Email - Construction Vendor</label>
+                        <input type="email" name="construction_vendor_email" value={formData.construction_vendor_email || ""} onChange={handleChange} placeholder="vendor@example.com" />
+                    </div>
+
+
                     {/* ==================================================
                        PROJECT TAKEN BY
                     ================================================== */}
@@ -445,6 +477,12 @@ export default function PossessionDetails({
                             )
                         }
 
+                    </div>
+
+
+                    <div className="nso-form-group full-width">
+                        <label>Email - Project Taken By</label>
+                        <input type="email" name="project_taken_by_email" value={formData.project_taken_by_email || ""} onChange={handleChange} placeholder="responsible@example.com" />
                     </div>
 
 

@@ -112,6 +112,14 @@ const generateTimeline = (
 
     };
 
+    // Manual timelines are entered by the user and are never regenerated.
+    if (String(data.timeline_mode || "automatic").toLowerCase() === "manual") {
+        data.timeline_mode = "manual";
+        return data;
+    }
+
+    data.timeline_mode = "automatic";
+
     const startDate =
 
         getProjectStartDate(

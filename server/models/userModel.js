@@ -156,7 +156,18 @@ const getAllUsers = (
 
             GROUP_CONCAT(
                 DISTINCT us.store_id
-            ) AS store_ids
+            ) AS store_ids,
+
+            GROUP_CONCAT(
+                DISTINCT s.store_name
+                ORDER BY s.store_name
+                SEPARATOR '|||'
+            ) AS store_names,
+
+            (
+                SELECT COUNT(*)
+                FROM stores
+            ) AS total_store_count
 
         FROM users u
 
@@ -168,6 +179,9 @@ const getAllUsers = (
 
         LEFT JOIN user_stores us
             ON u.id = us.user_id
+
+        LEFT JOIN stores s
+            ON s.id = us.store_id
 
         GROUP BY u.id
 
@@ -200,12 +214,22 @@ const getAllUsers = (
 
                     user.stores =
                         user.store_ids
-
                             ? user.store_ids
                                 .split(",")
                                 .map(Number)
-
+                                .filter(Number.isFinite)
                             : [];
+
+                    user.store_names =
+                        user.store_names
+                            ? user.store_names
+                                .split("|||")
+                                .map((name) => name.trim())
+                                .filter(Boolean)
+                            : [];
+
+                    user.total_store_count =
+                        Number(user.total_store_count) || 0;
 
                     delete user.store_ids;
 

@@ -11,6 +11,7 @@ import {
   FaUpload,
   FaTrash,
   FaInfoCircle,
+  FaPhoneAlt,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
@@ -144,9 +145,11 @@ const exportCSV = () => {
   }
 
   const headers = [
+    "Store Name",
     "Employee ID",
     "Name",
     "Email",
+    "Contact No",
     "Department",
     "Designation",
     "Reports To",
@@ -154,9 +157,11 @@ const exportCSV = () => {
   ];
 
   const rows = users.map((user) => [
+    getStoreDisplay(user),
     user.employee_id || "",
     user.name || "",
     user.email || "",
+    user.call_contact || "",
     user.department || "",
     user.designation || "",
     user.reports_to || "",
@@ -360,9 +365,39 @@ const currentUsers =
     indexOfLastUser
   );
 
-const totalPages = Math.ceil(
-  filteredUsers.length / usersPerPage
+const totalPages = Math.max(
+  1,
+  Math.ceil(filteredUsers.length / usersPerPage)
 );
+
+const getStoreDisplay = (user) => {
+  const assignedCount = Array.isArray(user.stores)
+    ? user.stores.length
+    : 0;
+  const totalCount = Number(user.total_store_count) || 0;
+
+  if (totalCount > 0 && assignedCount >= totalCount) {
+    return `All Stores (${totalCount})`;
+  }
+
+  const names = Array.isArray(user.store_names)
+    ? user.store_names
+    : [];
+
+  if (names.length === 0) {
+    return "No Store";
+  }
+
+  if (names.length <= 2) {
+    return names.join(", ");
+  }
+
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
+};
+
+const getCallNumber = (user) =>
+  String(user.call_contact || "").trim();
+
 return (
   
     <div className="users-page">
@@ -558,11 +593,17 @@ return (
           <input type="checkbox" />
         </th>
 
+        <th>Store Name</th>
+
         <th>Name</th>
 
         <th>Employee ID</th>
 
         <th>Email</th>
+
+        <th>Contact No</th>
+
+        <th>Call</th>
 
         <th>Reports To</th>
 
@@ -614,6 +655,26 @@ return (
 
             </td>
 
+            <td className="user-store-cell">
+              <span
+                className={
+                  Number(user.total_store_count) > 0 &&
+                  Array.isArray(user.stores) &&
+                  user.stores.length >= Number(user.total_store_count)
+                    ? "store-name-badge all-stores"
+                    : "store-name-badge"
+                }
+                title={
+                  Array.isArray(user.store_names) &&
+                  user.store_names.length
+                    ? user.store_names.join(", ")
+                    : "No store assigned"
+                }
+              >
+                {getStoreDisplay(user)}
+              </span>
+            </td>
+
             <td className="user-name">
               {user.name}
             </td>
@@ -622,8 +683,38 @@ return (
               {user.employee_id}
             </td>
 
-            <td>
+            <td className="user-email-cell">
               {user.email}
+            </td>
+
+            <td className="user-contact-cell">
+              {getCallNumber(user) ? (
+                <a
+                  className="user-phone-link"
+                  href={`tel:${getCallNumber(user)}`}
+                  title={`Call ${getCallNumber(user)}`}
+                >
+                  {getCallNumber(user)}
+                </a>
+              ) : (
+                "-"
+              )}
+            </td>
+
+            <td className="user-call-cell">
+              {getCallNumber(user) ? (
+                <a
+                  className="user-call-btn"
+                  href={`tel:${getCallNumber(user)}`}
+                  aria-label={`Call ${user.name}`}
+                  title={`Call ${getCallNumber(user)}`}
+                >
+                  <FaPhoneAlt />
+                  <span>Call</span>
+                </a>
+              ) : (
+                <span className="no-call">—</span>
+              )}
             </td>
 
             <td>
@@ -702,7 +793,7 @@ return (
         <tr>
 
           <td
-            colSpan="9"
+            colSpan="12"
             className="no-data"
           >
 

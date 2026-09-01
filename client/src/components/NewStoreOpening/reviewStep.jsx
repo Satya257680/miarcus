@@ -9,6 +9,7 @@ import {
     FaCalendarAlt,
     FaUserTie,
     FaInfoCircle,
+    FaEnvelope,
     FaClock,
     FaCommentAlt,
     FaPaperclip,
@@ -611,9 +612,27 @@ export default function ReviewStep({
                     />
 
                     <Item
+                        icon={<FaEnvelope />}
+                        label="Approver Email"
+                        value={formData.approver_email}
+                    />
+
+                    <Item
+                        icon={<FaEnvelope />}
+                        label="Construction Vendor Email"
+                        value={formData.construction_vendor_email}
+                    />
+
+                    <Item
                         icon={<FaUserTie />}
                         label="Project Taken By"
                         value={formData.project_taken_by}
+                    />
+
+                    <Item
+                        icon={<FaEnvelope />}
+                        label="Project Taken By Email"
+                        value={formData.project_taken_by_email}
                     />
 
                 </div>
@@ -718,17 +737,23 @@ export default function ReviewStep({
                         value={formData.broker_name}
                     />
 
+                    <Item icon={<FaEnvelope />} label="Broker Email" value={formData.broker_email} />
+
                     <Item
                         icon={<FaUserTie />}
                         label="Operation Head"
                         value={formData.operation_head_assigned}
                     />
 
+                    <Item icon={<FaEnvelope />} label="Operation Head Email" value={formData.operation_head_email} />
+
                     <Item
                         icon={<FaUserTie />}
                         label="ASM"
                         value={formData.asm_assigned}
                     />
+
+                    <Item icon={<FaEnvelope />} label="ASM Email" value={formData.asm_email} />
 
                     <Item
                         icon={<FaInfoCircle />}
@@ -799,6 +824,10 @@ export default function ReviewStep({
                     <FaProjectDiagram />
                     {" "}Project Timeline
                 </h3>
+
+                <p style={{ margin: "6px 0 16px", color: "#64748b", fontSize: "13px" }}>
+                    Timeline Mode: <strong style={{ color: "#2563eb" }}>{formData.timeline_mode === "manual" ? "Manual" : "Automatic"}</strong>
+                </p>
 
 
                 <div className="review-grid timeline-review-grid">

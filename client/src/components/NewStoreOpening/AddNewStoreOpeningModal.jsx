@@ -52,8 +52,11 @@ const initialForm = {
     expected_sale: "",
 
     approver_name: "",
+    approver_email: "",
     construction_vendor: "",
+    construction_vendor_email: "",
     project_taken_by: "",
+    project_taken_by_email: "",
 
 
     /* ==================================================
@@ -82,8 +85,11 @@ const initialForm = {
     ================================================== */
 
     broker_name: "",
+    broker_email: "",
     operation_head_assigned: "",
+    operation_head_email: "",
     asm_assigned: "",
+    asm_email: "",
 
 
     /* ==================================================
@@ -98,6 +104,8 @@ const initialForm = {
     /* ==================================================
        TIMELINE
     ================================================== */
+
+    timeline_mode: "automatic",
 
     layout_by_nso: "",
     revised_layout_by_nso: "",
@@ -584,6 +592,17 @@ export default function AddNewStoreOpeningModal({
 
         }
 
+
+        /* ==================================================
+           TIMELINE MODE
+        ================================================== */
+
+        if (String(updated.timeline_mode || "automatic").toLowerCase() === "manual") {
+            updated.timeline_mode = "manual";
+            return updated;
+        }
+
+        updated.timeline_mode = "automatic";
 
         /* ==================================================
            TIMELINE BASE DATE

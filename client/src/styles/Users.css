@@ -669,3 +669,96 @@
 @media (max-width: 650px) {
   .user-view-grid { grid-template-columns: 1fr; }
 }
+
+
+/* =========================================================
+   STORE / CONTACT / CALL COLUMNS
+========================================================= */
+
+.user-store-cell {
+  min-width: 190px;
+  max-width: 300px;
+  white-space: normal !important;
+}
+
+.store-name-badge {
+  display: inline-block;
+  max-width: 280px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #eef5ff;
+  color: #245ca8;
+  border: 1px solid #cfe0fb;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.store-name-badge.all-stores {
+  background: #e9f8ef;
+  border-color: #bde7cb;
+  color: #14743a;
+}
+
+.user-email-cell {
+  min-width: 190px;
+}
+
+.user-contact-cell {
+  min-width: 125px;
+}
+
+.user-phone-link {
+  color: #245ca8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.user-phone-link:hover {
+  text-decoration: underline;
+}
+
+.user-call-cell {
+  min-width: 82px;
+  text-align: center !important;
+}
+
+.user-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 68px;
+  height: 31px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: #16a34a;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.user-call-btn:hover {
+  background: #12813b;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.user-call-btn svg {
+  font-size: 11px;
+}
+
+.no-call {
+  color: #9aa7b2;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .users-table {
+    min-width: 1320px;
+  }
+}
