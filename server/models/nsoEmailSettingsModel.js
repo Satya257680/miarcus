@@ -74,17 +74,27 @@ const saveSettings = async (payload = {}) => {
     await db.query(`UPDATE nso_email_settings SET create_recipient_mode=?, update_recipient_mode=? WHERE id=1`, [createMode, updateMode]);
     for (const item of (Array.isArray(payload.recipients) ? payload.recipients : [])) {
         if (!item?.role_key) continue;
+        const roleKey = String(item.role_key).trim().slice(0, 80);
+        const roleLabel = String(item.role_label || item.contact_name || roleKey).trim().slice(0, 120);
         await db.query(`
-            UPDATE nso_email_recipients
-            SET contact_name=?, email=?, enabled=?, send_on_create=?, send_on_update=?
-            WHERE role_key=?
+            INSERT INTO nso_email_recipients
+                (role_key, role_label, contact_name, email, enabled, send_on_create, send_on_update)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                role_label=VALUES(role_label),
+                contact_name=VALUES(contact_name),
+                email=VALUES(email),
+                enabled=VALUES(enabled),
+                send_on_create=VALUES(send_on_create),
+                send_on_update=VALUES(send_on_update)
         `, [
-            String(item.contact_name || "").trim() || null,
-            String(item.email || "").trim().toLowerCase() || null,
+            roleKey,
+            roleLabel,
+            String(item.contact_name || "").trim().slice(0, 160) || null,
+            String(item.email || "").trim().toLowerCase().slice(0, 255) || null,
             item.enabled ? 1 : 0,
             item.send_on_create ? 1 : 0,
-            item.send_on_update ? 1 : 0,
-            item.role_key
+            item.send_on_update ? 1 : 0
         ]);
     }
     return getSettings();

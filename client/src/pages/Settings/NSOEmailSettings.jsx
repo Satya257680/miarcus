@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FaArrowLeft, FaEnvelope, FaSave, FaCheckCircle, FaUsers, FaUserShield } from "react-icons/fa";
+import { FaArrowLeft, FaEnvelope, FaSave, FaCheckCircle, FaUsers, FaUserShield, FaPlus, FaTrash } from "react-icons/fa";
 import "../../styles/pages/NSOEmailSettings.css";
 
 const emptySettings = { create_recipient_mode: "all", update_recipient_mode: "all", recipients: [] };
@@ -22,6 +22,31 @@ export default function NSOEmailSettings() {
     }, []);
 
     const updateRecipient = (index, patch) => setSettings(prev => ({ ...prev, recipients: prev.recipients.map((row, i) => i === index ? { ...row, ...patch } : row) }));
+
+    const addEmail = () => {
+        const key = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        setSettings(prev => ({
+            ...prev,
+            recipients: [
+                ...prev.recipients,
+                {
+                    role_key: key,
+                    role_label: "New Recipient",
+                    contact_name: "",
+                    email: "",
+                    enabled: 1,
+                    send_on_create: 1,
+                    send_on_update: 1,
+                    is_custom: true
+                }
+            ]
+        }));
+    };
+
+    const removeRecipient = (index) => {
+        setSettings(prev => ({ ...prev, recipients: prev.recipients.filter((_, i) => i !== index) }));
+    };
+
     const setAllFor = (event, checked) => {
         const field = event === "create" ? "send_on_create" : "send_on_update";
         setSettings(prev => ({ ...prev, recipients: prev.recipients.map(row => ({ ...row, [field]: checked })) }));
@@ -63,9 +88,25 @@ export default function NSOEmailSettings() {
             </div>
             <div className="nso-email-card">
                 <div className="nso-email-card-head"><FaUsers /><div><h2>NSO Email Contacts</h2><p>Default contacts are loaded from your supplied list. Edit them here when responsibilities change.</p></div></div>
-                <div className="nso-email-bulk-actions"><button onClick={() => setAllFor("create", true)}>Select All Create</button><button onClick={() => setAllFor("create", false)}>Clear Create</button><button onClick={() => setAllFor("update", true)}>Select All Update</button><button onClick={() => setAllFor("update", false)}>Clear Update</button></div>
-                <div className="nso-email-table-wrap"><table className="nso-email-table"><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Enabled</th><th>Create</th><th>Update</th></tr></thead><tbody>
-                    {settings.recipients.map((row, index) => <tr key={row.role_key}><td><b>{row.role_label}</b></td><td><input value={row.contact_name || ""} onChange={e => updateRecipient(index, { contact_name: e.target.value })} placeholder="Contact name" /></td><td><input type="email" value={row.email || ""} onChange={e => updateRecipient(index, { email: e.target.value })} placeholder="email@example.com" /></td><td><input type="checkbox" checked={Boolean(row.enabled)} onChange={e => updateRecipient(index, { enabled: e.target.checked })} /></td><td><input type="checkbox" checked={Boolean(row.send_on_create)} onChange={e => updateRecipient(index, { send_on_create: e.target.checked })} /></td><td><input type="checkbox" checked={Boolean(row.send_on_update)} onChange={e => updateRecipient(index, { send_on_update: e.target.checked })} /></td></tr>)}
+                <div className="nso-email-bulk-actions">
+                    <button type="button" onClick={addEmail} className="nso-add-email-btn"><FaPlus /> Add Email</button>
+                    <button type="button" onClick={() => setSettings(prev => ({ ...prev, recipients: prev.recipients.map(row => ({ ...row, enabled: 1 })) }))}>Select All Enable</button>
+                    <button type="button" onClick={() => setSettings(prev => ({ ...prev, recipients: prev.recipients.map(row => ({ ...row, enabled: 0 })) }))}>Select All Disable</button>
+                    <button type="button" onClick={() => setAllFor("create", true)}>Select All Create</button>
+                    <button type="button" onClick={() => setAllFor("create", false)}>Clear Create</button>
+                    <button type="button" onClick={() => setAllFor("update", true)}>Select All Update</button>
+                    <button type="button" onClick={() => setAllFor("update", false)}>Clear Update</button>
+                </div>
+                <div className="nso-email-table-wrap"><table className="nso-email-table"><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Enabled</th><th>Create</th><th>Update</th><th>Action</th></tr></thead><tbody>
+                    {settings.recipients.map((row, index) => <tr key={row.role_key}>
+                        <td>{row.is_custom ? <input value={row.role_label || ""} onChange={e => updateRecipient(index, { role_label: e.target.value })} placeholder="Role / Department" /> : <b>{row.role_label}</b>}</td>
+                        <td><input value={row.contact_name || ""} onChange={e => updateRecipient(index, { contact_name: e.target.value })} placeholder="Contact name" /></td>
+                        <td><input type="email" value={row.email || ""} onChange={e => updateRecipient(index, { email: e.target.value })} placeholder="email@example.com" /></td>
+                        <td><input type="checkbox" checked={Boolean(row.enabled)} onChange={e => updateRecipient(index, { enabled: e.target.checked })} /></td>
+                        <td><input type="checkbox" checked={Boolean(row.send_on_create)} onChange={e => updateRecipient(index, { send_on_create: e.target.checked })} /></td>
+                        <td><input type="checkbox" checked={Boolean(row.send_on_update)} onChange={e => updateRecipient(index, { send_on_update: e.target.checked })} /></td>
+                        <td>{row.is_custom ? <button type="button" className="nso-remove-email-btn" onClick={() => removeRecipient(index)} title="Remove recipient"><FaTrash /></button> : "-"}</td>
+                    </tr>)}
                 </tbody></table></div>
                 <div className="nso-email-note"><b>Direct contacts:</b> Approver, Construction Vendor, Project Taken By, Broker, Operation Head and ASM emails entered on a project are automatically included in that project's email.</div>
             </div>

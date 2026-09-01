@@ -895,3 +895,5 @@ table td:last-child{
         align-items:flex-start;
     }
 }
+
+.answer-cell,.comment-cell{max-width:260px;white-space:normal;word-break:break-word;line-height:1.35}
