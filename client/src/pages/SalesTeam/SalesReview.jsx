@@ -1,3 +1,4 @@
+import { getDepartments } from "../../services/departmentService.js";
 import {
   useCallback,
   useEffect,
@@ -379,28 +380,41 @@ function SalesReview() {
      so the existing backend contract is not changed.
   ======================================================= */
 
-  const departments = [
-    "ASM",
-    "Accounts",
-    "Buying",
-    "City Manager",
-    "Customer Support",
-    "Design",
-    "E-commerce",
-    "EA",
-    "HR",
-    "IT Department",
-    "Inventory Manager",
-    "Maintenance",
-    "Management",
-    "Marketing",
-    "New Store Opening",
-    "Quality",
-    "Regional Head",
-    "Store Personnel",
-    "VM",
-    "Warehouse",
-  ];
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDepartments = async () => {
+      try {
+        const response = await getDepartments();
+        const rows = response?.data || response?.departments || [];
+
+        if (mounted) {
+          setDepartments(
+            (Array.isArray(rows) ? rows : [])
+              .filter(
+                (department) =>
+                  String(department.status || "Active").toLowerCase() !==
+                  "inactive"
+              )
+              .map((department) => department.department_name)
+              .filter(Boolean)
+              .sort((a, b) => a.localeCompare(b))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load current departments:", error);
+        if (mounted) setDepartments([]);
+      }
+    };
+
+    loadDepartments();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [selectedScoreStore, setSelectedScoreStore] = useState("");
 

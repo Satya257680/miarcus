@@ -103,6 +103,16 @@ function Settings() {
 
         {
             category: "Checklist & Controls",
+            permission: "Checklist Email Routing",
+            title: "Checklist Email Routing",
+            description: "Control checklist submission, Action Point and completion email notifications.",
+            icon: FaEnvelope,
+            path: "/settings/checklist-email",
+            adminOnly: true
+        },
+
+        {
+            category: "Checklist & Controls",
             permission: "Questions",
             title: "Questions",
             description: "Manage checklist questions.",

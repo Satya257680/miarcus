@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
+import { getDepartments } from "../services/departmentService.js";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -52,6 +53,7 @@ function ReportsTo() {
     // ======================================================
 
     const [reports, setReports] = useState([]);
+    const [masterDepartments, setMasterDepartments] = useState([]);
 
     const [loading, setLoading] = useState(true);
 
@@ -139,6 +141,42 @@ function ReportsTo() {
 
     const canDelete =
         permission === "Full";
+
+    // ======================================================
+    // LOAD CURRENT DEPARTMENTS
+    // ======================================================
+
+    useEffect(() => {
+        let mounted = true;
+
+        const loadDepartments = async () => {
+            try {
+                const response = await getDepartments();
+                const rows =
+                    response?.data ||
+                    response?.departments ||
+                    [];
+
+                if (mounted) {
+                    setMasterDepartments(
+                        Array.isArray(rows) ? rows : []
+                    );
+                }
+            } catch (error) {
+                console.error(
+                    "Failed to load current departments:",
+                    error
+                );
+                if (mounted) setMasterDepartments([]);
+            }
+        };
+
+        loadDepartments();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // ======================================================
     // LOAD REPORTS
@@ -431,23 +469,24 @@ function ReportsTo() {
     // FILTER DROPDOWNS
     // ======================================================
 
-    const departments = useMemo(() => (
+    const departments = useMemo(() => {
 
-        [
+        const current = masterDepartments
+            .map((department) => department.department_name)
+            .filter(Boolean);
 
-            ...new Set(
-
-                reports
-
-                    .map(r => r.department)
-
-                    .filter(Boolean)
-
-            )
-
-        ]
-
-    ), [reports]);
+        // Keep old report values available for filtering as well,
+        // while making newly created/renamed master departments
+        // immediately available in the dropdown.
+        return [
+            ...new Set([
+                ...current,
+                ...reports
+                    .map((report) => report.department)
+                    .filter(Boolean),
+            ]),
+        ];
+    }, [masterDepartments, reports]);
 
     // ======================================================
     // PAGINATION

@@ -6,6 +6,10 @@ const inspectionService = require(
     "../services/inspectionService"
 );
 
+const checklistEmailService = require(
+    "../services/checklistEmailService"
+);
+
 // ======================================================
 // ACTIVITY + AUDIT
 // ======================================================
@@ -477,6 +481,24 @@ exports.createSubmission = async (req, res) => {
 
                 });
 
+
+                // ==================================================
+                // CHECKLIST EMAIL NOTIFICATION
+                // ==================================================
+                // Email failures must never make a successfully saved
+                // checklist submission fail. The recipients are the active
+                // administrators plus the specific manager assigned to the
+                // submitted store, according to Checklist Email Settings.
+                try {
+                    await checklistEmailService.sendChecklistSubmitted(
+                        submissionId
+                    );
+                } catch (emailError) {
+                    console.error(
+                        "CHECKLIST SUBMISSION EMAIL ERROR:",
+                        emailError.message
+                    );
+                }
 
                 // ==================================================
                 // RESPONSE

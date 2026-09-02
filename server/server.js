@@ -125,6 +125,9 @@ const NewStoreOpening =
 const NsoEmailSettings =
     require("./models/nsoEmailSettingsModel");
 
+const ChecklistEmailSettings =
+    require("./models/checklistEmailSettingsModel");
+
 const DailyCollection =
     require("./models/dailyCollectionModel");
 
@@ -364,6 +367,16 @@ async function initializeDatabase() {
             console.log("✅ New Store Opening email/timeline schema verified");
         } catch (error) {
             console.error("❌ New Store Opening schema initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
+        // CHECKLIST EMAIL ROUTING
+        // --------------------------------------------------
+        try {
+            await ChecklistEmailSettings.ensureTables();
+            console.log("✅ Checklist email routing schema verified");
+        } catch (error) {
+            console.error("❌ Checklist email routing schema initialization failed:", error.message);
         }
 
         // --------------------------------------------------
@@ -1531,6 +1544,15 @@ loadRoute(
     "./routes/nsoEmailSettingsRoutes",
     "/api/new-store-opening-email-settings",
     "New Store Opening Email Settings Routes"
+);
+
+// ======================================================
+// CHECKLIST EMAIL SETTINGS
+// ======================================================
+loadRoute(
+    "./routes/checklistEmailSettingsRoutes",
+    "/api/checklist-email-settings",
+    "Checklist Email Settings Routes"
 );
 
 // ======================================================

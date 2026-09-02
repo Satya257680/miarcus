@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
+import { getDepartments } from "../services/departmentService.js";
+import { getDesignations } from "../services/designationService.js";
 import "../styles/AddReportModal.css";
 
 function AddReportModal({
@@ -14,39 +16,86 @@ function AddReportModal({
   const [saving, setSaving] = useState(false);
 
   // =====================================================
-  // DEPARTMENT LIST
+  // MASTER DATA — ALWAYS USE CURRENT DEPARTMENTS/DESIGNATIONS
   // =====================================================
 
-  const departments = [
-    "Accounts",
-    "Buying",
-    "Customer Support",
-    "Design",
-    "E-commerce",
-    "HR",
-    "IT Department",
-    "Maintenance",
-    "Management",
-    "Marketing",
-    "Quality",
-    "Store Personnel",
-    "VM",
-    "Warehouse",
-  ];
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
 
-  // =====================================================
-  // DESIGNATION LIST
-  // =====================================================
+  useEffect(() => {
+    let mounted = true;
 
-  const designations = [
-    "Manager",
-    "ASM",
-    "Regional Head",
-    "City Manager",
-    "Team Lead",
-    "Supervisor",
-    "Executive",
-  ];
+    const loadMasterData = async () => {
+      try {
+        const [departmentResponse, designationResponse] =
+          await Promise.all([
+            getDepartments(),
+            getDesignations(),
+          ]);
+
+        if (!mounted) return;
+
+        const departmentRows =
+          departmentResponse?.data ||
+          departmentResponse?.departments ||
+          [];
+
+        const designationRows =
+          designationResponse?.data ||
+          designationResponse?.designations ||
+          [];
+
+        setDepartments(
+          Array.isArray(departmentRows) ? departmentRows : []
+        );
+        setDesignations(
+          Array.isArray(designationRows) ? designationRows : []
+        );
+      } catch (error) {
+        console.error(
+          "Failed to load current departments/designations:",
+          error
+        );
+        if (mounted) {
+          setDepartments([]);
+          setDesignations([]);
+        }
+      }
+    };
+
+    loadMasterData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const activeDepartments = departments.filter(
+    (department) =>
+      String(department.status || "Active").toLowerCase() !== "inactive"
+  );
+
+  const selectedDepartmentId =
+    activeDepartments.find(
+      (item) => item.department_name === department
+    )?.id ||
+    departments.find(
+      (item) => item.department_name === department
+    )?.id;
+
+  const currentDesignations = designations.filter(
+    (item) => {
+      const isActive =
+        String(item.status || "Active").toLowerCase() !== "inactive";
+
+      if (!selectedDepartmentId) return isActive;
+
+      return (
+        isActive &&
+        String(item.department_id) === String(selectedDepartmentId)
+      );
+    }
+  );
 
   // =====================================================
   // LOAD EDIT DATA
@@ -266,16 +315,17 @@ function AddReportModal({
                   <select
                     id="manager-department"
                     value={department}
-                    onChange={(e) =>
-                      setDepartment(e.target.value)
-                    }
+                    onChange={(e) => {
+                      setDepartment(e.target.value);
+                      setDesignation("");
+                    }}
                     disabled={saving}
                   >
                     <option value="">
                       Select Department
                     </option>
 
-                    {departments.map((item) => (
+                    {activeDepartments.map((item) => (
                       <option key={item} value={item}>
                         {item}
                       </option>
@@ -307,7 +357,7 @@ function AddReportModal({
                       Select Designation
                     </option>
 
-                    {designations.map((item) => (
+                    {currentDesignations.map((item) => (
                       <option key={item} value={item}>
                         {item}
                       </option>

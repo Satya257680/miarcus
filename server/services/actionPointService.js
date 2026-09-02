@@ -3,6 +3,7 @@ const ActionPoint = require("../models/actionPointModel");
 const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
 const Notification = require("./notificationService");
+const checklistEmailService = require("./checklistEmailService");
 
 // ======================================================
 // HELPER
@@ -834,6 +835,16 @@ const createManual = async (
     );
 
 
+    // EMAIL: MANUAL ACTION POINT GENERATED
+    try {
+        await checklistEmailService.sendActionPointEvent(
+            actionPointId,
+            "ACTION_POINT_CREATED"
+        );
+    } catch (emailError) {
+        console.error("MANUAL ACTION POINT EMAIL ERROR:", emailError.message);
+    }
+
     // ==================================================
     // RETURN
     // ==================================================
@@ -1120,6 +1131,19 @@ const update = async (
         () => {}
     );
 
+    // EMAIL: STATUS / COMPLETION
+    if (status && status !== oldData.status) {
+        const event = status === "Closed" ? "ACTION_POINT_COMPLETED" : "ACTION_POINT_STATUS";
+        try {
+            await checklistEmailService.sendActionPointEvent(id, event, {
+                status,
+                remarks: updateData.remarks,
+                comment: updateData.comment
+            });
+        } catch (emailError) {
+            console.error("ACTION POINT STATUS EMAIL ERROR:", emailError.message);
+        }
+    }
 
     return {
         success: true,
@@ -1250,6 +1274,18 @@ const takeAction = async (
         console.error("Action Point notification error:", notificationError.message);
     }
 
+    // EMAIL: STATUS / COMPLETION
+    try {
+        const event = normalizedStatus === "Closed" ? "ACTION_POINT_COMPLETED" : "ACTION_POINT_STATUS";
+        await checklistEmailService.sendActionPointEvent(id, event, {
+            status: normalizedStatus,
+            remarks,
+            comment
+        });
+    } catch (emailError) {
+        console.error("TAKE ACTION EMAIL ERROR:", emailError.message);
+    }
+
     return {
         success: true,
         message: normalizedStatus === "Closed"
@@ -1313,6 +1349,16 @@ const changeStatus = async (id, status, comment, userId) => {
         new_data: { status, comment: comment || null },
         changed_by: userId
     }, () => {});
+
+    try {
+        await checklistEmailService.sendActionPointEvent(
+            id,
+            "ACTION_POINT_STATUS",
+            { status, comment: comment || null }
+        );
+    } catch (emailError) {
+        console.error("CHANGE ACTION POINT STATUS EMAIL ERROR:", emailError.message);
+    }
 
     return { success: true, status, message: `Action Point moved to ${status}.` };
 };

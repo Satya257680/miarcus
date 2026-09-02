@@ -16,6 +16,8 @@ const {
     logActivity
 } = require("../utils/activityLogger");
 
+const checklistEmailService = require("./checklistEmailService");
+
 
 // ======================================================
 // GET SUBMISSION
@@ -1566,10 +1568,19 @@ const createActionPoints = (
                     });
 
 
+                    // EMAIL: ACTION POINT GENERATED
+                    // The service resolves active admins and the exact store manager.
+                    try {
+                        await checklistEmailService.sendActionPointEvent(
+                            result.insertId,
+                            "ACTION_POINT_CREATED"
+                        );
+                    } catch (emailError) {
+                        console.error("ACTION POINT CREATED EMAIL ERROR:", emailError.message);
+                    }
+
                     console.log(
-
                         `[Inspection] Action Point #${result.insertId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
-
                     );
 
                 }

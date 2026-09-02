@@ -66,6 +66,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
 import Appearance from "./pages/Settings/Appearance";
 import NSOEmailSettings from "./pages/Settings/NSOEmailSettings";
+import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -356,6 +357,11 @@ function App() {
                     <Route
                         path="/settings/new-store-openings-email"
                         element={<ModulePermissionRoute adminOnly><NSOEmailSettings /></ModulePermissionRoute>}
+                    />
+
+                    <Route
+                        path="/settings/checklist-email"
+                        element={<ModulePermissionRoute adminOnly><ChecklistEmailSettings /></ModulePermissionRoute>}
                     />
 
 
