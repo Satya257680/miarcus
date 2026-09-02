@@ -4,7 +4,7 @@ import {
     FaHeadset, FaPlus, FaRobot, FaSearch, FaShieldAlt, FaTimes,
     FaUserTie, FaPaperPlane, FaEdit, FaTrash, FaBolt, FaMicrophone,
     FaVolumeUp, FaStop, FaMagic, FaHistory, FaRegLightbulb, FaCopy,
-    FaCheck, FaCircleNotch
+    FaCheck, FaCircleNotch, FaGlobe
 } from "react-icons/fa";
 import {
     askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles, getAdminHelpTickets,
@@ -101,15 +101,53 @@ function HelpCenter({ publicMode = false }) {
     const load = async () => {
         setLoading(true);
         try {
-            const a = publicMode ? await getPublicHelpArticles() : await getHelpArticles();
-            const t = publicMode ? { data: { tickets: [] } } : await getMyHelpTickets();
-            setArticles(a.data?.articles || []); setTickets(t.data?.tickets || []);
-            if (isAdmin && !publicMode) {
-                const [aa, at] = await Promise.all([getAdminHelpArticles(), getAdminHelpTickets(adminStatus)]);
-                setAdminArticles(aa.data?.articles || []); setAdminTickets(at.data?.tickets || []);
+            // Load independent resources together so one slow request cannot
+            // prevent the rest of the Help Center from rendering.
+            const requests = publicMode
+                ? [getPublicHelpArticles()]
+                : [
+                    getHelpArticles(),
+                    getMyHelpTickets(),
+                    ...(isAdmin ? [getAdminHelpArticles(), getAdminHelpTickets(adminStatus)] : [])
+                ];
+
+            const results = await Promise.allSettled(requests);
+            const [articlesResult, ticketsResult, adminArticlesResult, adminTicketsResult] = results;
+
+            if (articlesResult?.status === "fulfilled") {
+                setArticles(articlesResult.value?.data?.articles || []);
+            } else {
+                setArticles([]);
             }
-        } catch (e) { setToast(e?.response?.data?.message || "Unable to load Help Center."); }
-        finally { setLoading(false); }
+
+            if (!publicMode && ticketsResult?.status === "fulfilled") {
+                setTickets(ticketsResult.value?.data?.tickets || []);
+            } else if (publicMode) {
+                setTickets([]);
+            }
+
+            if (!publicMode && isAdmin) {
+                if (adminArticlesResult?.status === "fulfilled") {
+                    setAdminArticles(adminArticlesResult.value?.data?.articles || []);
+                }
+                if (adminTicketsResult?.status === "fulfilled") {
+                    setAdminTickets(adminTicketsResult.value?.data?.tickets || []);
+                }
+            }
+
+            const firstError = results.find((result) => result.status === "rejected");
+            if (firstError) {
+                setToast(
+                    firstError.reason?.response?.data?.message ||
+                    firstError.reason?.message ||
+                    "Some Help Center data could not be loaded. You can still use Zarvis."
+                );
+            }
+        } catch (e) {
+            setToast(e?.response?.data?.message || "Unable to load Help Center.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { load(); }, [adminStatus]);

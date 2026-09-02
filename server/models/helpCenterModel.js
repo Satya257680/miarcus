@@ -1,60 +1,76 @@
 const db = require("../config/db");
 
+let ensureTablesPromise = null;
+
 const ensureTables = async () => {
-    await db.query(`
-        CREATE TABLE IF NOT EXISTS help_articles (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            title VARCHAR(255) NOT NULL,
-            question TEXT NOT NULL,
-            answer LONGTEXT NOT NULL,
-            category VARCHAR(100) NOT NULL DEFAULT 'General',
-            keywords VARCHAR(1000) NULL,
-            audience ENUM('employee','customer','both') NOT NULL DEFAULT 'both',
-            status ENUM('draft','published','archived') NOT NULL DEFAULT 'published',
-            sort_order INT NOT NULL DEFAULT 0,
-            views_count INT UNSIGNED NOT NULL DEFAULT 0,
-            created_by INT NULL,
-            updated_by INT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_help_articles_status_audience (status, audience),
-            INDEX idx_help_articles_category (category),
-            INDEX idx_help_articles_updated (updated_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
+    // The Help Center loads several endpoints at once and React StrictMode
+    // may invoke the initial effect twice in development. Share one schema
+    // initialization promise so concurrent requests do not repeatedly execute
+    // CREATE TABLE statements against the same database connection.
+    if (ensureTablesPromise) return ensureTablesPromise;
 
-    await db.query(`
-        CREATE TABLE IF NOT EXISTS help_tickets (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id INT NOT NULL,
-            subject VARCHAR(255) NOT NULL,
-            status ENUM('open','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
-            priority ENUM('low','normal','high','urgent') NOT NULL DEFAULT 'normal',
-            assigned_to INT NULL,
-            last_message_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_help_ticket_user_status (user_id, status),
-            INDEX idx_help_ticket_queue (status, priority, last_message_at),
-            INDEX idx_help_ticket_assignee (assigned_to)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
+    ensureTablesPromise = (async () => {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS help_articles (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                title VARCHAR(255) NOT NULL,
+                question TEXT NOT NULL,
+                answer LONGTEXT NOT NULL,
+                category VARCHAR(100) NOT NULL DEFAULT 'General',
+                keywords VARCHAR(1000) NULL,
+                audience ENUM('employee','customer','both') NOT NULL DEFAULT 'both',
+                status ENUM('draft','published','archived') NOT NULL DEFAULT 'published',
+                sort_order INT NOT NULL DEFAULT 0,
+                views_count INT UNSIGNED NOT NULL DEFAULT 0,
+                created_by INT NULL,
+                updated_by INT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX idx_help_articles_status_audience (status, audience),
+                INDEX idx_help_articles_category (category),
+                INDEX idx_help_articles_updated (updated_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
 
-    await db.query(`
-        CREATE TABLE IF NOT EXISTS help_ticket_messages (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            ticket_id BIGINT UNSIGNED NOT NULL,
-            sender_id INT NULL,
-            sender_type ENUM('user','admin','zarvis') NOT NULL DEFAULT 'user',
-            message LONGTEXT NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_help_ticket_messages_ticket (ticket_id, id),
-            INDEX idx_help_ticket_messages_sender (sender_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS help_tickets (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                subject VARCHAR(255) NOT NULL,
+                status ENUM('open','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+                priority ENUM('low','normal','high','urgent') NOT NULL DEFAULT 'normal',
+                assigned_to INT NULL,
+                last_message_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX idx_help_ticket_user_status (user_id, status),
+                INDEX idx_help_ticket_queue (status, priority, last_message_at),
+                INDEX idx_help_ticket_assignee (assigned_to)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS help_ticket_messages (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                ticket_id BIGINT UNSIGNED NOT NULL,
+                sender_id INT NULL,
+                sender_type ENUM('user','admin','zarvis') NOT NULL DEFAULT 'user',
+                message LONGTEXT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX idx_help_ticket_messages_ticket (ticket_id, id),
+                INDEX idx_help_ticket_messages_sender (sender_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+    })().catch((error) => {
+        // Retry on a later request if the database was temporarily unavailable.
+        ensureTablesPromise = null;
+        throw error;
+    });
+
+    return ensureTablesPromise;
 };
 
 const mapArticle = (row) => ({
