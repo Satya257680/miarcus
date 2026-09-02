@@ -30,6 +30,7 @@ import {
     FaUpload,
     FaHistory,
     FaClock,
+    FaFileExcel,
 } from "react-icons/fa";
 
 // ======================================================
@@ -37,6 +38,7 @@ import {
 // ======================================================
 
 import "../styles/ActionPoints.css";
+import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 
 // ======================================================
 // API
@@ -160,6 +162,8 @@ function ActionPoints() {
     const [nsoProjects, setNsoProjects] = useState([]);
 
     const [loading, setLoading] = useState(true);
+
+    const [managementExporting, setManagementExporting] = useState(false);
 
     // Re-render the SLA countdown every minute without changing the stored Action Point status.
     const [slaNow, setSlaNow] = useState(() => Date.now());
@@ -911,6 +915,65 @@ const handleExport = async () => {
 
 
 // ======================================================
+// MANAGEMENT XLSX EXPORT
+// Uses the management-provided Store Health Check template.
+// Fetches all rows matching the current Action Point filters.
+// ======================================================
+
+const handleManagementExport = async () => {
+
+    if (!canView) return;
+
+    try {
+        setManagementExporting(true);
+
+        const response = await axios.get(
+            "/api/action-points",
+            {
+                params: {
+                    page: 1,
+                    limit: 100000,
+                    search,
+                    store_id: store,
+                    department_id: department,
+                    checklist_type_id: checklistType,
+                    priority,
+                    status,
+                    start_date: startDate,
+                    end_date: endDate,
+                },
+            }
+        );
+
+        const rows = Array.isArray(response.data?.data)
+            ? response.data.data
+            : [];
+
+        if (!rows.length) {
+            alert("No Action Points found for the selected filters.");
+            return;
+        }
+
+        const storesResponse = await axios.get("/api/stores");
+        const storesForExport = Array.isArray(storesResponse.data?.data)
+            ? storesResponse.data.data
+            : [];
+
+        await exportManagementHealthCheck({
+            records: rows,
+            stores: storesForExport,
+            mode: "action",
+            filename: "Action_Points_Management_Store_Health_Check.xlsx",
+        });
+    } catch (error) {
+        console.error("MANAGEMENT ACTION POINT EXPORT ERROR:", error);
+        alert(error?.message || "Unable to create Management XLSX export.");
+    } finally {
+        setManagementExporting(false);
+    }
+};
+
+// ======================================================
 // SUCCESS
 // ======================================================
 
@@ -1647,7 +1710,20 @@ return (
 
             onExport={handleExport}
 
-        />
+        >
+            {canView && (
+                <button
+                    type="button"
+                    className="toolbar-btn export-btn"
+                    onClick={handleManagementExport}
+                    disabled={managementExporting}
+                    title="Export using the management Store Health Check format"
+                >
+                    <FaFileExcel />
+                    {managementExporting ? "Creating XLSX..." : "Management XLSX"}
+                </button>
+            )}
+        </PageToolbar>
 
         {(canAdd || canDelete) && (
             <div className="action-point-management-actions">

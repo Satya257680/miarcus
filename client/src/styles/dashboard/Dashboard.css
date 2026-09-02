@@ -688,3 +688,144 @@
     }
 
 }
+
+/* ======================================================
+   DESKTOP 100% ZOOM / NORMAL VIEWPORT OPTIMIZATION
+   Keep the dashboard compact and balanced on 1366-1700px
+   CSS viewports so browser zoom does not make the page feel
+   oversized compared with the wider 80% view.
+====================================================== */
+
+@media (min-width: 1400px) and (max-width: 1750px) {
+
+    .dashboard-page {
+        padding: 24px;
+        gap: 22px;
+    }
+
+    .page-header {
+        margin-bottom: 18px;
+    }
+
+    .dashboard-welcome {
+        padding: 28px 30px;
+        gap: 28px;
+    }
+
+    .dashboard-welcome-left h2 {
+        font-size: 30px;
+        margin-bottom: 9px;
+    }
+
+    .dashboard-welcome-left p {
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .dashboard-user-info {
+        gap: 9px;
+        margin-top: 18px;
+    }
+
+    .dashboard-user-info span {
+        padding: 8px 13px;
+        font-size: 12px;
+    }
+
+    .dashboard-welcome-right {
+        width: 104px;
+        height: 104px;
+        border-radius: 20px;
+        font-size: 43px;
+    }
+
+    .dashboard-search-wrapper {
+        max-width: 450px;
+    }
+
+    .dashboard-search-wrapper input {
+        height: 48px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 0;
+    }
+
+    .dashboard-card {
+        min-height: 220px;
+        padding: 22px 18px;
+    }
+
+    .card-icon-box {
+        width: 66px;
+        height: 66px;
+        border-radius: 18px;
+        margin-bottom: 17px;
+    }
+
+    .card-icon {
+        font-size: 30px;
+    }
+
+    .dashboard-card h3 {
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-card p {
+        font-size: 13px;
+        line-height: 1.5;
+        min-height: 52px;
+    }
+
+    .card-arrow {
+        width: 40px;
+        height: 40px;
+        margin-top: 16px;
+    }
+
+    .dashboard-stats-grid {
+        gap: 14px;
+        margin-top: 18px;
+    }
+}
+
+@media (min-width: 1100px) and (max-width: 1399px) {
+
+    .dashboard-page {
+        padding: 22px;
+        gap: 20px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .dashboard-welcome {
+        padding: 26px;
+    }
+
+    .dashboard-welcome-left h2 {
+        font-size: 29px;
+    }
+
+    .dashboard-card {
+        min-height: 220px;
+        padding: 22px 18px;
+    }
+}
+
+@media (max-width: 1099px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}

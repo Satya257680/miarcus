@@ -24,7 +24,8 @@ import {
     FaEye,
     FaEdit,
     FaTrash,
-    FaMapMarkerAlt
+    FaMapMarkerAlt,
+    FaFileExcel
 } from "react-icons/fa";
 
 
@@ -33,6 +34,7 @@ import {
 // ======================================================
 
 import "../styles/ChecklistReports.css";
+import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 
 
 // ======================================================
@@ -61,6 +63,8 @@ function ChecklistReports() {
     const [checklistTypes, setChecklistTypes] = useState([]);
 
     const [loading, setLoading] = useState(true);
+
+    const [managementExporting, setManagementExporting] = useState(false);
 
     // ======================================================
     // SEARCH
@@ -688,6 +692,38 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         window.URL.revokeObjectURL(url);
 
+    };
+
+    // ======================================================
+    // MANAGEMENT XLSX EXPORT
+    // Uses the management-provided Store Health Check template.
+    // One worksheet is created per checklist submission.
+    // ======================================================
+
+    const handleManagementExport = async () => {
+
+        if (!canView) return;
+
+        if (!filteredReports.length) {
+            alert("No Checklist Reports found for the selected filters.");
+            return;
+        }
+
+        try {
+            setManagementExporting(true);
+
+            await exportManagementHealthCheck({
+                records: filteredReports,
+                stores,
+                mode: "checklist",
+                filename: "Store_Health_Check_Report.xlsx",
+            });
+        } catch (error) {
+            console.error("MANAGEMENT CHECKLIST EXPORT ERROR:", error);
+            alert(error?.message || "Unable to create Management XLSX export.");
+        } finally {
+            setManagementExporting(false);
+        }
     };
 
     // ======================================================
@@ -1352,7 +1388,21 @@ const uploadChecklistReport = async (file) => {
 
     onDeleteAll={handleDeleteAll}
 
-/>
+>
+    {canView && (
+        <button
+            type="button"
+            className="toolbar-btn export-btn"
+            onClick={handleManagementExport}
+            disabled={managementExporting}
+            title="Export using the management Store Health Check format"
+        >
+            <FaFileExcel />
+            {managementExporting ? "Creating XLSX..." : "Management XLSX"}
+        </button>
+    )}
+
+</PageToolbar>
             {/* ======================================================
                 FILTER BAR
             ====================================================== */}
