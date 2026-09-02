@@ -131,10 +131,54 @@ const incrementArticleViews = async (id) => {
     await db.query("UPDATE help_articles SET views_count = views_count + 1 WHERE id = ?", [id]);
 };
 
+const helpWords = (value) => String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+
+const helpDistance = (a, b) => {
+    if (a === b) return 0;
+    if (!a) return b.length;
+    if (!b) return a.length;
+    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i += 1) {
+        let previous = row[0]; row[0] = i;
+        for (let j = 1; j <= b.length; j += 1) {
+            const current = row[j];
+            row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+            previous = current;
+        }
+    }
+    return row[b.length];
+};
+
+const rankHelpArticleCandidates = (rows, term) => {
+    const queryWords = helpWords(term);
+    const query = String(term || "").toLowerCase().trim();
+    return rows.map((row) => {
+        const question = String(row.question || "").toLowerCase();
+        const title = String(row.title || "").toLowerCase();
+        const keywords = String(row.keywords || "").toLowerCase();
+        const answer = String(row.answer || "").toLowerCase();
+        const haystack = `${question} ${title} ${keywords} ${answer}`;
+        let score = Number(row.score || 0) * 2;
+        if (query && question.includes(query)) score += 18;
+        if (query && title.includes(query)) score += 14;
+        if (query && keywords.includes(query)) score += 12;
+        for (const word of queryWords) {
+            if (haystack.includes(word)) { score += 3; continue; }
+            const candidates = helpWords(haystack);
+            if (candidates.some((candidate) => word.length >= 4 && helpDistance(word, candidate) <= 2)) score += 1.8;
+        }
+        return { ...row, score };
+    }).sort((a, b) => b.score - a.score);
+};
+
 const searchArticles = async (term, audience = "employee") => {
     const normalized = ["employee", "customer", "both"].includes(audience) ? audience : "employee";
     const q = `%${String(term || "").trim().slice(0, 150)}%`;
-    const rows = await db.query(`
+    const exactRows = await db.query(`
         SELECT id, title, question, answer, category, keywords, audience, status, sort_order, views_count,
                (
                     (CASE WHEN LOWER(question) LIKE LOWER(?) THEN 8 ELSE 0 END) +
@@ -147,9 +191,23 @@ const searchArticles = async (term, audience = "employee") => {
           AND audience IN (?, 'both')
           AND (question LIKE ? OR title LIKE ? OR keywords LIKE ? OR answer LIKE ?)
         ORDER BY score DESC, sort_order ASC, updated_at DESC
-        LIMIT 8
+        LIMIT 12
     `, [q, q, q, q, normalized, q, q, q, q]);
-    return rows.map(mapArticle).map((row) => ({ ...row, score: Number(row.score || 0) }));
+
+    // Natural-language fallback: retrieve a bounded set of approved articles and rank them
+    // locally. This makes paraphrases and small spelling mistakes work without requiring an
+    // external AI service or sending private Help Center content outside Miarcus.
+    const candidates = exactRows.length >= 4 ? exactRows : await db.query(`
+        SELECT id, title, question, answer, category, keywords, audience, status, sort_order, views_count,
+               0 AS score
+        FROM help_articles
+        WHERE status = 'published'
+          AND audience IN (?, 'both')
+        ORDER BY sort_order ASC, updated_at DESC
+        LIMIT 250
+    `, [normalized]);
+
+    return rankHelpArticleCandidates(candidates, term).slice(0, 8).map((row) => ({ ...mapArticle(row), score: Number(row.score || 0) }));
 };
 
 const createTicket = async ({ userId, subject, question, priority = "normal" }) => {

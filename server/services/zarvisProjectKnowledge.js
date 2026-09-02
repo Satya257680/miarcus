@@ -232,86 +232,207 @@ const PLAYBOOKS = [
     },
 ];
 
-const STOP = new Set(["the", "and", "for", "how", "what", "where", "when", "with", "can", "could", "would", "does", "from", "this", "that", "about", "into", "have", "has", "are", "is", "my", "our", "your", "i", "me", "to", "of", "in", "on", "a", "an", "do", "please", "tell", "want", "need"]);
+const STOP = new Set([
+    "the","and","for","how","what","where","when","with","can","could","would","does","from","this","that","about","into","have","has","are","is","my","our","your","i","me","to","of","in","on","a","an","do","please","tell","want","need","it","its","there","then","just","ok","okay","thanks","thank","you"
+]);
 
-const tokens = (text) => String(text || "")
+const SYNONYMS = {
+    pwd: "password", pass: "password", signin: "login", signon: "login", logon: "login",
+    faq: "help", guide: "help", supportdesk: "support", bot: "zarvis", chatbot: "zarvis",
+    nsos: "nso", newstore: "nso", opening: "nso", openings: "nso",
+    ap: "action point", actions: "action point", task: "action point", tasks: "action point",
+    check: "checklist", checks: "checklist", inspection: "checklist", inspections: "checklist",
+    cash: "collection", collections: "collection", expenseclaim: "expense", reimbursement: "expense",
+    staff: "employee", worker: "employee", user: "employee", users: "employee",
+};
+
+const normalizeText = (text) => String(text || "")
     .toLowerCase()
+    .replace(/[’']/g, "")
     .replace(/[^a-z0-9/:-]+/g, " ")
-    .split(/\s+/)
+    .replace(/\s+/g, " ")
+    .trim();
+
+const tokens = (text) => normalizeText(text)
+    .split(" ")
+    .map((word) => SYNONYMS[word] || word)
+    .flatMap((word) => word.split(" "))
     .filter((word) => word.length > 2 && !STOP.has(word));
+
+const editDistance = (a, b) => {
+    if (a === b) return 0;
+    if (!a) return b.length;
+    if (!b) return a.length;
+    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i += 1) {
+        let prev = row[0]; row[0] = i;
+        for (let j = 1; j <= b.length; j += 1) {
+            const saved = row[j];
+            row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+            prev = saved;
+        }
+    }
+    return row[b.length];
+};
+
+const fuzzyWordMatch = (word, candidate) => {
+    if (word === candidate) return 1;
+    if (word.length >= 5 && candidate.startsWith(word.slice(0, 4))) return 0.82;
+    const max = Math.max(word.length, candidate.length);
+    if (max < 4) return 0;
+    const distance = editDistance(word, candidate);
+    return distance <= 2 ? 1 - distance / max : 0;
+};
 
 const scoreEntry = (question, entry) => {
     const q = tokens(question);
-    const hay = tokens([entry.name, ...(entry.aliases || []), entry.summary, ...(entry.features || []), ...(entry.routes || [])].join(" "));
     if (!q.length) return 0;
-    let score = 0;
+    const hayTokens = tokens([
+        entry.name, ...(entry.aliases || []), entry.summary,
+        ...(entry.features || []), ...(entry.routes || []), ...(entry.keywords || [])
+    ].join(" "));
+    const hay = new Set(hayTokens);
     const joinedQ = q.join(" ");
+    let score = 0;
     for (const alias of entry.aliases || []) {
-        const a = tokens(alias);
-        if (a.length && a.every((part) => q.includes(part))) score += 8 + a.length * 2;
-        if (a.length && joinedQ.includes(a.join(" "))) score += 6;
+        const aliasNormalized = normalizeText(alias);
+        const aliasTokens = tokens(aliasNormalized);
+        if (aliasTokens.length && aliasTokens.every((part) => q.includes(part))) score += 10 + aliasTokens.length * 3;
+        if (aliasNormalized && joinedQ.includes(aliasNormalized)) score += 9;
     }
-    for (const word of q) if (hay.includes(word)) score += 1.6;
+    for (const word of q) {
+        if (hay.has(word)) score += 2.2;
+        else {
+            let best = 0;
+            for (const candidate of hay) best = Math.max(best, fuzzyWordMatch(word, candidate));
+            score += best * 1.2;
+        }
+    }
     return score;
 };
 
 const audienceAllowed = (entry, audience) => audience === "customer" ? entry.audience === "both" : true;
 
-const answerForEntry = (entry) => {
-    const featureText = entry.features.map((x) => `• ${x}`).join("\n");
-    const routeText = entry.routes.length ? `\n\nWhere to find it:\n${entry.routes.map((x) => `• ${x}`).join("\n")}` : "";
-    return `${entry.name}: ${entry.summary}\n\nWhat it covers:\n${featureText}${routeText}`;
+const answerFromEntry = (entry) => {
+    const lines = [`## ${entry.name}`, entry.summary];
+    if (entry.features?.length) {
+        lines.push("", "### What it does", ...entry.features.map((x) => `- ${x}`));
+    }
+    if (entry.routes?.length) {
+        lines.push("", "### Where to find it", ...entry.routes.map((x) => `- ${x}`));
+    }
+    if (entry.howItWorks) lines.push("", "### How it works", entry.howItWorks);
+    if (entry.dataFlow) lines.push("", "### Behind the scenes", entry.dataFlow);
+    if (entry.permissions) lines.push("", "### Access", entry.permissions);
+    return lines.join("\n");
 };
 
-const searchProjectKnowledge = (question, audience = "employee") => {
+const PROJECT_DETAILS = {
+    "New Store Openings": {
+        howItWorks: "NSO is a workflow, not just a single form. A project is created with location/city and possession information. The workflow service prepares the project, generates or preserves its timeline, assigns the default Planning status, and records history/notifications. Editing recalculates the workflow when appropriate. Status changes are guarded by the NSO status service and are recorded in history.",
+        dataFlow: "The main UI is in client/src/pages/NewStoreOpening and client/src/pages/NSOTracking.jsx. On the server, the NSO workflow is coordinated by server/services/nsoWorkflowService.js, business calculations by nsoService.js, dates by nsoTimelineService.js, statuses by nsoStatusService.js, history by nsoHistoryService.js and email by nsoEmailService.js. NSO Tracking persists rule/department/trigger/status/due-date/remarks data through server/models/nsoTrackingModel.js. NSO Rules use nsoRuleModel.js and can be connected to departments.",
+        permissions: "NSO Tracking uses the 'NSO Tracking' permission with View/Add/Edit/Full levels. NSO Rules follows permission checks and administrators receive full access in the current UI. Email settings are administration-only.",
+    },
+};
+
+const MODULES_BY_NAME = new Map(MODULES.map((entry) => [entry.name, entry]));
+for (const [name, detail] of Object.entries(PROJECT_DETAILS)) {
+    const entry = MODULES_BY_NAME.get(name);
+    if (entry) Object.assign(entry, detail);
+}
+
+const DETAILED_PLAYBOOKS = [
+    {
+        aliases: ["how nso works", "nso working", "explain nso", "nso process", "new store opening process", "create nso", "add nso", "put nso", "setup nso"],
+        module: "New Store Openings",
+        answer: `## New Store Opening (NSO) — complete flow\n\nNSO manages a new-store project from planning through opening. In this Miarcus project, the workflow is split across the UI and several backend services so that dates, status, tracking, history and notifications are kept consistent.\n\n### 1. Create the NSO project\nOpen **New Store Openings** and create the project. The core validation requires **Location**, **City** and **Possession Date (LOI)**. The project can also contain broker/actual possession dates and other opening information.\n\n### 2. Timeline calculation\nThe system uses the actual possession date first; if that is unavailable it falls back to broker possession and then LOI possession. In automatic mode it calculates milestones in sequence: Layout by NSO (+2 days), Revised Layout (+2), Approval (+3), Operations visit (+5), GST (+2), HR hiring (+2), Team training (+7), NSO team visit, Plan of Stock (+5), Plan of Collaterals, On-field training (+5), Dispatch Stock (+5), NSO Handover (+4), VM Handover, Scanning and Billing Start (+5). Manual timeline mode is preserved and is not regenerated.\n\n### 3. Status flow\nThe normal progression is **Planning → Layout Pending → Approval Pending → Construction → Training → Ready For Opening → Opened → Completed**. **On Hold** and **Cancelled** are controlled exceptions. A project on hold can return to Ready For Opening after the allowed inspection/status transition. Status changes are guarded by the NSO status service and history is recorded.\n\n### 4. NSO Rules\nNSO Rules define a trigger column, expected answer, priority, SLA days, whether an Action Point should be created, whether the rule is mandatory, active state and linked departments. Rules are maintained from **NSO Rules** and are used as operational conditions for NSO tracking.\n\n### 5. NSO Tracking\nNSO Tracking connects an NSO project with a rule and department and stores the trigger column, tracking status, due date and remarks. Authorized users can view/add/edit; Full permission is required for deletion. Tracking supports search, pagination, status updates, project summaries and export.\n\n### 6. Inspection and Action Points\nThe project is also connected to checklist/inspection information and Action Points. The project summary can show checklist count, average inspection score, open Action Points, overdue Action Points and activity count.\n\n### 7. History and notifications\nCreate/update/delete/status operations are logged through the NSO history/activity services. Project notifications are sent through the NSO email service where configured.\n\n### 8. Where the code lives\n- UI: 'client/src/pages/NewStoreOpening/' and 'client/src/pages/NSOTracking.jsx'\n- NSO rules UI: 'client/src/pages/NSORules.jsx'\n- Workflow: 'server/services/nsoWorkflowService.js'\n- Core calculations: 'server/services/nsoService.js'\n- Timeline: 'server/services/nsoTimelineService.js'\n- Status: 'server/services/nsoStatusService.js'\n- History: 'server/services/nsoHistoryService.js'\n- Tracking controller/model: 'server/controllers/nsoTrackingController.js' and 'server/models/nsoTrackingModel.js'\n- Rules model: 'server/models/nsoRuleModel.js'`,
+        confidence: 97,
+    },
+    {
+        aliases: ["what is miarcus built with", "project architecture", "how project is structured", "where is frontend backend", "project folders", "source structure"],
+        module: "Miarcus Architecture",
+        answer: `## Miarcus project structure\n\nMiarcus is a React/Vite frontend backed by a Node/Express-style server and a MySQL-compatible database layer.\n\n### Frontend\n- 'client/src/pages/' contains module screens.\n- 'client/src/components/' contains reusable UI and feature components.\n- 'client/src/services/' contains API service functions used by screens.\n- 'client/src/context/' contains application contexts such as authentication and theme.\n- 'client/src/components/layout/' contains the main layout, sidebar, protected routes and permission-aware route wrappers.\n\n### Backend\n- 'server/routes/' maps HTTP endpoints to controllers.\n- 'server/controllers/' handles request validation and orchestration.\n- 'server/services/' contains business workflows such as NSO, notifications, email, action-point and location logic.\n- 'server/models/' contains database access for modules.\n- 'server/middleware/' contains authentication, permission, security, upload and audit controls.\n- 'server/config/' contains database, storage, mailer, security and application URL configuration.\n\n### Security boundary\nZarvis can explain the product architecture and safe file locations, but it must not disclose credentials, '.env' values, tokens, private keys or raw source code through the chat.` ,
+        confidence: 96,
+    },
+];
+
+const greetings = /^(hi|hello|hey|hii|hiii|good morning|good afternoon|good evening|namaste)[!.\s]*$/i;
+const thanks = /^(thanks|thank you|thx|tq|ty|thanku|thanks a lot|ok thanks|okay thanks)[!.\s]*$/i;
+const acknowledgement = /^(ok|okay|alright|fine|great|cool|got it|understood|yes|yep|yeah)[!.\s]*$/i;
+
+const findBest = (question, entries) => entries
+    .map((entry) => ({ ...entry, score: scoreEntry(question, entry) }))
+    .sort((a, b) => b.score - a.score);
+
+const buildProjectSnapshot = () => {
+    // Keep this runtime-safe: count only product source folders and never expose filenames/contents.
+    try {
+        const fs = require("fs");
+        const path = require("path");
+        const root = path.resolve(__dirname, "../..");
+        const count = (relative) => {
+            const dir = path.join(root, relative);
+            if (!fs.existsSync(dir)) return 0;
+            let total = 0;
+            const walk = (current) => {
+                for (const item of fs.readdirSync(current, { withFileTypes: true })) {
+                    if (["node_modules", ".git", "uploads", "certs"].includes(item.name)) continue;
+                    const full = path.join(current, item.name);
+                    if (item.isDirectory()) walk(full);
+                    else if (/\.(jsx?|css|json)$/.test(item.name)) total += 1;
+                }
+            };
+            walk(dir); return total;
+        };
+        const frontendFiles = count("client/src");
+        const backendFiles = count("server");
+        return { frontendFiles, backendFiles, generatedAt: new Date().toISOString() };
+    } catch { return PROJECT_SNAPSHOT; }
+};
+
+const RUNTIME_SNAPSHOT = buildProjectSnapshot();
+
+const searchProjectKnowledge = (question, audience = "employee", context = {}) => {
     const cleanQuestion = String(question || "").trim();
     if (!cleanQuestion) return { resolved: false, matches: [] };
 
-    const normalized = cleanQuestion.toLowerCase();
-    if (["describe the project", "what is miarcus", "what does miarcus do", "tell me about miarcus", "project structure", "modules in miarcus", "what modules are there"].some((phrase) => normalized.includes(phrase))) {
-        const isCustomer = audience === "customer";
-        const answer = isCustomer
-            ? "Miarcus provides a secure Help Center and support experience where customers can browse verified answers and ask Zarvis questions. Customer-facing answers are controlled by the Miarcus administrator, and questions that need a person can be routed to support."
-            : `${OVERVIEW}\n\nCurrent application footprint: ${PROJECT_SNAPSHOT.frontendRoutes} frontend routes, ${PROJECT_SNAPSHOT.pageSourceFiles} page source files, ${PROJECT_SNAPSHOT.backendRouteFiles} backend route files, ${PROJECT_SNAPSHOT.controllers} controllers and ${PROJECT_SNAPSHOT.models} models. Zarvis uses this product-level map instead of exposing source code, credentials or private configuration.`;
-        return {
-            resolved: true,
-            source: "project_knowledge",
-            confidence: 99,
-            module: isCustomer ? "Customer Help Center" : "Miarcus Project",
-            answer,
-            matches: MODULES.filter((m) => audienceAllowed(m, audience)).slice(0, 6).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })),
-        };
+    if (thanks.test(cleanQuestion)) return { resolved: true, source: "conversation", confidence: 100, module: "Zarvis", answer: "You're very welcome! 😊 If you have another Miarcus question, just ask me — you can type it or use the microphone.", matches: [] };
+    if (greetings.test(cleanQuestion)) return { resolved: true, source: "conversation", confidence: 100, module: "Zarvis", answer: "Hello! 👋 I'm Zarvis. Ask me about any Miarcus module, workflow, screen, NSO process, report, Action Point, Checklist, Billing or anything else in the application. I’ll give the clearest answer I can from the approved knowledge and project structure.", matches: [] };
+    if (acknowledgement.test(cleanQuestion)) return { resolved: true, source: "conversation", confidence: 100, module: "Zarvis", answer: "Perfect. 👍 Whenever you're ready, ask your next question. If you mean something from my previous answer, you can say things like ‘explain that’, ‘how do I do that?’, or ‘tell me more about NSO’.", matches: [] };
+
+    const normalized = normalizeText(cleanQuestion);
+    const contextual = String(context?.lastModule || "").trim();
+    const expanded = context?.isFollowUp && contextual ? `${cleanQuestion} ${contextual}` : cleanQuestion;
+
+    const projectOverviewIntent = /(describe.*project|what is miarcus|what does miarcus do|tell me about miarcus|explain.*project|miarcus project)/i.test(normalized);
+    if (projectOverviewIntent) {
+        const answer = `## Miarcus — project overview\n\n${OVERVIEW}\n\n### How the pieces fit together\n1. Users enter through the authenticated React/Vite client.\n2. Screens call module-specific API services.\n3. Backend routes send requests to controllers.\n4. Controllers validate and coordinate business services.\n5. Services handle workflows such as NSO, notifications, email and status/history logic.\n6. Models read and write the database through the shared DB configuration.\n7. Authentication, permissions, audit logging and security middleware protect the workflow.\n\nIf you ask about a specific module, I can explain its screen, purpose, workflow, permissions and where its code lives.`;
+        return { resolved: true, source: "project_knowledge", confidence: 98, module: "Miarcus Project", answer, matches: MODULES.slice(0, 8).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
     }
 
-    const playbookScores = PLAYBOOKS.filter((p) => audienceAllowed(p, audience)).map((p) => ({ ...p, score: scoreEntry(cleanQuestion, { ...p, name: p.module, summary: p.answer, features: [], routes: p.routes }) })).sort((a, b) => b.score - a.score);
+    const architectureIntent = /(project structure|architecture|folders|modules|whole project|entire project|how.*built|built.*project|technology|tech stack)/i.test(normalized);
+    if (architectureIntent) {
+        const answer = `## Miarcus at a glance\n\n${OVERVIEW}\n\n### Project layers\n- **Frontend:** React/Vite screens, reusable components, contexts, layouts and API service modules.\n- **Backend:** Node server, routes, controllers, business services, models and security middleware.\n- **Database:** module-specific models use the shared database configuration layer.\n- **Operations:** email, notifications, activity/audit logging, uploads, scheduled jobs and security controls are separated into services/middleware.\n\n### Current source footprint\nThe server-side Zarvis knowledge layer sees approximately **${RUNTIME_SNAPSHOT.frontendFiles || PROJECT_SNAPSHOT.pageSourceFiles} frontend source files** and **${RUNTIME_SNAPSHOT.backendFiles || PROJECT_SNAPSHOT.controllers + PROJECT_SNAPSHOT.models} backend source/config files** in the deployed project. Zarvis intentionally explains the structure without revealing secrets or raw source code.`;
+        return { resolved: true, source: "project_knowledge", confidence: 97, module: "Miarcus Architecture", answer, matches: MODULES.slice(0, 8).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
+    }
+
+    for (const playbook of DETAILED_PLAYBOOKS) {
+        const score = scoreEntry(expanded, { name: playbook.module, aliases: playbook.aliases, summary: playbook.answer, features: [], routes: [] });
+        if (score >= 10) return { resolved: true, source: "project_knowledge", confidence: playbook.confidence || Math.min(97, Math.round(55 + score * 3)), module: playbook.module, answer: playbook.answer, matches: [] };
+    }
+
+    const playbookScores = PLAYBOOKS.filter((p) => audienceAllowed(p, audience)).map((p) => ({ ...p, score: scoreEntry(expanded, { ...p, name: p.module, summary: p.answer, features: [], routes: p.routes }) })).sort((a, b) => b.score - a.score);
     const bestPlaybook = playbookScores[0];
-    if (bestPlaybook && bestPlaybook.score >= 10) {
-        return {
-            resolved: true,
-            source: "project_knowledge",
-            confidence: Math.min(96, Math.round(55 + bestPlaybook.score * 3)),
-            module: bestPlaybook.module,
-            answer: bestPlaybook.answer,
-            matches: playbookScores.slice(1, 4).filter((x) => x.score >= 5).map((x) => ({ title: x.module, question: x.module, answer: x.answer, source: "project_knowledge" })),
-        };
+    if (bestPlaybook && bestPlaybook.score >= 9) {
+        return { resolved: true, source: "project_knowledge", confidence: Math.min(96, Math.round(55 + bestPlaybook.score * 3)), module: bestPlaybook.module, answer: bestPlaybook.answer, matches: playbookScores.slice(1, 4).filter((x) => x.score >= 5).map((x) => ({ title: x.module, question: x.module, answer: x.answer, source: "project_knowledge" })) };
     }
 
-    const ranked = MODULES.filter((m) => audienceAllowed(m, audience))
-        .map((m) => ({ ...m, score: scoreEntry(cleanQuestion, m) }))
-        .filter((m) => m.score > 0)
-        .sort((a, b) => b.score - a.score);
-
+    const ranked = MODULES.filter((m) => audienceAllowed(m, audience)).map((m) => ({ ...m, score: scoreEntry(expanded, m) })).filter((m) => m.score > 0).sort((a, b) => b.score - a.score);
     const best = ranked[0];
-    if (!best || best.score < 4.5) return { resolved: false, matches: ranked.slice(0, 4).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
-
-    return {
-        resolved: true,
-        source: "project_knowledge",
-        confidence: Math.min(94, Math.round(42 + best.score * 4)),
-        module: best.name,
-        answer: answerForEntry(best),
-        matches: ranked.slice(1, 4).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })),
-    };
+    if (!best || best.score < 3.8) {
+        return { resolved: false, matches: ranked.slice(0, 4).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
+    }
+    return { resolved: true, source: "project_knowledge", confidence: Math.min(95, Math.round(48 + best.score * 4)), module: best.name, answer: answerFromEntry(best), matches: ranked.slice(1, 4).map((m) => ({ title: m.name, question: m.name, answer: m.summary, source: "project_knowledge" })) };
 };
 
 module.exports = { searchProjectKnowledge, PROJECT_SNAPSHOT };

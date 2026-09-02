@@ -5,9 +5,9 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("
 
 export const getHelpArticles = () => axios.get(`${API}/articles`, auth());
 export const getPublicHelpArticles = () => axios.get(`${API}/public/articles`);
-export const askPublicZarvis = (question) => axios.post(`${API}/public/zarvis/ask`, { question });
+export const askPublicZarvis = (question, history = []) => axios.post(`${API}/public/zarvis/ask`, { question, history });
 export const getHelpArticle = (id) => axios.get(`${API}/articles/${id}`, auth());
-export const askZarvis = (question) => axios.post(`${API}/zarvis/ask`, { question }, auth());
+export const askZarvis = (question, history = []) => axios.post(`${API}/zarvis/ask`, { question, history }, auth());
 export const createHelpTicket = (payload) => axios.post(`${API}/tickets`, payload, auth());
 export const getMyHelpTickets = () => axios.get(`${API}/tickets`, auth());
 export const getHelpTicket = (id) => axios.get(`${API}/tickets/${id}`, auth());

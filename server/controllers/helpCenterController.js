@@ -102,8 +102,17 @@ const rankArticles = (results, question) => {
     }).sort((a, b) => b.confidence - a.confidence);
 };
 
-const resolveZarvis = async ({ question, audience }) => {
-    const results = await Model.searchArticles(question, audience);
+const resolveZarvis = async ({ question, audience, history = [] }) => {
+    const safeHistory = Array.isArray(history) ? history.slice(-8).filter((item) => item && typeof item === "object") : [];
+    const lastResolved = [...safeHistory].reverse().find((item) => item.from === "zarvis" && item.resolved !== false);
+    const shortFollowUp = question.trim().split(/\s+/).length <= 8 || /^(explain|more|details|that|this|how do i do that|how can i do that|why|what about|tell me more|and then)/i.test(question.trim());
+    const context = {
+        isFollowUp: Boolean(shortFollowUp && lastResolved),
+        lastModule: lastResolved?.module || "",
+    };
+    const contextQuestion = context.isFollowUp ? `${question} ${context.lastModule || ""}`.trim() : question;
+
+    const results = await Model.searchArticles(contextQuestion, audience);
     const ranked = rankArticles(results, question);
     const bestArticle = ranked[0];
     if (bestArticle && bestArticle.confidence >= 38) {
@@ -119,7 +128,7 @@ const resolveZarvis = async ({ question, audience }) => {
         };
     }
 
-    const project = searchProjectKnowledge(question, audience);
+    const project = searchProjectKnowledge(question, audience, context);
     if (project.resolved) {
         return {
             success: true,
@@ -151,7 +160,7 @@ exports.publicAskZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        res.json(await resolveZarvis({ question, audience: "customer" }));
+        res.json(await resolveZarvis({ question, audience: "customer", history: req.body?.history }));
     } catch (error) { next(error); }
 };
 
@@ -159,7 +168,7 @@ exports.askZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        res.json(await resolveZarvis({ question, audience: "employee" }));
+        res.json(await resolveZarvis({ question, audience: "employee", history: req.body?.history }));
     } catch (error) { next(error); }
 };
 

@@ -2,19 +2,37 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     FaArrowRight, FaBookOpen, FaChevronDown, FaClock, FaComments,
     FaHeadset, FaPlus, FaRobot, FaSearch, FaShieldAlt, FaTimes,
-    FaUserTie, FaPaperPlane, FaEdit, FaTrash, FaBolt
+    FaUserTie, FaPaperPlane, FaEdit, FaTrash, FaBolt, FaMicrophone,
+    FaVolumeUp, FaStop, FaMagic, FaHistory, FaRegLightbulb, FaCopy,
+    FaCheck, FaCircleNotch
 } from "react-icons/fa";
 import {
     askZarvis, askPublicZarvis, createHelpTicket, getAdminHelpArticles, getAdminHelpTickets,
-    getPublicHelpArticles,
-    getHelpArticles, getHelpTicket, getMyHelpTickets, replyHelpTicket,
-    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle,
-    updateAdminHelpTicket
+    getPublicHelpArticles, getHelpArticles, getHelpTicket, getMyHelpTickets, replyHelpTicket,
+    createAdminHelpArticle, updateAdminHelpArticle, deleteAdminHelpArticle, updateAdminHelpTicket
 } from "../../services/helpCenterService";
 import "../../styles/pages/HelpCenter.css";
 
 const emptyForm = { title: "", question: "", answer: "", category: "General", keywords: "", audience: "both", status: "published", sort_order: 0 };
 const userFromStorage = () => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } };
+
+const SUGGESTIONS = [
+    "Explain the Miarcus project",
+    "How does NSO work in detail?",
+    "How do I create an Action Point?",
+    "How do I reset my password?",
+    "Where can I see reports?",
+];
+
+const renderAnswer = (text) => String(text || "").split("\n").map((line, index) => {
+    const key = `${index}-${line}`;
+    if (line.startsWith("## ")) return <h3 key={key} className="hc-md-h2">{line.slice(3)}</h3>;
+    if (line.startsWith("### ")) return <h4 key={key} className="hc-md-h3">{line.slice(4)}</h4>;
+    if (line.startsWith("- ")) return <div key={key} className="hc-md-bullet"><span>•</span><span>{line.slice(2)}</span></div>;
+    if (!line.trim()) return <div key={key} className="hc-md-space" />;
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    return <p key={key}>{parts.map((part, i) => part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : part)}</p>;
+});
 
 function HelpCenter({ publicMode = false }) {
     const user = userFromStorage();
@@ -31,7 +49,7 @@ function HelpCenter({ publicMode = false }) {
     const [openId, setOpenId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [botQuestion, setBotQuestion] = useState("");
-    const [botMessages, setBotMessages] = useState([{ id: "welcome", from: "zarvis", text: `Hi ${effectiveUserName}! I'm Zarvis, your Miarcus Help Assistant. I search administrator-approved answers first, then the current Miarcus project knowledge so I can explain where features live and how they work.` }]);
+    const [botMessages, setBotMessages] = useState([{ id: "welcome", from: "zarvis", text: `Hi ${effectiveUserName}! 👋 I'm Zarvis, your Miarcus assistant. Ask me naturally — even if your spelling is not perfect. I can explain modules, screens, workflows and the project structure. For a short follow-up like “explain that” or “how do I do it?”, I use the conversation context.` }]);
     const [botBusy, setBotBusy] = useState(false);
     const [ticketSubject, setTicketSubject] = useState("");
     const [ticketText, setTicketText] = useState("");
@@ -42,7 +60,13 @@ function HelpCenter({ publicMode = false }) {
     const [articleForm, setArticleForm] = useState(emptyForm);
     const [editingArticle, setEditingArticle] = useState(null);
     const [toast, setToast] = useState("");
+    const [isListening, setIsListening] = useState(false);
+    const [speakingId, setSpeakingId] = useState(null);
+    const [copiedId, setCopiedId] = useState(null);
+    const [voiceSupported, setVoiceSupported] = useState(false);
+    const recognitionRef = useRef(null);
     const chatEndRef = useRef(null);
+    const inputRef = useRef(null);
 
     const load = async () => {
         setLoading(true);
@@ -60,6 +84,24 @@ function HelpCenter({ publicMode = false }) {
 
     useEffect(() => { load(); }, [adminStatus]);
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [botMessages]);
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        setVoiceSupported(Boolean(SpeechRecognition));
+        if (!SpeechRecognition) return undefined;
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-IN";
+        recognition.interimResults = true;
+        recognition.continuous = false;
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
+        recognition.onerror = () => { setIsListening(false); setToast("Voice input could not be started. Please check your microphone permission."); };
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ");
+            setBotQuestion(transcript);
+        };
+        recognitionRef.current = recognition;
+        return () => { try { recognition.stop(); } catch {} };
+    }, []);
 
     const categories = useMemo(() => ["All", ...new Set(articles.map(a => a.category).filter(Boolean))], [articles]);
     const filtered = useMemo(() => articles.filter(a => {
@@ -67,14 +109,45 @@ function HelpCenter({ publicMode = false }) {
         return (category === "All" || a.category === category) && (!search.trim() || hay.includes(search.toLowerCase().trim()));
     }), [articles, category, search]);
 
+    const toggleVoiceInput = () => {
+        if (!voiceSupported) { setToast("Voice input is not supported by this browser. Chrome or Edge works best."); return; }
+        if (isListening) { try { recognitionRef.current?.stop(); } catch {} }
+        else { try { recognitionRef.current?.start(); inputRef.current?.focus(); } catch {} }
+    };
+
+    const speak = (message, id) => {
+        if (!window.speechSynthesis) { setToast("Voice playback is not supported by this browser."); return; }
+        if (speakingId === id) { window.speechSynthesis.cancel(); setSpeakingId(null); return; }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(String(message || "").replace(/[#*`]/g, ""));
+        utterance.rate = 0.98; utterance.pitch = 1; utterance.lang = "en-IN";
+        utterance.onstart = () => setSpeakingId(id);
+        utterance.onend = () => setSpeakingId(null);
+        utterance.onerror = () => setSpeakingId(null);
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const copyAnswer = async (message, id) => {
+        try { await navigator.clipboard.writeText(message); setCopiedId(id); setTimeout(() => setCopiedId(null), 1500); }
+        catch { setToast("Could not copy the answer."); }
+    };
+
+    const clearChat = () => {
+        window.speechSynthesis?.cancel(); setSpeakingId(null);
+        setBotMessages([{ id: `welcome-${Date.now()}`, from: "zarvis", text: `New chat started. 👋 What would you like to know about Miarcus?` }]);
+        setBotQuestion("");
+    };
+
     const submitBot = async (e) => {
         e?.preventDefault();
         const q = botQuestion.trim(); if (!q || botBusy) return;
+        const history = botMessages.slice(-8).map(({ from, text, resolved, module }) => ({ from, text: String(text || "").slice(0, 1800), resolved, module }));
         setBotMessages(m => [...m, { id: `${Date.now()}u`, from: "user", text: q }]); setBotQuestion(""); setBotBusy(true);
         try {
-            const res = publicMode ? await askPublicZarvis(q) : await askZarvis(q); const data = res.data || {};
+            const res = publicMode ? await askPublicZarvis(q, history) : await askZarvis(q, history);
+            const data = res.data || {};
             setBotMessages(m => [...m, { id: `${Date.now()}z`, from: "zarvis", text: data.message, resolved: data.resolved, source: data.source, confidence: data.confidence, module: data.module, related: data.related || [] }]);
-        } catch (e2) { setBotMessages(m => [...m, { id: `${Date.now()}e`, from: "zarvis", text: e2?.response?.data?.message || "Zarvis is temporarily unavailable. Please try again." }]); }
+        } catch (e2) { setBotMessages(m => [...m, { id: `${Date.now()}e`, from: "zarvis", text: e2?.response?.data?.message || "I’m temporarily unavailable. Please try again, or use Human Support." }]); }
         finally { setBotBusy(false); }
     };
 
@@ -82,39 +155,38 @@ function HelpCenter({ publicMode = false }) {
         if (!ticketText.trim()) { setToast("Describe what you need help with first."); return; }
         try {
             const r = await createHelpTicket({ subject: ticketSubject.trim() || "Help Center Support", question: ticketText.trim(), priority: ticketPriority });
-            setSelectedTicket(r.data?.ticket || null);  setTicketText(""); setTicketSubject("");
+            setSelectedTicket(r.data?.ticket || null); setTicketText(""); setTicketSubject("");
             setToast("Support request sent. An administrator can reply here."); await load(); setTab("support");
         } catch (e) { setToast(e?.response?.data?.message || "Could not create support request."); }
     };
 
-    const openTicket = async (id) => { try { const r = await getHelpTicket(id); setSelectedTicket(r.data.ticket); } catch (e) { setToast("Could not open support request."); } };
+    const openTicket = async (id) => { try { const r = await getHelpTicket(id); setSelectedTicket(r.data.ticket); } catch { setToast("Could not open support request."); } };
     const sendTicketReply = async () => {
         if (!selectedTicket || !ticketReply.trim()) return;
-        try { const r = await replyHelpTicket(selectedTicket.id, ticketReply.trim()); setSelectedTicket(r.data.ticket); setTicketReply(""); await load(); } catch (e) { setToast(e?.response?.data?.message || "Reply failed."); }
+        try { const r = await replyHelpTicket(selectedTicket.id, ticketReply.trim()); setSelectedTicket(r.data.ticket); setTicketReply(""); await load(); }
+        catch (e) { setToast(e?.response?.data?.message || "Reply failed."); }
     };
-
     const saveArticle = async () => {
         try {
-            if (editingArticle) await updateAdminHelpArticle(editingArticle.id, articleForm);
-            else await createAdminHelpArticle(articleForm);
+            if (editingArticle) await updateAdminHelpArticle(editingArticle.id, articleForm); else await createAdminHelpArticle(articleForm);
             setArticleForm(emptyForm); setEditingArticle(null); setToast(editingArticle ? "Help answer updated." : "Help answer published."); await load();
         } catch (e) { setToast(e?.response?.data?.message || "Could not save help answer."); }
     };
-    const removeArticle = async (id) => { if (!window.confirm("Delete this Help Center answer?")) return; try { await deleteAdminHelpArticle(id); await load(); setToast("Help answer deleted."); } catch (e) { setToast("Could not delete answer."); } };
+    const removeArticle = async (id) => { if (!window.confirm("Delete this Help Center answer?")) return; try { await deleteAdminHelpArticle(id); await load(); setToast("Help answer deleted."); } catch { setToast("Could not delete answer."); } };
     const startEdit = (a) => { setEditingArticle(a); setArticleForm({ title:a.title, question:a.question, answer:a.answer, category:a.category, keywords:a.keywords || "", audience:a.audience, status:a.status, sort_order:a.sort_order }); window.scrollTo({top:0, behavior:"smooth"}); };
     const updateTicket = async (ticket, patch) => { try { await updateAdminHelpTicket(ticket.id, { status: patch.status || ticket.status, priority: patch.priority || ticket.priority, assigned_to: ticket.assigned_to }); await load(); if (selectedTicket?.id === ticket.id) await openTicket(ticket.id); } catch { setToast("Could not update support request."); } };
 
     const renderAdmin = () => (
         <section className="hc-admin">
-            <div className="hc-section-head"><div><span className="hc-eyebrow">ADMIN CONTROL ROOM</span><h2>Knowledge & Support</h2><p>Publish verified answers for Zarvis and reply to employee support requests.</p></div><div className="hc-live"><span />24×7 HELP CENTER</div></div>
+            <div className="hc-section-head"><div><span className="hc-eyebrow">ADMIN CONTROL ROOM</span><h2>Knowledge & Support</h2><p>Teach Zarvis once, then let it answer natural-language questions from the approved knowledge.</p></div><div className="hc-live"><span />24×7 HELP CENTER</div></div>
             <div className="hc-admin-grid">
                 <div className="hc-panel">
                     <div className="hc-panel-title"><span>{editingArticle ? "Edit verified answer" : "Add verified answer"}</span>{editingArticle && <button className="hc-icon-btn" onClick={() => {setEditingArticle(null);setArticleForm(emptyForm)}}><FaTimes /></button>}</div>
                     <div className="hc-form-grid">
                         <label>Title<input value={articleForm.title} onChange={e=>setArticleForm({...articleForm,title:e.target.value})} placeholder="e.g. How do I reset my password?" /></label>
                         <label>Category<input value={articleForm.category} onChange={e=>setArticleForm({...articleForm,category:e.target.value})} placeholder="Login & Security" /></label>
-                        <label className="span-2">Question<input value={articleForm.question} onChange={e=>setArticleForm({...articleForm,question:e.target.value})} placeholder="Exact or natural-language question employees/customers may ask" /></label>
-                        <label className="span-2">Answer<textarea rows="6" value={articleForm.answer} onChange={e=>setArticleForm({...articleForm,answer:e.target.value})} placeholder="The approved answer Zarvis is allowed to provide" /></label>
+                        <label className="span-2">Question<input value={articleForm.question} onChange={e=>setArticleForm({...articleForm,question:e.target.value})} placeholder="Natural-language question employees/customers may ask" /></label>
+                        <label className="span-2">Answer<textarea rows="7" value={articleForm.answer} onChange={e=>setArticleForm({...articleForm,answer:e.target.value})} placeholder="Write the approved answer clearly. Zarvis will use this as a trusted answer." /></label>
                         <label>Keywords<input value={articleForm.keywords} onChange={e=>setArticleForm({...articleForm,keywords:e.target.value})} placeholder="password, reset, login" /></label>
                         <label>Audience<select value={articleForm.audience} onChange={e=>setArticleForm({...articleForm,audience:e.target.value})}><option value="both">Employees + Customers</option><option value="employee">Employees</option><option value="customer">Customers</option></select></label>
                         <label>Status<select value={articleForm.status} onChange={e=>setArticleForm({...articleForm,status:e.target.value})}><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select></label>
@@ -133,24 +205,45 @@ function HelpCenter({ publicMode = false }) {
     );
 
     return <div className="help-center-page">
-        <div className="hc-hero"><div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Help that keeps you moving.</h1><p>{publicMode ? "Get instant answers from Zarvis and explore verified Miarcus guides. This customer help desk is available 24×7." : "Get instant answers from Zarvis, explore administrator-approved guides, or connect with your support team when you need a human response."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button><button onClick={()=>setTab("support")} className="hc-hero-link" style={{display:publicMode?"none":"flex"}}><FaHeadset/> Human support</button></div></div><div className="hc-orb"><div className="hc-orb-inner"><FaRobot/><strong>Z</strong><span>24×7</span></div></div></div>
+        <div className="hc-hero hc-hero-luna">
+            <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained clearly.</h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
+            <div className="hc-orb"><div className="hc-orb-inner"><span className="hc-orb-z">Z</span><strong>Zarvis</strong><span>24×7</span></div></div>
+        </div>
         <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
         {toast && <div className="hc-toast" onClick={()=>setToast("")}>{toast}<FaTimes/></div>}
-        {loading ? <div className="hc-loading"><span className="hc-spinner"/> Loading your Help Center…</div> : <>
-        {tab==="home" && <>
-            <div className="hc-search-wrap"><FaSearch/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search guides, policies, how-to answers…"/><span>{filtered.length} guides</span></div>
-            <div className="hc-category-row">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
-            <div className="hc-feature-row"><div><FaRobot/><div><strong>Zarvis answers first</strong><span>Verified FAQs are checked before project knowledge.</span></div></div><div><FaClock/><div><strong>Always available</strong><span>Self-service help is available 24×7.</span></div></div><div><FaUserTie/><div><strong>Human fallback</strong><span>Open a support request when needed.</span></div></div></div>
-            <div className="hc-articles">{filtered.map(a=><article className={`hc-faq ${openId===a.id?'open':''}`} key={a.id}><button onClick={()=>setOpenId(openId===a.id?null:a.id)}><span className="hc-faq-icon"><FaBookOpen/></span><span><small>{a.category}</small><strong>{a.question}</strong></span><FaChevronDown/></button>{openId===a.id&&<div className="hc-answer"><p>{a.answer}</p><button onClick={()=>{setBotQuestion(a.question);setTab("zarvis")}}>Ask Zarvis about this <FaArrowRight/></button></div>}</article>)}{!filtered.length&&<div className="hc-empty"><FaSearch/><h3>No matching guide</h3><p>Ask Zarvis using natural language. If there is no verified answer, you can request human support.</p><button onClick={()=>setTab("zarvis")} className="hc-primary">Ask Zarvis</button></div>}</div>
-        </>}
-        {tab==="zarvis" && <div className="hc-zarvis"><div className="hc-chat-card"><div className="hc-chat-head"><div className="hc-avatar"><FaRobot/></div><div><strong>Zarvis</strong><span><i/> Verified Miarcus assistant</span></div><span className="hc-24">24×7</span></div><div className="hc-chat-body">{botMessages.map(m=><div key={m.id} className={`hc-msg ${m.from}`}>{m.from==='zarvis'&&<div className="hc-mini-avatar"><FaRobot/></div>}<div className="hc-bubble">{m.from==='zarvis'&&m.source&&m.source!=="zarvis"&&<div className="hc-source"><span>{m.source==="knowledge_base"?"VERIFIED ANSWER":"PROJECT KNOWLEDGE"}</span>{m.confidence ? <b>{m.confidence}% match</b> : null}{m.module ? <em>{m.module}</em> : null}</div>}{m.text}{m.related?.length>0&&<div className="hc-related"><small>Related verified answers</small>{m.related.map(r=><button key={r.id} onClick={()=>{setBotQuestion(r.question);setTab("zarvis")}}>{r.question}<FaArrowRight/></button>)}</div>}{m.from==='zarvis'&&m.resolved===false&&!publicMode&&<button className="hc-human-btn" onClick={()=>{setTab("support")}}><FaHeadset/> Request human support</button>}</div></div>)}{botBusy&&<div className="hc-msg zarvis"><div className="hc-mini-avatar"><FaRobot/></div><div className="hc-bubble typing"><i/><i/><i/></div></div>}<div ref={chatEndRef}/></div><form className="hc-chat-input" onSubmit={submitBot}><input value={botQuestion} onChange={e=>setBotQuestion(e.target.value)} placeholder="Ask anything about Miarcus…"/><button disabled={botBusy}><FaPaperPlane/></button></form></div><div className="hc-zarvis-side"><div className="hc-trust"><FaShieldAlt/><h3>Verified + project-aware</h3><p>Zarvis checks administrator-approved Help Center answers first. If there is no matching FAQ, it searches a safe product map of the current Miarcus modules, screens, routes and workflows. It never exposes source code, secrets or private configuration.</p></div><div className="hc-suggest"><span>TRY ASKING</span>{["How do I reset my password?","How can I raise an action point?","Where can I see my reports?"].map(q=><button key={q} onClick={()=>setBotQuestion(q)}>{q}<FaArrowRight/></button>)}</div></div></div>}
-        {!publicMode && tab==="support" && <div className="hc-support-layout"><div className="hc-panel"><div className="hc-panel-title"><span>My support requests</span><span className="hc-count">{tickets.length}</span></div>{tickets.length?tickets.map(t=><button className={`hc-ticket-item ${selectedTicket?.id===t.id?'selected':''}`} key={t.id} onClick={()=>openTicket(t.id)}><span>#{t.id}</span><div><strong>{t.subject}</strong><small>{t.status.replace("_"," ")} · {t.priority} · {new Date(t.last_message_at).toLocaleString()}</small></div><FaArrowRight/></button>):<div className="hc-empty small"><FaComments/><h3>No support requests yet</h3><p>Ask Zarvis first or open a human support request.</p></div>}</div><div className="hc-panel"><div className="hc-panel-title"><span>24×7 support</span></div>{selectedTicket?<TicketConversation ticket={selectedTicket} reply={ticketReply} setReply={setTicketReply} onSend={sendTicketReply}/>:<div className="hc-support-form"><div className="hc-support-badge"><FaHeadset/><span>Human support fallback</span></div><h2>Need a person?</h2><p>Send your question to the Miarcus support queue. You can continue the conversation here.</p><input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Subject"/><textarea rows="7" value={ticketText} onChange={e=>setTicketText(e.target.value)} placeholder="Tell us what you need help with…"/><div className="hc-inline"><select value={ticketPriority} onChange={e=>setTicketPriority(e.target.value)}><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent</option><option value="low">Low</option></select><button className="hc-primary" onClick={requestHuman}>Send to support <FaPaperPlane/></button></div></div>}</div></div>}
-        {!publicMode && tab==="admin" && isAdmin && renderAdmin()}
+        {loading ? <div className="hc-loading"><FaCircleNotch className="hc-spin-icon"/> Loading your Help Center…</div> : <>
+            {tab==="home" && <>
+                <div className="hc-search-wrap"><FaSearch/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search guides, policies, how-to answers…"/><span>{filtered.length} guides</span></div>
+                <div className="hc-category-row">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+                <div className="hc-feature-row"><div><FaRobot/><div><strong>Natural-language Zarvis</strong><span>Ask normally. Small spelling mistakes and common wording are handled.</span></div></div><div><FaMagic/><div><strong>Project-aware</strong><span>Explains Miarcus modules, screens, workflows and safe project structure.</span></div></div><div><FaUserTie/><div><strong>Human when needed</strong><span>Open a support request and continue the conversation with an administrator.</span></div></div></div>
+                <div className="hc-articles">{filtered.map(a=><article className={`hc-faq ${openId===a.id?'open':''}`} key={a.id}><button onClick={()=>setOpenId(openId===a.id?null:a.id)}><span className="hc-faq-icon"><FaBookOpen/></span><span><small>{a.category}</small><strong>{a.question}</strong></span><FaChevronDown/></button>{openId===a.id&&<div className="hc-answer"><p>{a.answer}</p><button onClick={()=>{setBotQuestion(a.question);setTab("zarvis")}}>Ask Zarvis about this <FaArrowRight/></button></div>}</article>)}{!filtered.length&&<div className="hc-empty"><FaSearch/><h3>No matching guide</h3><p>Try asking Zarvis in your own words. It can also explain the project structure and workflows.</p><button onClick={()=>setTab("zarvis")} className="hc-primary">Ask Zarvis</button></div>}</div>
+            </>}
+            {tab==="zarvis" && <div className="hc-zarvis">
+                <div className="hc-chat-card hc-chat-card-luna">
+                    <div className="hc-chat-head"><div className="hc-avatar hc-avatar-z"><span>Z</span></div><div><strong>Zarvis</strong><span><i/> Online · Miarcus project assistant</span></div><div className="hc-chat-head-actions"><button onClick={clearChat} title="New chat"><FaHistory/> New chat</button><span className="hc-24">24×7</span></div></div>
+                    <div className="hc-chat-body">{botMessages.map(m=><div key={m.id} className={`hc-msg ${m.from}`}>
+                        {m.from==='zarvis'&&<div className="hc-mini-avatar"><span>Z</span></div>}
+                        <div className="hc-bubble">
+                            {m.from==='zarvis'&&m.source&&m.source!=="zarvis"&&<div className="hc-source"><span>{m.source==="knowledge_base"?"VERIFIED ANSWER":m.source==="conversation"?"CONVERSATION":"PROJECT KNOWLEDGE"}</span>{m.confidence && m.source!=="conversation" ? <b>{m.confidence}% confidence</b> : null}{m.module ? <em>{m.module}</em> : null}</div>}
+                            <div className="hc-answer-content">{m.from==='zarvis' ? renderAnswer(m.text) : m.text}</div>
+                            {m.from==='zarvis'&&<div className="hc-message-tools"><button onClick={()=>speak(m.text,m.id)} title="Read aloud">{speakingId===m.id?<FaStop/>:<FaVolumeUp/>}{speakingId===m.id?" Stop":" Read aloud"}</button><button onClick={()=>copyAnswer(m.text,m.id)} title="Copy answer">{copiedId===m.id?<FaCheck/>:<FaCopy/>}{copiedId===m.id?" Copied":" Copy"}</button></div>}
+                            {m.related?.length>0&&<div className="hc-related"><small>You may also mean</small>{m.related.map((r,i)=><button key={r.id || `${m.id}-${i}`} onClick={()=>{setBotQuestion(r.question || r.title || "");setTab("zarvis");setTimeout(()=>inputRef.current?.focus(),50)}}>{r.question || r.title}<FaArrowRight/></button>)}</div>}
+                            {m.from==='zarvis'&&m.resolved===false&&!publicMode&&<button className="hc-human-btn" onClick={()=>setTab("support")}><FaHeadset/> Talk to human support</button>}
+                        </div>
+                    </div>)}{botBusy&&<div className="hc-msg zarvis"><div className="hc-mini-avatar"><span>Z</span></div><div className="hc-bubble typing"><span>Zarvis is thinking</span><i/><i/><i/></div></div>}<div ref={chatEndRef}/></div>
+                    <div className="hc-chat-helper"><FaRegLightbulb/><span>{isListening ? "Listening… speak now" : "Ask naturally. For example: ‘how NSO working’, ‘explain that’, or ‘where do I put this?’"}</span>{voiceSupported&&<b>Voice ready</b>}</div>
+                    <form className="hc-chat-input hc-chat-input-luna" onSubmit={submitBot}><button type="button" className={`hc-mic-btn ${isListening?'active':''}`} onClick={toggleVoiceInput} title={voiceSupported?"Speak your question":"Voice input unavailable"}><FaMicrophone/></button><input ref={inputRef} value={botQuestion} onChange={e=>setBotQuestion(e.target.value)} placeholder={isListening?"Listening…":"Message Zarvis…"}/><button type="submit" className="hc-send-btn" disabled={botBusy || !botQuestion.trim()}><FaPaperPlane/></button></form>
+                    <div className="hc-suggestion-row">{SUGGESTIONS.map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}</button>)}</div>
+                </div>
+                <div className="hc-zarvis-side"><div className="hc-trust hc-trust-luna"><div className="hc-trust-icon"><FaShieldAlt/></div><h3>How Zarvis answers</h3><p><b>1.</b> Checks administrator-approved answers.</p><p><b>2.</b> If needed, checks the safe Miarcus project knowledge.</p><p><b>3.</b> Uses conversation context for short follow-ups.</p><p><b>4.</b> If confidence is low, it does not invent an answer — it offers human support.</p></div><div className="hc-suggest"><span>TRY ASKING</span>{SUGGESTIONS.slice(0,4).map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}<FaArrowRight/></button>)}</div></div>
+            </div>}
+            {!publicMode && tab==="support" && <div className="hc-support-layout"><div className="hc-panel"><div className="hc-panel-title"><span>My support requests</span><span className="hc-count">{tickets.length}</span></div>{tickets.length?tickets.map(t=><button className={`hc-ticket-item ${selectedTicket?.id===t.id?'selected':''}`} key={t.id} onClick={()=>openTicket(t.id)}><span>#{t.id}</span><div><strong>{t.subject}</strong><small>{t.status.replace("_"," ")} · {t.priority} · {new Date(t.last_message_at).toLocaleString()}</small></div><FaArrowRight/></button>):<div className="hc-empty small"><FaComments/><h3>No support requests yet</h3><p>Ask Zarvis first or open a human support request.</p></div>}</div><div className="hc-panel"><div className="hc-panel-title"><span>24×7 support</span></div>{selectedTicket?<TicketConversation ticket={selectedTicket} reply={ticketReply} setReply={setTicketReply} onSend={sendTicketReply}/>:<div className="hc-support-form"><div className="hc-support-badge"><FaHeadset/><span>Human support fallback</span></div><h2>Need a person?</h2><p>Send your question to the Miarcus support queue. You can continue the conversation here.</p><input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Subject"/><textarea rows="7" value={ticketText} onChange={e=>setTicketText(e.target.value)} placeholder="Tell us what you need help with…"/><div className="hc-inline"><select value={ticketPriority} onChange={e=>setTicketPriority(e.target.value)}><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent</option><option value="low">Low</option></select><button className="hc-primary" onClick={requestHuman}>Send to support <FaPaperPlane/></button></div></div>}</div></div>}
+            {!publicMode && tab==="admin" && isAdmin && renderAdmin()}
         </>}
     </div>;
 }
 
-function TicketConversation({ticket, reply, setReply, onSend}) { return <div className="hc-conversation"><div className="hc-conversation-meta"><span>#{ticket.id} · {ticket.status.replace("_"," ")}</span><b className={`priority ${ticket.priority}`}>{ticket.priority}</b></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_type==='zarvis'?'Zarvis':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend()}}} placeholder="Reply to support…"/><button onClick={onSend}><FaPaperPlane/></button></div></div> }
-function AdminTicketView({ticket,onReply,onStatus}) { const [msg,setMsg]=useState(""); if(!ticket)return <div className="hc-admin-ticket-empty"><FaHeadset/><h3>Select a request</h3><p>Choose a support request to reply manually as Zarvis Support.</p></div>; return <div className="hc-admin-ticket"><div className="hc-conversation-meta"><div><strong>#{ticket.id} · {ticket.subject}</strong><small>{ticket.user_name} · {ticket.user_email}</small></div><select value={ticket.status} onChange={e=>onStatus(e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Write a manual Zarvis Support reply…"/><button onClick={()=>{if(msg.trim()){onReply(msg.trim());setMsg("")}}}><FaPaperPlane/></button></div></div> }
+function TicketConversation({ticket, reply, setReply, onSend}) { return <div className="hc-conversation"><div className="hc-conversation-meta"><span>#{ticket.id} · {ticket.status.replace("_"," ")}</span><b className={`priority ${ticket.priority}`}>{ticket.priority}</b></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_type==='zarvis'?'Zarvis':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend()}}} placeholder="Reply to support…"/><button onClick={onSend}><FaPaperPlane/></button></div></div>; }
+function AdminTicketView({ticket,onReply,onStatus}) { const [msg,setMsg]=useState(""); if(!ticket)return <div className="hc-admin-ticket-empty"><FaHeadset/><h3>Select a request</h3><p>Choose a support request to reply manually as Zarvis Support.</p></div>; return <div className="hc-admin-ticket"><div className="hc-conversation-meta"><div><strong>#{ticket.id} · {ticket.subject}</strong><small>{ticket.user_name} · {ticket.user_email}</small></div><select value={ticket.status} onChange={e=>onStatus(e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div><div className="hc-conversation-scroll">{(ticket.messages||[]).map(m=><div className={`hc-msg ${m.sender_type}`} key={m.id}><div className="hc-bubble"><small>{m.sender_type==='admin'?'Zarvis Support':m.sender_name}</small><p>{m.message}</p><time>{new Date(m.created_at).toLocaleString()}</time></div></div>)}</div><div className="hc-chat-input"><input value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Write a manual Zarvis Support reply…"/><button onClick={()=>{if(msg.trim()){onReply(msg.trim());setMsg("")}}}><FaPaperPlane/></button></div></div>; }
 
 export default HelpCenter;
