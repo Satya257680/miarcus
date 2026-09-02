@@ -17,7 +17,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: clamp(24px, 5vh, 54px) 28px clamp(30px, 5vh, 54px);
+  padding: clamp(22px, 5vh, 48px) clamp(18px, 2vw, 32px) clamp(24px, 5vh, 48px);
   background:
     radial-gradient(circle at 18% 25%, rgba(255, 231, 244, 0.95), transparent 27%),
     radial-gradient(circle at 88% 24%, rgba(226, 214, 255, 0.92), transparent 28%),
@@ -516,8 +516,10 @@
 .login-card {
   position: relative;
   z-index: 10;
-  width: min(560px, 94vw);
-  min-height: 690px;
+  /* Desktop sizing is viewport-relative so 100% browser zoom does not
+     make the login panel feel oversized compared with 75–80% zoom. */
+  width: clamp(430px, 29vw, 500px);
+  min-height: 0;
   border-radius: 28px;
   background: rgba(255, 253, 255, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.95);
@@ -540,7 +542,7 @@
 }
 
 .card-inner {
-  padding: 48px 54px 34px;
+  padding: clamp(34px, 3vw, 42px) clamp(34px, 3.2vw, 46px) 28px;
 }
 
 /* logo */
@@ -553,22 +555,22 @@
 
 .logo {
   display: block;
-  width: 126px;
+  width: clamp(92px, 6.2vw, 112px);
   height: auto;
-  max-height: 76px;
+  max-height: 66px;
   object-fit: contain;
 }
 
 /* heading */
 .login-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .login-header h1 {
   margin: 0 0 8px;
   color: #2c2055;
-  font-size: clamp(30px, 4vw, 38px);
+  font-size: clamp(28px, 2.1vw, 34px);
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.8px;
@@ -629,7 +631,7 @@
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
@@ -661,14 +663,14 @@
 
 .input-wrapper input {
   width: 100%;
-  height: 58px;
+  height: 52px;
   border: 1px solid #ddd5e7;
   border-radius: 12px;
   outline: none;
   background: #fff;
   color: #2d2444;
-  padding: 0 48px;
-  font-size: 14px;
+  padding: 0 44px;
+  font-size: 13px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -716,7 +718,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: -2px 0 22px;
+  margin: -1px 0 18px;
 }
 
 .remember-option {
@@ -764,7 +766,7 @@
 /* sign in */
 .login-button {
   width: 100%;
-  height: 58px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -774,7 +776,7 @@
   color: #fff;
   background: linear-gradient(135deg, #7d52c5, #a066d3);
   box-shadow: 0 12px 25px rgba(126, 82, 197, 0.28);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -821,7 +823,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 28px 0 22px;
+  margin: 22px 0 18px;
   color: #7d7488;
 }
 
@@ -852,8 +854,8 @@
   align-items: center;
   gap: 6px;
   border-top: 1px solid #ece5f0;
-  margin-top: 26px;
-  padding-top: 20px;
+  margin-top: 20px;
+  padding-top: 16px;
   color: #8d8497;
   font-size: 11px;
   text-align: center;
@@ -982,6 +984,10 @@
     transform-origin: bottom left;
   }
 
+  .login-card {
+    width: clamp(420px, 34vw, 480px);
+  }
+
   .toy-bunny {
     right: 1%;
   }
@@ -996,7 +1002,51 @@
   }
 
   .login-card {
+    width: min(460px, calc(100vw - 150px));
     margin-left: 120px;
+  }
+}
+
+@media (min-width: 1201px) and (max-height: 850px) {
+  .login-page {
+    padding-top: 28px;
+    padding-bottom: 28px;
+  }
+
+  .login-card {
+    width: clamp(430px, 29vw, 490px);
+  }
+
+  .card-inner {
+    padding-top: 30px;
+    padding-bottom: 22px;
+  }
+
+  .logo {
+    width: 96px;
+    max-height: 58px;
+  }
+
+  .login-header {
+    margin-bottom: 18px;
+  }
+
+  .form-group {
+    margin-bottom: 13px;
+  }
+
+  .input-wrapper input,
+  .login-button {
+    height: 49px;
+  }
+
+  .login-options {
+    margin-bottom: 15px;
+  }
+
+  .login-footer {
+    margin-top: 16px;
+    padding-top: 13px;
   }
 }
 
