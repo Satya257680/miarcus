@@ -3,20 +3,13 @@ import { saveAs } from "file-saver";
 
 const TEMPLATE_URL = "/templates/Store Health Check Report.xlsx";
 
-const TEMPLATE_QUESTION_ROWS = [
-    ...Array.from({ length: 24 }, (_, i) => 19 + i),
-    ...Array.from({ length: 6 }, (_, i) => 45 + i),
-    ...Array.from({ length: 9 }, (_, i) => 54 + i),
-    ...Array.from({ length: 5 }, (_, i) => 65 + i),
-    ...Array.from({ length: 11 }, (_, i) => 72 + i),
-    ...Array.from({ length: 8 }, (_, i) => 86 + i),
-    ...Array.from({ length: 6 }, (_, i) => 96 + i),
-    ...Array.from({ length: 8 }, (_, i) => 104 + i),
-    ...Array.from({ length: 10 }, (_, i) => 114 + i),
-];
+const text = (value, fallback = "") => {
+    if (value === null || value === undefined || value === "") return fallback;
+    return String(value);
+};
 
 const clean = (value) =>
-    String(value ?? "")
+    text(value)
         .toLowerCase()
         .replace(/[’']/g, "'")
         .replace(/&/g, "and")
@@ -24,15 +17,12 @@ const clean = (value) =>
         .replace(/\s+/g, " ")
         .trim();
 
-const text = (value, fallback = "") => {
-    if (value === null || value === undefined || value === "") return fallback;
-    return String(value);
-};
-
 const dateText = (value) => {
     if (!value) return "";
+
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return text(value);
+
     return d.toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
@@ -40,185 +30,327 @@ const dateText = (value) => {
     });
 };
 
-const similarity = (a, b) => {
-    const left = clean(a);
-    const right = clean(b);
-    if (!left || !right) return 0;
-    if (left === right) return 1;
-    if (left.includes(right) || right.includes(left)) return 0.9;
-    const aTokens = new Set(left.split(" "));
-    const bTokens = new Set(right.split(" "));
-    const intersection = [...aTokens].filter((token) => bTokens.has(token)).length;
-    return (2 * intersection) / (aTokens.size + bTokens.size);
+const dateTimeText = (value) => {
+    if (!value) return "";
+
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return text(value);
+
+    return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
 };
 
-const findTemplateQuestionRow = (question, questionMap) => {
-    const key = clean(question);
-    if (!key) return null;
-    if (questionMap.has(key)) return questionMap.get(key);
+const getStore = (stores, storeId, storeName) =>
+    (stores || []).find((store) => String(store.id) === String(storeId)) ||
+    (stores || []).find(
+        (store) =>
+            clean(store.store_name) &&
+            clean(store.store_name) === clean(storeName)
+    ) ||
+    {};
 
-    let best = { row: null, score: 0 };
-    for (const [templateQuestion, row] of questionMap.entries()) {
-        const score = similarity(key, templateQuestion);
-        if (score > best.score) best = { row, score };
-    }
-    return best.score >= 0.86 ? best.row : null;
-};
-
-const getStore = (stores, storeId) =>
-    (stores || []).find((store) => String(store.id) === String(storeId)) || {};
-
-const setCell = (ws, address, value) => {
+const setCell = (ws, address, value, alignment = {}) => {
     const cell = ws.getCell(address);
     cell.value = value ?? "";
     cell.alignment = {
         ...cell.alignment,
         wrapText: true,
         vertical: cell.alignment?.vertical || "center",
+        ...alignment,
     };
 };
 
-const buildQuestionMap = (ws) => {
-    const map = new Map();
-    for (const row of TEMPLATE_QUESTION_ROWS) {
-        const question = ws.getCell(`B${row}`).value;
-        if (question) map.set(clean(question), row);
+const copyCellStyle = (sourceCell, targetCell) => {
+    targetCell.value = sourceCell.value;
+    targetCell.style = { ...sourceCell.style };
+    targetCell.numFmt = sourceCell.numFmt;
+    targetCell.alignment = { ...sourceCell.alignment };
+    targetCell.protection = { ...sourceCell.protection };
+};
+
+const copyRowStyle = (sourceWs, sourceRowNumber, targetWs, targetRowNumber) => {
+    const sourceRow = sourceWs.getRow(sourceRowNumber);
+    const targetRow = targetWs.getRow(targetRowNumber);
+
+    targetRow.height = sourceRow.height;
+    targetRow.hidden = sourceRow.hidden;
+
+    for (let col = 1; col <= Math.max(sourceWs.columnCount, 5); col += 1) {
+        copyCellStyle(sourceRow.getCell(col), targetRow.getCell(col));
     }
-    return map;
 };
 
-const applyProfile = (ws, record, stores) => {
-    const store = getStore(stores, record?.store_id);
-    const profile = {
-        4: record?.store_name || store.store_name,
-        5: store.address || store.store_address || store.location || store.full_address,
-        6: store.region || store.store_region || store.state || record?.state,
-        7: record?.submission_date || record?.date,
-        8: record?.store_in_time || record?.in_time,
-        9: record?.store_out_time || record?.out_time,
-        10: store.opening_date || store.store_opening_date,
-        11: record?.turnover_2024_25_value,
-        12: record?.turnover_2025_26_value,
-        13: record?.turnover_2024_25_qty,
-        14: record?.turnover_2025_26_qty,
-        15: record?.target_2026_27,
-    };
-
-    Object.entries(profile).forEach(([row, value]) => {
-        if (row === "7") value = dateText(value);
-        setCell(ws, `C${row}`, value || "");
-    });
-
-};
-
-const putRows = (ws, records, mode) => {
-    const questionMap = buildQuestionMap(ws);
-    const unmatched = [];
-
-    for (const record of records) {
-        const row = findTemplateQuestionRow(record?.question, questionMap);
-        if (!row) {
-            unmatched.push(record);
-            continue;
-        }
-
-        const answer = mode === "action"
-            ? (record?.answer ?? record?.status ?? "")
-            : (record?.answer ?? "");
-
-        const remarks = mode === "action"
-            ? [
-                record?.comment,
-                record?.remarks,
-                record?.action_taken,
-                record?.status ? `Action Status: ${record.status}` : "",
-                record?.priority ? `Priority: ${record.priority}` : "",
-                record?.assigned_to_name || record?.assigned_to ? `Assigned To: ${record.assigned_to_name || record.assigned_to}` : "",
-            ].filter(Boolean).join(" | ")
-            : [
-                record?.remarks,
-                record?.action_point_comment,
-                record?.action_point_remarks,
-                record?.action_taken,
-            ].filter(Boolean).join(" | ");
-
-        setCell(ws, `D${row}`, answer);
-        setCell(ws, `E${row}`, remarks);
-    }
-
-    return unmatched;
-};
-
-const addUnmatchedSheet = (workbook, unmatched, mode) => {
-    if (!unmatched.length || mode !== "action") return;
-    const ws = workbook.addWorksheet("Action Point Details");
-    ws.columns = [
-        { header: "Question", key: "question", width: 70 },
-        { header: "Answer", key: "answer", width: 24 },
-        { header: "Status", key: "status", width: 20 },
-        { header: "Priority", key: "priority", width: 14 },
-        { header: "Comment", key: "comment", width: 45 },
-        { header: "Remarks", key: "remarks", width: 45 },
-        { header: "Assigned To", key: "assigned", width: 28 },
-        { header: "Completed At", key: "completed", width: 24 },
-    ];
-    ws.addRows(unmatched.map((row) => ({
-        question: row.question || "",
-        answer: row.answer || "",
-        status: row.status || row.action_point_status || "",
-        priority: row.priority || "",
-        comment: row.comment || row.action_point_comment || "",
-        remarks: row.remarks || row.action_point_remarks || "",
-        assigned: row.assigned_to_name || row.assigned_to || "",
-        completed: row.completed_at || row.action_point_completed_at || "",
-    })));
-    ws.getRow(1).font = { bold: true };
-    ws.autoFilter = "A1:H1";
-    ws.views = [{ state: "frozen", ySplit: 1 }];
-};
-
-const makeSheet = (sourceTemplate, targetTemplate, workbook, records, stores, mode, index) => {
-    const target = index === 0
-        ? targetTemplate
-        : workbook.addWorksheet(`PVR ${index + 1}`);
-
-    if (index !== 0) copyWorksheet(sourceTemplate, target);
-
-    applyProfile(target, records[0], stores);
-    return putRows(target, records, mode);
-};
-
-const copyWorksheet = (source, target) => {
+const copyWorksheetFrame = (source, target) => {
     target.columns = source.columns.map((column) => ({
         width: column.width,
         hidden: column.hidden,
     }));
 
-    for (let rowNumber = 1; rowNumber <= source.rowCount; rowNumber += 1) {
-        const sourceRow = source.getRow(rowNumber);
-        const targetRow = target.getRow(rowNumber);
-        targetRow.height = sourceRow.height;
-        targetRow.hidden = sourceRow.hidden;
-
-        for (let col = 1; col <= source.columnCount; col += 1) {
-            const sourceCell = sourceRow.getCell(col);
-            const targetCell = targetRow.getCell(col);
-            targetCell.value = sourceCell.value;
-            targetCell.style = { ...sourceCell.style };
-            targetCell.numFmt = sourceCell.numFmt;
-            targetCell.alignment = { ...sourceCell.alignment };
-            targetCell.protection = { ...sourceCell.protection };
-        }
-    }
-
-    const merges = source.model?.merges || [];
-    for (const range of merges) {
-        target.mergeCells(range);
-    }
-
+    // Keep the management template's page/print settings.
     target.pageSetup = { ...source.pageSetup };
     target.pageMargins = { ...source.pageMargins };
-    target.views = source.views.map((view) => ({ ...view }));
+    target.views = (source.views || []).map((view) => ({ ...view }));
+    target.properties = { ...source.properties };
+
+    // Copy the title/profile area exactly as a visual frame.
+    for (let row = 1; row <= 17; row += 1) {
+        copyRowStyle(source, row, target, row);
+    }
+
+    // Copy the management-style section/header row and a detail-row style.
+    copyRowStyle(source, 18, target, 18);
+    copyRowStyle(source, 19, target, 19);
+
+    // Re-create the title merge. The original template has A1:E1 merged.
+    target.mergeCells("A1:E1");
+};
+
+const applyProfile = (ws, record, stores) => {
+    const store = getStore(stores, record?.store_id, record?.store_name);
+
+    const profile = [
+        ["Store Name", record?.store_name || store.store_name],
+        [
+            "Store Address",
+            store.address ||
+                store.store_address ||
+                store.location ||
+                store.full_address,
+        ],
+        [
+            "Store Region",
+            store.region || store.store_region || store.state || record?.state,
+        ],
+        ["Date of Visit", dateText(record?.submission_date || record?.date)],
+        ["Store In Time", record?.store_in_time || record?.in_time],
+        ["Store Out Time", record?.store_out_time || record?.out_time],
+        [
+            "Store Opening Date",
+            dateText(store.opening_date || store.store_opening_date),
+        ],
+        ["Turnover in 2024-25 (value)", record?.turnover_2024_25_value],
+        ["Turnover in 2025-26 (value)", record?.turnover_2025_26_value],
+        ["Turnover in 2024-25 (qty)", record?.turnover_2024_25_qty],
+        ["Turnover in 2025-26 (qty)", record?.turnover_2025_26_qty],
+        ["Target for 2026-27", record?.target_2026_27],
+    ];
+
+    // The supplied management format reserves rows 4-15 for profile data.
+    profile.forEach(([label, value], index) => {
+        const row = 4 + index;
+        setCell(ws, `A${row}`, index + 1);
+        setCell(ws, `B${row}`, label);
+        setCell(ws, `C${row}`, value || "");
+        setCell(ws, `D${row}`, "");
+        setCell(ws, `E${row}`, "");
+    });
+
+    // Clear the unused profile row if the source template has fewer fields.
+    for (let row = 16; row <= 17; row += 1) {
+        for (let col = 1; col <= 5; col += 1) {
+            setCell(ws, `${String.fromCharCode(64 + col)}${row}`, "");
+        }
+    }
+};
+
+const groupRecords = (records, mode) => {
+    const grouped = new Map();
+
+    for (const record of records) {
+        // Checklist answers from the same submission belong together.
+        // Manual Action Points without a submission remain individually traceable.
+        const fallback = [
+            record?.store_id,
+            record?.store_name,
+            record?.submission_date || record?.date,
+            record?.checklist_name,
+        ]
+            .filter(Boolean)
+            .join("|");
+
+        const key =
+            record?.submission_id ||
+            (mode === "action" ? record?.id : fallback) ||
+            record?.id ||
+            "report";
+
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(record);
+    }
+
+    return [...grouped.values()];
+};
+
+const uniqueSheetName = (workbook, preferred, index) => {
+    const base = text(preferred, `PVR ${index + 1}`)
+        .replace(/[\\/*?:[\]]/g, " ")
+        .trim()
+        .slice(0, 28) || `PVR ${index + 1}`;
+
+    let name = base;
+    let suffix = 2;
+
+    while (workbook.getWorksheet(name)) {
+        const tail = ` ${suffix}`;
+        name = `${base.slice(0, 31 - tail.length)}${tail}`;
+        suffix += 1;
+    }
+
+    return name;
+};
+
+const remarkText = (record, mode) => {
+    if (mode === "action") {
+        return [
+            record?.remarks,
+            record?.comment,
+            record?.action_taken,
+            record?.assigned_to_name || record?.assigned_to
+                ? `Assigned To: ${record.assigned_to_name || record.assigned_to}`
+                : "",
+            record?.completed_at
+                ? `Completed At: ${dateTimeText(record.completed_at)}`
+                : "",
+        ]
+            .filter(Boolean)
+            .join(" | ");
+    }
+
+    return [
+        record?.remarks,
+        record?.action_point_comment,
+        record?.action_point_remarks,
+        record?.action_taken,
+        record?.action_point_completed_at
+            ? `Completed At: ${dateTimeText(record.action_point_completed_at)}`
+            : "",
+    ]
+        .filter(Boolean)
+        .join(" | ");
+};
+
+const benchmarkText = (record, mode) => {
+    if (mode !== "action") {
+        return record?.benchmark || record?.benchmark_value || "";
+    }
+
+    return [
+        record?.department_name || record?.department
+            ? `Department: ${record.department_name || record.department}`
+            : "",
+        record?.priority ? `Priority: ${record.priority}` : "",
+        record?.sla_days !== undefined && record?.sla_days !== null && record?.sla_days !== ""
+            ? `SLA: ${record.sla_days}`
+            : "",
+    ]
+        .filter(Boolean)
+        .join(" | ");
+};
+
+const statusText = (record, mode) => {
+    if (mode === "action") {
+        return [record?.status, record?.answer ? `Answer: ${record.answer}` : ""]
+            .filter(Boolean)
+            .join(" | ");
+    }
+
+    return text(record?.answer || record?.status, "");
+};
+
+const questionText = (record) =>
+    text(record?.question || record?.question_text, "Question not available");
+
+const populateDetails = (ws, source, records, mode) => {
+    // Start with the management template's section/header appearance.
+    copyRowStyle(source, 18, ws, 18);
+    copyRowStyle(source, 19, ws, 19);
+
+    setCell(ws, "A18", "I");
+    setCell(ws, "B18", mode === "action" ? "Action Point Details" : "Checklist Details");
+    setCell(ws, "C18", "Benchmark");
+    setCell(ws, "D18", "Status");
+    setCell(ws, "E18", "Remark");
+
+    let rowNumber = 19;
+
+    records.forEach((record, index) => {
+        if (rowNumber !== 19) copyRowStyle(source, 19, ws, rowNumber);
+
+        setCell(ws, `A${rowNumber}`, index + 1, { horizontal: "center" });
+        setCell(ws, `B${rowNumber}`, questionText(record));
+        setCell(ws, `C${rowNumber}`, benchmarkText(record, mode));
+        setCell(ws, `D${rowNumber}`, statusText(record, mode));
+        setCell(ws, `E${rowNumber}`, remarkText(record, mode));
+
+        // Larger questions/remarks should remain readable in Excel.
+        ws.getRow(rowNumber).height = 30;
+        rowNumber += 1;
+    });
+
+    // Add a compact generated footer without copying management's fixed note,
+    // because that note is specific to their own form and questions.
+    const footerRow = rowNumber + 1;
+    copyRowStyle(source, 125, ws, footerRow);
+    copyRowStyle(source, 126, ws, footerRow + 1);
+
+    ws.mergeCells(`A${footerRow}:E${footerRow}`);
+    setCell(ws, `A${footerRow}`, "Generated by Miarcus Management Portal");
+    setCell(
+        ws,
+        `A${footerRow + 1}`,
+        `Source: ${mode === "action" ? "Action Points" : "Checklist Reports"}. Questions and answers are taken dynamically from the selected records.`,
+    );
+    ws.mergeCells(`A${footerRow + 1}:E${footerRow + 1}`);
+    ws.getRow(footerRow + 1).height = 28;
+
+    ws.autoFilter = `A18:E${Math.max(18, rowNumber - 1)}`;
+    ws.views = [{ state: "frozen", ySplit: 18 }];
+};
+
+const createSheet = (workbook, source, group, stores, mode, index) => {
+    const first = group[0] || {};
+    const store = getStore(stores, first?.store_id, first?.store_name);
+    const checklistName = text(first?.checklist_name, "Store Health Check");
+    const preferredName =
+        mode === "action"
+            ? `PVR - ${text(first?.store_name, "Action Points")}`
+            : `PVR - ${text(first?.store_name, checklistName)}`;
+
+    const ws = workbook.addWorksheet(uniqueSheetName(workbook, preferredName, index));
+    copyWorksheetFrame(source, ws);
+
+    // Replace the copied source values with a clean dynamic management report.
+    setCell(ws, "A1", "STORE HEALTH CHECK REPORT ( MIARCUS )");
+    applyProfile(ws, first, stores);
+
+    // Add report metadata in the otherwise unused profile area.
+    setCell(ws, "A16", "Report Type");
+    setCell(ws, "B16", mode === "action" ? "Action Points" : "Checklist Reports");
+    setCell(ws, "C16", checklistName);
+    setCell(ws, "A17", "Store");
+    setCell(ws, "B17", first?.store_name || store.store_name || "");
+    setCell(ws, "C17", first?.city || store.city || "");
+    setCell(ws, "D17", first?.state || store.state || "");
+    setCell(ws, "E17", dateTimeText(first?.submission_date || first?.created_at));
+
+    populateDetails(ws, source, group, mode);
+
+    ws.pageSetup = {
+        ...source.pageSetup,
+        printArea: `A1:E${ws.rowCount}`,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        orientation: "landscape",
+    };
+    ws.pageMargins = { ...source.pageMargins };
+
+    return ws;
 };
 
 export const exportManagementHealthCheck = async ({
@@ -229,45 +361,38 @@ export const exportManagementHealthCheck = async ({
 }) => {
     if (!records.length) throw new Error("No records found for export.");
 
-    const grouped = new Map();
-    for (const record of records) {
-        const key = record?.submission_id || record?.id || record?.store_id || "report";
-        if (!grouped.has(key)) grouped.set(key, []);
-        grouped.get(key).push(record);
-    }
-
     const response = await fetch(TEMPLATE_URL);
-    if (!response.ok) throw new Error("Management export template could not be loaded.");
+    if (!response.ok) {
+        throw new Error("Management export template could not be loaded.");
+    }
 
     const buffer = await response.arrayBuffer();
     const sourceWorkbook = new ExcelJS.Workbook();
     await sourceWorkbook.xlsx.load(buffer);
 
+    const sourceTemplate =
+        sourceWorkbook.getWorksheet("PVR ") || sourceWorkbook.worksheets[0];
+
+    if (!sourceTemplate) {
+        throw new Error("Management export template is invalid.");
+    }
+
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
     workbook.creator = "Miarcus Management Portal";
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const sourceTemplate = sourceWorkbook.getWorksheet("PVR ") || sourceWorkbook.worksheets[0];
-    const targetTemplate = workbook.getWorksheet("PVR ") || workbook.worksheets[0];
-    if (!sourceTemplate || !targetTemplate) throw new Error("Management export template is invalid.");
-
-    const groups = [...grouped.values()];
-    const unmatched = [];
-
+    const groups = groupRecords(records, mode);
     groups.forEach((group, index) => {
-        const missing = makeSheet(sourceTemplate, targetTemplate, workbook, group, stores, mode, index);
-        if (missing.length) unmatched.push(...missing);
+        createSheet(workbook, sourceTemplate, group, stores, mode, index);
     });
 
-    if (unmatched.length && mode === "action") {
-        addUnmatchedSheet(workbook, unmatched, mode);
-    }
-
     const output = await workbook.xlsx.writeBuffer();
+
     saveAs(
-        new Blob([output], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-        filename
+        new Blob([output], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        filename,
     );
 };
