@@ -226,31 +226,27 @@
   border-top-right-radius: 9px;
 }
 
-/* Keep Actions fixed at the right edge while the wide table scrolls. */
+/* Actions behaves like a normal table column and scrolls horizontally with
+   the rest of the table. It is intentionally NOT sticky/fixed. */
 .users-action-header,
 .users-action-cell {
-  position: sticky;
-  right: 0;
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
+  width: 230px;
+  min-width: 230px;
+  max-width: 230px;
   text-align: center !important;
+  white-space: nowrap;
 }
 
 .users-action-header {
-  z-index: 12;
   background: #1d4f5d !important;
-  box-shadow: -6px 0 12px rgba(35, 55, 70, 0.08);
 }
 
 .users-action-cell {
-  z-index: 10;
-  background: #ffffff !important;
-  box-shadow: -6px 0 12px rgba(35, 55, 70, 0.06);
+  background: #ffffff;
 }
 
 .users-table tbody tr:hover .users-action-cell {
-  background: #f7fafb !important;
+  background: #f7fafb;
 }
 
 .users-table tbody td {
