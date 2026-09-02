@@ -293,9 +293,38 @@ const populateDetails = (ws, source, records, mode) => {
         rowNumber += 1;
     });
 
-    // Add a compact generated footer without copying management's fixed note,
-    // because that note is specific to their own form and questions.
-    const footerRow = rowNumber + 1;
+    // Keep the management template's Note section in BOTH exports.
+    // The note is read from the supplied XLSX template so it stays editable
+    // and can be changed later in the template without changing this code.
+    const noteSourceRow = (source.getColumn(1)?.values || []).findIndex(
+        (value) => clean(value) === "note",
+    );
+    const sourceNoteHeaderRow = noteSourceRow > 0 ? noteSourceRow : 125;
+    const sourceNoteTextRow = sourceNoteHeaderRow + 1;
+
+    const noteHeaderRow = rowNumber + 1;
+    const noteTextRow = noteHeaderRow + 1;
+
+    copyRowStyle(source, sourceNoteHeaderRow, ws, noteHeaderRow);
+    copyRowStyle(source, sourceNoteTextRow, ws, noteTextRow);
+
+    ws.mergeCells(`A${noteTextRow}:E${noteTextRow}`);
+    setCell(ws, `A${noteHeaderRow}`, source.getCell(sourceNoteHeaderRow, 1).value || "Note");
+    setCell(
+        ws,
+        `A${noteTextRow}`,
+        source.getCell(sourceNoteTextRow, 1).value || "",
+        { horizontal: "left", vertical: "center", wrapText: true },
+    );
+
+    // Preserve a readable note area when the management note is long.
+    ws.getRow(noteTextRow).height = Math.max(
+        source.getRow(sourceNoteTextRow).height || 30,
+        42,
+    );
+
+    // Generated footer remains below the Note section.
+    const footerRow = noteTextRow + 2;
     copyRowStyle(source, 125, ws, footerRow);
     copyRowStyle(source, 126, ws, footerRow + 1);
 
@@ -310,7 +339,10 @@ const populateDetails = (ws, source, records, mode) => {
     ws.getRow(footerRow + 1).height = 28;
 
     ws.autoFilter = `A18:E${Math.max(18, rowNumber - 1)}`;
-    ws.views = [{ state: "frozen", ySplit: 18 }];
+
+    // Do NOT freeze the profile/header rows. The entire management report,
+    // including the top profile area and Note section, must scroll normally.
+    ws.views = [{ state: "normal", showGridLines: true }];
 };
 
 const createSheet = (workbook, source, group, stores, mode, index) => {
