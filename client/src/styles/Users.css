@@ -201,7 +201,7 @@
 
 .users-table {
   width: 100%;
-  min-width: 1050px;
+  min-width: 1260px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -258,6 +258,90 @@
   height: 15px;
   cursor: pointer;
   accent-color: #2875e8;
+}
+
+/* =========================================================
+   CONTACT / WHATSAPP LINKS
+========================================================= */
+
+.user-contact-cell,
+.user-whatsapp-number-cell,
+.user-call-cell,
+.user-whatsapp-cell {
+  white-space: nowrap;
+}
+
+.user-phone-link,
+.user-whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: 0.18s ease;
+}
+
+.user-phone-link {
+  color: #1769c2;
+}
+
+.user-phone-link:hover {
+  color: #0d4f96;
+  text-decoration: underline;
+}
+
+.user-whatsapp-link {
+  color: #159447;
+}
+
+.user-whatsapp-link:hover {
+  color: #0f7136;
+  text-decoration: underline;
+}
+
+.user-call-btn,
+.user-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 82px;
+  height: 30px;
+  padding: 0 11px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  transition: 0.18s ease;
+}
+
+.user-call-btn {
+  background: #16a34a;
+}
+
+.user-call-btn:hover {
+  background: #12813b;
+}
+
+.user-whatsapp-btn {
+  min-width: 92px;
+  background: #18a85b;
+}
+
+.user-whatsapp-btn:hover {
+  background: #138448;
+}
+
+.user-call-btn svg,
+.user-whatsapp-btn svg {
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+
+.no-call {
+  color: #a1adb5;
 }
 
 /* =========================================================

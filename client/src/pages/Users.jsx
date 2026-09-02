@@ -12,6 +12,7 @@ import {
   FaTrash,
   FaInfoCircle,
   FaPhoneAlt,
+  FaWhatsapp,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
@@ -150,6 +151,7 @@ const exportCSV = () => {
     "Name",
     "Email",
     "Contact No",
+    "WhatsApp No",
     "Department",
     "Designation",
     "Reports To",
@@ -162,6 +164,7 @@ const exportCSV = () => {
     user.name || "",
     user.email || "",
     user.call_contact || "",
+    user.whatsapp_contact || "",
     user.department || "",
     user.designation || "",
     user.reports_to || "",
@@ -319,7 +322,9 @@ const filteredUsers = users.filter((user) => {
   const matchesSearch =
     user.name?.toLowerCase().includes(search.toLowerCase()) ||
     user.email?.toLowerCase().includes(search.toLowerCase()) ||
-    user.employee_id?.toLowerCase().includes(search.toLowerCase());
+    user.employee_id?.toLowerCase().includes(search.toLowerCase()) ||
+    user.call_contact?.toLowerCase().includes(search.toLowerCase()) ||
+    user.whatsapp_contact?.toLowerCase().includes(search.toLowerCase());
 
   const matchesDepartment =
     departmentFilter === "" ||
@@ -397,6 +402,40 @@ const getStoreDisplay = (user) => {
 
 const getCallNumber = (user) =>
   String(user.call_contact || "").trim();
+
+/*
+ * WhatsApp click-to-chat requires an international-format number
+ * without spaces, brackets, "+" or other punctuation.
+ * Keep the displayed value exactly as entered in the user record.
+ */
+const getWhatsappNumber = (user) =>
+  String(user.whatsapp_contact || "").trim();
+
+const getWhatsappChatNumber = (user) => {
+  const raw = getWhatsappNumber(user);
+
+  if (!raw) {
+    return "";
+  }
+
+  let digits = raw.replace(/\D/g, "");
+
+  if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  // Miarcus users commonly enter an Indian 10-digit mobile number.
+  if (digits.length === 10) {
+    digits = `91${digits}`;
+  }
+
+  return digits;
+};
+
+const getWhatsappUrl = (user) => {
+  const number = getWhatsappChatNumber(user);
+  return number ? `https://wa.me/${number}` : "";
+};
 
 return (
   
@@ -603,6 +642,8 @@ return (
 
         <th>Contact No</th>
 
+        <th>WhatsApp No</th>
+
         <th>Call</th>
 
         <th>Reports To</th>
@@ -701,6 +742,40 @@ return (
               )}
             </td>
 
+            <td className="user-whatsapp-number-cell">
+              {getWhatsappNumber(user) && getWhatsappUrl(user) ? (
+                <a
+                  className="user-whatsapp-link"
+                  href={getWhatsappUrl(user)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open WhatsApp chat with ${getWhatsappNumber(user)}`}
+                >
+                  {getWhatsappNumber(user)}
+                </a>
+              ) : (
+                "-"
+              )}
+            </td>
+
+            <td className="user-whatsapp-cell">
+              {getWhatsappNumber(user) && getWhatsappUrl(user) ? (
+                <a
+                  className="user-whatsapp-btn"
+                  href={getWhatsappUrl(user)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`WhatsApp ${user.name}`}
+                  title={`Message ${user.name} on WhatsApp`}
+                >
+                  <FaWhatsapp />
+                  <span>WhatsApp</span>
+                </a>
+              ) : (
+                <span className="no-call">—</span>
+              )}
+            </td>
+
             <td className="user-call-cell">
               {getCallNumber(user) ? (
                 <a
@@ -793,7 +868,7 @@ return (
         <tr>
 
           <td
-            colSpan="12"
+            colSpan="14"
             className="no-data"
           >
 
