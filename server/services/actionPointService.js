@@ -1314,7 +1314,7 @@ const changeStatus = async (id, status, comment, userId) => {
         changed_by: userId
     }, () => {});
 
-    return { success: true, message: `Action Point moved to ${status}.` };
+    return { success: true, status, message: `Action Point moved to ${status}.` };
 };
 
 // ======================================================

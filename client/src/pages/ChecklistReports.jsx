@@ -239,7 +239,13 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 setReports(
 
-                    reportRes.value.data.data || []
+                    (reportRes.value.data.data || []).map((report) => ({
+                        ...report,
+                        // Checklist Reports always represent completed
+                        // submitted checklist history. Action Point status
+                        // is displayed separately in the Action Status column.
+                        status: "Completed"
+                    }))
 
                 );
 

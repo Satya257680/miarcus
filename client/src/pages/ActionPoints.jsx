@@ -178,7 +178,7 @@ function ActionPoints() {
 
     const [department, setDepartment] = useState("");
 
-    const [status, setStatus] = useState("Open");
+    const [status, setStatus] = useState("");
 
     const [priority, setPriority] = useState("");
 
@@ -669,10 +669,30 @@ const handleNextAction = async (row, value) => {
     }
 
     try {
-        await axios.put(`/api/action-points/${row.id}/status`, {
+        const response = await axios.put(`/api/action-points/${row.id}/status`, {
             status: value,
             comment: row.comment || ""
         });
+
+        // Keep the Action Point row in sync immediately with the status
+        // selected in Next Action. The Action Point status is independent
+        // from the Checklist Report status.
+        const savedStatus = response.data?.status || value;
+
+        setActionPoints((current) =>
+            current.map((item) =>
+                Number(item.id) === Number(row.id)
+                    ? {
+                        ...item,
+                        status: savedStatus,
+                        last_history_status: savedStatus
+                    }
+                    : item
+            )
+        );
+
+        // Refresh from the server so the database/history remain the source
+        // of truth after the optimistic UI update.
         await fetchActionPoints();
     } catch (err) {
         console.error(err);
