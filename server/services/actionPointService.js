@@ -1279,13 +1279,11 @@ const changeStatus = async (id, status, comment, userId) => {
 
     await asPromise(ActionPoint.updateStatus, id, status);
 
-    if (oldData.submission_id) {
-        await db.query(
-            `UPDATE checklist_submissions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-            [status === "In Progress" ? "In Progress" : "Submitted", oldData.submission_id]
-        );
-    }
-
+    // IMPORTANT:
+    // Action Point workflow is independent from Checklist Report status.
+    // Changing an Action Point to Open/In Progress must NOT change the
+    // parent checklist submission/report status. Checklist Reports always
+    // present the completed checklist history as "Completed".
     await asPromise(ActionPoint.createHistory, {
         action_point_id: Number(id),
         action_type: "STATUS_CHANGED",

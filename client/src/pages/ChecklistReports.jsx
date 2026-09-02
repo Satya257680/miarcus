@@ -409,7 +409,8 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             id: row.id,
 
-            status: row.status || "",
+            // Checklist Report history is always completed.
+            status: "Completed",
 
             submission_date:
 
@@ -441,7 +442,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 {
 
-                    status: editingReport.status,
+                    status: "Completed",
 
                     answer: editingReport.answer,
 
@@ -1805,27 +1806,13 @@ const uploadChecklistReport = async (file) => {
                                 <label>Status</label>
 
                                 <select
-                                    value={editingReport.status}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            status: e.target.value
-                                        })
-                                    }
+                                    value="Completed"
+                                    disabled
+                                    aria-label="Checklist report status"
                                 >
-
                                     <option value="Completed">
                                         Completed
                                     </option>
-
-                                    <option value="Pending">
-                                        Pending
-                                    </option>
-
-                                    <option value="Failed">
-                                        Failed
-                                    </option>
-
                                 </select>
 
                             </div>

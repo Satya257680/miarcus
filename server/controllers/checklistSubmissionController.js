@@ -239,8 +239,11 @@ exports.createSubmission = async (req, res) => {
 
             attachment,
 
+            // A checklist submission is considered completed once it is
+            // successfully submitted. Any Action Point created from an
+            // answer has its own independent Open/In Progress/Closed status.
             status:
-                "Submitted"
+                "Completed"
 
         };
 

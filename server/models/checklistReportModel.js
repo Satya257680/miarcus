@@ -33,7 +33,7 @@ ChecklistReport.getAll = (
 
             cs.submission_date,
 
-            cs.status,
+            'Completed' AS status,
 
             cs.latitude,
 
@@ -525,7 +525,7 @@ ChecklistReport.getById = (
 
             cs.submission_date,
 
-            cs.status,
+            'Completed' AS status,
 
             cs.latitude,
 
@@ -645,7 +645,7 @@ ChecklistReport.getById = (
 
             cs.submission_date,
 
-            cs.status,
+            'Completed' AS status,
 
             cs.latitude,
 
@@ -768,7 +768,7 @@ ChecklistReport.update = async (
 
             [
 
-                data.status,
+                "Completed",
 
                 id
 
@@ -1329,7 +1329,7 @@ ChecklistReport.exportReports = (
 
             cs.submission_date,
 
-            cs.status,
+            'Completed' AS status,
 
             q.question,
 
@@ -1393,7 +1393,7 @@ ChecklistReport.exportReports = (
 
             cs.submission_date,
 
-            cs.status,
+            'Completed' AS status,
 
             q.id,
 
