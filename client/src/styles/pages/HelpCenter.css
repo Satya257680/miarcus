@@ -68,3 +68,79 @@
 
 @media(max-width:1050px){.hc-chat-body{height:500px}.hc-zarvis-side{position:static}}
 @media(max-width:760px){.hc-hero-luna h1{font-size:31px}.hc-chat-body{height:56vh;min-height:380px;padding:18px 13px}.hc-chat-helper span{line-height:1.35}.hc-chat-helper b{display:none}.hc-suggestion-row{overflow:auto;flex-wrap:nowrap}.hc-suggestion-row button{flex:0 0 auto}.hc-chat-head-actions button{font-size:0;padding:8px}.hc-chat-head-actions button svg{font-size:12px}.hc-24{display:none!important}.hc-message-tools{flex-wrap:wrap}.hc-msg{max-width:94%}}
+
+
+/* ==========================================================
+   Zarvis AI + multilingual controls
+   ========================================================== */
+
+.hc-chat-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.hc-language-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 9px;
+    border: 1px solid rgba(17, 116, 135, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #17647a;
+}
+
+.hc-language-picker select {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    max-width: 145px;
+    cursor: pointer;
+}
+
+.hc-language-picker option {
+    color: #17384a;
+    background: #fff;
+}
+
+.hc-source span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.hc-source b {
+    margin-left: 8px;
+    font-size: 10px;
+    color: #5b7380;
+}
+
+.hc-chat-helper {
+    gap: 9px;
+}
+
+.hc-chat-helper b {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+    .hc-chat-head-actions {
+        gap: 5px;
+    }
+
+    .hc-language-picker {
+        max-width: 130px;
+    }
+
+    .hc-language-picker select {
+        max-width: 100px;
+    }
+}

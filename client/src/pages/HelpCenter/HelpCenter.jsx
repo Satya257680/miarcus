@@ -23,6 +23,34 @@ const SUGGESTIONS = [
     "How do I reset my password?",
     "Where can I see reports?",
 ];
+const ZARVIS_LANGUAGES = [
+    { value: "auto", label: "Auto detect", speech: "en-IN" },
+    { value: "English", label: "English", speech: "en-IN" },
+    { value: "Hindi", label: "हिन्दी · Hindi", speech: "hi-IN" },
+    { value: "Odia", label: "ଓଡ଼ିଆ · Odia", speech: "or-IN" },
+    { value: "Punjabi", label: "ਪੰਜਾਬੀ · Punjabi", speech: "pa-IN" },
+    { value: "Tamil", label: "தமிழ் · Tamil", speech: "ta-IN" },
+    { value: "Kannada", label: "ಕನ್ನಡ · Kannada", speech: "kn-IN" },
+    { value: "Marathi", label: "मराठी · Marathi", speech: "mr-IN" },
+    { value: "Bengali", label: "বাংলা · Bengali", speech: "bn-IN" },
+    { value: "Telugu", label: "తెలుగు · Telugu", speech: "te-IN" },
+    { value: "Gujarati", label: "ગુજરાતી · Gujarati", speech: "gu-IN" },
+    { value: "Malayalam", label: "മലയാളം · Malayalam", speech: "ml-IN" },
+    { value: "Urdu", label: "اردو · Urdu", speech: "ur-IN" },
+    { value: "Assamese", label: "অসমীয়া · Assamese", speech: "as-IN" },
+    { value: "Nepali", label: "नेपाली · Nepali", speech: "ne-NP" },
+    { value: "Sanskrit", label: "संस्कृतम् · Sanskrit", speech: "sa-IN" },
+    { value: "French", label: "Français · French", speech: "fr-FR" },
+    { value: "Spanish", label: "Español · Spanish", speech: "es-ES" },
+    { value: "German", label: "Deutsch · German", speech: "de-DE" },
+    { value: "Portuguese", label: "Português · Portuguese", speech: "pt-BR" },
+    { value: "Arabic", label: "العربية · Arabic", speech: "ar-SA" },
+    { value: "Chinese", label: "中文 · Chinese", speech: "zh-CN" },
+    { value: "Japanese", label: "日本語 · Japanese", speech: "ja-JP" },
+    { value: "Korean", label: "한국어 · Korean", speech: "ko-KR" },
+    { value: "Russian", label: "Русский · Russian", speech: "ru-RU" },
+];
+
 
 const renderAnswer = (text) => String(text || "").split("\n").map((line, index) => {
     const key = `${index}-${line}`;
@@ -39,7 +67,8 @@ function HelpCenter({ publicMode = false }) {
     const effectiveUserName = publicMode ? "there" : (user?.name || "there");
     const isAdmin = [true, 1, "1"].includes(user?.administrator) || [true, 1, "1"].includes(user?.is_admin);
     const params = new URLSearchParams(window.location.search);
-    const [tab, setTab] = useState(publicMode ? "home" : (params.get("tab") === "support" ? "support" : "home"));
+    const requestedTab = params.get("tab");
+    const [tab, setTab] = useState(publicMode ? "home" : (requestedTab === "support" ? "support" : "home"));
     const [articles, setArticles] = useState([]);
     const [adminArticles, setAdminArticles] = useState([]);
     const [tickets, setTickets] = useState([]);
@@ -64,6 +93,7 @@ function HelpCenter({ publicMode = false }) {
     const [speakingId, setSpeakingId] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
     const [voiceSupported, setVoiceSupported] = useState(false);
+    const [language, setLanguage] = useState("auto");
     const recognitionRef = useRef(null);
     const chatEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -89,19 +119,21 @@ function HelpCenter({ publicMode = false }) {
         setVoiceSupported(Boolean(SpeechRecognition));
         if (!SpeechRecognition) return undefined;
         const recognition = new SpeechRecognition();
-        recognition.lang = "en-IN";
+        const selectedLanguage = ZARVIS_LANGUAGES.find((item) => item.value === language);
+        recognition.lang = selectedLanguage?.speech || "en-IN";
         recognition.interimResults = true;
         recognition.continuous = false;
+        recognition.maxAlternatives = 1;
         recognition.onstart = () => setIsListening(true);
         recognition.onend = () => setIsListening(false);
-        recognition.onerror = () => { setIsListening(false); setToast("Voice input could not be started. Please check your microphone permission."); };
+        recognition.onerror = () => { setIsListening(false); setToast("Voice input could not be started. Check microphone permission and the selected voice language."); };
         recognition.onresult = (event) => {
             const transcript = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ");
             setBotQuestion(transcript);
         };
         recognitionRef.current = recognition;
         return () => { try { recognition.stop(); } catch {} };
-    }, []);
+    }, [language]);
 
     const categories = useMemo(() => ["All", ...new Set(articles.map(a => a.category).filter(Boolean))], [articles]);
     const filtered = useMemo(() => articles.filter(a => {
@@ -120,7 +152,7 @@ function HelpCenter({ publicMode = false }) {
         if (speakingId === id) { window.speechSynthesis.cancel(); setSpeakingId(null); return; }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(String(message || "").replace(/[#*`]/g, ""));
-        utterance.rate = 0.98; utterance.pitch = 1; utterance.lang = "en-IN";
+        utterance.rate = 0.98; utterance.pitch = 1; utterance.lang = (ZARVIS_LANGUAGES.find((item) => item.value === language)?.speech || "en-IN");
         utterance.onstart = () => setSpeakingId(id);
         utterance.onend = () => setSpeakingId(null);
         utterance.onerror = () => setSpeakingId(null);
@@ -144,7 +176,7 @@ function HelpCenter({ publicMode = false }) {
         const history = botMessages.slice(-8).map(({ from, text, resolved, module }) => ({ from, text: String(text || "").slice(0, 1800), resolved, module }));
         setBotMessages(m => [...m, { id: `${Date.now()}u`, from: "user", text: q }]); setBotQuestion(""); setBotBusy(true);
         try {
-            const res = publicMode ? await askPublicZarvis(q, history) : await askZarvis(q, history);
+            const res = publicMode ? await askPublicZarvis(q, history, language) : await askZarvis(q, history, language);
             const data = res.data || {};
             setBotMessages(m => [...m, { id: `${Date.now()}z`, from: "zarvis", text: data.message, resolved: data.resolved, source: data.source, confidence: data.confidence, module: data.module, related: data.related || [] }]);
         } catch (e2) { setBotMessages(m => [...m, { id: `${Date.now()}e`, from: "zarvis", text: e2?.response?.data?.message || "I’m temporarily unavailable. Please try again, or use Human Support." }]); }
@@ -206,7 +238,7 @@ function HelpCenter({ publicMode = false }) {
 
     return <div className="help-center-page">
         <div className="hc-hero hc-hero-luna">
-            <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained clearly.</h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
+            <div className="hc-hero-copy"><div className="hc-kicker"><FaBolt/> MIARCUS CARE DESK</div><h1>Ask anything. Get it explained clearly.</h1><p>{publicMode ? "Zarvis helps customers with administrator-approved answers and Miarcus product guidance, 24×7." : "Zarvis understands natural language, remembers the current conversation, explains Miarcus workflows, answers general questions and coding topics, and can hand you to a human when needed."}</p><div className="hc-hero-actions"><button onClick={()=>setTab("zarvis")} className="hc-hero-btn"><FaRobot/> Ask Zarvis <FaArrowRight/></button>{!publicMode&&<button onClick={()=>setTab("support")} className="hc-hero-link"><FaHeadset/> Human support</button>}</div></div>
             <div className="hc-orb"><div className="hc-orb-inner"><span className="hc-orb-z">Z</span><strong>Zarvis</strong><span>24×7</span></div></div>
         </div>
         <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
@@ -220,22 +252,22 @@ function HelpCenter({ publicMode = false }) {
             </>}
             {tab==="zarvis" && <div className="hc-zarvis">
                 <div className="hc-chat-card hc-chat-card-luna">
-                    <div className="hc-chat-head"><div className="hc-avatar hc-avatar-z"><span>Z</span></div><div><strong>Zarvis</strong><span><i/> Online · Miarcus project assistant</span></div><div className="hc-chat-head-actions"><button onClick={clearChat} title="New chat"><FaHistory/> New chat</button><span className="hc-24">24×7</span></div></div>
+                    <div className="hc-chat-head"><div className="hc-avatar hc-avatar-z"><span>Z</span></div><div><strong>Zarvis</strong><span><i/> Online · Miarcus project assistant</span></div><div className="hc-chat-head-actions"><label className="hc-language-picker" title="Answer language"><FaGlobe/><select value={language} onChange={(e)=>setLanguage(e.target.value)} aria-label="Zarvis answer language">{ZARVIS_LANGUAGES.map((item)=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label><button onClick={clearChat} title="New chat"><FaHistory/> New chat</button><span className="hc-24">24×7</span></div></div>
                     <div className="hc-chat-body">{botMessages.map(m=><div key={m.id} className={`hc-msg ${m.from}`}>
                         {m.from==='zarvis'&&<div className="hc-mini-avatar"><span>Z</span></div>}
                         <div className="hc-bubble">
-                            {m.from==='zarvis'&&m.source&&m.source!=="zarvis"&&<div className="hc-source"><span>{m.source==="knowledge_base"?"VERIFIED ANSWER":m.source==="conversation"?"CONVERSATION":"PROJECT KNOWLEDGE"}</span>{m.confidence && m.source!=="conversation" ? <b>{m.confidence}% confidence</b> : null}{m.module ? <em>{m.module}</em> : null}</div>}
+                            {m.from==='zarvis'&&m.source&&m.source!=="zarvis"&&<div className="hc-source"><span>{m.source==="knowledge_base"?"VERIFIED ANSWER":m.source==="knowledge_base_ai"?"VERIFIED + AI":m.source==="project_ai"?"PROJECT + AI":m.source==="general_ai"?"GENERAL AI":m.source==="conversation"?"CONVERSATION":"PROJECT KNOWLEDGE"}</span>{m.confidence && m.source!=="conversation" ? <b>{m.confidence}% confidence</b> : null}{m.module ? <em>{m.module}</em> : null}</div>}
                             <div className="hc-answer-content">{m.from==='zarvis' ? renderAnswer(m.text) : m.text}</div>
                             {m.from==='zarvis'&&<div className="hc-message-tools"><button onClick={()=>speak(m.text,m.id)} title="Read aloud">{speakingId===m.id?<FaStop/>:<FaVolumeUp/>}{speakingId===m.id?" Stop":" Read aloud"}</button><button onClick={()=>copyAnswer(m.text,m.id)} title="Copy answer">{copiedId===m.id?<FaCheck/>:<FaCopy/>}{copiedId===m.id?" Copied":" Copy"}</button></div>}
                             {m.related?.length>0&&<div className="hc-related"><small>You may also mean</small>{m.related.map((r,i)=><button key={r.id || `${m.id}-${i}`} onClick={()=>{setBotQuestion(r.question || r.title || "");setTab("zarvis");setTimeout(()=>inputRef.current?.focus(),50)}}>{r.question || r.title}<FaArrowRight/></button>)}</div>}
                             {m.from==='zarvis'&&m.resolved===false&&!publicMode&&<button className="hc-human-btn" onClick={()=>setTab("support")}><FaHeadset/> Talk to human support</button>}
                         </div>
                     </div>)}{botBusy&&<div className="hc-msg zarvis"><div className="hc-mini-avatar"><span>Z</span></div><div className="hc-bubble typing"><span>Zarvis is thinking</span><i/><i/><i/></div></div>}<div ref={chatEndRef}/></div>
-                    <div className="hc-chat-helper"><FaRegLightbulb/><span>{isListening ? "Listening… speak now" : "Ask naturally. For example: ‘how NSO working’, ‘explain that’, or ‘where do I put this?’"}</span>{voiceSupported&&<b>Voice ready</b>}</div>
+                    <div className="hc-chat-helper"><FaRegLightbulb/><span>{isListening ? "Listening… speak now" : "Ask anything — Miarcus, coding, history, geography, science or everyday questions. Zarvis can answer in your selected language."}</span>{voiceSupported&&<b>Voice ready</b>} {!voiceSupported&&<b>Text mode</b>}</div>
                     <form className="hc-chat-input hc-chat-input-luna" onSubmit={submitBot}><button type="button" className={`hc-mic-btn ${isListening?'active':''}`} onClick={toggleVoiceInput} title={voiceSupported?"Speak your question":"Voice input unavailable"}><FaMicrophone/></button><input ref={inputRef} value={botQuestion} onChange={e=>setBotQuestion(e.target.value)} placeholder={isListening?"Listening…":"Message Zarvis…"}/><button type="submit" className="hc-send-btn" disabled={botBusy || !botQuestion.trim()}><FaPaperPlane/></button></form>
                     <div className="hc-suggestion-row">{SUGGESTIONS.map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}</button>)}</div>
                 </div>
-                <div className="hc-zarvis-side"><div className="hc-trust hc-trust-luna"><div className="hc-trust-icon"><FaShieldAlt/></div><h3>How Zarvis answers</h3><p><b>1.</b> Checks administrator-approved answers.</p><p><b>2.</b> If needed, checks the safe Miarcus project knowledge.</p><p><b>3.</b> Uses conversation context for short follow-ups.</p><p><b>4.</b> If confidence is low, it does not invent an answer — it offers human support.</p></div><div className="hc-suggest"><span>TRY ASKING</span>{SUGGESTIONS.slice(0,4).map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}<FaArrowRight/></button>)}</div></div>
+                <div className="hc-zarvis-side"><div className="hc-trust hc-trust-luna"><div className="hc-trust-icon"><FaShieldAlt/></div><h3>How Zarvis answers</h3><p><b>1.</b> Checks administrator-approved answers.</p><p><b>2.</b> If needed, checks the safe Miarcus project knowledge.</p><p><b>3.</b> Uses conversation context for short follow-ups.</p><p><b>4.</b> It can answer broad general-knowledge and coding questions through AI, while Miarcus facts remain grounded in project knowledge.</p><p><b>5.</b> Choose a language or use Auto detect. Voice recognition availability depends on the browser and installed language support.</p></div><div className="hc-suggest"><span>TRY ASKING</span>{SUGGESTIONS.slice(0,4).map(q=><button key={q} onClick={()=>{setBotQuestion(q);setTimeout(()=>inputRef.current?.focus(),50)}}>{q}<FaArrowRight/></button>)}</div></div>
             </div>}
             {!publicMode && tab==="support" && <div className="hc-support-layout"><div className="hc-panel"><div className="hc-panel-title"><span>My support requests</span><span className="hc-count">{tickets.length}</span></div>{tickets.length?tickets.map(t=><button className={`hc-ticket-item ${selectedTicket?.id===t.id?'selected':''}`} key={t.id} onClick={()=>openTicket(t.id)}><span>#{t.id}</span><div><strong>{t.subject}</strong><small>{t.status.replace("_"," ")} · {t.priority} · {new Date(t.last_message_at).toLocaleString()}</small></div><FaArrowRight/></button>):<div className="hc-empty small"><FaComments/><h3>No support requests yet</h3><p>Ask Zarvis first or open a human support request.</p></div>}</div><div className="hc-panel"><div className="hc-panel-title"><span>24×7 support</span></div>{selectedTicket?<TicketConversation ticket={selectedTicket} reply={ticketReply} setReply={setTicketReply} onSend={sendTicketReply}/>:<div className="hc-support-form"><div className="hc-support-badge"><FaHeadset/><span>Human support fallback</span></div><h2>Need a person?</h2><p>Send your question to the Miarcus support queue. You can continue the conversation here.</p><input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Subject"/><textarea rows="7" value={ticketText} onChange={e=>setTicketText(e.target.value)} placeholder="Tell us what you need help with…"/><div className="hc-inline"><select value={ticketPriority} onChange={e=>setTicketPriority(e.target.value)}><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent</option><option value="low">Low</option></select><button className="hc-primary" onClick={requestHuman}>Send to support <FaPaperPlane/></button></div></div>}</div></div>}
             {!publicMode && tab==="admin" && isAdmin && renderAdmin()}

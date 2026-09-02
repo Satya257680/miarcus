@@ -2,6 +2,7 @@ const Model = require("../models/helpCenterModel");
 const db = require("../config/db");
 const Notification = require("../services/notificationService");
 const { searchProjectKnowledge } = require("../services/zarvisProjectKnowledge");
+const { askGeneralZarvis } = require("../services/zarvisAiService");
 
 const isAdmin = (req) => Number(req.user?.is_admin) === 1 || req.user?.is_admin === true;
 const clean = (value, max = 10000) => String(value ?? "").trim().slice(0, max);
@@ -102,34 +103,57 @@ const rankArticles = (results, question) => {
     }).sort((a, b) => b.confidence - a.confidence);
 };
 
-const resolveZarvis = async ({ question, audience, history = [] }) => {
-    const safeHistory = Array.isArray(history) ? history.slice(-8).filter((item) => item && typeof item === "object") : [];
-    const lastResolved = [...safeHistory].reverse().find((item) => item.from === "zarvis" && item.resolved !== false);
-    const shortFollowUp = question.trim().split(/\s+/).length <= 8 || /^(explain|more|details|that|this|how do i do that|how can i do that|why|what about|tell me more|and then)/i.test(question.trim());
+const resolveZarvis = async ({ question, audience, history = [], language = "auto" }) => {
+    const safeHistory = Array.isArray(history)
+        ? history.slice(-8).filter((item) => item && typeof item === "object")
+        : [];
+
+    const lastResolved = [...safeHistory]
+        .reverse()
+        .find((item) => item.from === "zarvis" && item.resolved !== false);
+
+    const shortFollowUp =
+        question.trim().split(/\s+/).length <= 10 ||
+        /^(explain|more|details|that|this|how do i do that|how can i do that|why|what about|tell me more|and then|what does that mean|translate|in hindi|in odia|in punjabi|in tamil|in kannada|in marathi)/i.test(question.trim());
+
     const context = {
         isFollowUp: Boolean(shortFollowUp && lastResolved),
         lastModule: lastResolved?.module || "",
     };
-    const contextQuestion = context.isFollowUp ? `${question} ${context.lastModule || ""}`.trim() : question;
+
+    const contextQuestion =
+        context.isFollowUp
+            ? `${question} ${context.lastModule || ""}`.trim()
+            : question;
 
     const results = await Model.searchArticles(contextQuestion, audience);
     const ranked = rankArticles(results, question);
     const bestArticle = ranked[0];
-    if (bestArticle && bestArticle.confidence >= 38) {
-        await Model.incrementArticleViews(bestArticle.id);
-        return {
-            success: true,
-            resolved: true,
-            source: "knowledge_base",
-            confidence: bestArticle.confidence,
-            article: bestArticle,
-            related: ranked.slice(1, 4),
-            message: bestArticle.answer,
-        };
-    }
+    const verified =
+        bestArticle && bestArticle.confidence >= 38
+            ? bestArticle
+            : null;
 
-    const project = searchProjectKnowledge(question, audience, context);
-    if (project.resolved) {
+    const project = searchProjectKnowledge(
+        contextQuestion,
+        audience,
+        context
+    );
+
+    // Avoid letting a generic word such as "history", "location" or "report"
+    // accidentally route a general-knowledge question into Miarcus product
+    // knowledge. Explicit Miarcus/module terms or a conversational follow-up
+    // are enough to make the project context relevant.
+    const projectHint = /\b(miarcus|nso|new store|action point|checklist|billing|daily collection|petty cash|expense|attendance|employee location|gallery|asset master|inventory|listing|collection tracking|quiz|training|sales review|visit planner|travel plan|announcement|dashboard|team chat|chat|settings|profile|users|department|designation|store management|help center|zarvis|project structure|project architecture|module|workflow|route|api|frontend|backend|server|database)\b/i.test(contextQuestion);
+    const projectRelevant = Boolean(
+        context.isFollowUp ||
+        projectHint ||
+        (project.resolved && Number(project.confidence || 0) >= 92)
+    );
+    const groundedProject = projectRelevant ? project : { resolved: false, matches: [] };
+
+    // Simple conversation should stay fast and natural.
+    if (project.resolved && project.source === "conversation") {
         return {
             success: true,
             resolved: true,
@@ -141,6 +165,74 @@ const resolveZarvis = async ({ question, audience, history = [] }) => {
         };
     }
 
+    // Use Gemini to turn approved/project knowledge into a detailed,
+    // multilingual answer and to handle general knowledge/coding questions.
+    const ai = await askGeneralZarvis({
+        question: contextQuestion,
+        language,
+        audience,
+        history: safeHistory,
+        project: groundedProject.resolved
+            ? groundedProject
+            : {
+                matches: groundedProject.matches || [],
+                module: context.lastModule || "",
+            },
+        verified,
+    });
+
+    if (ai.success) {
+        if (verified) await Model.incrementArticleViews(verified.id);
+
+        return {
+            success: true,
+            resolved: true,
+            source: verified
+                ? "knowledge_base_ai"
+                : groundedProject.resolved
+                    ? "project_ai"
+                    : "general_ai",
+            confidence: verified
+                ? Math.max(82, Math.min(99, Number(verified.confidence) || 90))
+                : groundedProject.resolved
+                    ? Math.max(78, Math.min(96, Number(groundedProject.confidence) || 84))
+                    : 84,
+            module: groundedProject.module || verified?.category || "General Knowledge",
+            related: [
+                ...(ranked || []).slice(0, 3),
+                ...(groundedProject.matches || []).slice(0, 2),
+            ].slice(0, 4),
+            message: ai.text,
+        };
+    }
+
+    // Deterministic project knowledge remains available if AI is temporarily
+    // unavailable. This keeps Miarcus help useful even during an AI outage.
+    if (verified) {
+        await Model.incrementArticleViews(verified.id);
+        return {
+            success: true,
+            resolved: true,
+            source: "knowledge_base",
+            confidence: verified.confidence,
+            article: verified,
+            related: ranked.slice(1, 4),
+            message: verified.answer,
+        };
+    }
+
+    if (groundedProject.resolved) {
+        return {
+            success: true,
+            resolved: true,
+            source: groundedProject.source,
+            confidence: groundedProject.confidence,
+            module: groundedProject.module,
+            related: groundedProject.matches || [],
+            message: groundedProject.answer,
+        };
+    }
+
     return {
         success: true,
         resolved: false,
@@ -148,11 +240,12 @@ const resolveZarvis = async ({ question, audience, history = [] }) => {
         confidence: 0,
         related: [
             ...ranked.slice(0, 3),
-            ...(project.matches || []).slice(0, 2),
+            ...(groundedProject.matches || []).slice(0, 2),
         ].slice(0, 4),
         message: audience === "customer"
-            ? "I could not find a verified answer for that question. Please contact Miarcus support for further assistance."
-            : "I could not find a verified answer in the Help Center or the current Miarcus project knowledge. You can request human support and an administrator can reply to you here.",
+            ? "I could not confidently answer that right now. Please try another wording or contact Miarcus support."
+            : "I could not confidently answer that right now. Please try another wording or use Human Support.",
+        aiUnavailable: true,
     };
 };
 
@@ -160,7 +253,7 @@ exports.publicAskZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        res.json(await resolveZarvis({ question, audience: "customer", history: req.body?.history }));
+        res.json(await resolveZarvis({ question, audience: "customer", history: req.body?.history, language: clean(req.body?.language, 40) || "auto" }));
     } catch (error) { next(error); }
 };
 
@@ -168,7 +261,7 @@ exports.askZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        res.json(await resolveZarvis({ question, audience: "employee", history: req.body?.history }));
+        res.json(await resolveZarvis({ question, audience: "employee", history: req.body?.history, language: clean(req.body?.language, 40) || "auto" }));
     } catch (error) { next(error); }
 };
 
