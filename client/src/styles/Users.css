@@ -224,7 +224,33 @@
 
 .users-table thead th:last-child {
   border-top-right-radius: 9px;
-  text-align: center;
+}
+
+/* Keep Actions fixed at the right edge while the wide table scrolls. */
+.users-action-header,
+.users-action-cell {
+  position: sticky;
+  right: 0;
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  text-align: center !important;
+}
+
+.users-action-header {
+  z-index: 12;
+  background: #1d4f5d !important;
+  box-shadow: -6px 0 12px rgba(35, 55, 70, 0.08);
+}
+
+.users-action-cell {
+  z-index: 10;
+  background: #ffffff !important;
+  box-shadow: -6px 0 12px rgba(35, 55, 70, 0.06);
+}
+
+.users-table tbody tr:hover .users-action-cell {
+  background: #f7fafb !important;
 }
 
 .users-table tbody td {
@@ -244,9 +270,7 @@
   border-bottom: none;
 }
 
-.users-table tbody td:last-child {
-  text-align: center;
-}
+/* Action alignment is handled by .users-action-cell above. */
 
 .user-name {
   font-weight: 600;
@@ -791,6 +815,7 @@
 
 .user-contact-cell {
   min-width: 125px;
+  width: 125px;
 }
 
 .user-phone-link {
@@ -805,6 +830,7 @@
 
 .user-call-cell {
   min-width: 82px;
+  width: 82px;
   text-align: center !important;
 }
 
@@ -839,6 +865,24 @@
 .no-call {
   color: #9aa7b2;
   font-weight: 600;
+}
+
+.user-whatsapp-number-cell {
+  min-width: 125px;
+  width: 125px;
+}
+
+.user-whatsapp-cell {
+  min-width: 112px;
+  width: 112px;
+  text-align: center !important;
+}
+
+.user-contact-header,
+.user-call-header,
+.user-whatsapp-number-header,
+.user-whatsapp-header {
+  text-align: center !important;
 }
 
 @media (max-width: 900px) {

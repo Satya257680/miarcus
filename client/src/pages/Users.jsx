@@ -640,11 +640,13 @@ return (
 
         <th>Email</th>
 
-        <th>Contact No</th>
+        <th className="user-contact-header">Contact No</th>
 
-        <th>WhatsApp No</th>
+        <th className="user-call-header">Call</th>
 
-        <th>Call</th>
+        <th className="user-whatsapp-number-header">WhatsApp No</th>
+
+        <th className="user-whatsapp-header">WhatsApp</th>
 
         <th>Reports To</th>
 
@@ -654,7 +656,7 @@ return (
 
         <th>Admin</th>
 
-        <th>Actions</th>
+        <th className="users-action-header">Actions</th>
 
       </tr>
 
@@ -742,6 +744,22 @@ return (
               )}
             </td>
 
+            <td className="user-call-cell">
+              {getCallNumber(user) ? (
+                <a
+                  className="user-call-btn"
+                  href={`tel:${getCallNumber(user)}`}
+                  aria-label={`Call ${user.name}`}
+                  title={`Call ${getCallNumber(user)}`}
+                >
+                  <FaPhoneAlt />
+                  <span>Call</span>
+                </a>
+              ) : (
+                <span className="no-call">—</span>
+              )}
+            </td>
+
             <td className="user-whatsapp-number-cell">
               {getWhatsappNumber(user) && getWhatsappUrl(user) ? (
                 <a
@@ -770,22 +788,6 @@ return (
                 >
                   <FaWhatsapp />
                   <span>WhatsApp</span>
-                </a>
-              ) : (
-                <span className="no-call">—</span>
-              )}
-            </td>
-
-            <td className="user-call-cell">
-              {getCallNumber(user) ? (
-                <a
-                  className="user-call-btn"
-                  href={`tel:${getCallNumber(user)}`}
-                  aria-label={`Call ${user.name}`}
-                  title={`Call ${getCallNumber(user)}`}
-                >
-                  <FaPhoneAlt />
-                  <span>Call</span>
                 </a>
               ) : (
                 <span className="no-call">—</span>
@@ -824,7 +826,7 @@ return (
 
             </td>
 
-      <td>
+      <td className="users-action-cell">
   <div className="action-buttons">
 
     {canEdit && (
