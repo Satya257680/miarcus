@@ -1202,6 +1202,16 @@ loadRoute(
 
 loadRoute(
 
+    "./routes/helpCenterRoutes",
+
+    "/api/help-center",
+
+    "Help Center Routes"
+
+);
+
+loadRoute(
+
     "./routes/collectionTrackingRoutes",
 
     "/api/collection-tracking",

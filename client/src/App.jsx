@@ -113,6 +113,8 @@ import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
 import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
 import {ProductList as CollectionTracking,AddProduct as CollectionAddProduct,Details as CollectionDetails,MasterData as CollectionMasterData,Insight as CollectionInsight,Requests as CollectionRequests,Permissions as CollectionPermissions} from "./pages/CollectionTracking/CollectionTracking";
 import Chat from "./pages/Chat/Chat";
+import HelpCenter from "./pages/HelpCenter/HelpCenter";
+
 
 
 function App() {
@@ -168,6 +170,12 @@ function App() {
                     element={<GalleryMobile />}
                 />
 
+                {/* Public customer Help Center / Zarvis FAQ */}
+                <Route
+                    path="/help"
+                    element={<HelpCenter publicMode />}
+                />
+
 
                 {/* ==================================================
                     PROTECTED APPLICATION ROUTES
@@ -206,6 +214,16 @@ function App() {
                                 <Chat />
                             </ModulePermissionRoute>
                         }
+                    />
+
+                    {/* ==================================================
+                        24×7 HELP CENTER / ZARVIS
+                        Available to every authenticated employee.
+                        Admin controls are enforced inside the API.
+                    ================================================== */}
+                    <Route
+                        path="/help-center"
+                        element={<HelpCenter />}
                     />
 
 

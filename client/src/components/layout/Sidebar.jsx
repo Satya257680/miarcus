@@ -38,7 +38,8 @@ import {
     FaCloudUploadAlt,
     FaTags,
     FaPlus,
-    FaComments
+    FaComments,
+    FaLifeRing
 } from "react-icons/fa";
 
 import "../../styles/layout/Sidebar.css";
@@ -594,6 +595,17 @@ function Sidebar({ collapsed }) {
                         )}
                     </NavLink>
                 )}
+
+                {/* ==================================================
+                    24×7 HELP CENTER
+                ================================================== */}
+                <NavLink
+                    to="/help-center"
+                    className={getMenuClass}
+                >
+                    <FaLifeRing />
+                    {!collapsed && <span>Help Center</span>}
+                </NavLink>
 
                 {/* ==================================================
                     ACTION POINTS
