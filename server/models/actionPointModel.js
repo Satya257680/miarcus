@@ -435,6 +435,14 @@ ActionPoint.getAll = (
             ON ap.assigned_to = au.id
 
         WHERE 1 = 1
+
+        -- Checklist-generated Action Points are workflow items.
+        -- Once they are Closed, they must leave Action Points and become
+        -- visible in Checklist Reports. Manual Action Points remain visible.
+        AND (
+            ap.submission_answer_id IS NULL
+            OR LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
+        )
     `;
 
 
@@ -685,6 +693,14 @@ ActionPoint.count = (
             ON cs.submitted_by = u.id
 
         WHERE 1 = 1
+
+        -- Keep the Action Point list/count in sync: checklist-generated
+        -- Action Points disappear from this module once Closed and are
+        -- shown in Checklist Reports instead. Manual Action Points remain.
+        AND (
+            ap.submission_answer_id IS NULL
+            OR LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
+        )
     `;
 
 
