@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "../axiosConfig.js";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -28,6 +28,8 @@ import {
     FaEdit,
     FaTrash,
     FaUpload,
+    FaHistory,
+    FaClock,
 } from "react-icons/fa";
 
 // ======================================================
@@ -40,6 +42,12 @@ import "../styles/ActionPoints.css";
 // API
 // ======================================================
 
+
+// ======================================================
+// API
+// ======================================================
+
+const API = API_BASE_URL;
 
 // ======================================================
 // COMPONENT
@@ -207,6 +215,9 @@ function ActionPoints() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [history, setHistory] = useState([]);
 
     // ======================================================
     // SELECTED DATA
@@ -237,7 +248,8 @@ function ActionPoints() {
         sla_minutes_part: 0,
 
         remarks: "",
-
+        comment: "",
+        attachment: null,
         status: "Open"
 
     });
@@ -249,6 +261,8 @@ function ActionPoints() {
     const [actionTaken, setActionTaken] = useState("");
 
     const [remarks, setRemarks] = useState("");
+    const [actionComment, setActionComment] = useState("");
+    const [actionStatus, setActionStatus] = useState("Closed");
 
     // ======================================================
     // RBAC
@@ -579,61 +593,94 @@ useEffect(() => {
 // ======================================================
 
 const updateActionPoint = async () => {
+    try {
+        const data = new FormData();
+        data.append("assigned_to", editData.assigned_to || "");
+        data.append("priority", editData.priority || "Medium");
+        data.append("sla_days", String(editData.sla_days ?? 0));
+        data.append("sla_hours", String(editData.sla_hours ?? 0));
+        data.append("sla_minutes", String(editData.sla_minutes_part ?? 0));
+        data.append("remarks", editData.remarks || "");
+        data.append("comment", editData.comment || "");
+        data.append("status", editData.status || "Open");
+        if (editData.attachment) data.append("attachment", editData.attachment);
+
+        await axios.put(`/api/action-points/${editData.id}`, data);
+
+        alert("Action Point updated successfully.");
+        setShowEditModal(false);
+        await fetchActionPoints();
+        if (showHistoryModal) await openHistory({ id: editData.id });
+    } catch (err) {
+        console.error(err);
+        alert(err.response?.data?.message || "Unable to update Action Point.");
+    }
+};
+
+// ======================================================
+// EDIT / HISTORY HELPERS
+// ======================================================
+
+const prepareEdit = (row) => {
+    const total = Number(row.sla_minutes || 0);
+    setEditData({
+        id: row.id,
+        question: row.question || "",
+        department_name: row.department_name || "",
+        assigned_to: row.assigned_to || "",
+        priority: row.priority || "Medium",
+        sla_days: Math.floor(total / 1440),
+        sla_hours: Math.floor((total % 1440) / 60),
+        sla_minutes_part: total % 60,
+        remarks: row.remarks || "",
+        comment: row.comment || "",
+        attachment: null,
+        status: row.status || "Open"
+    });
+    setShowEditModal(true);
+};
+
+const openHistory = async (row) => {
+    setSelectedAction(row);
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+    try {
+        const response = await axios.get(`/api/action-points/${row.id}/history`);
+        setHistory(Array.isArray(response.data?.data) ? response.data.data : []);
+    } catch (err) {
+        console.error(err);
+        setHistory([]);
+        alert(err.response?.data?.message || "Unable to load Action Point history.");
+    } finally {
+        setHistoryLoading(false);
+    }
+};
+
+const handleNextAction = async (row, value) => {
+    if (!canEdit) return;
+    if (value === "Closed" || value === "Completed") {
+        setSelectedAction(row);
+        setActionStatus("Closed");
+        setActionTaken("");
+        setRemarks(row.remarks || "");
+        setActionComment(row.comment || "");
+        setShowOpenModal(true);
+        return;
+    }
 
     try {
-
-        await axios.put(
-
-            `/api/action-points/${editData.id}`,
-
-            {
-                assigned_to: editData.assigned_to,
-                priority: editData.priority,
-                sla_days: editData.sla_days,
-                sla_hours: editData.sla_hours,
-                sla_minutes: editData.sla_minutes_part,
-                remarks: editData.remarks,
-                status: editData.status
-            }
-
-        );
-
-
-
-        alert(
-
-            "Action Point updated successfully."
-
-        );
-
-
-
-        setShowEditModal(false);
-
-
-
-        fetchActionPoints();
-
-    }
-
-    catch (err) {
-
+        await axios.put(`/api/action-points/${row.id}/status`, {
+            status: value,
+            comment: row.comment || ""
+        });
+        await fetchActionPoints();
+    } catch (err) {
         console.error(err);
-
-
-
-        alert(
-
-            err.response?.data?.message ||
-
-            "Unable to update Action Point."
-
-        );
-
+        alert(err.response?.data?.message || "Unable to update Next Action.");
     }
-
 };
-    // ======================================================
+
+// ======================================================
 // DELETE
 // ======================================================
 
@@ -759,7 +806,9 @@ const handleOpen = (row) => {
 
     setActionTaken("");
 
-    setRemarks("");
+    setRemarks(row.remarks || "");
+    setActionComment(row.comment || "");
+    setActionStatus("Closed");
 
     setShowOpenModal(true);
 
@@ -772,52 +821,31 @@ const handleOpen = (row) => {
 // ======================================================
 
 const saveActionPoint = async () => {
-
     try {
-
         await axios.put(
-
             `/api/action-points/${selectedAction.id}/take-action`,
-
             {
-
                 action_taken: actionTaken,
-
-                remarks
-
+                remarks,
+                comment: actionComment,
+                status: actionStatus
             }
-
         );
 
         alert(
-
-            "Action completed successfully."
-
+            actionStatus === "Closed"
+                ? "Action Point completed successfully."
+                : `Action Point moved to ${actionStatus}.`
         );
 
         setShowOpenModal(false);
-
-        fetchActionPoints();
-
-    }
-
-    catch (err) {
-
+        await fetchActionPoints();
+        if (showHistoryModal && selectedAction) await openHistory(selectedAction);
+    } catch (err) {
         console.error(err);
-
-        alert(
-
-            err.response?.data?.message ||
-
-            "Unable to complete Action Point."
-
-        );
-
+        alert(err.response?.data?.message || "Unable to update Action Point.");
     }
-
 };
-
-
 
 // ======================================================
 // EXPORT
@@ -1112,6 +1140,20 @@ const formatDate = (value) => {
 
 };
 
+const formatHistoryDate = (value) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleString("en-IN", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+    });
+};
+
 // Keep countdown labels current while the page remains open.
 useEffect(() => {
 
@@ -1250,7 +1292,7 @@ if (loading) {
             title: "Comment",
             render: (row) => (
                 <div className="comment-cell">
-                    {row.answer_remarks || row.comment || row.remarks || "-"}
+                    {row.comment || row.answer_remarks || "-"}
                 </div>
             )
         },
@@ -1411,37 +1453,24 @@ if (loading) {
 
 {
     key: "next_action",
-
     title: "Next Action",
-
     render: (row) => (
-
-        row.status !== "Closed" ? (
-
-            <button
-                className="open-btn"
-                onClick={() => handleOpen(row)}
+        <div className="next-action-cell">
+            <select
+                className={`next-action-select next-${String(row.status || "Open").toLowerCase().replace(/\s+/g, "-")}`}
+                value={row.status === "Closed" ? "Closed" : row.status || "Open"}
+                onChange={(e) => handleNextAction(row, e.target.value)}
+                disabled={!canEdit}
+                aria-label={`Next Action for Action Point ${row.id}`}
             >
-
-                Take Action
-
-            </button>
-
-        ) : (
-
-            <span>
-
-                Completed
-
-            </span>
-
-        )
-
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Closed">Close</option>
+                <option value="Completed">Completed</option>
+            </select>
+        </div>
     )
-
 },
-
-
 
 // ==================================================
 // REMARKS
@@ -1472,21 +1501,26 @@ if (loading) {
 
 {
     key: "history",
-
     title: "History",
-
     render: (row) => (
-
-        row.completed_at
-
-            ? `Closed on ${formatDate(row.completed_at)}`
-
-            : "Open"
-
+        <div className="history-cell-content">
+            <div className="history-last-entry">
+                <strong>{row.last_history_status || row.status || "Open"}</strong>
+                <span>by {row.last_history_by || "System"}</span>
+                <small>{row.last_history_at ? formatHistoryDate(row.last_history_at) : "No history timestamp"}</small>
+            </div>
+            <button
+                type="button"
+                className="history-view-btn"
+                onClick={() => openHistory(row)}
+            >
+                <FaHistory /> History
+            </button>
+        </div>
     )
-
 },
-       // ==================================================
+
+// ==================================================
 // ACTIONS
 // ==================================================
 
@@ -1507,44 +1541,7 @@ if (loading) {
 
                 <button
                     className="edit-btn"
-                    onClick={() => {
-
-                        setEditData({
-
-                            id: row.id,
-
-                            question: row.question,
-
-                            department_name:
-                                row.department_name,
-
-                            assigned_to:
-                                row.assigned_to || "",
-
-                            priority:
-                                row.priority || "Medium",
-
-                            sla_days: Math.floor(
-                                Number(row.sla_minutes || 0) / 1440
-                            ),
-                            sla_hours: Math.floor(
-                                (Number(row.sla_minutes || 0) % 1440) / 60
-                            ),
-                            sla_minutes_part: Number(
-                                row.sla_minutes || 0
-                            ) % 60,
-
-                            remarks:
-                                row.remarks || "",
-
-                            status:
-                                row.status || "Open"
-
-                        });
-
-                        setShowEditModal(true);
-
-                    }}
+                    onClick={() => prepareEdit(row)}
                 >
 
                     <FaEdit />
@@ -2036,17 +2033,20 @@ return (
 
 {showEditModal && (
 
-    <div className="modal-overlay">
+    <div className="modal-overlay action-workflow-overlay">
 
-        <div className="report-modal">
+        <div className="workflow-modal action-edit-modal">
 
-            <div className="modal-header">
-
-                <h3>Edit Action Point</h3>
+            <div className="workflow-modal-header">
+                <div>
+                    <span className="workflow-eyebrow">ACTION POINT WORKFLOW</span>
+                    <h3>Edit Action Point</h3>
+                    <p>Update ownership, SLA, status and conversation details.</p>
+                </div>
 
                 <button
 
-                    className="close-btn"
+                    className="workflow-close-btn"
 
                     onClick={() => setShowEditModal(false)}
 
@@ -2060,7 +2060,7 @@ return (
 
 
 
-            <div className="modal-body">
+            <div className="workflow-modal-body">
 
                 <div className="filter-group">
 
@@ -2239,9 +2239,27 @@ return (
                     </div>
                 </div>
 
+                <div className="edit-form-divider"></div>
+
+                <div className="filter-group">
+                    <label>Comment</label>
+                    <textarea
+                        rows={3}
+                        value={editData.comment}
+                        onChange={(e) => setEditData({ ...editData, comment: e.target.value })}
+                        placeholder="Add or update the Action Point comment"
+                    />
+                </div>
+
+                <div className="filter-group">
+                    <label>Attachment <span className="optional-text">Optional</span></label>
+                    <input
+                        type="file"
+                        onChange={(e) => setEditData({ ...editData, attachment: e.target.files?.[0] || null })}
+                    />
+                </div>
+
                 <br />
-
-
 
                 <div className="filter-group">
 
@@ -2319,7 +2337,7 @@ return (
 
 
 
-                <div className="modal-actions">
+                <div className="workflow-modal-actions">
 
                     <button
 
@@ -2366,16 +2384,19 @@ return (
 
 {showOpenModal && selectedAction && (
 
-    <div className="modal-overlay">
+    <div className="modal-overlay action-workflow-overlay">
 
-        <div className="report-modal">
+        <div className="workflow-modal action-take-modal">
 
-            <div className="modal-header">
-
-                <h3>Take Action</h3>
+            <div className="workflow-modal-header">
+                <div>
+                    <span className="workflow-eyebrow">NEXT ACTION</span>
+                    <h3>Take Action</h3>
+                    <p>Move the Action Point forward and keep a complete audit trail.</p>
+                </div>
 
                 <button
-                    className="close-btn"
+                    className="workflow-close-btn"
                     onClick={() => setShowOpenModal(false)}
                 >
                     ×
@@ -2383,7 +2404,7 @@ return (
 
             </div>
 
-            <div className="modal-body">
+            <div className="workflow-modal-body">
 
                 <div className="filter-group">
 
@@ -2442,8 +2463,20 @@ return (
                 <br />
 
                 <div className="filter-group">
+                    <label>Next Action</label>
+                    <select
+                        value={actionStatus}
+                        onChange={(e) => setActionStatus(e.target.value)}
+                    >
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Closed">Close / Completed</option>
+                    </select>
+                </div>
 
-                    <label>Action Taken</label>
+                <div className="filter-group">
+
+                    <label>Action Taken {actionStatus === "Closed" && <span className="required-star">*</span>}</label>
 
                     <textarea
                         rows={4}
@@ -2456,6 +2489,16 @@ return (
                 </div>
 
                 <br />
+
+                <div className="filter-group">
+                    <label>Comment</label>
+                    <textarea
+                        rows={3}
+                        value={actionComment}
+                        onChange={(e) => setActionComment(e.target.value)}
+                        placeholder="Add a workflow comment"
+                    />
+                </div>
 
                 <div className="filter-group">
 
@@ -2471,7 +2514,7 @@ return (
 
                 </div>
 
-                <div className="modal-actions">
+                <div className="workflow-modal-actions">
 
                     <button
                         className="cancel-btn"
@@ -2495,6 +2538,69 @@ return (
 
     </div>
 
+)}
+
+{/* ======================================================
+    ACTION POINT HISTORY MODAL
+====================================================== */}
+
+{showHistoryModal && selectedAction && (
+    <div className="modal-overlay action-workflow-overlay">
+        <div className="workflow-modal history-modal">
+            <div className="workflow-modal-header history-header">
+                <div>
+                    <span className="workflow-eyebrow">AUDIT TRAIL</span>
+                    <h3>Action Point History</h3>
+                    <p>Every creation, edit and Next Action change is recorded with the user and exact time.</p>
+                </div>
+                <button
+                    type="button"
+                    className="workflow-close-btn"
+                    onClick={() => setShowHistoryModal(false)}
+                >×</button>
+            </div>
+
+            <div className="history-summary">
+                <div><span>Action Point</span><strong>#{selectedAction.id}</strong></div>
+                <div><span>Current Status</span><strong>{selectedAction.status || "Open"}</strong></div>
+                <div><span>Store</span><strong>{selectedAction.store_name || "-"}</strong></div>
+                <button type="button" className="history-edit-btn" onClick={() => { setShowHistoryModal(false); prepareEdit(selectedAction); }}>
+                    <FaEdit /> Edit Action Point
+                </button>
+            </div>
+
+            <div className="workflow-modal-body history-body">
+                {historyLoading ? (
+                    <div className="history-loading"><FaClock /> Loading history…</div>
+                ) : history.length === 0 ? (
+                    <div className="history-empty"><FaHistory /><strong>No history found</strong><span>New changes will appear here automatically.</span></div>
+                ) : (
+                    <div className="history-timeline">
+                        {history.map((item) => (
+                            <div className="history-item" key={item.id}>
+                                <div className="history-dot"></div>
+                                <div className="history-card">
+                                    <div className="history-card-top">
+                                        <div>
+                                            <span className={`history-action history-${String(item.action_type || "").toLowerCase()}`}>{String(item.action_type || "UPDATE").replace(/_/g, " ")}</span>
+                                            {item.status && <span className="history-status">{item.status}</span>}
+                                        </div>
+                                        <time>{formatHistoryDate(item.created_at)}</time>
+                                    </div>
+                                    <div className="history-user">
+                                        <strong>{item.changed_by_name || "System"}</strong>
+                                        {item.changed_by_employee_id && <span>Employee ID: {item.changed_by_employee_id}</span>}
+                                    </div>
+                                    {item.comment && <div className="history-note"><b>Comment</b><span>{item.comment}</span></div>}
+                                    {item.remarks && <div className="history-note"><b>Remarks</b><span>{item.remarks}</span></div>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
 )}
     </div>
 

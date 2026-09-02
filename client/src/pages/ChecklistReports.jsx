@@ -1132,6 +1132,16 @@ const uploadChecklistReport = async (file) => {
         },
 
         {
+            key: "action_point_comment",
+            title: "Action Point Comment",
+            render: (row) => (
+                <div className="remarks-cell">
+                    {row.action_point_comment || "-"}
+                </div>
+            )
+        },
+
+        {
             key: "action_point_completed_at",
             title: "Action Completed At",
             render: (row) =>
@@ -1683,6 +1693,19 @@ const uploadChecklistReport = async (file) => {
                                 <p>
                                     {selectedReport.remarks || "-"}
                                 </p>
+
+                                {selectedReport.action_point_id && (
+                                    <>
+                                        <h4>Action Point Comment</h4>
+                                        <p>
+                                            {selectedReport.action_point_comment || "-"}
+                                        </p>
+                                        <h4>Action Point Remarks</h4>
+                                        <p>
+                                            {selectedReport.action_point_remarks || "-"}
+                                        </p>
+                                    </>
+                                )}
 
                                 <h4>Attachment</h4>
 

@@ -79,6 +79,10 @@ ChecklistReport.getAll = (
 
             ap.status AS action_point_status,
 
+            ap.comment AS action_point_comment,
+
+            ap.remarks AS action_point_remarks,
+
             csa.action_taken,
 
             csa.action_remarks,
@@ -450,6 +454,10 @@ sql += `
 
         ap.status,
 
+        ap.comment,
+
+        ap.remarks,
+
         csa.action_taken,
 
         csa.action_remarks,
@@ -563,6 +571,10 @@ ChecklistReport.getById = (
 
             ap.status AS action_point_status,
 
+            ap.comment AS action_point_comment,
+
+            ap.remarks AS action_point_remarks,
+
             csa.action_taken,
 
             csa.action_remarks,
@@ -668,6 +680,10 @@ ChecklistReport.getById = (
             ap.id,
 
             ap.status,
+
+            ap.comment,
+
+            ap.remarks,
 
             csa.action_taken,
 

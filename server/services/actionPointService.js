@@ -367,6 +367,9 @@ const createFromRules = async (
             remarks:
                 item.remarks || null,
 
+            comment:
+                item.remarks || null,
+
             attachment:
                 null,
 
@@ -497,6 +500,7 @@ const createManual = async (
         sla_minutes,
         answer,
         remarks,
+        comment,
         status
     } = body;
 
@@ -725,6 +729,9 @@ const createManual = async (
         remarks:
             remarks || "",
 
+        comment:
+            comment || "",
+
 
         // ----------------------------------------------
         // ATTACHMENT
@@ -848,7 +855,7 @@ const update = async (
     userId
 ) => {
 
-    const {
+    let {
         assigned_to,
         priority,
         sla_days,
@@ -856,6 +863,7 @@ const update = async (
         sla_hours,
         sla_minutes,
         remarks,
+        comment,
         status
     } = body;
 
@@ -957,6 +965,11 @@ const update = async (
                 ? remarks
                 : oldData.remarks,
 
+        comment:
+            comment !== undefined
+                ? comment
+                : oldData.comment,
+
         attachment:
             attachment ||
             oldData.attachment
@@ -975,13 +988,71 @@ const update = async (
         status !== oldData.status
     ) {
 
+        const normalizedStatus =
+            status === "Completed" || status === "Close"
+                ? "Closed"
+                : status;
+
         await asPromise(
             ActionPoint.updateStatus,
             id,
-            status
+            normalizedStatus
         );
+
+        if (oldData.submission_id) {
+            if (normalizedStatus === "Closed" && oldData.submission_answer_id) {
+                await db.query(
+                    `UPDATE checklist_submission_answers
+                     SET action_taken = COALESCE(NULLIF(action_taken, ''), 'Completed via Action Point Edit'),
+                         action_remarks = COALESCE(?, action_remarks),
+                         completion_date = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [remarks || null, oldData.submission_answer_id]
+                );
+            }
+
+            const openRows = await db.query(
+                `SELECT COUNT(*) AS open_count,
+                        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count
+                 FROM action_points
+                 WHERE submission_id = ? AND status <> 'Closed'`,
+                [oldData.submission_id]
+            );
+            const openCount = Number(openRows?.[0]?.open_count || 0);
+            const inProgressCount = Number(openRows?.[0]?.in_progress_count || 0);
+            await db.query(
+                `UPDATE checklist_submissions
+                 SET status = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`,
+                [openCount === 0 ? "Completed" : inProgressCount > 0 ? "In Progress" : "Submitted", oldData.submission_id]
+            );
+        }
+
+        status = normalizedStatus;
     }
 
+
+    // ==================================================
+    // HISTORY
+    // ==================================================
+
+    await asPromise(
+        ActionPoint.createHistory,
+        {
+            action_point_id: Number(id),
+            action_type: status && status !== oldData.status ? "STATUS_CHANGED" : "UPDATED",
+            status: status || oldData.status,
+            comment: updateData.comment,
+            remarks: updateData.remarks,
+            old_data: oldData,
+            new_data: {
+                ...oldData,
+                ...updateData,
+                status: status || oldData.status
+            },
+            changed_by: userId
+        }
+    );
 
     // ==================================================
     // ACTIVITY
@@ -1072,39 +1143,31 @@ const takeAction = async (
     const {
         action_taken,
         remarks,
+        comment,
         status
     } = body;
 
+    const normalizedStatus =
+        status === "Completed" || status === "Close"
+            ? "Closed"
+            : status === "In Progress"
+                ? "In Progress"
+                : status === "Open"
+                    ? "Open"
+                    : "Closed";
 
-    if (!action_taken) {
-
-        const err =
-            new Error(
-                "Action Taken is required."
-            );
-
+    if (normalizedStatus === "Closed" && !action_taken) {
+        const err = new Error("Action Taken is required when closing an Action Point.");
         err.statusCode = 400;
-
         throw err;
     }
 
-
-    const oldData =
-        await getById(id);
-
-
+    const oldData = await getById(id);
     if (!oldData) {
-
-        const err =
-            new Error(
-                "Action Point not found."
-            );
-
+        const err = new Error("Action Point not found.");
         err.statusCode = 404;
-
         throw err;
     }
-
 
     await asPromise(
         ActionPoint.takeAction,
@@ -1112,79 +1175,54 @@ const takeAction = async (
         {
             action_taken,
             remarks,
-            status:
-                status || "Closed"
+            comment,
+            status: normalizedStatus
         }
     );
 
-
-    // ==================================================
-    // ACTIVITY
-    // ==================================================
-
-    Activity.create(
+    await asPromise(
+        ActionPoint.createHistory,
         {
-            title:
-                "Action Point Closed",
-
-            description:
-                `Action Point #${id} completed.`,
-
-            module_name:
-                "Action Points",
-
-            status:
-                "Closed",
-
-            priority:
-                oldData.priority,
-
-            created_by:
-                userId,
-
-            assigned_to:
-                oldData.assigned_to
-        },
-
-        () => {}
+            action_point_id: Number(id),
+            action_type: normalizedStatus === "Closed" ? "COMPLETED" : "STATUS_CHANGED",
+            status: normalizedStatus,
+            comment: comment || null,
+            remarks: remarks || null,
+            old_data: oldData,
+            new_data: {
+                status: normalizedStatus,
+                action_taken: action_taken || null,
+                comment: comment || null,
+                remarks: remarks || null
+            },
+            changed_by: userId
+        }
     );
 
+    Activity.create({
+        title: normalizedStatus === "Closed" ? "Action Point Completed" : "Action Point Status Updated",
+        description: `Action Point #${id} ${normalizedStatus === "Closed" ? "completed" : `moved to ${normalizedStatus}`}.`,
+        module_name: "Action Points",
+        status: normalizedStatus,
+        priority: oldData.priority,
+        created_by: userId,
+        assigned_to: oldData.assigned_to
+    }, () => {});
 
-    // ==================================================
-    // AUDIT
-    // ==================================================
-
-    Audit.create(
-        {
-            module_name:
-                "Action Points",
-
-            reference_id:
-                id,
-
-            action:
-                "TAKE_ACTION",
-
-            old_data:
-                oldData,
-
-            new_data:
-                {
-                    action_taken,
-                    remarks,
-                    status:
-                        status || "Closed"
-                },
-
-            changed_by:
-                userId
+    Audit.create({
+        module_name: "Action Points",
+        reference_id: id,
+        action: normalizedStatus === "Closed" ? "TAKE_ACTION" : "STATUS_CHANGE",
+        old_data: oldData,
+        new_data: {
+            status: normalizedStatus,
+            action_taken: action_taken || null,
+            comment: comment || null,
+            remarks: remarks || null
         },
+        changed_by: userId
+    }, () => {});
 
-        () => {}
-    );
-
-    // Notify the checklist submitter after the Action Point has actually
-    // been closed. The related answer is then visible in Checklist Reports.
     try {
         if (oldData?.submission_id) {
             const recipients = new Set();
@@ -1196,29 +1234,90 @@ const takeAction = async (
             if (submitterId > 0) recipients.add(submitterId);
             if (Number(oldData.assigned_to) > 0) recipients.add(Number(oldData.assigned_to));
 
-            await Notification.createForUsers([...recipients], {
-                title: "Action Point Completed",
-                message: `Action Point #${id} has been completed. The related checklist answer is now available in Checklist Reports.`,
-                module_name: "Checklist Reports",
-                action_name: "Completed",
-                entity_id: oldData.submission_id,
-                link: "/checklist-reports",
-                type: "success"
-            });
+            if (normalizedStatus === "Closed") {
+                await Notification.createForUsers([...recipients], {
+                    title: "Action Point Completed",
+                    message: `Action Point #${id} has been completed. The related checklist answer is now available in Checklist Reports.`,
+                    module_name: "Checklist Reports",
+                    action_name: "Completed",
+                    entity_id: oldData.submission_id,
+                    link: "/checklist-reports",
+                    type: "success"
+                });
+            }
         }
     } catch (notificationError) {
-        console.error("Action Point completion notification error:", notificationError.message);
+        console.error("Action Point notification error:", notificationError.message);
     }
-
 
     return {
         success: true,
-
-        message:
-            "Action Point completed successfully."
+        message: normalizedStatus === "Closed"
+            ? "Action Point completed successfully."
+            : `Action Point moved to ${normalizedStatus}.`
     };
 };
 
+// ======================================================
+// CHANGE NEXT ACTION STATUS
+// ======================================================
+
+const changeStatus = async (id, status, comment, userId) => {
+    const allowed = ["Open", "In Progress"];
+    if (!allowed.includes(status)) {
+        const err = new Error("Use Take Action to close an Action Point.");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const oldData = await getById(id);
+    if (!oldData) {
+        const err = new Error("Action Point not found.");
+        err.statusCode = 404;
+        throw err;
+    }
+
+    await asPromise(ActionPoint.updateStatus, id, status);
+
+    if (oldData.submission_id) {
+        await db.query(
+            `UPDATE checklist_submissions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [status === "In Progress" ? "In Progress" : "Submitted", oldData.submission_id]
+        );
+    }
+
+    await asPromise(ActionPoint.createHistory, {
+        action_point_id: Number(id),
+        action_type: "STATUS_CHANGED",
+        status,
+        comment: comment || null,
+        remarks: null,
+        old_data: oldData,
+        new_data: { status, comment: comment || null },
+        changed_by: userId
+    });
+
+    Activity.create({
+        title: "Action Point Status Updated",
+        description: `Action Point #${id} moved to ${status}.`,
+        module_name: "Action Points",
+        status,
+        priority: oldData.priority,
+        created_by: userId,
+        assigned_to: oldData.assigned_to
+    }, () => {});
+
+    Audit.create({
+        module_name: "Action Points",
+        reference_id: id,
+        action: "STATUS_CHANGE",
+        old_data: oldData,
+        new_data: { status, comment: comment || null },
+        changed_by: userId
+    }, () => {});
+
+    return { success: true, message: `Action Point moved to ${status}.` };
+};
 
 // ======================================================
 // DELETE ACTION POINT
@@ -1450,6 +1549,10 @@ module.exports = {
 
     // Take action
     takeAction,
+    changeStatus,
+
+    // History
+    getHistory: (id) => asPromise(ActionPoint.getHistory, id),
 
     // Delete
     delete: deleteActionPoint,

@@ -455,6 +455,22 @@ async function initializeDatabase() {
         }
 
         // ==================================================
+        // ACTION POINT WORKFLOW / HISTORY SCHEMA
+        // ==================================================
+
+        try {
+            if (typeof ActionPoint.ensureCommentColumn === "function") {
+                await ActionPoint.ensureCommentColumn();
+            }
+            if (typeof ActionPoint.ensureHistoryTable === "function") {
+                await ActionPoint.ensureHistoryTable();
+            }
+            console.log("✅ Action Point comment/history schema verified");
+        } catch (error) {
+            console.error("❌ Action Point workflow schema initialization failed:", error.message);
+        }
+
+        // ==================================================
         // ACTION POINT QUESTION MIGRATION
         // ==================================================
 

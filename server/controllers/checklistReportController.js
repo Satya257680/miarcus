@@ -249,6 +249,10 @@ exports.exportReports = (req, res) => {
                 "question",
                 "answer",
                 "remarks",
+                "action_point_comment",
+                "action_point_remarks",
+                "action_point_status",
+                "action_point_completed_at",
             ],
         });
 

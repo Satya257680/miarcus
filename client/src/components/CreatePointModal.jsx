@@ -26,6 +26,7 @@ function CreatePointModal({
     question_id: "",
     answer: "",
     remarks: "",
+    comment: "",
     sla_value: "",
     sla_type: "Hours",
     priority: "Medium",
@@ -147,6 +148,7 @@ function CreatePointModal({
       question_id: "",
       answer: "",
       remarks: "",
+      comment: "",
       sla_value: "",
       sla_type: "Hours",
       priority: "Medium",
@@ -264,8 +266,13 @@ function CreatePointModal({
       );
 
       // ------------------------------------------------------
-      // REMARKS
+      // COMMENT + REMARKS
       // ------------------------------------------------------
+
+      data.append(
+        "comment",
+        formData.comment || ""
+      );
 
       data.append(
         "remarks",
@@ -880,6 +887,24 @@ function CreatePointModal({
                       disabled={loading}
                     />
 
+                  </div>
+
+                  {/* COMMENT */}
+
+                  <div className="action-form-group action-full-width">
+                    <label htmlFor="action-comment">
+                      Comment
+                      <span className="optional-text">Optional</span>
+                    </label>
+                    <textarea
+                      id="action-comment"
+                      rows="3"
+                      name="comment"
+                      placeholder="Add a comment for this Action Point"
+                      value={formData.comment}
+                      onChange={handleChange}
+                      disabled={loading}
+                    />
                   </div>
 
                   {/* REMARKS */}

@@ -91,6 +91,7 @@ exports.exportActionPointsCSV = async (req, res) => {
                 "sla_days",
                 "status",
                 "remarks",
+                "comment",
                 "submitted_by",
                 "assigned_to",
                 "completed_at",
@@ -452,6 +453,50 @@ exports.takeAction = async (req, res) => {
 };
 
 // ======================================================
+// GET ACTION POINT HISTORY
+// GET /api/action-points/:id/history
+// ======================================================
+
+exports.getActionPointHistory = async (req, res) => {
+    try {
+        const actionPoint = await actionPointService.getById(req.params.id);
+        if (!actionPoint) {
+            return res.status(404).json({ success: false, message: "Action Point not found." });
+        }
+
+        const history = await actionPointService.getHistory(req.params.id);
+        return res.status(200).json({ success: true, data: history || [] });
+    } catch (error) {
+        console.error("GET ACTION POINT HISTORY ERROR:", error);
+        return res.status(500).json({ success: false, message: "Unable to load Action Point history.", error: error.message });
+    }
+};
+
+// ======================================================
+// CHANGE NEXT ACTION STATUS
+// PUT /api/action-points/:id/status
+// ======================================================
+
+exports.changeActionPointStatus = async (req, res) => {
+    try {
+        const result = await actionPointService.changeStatus(
+            req.params.id,
+            req.body?.status,
+            req.body?.comment,
+            req.user.id
+        );
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error("CHANGE ACTION POINT STATUS ERROR:", error);
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Unable to update Action Point status.",
+            error: error.message
+        });
+    }
+};
+
+// ======================================================
 // DELETE ACTION POINT
 // DELETE /api/action-points/:id
 // ======================================================
@@ -512,6 +557,8 @@ module.exports = {
     createActionPoint: exports.createActionPoint,
     updateActionPoint: exports.updateActionPoint,
     takeAction: exports.takeAction,
+    getActionPointHistory: exports.getActionPointHistory,
+    changeActionPointStatus: exports.changeActionPointStatus,
     deleteActionPoint: exports.deleteActionPoint,
     deleteAllActionPoints: exports.deleteAllActionPoints
 };

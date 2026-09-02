@@ -49,6 +49,8 @@ ActionPoint.createTables = (callback) => {
 
             remarks TEXT NULL,
 
+            comment TEXT NULL,
+
             attachment VARCHAR(500) NULL,
 
             completed_at TIMESTAMP NULL,
@@ -73,7 +75,26 @@ ActionPoint.createTables = (callback) => {
         )
     `;
 
-    db.query(sql, callback);
+    db.query(sql, (err) => {
+        if (err) return callback(err);
+        db.query(`
+            CREATE TABLE IF NOT EXISTS action_point_history (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                action_point_id INT NOT NULL,
+                action_type VARCHAR(40) NOT NULL,
+                status VARCHAR(40) NULL,
+                comment TEXT NULL,
+                remarks TEXT NULL,
+                old_data JSON NULL,
+                new_data JSON NULL,
+                changed_by INT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX idx_action_point_history_ap (action_point_id, created_at),
+                INDEX idx_action_point_history_user (changed_by, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `, callback);
+    });
 };
 
 
@@ -317,11 +338,32 @@ ActionPoint.getAll = (
 
             ap.remarks AS remarks,
 
+            ap.comment AS comment,
+
             ap.attachment,
 
             ap.completed_at,
 
             ap.created_at,
+
+            (SELECT u2.name
+             FROM action_point_history h2
+             LEFT JOIN users u2 ON u2.id = h2.changed_by
+             WHERE h2.action_point_id = ap.id
+             ORDER BY h2.id DESC
+             LIMIT 1) AS last_history_by,
+
+            (SELECT h2.created_at
+             FROM action_point_history h2
+             WHERE h2.action_point_id = ap.id
+             ORDER BY h2.id DESC
+             LIMIT 1) AS last_history_at,
+
+            (SELECT h2.status
+             FROM action_point_history h2
+             WHERE h2.action_point_id = ap.id
+             ORDER BY h2.id DESC
+             LIMIT 1) AS last_history_status,
 
             COALESCE(cs.submission_date, DATE(ap.created_at)) AS date,
 
@@ -546,6 +588,7 @@ ActionPoint.getAll = (
                 OR ap.status LIKE ?
                 OR ap.priority LIKE ?
                 OR ap.remarks LIKE ?
+                OR ap.comment LIKE ?
             )
         `;
 
@@ -555,6 +598,8 @@ ActionPoint.getAll = (
 
 
         values.push(
+            keyword,
+            keyword,
             keyword,
             keyword,
             keyword,
@@ -761,6 +806,7 @@ ActionPoint.count = (
                 OR ap.status LIKE ?
                 OR ap.priority LIKE ?
                 OR ap.remarks LIKE ?
+                OR ap.comment LIKE ?
             )
         `;
 
@@ -770,6 +816,7 @@ ActionPoint.count = (
 
 
         values.push(
+            keyword,
             keyword,
             keyword,
             keyword,
@@ -835,6 +882,8 @@ ActionPoint.getById = (
             ap.status,
 
             ap.remarks AS remarks,
+
+            ap.comment AS comment,
 
             ap.attachment,
 
@@ -967,6 +1016,7 @@ ActionPoint.create = (
             sla_minutes,
             status,
             remarks,
+            comment,
             attachment,
             created_by
         )
@@ -974,7 +1024,7 @@ ActionPoint.create = (
         VALUES
         (
             ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?
         )
 
     `;
@@ -1041,6 +1091,8 @@ ActionPoint.create = (
 
         data.remarks || null,
 
+        data.comment || null,
+
         data.attachment || null,
 
         data.created_by || null
@@ -1050,7 +1102,25 @@ ActionPoint.create = (
     db.query(
         sql,
         values,
-        callback
+        (err, result) => {
+            if (err) return callback(err);
+
+            ActionPoint.createHistory({
+                action_point_id: result.insertId,
+                action_type: "CREATED",
+                status: data.status || "Open",
+                comment: data.comment || null,
+                remarks: data.remarks || null,
+                new_data: data,
+                changed_by: data.created_by || null
+            }, (historyErr) => {
+                // History must never prevent the Action Point itself from
+                // being created. The schema is initialized at server start,
+                // but this guard keeps legacy deployments resilient.
+                if (historyErr) console.error("ACTION POINT HISTORY CREATE ERROR:", historyErr.message);
+                callback(null, result);
+            });
+        }
     );
 };
 
@@ -1081,6 +1151,8 @@ ActionPoint.update = (
 
             remarks = ?,
 
+            comment = ?,
+
             attachment = ?,
 
             updated_at = CURRENT_TIMESTAMP
@@ -1106,6 +1178,8 @@ ActionPoint.update = (
             Number(data.sla_minutes) || 0,
 
             data.remarks || null,
+
+            data.comment || null,
 
             data.attachment || null,
 
@@ -1135,6 +1209,11 @@ ActionPoint.updateStatus = (
 
             status = ?,
 
+            completed_at = CASE
+                WHEN ? = 'Closed' THEN COALESCE(completed_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+
             updated_at = CURRENT_TIMESTAMP
 
         WHERE id = ?
@@ -1145,6 +1224,7 @@ ActionPoint.updateStatus = (
     db.query(
         sql,
         [
+            status,
             status,
             id
         ],
@@ -1222,26 +1302,32 @@ ActionPoint.takeAction = async (
         // CLOSE ACTION POINT
         // ============================================
 
+        const nextStatus =
+            data.status === "In Progress"
+                ? "In Progress"
+                : data.status === "Open"
+                    ? "Open"
+                    : "Closed";
+
         await connection.execute(
             `
             UPDATE action_points
-
             SET
-
-                status = 'Closed',
-
+                status = ?,
                 remarks = ?,
-
-                completed_at =
-                    CURRENT_TIMESTAMP,
-
-                updated_at =
-                    CURRENT_TIMESTAMP
-
+                comment = ?,
+                completed_at = CASE
+                    WHEN ? = 'Closed' THEN CURRENT_TIMESTAMP
+                    ELSE NULL
+                END,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             `,
             [
+                nextStatus,
                 data.remarks || "",
+                data.comment || "",
+                nextStatus,
                 id
             ]
         );
@@ -1254,7 +1340,7 @@ ActionPoint.takeAction = async (
         // came from a checklist.
         // ============================================
 
-        if (submissionAnswerId) {
+        if (submissionAnswerId && nextStatus === "Closed") {
 
             await connection.execute(
                 `
@@ -1287,10 +1373,10 @@ ActionPoint.takeAction = async (
         // A checklist submission is considered completed only when every
         // Action Point raised from that submission has been closed.
         if (submissionId) {
-
             const [openRows] = await connection.execute(
                 `
-                SELECT COUNT(*) AS open_count
+                SELECT COUNT(*) AS open_count,
+                       SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count
                 FROM action_points
                 WHERE submission_id = ?
                   AND status <> 'Closed'
@@ -1298,18 +1384,23 @@ ActionPoint.takeAction = async (
                 [submissionId]
             );
 
-            if (Number(openRows?.[0]?.open_count || 0) === 0) {
+            const openCount = Number(openRows?.[0]?.open_count || 0);
+            const inProgressCount = Number(openRows?.[0]?.in_progress_count || 0);
+            const submissionStatus = openCount === 0
+                ? 'Completed'
+                : inProgressCount > 0
+                    ? 'In Progress'
+                    : 'Submitted';
 
-                await connection.execute(
-                    `
-                    UPDATE checklist_submissions
-                    SET status = 'Completed',
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                    `,
-                    [submissionId]
-                );
-            }
+            await connection.execute(
+                `
+                UPDATE checklist_submissions
+                SET status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                `,
+                [submissionStatus, submissionId]
+            );
         }
 
 
@@ -1356,6 +1447,80 @@ ActionPoint.takeAction = async (
 
 
 // ======================================================
+// ACTION POINT HISTORY
+// ======================================================
+
+ActionPoint.ensureHistoryTable = async () => {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS action_point_history (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            action_point_id INT NOT NULL,
+            action_type VARCHAR(40) NOT NULL,
+            status VARCHAR(40) NULL,
+            comment TEXT NULL,
+            remarks TEXT NULL,
+            old_data JSON NULL,
+            new_data JSON NULL,
+            changed_by INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            INDEX idx_action_point_history_ap (action_point_id, created_at),
+            INDEX idx_action_point_history_user (changed_by, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+};
+
+ActionPoint.ensureCommentColumn = async () => {
+    const rows = await db.query(`SHOW COLUMNS FROM action_points LIKE 'comment'`);
+    if (!rows || rows.length === 0) {
+        await db.query(`ALTER TABLE action_points ADD COLUMN comment TEXT NULL AFTER remarks`);
+        console.log("✅ action_points.comment added");
+    }
+};
+
+ActionPoint.createHistory = (data, callback) => {
+    const sql = `
+        INSERT INTO action_point_history
+        (action_point_id, action_type, status, comment, remarks, old_data, new_data, changed_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(sql, [
+        data.action_point_id,
+        data.action_type,
+        data.status || null,
+        data.comment || null,
+        data.remarks || null,
+        data.old_data ? JSON.stringify(data.old_data) : null,
+        data.new_data ? JSON.stringify(data.new_data) : null,
+        data.changed_by || null
+    ], callback);
+};
+
+ActionPoint.getHistory = (id, callback) => {
+    const sql = `
+        SELECT
+            h.id,
+            h.action_point_id,
+            h.action_type,
+            h.status,
+            h.comment,
+            h.remarks,
+            h.old_data,
+            h.new_data,
+            h.changed_by,
+            h.created_at,
+            u.name AS changed_by_name,
+            u.employee_id AS changed_by_employee_id
+        FROM action_point_history h
+        LEFT JOIN users u ON u.id = h.changed_by
+        WHERE h.action_point_id = ?
+        ORDER BY h.created_at DESC, h.id DESC
+    `;
+    db.query(sql, [id], callback);
+};
+
+// ======================================================
 // DELETE ACTION POINT
 // ======================================================
 
@@ -1376,7 +1541,17 @@ ActionPoint.delete = (
     db.query(
         sql,
         [id],
-        callback
+        (err, result) => {
+            if (err) return callback(err);
+            db.query(
+                `DELETE FROM action_point_history WHERE action_point_id = ?`,
+                [id],
+                (historyErr) => {
+                    if (historyErr) console.error("ACTION POINT HISTORY DELETE ERROR:", historyErr.message);
+                    callback(null, result);
+                }
+            );
+        }
     );
 };
 
@@ -1395,8 +1570,11 @@ ActionPoint.deleteAll = (
 
 
     db.query(
-        sql,
-        callback
+        `DELETE FROM action_point_history`,
+        (historyErr) => {
+            if (historyErr) return callback(historyErr);
+            db.query(sql, callback);
+        }
     );
 };
 
@@ -1651,6 +1829,8 @@ ActionPoint.exportData = (
 
             ap.remarks AS remarks,
 
+            ap.comment AS comment,
+
             ap.completed_at,
 
             u.name AS submitted_by,
@@ -1759,6 +1939,7 @@ ActionPoint.exportData = (
                 OR ap.status LIKE ?
                 OR ap.priority LIKE ?
                 OR ap.remarks LIKE ?
+                OR ap.comment LIKE ?
             )
         `;
 
@@ -1768,6 +1949,7 @@ ActionPoint.exportData = (
 
 
         values.push(
+            keyword,
             keyword,
             keyword,
             keyword,

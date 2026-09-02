@@ -25,6 +25,8 @@ const {
     createActionPoint,
     updateActionPoint,
     takeAction,
+    getActionPointHistory,
+    changeActionPointStatus,
     deleteActionPoint,
     deleteAllActionPoints
 } = require("../controllers/actionPointController");
@@ -159,6 +161,31 @@ router.post(
     createActionPoint
 );
 
+
+// ======================================================
+// HISTORY
+// GET /api/action-points/:id/history
+// Must stay before /:id.
+// ======================================================
+
+router.get(
+    "/:id/history",
+    authMiddleware,
+    permissionMiddleware("Action Points", "View"),
+    getActionPointHistory
+);
+
+// ======================================================
+// NEXT ACTION STATUS
+// PUT /api/action-points/:id/status
+// ======================================================
+
+router.put(
+    "/:id/status",
+    authMiddleware,
+    permissionMiddleware("Action Points", "Edit"),
+    changeActionPointStatus
+);
 
 // ======================================================
 // TAKE ACTION
