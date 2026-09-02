@@ -1,6 +1,7 @@
 const Model = require("../models/helpCenterModel");
 const db = require("../config/db");
 const Notification = require("../services/notificationService");
+const { searchProjectKnowledge } = require("../services/zarvisProjectKnowledge");
 
 const isAdmin = (req) => Number(req.user?.is_admin) === 1 || req.user?.is_admin === true;
 const clean = (value, max = 10000) => String(value ?? "").trim().slice(0, max);
@@ -88,23 +89,69 @@ exports.viewArticle = async (req, res, next) => {
 const normalizeWords = (text) => clean(text, 2000).toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
 
+const rankArticles = (results, question) => {
+    const words = normalizeWords(question);
+    return results.map((item) => {
+        const haystack = `${item.title} ${item.question} ${item.keywords || ""} ${item.answer || ""}`.toLowerCase();
+        const overlap = words.filter((word) => haystack.includes(word)).length;
+        const phraseBonus = String(question || "").toLowerCase().includes(String(item.question || "").toLowerCase()) ? 10 : 0;
+        return {
+            ...item,
+            confidence: Math.min(99, Math.round(Math.min(1, (Number(item.score || 0) + overlap * 1.5 + phraseBonus) / 12) * 100)),
+        };
+    }).sort((a, b) => b.confidence - a.confidence);
+};
+
+const resolveZarvis = async ({ question, audience }) => {
+    const results = await Model.searchArticles(question, audience);
+    const ranked = rankArticles(results, question);
+    const bestArticle = ranked[0];
+    if (bestArticle && bestArticle.confidence >= 38) {
+        await Model.incrementArticleViews(bestArticle.id);
+        return {
+            success: true,
+            resolved: true,
+            source: "knowledge_base",
+            confidence: bestArticle.confidence,
+            article: bestArticle,
+            related: ranked.slice(1, 4),
+            message: bestArticle.answer,
+        };
+    }
+
+    const project = searchProjectKnowledge(question, audience);
+    if (project.resolved) {
+        return {
+            success: true,
+            resolved: true,
+            source: project.source,
+            confidence: project.confidence,
+            module: project.module,
+            related: project.matches || [],
+            message: project.answer,
+        };
+    }
+
+    return {
+        success: true,
+        resolved: false,
+        source: "zarvis",
+        confidence: 0,
+        related: [
+            ...ranked.slice(0, 3),
+            ...(project.matches || []).slice(0, 2),
+        ].slice(0, 4),
+        message: audience === "customer"
+            ? "I could not find a verified answer for that question. Please contact Miarcus support for further assistance."
+            : "I could not find a verified answer in the Help Center or the current Miarcus project knowledge. You can request human support and an administrator can reply to you here.",
+    };
+};
+
 exports.publicAskZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-        const results = await Model.searchArticles(question, "customer");
-        const words = normalizeWords(question);
-        const ranked = results.map((item) => {
-            const haystack = `${item.title} ${item.question} ${item.keywords || ""}`.toLowerCase();
-            const overlap = words.filter((word) => haystack.includes(word)).length;
-            return { ...item, confidence: Math.min(99, Math.round(Math.min(1, (item.score + overlap * 1.5) / 12) * 100)) };
-        }).sort((a, b) => b.confidence - a.confidence);
-        const best = ranked[0];
-        if (best && best.confidence >= 38) {
-            await Model.incrementArticleViews(best.id);
-            return res.json({ success: true, resolved: true, source: "knowledge_base", article: best, related: ranked.slice(1, 4), message: best.answer });
-        }
-        return res.json({ success: true, resolved: false, source: "zarvis", related: ranked.slice(0, 4), message: "I could not find a verified answer for that question. Please contact Miarcus support for further assistance." });
+        res.json(await resolveZarvis({ question, audience: "customer" }));
     } catch (error) { next(error); }
 };
 
@@ -112,35 +159,7 @@ exports.askZarvis = async (req, res, next) => {
     try {
         const question = clean(req.body?.question, 2000);
         if (!question) return res.status(400).json({ success: false, message: "Please enter your question." });
-
-        const results = await Model.searchArticles(question, "employee");
-        const words = normalizeWords(question);
-        const ranked = results.map((item) => {
-            const haystack = `${item.title} ${item.question} ${item.keywords || ""}`.toLowerCase();
-            const overlap = words.filter((word) => haystack.includes(word)).length;
-            return { ...item, confidence: Math.min(99, Math.round(Math.min(1, (item.score + overlap * 1.5) / 12) * 100)) };
-        }).sort((a, b) => b.confidence - a.confidence);
-
-        const best = ranked[0];
-        if (best && best.confidence >= 38) {
-            await Model.incrementArticleViews(best.id);
-            return res.json({
-                success: true,
-                resolved: true,
-                source: "knowledge_base",
-                article: best,
-                related: ranked.slice(1, 4),
-                message: best.answer,
-            });
-        }
-
-        res.json({
-            success: true,
-            resolved: false,
-            source: "zarvis",
-            related: ranked.slice(0, 4),
-            message: "I could not find a verified answer in the Miarcus Help Center. You can request human support and an administrator can reply to you here.",
-        });
+        res.json(await resolveZarvis({ question, audience: "employee" }));
     } catch (error) { next(error); }
 };
 
