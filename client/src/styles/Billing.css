@@ -3495,3 +3495,50 @@ pre {
     animation: none !important;
   }
 }
+
+/* ======================================================
+   BILLS PAGE — VIEWPORT / SCROLL POLISH
+====================================================== */
+
+.billing-bills-page {
+  min-width: 0;
+  min-height: max-content;
+  padding-bottom: 34px;
+}
+
+.billing-bills-page .billing-table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: #a8bdc4 #f5f8f9;
+  scrollbar-gutter: stable;
+}
+
+.billing-bills-page .billing-table-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.billing-bills-page .billing-table-wrap::-webkit-scrollbar-track {
+  background: #f5f8f9;
+  border-radius: 999px;
+}
+
+.billing-bills-page .billing-table-wrap::-webkit-scrollbar-thumb {
+  background: #a8bdc4;
+  border: 2px solid #f5f8f9;
+  border-radius: 999px;
+}
+
+.billing-bills-page .billing-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #7898a2;
+}
+
+@media (max-width: 900px) {
+  .billing-bills-page {
+    padding: 20px 16px 30px;
+  }
+}
+
+@media (max-width: 600px) {
+  .billing-bills-page {
+    padding: 14px 12px 28px;
+  }
+}

@@ -388,23 +388,6 @@ function Login() {
             </button>
           </form>
 
-          <div className="or-divider">
-            <span />
-            <b>or</b>
-            <span />
-          </div>
-
-          <div className="signup-link">
-            <span>Don't have an account?</span>
-
-            <button
-              type="button"
-              onClick={() => navigate("/signup")}
-            >
-              Sign Up
-            </button>
-          </div>
-
           <div className="login-footer">
             <span>
               © 2026 Miarcus Baby Products. All rights reserved.

@@ -73,7 +73,6 @@ import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
 // ======================================================
 import ActivityCenter from "./pages/ActivityCenter/ActivityCenter";
 import ActivityDetails from "./pages/ActivityCenter/ActivityDetails";
-import Signup from "./pages/Signup";
 
 // ======================================================
 // QUIZ
@@ -129,11 +128,6 @@ function App() {
                 <Route
                     path="/"
                     element={<Login />}
-                />
-
-                <Route
-                    path="/signup"
-                    element={<Signup />}
                 />
 
                 <Route

@@ -1772,3 +1772,108 @@
     min-height: 190px;
   }
 }
+
+
+/* =====================================================
+   SALES TEAM — PAGE SCROLL / 100% ZOOM POLISH
+===================================================== */
+
+.sales-standard-page,
+.approvals-standard-page {
+  min-width: 0;
+  min-height: max-content;
+  padding-bottom: 36px;
+  scrollbar-gutter: stable;
+}
+
+.sales-standard-page .data-table-wrapper,
+.approvals-standard-page .data-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #a8bdc4 #f5f8f9;
+}
+
+.sales-standard-page .data-table-wrapper::-webkit-scrollbar,
+.approvals-standard-page .data-table-wrapper::-webkit-scrollbar {
+  height: 10px;
+}
+
+.sales-standard-page .data-table-wrapper::-webkit-scrollbar-track,
+.approvals-standard-page .data-table-wrapper::-webkit-scrollbar-track {
+  background: #f5f8f9;
+  border-radius: 999px;
+}
+
+.sales-standard-page .data-table-wrapper::-webkit-scrollbar-thumb,
+.approvals-standard-page .data-table-wrapper::-webkit-scrollbar-thumb {
+  background: #a8bdc4;
+  border: 2px solid #f5f8f9;
+  border-radius: 999px;
+}
+
+.sales-standard-page .data-table-wrapper::-webkit-scrollbar-thumb:hover,
+.approvals-standard-page .data-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #7898a2;
+}
+
+.approval-card {
+  min-width: 0;
+}
+
+.approval-person-info {
+  min-width: 0;
+}
+
+.approval-person-info h3,
+.approval-person-info p,
+.approval-email {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .sales-standard-page,
+  .approvals-standard-page {
+    padding-bottom: 28px;
+  }
+
+  .approval-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .approval-status {
+    margin-left: 59px;
+  }
+
+  .approval-actions {
+    width: 100%;
+    margin-left: 59px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sales-standard-page,
+  .approvals-standard-page {
+    padding-bottom: 22px;
+  }
+
+  .approval-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .approval-status,
+  .approval-actions {
+    margin-left: 0;
+  }
+
+  .approval-actions {
+    flex-direction: column;
+  }
+
+  .approval-actions button {
+    width: 100%;
+  }
+}

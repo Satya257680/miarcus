@@ -883,3 +883,58 @@
     transition: none !important;
   }
 }
+
+/* =========================================================
+   100% ZOOM / SMALL VIEWPORT POLISH
+========================================================= */
+
+.report-modal {
+  max-height: min(720px, calc(100vh - 32px));
+}
+
+.report-modal-form {
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.report-modal-buttons {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  box-shadow: 0 -8px 22px rgba(24, 54, 64, 0.06);
+}
+
+@media (max-width: 760px) {
+  .report-modal-overlay {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .report-modal {
+    max-height: calc(100vh - 28px);
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .report-modal-overlay {
+    padding: 0;
+  }
+
+  .report-modal {
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .report-modal-header {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .report-modal-form {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}

@@ -325,11 +325,22 @@ function AddReportModal({
                       Select Department
                     </option>
 
-                    {activeDepartments.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
+                    {activeDepartments.map((item) => {
+                      const value =
+                        item?.department_name ??
+                        item?.name ??
+                        item?.department ??
+                        (typeof item === "string" ? item : "");
+                      const key = item?.id ?? value;
+
+                      if (!value) return null;
+
+                      return (
+                        <option key={key} value={value}>
+                          {value}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -357,11 +368,22 @@ function AddReportModal({
                       Select Designation
                     </option>
 
-                    {currentDesignations.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
+                    {currentDesignations.map((item) => {
+                      const value =
+                        item?.designation_name ??
+                        item?.name ??
+                        item?.designation ??
+                        (typeof item === "string" ? item : "");
+                      const key = item?.id ?? value;
+
+                      if (!value) return null;
+
+                      return (
+                        <option key={key} value={value}>
+                          {value}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

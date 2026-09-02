@@ -10,11 +10,14 @@
   min-height: 100vh;
   width: 100%;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(132, 91, 196, 0.42) rgba(255, 255, 255, 0.35);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 44px 28px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: clamp(24px, 5vh, 54px) 28px clamp(30px, 5vh, 54px);
   background:
     radial-gradient(circle at 18% 25%, rgba(255, 231, 244, 0.95), transparent 27%),
     radial-gradient(circle at 88% 24%, rgba(226, 214, 255, 0.92), transparent 28%),
@@ -25,6 +28,27 @@
     Arial,
     sans-serif;
   color: #27204c;
+}
+
+.login-page::-webkit-scrollbar {
+  width: 9px;
+}
+
+.login-page::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.login-page::-webkit-scrollbar-thumb {
+  background: rgba(132, 91, 196, 0.42);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+.login-page::-webkit-scrollbar-thumb:hover {
+  background: rgba(132, 91, 196, 0.62);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* ================================================================
@@ -819,29 +843,7 @@
   font-weight: 600;
 }
 
-/* signup */
-.signup-link {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  color: #756d82;
-  font-size: 13px;
-}
-
-.signup-link button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #754bb5;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.signup-link button:hover {
-  text-decoration: underline;
-}
+/* Signup is intentionally not offered on the login screen. */
 
 /* footer */
 .login-footer {
