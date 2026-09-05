@@ -19,7 +19,7 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 // ======================================================
 
 import AddReportModal from "../components/AddReportModal";
-import BulkUploadModal from "../components/BulkUploadModal";
+import BulkUploadModal from "../components/common/BulkUploadModal";
 
 // ======================================================
 // ICONS
@@ -319,12 +319,55 @@ function ReportsTo() {
     // ======================================================
     // BULK UPLOAD
     // ======================================================
+    //
+    // NOTE:
+    // BulkUploadModal (common) hands back the raw File object
+    // and expects this function to build the FormData itself
+    // and return a { success, message } style result — the
+    // same contract used by the Departments module.
+    //
+    // The previous implementation posted the raw File with a
+    // manually forced "Content-Type: multipart/form-data"
+    // header and no boundary, which the browser rejected with
+    // "Multipart: Boundary not found" and the backend rejected
+    // with 400 Bad Request. Letting the browser/axios set the
+    // Content-Type (with boundary) for a FormData body fixes
+    // this.
+    // ======================================================
 
-    const handleBulkSuccess = () => {
+    const handleBulkUpload = async (file) => {
 
-        setShowBulkModal(false);
+        try {
 
-        loadReports();
+            const formData = new FormData();
+
+            formData.append("file", file);
+
+            const res = await axios.post(
+
+                `${API}/reports/bulk-upload`,
+
+                formData
+
+            );
+
+            return res.data;
+
+        } catch (err) {
+
+            console.error(err);
+
+            return {
+
+                success: false,
+
+                message:
+                    err.response?.data?.message ||
+                    "Upload failed."
+
+            };
+
+        }
 
     };
 
@@ -916,30 +959,9 @@ function ReportsTo() {
                         setShowBulkModal(false)
                     }
 
-                    onSuccess={handleBulkSuccess}
+                    onSuccess={loadReports}
 
-                    uploadFunction={async (formData) => {
-
-                        return axios.post(
-
-                            `${API}/reports/bulk-upload`,
-
-                            formData,
-
-                            {
-
-                                headers: {
-
-                                    "Content-Type":
-                                        "multipart/form-data"
-
-                                }
-
-                            }
-
-                        );
-
-                    }}
+                    uploadFunction={handleBulkUpload}
 
                     title="Bulk Upload Managers"
 
