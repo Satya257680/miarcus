@@ -1,5 +1,6 @@
 const fs = require("fs");
 const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 
 const Report = require("../models/reportsToModel");
 const { logActivity } = require("../utils/activityLogger");
@@ -592,6 +593,148 @@ const removeReport = (req, res) => {
 
 };
 // ======================================================
+// EXPORT REPORTS TO (XLSX)
+// ======================================================
+
+const exportReports = (req, res) => {
+
+    Report.getAllReports(
+
+        async (err, rows) => {
+
+            if (err) {
+
+                console.error(err);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Database Error"
+
+                });
+
+            }
+
+            try {
+
+                const workbook = new ExcelJS.Workbook();
+
+                const worksheet = workbook.addWorksheet(
+
+                    "Reports To"
+
+                );
+
+                worksheet.columns = [
+
+                    {
+
+                        header: "Manager Name",
+
+                        key: "manager_name",
+
+                        width: 30
+
+                    },
+
+                    {
+
+                        header: "Department",
+
+                        key: "department",
+
+                        width: 25
+
+                    },
+
+                    {
+
+                        header: "Designation",
+
+                        key: "designation",
+
+                        width: 25
+
+                    },
+
+                    {
+
+                        header: "Status",
+
+                        key: "status",
+
+                        width: 15
+
+                    }
+
+                ];
+
+                (rows || []).forEach(
+
+                    (row) => {
+
+                        worksheet.addRow({
+
+                            manager_name: row.manager_name || "",
+
+                            department: row.department || "",
+
+                            designation: row.designation || "",
+
+                            status: row.status || ""
+
+                        });
+
+                    }
+
+                );
+
+                res.setHeader(
+
+                    "Content-Type",
+
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+                );
+
+                res.setHeader(
+
+                    "Content-Disposition",
+
+                    'attachment; filename="ReportsTo.xlsx"'
+
+                );
+
+                await workbook.xlsx.write(
+
+                    res
+
+                );
+
+                res.end();
+
+            } catch (exportErr) {
+
+                console.error(exportErr);
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message: "Export Failed"
+
+                });
+
+            }
+
+        }
+
+    );
+
+};
+
+// ======================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ======================================================
 
@@ -605,6 +748,8 @@ module.exports = {
 
     editReport,
 
-    removeReport
+    removeReport,
+
+    exportReports
 
 };

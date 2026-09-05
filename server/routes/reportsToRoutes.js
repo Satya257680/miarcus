@@ -83,6 +83,33 @@ router.get(
 
 
 // ======================================================
+// EXPORT REPORTS
+// GET /api/reports/export
+// Permission : View
+// ======================================================
+
+router.get(
+
+    "/export",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Reports To",
+
+        "View"
+
+    ),
+
+    reportsToController.exportReports
+
+);
+
+
+
+
+// ======================================================
 // CREATE REPORT
 // POST /api/reports-to
 // Permission : Add
