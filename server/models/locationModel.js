@@ -139,7 +139,7 @@ const EmployeeLocation = {
             FROM users u
             LEFT JOIN mobile_location_targets t ON t.employee_id = u.id AND t.status = 'active'
             WHERE u.status = 'Active'
-              AND TRIM(COALESCE(t.phone_number, u.call_contact, '')) <> ''
+              AND TRIM(COALESCE(t.phone_number, u.call_contact, '') COLLATE utf8mb4_unicode_ci) <> ''
             ORDER BY u.name ASC
         `);
     },
@@ -240,7 +240,7 @@ const EmployeeLocation = {
         const params = [];
         let sql = `
             SELECT u.id AS employee_id, u.employee_id AS employee_code, u.name,
-                   COALESCE(t.phone_number, u.call_contact) AS mobile, d.department_name AS department,
+                   COALESCE(t.phone_number, u.call_contact) COLLATE utf8mb4_unicode_ci AS mobile, d.department_name AS department,
                    dg.designation_name AS designation, lr.latitude, lr.longitude,
                    lr.accuracy, lr.captured_at, lr.source
             FROM users u
@@ -258,7 +258,7 @@ const EmployeeLocation = {
                        AND latest.max_captured_at = r.captured_at
             ) lr ON lr.employee_id = u.id
             WHERE u.status = 'Active'
-              AND TRIM(COALESCE(t.phone_number, u.call_contact, '')) <> ''
+              AND TRIM(COALESCE(t.phone_number, u.call_contact, '') COLLATE utf8mb4_unicode_ci) <> ''
         `;
         if (query) {
             sql += ` AND (LOWER(u.name) LIKE ? OR LOWER(u.employee_id) LIKE ? OR LOWER(COALESCE(u.call_contact,'')) LIKE ?)`;
