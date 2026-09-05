@@ -12,12 +12,12 @@
   align-items: center;
   justify-content: center;
 
-  padding: 24px;
+  padding: 20px;
 
   background: rgba(15, 23, 42, 0.58);
 
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 
   animation: actionOverlayIn 0.22s ease-out;
 }
@@ -27,21 +27,21 @@
 ========================================================= */
 
 .action-point-modal {
-  width: min(760px, 100%);
+  width: min(623px, 100%);
 
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 39px);
 
   background: #ffffff;
 
-  border-radius: 18px;
+  border-radius: 15px;
 
   overflow: hidden;
 
   border: 1px solid rgba(148, 163, 184, 0.25);
 
   box-shadow:
-    0 30px 80px rgba(15, 23, 42, 0.24),
-    0 8px 25px rgba(15, 23, 42, 0.12);
+    0 25px 66px rgba(15, 23, 42, 0.24),
+    0 7px 20px rgba(15, 23, 42, 0.12);
 
   animation: actionModalIn 0.28s cubic-bezier(
     0.22,
@@ -58,9 +58,9 @@
 ========================================================= */
 
 .action-point-header {
-  min-height: 92px;
+  min-height: 75px;
 
-  padding: 20px 24px;
+  padding: 16px 20px;
 
   display: flex;
   align-items: center;
@@ -80,12 +80,12 @@
 .action-point-header-content {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 11px;
 }
 
 .action-point-header-icon {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
 
   flex-shrink: 0;
 
@@ -93,13 +93,13 @@
   align-items: center;
   justify-content: center;
 
-  border-radius: 12px;
+  border-radius: 10px;
 
   background: #dff1f5;
 
   color: #2f6673;
 
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 700;
 
   box-shadow:
@@ -111,18 +111,18 @@
 
   color: #1f2937;
 
-  font-size: 21px;
+  font-size: 17px;
   font-weight: 700;
 
-  letter-spacing: -0.3px;
+  letter-spacing: -1px;
 }
 
 .action-point-header p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
 
   color: #718096;
 
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* =========================================================
@@ -130,21 +130,21 @@
 ========================================================= */
 
 .action-point-close {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
   border: none;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: transparent;
 
   color: #64748b;
 
-  font-size: 27px;
+  font-size: 22px;
   line-height: 1;
 
   cursor: pointer;
@@ -173,18 +173,18 @@
 ========================================================= */
 
 .action-point-body {
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 115px);
 
   overflow-y: auto;
 
-  padding: 22px 24px 24px;
+  padding: 18px 20px 20px;
 
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
 
 .action-point-body::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .action-point-body::-webkit-scrollbar-track {
@@ -193,7 +193,7 @@
 
 .action-point-body::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 20px;
+  border-radius: 16px;
 }
 
 .action-point-body::-webkit-scrollbar-thumb:hover {
@@ -205,27 +205,27 @@
 ========================================================= */
 
 .creation-info {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .creation-status {
-  min-height: 58px;
+  min-height: 48px;
 
   display: flex;
   align-items: center;
 
-  gap: 12px;
+  gap: 10px;
 
-  padding: 11px 14px;
+  padding: 9px 11px;
 
-  border-radius: 11px;
+  border-radius: 9px;
 
   border: 1px solid;
 }
 
 .creation-status-icon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
 
   flex-shrink: 0;
 
@@ -233,9 +233,9 @@
   align-items: center;
   justify-content: center;
 
-  border-radius: 9px;
+  border-radius: 7px;
 
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -244,14 +244,14 @@
 
   margin-bottom: 2px;
 
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .creation-status small {
   display: block;
 
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .checklist-status {
@@ -281,36 +281,36 @@
 ========================================================= */
 
 .action-point-section {
-  padding: 18px;
+  padding: 15px;
 
-  margin-bottom: 18px;
+  margin-bottom: 15px;
 
   border: 1px solid #e5edf0;
 
-  border-radius: 13px;
+  border-radius: 11px;
 
   background: #ffffff;
 
   box-shadow:
-    0 2px 8px rgba(15, 23, 42, 0.025);
+    0 2px 7px rgba(15, 23, 42, 0.025);
 }
 
 .action-section-title {
   display: flex;
   align-items: flex-start;
 
-  gap: 10px;
+  gap: 8px;
 
-  margin-bottom: 18px;
+  margin-bottom: 15px;
 }
 
 .section-accent {
-  width: 4px;
-  min-height: 38px;
+  width: 3px;
+  min-height: 31px;
 
   flex-shrink: 0;
 
-  border-radius: 5px;
+  border-radius: 4px;
 
   background: #4f8794;
 }
@@ -320,16 +320,16 @@
 
   color: #273444;
 
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .action-section-title p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
 
   color: #8794a3;
 
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -342,7 +342,7 @@
 
   grid-template-columns: repeat(2, minmax(0, 1fr));
 
-  gap: 17px;
+  gap: 14px;
 }
 
 .action-full-width {
@@ -362,13 +362,13 @@
   display: flex;
   align-items: center;
 
-  gap: 3px;
+  gap: 2px;
 
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 
   color: #374151;
 
-  font-size: 12.5px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -379,11 +379,11 @@
 }
 
 .optional-text {
-  margin-left: 5px;
+  margin-left: 4px;
 
   color: #94a3b8;
 
-  font-size: 10.5px;
+  font-size: 9px;
 
   font-weight: 500;
 }
@@ -401,7 +401,7 @@
 
   border: 1px solid #d7e0e5;
 
-  border-radius: 8px;
+  border-radius: 7px;
 
   background: #ffffff;
 
@@ -409,7 +409,7 @@
 
   font-family: inherit;
 
-  font-size: 13px;
+  font-size: 11px;
 
   outline: none;
 
@@ -422,15 +422,15 @@
 
 .action-form-group input,
 .action-form-group select {
-  height: 42px;
+  height: 34px;
 
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
 .action-form-group textarea {
-  min-height: 92px;
+  min-height: 75px;
 
-  padding: 11px 12px;
+  padding: 9px 10px;
 
   resize: vertical;
 
@@ -454,7 +454,7 @@
   border-color: #5d919d;
 
   box-shadow:
-    0 0 0 3px rgba(93, 145, 157, 0.12);
+    0 0 0 2px rgba(93, 145, 157, 0.12);
 
   background: #fbfeff;
 }
@@ -476,9 +476,9 @@
 .sla-row {
   display: grid;
 
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: 1fr 98px;
 
-  gap: 8px;
+  gap: 7px;
 }
 
 /* =========================================================
@@ -488,18 +488,18 @@
 .file-upload-box {
   position: relative;
 
-  min-height: 72px;
+  min-height: 59px;
 
   display: flex;
   align-items: center;
 
-  gap: 12px;
+  gap: 10px;
 
-  padding: 10px 12px;
+  padding: 8px 10px;
 
   border: 1px dashed #b9cbd1;
 
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: #f9fcfd;
 
@@ -530,17 +530,17 @@
 
   align-items: center;
 
-  gap: 8px;
+  gap: 7px;
 
-  padding: 8px 12px;
+  padding: 7px 10px;
 
-  border-radius: 7px;
+  border-radius: 6px;
 
   background: #e7f3f6;
 
   color: #356b77;
 
-  font-size: 12px;
+  font-size: 10px;
 
   font-weight: 600;
 
@@ -558,18 +558,18 @@
 }
 
 .file-upload-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border-radius: 5px;
+  border-radius: 4px;
 
   background: #ffffff;
 
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -579,11 +579,11 @@
   display: flex;
   align-items: center;
 
-  gap: 6px;
+  gap: 5px;
 
   color: #475569;
 
-  font-size: 11.5px;
+  font-size: 9px;
 
   overflow: hidden;
 
@@ -591,8 +591,8 @@
 }
 
 .file-check {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 
   flex-shrink: 0;
 
@@ -606,7 +606,7 @@
 
   color: #15803d;
 
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
 }
 
@@ -615,23 +615,23 @@
 ========================================================= */
 
 .action-point-loading {
-  min-height: 260px;
+  min-height: 213px;
 
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 
-  gap: 12px;
+  gap: 10px;
 
   color: #64748b;
 
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .loading-spinner,
 .button-spinner {
-  border: 3px solid #dbe7ea;
+  border: 2px solid #dbe7ea;
 
   border-top-color: #4f8794;
 
@@ -641,13 +641,13 @@
 }
 
 .loading-spinner {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
 }
 
 .button-spinner {
-  width: 15px;
-  height: 15px;
+  width: 12px;
+  height: 12px;
 
   border-width: 2px;
 
@@ -663,9 +663,9 @@
   align-items: center;
   justify-content: flex-end;
 
-  gap: 10px;
+  gap: 8px;
 
-  padding-top: 4px;
+  padding-top: 3px;
 }
 
 /* =========================================================
@@ -674,15 +674,15 @@
 
 .action-cancel-btn,
 .action-create-btn {
-  min-height: 41px;
+  min-height: 34px;
 
-  padding: 0 18px;
+  padding: 0 15px;
 
-  border-radius: 8px;
+  border-radius: 7px;
 
   font-family: inherit;
 
-  font-size: 12.5px;
+  font-size: 10px;
 
   font-weight: 600;
 
@@ -723,7 +723,7 @@
   align-items: center;
   justify-content: center;
 
-  gap: 7px;
+  gap: 6px;
 
   border: 1px solid #467985;
 
@@ -732,7 +732,7 @@
   color: #ffffff;
 
   box-shadow:
-    0 4px 10px rgba(79, 135, 148, 0.2);
+    0 3px 8px rgba(79, 135, 148, 0.2);
 }
 
 .action-create-btn:hover:not(:disabled) {
@@ -743,7 +743,7 @@
   transform: translateY(-1px);
 
   box-shadow:
-    0 7px 16px rgba(79, 135, 148, 0.26);
+    0 6px 13px rgba(79, 135, 148, 0.26);
 }
 
 .action-create-btn:active:not(:disabled) {
@@ -760,18 +760,18 @@
 }
 
 .create-button-icon {
-  width: 19px;
-  height: 19px;
+  width: 16px;
+  height: 16px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border-radius: 5px;
+  border-radius: 4px;
 
   background: rgba(255, 255, 255, 0.16);
 
-  font-size: 15px;
+  font-size: 12px;
 }
 
 /* =========================================================
@@ -793,7 +793,7 @@
     opacity: 0;
 
     transform:
-      translateY(18px)
+      translateY(15px)
       scale(0.97);
   }
 
@@ -818,40 +818,40 @@
 
 @media (max-width: 700px) {
   .action-point-overlay {
-    padding: 12px;
+    padding: 10px;
   }
 
   .action-point-modal {
-    max-height: calc(100vh - 24px);
+    max-height: calc(100vh - 20px);
 
-    border-radius: 14px;
+    border-radius: 11px;
   }
 
   .action-point-header {
-    padding: 17px;
+    padding: 14px;
 
-    min-height: 78px;
+    min-height: 64px;
   }
 
   .action-point-header-icon {
-    width: 40px;
-    height: 40px;
+    width: 33px;
+    height: 33px;
 
-    font-size: 19px;
+    font-size: 16px;
   }
 
   .action-point-header h2 {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   .action-point-header p {
-    font-size: 11px;
+    font-size: 9px;
   }
 
   .action-point-body {
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 82px);
 
-    padding: 16px;
+    padding: 13px;
   }
 
   .action-form-grid {
@@ -863,11 +863,11 @@
   }
 
   .action-point-section {
-    padding: 14px;
+    padding: 11px;
   }
 
   .sla-row {
-    grid-template-columns: 1fr 105px;
+    grid-template-columns: 1fr 86px;
   }
 
   .action-point-footer {
@@ -883,18 +883,18 @@
 
 @media (max-width: 430px) {
   .action-point-header-content {
-    gap: 9px;
+    gap: 7px;
   }
 
   .action-point-header-icon {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
 
-    font-size: 17px;
+    font-size: 14px;
   }
 
   .action-point-header h2 {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .action-point-header p {
@@ -902,16 +902,16 @@
   }
 
   .action-point-close {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
   }
 
   .action-point-body {
-    padding: 12px;
+    padding: 10px;
   }
 
   .creation-status {
-    padding: 9px;
+    padding: 7px;
   }
 
   .file-upload-box {

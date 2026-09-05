@@ -5,7 +5,7 @@
 .nso-tracking-page {
     width: 100%;
     min-height: 100%;
-    padding: 20px;
+    padding: 16px;
     box-sizing: border-box;
     background: #edf3f5;
 }
@@ -19,17 +19,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 16px;
 
-    margin-bottom: 20px;
-    padding: 18px 20px;
+    margin-bottom: 16px;
+    padding: 15px 16px;
 
     background: #ffffff;
 
     border: 1px solid #d8e4e7;
-    border-radius: 10px;
+    border-radius: 8px;
 
-    box-shadow: 0 2px 8px rgba(63, 107, 120, 0.08);
+    box-shadow: 0 2px 7px rgba(63, 107, 120, 0.08);
 }
 
 
@@ -38,7 +38,7 @@
 
     color: #263f46;
 
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
 }
 
@@ -52,7 +52,7 @@
     align-items: center;
     justify-content: flex-end;
 
-    gap: 10px;
+    gap: 8px;
 
     flex-wrap: wrap;
 }
@@ -64,14 +64,14 @@
 
 
 .nso-tracking-page .actions button {
-    min-height: 38px;
+    min-height: 31px;
 
-    padding: 8px 16px;
+    padding: 7px 13px;
 
     border: none;
-    border-radius: 7px;
+    border-radius: 6px;
 
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
 
     cursor: pointer;
@@ -88,7 +88,7 @@
     transform: translateY(-1px);
 
     box-shadow:
-        0 3px 8px rgba(0, 0, 0, 0.12);
+        0 2px 7px rgba(0, 0, 0, 0.12);
 }
 
 
@@ -154,30 +154,30 @@
 .nso-tracking-page .search-container {
     width: 100%;
 
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
 
 .nso-tracking-page .search-box {
     width: 100%;
-    max-width: 420px;
+    max-width: 344px;
 
-    height: 42px;
+    height: 34px;
 
-    padding: 0 14px;
+    padding: 0 11px;
 
     box-sizing: border-box;
 
     background: #ffffff;
 
     border: 1px solid #cbdadd;
-    border-radius: 7px;
+    border-radius: 6px;
 
     outline: none;
 
     color: #263f46;
 
-    font-size: 14px;
+    font-size: 11px;
 
     transition:
         border-color 0.2s ease,
@@ -194,7 +194,7 @@
     border-color: #3f6b78;
 
     box-shadow:
-        0 0 0 3px rgba(63, 107, 120, 0.12);
+        0 0 0 2px rgba(63, 107, 120, 0.12);
 }
 
 
@@ -210,10 +210,10 @@
     background: #ffffff;
 
     border: 1px solid #d8e4e7;
-    border-radius: 10px;
+    border-radius: 8px;
 
     box-shadow:
-        0 2px 8px rgba(63, 107, 120, 0.08);
+        0 2px 7px rgba(63, 107, 120, 0.08);
 }
 
 
@@ -224,7 +224,7 @@
 .nso-tracking-page table {
     width: 100%;
 
-    min-width: 900px;
+    min-width: 738px;
 
     border-collapse: collapse;
 
@@ -242,11 +242,11 @@
 
 
 .nso-tracking-page th {
-    padding: 13px 14px;
+    padding: 11px 11px;
 
     color: #263f46;
 
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
 
     text-align: left;
@@ -262,11 +262,11 @@
    ====================================================== */
 
 .nso-tracking-page td {
-    padding: 13px 14px;
+    padding: 11px 11px;
 
     color: #40545a;
 
-    font-size: 13px;
+    font-size: 11px;
 
     vertical-align: middle;
 
@@ -295,20 +295,20 @@
    ====================================================== */
 
 .nso-tracking-page td select {
-    min-width: 125px;
+    min-width: 102px;
 
-    height: 34px;
+    height: 28px;
 
-    padding: 5px 9px;
+    padding: 4px 7px;
 
     background: #ffffff;
 
     border: 1px solid #cbdadd;
-    border-radius: 6px;
+    border-radius: 5px;
 
     color: #40545a;
 
-    font-size: 13px;
+    font-size: 11px;
 
     outline: none;
 
@@ -336,15 +336,15 @@
 
 .nso-tracking-page .edit-btn,
 .nso-tracking-page .delete-btn {
-    min-width: 65px;
+    min-width: 53px;
 
-    margin-right: 7px;
+    margin-right: 6px;
 
-    padding: 7px 11px;
+    padding: 6px 9px;
 
-    border-radius: 6px;
+    border-radius: 5px;
 
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
 
     cursor: pointer;
@@ -415,26 +415,26 @@
     align-items: center;
     justify-content: center;
 
-    gap: 18px;
+    gap: 15px;
 
-    margin-top: 18px;
-    padding: 14px 0;
+    margin-top: 15px;
+    padding: 11px 0;
 }
 
 
 .nso-tracking-page .pagination button {
-    min-width: 90px;
+    min-width: 74px;
 
-    padding: 8px 14px;
+    padding: 7px 11px;
 
     background: #ffffff;
 
     border: 1px solid #9db9bf;
-    border-radius: 6px;
+    border-radius: 5px;
 
     color: #3f6b78;
 
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
 
     cursor: pointer;
@@ -461,11 +461,11 @@
 
 
 .nso-tracking-page .pagination span {
-    min-width: 100px;
+    min-width: 82px;
 
     color: #53676d;
 
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
 
     text-align: center;
@@ -481,25 +481,25 @@
 
     color: #3f6b78;
 
-    font-size: 16px;
+    font-size: 13px;
 }
 
 
 .nso-tracking-page .table-container p {
-    margin-top: 8px;
+    margin-top: 7px;
 
     color: #71858b;
 
-    font-size: 14px;
+    font-size: 11px;
 }
 
 
 .nso-tracking-page .table-container td[colspan] {
-    padding: 35px 20px;
+    padding: 29px 16px;
 
     color: #7b8e93;
 
-    font-size: 14px;
+    font-size: 11px;
 }
 
 
@@ -508,19 +508,19 @@
    ====================================================== */
 
 .nso-tracking-page .access-denied {
-    padding: 40px;
+    padding: 33px;
 
     background: #ffffff;
 
     border: 1px solid #d8e4e7;
-    border-radius: 10px;
+    border-radius: 8px;
 
     text-align: center;
 }
 
 
 .nso-tracking-page .access-denied h3 {
-    margin: 0 0 8px;
+    margin: 0 0 7px;
 
     color: #263f46;
 }
@@ -538,21 +538,21 @@
    ====================================================== */
 
 .nso-tracking-page .table-container::-webkit-scrollbar {
-    height: 8px;
+    height: 7px;
 }
 
 
 .nso-tracking-page .table-container::-webkit-scrollbar-track {
     background: #edf3f5;
 
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 
 .nso-tracking-page .table-container::-webkit-scrollbar-thumb {
     background: #9db9bf;
 
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 
@@ -568,7 +568,7 @@
 @media (max-width: 900px) {
 
     .nso-tracking-page {
-        padding: 15px;
+        padding: 12px;
     }
 
 
@@ -600,17 +600,17 @@
 @media (max-width: 600px) {
 
     .nso-tracking-page {
-        padding: 10px;
+        padding: 8px;
     }
 
 
     .nso-tracking-page .page-header {
-        padding: 15px;
+        padding: 12px;
     }
 
 
     .nso-tracking-page .page-header h2 {
-        font-size: 20px;
+        font-size: 16px;
     }
 
 
@@ -630,31 +630,31 @@
 
 
     .nso-tracking-page .search-box {
-        height: 40px;
+        height: 33px;
     }
 
 
     .nso-tracking-page .table-container {
-        border-radius: 8px;
+        border-radius: 7px;
     }
 
 
     .nso-tracking-page .pagination {
-        gap: 10px;
+        gap: 8px;
     }
 
 
     .nso-tracking-page .pagination button {
-        min-width: 75px;
+        min-width: 61px;
 
-        padding: 7px 9px;
+        padding: 6px 7px;
     }
 
 
     .nso-tracking-page .pagination span {
-        min-width: 75px;
+        min-width: 61px;
 
-        font-size: 12px;
+        font-size: 10px;
     }
 
 }

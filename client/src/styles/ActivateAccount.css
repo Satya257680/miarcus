@@ -14,7 +14,7 @@
 
     background:#edf3f5;
 
-    padding:30px;
+    padding:25px;
 
 }
 
@@ -24,17 +24,17 @@
 
 .activate-card{
 
-    width:470px;
+    width:385px;
 
     background:#ffffff;
 
-    border-radius:20px;
+    border-radius:16px;
 
-    padding:45px 40px;
+    padding:37px 33px;
 
     text-align:center;
 
-    box-shadow:0 20px 45px rgba(0,0,0,.08);
+    box-shadow:0 16px 37px rgba(0,0,0,.08);
 
     animation:fadeIn .45s ease;
 
@@ -46,13 +46,13 @@
 
 .activate-logo{
 
-    width:95px;
+    width:78px;
 
     height:auto;
 
     display:block;
 
-    margin:0 auto 20px;
+    margin:0 auto 16px;
 
     object-fit:contain;
 
@@ -66,11 +66,11 @@
 
     color:#4a3298;
 
-    font-size:34px;
+    font-size:28px;
 
     font-weight:700;
 
-    margin-bottom:10px;
+    margin-bottom:8px;
 
 }
 
@@ -82,11 +82,11 @@
 
     color:#6b7280;
 
-    font-size:15px;
+    font-size:12px;
 
     line-height:1.7;
 
-    margin-bottom:30px;
+    margin-bottom:25px;
 
 }
 
@@ -98,7 +98,7 @@
 
     position:relative;
 
-    margin-bottom:15px;
+    margin-bottom:12px;
 
 }
 
@@ -106,17 +106,17 @@
 
     width:100%;
 
-    height:54px;
+    height:44px;
 
-    padding:0 50px 0 48px;
+    padding:0 41px 0 39px;
 
     border:1px solid #d9dce3;
 
-    border-radius:12px;
+    border-radius:10px;
 
     background:#fff;
 
-    font-size:15px;
+    font-size:12px;
 
     transition:.3s;
 
@@ -136,7 +136,7 @@
 
     border-color:#6246ea;
 
-    box-shadow:0 0 0 4px rgba(98,70,234,.15);
+    box-shadow:0 0 0 3px rgba(98,70,234,.15);
 
 }
 
@@ -148,7 +148,7 @@
 
     position:absolute;
 
-    left:16px;
+    left:13px;
 
     top:50%;
 
@@ -156,7 +156,7 @@
 
     color:#7b61c9;
 
-    font-size:17px;
+    font-size:14px;
 
 }
 
@@ -164,7 +164,7 @@
 
     position:absolute;
 
-    right:16px;
+    right:13px;
 
     top:50%;
 
@@ -174,7 +174,7 @@
 
     cursor:pointer;
 
-    font-size:17px;
+    font-size:14px;
 
     transition:.25s;
 
@@ -194,13 +194,13 @@
 
     text-align:left;
 
-    font-size:13px;
+    font-size:11px;
 
     font-weight:600;
 
     color:#7b61c9;
 
-    margin:-5px 0 18px;
+    margin:-4px 0 15px;
 
 }
 
@@ -212,17 +212,17 @@
 
     width:100%;
 
-    height:54px;
+    height:44px;
 
     border:none;
 
-    border-radius:12px;
+    border-radius:10px;
 
     background:linear-gradient(90deg,#5c3fd4,#7050f0);
 
     color:#fff;
 
-    font-size:16px;
+    font-size:13px;
 
     font-weight:600;
 
@@ -230,7 +230,7 @@
 
     transition:.3s;
 
-    margin-top:5px;
+    margin-top:4px;
 
 }
 
@@ -238,7 +238,7 @@
 
     transform:translateY(-2px);
 
-    box-shadow:0 15px 30px rgba(92,63,212,.30);
+    box-shadow:0 12px 25px rgba(92,63,212,.30);
 
 }
 
@@ -260,9 +260,9 @@
 
 .activate-footer{
 
-    margin-top:24px;
+    margin-top:20px;
 
-    font-size:14px;
+    font-size:11px;
 
     color:#6b7280;
 
@@ -276,7 +276,7 @@
 
     cursor:pointer;
 
-    margin-left:5px;
+    margin-left:4px;
 
     transition:.25s;
 
@@ -294,11 +294,11 @@
 
 .success-icon{
 
-    font-size:72px;
+    font-size:59px;
 
     color:#2ecc71;
 
-    margin-bottom:20px;
+    margin-bottom:16px;
 
     animation:pop .5s ease;
 
@@ -314,7 +314,7 @@
 
         opacity:0;
 
-        transform:translateY(25px);
+        transform:translateY(20px);
 
     }
 
@@ -356,7 +356,7 @@
 
     .activate-page{
 
-        padding:20px;
+        padding:16px;
 
     }
 
@@ -364,27 +364,27 @@
 
         width:100%;
 
-        padding:35px 25px;
+        padding:29px 20px;
 
     }
 
     .activate-card h2{
 
-        font-size:28px;
+        font-size:23px;
 
     }
 
     .subtitle{
 
-        font-size:14px;
+        font-size:11px;
 
     }
 
 }
-.password-requirements{margin:14px 0 20px;padding:14px 16px;border:1px solid rgba(212,175,55,.22);border-radius:14px;background:rgba(212,175,55,.06);color:#64748b;text-align:left}
-.password-requirements strong{display:block;color:#d4af37;margin-bottom:6px}
-.password-requirements p{margin:0 0 8px;font-size:13px}
-.password-requirements ul{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin:0;padding-left:18px;font-size:13px}
+.password-requirements{margin:11px 0 16px;padding:11px 13px;border:1px solid rgba(212,175,55,.22);border-radius:11px;background:rgba(212,175,55,.06);color:#64748b;text-align:left}
+.password-requirements strong{display:block;color:#d4af37;margin-bottom:5px}
+.password-requirements p{margin:0 0 7px;font-size:11px}
+.password-requirements ul{display:grid;grid-template-columns:1fr 1fr;gap:5px 13px;margin:0;padding-left:15px;font-size:11px}
 .password-requirements li.valid{color:#16a34a;font-weight:700}
 .password-requirements li.valid::marker{content:'✓  '}
 @media(max-width:600px){.password-requirements ul{grid-template-columns:1fr}}

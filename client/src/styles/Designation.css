@@ -5,7 +5,7 @@
 .designation-page{
     width:100%;
     min-height:100vh;
-    padding:24px;
+    padding:20px;
     background:#edf3f5;
     box-sizing:border-box;
 }
@@ -17,25 +17,25 @@
 .designation-page .card{
     width:100%;
     background:#fff;
-    border-radius:16px;
+    border-radius:13px;
     overflow:hidden;
-    box-shadow:0 4px 14px rgba(0,0,0,.08);
+    box-shadow:0 3px 11px rgba(0,0,0,.08);
 }
 
 .designation-page .card-header{
-    padding:18px 24px;
+    padding:15px 20px;
     border-bottom:1px solid #ececec;
 }
 
 .designation-page .card-title{
     margin:0;
-    font-size:20px;
+    font-size:16px;
     font-weight:700;
     color:#1f2937;
 }
 
 .designation-page .card-body{
-    padding:18px;
+    padding:15px;
 }
 
 /* ==========================================
@@ -58,9 +58,9 @@
 }
 
 .designation-page thead th{
-    padding:16px 18px;
+    padding:13px 15px;
     color:#fff;
-    font-size:14px;
+    font-size:11px;
     font-weight:600;
     white-space:nowrap;
     text-align:left;
@@ -76,8 +76,8 @@
 }
 
 .designation-page tbody td{
-    padding:18px;
-    font-size:14px;
+    padding:15px;
+    font-size:11px;
     color:#374151;
     vertical-align:middle;
 }
@@ -88,24 +88,24 @@
 
 .designation-page th:nth-child(1),
 .designation-page td:nth-child(1){
-    width:70px;
+    width:57px;
 }
 
 .designation-page th:nth-child(5),
 .designation-page td:nth-child(5){
-    width:120px;
+    width:98px;
     text-align:center;
 }
 
 .designation-page th:nth-child(6),
 .designation-page td:nth-child(6){
-    width:140px;
+    width:115px;
     text-align:center;
 }
 
 .designation-page th:nth-child(7),
 .designation-page td:nth-child(7){
-    width:180px;
+    width:148px;
     text-align:center;
 }
 
@@ -115,8 +115,8 @@
 
 .designation-page th:nth-child(4),
 .designation-page td:nth-child(4){
-    min-width:180px;
-    max-width:280px;
+    min-width:148px;
+    max-width:230px;
 }
 
 .designation-page td:nth-child(4){
@@ -133,11 +133,11 @@
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    min-width:90px;
-    height:32px;
-    padding:0 16px;
-    border-radius:999px;
-    font-size:13px;
+    min-width:74px;
+    height:26px;
+    padding:0 13px;
+    border-radius:819px;
+    font-size:11px;
     font-weight:600;
     color:#fff;
 }
@@ -160,7 +160,7 @@
     display:flex;
     justify-content:center;
     align-items:center;
-    gap:10px;
+    gap:8px;
     flex-wrap:nowrap;
 }
 
@@ -168,20 +168,20 @@
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    gap:6px;
+    gap:5px;
     border:none;
     outline:none;
     cursor:pointer;
-    border-radius:6px;
-    font-size:13px;
+    border-radius:5px;
+    font-size:11px;
     font-weight:600;
     transition:.25s;
     white-space:nowrap;
 }
 
 .designation-page .edit-btn{
-    min-width:82px;
-    height:36px;
+    min-width:67px;
+    height:30px;
     background:#f39c12;
     color:#fff;
 }
@@ -191,8 +191,8 @@
 }
 
 .designation-page .delete-btn{
-    min-width:82px;
-    height:36px;
+    min-width:67px;
+    height:30px;
     background:#3498db;
     color:#fff;
 }
@@ -207,9 +207,9 @@
 
 .designation-page .loading{
     text-align:center;
-    padding:40px;
+    padding:33px;
     color:#666;
-    font-size:15px;
+    font-size:12px;
 }
 
 /* ==========================================
@@ -223,7 +223,7 @@
     }
 
     .designation-page table{
-        min-width:1100px;
+        min-width:902px;
     }
 
 }
@@ -231,17 +231,17 @@
 @media (max-width:768px){
 
     .designation-page{
-        padding:16px;
+        padding:13px;
     }
 
     .designation-page .card-body{
-        padding:12px;
+        padding:10px;
     }
 
     .designation-page thead th,
     .designation-page tbody td{
-        padding:12px;
-        font-size:13px;
+        padding:10px;
+        font-size:11px;
     }
 
 }
@@ -249,7 +249,7 @@
 @media (max-width:576px){
 
     .designation-page{
-        padding:10px;
+        padding:8px;
     }
 
 }

@@ -17,11 +17,11 @@
 ====================================================== */
 
 .bulk-modal {
-    width: 520px;
+    width: 426px;
     max-width: 92%;
     background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
+    border-radius: 10px;
+    box-shadow: 0 12px 33px rgba(0, 0, 0, 0.18);
     overflow: hidden;
     animation: bulkFadeIn .25s ease;
 }
@@ -34,25 +34,25 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 22px 28px;
+    padding: 18px 23px;
     border-bottom: 1px solid #ececec;
 }
 
 .bulk-modal-header h2 {
     margin: 0;
     color: #6b4fd3;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 700;
 }
 
 .bulk-close-btn {
-    width: 40px;
-    height: 40px;
+    width: 33px;
+    height: 33px;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #7c5ce4;
     color: #ffffff;
-    font-size: 22px;
+    font-size: 18px;
     cursor: pointer;
     transition: .25s;
 }
@@ -66,13 +66,13 @@
 ====================================================== */
 
 .bulk-modal-body {
-    padding: 28px;
+    padding: 23px;
 }
 
 .bulk-modal-body p {
-    margin: 0 0 18px;
+    margin: 0 0 15px;
     color: #555;
-    font-size: 16px;
+    font-size: 13px;
     line-height: 1.6;
 }
 
@@ -83,10 +83,10 @@
 .bulk-file-picker {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 11px;
     border: 1px solid #dcdcdc;
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 7px;
+    padding: 10px;
     background: #fafafa;
 }
 
@@ -94,10 +94,10 @@
     border: none;
     background: #7c5ce4;
     color: #ffffff;
-    padding: 10px 20px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
     transition: .25s;
     white-space: nowrap;
@@ -109,7 +109,7 @@
 
 .file-name {
     color: #555;
-    font-size: 14px;
+    font-size: 11px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -123,18 +123,18 @@
 .bulk-modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    padding: 20px 28px;
+    gap: 10px;
+    padding: 16px 23px;
     border-top: 1px solid #ececec;
 }
 
 .cancel-btn,
 .upload-btn {
-    min-width: 120px;
-    padding: 11px 22px;
+    min-width: 98px;
+    padding: 9px 18px;
     border: none;
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: 7px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     transition: .25s;

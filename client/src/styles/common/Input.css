@@ -8,7 +8,7 @@
 
     flex-direction:column;
 
-    gap:8px;
+    gap:7px;
 
     width:100%;
 
@@ -20,7 +20,7 @@
 
 .input-label{
 
-    font-size:14px;
+    font-size:11px;
 
     font-weight:600;
 
@@ -32,7 +32,7 @@
 
     color:#dc3545;
 
-    margin-left:4px;
+    margin-left:3px;
 
 }
 
@@ -50,7 +50,7 @@
 
     border:1px solid #d1d5db;
 
-    border-radius:8px;
+    border-radius:7px;
 
     transition:.25s;
 
@@ -60,7 +60,7 @@
 
     border-color:#356d84;
 
-    box-shadow:0 0 0 3px rgba(53,109,132,.15);
+    box-shadow:0 0 0 2px rgba(53,109,132,.15);
 
 }
 
@@ -68,7 +68,7 @@
 
     flex:1;
 
-    height:44px;
+    height:36px;
 
     border:none;
 
@@ -76,9 +76,9 @@
 
     background:transparent;
 
-    padding:0 14px;
+    padding:0 11px;
 
-    font-size:14px;
+    font-size:11px;
 
     color:#374151;
 
@@ -104,7 +104,7 @@
 
     color:#6b7280;
 
-    padding:0 12px;
+    padding:0 10px;
 
 }
 
@@ -132,7 +132,7 @@
 
 .input-message{
 
-    font-size:12px;
+    font-size:10px;
 
     color:#6b7280;
 

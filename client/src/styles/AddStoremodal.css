@@ -12,11 +12,11 @@
   align-items: center;
   justify-content: center;
 
-  padding: 24px;
+  padding: 20px;
 
   background: rgba(15, 32, 38, 0.58);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
   animation: storeOverlayIn 0.22s ease-out;
 }
@@ -26,9 +26,9 @@
 ========================================================= */
 
 .store-modal {
-  width: min(900px, 100%);
+  width: min(738px, 100%);
 
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 39px);
 
   display: flex;
   flex-direction: column;
@@ -36,11 +36,11 @@
   background: #ffffff;
 
   border: 1px solid rgba(157, 185, 191, 0.5);
-  border-radius: 18px;
+  border-radius: 15px;
 
   box-shadow:
-    0 30px 70px rgba(25, 55, 65, 0.22),
-    0 8px 25px rgba(25, 55, 65, 0.12);
+    0 25px 57px rgba(25, 55, 65, 0.22),
+    0 7px 20px rgba(25, 55, 65, 0.12);
 
   overflow: hidden;
 
@@ -58,7 +58,7 @@
   align-items: center;
   justify-content: space-between;
 
-  padding: 22px 26px;
+  padding: 18px 21px;
 
   background:
     linear-gradient(
@@ -81,7 +81,7 @@
   right: 0;
   bottom: 0;
 
-  height: 3px;
+  height: 2px;
 
   background: linear-gradient(
     90deg,
@@ -102,14 +102,14 @@
 .store-header-content {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 
   min-width: 0;
 }
 
 .store-header-icon {
-  width: 48px;
-  height: 48px;
+  width: 39px;
+  height: 39px;
 
   flex-shrink: 0;
 
@@ -117,19 +117,19 @@
   align-items: center;
   justify-content: center;
 
-  border-radius: 13px;
+  border-radius: 11px;
 
   color: #ffffff;
   background: #3f6b78;
 
   box-shadow:
-    0 7px 16px rgba(63, 107, 120, 0.25);
+    0 6px 13px rgba(63, 107, 120, 0.25);
 
   animation: storeIconPop 0.45s ease-out 0.08s both;
 }
 
 .store-header-icon span {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
   font-weight: 600;
 }
@@ -143,19 +143,19 @@
 
   color: #17353e;
 
-  font-size: 21px;
+  font-size: 17px;
   line-height: 1.25;
   font-weight: 700;
 
-  letter-spacing: -0.2px;
+  letter-spacing: -1px;
 }
 
 .store-modal-header p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
 
   color: #5c737a;
 
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -164,8 +164,8 @@
 ========================================================= */
 
 .store-close-btn {
-  width: 38px;
-  height: 38px;
+  width: 31px;
+  height: 31px;
 
   flex-shrink: 0;
 
@@ -174,12 +174,12 @@
   justify-content: center;
 
   border: 1px solid rgba(63, 107, 120, 0.2);
-  border-radius: 10px;
+  border-radius: 8px;
 
   background: rgba(255, 255, 255, 0.72);
   color: #4f6870;
 
-  font-size: 25px;
+  font-size: 20px;
   line-height: 1;
 
   cursor: pointer;
@@ -198,7 +198,7 @@
   transform: rotate(90deg);
 
   box-shadow:
-    0 5px 14px rgba(30, 60, 70, 0.12);
+    0 4px 11px rgba(30, 60, 70, 0.12);
 }
 
 .store-close-btn:active {
@@ -214,14 +214,14 @@
 
   overflow-y: auto;
 
-  padding: 24px 26px 0;
+  padding: 20px 21px 0;
 
   scrollbar-width: thin;
   scrollbar-color: #aac5cb transparent;
 }
 
 .store-form::-webkit-scrollbar {
-  width: 7px;
+  width: 6px;
 }
 
 .store-form::-webkit-scrollbar-track {
@@ -230,7 +230,7 @@
 
 .store-form::-webkit-scrollbar-thumb {
   background: #aac5cb;
-  border-radius: 20px;
+  border-radius: 16px;
 }
 
 .store-form::-webkit-scrollbar-thumb:hover {
@@ -242,14 +242,14 @@
 ========================================================= */
 
 .store-section {
-  margin-bottom: 23px;
+  margin-bottom: 19px;
 
-  padding: 20px;
+  padding: 16px;
 
   background: #fbfdfe;
 
   border: 1px solid #e1ebee;
-  border-radius: 14px;
+  border-radius: 11px;
 
   animation: storeSectionIn 0.4s ease both;
 }
@@ -266,20 +266,20 @@
   display: flex;
   align-items: flex-start;
 
-  gap: 11px;
+  gap: 9px;
 
-  margin-bottom: 18px;
+  margin-bottom: 15px;
 }
 
 .store-section-line {
-  width: 4px;
-  min-height: 38px;
+  width: 3px;
+  min-height: 31px;
 
   flex-shrink: 0;
 
   margin-top: 1px;
 
-  border-radius: 10px;
+  border-radius: 8px;
 
   background: #3f6b78;
 }
@@ -289,16 +289,16 @@
 
   color: #23444d;
 
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .store-section-heading p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
 
   color: #789097;
 
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.4;
 }
 
@@ -312,7 +312,7 @@
   grid-template-columns:
     repeat(2, minmax(0, 1fr));
 
-  gap: 17px 18px;
+  gap: 14px 15px;
 }
 
 /* =========================================================
@@ -327,18 +327,18 @@
 }
 
 .store-field label {
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 
   color: #334f57;
 
-  font-size: 12.5px;
+  font-size: 10px;
   font-weight: 600;
 
-  letter-spacing: 0.1px;
+  letter-spacing: 1px;
 }
 
 .required {
-  margin-left: 3px;
+  margin-left: 2px;
 
   color: #d94a4a;
 
@@ -357,13 +357,13 @@
   box-sizing: border-box;
 
   border: 1px solid #cbdde1;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: #ffffff;
   color: #29434b;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
 
   outline: none;
 
@@ -376,15 +376,15 @@
 
 .store-field input,
 .store-field select {
-  height: 43px;
+  height: 35px;
 
-  padding: 0 13px;
+  padding: 0 11px;
 }
 
 .store-field textarea {
-  min-height: 82px;
+  min-height: 67px;
 
-  padding: 11px 13px;
+  padding: 9px 11px;
 
   resize: vertical;
 }
@@ -414,7 +414,7 @@
   background: #ffffff;
 
   box-shadow:
-    0 0 0 3px rgba(95, 141, 153, 0.12);
+    0 0 0 2px rgba(95, 141, 153, 0.12);
 
   transform: translateY(-1px);
 }
@@ -433,13 +433,13 @@
   position: absolute;
 
   top: 50%;
-  right: 13px;
+  right: 11px;
 
   transform: translateY(-54%);
 
   color: #5f7b83;
 
-  font-size: 17px;
+  font-size: 14px;
 
   pointer-events: none;
 }
@@ -448,7 +448,7 @@
   appearance: none;
   -webkit-appearance: none;
 
-  padding-right: 38px;
+  padding-right: 31px;
 
   cursor: pointer;
 }
@@ -473,18 +473,18 @@
   align-items: center;
   justify-content: flex-end;
 
-  gap: 11px;
+  gap: 9px;
 
-  margin: 0 -26px;
+  margin: 0 -21px;
 
-  padding: 17px 26px;
+  padding: 14px 21px;
 
   background: rgba(255, 255, 255, 0.96);
 
   border-top: 1px solid #e0eaed;
 
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 }
 
 /* =========================================================
@@ -492,19 +492,19 @@
 ========================================================= */
 
 .store-cancel-btn {
-  min-width: 100px;
-  height: 42px;
+  min-width: 82px;
+  height: 34px;
 
-  padding: 0 19px;
+  padding: 0 16px;
 
   border: 1px solid #cbdde1;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: #ffffff;
   color: #536b72;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 
   cursor: pointer;
@@ -524,7 +524,7 @@
   transform: translateY(-1px);
 
   box-shadow:
-    0 5px 12px rgba(35, 68, 77, 0.08);
+    0 4px 10px rgba(35, 68, 77, 0.08);
 }
 
 .store-cancel-btn:active {
@@ -536,19 +536,19 @@
 ========================================================= */
 
 .store-save-btn {
-  min-width: 155px;
-  height: 42px;
+  min-width: 127px;
+  height: 34px;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  gap: 8px;
+  gap: 7px;
 
-  padding: 0 20px;
+  padding: 0 16px;
 
   border: none;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: linear-gradient(
     135deg,
@@ -559,13 +559,13 @@
   color: #ffffff;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 
   cursor: pointer;
 
   box-shadow:
-    0 7px 16px rgba(63, 107, 120, 0.23);
+    0 6px 13px rgba(63, 107, 120, 0.23);
 
   transition:
     transform 0.2s ease,
@@ -579,19 +579,19 @@
   transform: translateY(-2px);
 
   box-shadow:
-    0 10px 22px rgba(63, 107, 120, 0.30);
+    0 8px 18px rgba(63, 107, 120, 0.30);
 }
 
 .store-save-btn:active {
   transform: translateY(0) scale(0.98);
 
   box-shadow:
-    0 5px 12px rgba(63, 107, 120, 0.2);
+    0 4px 10px rgba(63, 107, 120, 0.2);
 }
 
 .store-save-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 
   display: flex;
   align-items: center;
@@ -601,7 +601,7 @@
 
   background: rgba(255, 255, 255, 0.18);
 
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -622,7 +622,7 @@
 @keyframes storeModalIn {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.97);
+    transform: translateY(15px) scale(0.97);
   }
 
   to {
@@ -646,7 +646,7 @@
 @keyframes storeSectionIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(7px);
   }
 
   to {
@@ -671,21 +671,21 @@
 
 @media (max-width: 760px) {
   .store-modal-overlay {
-    padding: 12px;
+    padding: 10px;
   }
 
   .store-modal {
-    max-height: calc(100vh - 24px);
+    max-height: calc(100vh - 20px);
 
-    border-radius: 15px;
+    border-radius: 12px;
   }
 
   .store-modal-header {
-    padding: 18px;
+    padding: 15px;
   }
 
   .store-form {
-    padding: 18px 18px 0;
+    padding: 15px 15px 0;
   }
 
   .store-form-grid {
@@ -697,56 +697,56 @@
   }
 
   .store-section {
-    padding: 16px;
-  }
-
-  .store-modal-footer {
-    margin: 0 -18px;
-
-    padding: 15px 18px;
-  }
-}
-
-@media (max-width: 480px) {
-  .store-modal-header {
-    padding: 16px;
-  }
-
-  .store-header-icon {
-    width: 42px;
-    height: 42px;
-  }
-
-  .store-header-icon span {
-    font-size: 21px;
-  }
-
-  .store-modal-header h2 {
-    font-size: 18px;
-  }
-
-  .store-modal-header p {
-    font-size: 11px;
-  }
-
-  .store-close-btn {
-    width: 34px;
-    height: 34px;
-  }
-
-  .store-form {
-    padding: 15px 15px 0;
-  }
-
-  .store-section {
-    padding: 14px;
-    margin-bottom: 15px;
+    padding: 13px;
   }
 
   .store-modal-footer {
     margin: 0 -15px;
 
-    padding: 13px 15px;
+    padding: 12px 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .store-modal-header {
+    padding: 13px;
+  }
+
+  .store-header-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .store-header-icon span {
+    font-size: 17px;
+  }
+
+  .store-modal-header h2 {
+    font-size: 15px;
+  }
+
+  .store-modal-header p {
+    font-size: 9px;
+  }
+
+  .store-close-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .store-form {
+    padding: 12px 12px 0;
+  }
+
+  .store-section {
+    padding: 11px;
+    margin-bottom: 12px;
+  }
+
+  .store-modal-footer {
+    margin: 0 -12px;
+
+    padding: 11px 12px;
 
     flex-direction: column-reverse;
   }
@@ -767,7 +767,7 @@
 .store-field input:focus-visible,
 .store-field textarea:focus-visible,
 .store-field select:focus-visible {
-  outline: 3px solid rgba(63, 107, 120, 0.18);
+  outline: 2px solid rgba(63, 107, 120, 0.18);
   outline-offset: 2px;
 }
 

@@ -5,19 +5,19 @@
 .sales-page {
   width: 100%;
   min-height: 100%;
-  padding: 0 0 32px;
+  padding: 0 0 26px;
   color: #243b45;
   box-sizing: border-box;
 }
 
 .sales-standard-page .page-header,
 .approvals-standard-page .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .sales-title-info {
   color: #8b7ac7;
-  font-size: 15px;
+  font-size: 12px;
 }
 
 /* =====================================================
@@ -63,12 +63,12 @@
 .sales-global-filter {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 170px;
+  gap: 5px;
+  min-width: 139px;
 }
 
 .sales-global-filter span {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: #4d626b;
 }
@@ -76,15 +76,15 @@
 .sales-global-filter input,
 .sales-global-filter select {
   width: 100%;
-  min-width: 170px;
-  height: 42px;
-  padding: 0 12px;
+  min-width: 139px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid #d5dfe3;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
   color: #263e49;
   outline: none;
-  font-size: 13px;
+  font-size: 11px;
   box-sizing: border-box;
   transition:
     border-color 0.18s ease,
@@ -105,7 +105,7 @@
 .sales-store-search:focus,
 .sales-field-search:focus {
   border-color: #8b7ac7;
-  box-shadow: 0 0 0 3px rgba(139, 122, 199, 0.12);
+  box-shadow: 0 0 0 2px rgba(139, 122, 199, 0.12);
 }
 
 /* =====================================================
@@ -119,25 +119,25 @@
 }
 
 .sales-global-table .data-table {
-  min-width: 1450px;
+  min-width: 1189px;
 }
 
 .sales-review-global-table .data-table {
-  min-width: 2500px;
+  min-width: 2050px;
 }
 
 .sales-global-table .data-table thead th {
   background: #9fc6cb;
   color: #173946;
   border-bottom-color: #8db9bf;
-  font-size: 13px;
-  padding: 13px 14px;
+  font-size: 11px;
+  padding: 11px 11px;
   white-space: nowrap;
 }
 
 .sales-global-table .data-table tbody td {
-  font-size: 13px;
-  padding: 12px 14px;
+  font-size: 11px;
+  padding: 10px 11px;
   vertical-align: middle;
 }
 
@@ -147,7 +147,7 @@
 
 .sales-wrap-cell {
   display: block;
-  max-width: 300px;
+  max-width: 246px;
   white-space: normal;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -157,12 +157,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: 819px;
   background: #f2f3f5;
   color: #68747a;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* =====================================================
@@ -173,10 +173,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 819px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -204,7 +204,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .sales-icon-btn,
@@ -213,13 +213,13 @@
   background: transparent;
   color: #7868bb;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 6px;
-  border-radius: 5px;
+  gap: 4px;
+  padding: 4px 5px;
+  border-radius: 4px;
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -252,27 +252,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
   background: rgba(25, 43, 51, 0.58);
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(2px);
   box-sizing: border-box;
 }
 
 .sales-form-modal {
-  width: min(760px, 100%);
-  max-height: calc(100vh - 48px);
+  width: min(623px, 100%);
+  max-height: calc(100vh - 39px);
   overflow: auto;
   background: #fff;
-  border-radius: 14px;
+  border-radius: 11px;
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.28),
-    0 4px 18px rgba(30, 53, 62, 0.12);
+    0 20px 57px rgba(0, 0, 0, 0.28),
+    0 3px 15px rgba(30, 53, 62, 0.12);
   scrollbar-width: thin;
   scrollbar-color: #b8cbd0 transparent;
 }
 
 .sales-form-modal::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
 }
 
 .sales-form-modal::-webkit-scrollbar-track {
@@ -281,11 +281,11 @@
 
 .sales-form-modal::-webkit-scrollbar-thumb {
   background: #b8cbd0;
-  border-radius: 20px;
+  border-radius: 16px;
 }
 
 .visit-form-modal {
-  width: min(900px, 100%);
+  width: min(738px, 100%);
 }
 
 /* =====================================================
@@ -298,33 +298,33 @@
   z-index: 5;
   display: flex;
   justify-content: space-between;
-  gap: 18px;
+  gap: 15px;
   align-items: flex-start;
-  padding: 22px 24px;
+  padding: 18px 20px;
   border-bottom: 1px solid #edf1f3;
   background: #fff;
 }
 
 .sales-modal-header h2 {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
   color: #263c46;
-  font-size: 21px;
+  font-size: 17px;
   line-height: 1.25;
 }
 
 .sales-modal-header p {
   margin: 0;
   color: #6d7c83;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
 .sales-modal-close {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border: 1px solid #d9e0e3;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
   color: #61737b;
   cursor: pointer;
@@ -355,16 +355,16 @@
 .sales-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 17px;
-  padding: 22px 24px;
+  gap: 14px;
+  padding: 18px 20px;
 }
 
 .sales-field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   color: #40565f;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -382,10 +382,10 @@
 .sales-field-search,
 .sales-store-search {
   width: 100%;
-  min-height: 43px;
-  padding: 9px 12px;
+  min-height: 35px;
+  padding: 7px 10px;
   border: 1px solid #d2dde1;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
   color: #263e49;
   outline: none;
@@ -408,7 +408,7 @@
 
 .sales-field textarea {
   resize: vertical;
-  min-height: 96px;
+  min-height: 79px;
   line-height: 1.5;
 }
 
@@ -420,7 +420,7 @@
   display: block;
   margin-top: 1px;
   color: #829097;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 400;
   line-height: 1.45;
 }
@@ -430,19 +430,19 @@
 ===================================================== */
 
 .sales-check-field {
-  min-height: 43px;
+  min-height: 35px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding-top: 21px;
+  gap: 7px;
+  padding-top: 17px;
   color: #40565f;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .sales-check-field input {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   accent-color: #8b7ac7;
   cursor: pointer;
 }
@@ -459,35 +459,35 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: 11px;
+  margin-bottom: 7px;
 }
 
 .sales-store-picker-header > div {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .sales-store-picker-header > div > span {
   color: #40565f;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 .sales-store-refresh-btn {
-  min-height: 34px;
-  padding: 0 11px;
+  min-height: 28px;
+  padding: 0 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   border: 1px solid #cfc7ea;
-  border-radius: 7px;
+  border-radius: 6px;
   background: #f9f7ff;
   color: #7563b7;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
   transition:
@@ -510,7 +510,7 @@
 ===================================================== */
 
 .sales-store-search {
-  min-height: 43px;
+  min-height: 35px;
 }
 
 /* =====================================================
@@ -521,34 +521,34 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 8px 10px;
+  gap: 10px;
+  margin-top: 7px;
+  padding: 7px 8px;
   border: 1px solid #e6edef;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #f8fafb;
 }
 
 .sales-store-picker-actions > span {
   color: #73828a;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
 }
 
 .sales-store-picker-actions > div {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .sales-store-picker-actions button {
   border: 1px solid #d2dde1;
-  border-radius: 6px;
+  border-radius: 5px;
   background: #fff;
   color: #50656e;
-  padding: 5px 8px;
+  padding: 4px 7px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
   transition:
     background 0.15s ease,
@@ -572,28 +572,28 @@
 ===================================================== */
 
 .sales-store-picker {
-  max-height: 300px;
+  max-height: 246px;
   overflow: auto;
-  margin-top: 8px;
+  margin-top: 7px;
   border: 1px solid #d8e1e4;
-  border-radius: 9px;
+  border-radius: 7px;
   background: #fbfcfd;
   scrollbar-width: thin;
   scrollbar-color: #b9cbd0 transparent;
 }
 
 .sales-store-picker::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
 }
 
 .sales-store-picker::-webkit-scrollbar-track {
   background: #f5f8f9;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .sales-store-picker::-webkit-scrollbar-thumb {
   background: #b9cbd0;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .sales-store-picker::-webkit-scrollbar-thumb:hover {
@@ -607,8 +607,8 @@
 .sales-store-option {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 10px 11px;
   border-bottom: 1px solid #edf1f3;
   cursor: pointer;
   transition:
@@ -629,10 +629,10 @@
 }
 
 .sales-store-option input {
-  width: 17px;
-  height: 17px;
-  margin-top: 3px;
-  flex: 0 0 17px;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  flex: 0 0 14px;
   accent-color: #8b7ac7;
   cursor: pointer;
 }
@@ -642,19 +642,19 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .sales-store-option strong {
   color: #263f49;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .sales-store-option small {
   color: #7b8a91;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 400;
   line-height: 1.4;
 }
@@ -667,11 +667,11 @@
 .sales-store-option .sales-store-status {
   width: fit-content;
   margin-top: 2px;
-  padding: 2px 6px;
-  border-radius: 999px;
+  padding: 2px 5px;
+  border-radius: 819px;
   background: #eaf4f6;
   color: #46717d;
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
   text-transform: capitalize;
 }
@@ -681,14 +681,14 @@
 ===================================================== */
 
 .sales-picker-loading {
-  min-height: 150px;
+  min-height: 123px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 7px;
   color: #74858c;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -697,25 +697,25 @@
 ===================================================== */
 
 .sales-picker-empty {
-  min-height: 130px;
-  padding: 25px 20px;
+  min-height: 107px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   text-align: center;
   color: #7b8a91;
 }
 
 .sales-picker-empty strong {
   color: #536870;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .sales-picker-empty span {
   color: #8b989e;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 /* =====================================================
@@ -723,17 +723,17 @@
 ===================================================== */
 
 .sales-selected-summary {
-  margin-top: 8px;
-  padding: 7px 9px;
-  border-radius: 7px;
+  margin-top: 7px;
+  padding: 6px 7px;
+  border-radius: 6px;
   background: #f7f5ff;
   color: #7563b7;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
 }
 
 .sales-selected-summary strong {
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* =====================================================
@@ -743,9 +743,9 @@
 .sales-selected-store-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  max-height: 100px;
+  gap: 5px;
+  margin-top: 7px;
+  max-height: 82px;
   overflow: auto;
   padding-right: 2px;
 }
@@ -754,19 +754,19 @@
   max-width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 8px 6px 10px;
+  gap: 6px;
+  padding: 5px 7px 5px 8px;
   border: 1px solid #d8d0f1;
-  border-radius: 999px;
+  border-radius: 819px;
   background: #f8f6ff;
   color: #6757a5;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
 }
 
 .sales-selected-store-chip button {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -797,19 +797,19 @@
   z-index: 5;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 17px 24px 21px;
+  gap: 8px;
+  padding: 14px 20px 17px;
   border-top: 1px solid #edf1f3;
   background: #fff;
 }
 
 .modal-secondary-btn,
 .modal-primary-btn {
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 15px;
+  border-radius: 7px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   transition:
     background 0.15s ease,
@@ -852,19 +852,19 @@
 .actual-store-editor {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  width: 210px;
+  gap: 5px;
+  width: 172px;
 }
 
 .actual-store-editor select {
   width: 100%;
-  min-height: 82px;
+  min-height: 67px;
   border: 1px solid #ccd8dc;
-  border-radius: 7px;
-  padding: 5px;
+  border-radius: 6px;
+  padding: 4px;
   background: #fff;
   color: #2b424c;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .mini-save-btn {
@@ -872,10 +872,10 @@
   border: 1px solid #8b7ac7;
   background: #f7f5ff;
   color: #7563b7;
-  border-radius: 6px;
-  padding: 5px 10px;
+  border-radius: 5px;
+  padding: 4px 8px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -885,11 +885,11 @@
 
 .visit-rate {
   display: inline-flex;
-  min-width: 55px;
+  min-width: 45px;
   justify-content: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  padding: 4px 7px;
+  border-radius: 819px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -908,63 +908,63 @@
 ===================================================== */
 
 .remarks-modal {
-  width: min(650px, 100%);
+  width: min(533px, 100%);
   padding-bottom: 0;
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 24px 0;
-  max-height: 250px;
+  gap: 8px;
+  padding: 15px 20px 0;
+  max-height: 205px;
   overflow: auto;
 }
 
 .history-item {
   border: 1px solid #e2e9ec;
-  border-radius: 9px;
-  padding: 11px 12px;
+  border-radius: 7px;
+  padding: 9px 10px;
   background: #fbfcfd;
 }
 
 .history-item > div {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .history-item strong {
   color: #304750;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .history-item small {
   color: #819098;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .history-item p {
-  margin: 7px 0 0;
+  margin: 6px 0 0;
   color: #536870;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
 .history-item a {
   display: inline-block;
-  margin-top: 7px;
+  margin-top: 6px;
   color: #7563b7;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .remarks-modal > .sales-field {
-  margin: 18px 24px 0;
+  margin: 15px 20px 0;
 }
 
 .remarks-modal > .sales-modal-actions {
-  margin-top: 18px;
+  margin-top: 15px;
 }
 
 /* =====================================================
@@ -972,21 +972,21 @@
 ===================================================== */
 
 .approvals-standard-page {
-  max-width: 980px;
+  max-width: 804px;
   margin: 0 auto;
 }
 
 .header-refresh-btn {
-  height: 42px;
-  padding: 0 15px;
+  height: 34px;
+  padding: 0 12px;
   border: 1px solid #cfc7ea;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
   color: #7563b7;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-weight: 600;
 }
 
@@ -997,17 +997,17 @@
 .approval-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .approval-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 17px;
+  gap: 15px;
+  padding: 14px;
   border: 1px solid #e0e7ea;
-  border-radius: 11px;
+  border-radius: 9px;
   background: #fff;
   transition:
     border-color 0.2s ease,
@@ -1016,18 +1016,18 @@
 
 .approval-card:hover {
   border-color: #c8d9de;
-  box-shadow: 0 4px 14px rgba(35, 68, 78, 0.07);
+  box-shadow: 0 3px 11px rgba(35, 68, 78, 0.07);
 }
 
 .approval-person {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 11px;
 }
 
 .approval-avatar {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1038,44 +1038,44 @@
 }
 
 .approval-card h3 {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
   color: #263b45;
-  font-size: 15px;
+  font-size: 12px;
 }
 
 .approval-month {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: #17805e;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .approval-card p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: #718087;
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .approval-actions {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   flex: 0 0 auto;
 }
 
 .approve-btn,
 .reject-btn {
-  min-height: 38px;
-  padding: 0 13px;
+  min-height: 31px;
+  padding: 0 11px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   color: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 10px;
   font-weight: 700;
   transition:
     background 0.15s ease,
@@ -1107,7 +1107,7 @@
 
 .sales-empty-panel,
 .sales-loading-state {
-  min-height: 250px;
+  min-height: 205px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1117,19 +1117,19 @@
 }
 
 .sales-empty-panel svg {
-  font-size: 28px;
+  font-size: 23px;
   color: #1b9a6c;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .sales-empty-panel h3 {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
   color: #314751;
 }
 
 .sales-empty-panel p {
   margin: 0;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* =====================================================
@@ -1137,47 +1137,47 @@
 ===================================================== */
 
 .benchmark-card {
-  margin-top: 16px;
+  margin-top: 13px;
 }
 
 .benchmark-grid {
   display: flex;
   align-items: end;
-  gap: 16px;
+  gap: 13px;
   flex-wrap: wrap;
 }
 
 .benchmark-grid label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   color: #50656e;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 .benchmark-grid input {
-  width: 130px;
-  height: 42px;
-  padding: 0 10px;
+  width: 107px;
+  height: 34px;
+  padding: 0 8px;
   border: 1px solid #d5dfe3;
-  border-radius: 8px;
+  border-radius: 7px;
   outline: none;
   box-sizing: border-box;
 }
 
 .benchmark-grid input:focus {
   border-color: #8b7ac7;
-  box-shadow: 0 0 0 3px rgba(139, 122, 199, 0.12);
+  box-shadow: 0 0 0 2px rgba(139, 122, 199, 0.12);
 }
 
 .benchmark-save-btn {
-  min-height: 42px;
+  min-height: 34px;
   border: 1px solid #8b7ac7;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #8b7ac7;
   color: #fff;
-  padding: 0 15px;
+  padding: 0 12px;
   cursor: pointer;
   font-weight: 700;
 }
@@ -1192,16 +1192,16 @@
 
 @media (max-width: 1100px) {
   .sales-global-filter {
-    min-width: 145px;
+    min-width: 119px;
   }
 
   .sales-global-filter input,
   .sales-global-filter select {
-    min-width: 145px;
+    min-width: 119px;
   }
 
   .visit-form-modal {
-    width: min(860px, 100%);
+    width: min(705px, 100%);
   }
 }
 
@@ -1264,35 +1264,35 @@
 
 @media (max-width: 650px) {
   .sales-modal-backdrop {
-    padding: 8px;
+    padding: 7px;
     align-items: flex-start;
   }
 
   .sales-form-modal {
-    max-height: calc(100vh - 16px);
-    border-radius: 11px;
+    max-height: calc(100vh - 13px);
+    border-radius: 9px;
   }
 
   .sales-modal-header,
   .sales-form-grid,
   .sales-modal-actions {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 13px;
+    padding-right: 13px;
   }
 
   .sales-modal-header {
-    padding-top: 17px;
-    padding-bottom: 17px;
+    padding-top: 14px;
+    padding-bottom: 14px;
   }
 
   .sales-modal-header h2 {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   .sales-form-grid {
-    padding-top: 17px;
-    padding-bottom: 17px;
-    gap: 14px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    gap: 11px;
   }
 
   .sales-modal-actions {
@@ -1325,11 +1325,11 @@
   }
 
   .sales-store-picker {
-    max-height: 250px;
+    max-height: 205px;
   }
 
   .sales-selected-store-list {
-    max-height: 130px;
+    max-height: 107px;
   }
 }
 
@@ -1339,7 +1339,7 @@
 
 @media (max-width: 480px) {
   .sales-page {
-    padding-bottom: 20px;
+    padding-bottom: 16px;
   }
 
   .sales-modal-backdrop {
@@ -1366,15 +1366,15 @@
   }
 
   .sales-store-option {
-    padding: 11px;
+    padding: 9px;
   }
 
   .sales-store-option strong {
-    font-size: 12px;
+    font-size: 10px;
   }
 
   .sales-store-option small {
-    font-size: 10px;
+    font-size: 8px;
   }
 
   .approval-actions {
@@ -1399,29 +1399,29 @@
 
 .sales-date-range-cell span {
   color: #82939a;
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .approval-leave-period {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  margin-top: 8px;
+  gap: 4px;
+  margin-top: 7px;
 }
 
 .approval-leave-period strong {
   color: #294652;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .approval-leave-days {
   display: inline-flex;
   width: fit-content;
-  padding: 4px 8px;
-  border-radius: 999px;
+  padding: 3px 7px;
+  border-radius: 819px;
   background: #fff4df;
   color: #a36a00;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -1434,21 +1434,21 @@
 .sales-review-live-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin: 4px 0 20px;
+  gap: 11px;
+  margin: 3px 0 16px;
 }
 
 .sales-review-live-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 8px 11px;
   border: 1px solid #d6e3e7;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fbfc;
   color: #294652;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
@@ -1456,51 +1456,51 @@
 .sales-review-live-banner > div {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .sales-review-live-banner small {
   color: #71858d;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .sales-review-live-dot {
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #1aa56d;
-  box-shadow: 0 0 0 4px rgba(26, 165, 109, 0.12);
+  box-shadow: 0 0 0 3px rgba(26, 165, 109, 0.12);
 }
 
 .sales-review-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .sales-review-kpi-card {
-  min-height: 116px;
-  padding: 15px;
+  min-height: 95px;
+  padding: 12px;
   border: 1px solid #d8e3e7;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 5px 18px rgba(37, 67, 78, 0.06);
+  box-shadow: 0 4px 15px rgba(37, 67, 78, 0.06);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
 }
 
 .sales-review-kpi-card.compact {
-  min-height: 94px;
+  min-height: 77px;
 }
 
 .sales-review-kpi-card > span:first-child,
 .sales-review-kpi-top > span:first-child {
   color: #607780;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1508,13 +1508,13 @@
 
 .sales-review-kpi-card strong {
   color: #173946;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
 .sales-review-kpi-card small {
   color: #7b8e95;
-  font-size: 11px;
+  font-size: 9px;
   line-height: 1.35;
 }
 
@@ -1522,15 +1522,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 7px;
 }
 
 .sales-review-trend,
 .sales-review-neutral {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 3px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -1550,8 +1550,8 @@
 
 .sales-review-live-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.85fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(262px, 0.85fr);
+  gap: 11px;
   align-items: stretch;
 }
 
@@ -1569,8 +1569,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 7px;
 }
 
 .sales-review-chart-head > div:first-child {
@@ -1581,21 +1581,21 @@
 
 .sales-review-chart-head span {
   color: #7a8d94;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .sales-review-chart-head strong {
   color: #243f4b;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .sales-review-live-change {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .sales-review-live-change.positive {
@@ -1610,7 +1610,7 @@
   display: block;
   width: 100%;
   height: auto;
-  min-height: 220px;
+  min-height: 180px;
 }
 
 .sales-review-grid-line {
@@ -1620,7 +1620,7 @@
 
 .sales-review-axis-label {
   fill: #83949a;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .sales-review-line {
@@ -1651,24 +1651,24 @@
 .sales-review-chart-legend {
   display: flex;
   justify-content: center;
-  gap: 18px;
-  padding-top: 3px;
+  gap: 15px;
+  padding-top: 2px;
   color: #647a83;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .sales-review-chart-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .sales-review-chart-legend i {
   display: inline-block;
-  width: 22px;
-  height: 3px;
-  border-radius: 999px;
+  width: 18px;
+  height: 2px;
+  border-radius: 819px;
 }
 
 .sales-review-chart-legend i.target {
@@ -1684,21 +1684,21 @@
 }
 
 .sales-review-chart-empty {
-  min-height: 245px;
+  min-height: 201px;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 16px;
   text-align: center;
   color: #81939a;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .sales-review-insight {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 10px;
+  gap: 10px;
+  padding: 11px;
+  border-radius: 8px;
   background: #f7fafb;
 }
 
@@ -1718,13 +1718,13 @@
 .sales-review-insight strong {
   display: block;
   color: #274551;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .sales-review-insight p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: #6f828a;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.55;
 }
 
@@ -1732,11 +1732,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 12px 0;
+  gap: 11px;
+  padding: 10px 0;
   border-bottom: 1px solid #edf2f4;
   color: #6b7f87;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .sales-review-insight-row:last-child {
@@ -1745,7 +1745,7 @@
 
 .sales-review-insight-row strong {
   color: #294652;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 @media (max-width: 1200px) {
@@ -1769,7 +1769,7 @@
   }
 
   .sales-review-chart {
-    min-height: 190px;
+    min-height: 156px;
   }
 }
 
@@ -1782,7 +1782,7 @@
 .approvals-standard-page {
   min-width: 0;
   min-height: max-content;
-  padding-bottom: 36px;
+  padding-bottom: 30px;
   scrollbar-gutter: stable;
 }
 
@@ -1797,20 +1797,20 @@
 
 .sales-standard-page .data-table-wrapper::-webkit-scrollbar,
 .approvals-standard-page .data-table-wrapper::-webkit-scrollbar {
-  height: 10px;
+  height: 8px;
 }
 
 .sales-standard-page .data-table-wrapper::-webkit-scrollbar-track,
 .approvals-standard-page .data-table-wrapper::-webkit-scrollbar-track {
   background: #f5f8f9;
-  border-radius: 999px;
+  border-radius: 819px;
 }
 
 .sales-standard-page .data-table-wrapper::-webkit-scrollbar-thumb,
 .approvals-standard-page .data-table-wrapper::-webkit-scrollbar-thumb {
   background: #a8bdc4;
   border: 2px solid #f5f8f9;
-  border-radius: 999px;
+  border-radius: 819px;
 }
 
 .sales-standard-page .data-table-wrapper::-webkit-scrollbar-thumb:hover,
@@ -1835,7 +1835,7 @@
 @media (max-width: 900px) {
   .sales-standard-page,
   .approvals-standard-page {
-    padding-bottom: 28px;
+    padding-bottom: 23px;
   }
 
   .approval-card {
@@ -1844,24 +1844,24 @@
   }
 
   .approval-status {
-    margin-left: 59px;
+    margin-left: 48px;
   }
 
   .approval-actions {
     width: 100%;
-    margin-left: 59px;
+    margin-left: 48px;
   }
 }
 
 @media (max-width: 640px) {
   .sales-standard-page,
   .approvals-standard-page {
-    padding-bottom: 22px;
+    padding-bottom: 18px;
   }
 
   .approval-card {
-    padding: 14px;
-    gap: 12px;
+    padding: 11px;
+    gap: 10px;
   }
 
   .approval-status,

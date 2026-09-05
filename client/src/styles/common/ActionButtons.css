@@ -6,7 +6,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 7px;
     width: 100%;
     min-width: max-content;
     white-space: nowrap;
@@ -20,18 +20,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
 
-    min-width: 72px;
-    height: 32px;
+    min-width: 59px;
+    height: 26px;
 
-    padding: 0 11px;
+    padding: 0 9px;
 
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
 
     font-family: inherit;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
 
     line-height: 1;
@@ -41,8 +41,8 @@
 }
 
 .action-buttons button svg {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     flex-shrink: 0;
 }
 
@@ -149,13 +149,13 @@
 @media (max-width: 768px) {
 
     .action-buttons {
-        gap: 5px;
+        gap: 4px;
     }
 
     .action-buttons button {
-        width: 34px;
-        min-width: 34px;
-        height: 32px;
+        width: 28px;
+        min-width: 28px;
+        height: 26px;
         padding: 0;
     }
 

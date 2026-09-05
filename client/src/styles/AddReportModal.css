@@ -16,11 +16,11 @@
   align-items: center;
   justify-content: center;
 
-  padding: 24px;
+  padding: 20px;
 
   background: rgba(15, 31, 38, 0.58);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
   animation: reportOverlayFade 0.22s ease-out;
 }
@@ -30,8 +30,8 @@
 ========================================================= */
 
 .report-modal {
-  width: min(760px, 100%);
-  max-height: calc(100vh - 48px);
+  width: min(623px, 100%);
+  max-height: calc(100vh - 39px);
 
   display: flex;
   flex-direction: column;
@@ -39,11 +39,11 @@
   background: #ffffff;
 
   border: 1px solid rgba(157, 185, 191, 0.45);
-  border-radius: 18px;
+  border-radius: 15px;
 
   box-shadow:
-    0 28px 70px rgba(24, 54, 64, 0.20),
-    0 8px 25px rgba(24, 54, 64, 0.10);
+    0 23px 57px rgba(24, 54, 64, 0.20),
+    0 7px 20px rgba(24, 54, 64, 0.10);
 
   overflow: hidden;
 
@@ -62,9 +62,9 @@
   align-items: center;
   justify-content: space-between;
 
-  min-height: 92px;
+  min-height: 75px;
 
-  padding: 20px 26px;
+  padding: 16px 21px;
 
   background:
     linear-gradient(
@@ -87,7 +87,7 @@
   left: 0;
   right: 0;
 
-  height: 3px;
+  height: 2px;
 
   background: linear-gradient(
     90deg,
@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
 
-  gap: 14px;
+  gap: 11px;
 
   min-width: 0;
 }
@@ -113,8 +113,8 @@
 ========================================================= */
 
 .professional-modal-icon {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
 
   flex-shrink: 0;
 
@@ -122,7 +122,7 @@
   align-items: center;
   justify-content: center;
 
-  border-radius: 13px;
+  border-radius: 11px;
 
   background: linear-gradient(
     135deg,
@@ -134,11 +134,11 @@
 
   color: #315d69;
 
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 600;
 
   box-shadow:
-    0 5px 14px rgba(63, 107, 120, 0.12);
+    0 4px 11px rgba(63, 107, 120, 0.12);
 
   animation: reportIconPop 0.4s ease-out 0.08s both;
 }
@@ -157,18 +157,18 @@
 
   color: #183640;
 
-  font-size: 21px;
+  font-size: 17px;
   font-weight: 700;
 
-  letter-spacing: -0.25px;
+  letter-spacing: -1px;
 }
 
 .report-modal-header p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
 
   color: #6d8087;
 
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -177,8 +177,8 @@
 ========================================================= */
 
 .professional-modal-close {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
 
   flex-shrink: 0;
 
@@ -186,16 +186,16 @@
   align-items: center;
   justify-content: center;
 
-  margin-left: 15px;
+  margin-left: 12px;
 
   border: 1px solid #d6e1e4;
-  border-radius: 10px;
+  border-radius: 8px;
 
   background: #ffffff;
 
   color: #647980;
 
-  font-size: 25px;
+  font-size: 20px;
   font-weight: 400;
   line-height: 1;
 
@@ -218,7 +218,7 @@
 
   transform: rotate(90deg);
 
-  box-shadow: 0 4px 12px rgba(196, 61, 61, 0.10);
+  box-shadow: 0 3px 10px rgba(196, 61, 61, 0.10);
 }
 
 .professional-modal-close:active {
@@ -240,7 +240,7 @@
 
   overflow-y: auto;
 
-  padding: 25px 28px 0;
+  padding: 20px 23px 0;
 
   scrollbar-width: thin;
   scrollbar-color: #b7d7df transparent;
@@ -249,7 +249,7 @@
 /* Chrome / Edge scrollbar */
 
 .report-modal-form::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .report-modal-form::-webkit-scrollbar-track {
@@ -258,7 +258,7 @@
 
 .report-modal-form::-webkit-scrollbar-thumb {
   background: #b7d7df;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .report-modal-form::-webkit-scrollbar-thumb:hover {
@@ -270,7 +270,7 @@
 ========================================================= */
 
 .professional-form-section {
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 /* =========================================================
@@ -281,18 +281,18 @@
   display: flex;
   align-items: flex-start;
 
-  gap: 11px;
+  gap: 9px;
 
-  margin-bottom: 19px;
+  margin-bottom: 16px;
 }
 
 .professional-section-line {
-  width: 4px;
-  min-height: 38px;
+  width: 3px;
+  min-height: 31px;
 
   flex-shrink: 0;
 
-  border-radius: 5px;
+  border-radius: 4px;
 
   background: linear-gradient(
     180deg,
@@ -306,18 +306,18 @@
 
   color: #244650;
 
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 
-  letter-spacing: 0.1px;
+  letter-spacing: 1px;
 }
 
 .professional-section-title p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
 
   color: #7a8b91;
 
-  font-size: 12.5px;
+  font-size: 10px;
   line-height: 1.4;
 }
 
@@ -330,8 +330,8 @@
 
   grid-template-columns: repeat(2, minmax(0, 1fr));
 
-  column-gap: 20px;
-  row-gap: 19px;
+  column-gap: 16px;
+  row-gap: 16px;
 }
 
 /* =========================================================
@@ -346,18 +346,18 @@
 }
 
 .professional-form-group label {
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 
   color: #344f58;
 
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 
   line-height: 1.3;
 }
 
 .required-star {
-  margin-left: 3px;
+  margin-left: 2px;
 
   color: #d04444;
 
@@ -376,14 +376,14 @@
   box-sizing: border-box;
 
   border: 1px solid #d3e0e3;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: #ffffff;
 
   color: #243f48;
 
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 11px;
 
   outline: none;
 
@@ -396,15 +396,15 @@
 
 .professional-form-group input,
 .professional-form-group select {
-  height: 43px;
+  height: 35px;
 
-  padding: 0 13px;
+  padding: 0 11px;
 }
 
 .professional-form-group textarea {
-  min-height: 95px;
+  min-height: 78px;
 
-  padding: 11px 13px;
+  padding: 9px 11px;
 
   resize: vertical;
 }
@@ -432,7 +432,7 @@
   background: #fcfeff;
 
   box-shadow:
-    0 0 0 3px rgba(111, 158, 170, 0.13);
+    0 0 0 2px rgba(111, 158, 170, 0.13);
 
   transform: translateY(-1px);
 }
@@ -476,7 +476,7 @@
   appearance: none;
   -webkit-appearance: none;
 
-  padding-right: 38px;
+  padding-right: 31px;
 
   cursor: pointer;
 }
@@ -489,13 +489,13 @@
   position: absolute;
 
   top: 50%;
-  right: 13px;
+  right: 11px;
 
   transform: translateY(-57%);
 
   color: #637c84;
 
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 600;
 
   pointer-events: none;
@@ -514,11 +514,11 @@
   align-items: center;
   justify-content: flex-end;
 
-  gap: 11px;
+  gap: 9px;
 
-  margin-top: 28px;
+  margin-top: 23px;
 
-  padding: 18px 0 22px;
+  padding: 15px 0 18px;
 
   border-top: 1px solid #e4ecee;
 
@@ -530,20 +530,20 @@
 ========================================================= */
 
 .professional-cancel-btn {
-  min-width: 92px;
-  height: 42px;
+  min-width: 75px;
+  height: 34px;
 
-  padding: 0 18px;
+  padding: 0 15px;
 
   border: 1px solid #d3dfe2;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: #ffffff;
 
   color: #536b72;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 
   cursor: pointer;
@@ -565,7 +565,7 @@
 
   transform: translateY(-1px);
 
-  box-shadow: 0 4px 10px rgba(40, 70, 78, 0.07);
+  box-shadow: 0 3px 8px rgba(40, 70, 78, 0.07);
 }
 
 .professional-cancel-btn:active {
@@ -582,19 +582,19 @@
 ========================================================= */
 
 .professional-save-btn {
-  min-width: 160px;
-  height: 42px;
+  min-width: 131px;
+  height: 34px;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  gap: 8px;
+  gap: 7px;
 
-  padding: 0 19px;
+  padding: 0 16px;
 
   border: 1px solid #3f6b78;
-  border-radius: 9px;
+  border-radius: 7px;
 
   background: linear-gradient(
     135deg,
@@ -605,13 +605,13 @@
   color: #ffffff;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 
   cursor: pointer;
 
   box-shadow:
-    0 5px 13px rgba(63, 107, 120, 0.18);
+    0 4px 11px rgba(63, 107, 120, 0.18);
 
   transition:
     background 0.2s ease,
@@ -632,14 +632,14 @@
   transform: translateY(-2px);
 
   box-shadow:
-    0 8px 18px rgba(63, 107, 120, 0.25);
+    0 7px 15px rgba(63, 107, 120, 0.25);
 }
 
 .professional-save-btn:active {
   transform: translateY(0) scale(0.98);
 
   box-shadow:
-    0 3px 8px rgba(63, 107, 120, 0.18);
+    0 2px 7px rgba(63, 107, 120, 0.18);
 }
 
 .professional-save-btn:disabled {
@@ -657,8 +657,8 @@
 ========================================================= */
 
 .professional-save-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 
   display: inline-flex;
   align-items: center;
@@ -668,7 +668,7 @@
 
   background: rgba(255, 255, 255, 0.16);
 
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -677,8 +677,8 @@
 ========================================================= */
 
 .professional-spinner {
-  width: 15px;
-  height: 15px;
+  width: 12px;
+  height: 12px;
 
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
@@ -705,7 +705,7 @@
 @keyframes reportModalEnter {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.97);
+    transform: translateY(15px) scale(0.97);
   }
 
   to {
@@ -738,31 +738,31 @@
 
 @media (max-width: 700px) {
   .report-modal-overlay {
-    padding: 15px;
+    padding: 12px;
   }
 
   .report-modal {
-    max-height: calc(100vh - 30px);
+    max-height: calc(100vh - 25px);
 
-    border-radius: 15px;
+    border-radius: 12px;
   }
 
   .report-modal-header {
-    padding: 18px 20px;
+    padding: 15px 16px;
   }
 
   .report-modal-form {
-    padding: 22px 20px 0;
+    padding: 18px 16px 0;
   }
 
   .professional-form-grid {
     grid-template-columns: 1fr;
 
-    row-gap: 17px;
+    row-gap: 14px;
   }
 
   .professional-modal-footer {
-    margin-top: 23px;
+    margin-top: 19px;
   }
 }
 
@@ -781,57 +781,57 @@
     width: 100%;
     max-height: 94vh;
 
-    border-radius: 18px 18px 0 0;
+    border-radius: 15px 15px 0 0;
 
     animation: reportMobileEnter 0.3s
       cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .report-modal-header {
-    min-height: 82px;
+    min-height: 67px;
 
-    padding: 17px 17px;
+    padding: 14px 14px;
   }
 
   .professional-modal-icon {
-    width: 41px;
-    height: 41px;
-
-    border-radius: 11px;
-
-    font-size: 20px;
-  }
-
-  .report-modal-header h2 {
-    font-size: 18px;
-  }
-
-  .report-modal-header p {
-    font-size: 11.5px;
-  }
-
-  .professional-modal-close {
     width: 34px;
     height: 34px;
 
-    font-size: 23px;
+    border-radius: 9px;
+
+    font-size: 16px;
+  }
+
+  .report-modal-header h2 {
+    font-size: 15px;
+  }
+
+  .report-modal-header p {
+    font-size: 9px;
+  }
+
+  .professional-modal-close {
+    width: 28px;
+    height: 28px;
+
+    font-size: 19px;
   }
 
   .report-modal-form {
-    padding: 20px 17px 0;
+    padding: 16px 14px 0;
   }
 
   .professional-section-title {
-    margin-bottom: 16px;
+    margin-bottom: 13px;
   }
 
   .professional-section-title h3 {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .professional-form-group input,
   .professional-form-group select {
-    height: 42px;
+    height: 34px;
   }
 
   .professional-modal-footer {
@@ -839,9 +839,9 @@
 
     align-items: stretch;
 
-    gap: 9px;
+    gap: 7px;
 
-    padding: 15px 0 18px;
+    padding: 12px 0 15px;
   }
 
   .professional-cancel-btn,
@@ -853,7 +853,7 @@
 @keyframes reportMobileEnter {
   from {
     opacity: 0;
-    transform: translateY(35px);
+    transform: translateY(29px);
   }
 
   to {
@@ -889,7 +889,7 @@
 ========================================================= */
 
 .report-modal {
-  max-height: min(720px, calc(100vh - 32px));
+  max-height: min(590px, calc(100vh - 26px));
 }
 
 .report-modal-form {
@@ -901,18 +901,18 @@
   position: sticky;
   bottom: 0;
   z-index: 6;
-  box-shadow: 0 -8px 22px rgba(24, 54, 64, 0.06);
+  box-shadow: 0 -7px 18px rgba(24, 54, 64, 0.06);
 }
 
 @media (max-width: 760px) {
   .report-modal-overlay {
     align-items: flex-start;
-    padding: 14px;
+    padding: 11px;
   }
 
   .report-modal {
-    max-height: calc(100vh - 28px);
-    border-radius: 16px;
+    max-height: calc(100vh - 23px);
+    border-radius: 13px;
   }
 }
 
@@ -929,12 +929,12 @@
   }
 
   .report-modal-header {
-    padding-left: 18px;
-    padding-right: 18px;
+    padding-left: 15px;
+    padding-right: 15px;
   }
 
   .report-modal-form {
-    padding-left: 18px;
-    padding-right: 18px;
+    padding-left: 15px;
+    padding-right: 15px;
   }
 }

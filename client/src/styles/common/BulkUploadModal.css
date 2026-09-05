@@ -18,7 +18,7 @@
 
     z-index:9999;
 
-    padding:20px;
+    padding:16px;
 
 }
 
@@ -28,17 +28,17 @@
 
 .bulk-modal{
 
-    width:560px;
+    width:459px;
 
     max-width:100%;
 
     background:#fff;
 
-    border-radius:14px;
+    border-radius:11px;
 
     overflow:hidden;
 
-    box-shadow:0 20px 50px rgba(0,0,0,.18);
+    box-shadow:0 16px 41px rgba(0,0,0,.18);
 
     animation:bulkPopup .25s ease;
 
@@ -50,7 +50,7 @@
 
         opacity:0;
 
-        transform:translateY(25px);
+        transform:translateY(20px);
 
     }
 
@@ -76,7 +76,7 @@
 
     align-items:center;
 
-    padding:18px 24px;
+    padding:15px 20px;
 
     border-bottom:1px solid #e5e7eb;
 
@@ -88,7 +88,7 @@
 
     margin:0;
 
-    font-size:22px;
+    font-size:18px;
 
     color:#111827;
 
@@ -98,13 +98,13 @@
 
 .bulk-close{
 
-    width:38px;
+    width:31px;
 
-    height:38px;
+    height:31px;
 
     border:none;
 
-    border-radius:8px;
+    border-radius:7px;
 
     background:#eef2f7;
 
@@ -128,7 +128,7 @@
 
 .bulk-body{
 
-    padding:25px;
+    padding:20px;
 
 }
 
@@ -140,9 +140,9 @@
 
     border:2px dashed #cbd5e1;
 
-    border-radius:12px;
+    border-radius:10px;
 
-    padding:40px 20px;
+    padding:33px 16px;
 
     text-align:center;
 
@@ -162,11 +162,11 @@
 
 .bulk-upload-icon{
 
-    font-size:58px;
+    font-size:48px;
 
     color:#2563eb;
 
-    margin-bottom:15px;
+    margin-bottom:12px;
 
 }
 
@@ -176,13 +176,13 @@
 
     color:#1f2937;
 
-    font-size:20px;
+    font-size:16px;
 
 }
 
 .bulk-dropzone p{
 
-    margin:12px 0;
+    margin:10px 0;
 
     color:#6b7280;
 
@@ -192,7 +192,7 @@
 
     display:block;
 
-    margin-top:12px;
+    margin-top:10px;
 
     color:#9ca3af;
 
@@ -203,19 +203,19 @@
 
 .browse-btn{
 
-    margin-top:20px;
+    margin-top:16px;
 
-    padding:12px 24px;
+    padding:10px 20px;
 
     border:none;
 
-    border-radius:8px;
+    border-radius:7px;
 
     background:#2563eb;
 
     color:#fff;
 
-    font-size:14px;
+    font-size:11px;
 
     font-weight:600;
 
@@ -237,19 +237,19 @@
 
 .selected-file{
 
-    margin-top:22px;
+    margin-top:18px;
 
     display:flex;
 
     align-items:center;
 
-    gap:16px;
+    gap:13px;
 
-    padding:16px 18px;
+    padding:13px 15px;
 
     border:1px solid #dbeafe;
 
-    border-radius:10px;
+    border-radius:8px;
 
     background:#f8fbff;
 
@@ -257,7 +257,7 @@
 
 .selected-file svg{
 
-    font-size:36px;
+    font-size:30px;
 
     color:#16a34a;
 
@@ -273,7 +273,7 @@
 
     flex-direction:column;
 
-    gap:4px;
+    gap:3px;
 
 }
 
@@ -281,7 +281,7 @@
 
     color:#111827;
 
-    font-size:15px;
+    font-size:12px;
 
     word-break:break-word;
 
@@ -291,19 +291,19 @@
 
     color:#6b7280;
 
-    font-size:13px;
+    font-size:11px;
 
 }
 
 .remove-file-btn{
 
-    width:36px;
+    width:30px;
 
-    height:36px;
+    height:30px;
 
     border:none;
 
-    border-radius:8px;
+    border-radius:7px;
 
     background:#fee2e2;
 
@@ -333,7 +333,7 @@
 
 .bulk-sample{
 
-    margin-top:22px;
+    margin-top:18px;
 
     text-align:center;
 
@@ -345,11 +345,11 @@
 
     align-items:center;
 
-    gap:8px;
+    gap:7px;
 
-    padding:10px 18px;
+    padding:8px 15px;
 
-    border-radius:8px;
+    border-radius:7px;
 
     background:#eff6ff;
 
@@ -379,9 +379,9 @@
 
     justify-content:flex-end;
 
-    gap:12px;
+    gap:10px;
 
-    padding:18px 24px;
+    padding:15px 20px;
 
     border-top:1px solid #e5e7eb;
 
@@ -393,13 +393,13 @@
 
 .upload-btn{
 
-    min-width:120px;
+    min-width:98px;
 
-    height:44px;
+    height:36px;
 
     border:none;
 
-    border-radius:8px;
+    border-radius:7px;
 
     display:flex;
 
@@ -407,9 +407,9 @@
 
     justify-content:center;
 
-    gap:8px;
+    gap:7px;
 
-    font-size:14px;
+    font-size:11px;
 
     font-weight:600;
 
@@ -467,25 +467,25 @@
 
         width:100%;
 
-        margin:15px;
+        margin:12px;
 
     }
 
     .bulk-header h2{
 
-        font-size:18px;
+        font-size:15px;
 
     }
 
     .bulk-dropzone{
 
-        padding:28px 15px;
+        padding:23px 12px;
 
     }
 
     .bulk-upload-icon{
 
-        font-size:46px;
+        font-size:38px;
 
     }
 

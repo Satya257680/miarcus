@@ -10,15 +10,15 @@
 
     width:100%;
 
-    max-width:420px;
+    max-width:344px;
 
-    height:44px;
+    height:36px;
 
     background:#fff;
 
     border:1px solid #d9d9d9;
 
-    border-radius:8px;
+    border-radius:7px;
 
     overflow:hidden;
 
@@ -30,7 +30,7 @@
 
     border-color:#356d84;
 
-    box-shadow:0 0 0 3px rgba(53,109,132,.15);
+    box-shadow:0 0 0 2px rgba(53,109,132,.15);
 
 }
 
@@ -40,11 +40,11 @@
 
 .search-icon{
 
-    margin-left:14px;
+    margin-left:11px;
 
     color:#8b8b8b;
 
-    font-size:15px;
+    font-size:12px;
 
 }
 
@@ -62,9 +62,9 @@
 
     outline:none;
 
-    padding:0 12px;
+    padding:0 10px;
 
-    font-size:14px;
+    font-size:11px;
 
     color:#444;
 
@@ -84,9 +84,9 @@
 
 .clear-btn{
 
-    width:42px;
+    width:34px;
 
-    height:42px;
+    height:34px;
 
     border:none;
 

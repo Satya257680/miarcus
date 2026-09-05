@@ -16,7 +16,7 @@
 .designation-professional-form
 .professional-form-section {
   width: 100%;
-  padding: 26px 28px;
+  padding: 21px 23px;
   box-sizing: border-box;
   border-bottom: 1px solid #e6edf3;
 }
@@ -35,18 +35,18 @@
 .professional-section-heading {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .designation-professional-form
 .professional-section-indicator {
-  width: 3px;
-  min-width: 3px;
-  height: 30px;
+  width: 2px;
+  min-width: 2px;
+  height: 25px;
   margin-top: 2px;
 
-  border-radius: 4px;
+  border-radius: 3px;
 
   background: linear-gradient(
     180deg,
@@ -61,18 +61,18 @@
 
   color: #1e293b;
 
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1.4;
   font-weight: 700;
 }
 
 .designation-professional-form
 .professional-section-heading p {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
 
   color: #64748b;
 
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -85,16 +85,16 @@
 .professional-section-count {
   margin-left: auto;
 
-  padding: 6px 11px;
+  padding: 5px 9px;
 
-  border-radius: 20px;
+  border-radius: 16px;
 
   background: #eff6ff;
   color: #2563eb;
 
   border: 1px solid #dbeafe;
 
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 
   white-space: nowrap;
@@ -112,7 +112,7 @@
   grid-template-columns:
     repeat(2, minmax(0, 1fr));
 
-  gap: 20px;
+  gap: 16px;
 }
 
 
@@ -128,23 +128,23 @@
   display: flex;
   flex-direction: column;
 
-  gap: 8px;
+  gap: 7px;
 }
 
 .designation-professional-form
 .professional-field-full {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .designation-professional-form
 .professional-field label {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 
   color: #334155;
 
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -174,7 +174,7 @@
   color: #1e293b;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
 
   outline: none;
 
@@ -192,11 +192,11 @@
 
 .designation-professional-form
 .professional-field input {
-  height: 46px;
+  height: 38px;
 
-  padding: 0 13px;
+  padding: 0 11px;
 
-  border-radius: 9px;
+  border-radius: 7px;
 }
 
 .designation-professional-form
@@ -214,7 +214,7 @@
   border-color: #2563eb;
 
   box-shadow:
-    0 0 0 3px
+    0 0 0 2px
     rgba(37, 99, 235, 0.10);
 }
 
@@ -231,12 +231,12 @@
 
 .designation-professional-form
 .professional-field select {
-  height: 46px;
+  height: 38px;
 
   padding:
-    0 38px 0 13px;
+    0 31px 0 11px;
 
-  border-radius: 9px;
+  border-radius: 7px;
 
   appearance: none;
   -webkit-appearance: none;
@@ -250,7 +250,7 @@
 
   position: absolute;
 
-  right: 14px;
+  right: 11px;
   top: 50%;
 
   transform:
@@ -258,7 +258,7 @@
 
   color: #64748b;
 
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 
   pointer-events: none;
@@ -274,7 +274,7 @@
   border-color: #2563eb;
 
   box-shadow:
-    0 0 0 3px
+    0 0 0 2px
     rgba(37, 99, 235, 0.10);
 }
 
@@ -285,11 +285,11 @@
 
 .designation-professional-form
 .professional-field textarea {
-  min-height: 100px;
+  min-height: 82px;
 
-  padding: 12px 13px;
+  padding: 10px 11px;
 
-  border-radius: 9px;
+  border-radius: 7px;
 
   resize: vertical;
 
@@ -311,7 +311,7 @@
   border-color: #2563eb;
 
   box-shadow:
-    0 0 0 3px
+    0 0 0 2px
     rgba(37, 99, 235, 0.10);
 }
 
@@ -321,8 +321,8 @@
    ========================================================= */
 
 .designation-status-field {
-  width: calc(50% - 10px);
-  margin-top: 20px;
+  width: calc(50% - 8px);
+  margin-top: 16px;
 }
 
 
@@ -331,7 +331,7 @@
    ========================================================= */
 
 .designation-employee-section {
-  padding-bottom: 28px !important;
+  padding-bottom: 23px !important;
 }
 
 
@@ -341,16 +341,16 @@
 
 .designation-employee-container {
   width: 100%;
-  min-height: 180px;
+  min-height: 148px;
 
-  padding: 4px;
+  padding: 3px;
 
   box-sizing: border-box;
 
   border:
     1px solid #dce6ef;
 
-  border-radius: 12px;
+  border-radius: 10px;
 
   background: #f8fafc;
 
@@ -374,7 +374,7 @@
   align-items: center;
   justify-content: flex-end;
 
-  gap: 12px;
+  gap: 10px;
 }
 
 
@@ -384,15 +384,15 @@
 
 .designation-modal-footer
 .professional-btn {
-  min-height: 42px;
+  min-height: 34px;
 
-  padding: 0 20px;
+  padding: 0 16px;
 
-  border-radius: 8px;
+  border-radius: 7px;
 
   font-family: inherit;
 
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 
   cursor: pointer;
@@ -402,7 +402,7 @@
   align-items: center;
   justify-content: center;
 
-  gap: 8px;
+  gap: 7px;
 
   transition:
     transform 0.18s ease,
@@ -430,7 +430,7 @@
 
 .designation-modal-footer
 .professional-btn-secondary {
-  min-width: 100px;
+  min-width: 82px;
 
   background: #ffffff;
 
@@ -447,7 +447,7 @@
   border-color: #c4d0dc;
 
   box-shadow:
-    0 4px 12px
+    0 3px 10px
     rgba(15, 23, 42, 0.06);
 }
 
@@ -458,7 +458,7 @@
 
 .designation-modal-footer
 .professional-btn-primary {
-  min-width: 175px;
+  min-width: 144px;
 
   color: #ffffff;
 
@@ -473,20 +473,20 @@
     );
 
   box-shadow:
-    0 6px 16px
+    0 5px 13px
     rgba(37, 99, 235, 0.20);
 }
 
 .designation-modal-footer
 .professional-btn-primary:hover {
   box-shadow:
-    0 9px 22px
+    0 7px 18px
     rgba(37, 99, 235, 0.28);
 }
 
 .designation-modal-footer
 .professional-btn-icon {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -501,22 +501,22 @@
   .professional-form-grid {
     grid-template-columns: 1fr;
 
-    gap: 16px;
+    gap: 13px;
   }
 
   .designation-professional-form
   .professional-field-full {
-    margin-top: 16px;
+    margin-top: 13px;
   }
 
   .designation-professional-form
   .professional-form-section {
-    padding: 22px 20px;
+    padding: 18px 16px;
   }
 
   .designation-status-field {
     width: 100%;
-    margin-top: 16px;
+    margin-top: 13px;
   }
 
   .designation-modal-footer {
@@ -540,22 +540,22 @@
 
   .designation-professional-form
   .professional-form-section {
-    padding: 18px 16px;
+    padding: 15px 13px;
   }
 
   .designation-professional-form
   .professional-section-heading {
-    gap: 9px;
+    gap: 7px;
   }
 
   .designation-professional-form
   .professional-section-heading h3 {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .designation-professional-form
   .professional-section-heading p {
-    font-size: 11px;
+    font-size: 9px;
   }
 
   .designation-professional-form

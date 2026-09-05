@@ -14,13 +14,13 @@
 
     text-align:center;
 
-    padding:60px 20px;
+    padding:49px 16px;
 
     background:#fff;
 
-    border-radius:12px;
+    border-radius:10px;
 
-    min-height:280px;
+    min-height:230px;
 
 }
 
@@ -30,9 +30,9 @@
 
 .empty-state-icon{
 
-    width:80px;
+    width:66px;
 
-    height:80px;
+    height:66px;
 
     display:flex;
 
@@ -46,9 +46,9 @@
 
     color:#356d84;
 
-    font-size:34px;
+    font-size:28px;
 
-    margin-bottom:20px;
+    margin-bottom:16px;
 
 }
 
@@ -60,7 +60,7 @@
 
     margin:0;
 
-    font-size:22px;
+    font-size:18px;
 
     font-weight:600;
 
@@ -74,13 +74,13 @@
 
 .empty-state-description{
 
-    margin:12px 0 24px;
+    margin:10px 0 20px;
 
-    max-width:450px;
+    max-width:369px;
 
     color:#6b7280;
 
-    font-size:15px;
+    font-size:12px;
 
     line-height:1.6;
 
@@ -96,7 +96,7 @@
 
     justify-content:center;
 
-    gap:10px;
+    gap:8px;
 
     flex-wrap:wrap;
 
@@ -110,29 +110,29 @@
 
 .empty-state{
 
-    padding:40px 15px;
+    padding:33px 12px;
 
 }
 
 .empty-state-icon{
 
-    width:70px;
+    width:57px;
 
-    height:70px;
+    height:57px;
 
-    font-size:28px;
+    font-size:23px;
 
 }
 
 .empty-state-title{
 
-    font-size:20px;
+    font-size:16px;
 
 }
 
 .empty-state-description{
 
-    font-size:14px;
+    font-size:11px;
 
 }
 

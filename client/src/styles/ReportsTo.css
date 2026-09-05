@@ -5,7 +5,7 @@
 .reports-page {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 /* ======================================================
@@ -16,8 +16,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 300px;
-    font-size: 18px;
+    min-height: 246px;
+    font-size: 15px;
     font-weight: 600;
     color: #4b5563;
 }
@@ -27,18 +27,18 @@
 ====================================================== */
 
 .no-permission {
-    padding: 60px 20px;
+    padding: 49px 16px;
     text-align: center;
 }
 
 .no-permission h2 {
     color: #dc2626;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .no-permission p {
     color: #6b7280;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 /* ======================================================
@@ -48,31 +48,31 @@
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 220px;
+    gap: 5px;
+    min-width: 180px;
 }
 
 .filter-group label {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #374151;
 }
 
 .filter-group select {
     width: 100%;
-    height: 40px;
-    padding: 0 12px;
+    height: 33px;
+    padding: 0 10px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #fff;
-    font-size: 14px;
+    font-size: 11px;
     outline: none;
     transition: 0.2s;
 }
 
 .filter-group select:focus {
     border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 /* ======================================================
@@ -83,10 +83,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 80px;
-    padding: 5px 14px;
-    border-radius: 999px;
-    font-size: 12px;
+    min-width: 66px;
+    padding: 4px 11px;
+    border-radius: 819px;
+    font-size: 10px;
     font-weight: 600;
 }
 
@@ -108,15 +108,15 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .edit-btn,
 .delete-btn {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     cursor: pointer;
     display: inline-flex;
     justify-content: center;
@@ -148,44 +148,44 @@
 
 .bulk-modal {
     width: 100%;
-    max-width: 500px;
+    max-width: 410px;
     background: #ffffff;
-    border-radius: 14px;
-    padding: 25px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    border-radius: 11px;
+    padding: 20px;
+    box-shadow: 0 16px 33px rgba(0, 0, 0, 0.15);
 }
 
 .bulk-modal h2 {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     color: #1f2937;
 }
 
 .bulk-modal p {
     color: #6b7280;
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
 .bulk-modal input[type="file"] {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     border: 1px dashed #cbd5e1;
-    border-radius: 8px;
-    margin-bottom: 20px;
+    border-radius: 7px;
+    margin-bottom: 16px;
     background: #f8fafc;
 }
 
 .bulk-buttons {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
 }
 
 .bulk-buttons button {
     border: none;
-    border-radius: 8px;
-    padding: 10px 18px;
+    border-radius: 7px;
+    padding: 8px 15px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 11px;
     transition: 0.2s;
 }
 
@@ -228,19 +228,19 @@
 
     .action-buttons {
         flex-direction: column;
-        gap: 8px;
+        gap: 7px;
     }
 
     .edit-btn,
     .delete-btn {
-        width: 34px;
-        height: 34px;
+        width: 28px;
+        height: 28px;
     }
 
     .bulk-modal {
-        width: calc(100% - 30px);
+        width: calc(100% - 25px);
         margin: auto;
-        padding: 20px;
+        padding: 16px;
     }
 
     .bulk-buttons {
@@ -259,15 +259,15 @@
 
 .reports-page {
     min-width: 0;
-    padding-bottom: 18px;
+    padding-bottom: 15px;
     scrollbar-gutter: stable;
 }
 
 .reports-page .card {
     overflow: hidden;
     border: 1px solid #dfe9ec;
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(35, 69, 78, 0.06);
+    border-radius: 13px;
+    box-shadow: 0 7px 20px rgba(35, 69, 78, 0.06);
 }
 
 .reports-page .data-table-wrapper {
@@ -278,17 +278,17 @@
 }
 
 .reports-page .data-table-wrapper::-webkit-scrollbar {
-    height: 9px;
+    height: 7px;
 }
 
 .reports-page .data-table-wrapper::-webkit-scrollbar-track {
     background: #f5f8f9;
-    border-radius: 999px;
+    border-radius: 819px;
 }
 
 .reports-page .data-table-wrapper::-webkit-scrollbar-thumb {
     background: #a9c2c9;
-    border-radius: 999px;
+    border-radius: 819px;
     border: 2px solid #f5f8f9;
 }
 
@@ -297,35 +297,35 @@
 }
 
 .reports-page .filter-group select {
-    min-height: 42px;
+    min-height: 34px;
     border-color: #d7e3e6;
     color: #294852;
 }
 
 .reports-page .action-buttons {
-    gap: 8px;
+    gap: 7px;
 }
 
 .reports-page .edit-btn,
 .reports-page .delete-btn {
-    width: 38px;
-    height: 38px;
-    box-shadow: 0 4px 12px rgba(35, 69, 78, 0.06);
+    width: 31px;
+    height: 31px;
+    box-shadow: 0 3px 10px rgba(35, 69, 78, 0.06);
 }
 
 @media (max-width: 900px) {
     .reports-page {
-        gap: 15px;
+        gap: 12px;
     }
 
     .reports-page .filter-group {
-        min-width: 180px;
+        min-width: 148px;
     }
 }
 
 @media (max-width: 640px) {
     .reports-page {
-        padding-bottom: 12px;
+        padding-bottom: 10px;
     }
 
     .reports-page .filter-group {

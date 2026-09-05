@@ -18,7 +18,7 @@
 
     z-index:9999;
 
-    padding:20px;
+    padding:16px;
 
 }
 
@@ -30,15 +30,15 @@
 
     width:100%;
 
-    max-width:420px;
+    max-width:344px;
 
     background:#fff;
 
-    border-radius:12px;
+    border-radius:10px;
 
     overflow:hidden;
 
-    box-shadow:0 12px 30px rgba(0,0,0,.18);
+    box-shadow:0 10px 25px rgba(0,0,0,.18);
 
     animation:dialogFade .2s ease;
 
@@ -50,7 +50,7 @@
 
 .confirm-header{
 
-    padding:20px 24px;
+    padding:16px 20px;
 
     border-bottom:1px solid #ececec;
 
@@ -60,7 +60,7 @@
 
     margin:0;
 
-    font-size:20px;
+    font-size:16px;
 
     color:#2d3748;
 
@@ -72,7 +72,7 @@
 
 .confirm-body{
 
-    padding:24px;
+    padding:20px;
 
 }
 
@@ -84,7 +84,7 @@
 
     line-height:1.6;
 
-    font-size:15px;
+    font-size:12px;
 
 }
 
@@ -98,9 +98,9 @@
 
     justify-content:flex-end;
 
-    gap:12px;
+    gap:10px;
 
-    padding:20px 24px;
+    padding:16px 20px;
 
     border-top:1px solid #ececec;
 

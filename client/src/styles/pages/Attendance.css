@@ -24,7 +24,7 @@
 .attendance-page {
     min-height: 100%;
 
-    padding: 28px 26px 42px;
+    padding: 23px 21px 34px;
 
     box-sizing: border-box;
 
@@ -38,7 +38,7 @@
 }
 
 .attendance-shell {
-    max-width: 1450px;
+    max-width: 1189px;
     margin: 0 auto;
 }
 
@@ -52,20 +52,20 @@
     justify-content: space-between;
     align-items: flex-start;
 
-    gap: 20px;
+    gap: 16px;
 
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
 .attendance-eyebrow {
     display: flex;
     align-items: center;
 
-    gap: 7px;
+    gap: 6px;
 
     color: var(--att-primary);
 
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 900;
 
     letter-spacing: 0.13em;
@@ -73,9 +73,9 @@
 }
 
 .attendance-hero h1 {
-    margin: 7px 0 5px;
+    margin: 6px 0 4px;
 
-    font-size: 30px;
+    font-size: 25px;
 
     letter-spacing: -0.035em;
 }
@@ -85,7 +85,7 @@
 
     color: var(--att-muted);
 
-    font-size: 13px;
+    font-size: 11px;
     line-height: 1.55;
 }
 
@@ -95,34 +95,34 @@
    ========================================================= */
 
 .attendance-date-card {
-    min-width: 190px;
+    min-width: 156px;
 
-    padding: 13px 16px;
+    padding: 11px 13px;
 
     display: flex;
     flex-direction: column;
     align-items: flex-end;
 
     border: 1px solid var(--att-line);
-    border-radius: 13px;
+    border-radius: 11px;
 
     background: #ffffff;
 
     box-shadow:
-        0 7px 20px rgba(29, 60, 68, 0.05);
+        0 6px 16px rgba(29, 60, 68, 0.05);
 }
 
 .attendance-date-card span {
     color: var(--att-muted);
 
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
 }
 
 .attendance-date-card strong {
-    margin-top: 3px;
+    margin-top: 2px;
 
-    font-size: 20px;
+    font-size: 16px;
 }
 
 .attendance-date-card small {
@@ -130,7 +130,7 @@
 
     color: #9aa9ad;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 
@@ -142,15 +142,15 @@
     display: flex;
     align-items: center;
 
-    gap: 8px;
+    gap: 7px;
 
-    padding: 11px 13px;
+    padding: 9px 11px;
 
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 
-    border-radius: 10px;
+    border-radius: 8px;
 
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 700;
 }
 
@@ -181,21 +181,21 @@
     grid-template-columns:
         repeat(4, minmax(0, 1fr));
 
-    gap: 13px;
+    gap: 11px;
 
-    margin-bottom: 16px;
+    margin-bottom: 13px;
 }
 
 .attendance-kpi {
-    padding: 16px;
+    padding: 13px;
 
     border: 1px solid var(--att-line);
-    border-radius: 13px;
+    border-radius: 11px;
 
     background: #ffffff;
 
     box-shadow:
-        0 6px 18px rgba(29, 60, 68, 0.045);
+        0 5px 15px rgba(29, 60, 68, 0.045);
 }
 
 .attendance-kpi span {
@@ -203,16 +203,16 @@
 
     color: var(--att-muted);
 
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 750;
 }
 
 .attendance-kpi strong {
     display: block;
 
-    margin-top: 7px;
+    margin-top: 6px;
 
-    font-size: 23px;
+    font-size: 19px;
 
     letter-spacing: -0.02em;
 }
@@ -229,11 +229,11 @@
 .attendance-kpi small {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 2px;
 
     color: #94a3a8;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 
@@ -246,9 +246,9 @@
 
     grid-template-columns: 1fr 1fr;
 
-    gap: 15px;
+    gap: 12px;
 
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 
@@ -258,12 +258,12 @@
 
 .attendance-card {
     border: 1px solid var(--att-line);
-    border-radius: 14px;
+    border-radius: 11px;
 
     background: #ffffff;
 
     box-shadow:
-        0 7px 22px rgba(29, 60, 68, 0.045);
+        0 6px 18px rgba(29, 60, 68, 0.045);
 }
 
 
@@ -276,9 +276,9 @@
     align-items: flex-start;
     justify-content: space-between;
 
-    gap: 15px;
+    gap: 12px;
 
-    padding: 16px 18px;
+    padding: 13px 15px;
 
     border-bottom: 1px solid #edf2f3;
 }
@@ -286,7 +286,7 @@
 .card-heading > svg {
     color: #6c8790;
 
-    font-size: 18px;
+    font-size: 15px;
 }
 
 .card-kicker {
@@ -294,7 +294,7 @@
 
     color: #7e949a;
 
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 900;
 
     letter-spacing: 0.12em;
@@ -303,17 +303,17 @@
 }
 
 .card-heading h2 {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
 
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .card-heading p {
-    margin: 5px 0 0;
+    margin: 4px 0 0;
 
     color: var(--att-muted);
 
-    font-size: 11px;
+    font-size: 9px;
     line-height: 1.45;
 }
 
@@ -323,48 +323,48 @@
    ========================================================= */
 
 .profile-card {
-    min-height: 185px;
+    min-height: 152px;
 }
 
 .profile-row {
     display: flex;
     align-items: center;
 
-    gap: 12px;
+    gap: 10px;
 
-    padding: 16px 18px 10px;
+    padding: 13px 15px 8px;
 }
 
 .profile-avatar {
-    width: 43px;
-    height: 43px;
+    width: 35px;
+    height: 35px;
 
     display: grid;
     place-items: center;
 
-    border-radius: 12px;
+    border-radius: 10px;
 
     background: #edf4f5;
 
     color: var(--att-primary);
 
-    font-size: 28px;
+    font-size: 23px;
 }
 
 .profile-row strong {
     display: block;
 
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .profile-row span {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 2px;
 
     color: var(--att-muted);
 
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .profile-meta {
@@ -372,16 +372,16 @@
 
     grid-template-columns: 1fr 1fr;
 
-    gap: 10px;
+    gap: 8px;
 
-    padding: 7px 18px 16px;
+    padding: 6px 15px 13px;
 }
 
 .profile-meta div {
-    padding: 10px;
+    padding: 8px;
 
     border: 1px solid #edf1f2;
-    border-radius: 9px;
+    border-radius: 7px;
 
     background: #fafcfc;
 }
@@ -391,7 +391,7 @@
 
     color: #8a9ba0;
 
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 800;
 
     text-transform: uppercase;
@@ -400,9 +400,9 @@
 .profile-meta strong {
     display: block;
 
-    margin-top: 4px;
+    margin-top: 3px;
 
-    font-size: 11px;
+    font-size: 9px;
 }
 
 
@@ -411,21 +411,21 @@
    ========================================================= */
 
 .location-card {
-    min-height: 185px;
+    min-height: 152px;
 }
 
 .verification {
     display: flex;
     align-items: center;
 
-    gap: 11px;
+    gap: 9px;
 
-    margin: 15px 18px 12px;
+    margin: 12px 15px 10px;
 
-    padding: 12px;
+    padding: 10px;
 
     border: 1px solid #e5ecee;
-    border-radius: 10px;
+    border-radius: 8px;
 
     background: #f9fbfb;
 }
@@ -443,13 +443,13 @@
 }
 
 .verification-icon {
-    width: 35px;
-    height: 35px;
+    width: 29px;
+    height: 29px;
 
     display: grid;
     place-items: center;
 
-    border-radius: 10px;
+    border-radius: 8px;
 
     background: #eaf2f3;
 
@@ -465,32 +465,32 @@
 .verification strong {
     display: block;
 
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .verification span {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 2px;
 
     color: var(--att-muted);
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .location-actions {
     display: flex;
     align-items: center;
 
-    gap: 10px;
+    gap: 8px;
 
-    padding: 0 18px 16px;
+    padding: 0 15px 13px;
 }
 
 .location-actions > span {
     color: #8a9ba0;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 
@@ -499,20 +499,20 @@
    ========================================================= */
 
 .attendance-btn {
-    height: 38px;
+    height: 31px;
 
     display: inline-flex;
     align-items: center;
     justify-content: center;
 
-    gap: 7px;
+    gap: 6px;
 
-    padding: 0 13px;
+    padding: 0 11px;
 
     border: 1px solid transparent;
-    border-radius: 9px;
+    border-radius: 7px;
 
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 800;
 
     cursor: pointer;
@@ -534,7 +534,7 @@
     );
 
     box-shadow:
-        0 7px 15px rgba(49, 91, 102, 0.17);
+        0 6px 12px rgba(49, 91, 102, 0.17);
 }
 
 .attendance-btn.secondary {
@@ -551,7 +551,7 @@
    ========================================================= */
 
 .action-card {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 
     overflow: hidden;
 }
@@ -564,26 +564,26 @@
     display: inline-flex;
     align-items: center;
 
-    gap: 7px;
+    gap: 6px;
 
-    padding: 7px 10px;
+    padding: 6px 8px;
 
     border: 1px solid #dce7e8;
-    border-radius: 999px;
+    border-radius: 819px;
 
     background: #fafcfc;
 
     color: #62777d;
 
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
 
     white-space: nowrap;
 }
 
 .live-chip i {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
 
     border-radius: 50%;
 
@@ -595,11 +595,11 @@
 
     grid-template-columns:
         minmax(0, 1.15fr)
-        minmax(330px, 0.85fr);
+        minmax(271px, 0.85fr);
 
-    gap: 18px;
+    gap: 15px;
 
-    padding: 18px;
+    padding: 15px;
 }
 
 
@@ -616,31 +616,31 @@
     justify-content: space-between;
     align-items: center;
 
-    margin-bottom: 7px;
+    margin-bottom: 6px;
 }
 
 .camera-label span {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 850;
 }
 
 .camera-label small {
     color: #8a9ba0;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .camera-frame {
     position: relative;
 
-    min-height: 340px;
+    min-height: 279px;
 
     aspect-ratio: 16 / 9;
 
     overflow: hidden;
 
     border: 1px solid #dce5e7;
-    border-radius: 12px;
+    border-radius: 10px;
 
     background: #12242a;
 }
@@ -677,25 +677,25 @@
 }
 
 .camera-placeholder svg {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 
     color: #d5e0e2;
 
-    font-size: 34px;
+    font-size: 28px;
 }
 
 .camera-placeholder strong {
     color: #eef4f5;
 
-    font-size: 13px;
+    font-size: 11px;
 }
 
 .camera-placeholder span {
-    max-width: 280px;
+    max-width: 230px;
 
-    margin-top: 5px;
+    margin-top: 4px;
 
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.5;
 }
 
@@ -703,7 +703,7 @@
     display: flex;
     justify-content: center;
 
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 
@@ -715,7 +715,7 @@
     display: flex;
     flex-direction: column;
 
-    gap: 13px;
+    gap: 11px;
 }
 
 .action-form label,
@@ -723,11 +723,11 @@
     display: flex;
     flex-direction: column;
 
-    gap: 6px;
+    gap: 5px;
 
     color: #536a71;
 
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 850;
 }
 
@@ -740,7 +740,7 @@
     box-sizing: border-box;
 
     border: 1px solid #d6e0e3;
-    border-radius: 9px;
+    border-radius: 7px;
 
     background: #ffffff;
 
@@ -749,21 +749,21 @@
     outline: none;
 
     font: inherit;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .action-form select,
 .report-filter-grid input,
 .report-filter-grid select {
-    height: 40px;
+    height: 33px;
 
-    padding: 0 10px;
+    padding: 0 8px;
 }
 
 .action-form textarea {
-    min-height: 82px;
+    min-height: 67px;
 
-    padding: 10px;
+    padding: 8px;
 
     resize: vertical;
 }
@@ -775,7 +775,7 @@
     border-color: #8aaab1;
 
     box-shadow:
-        0 0 0 3px rgba(73, 111, 121, 0.09);
+        0 0 0 2px rgba(73, 111, 121, 0.09);
 }
 
 
@@ -786,19 +786,19 @@
 .readiness-list {
     display: grid;
 
-    gap: 8px;
+    gap: 7px;
 }
 
 .readiness-list > div {
     display: flex;
     align-items: center;
 
-    gap: 9px;
+    gap: 7px;
 
-    padding: 10px;
+    padding: 8px;
 
     border: 1px solid #e4eaec;
-    border-radius: 9px;
+    border-radius: 7px;
 
     background: #fafcfc;
 }
@@ -830,7 +830,7 @@
 .readiness-list strong {
     display: block;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .readiness-list small {
@@ -840,7 +840,7 @@
 
     color: #8a9ba0;
 
-    font-size: 9px;
+    font-size: 7px;
 }
 
 
@@ -849,10 +849,10 @@
    ========================================================= */
 
 .attendance-submit {
-    height: 45px;
+    height: 37px;
 
     border: 0;
-    border-radius: 10px;
+    border-radius: 8px;
 
     background: linear-gradient(
         135deg,
@@ -867,7 +867,7 @@
     cursor: pointer;
 
     box-shadow:
-        0 9px 18px rgba(46, 88, 100, 0.18);
+        0 7px 15px rgba(46, 88, 100, 0.18);
 }
 
 .attendance-submit:disabled {
@@ -884,28 +884,28 @@
    ========================================================= */
 
 .timeline-card {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .timeline {
     display: flex;
     align-items: center;
 
-    padding: 18px 20px;
+    padding: 15px 16px;
 }
 
 .timeline-item {
     display: flex;
     align-items: center;
 
-    gap: 10px;
+    gap: 8px;
 
     flex: 1;
 }
 
 .timeline-item i {
-    width: 11px;
-    height: 11px;
+    width: 9px;
+    height: 9px;
 
     border: 2px solid #cbd7da;
     border-radius: 50%;
@@ -919,31 +919,31 @@
     background: var(--att-green);
 
     box-shadow:
-        0 0 0 4px #e4f5ed;
+        0 0 0 3px #e4f5ed;
 }
 
 .timeline-item strong {
     display: block;
 
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .timeline-item span {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 2px;
 
     color: #87999e;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .timeline-line {
     height: 1px;
 
-    flex: 0 0 80px;
+    flex: 0 0 66px;
 
-    margin: 0 14px;
+    margin: 0 11px;
 
     background: #dfe7e9;
 }
@@ -954,15 +954,15 @@
    ========================================================= */
 
 .report-kpis {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .report-export {
-    margin-top: 4px;
+    margin-top: 3px;
 }
 
 .report-filters {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .report-filter-grid {
@@ -976,15 +976,15 @@
         1fr
         1fr;
 
-    gap: 10px;
+    gap: 8px;
 
-    padding: 15px 18px;
+    padding: 12px 15px;
 }
 
 .report-filter-grid label > span {
     color: #8a9ba0;
 
-    font-size: 9px;
+    font-size: 7px;
 
     text-transform: uppercase;
 }
@@ -998,14 +998,14 @@
 .search-field svg {
     position: absolute;
 
-    left: 11px;
-    bottom: 12px;
+    left: 9px;
+    bottom: 10px;
 
     color: #8a9ba0;
 }
 
 .search-field input {
-    padding-left: 32px !important;
+    padding-left: 26px !important;
 }
 
 
@@ -1022,7 +1022,7 @@
     justify-content: space-between;
     align-items: center;
 
-    padding: 16px 18px;
+    padding: 13px 15px;
 
     border-bottom: 1px solid #edf2f3;
 }
@@ -1030,7 +1030,7 @@
 .record-count {
     color: #75898f;
 
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
 }
 
@@ -1041,13 +1041,13 @@
 .attendance-table {
     width: 100%;
 
-    min-width: 1000px;
+    min-width: 820px;
 
     border-collapse: collapse;
 }
 
 .attendance-table th {
-    padding: 11px 13px;
+    padding: 9px 11px;
 
     border-bottom: 1px solid #e0e8ea;
 
@@ -1055,7 +1055,7 @@
 
     color: #71858b;
 
-    font-size: 9px;
+    font-size: 7px;
 
     letter-spacing: 0.06em;
 
@@ -1067,13 +1067,13 @@
 }
 
 .attendance-table td {
-    padding: 12px 13px;
+    padding: 10px 11px;
 
     border-bottom: 1px solid #edf2f3;
 
     color: #425b62;
 
-    font-size: 11px;
+    font-size: 9px;
 
     vertical-align: middle;
 }
@@ -1087,24 +1087,24 @@
 
     color: #203d46;
 
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .attendance-table td small {
     display: block;
 
-    margin-top: 3px;
+    margin-top: 2px;
 
     color: #8b9a9f;
 
-    font-size: 9px;
+    font-size: 7px;
 }
 
 .attendance-table td a {
     display: inline-flex;
     align-items: center;
 
-    gap: 4px;
+    gap: 3px;
 
     color: #4c6e77;
 
@@ -1121,11 +1121,11 @@
 .attendance-status {
     display: inline-flex;
 
-    padding: 5px 8px;
+    padding: 4px 7px;
 
-    border-radius: 999px;
+    border-radius: 819px;
 
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 850;
 }
 
@@ -1147,7 +1147,7 @@
    ========================================================= */
 
 .table-state {
-    padding: 45px !important;
+    padding: 37px !important;
 
     color: #829398 !important;
 
@@ -1164,32 +1164,32 @@
     justify-content: space-between;
     align-items: center;
 
-    padding: 12px 16px;
+    padding: 10px 13px;
 
     color: #7d9095;
 
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .report-pagination div {
     display: flex;
 
-    gap: 6px;
+    gap: 5px;
 }
 
 .report-pagination button {
-    height: 31px;
+    height: 25px;
 
-    padding: 0 10px;
+    padding: 0 8px;
 
     border: 1px solid #d8e2e4;
-    border-radius: 8px;
+    border-radius: 7px;
 
     background: #ffffff;
 
     color: #4c6269;
 
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 750;
 
     cursor: pointer;
@@ -1223,7 +1223,7 @@
     }
 
     .camera-frame {
-        min-height: 300px;
+        min-height: 246px;
     }
 }
 
@@ -1235,7 +1235,7 @@
 @media (max-width: 760px) {
 
     .attendance-page {
-        padding: 17px 12px 30px;
+        padding: 14px 10px 25px;
     }
 
     .attendance-hero {
@@ -1263,24 +1263,24 @@
         flex-direction: column;
         align-items: flex-start;
 
-        gap: 12px;
+        gap: 10px;
     }
 
     .timeline-line {
         width: 1px;
-        height: 25px;
+        height: 20px;
 
-        flex: 0 0 25px;
+        flex: 0 0 20px;
 
-        margin: 0 0 0 5px;
+        margin: 0 0 0 4px;
     }
 
     .action-layout {
-        padding: 13px;
+        padding: 11px;
     }
 
     .camera-frame {
-        min-height: 250px;
+        min-height: 205px;
     }
 }
 /* =========================================================
@@ -1291,10 +1291,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    padding: 13px 14px;
+    gap: 11px;
+    padding: 11px 11px;
     border: 1px solid #d9e5e7;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #f8fbfb;
 }
 
@@ -1309,7 +1309,7 @@
 
 .assigned-store-lock span {
     color: #84969b;
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 850;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -1317,28 +1317,28 @@
 
 .assigned-store-lock strong {
     display: block;
-    margin-top: 3px;
+    margin-top: 2px;
     color: #21434c;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .assigned-store-lock small {
-    margin-top: 3px;
+    margin-top: 2px;
     color: #8a9ba0;
-    font-size: 9px;
+    font-size: 7px;
 }
 
 .assigned-store-lock > svg {
     flex: 0 0 auto;
     color: var(--att-primary);
-    font-size: 18px;
+    font-size: 15px;
 }
 
 .profile-meta > div small {
     display: block;
-    margin-top: 3px;
+    margin-top: 2px;
     color: #8a9ba0;
-    font-size: 9px;
+    font-size: 7px;
 }
 
 .camera-frame video {
@@ -1350,7 +1350,7 @@
 }
 
 .camera-placeholder {
-    padding: 20px;
+    padding: 16px;
     box-sizing: border-box;
 }
 
@@ -1367,7 +1367,7 @@
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 7px;
 }
 
 .report-header-actions .attendance-btn {
@@ -1389,13 +1389,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 18px 12px;
+    padding: 13px 15px 10px;
     border-bottom: 1px solid #edf2f3;
 }
 
 .report-section-head > svg {
     color: #80969c;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .report-filter-grid {
@@ -1404,8 +1404,8 @@
     box-sizing: border-box;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: end;
-    gap: 14px;
-    padding: 14px 18px 18px;
+    gap: 11px;
+    padding: 11px 15px 15px;
 }
 
 .report-filter-grid > label {
@@ -1425,7 +1425,7 @@
 .report-filter-grid input,
 .report-filter-grid select {
     min-width: 0;
-    height: 42px;
+    height: 34px;
 }
 
 .report-filter-grid .search-control input {
@@ -1442,7 +1442,7 @@
 
 .search-control > svg {
     position: absolute;
-    left: 11px;
+    left: 9px;
     top: 50%;
     transform: translateY(-50%);
     color: #8a9ba0;
@@ -1450,7 +1450,7 @@
 }
 
 .search-control input {
-    padding-left: 32px !important;
+    padding-left: 26px !important;
 }
 
 /* =========================================================
@@ -1458,7 +1458,7 @@
    ========================================================= */
 
 .attendance-report-table {
-    min-width: 1260px;
+    min-width: 1033px;
 }
 
 .report-link-button,
@@ -1466,11 +1466,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 4px;
     border: 0;
     background: transparent;
     font: inherit;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
     cursor: pointer;
     white-space: nowrap;
@@ -1543,11 +1543,11 @@
 
 .attendance-photo-close {
     position: fixed;
-    top: 14px;
-    right: 14px;
+    top: 11px;
+    right: 11px;
     z-index: 10002;
-    width: 42px;
-    height: 42px;
+    width: 34px;
+    height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1555,9 +1555,9 @@
     border-radius: 50%;
     background: rgba(20, 25, 27, .72);
     color: #fff;
-    font-size: 18px;
+    font-size: 15px;
     cursor: pointer;
-    box-shadow: 0 5px 18px rgba(0,0,0,.18);
+    box-shadow: 0 4px 15px rgba(0,0,0,.18);
 }
 
 .attendance-photo-close:hover {
@@ -1566,16 +1566,16 @@
 
 .attendance-photo-info-bar {
     flex: 0 0 auto;
-    min-height: 104px;
+    min-height: 85px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    padding: 16px 18px;
+    gap: 20px;
+    padding: 13px 15px;
     box-sizing: border-box;
     border-top: 1px solid #e3eaec;
     background: #fff;
-    box-shadow: 0 -8px 24px rgba(26, 50, 57, .08);
+    box-shadow: 0 -7px 20px rgba(26, 50, 57, .08);
 }
 
 .attendance-photo-info {
@@ -1584,34 +1584,34 @@
 
 .attendance-photo-kicker {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     color: #52717a;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.2;
     font-weight: 900;
     letter-spacing: .07em;
 }
 
 .attendance-photo-info h2 {
-    margin: 0 0 5px;
+    margin: 0 0 4px;
     color: #263a41;
-    font-size: 20px;
+    font-size: 16px;
     line-height: 1.2;
 }
 
 .attendance-photo-info p {
-    margin: 0 0 5px;
+    margin: 0 0 4px;
     color: #70838a;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .attendance-photo-location {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 7px;
     color: #6d8188;
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .attendance-photo-location svg {
@@ -1626,18 +1626,18 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
 }
 
 .attendance-photo-actions button {
-    min-height: 40px;
+    min-height: 33px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 0 14px;
-    border-radius: 9px;
-    font-size: 12px;
+    gap: 7px;
+    padding: 0 11px;
+    border-radius: 7px;
+    font-size: 10px;
     font-weight: 800;
     cursor: pointer;
     white-space: nowrap;
@@ -1672,8 +1672,8 @@
     .attendance-photo-info-bar {
         align-items: flex-start;
         flex-direction: column;
-        gap: 12px;
-        padding: 13px;
+        gap: 10px;
+        padding: 11px;
     }
 
     .attendance-photo-actions {
@@ -1685,14 +1685,14 @@
     }
 
     .attendance-photo-info h2 {
-        font-size: 17px;
+        font-size: 14px;
     }
 
     .attendance-photo-close {
-        top: 8px;
-        right: 8px;
-        width: 38px;
-        height: 38px;
+        top: 7px;
+        right: 7px;
+        width: 31px;
+        height: 31px;
     }
 }
 
@@ -1746,11 +1746,11 @@
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 9px;
+    gap: 7px;
 }
 
 .report-header-actions .attendance-btn {
-    min-width: 118px;
+    min-width: 97px;
     white-space: nowrap;
 }
 
@@ -1759,7 +1759,7 @@
 }
 
 .report-section-head {
-    min-height: 64px;
+    min-height: 52px;
     box-sizing: border-box;
 }
 
@@ -1768,8 +1768,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     width: 100% !important;
     box-sizing: border-box;
-    gap: 16px;
-    padding: 18px;
+    gap: 13px;
+    padding: 15px;
     align-items: end;
 }
 
@@ -1787,9 +1787,9 @@
 
 .report-filter-grid label > span {
     display: block;
-    margin-bottom: 7px;
+    margin-bottom: 6px;
     color: #72878d;
-    font-size: 9px;
+    font-size: 7px;
     line-height: 1.2;
     font-weight: 850;
     letter-spacing: 0.08em;
@@ -1801,30 +1801,30 @@
     display: block;
     width: 100% !important;
     min-width: 0 !important;
-    height: 44px;
+    height: 36px;
     box-sizing: border-box;
     border: 1px solid #d5e1e4;
-    border-radius: 9px;
+    border-radius: 7px;
     background: #fff;
     color: var(--att-ink);
-    font-size: 12px;
+    font-size: 10px;
     outline: none;
     transition: border-color .16s ease, box-shadow .16s ease;
 }
 
 .report-filter-grid input {
-    padding: 0 12px;
+    padding: 0 10px;
 }
 
 .report-filter-grid select {
-    padding: 0 34px 0 12px;
+    padding: 0 28px 0 10px;
     cursor: pointer;
 }
 
 .report-filter-grid input:focus,
 .report-filter-grid select:focus {
     border-color: #7197a0;
-    box-shadow: 0 0 0 3px rgba(73, 111, 121, .10);
+    box-shadow: 0 0 0 2px rgba(73, 111, 121, .10);
 }
 
 .report-search-field .search-control {
@@ -1835,7 +1835,7 @@
 
 .report-search-field .search-control > svg {
     position: absolute;
-    left: 13px;
+    left: 11px;
     top: 50%;
     z-index: 1;
     transform: translateY(-50%);
@@ -1844,8 +1844,8 @@
 }
 
 .report-search-field .search-control input {
-    padding-left: 38px !important;
-    padding-right: 14px;
+    padding-left: 31px !important;
+    padding-right: 11px;
 }
 
 .report-search-field .search-control input::placeholder {
@@ -1875,8 +1875,8 @@
 
     .report-filter-grid {
         grid-template-columns: 1fr !important;
-        gap: 12px;
-        padding: 14px;
+        gap: 10px;
+        padding: 11px;
     }
 
     .report-filter-grid > .report-search-field {
@@ -1905,27 +1905,27 @@
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 7px;
     flex: 0 0 auto;
 }
 
 .report-header-actions .attendance-btn {
-    min-width: 118px;
+    min-width: 97px;
     white-space: nowrap;
 }
 
 .button-count {
-    min-width: 17px;
-    height: 17px;
+    min-width: 14px;
+    height: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0 5px;
+    padding: 0 4px;
     box-sizing: border-box;
-    border-radius: 999px;
+    border-radius: 819px;
     background: rgba(255,255,255,.75);
     color: currentColor;
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 900;
 }
 
@@ -1954,32 +1954,32 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 17px 18px 14px;
+    gap: 13px;
+    padding: 14px 15px 11px;
     border-bottom: 1px solid #edf2f3;
 }
 
 .report-section-head h2 {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     color: #203f48;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .report-section-head p {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     color: #819298;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.45;
 }
 
 .filter-head-icon {
-    width: 38px;
-    height: 38px;
+    width: 31px;
+    height: 31px;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
     border: 1px solid #dfe9eb;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #f5f9fa;
     color: var(--att-primary);
 }
@@ -1989,8 +1989,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     width: 100%;
     box-sizing: border-box;
-    gap: 14px;
-    padding: 17px 18px 18px;
+    gap: 11px;
+    padding: 14px 15px 15px;
     align-items: end;
 }
 
@@ -2000,7 +2000,7 @@
     min-width: 0;
     box-sizing: border-box;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
 
 .report-filter-grid > .report-search-field {
@@ -2010,7 +2010,7 @@
 .report-filter-grid label > span {
     display: block;
     color: #72878d;
-    font-size: 9px;
+    font-size: 7px;
     line-height: 1.2;
     font-weight: 850;
     letter-spacing: .08em;
@@ -2022,15 +2022,15 @@
     display: block;
     width: 100% !important;
     min-width: 0 !important;
-    height: 44px;
+    height: 36px;
     box-sizing: border-box;
     border: 1px solid #d5e1e4;
-    border-radius: 9px;
+    border-radius: 7px;
     background: #fff;
     color: var(--att-ink);
     outline: none;
     font: inherit;
-    font-size: 12px;
+    font-size: 10px;
     transition:
         border-color .16s ease,
         box-shadow .16s ease,
@@ -2038,11 +2038,11 @@
 }
 
 .report-filter-grid input {
-    padding: 0 12px;
+    padding: 0 10px;
 }
 
 .report-filter-grid select {
-    padding: 0 34px 0 12px;
+    padding: 0 28px 0 10px;
     cursor: pointer;
 }
 
@@ -2054,7 +2054,7 @@
 .report-filter-grid input:focus,
 .report-filter-grid select:focus {
     border-color: #7197a0;
-    box-shadow: 0 0 0 3px rgba(73,111,121,.10);
+    box-shadow: 0 0 0 2px rgba(73,111,121,.10);
 }
 
 /* ---------- Large search ---------- */
@@ -2071,7 +2071,7 @@
 
 .search-control > svg {
     position: absolute;
-    left: 13px;
+    left: 11px;
     top: 50%;
     z-index: 1;
     transform: translateY(-50%);
@@ -2081,10 +2081,10 @@
 
 .report-search-field .search-control input {
     width: 100% !important;
-    height: 46px;
-    padding-left: 39px !important;
-    padding-right: 42px !important;
-    border-radius: 10px;
+    height: 38px;
+    padding-left: 32px !important;
+    padding-right: 34px !important;
+    border-radius: 8px;
 }
 
 .report-search-field .search-control input::placeholder {
@@ -2093,16 +2093,16 @@
 
 .search-clear {
     position: absolute;
-    right: 8px;
+    right: 7px;
     top: 50%;
-    width: 30px;
-    height: 30px;
+    width: 25px;
+    height: 25px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     transform: translateY(-50%);
     border: 0;
-    border-radius: 7px;
+    border-radius: 6px;
     background: transparent;
     color: #8b9da2;
     cursor: pointer;
@@ -2122,17 +2122,17 @@
 
 .date-control > svg {
     position: absolute;
-    left: 12px;
+    left: 10px;
     top: 50%;
     z-index: 1;
     transform: translateY(-50%);
     color: #8a9ba0;
     pointer-events: none;
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .date-control input {
-    padding-left: 34px !important;
+    padding-left: 28px !important;
 }
 
 /* ---------- Table header ---------- */
@@ -2145,67 +2145,67 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 15px;
-    padding: 16px 18px;
+    gap: 12px;
+    padding: 13px 15px;
     border-bottom: 1px solid #edf2f3;
 }
 
 .report-table-head h2 {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     color: #203f48;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .report-table-head p {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     color: #84969b;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .record-count-wrap {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 7px 10px;
+    gap: 6px;
+    padding: 6px 8px;
     border: 1px solid #dce7e9;
-    border-radius: 999px;
+    border-radius: 819px;
     background: #f8fbfb;
     color: #6f858b;
 }
 
 .record-count-wrap > svg {
     color: var(--att-primary);
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .record-count {
     color: #60777e;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 850;
 }
 
 /* ---------- Expanded report table ---------- */
 
 .attendance-report-table {
-    min-width: 1450px;
+    min-width: 1189px;
 }
 
 .attendance-report-table th {
-    padding: 11px 12px;
+    padding: 9px 10px;
 }
 
 .attendance-report-table td {
-    padding: 12px;
+    padding: 10px;
 }
 
 .employee-cell,
 .store-cell {
-    min-width: 150px;
+    min-width: 123px;
 }
 
 .employee-primary {
     color: #203d46;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 850;
     white-space: nowrap;
 }
@@ -2213,25 +2213,25 @@
 .employee-secondary {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 4px;
+    gap: 4px;
+    margin-top: 3px;
     color: #8b9a9f;
-    font-size: 9px;
+    font-size: 7px;
     white-space: nowrap;
 }
 
 .store-cell strong {
     display: block;
     color: #304d55;
-    font-size: 11px;
+    font-size: 9px;
     white-space: nowrap;
 }
 
 .store-cell small {
     display: block;
-    margin-top: 3px;
+    margin-top: 2px;
     color: #8b9a9f;
-    font-size: 9px;
+    font-size: 7px;
 }
 
 .date-value,
@@ -2252,7 +2252,7 @@
 
 .table-muted {
     color: #a0adb1;
-    font-size: 11px;
+    font-size: 9px;
 }
 
 /* ---------- Status ---------- */
@@ -2260,17 +2260,17 @@
 .attendance-status {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 5px 9px;
-    border-radius: 999px;
-    font-size: 9px;
+    gap: 4px;
+    padding: 4px 7px;
+    border-radius: 819px;
+    font-size: 7px;
     font-weight: 850;
     white-space: nowrap;
 }
 
 .attendance-status i {
-    width: 5px;
-    height: 5px;
+    width: 4px;
+    height: 4px;
     display: inline-block;
     border-radius: 50%;
     background: currentColor;
@@ -2301,14 +2301,14 @@
 .report-action-link {
     display: inline-flex !important;
     align-items: center;
-    gap: 5px;
-    padding: 5px 8px;
+    gap: 4px;
+    padding: 4px 7px;
     border: 1px solid #dce7e9;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #f8fbfb;
     color: #4c6e77 !important;
     text-decoration: none !important;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 850;
     white-space: nowrap;
 }
@@ -2325,17 +2325,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    min-width: 58px;
-    height: 29px;
-    padding: 0 8px;
+    gap: 4px;
+    min-width: 48px;
+    height: 24px;
+    padding: 0 7px;
     box-sizing: border-box;
     border: 1px solid #d8e4e6;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #f8fbfb;
     color: #496f79;
     font: inherit;
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 850;
     cursor: pointer;
     white-space: nowrap;
@@ -2352,7 +2352,7 @@
 }
 
 .report-photo-button svg {
-    font-size: 10px;
+    font-size: 8px;
 }
 
 /* ---------- Delete button ---------- */
@@ -2361,16 +2361,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    min-width: 62px;
-    height: 29px;
-    padding: 0 8px;
+    gap: 4px;
+    min-width: 51px;
+    height: 24px;
+    padding: 0 7px;
     border: 1px solid #f0cccc;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #fff8f8;
     color: #c74444;
     font: inherit;
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 850;
     cursor: pointer;
     white-space: nowrap;
@@ -2392,12 +2392,12 @@
 .table-loading {
     display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
 }
 
 .table-loading > span {
-    width: 15px;
-    height: 15px;
+    width: 12px;
+    height: 12px;
     display: inline-block;
     border: 2px solid #dce7e9;
     border-top-color: var(--att-primary);
@@ -2414,46 +2414,46 @@
 /* ---------- Empty state ---------- */
 
 .empty-report {
-    min-height: 210px;
+    min-height: 172px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 25px;
+    gap: 5px;
+    padding: 20px;
     box-sizing: border-box;
 }
 
 .empty-report > div {
-    width: 42px;
-    height: 42px;
+    width: 34px;
+    height: 34px;
     display: grid;
     place-items: center;
-    margin-bottom: 4px;
-    border-radius: 12px;
+    margin-bottom: 3px;
+    border-radius: 10px;
     background: #f0f5f6;
     color: #80969c;
 }
 
 .empty-report strong {
     color: #4a6269;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .empty-report span {
     color: #94a3a8;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .empty-report button {
-    margin-top: 8px;
-    padding: 7px 11px;
+    margin-top: 7px;
+    padding: 6px 9px;
     border: 1px solid #d7e3e5;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #fff;
     color: #496f79;
     font: inherit;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
     cursor: pointer;
 }
@@ -2468,14 +2468,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 10px 13px;
     border-top: 1px solid #edf2f3;
 }
 
 .pagination-summary {
     color: #7d9095;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .pagination-summary strong {
@@ -2485,24 +2485,24 @@
 .pagination-buttons {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
 }
 
 .pagination-buttons button,
 .pagination-current {
-    min-width: 32px;
-    height: 31px;
+    min-width: 26px;
+    height: 25px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0 9px;
+    padding: 0 7px;
     box-sizing: border-box;
     border: 1px solid #d8e2e4;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #fff;
     color: #4c6269;
     font: inherit;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 750;
 }
 
@@ -2536,52 +2536,52 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 20px;
     box-sizing: border-box;
     background: rgba(18,36,42,.72);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(3px);
 }
 
 .attendance-photo-dialog {
-    width: min(920px, 100%);
-    max-height: calc(100vh - 48px);
+    width: min(754px, 100%);
+    max-height: calc(100vh - 39px);
     overflow: hidden;
     border: 1px solid rgba(255,255,255,.45);
-    border-radius: 16px;
+    border-radius: 13px;
     background: #fff;
-    box-shadow: 0 28px 80px rgba(0,0,0,.28);
+    box-shadow: 0 23px 66px rgba(0,0,0,.28);
 }
 
 .attendance-photo-dialog-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 15px 18px;
+    gap: 13px;
+    padding: 12px 15px;
     border-bottom: 1px solid #e9eff0;
 }
 
 .attendance-photo-dialog-head h2 {
-    margin: 3px 0 0;
+    margin: 2px 0 0;
     color: #17343d;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .attendance-photo-dialog-head p {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     color: #829398;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .photo-modal-close {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
     border: 1px solid #dce6e8;
-    border-radius: 9px;
+    border-radius: 7px;
     background: #fff;
     color: #6f858b;
     cursor: pointer;
@@ -2596,9 +2596,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 300px;
-    max-height: calc(100vh - 140px);
-    padding: 18px;
+    min-height: 246px;
+    max-height: calc(100vh - 115px);
+    padding: 15px;
     overflow: auto;
     box-sizing: border-box;
     background: #f2f5f6;
@@ -2607,10 +2607,10 @@
 .attendance-photo-viewer img {
     display: block;
     max-width: 100%;
-    max-height: calc(100vh - 180px);
+    max-height: calc(100vh - 148px);
     object-fit: contain;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(23,52,61,.14);
+    border-radius: 8px;
+    box-shadow: 0 8px 25px rgba(23,52,61,.14);
 }
 
 /* ---------- Responsive ---------- */
@@ -2625,7 +2625,7 @@
     }
 
     .attendance-report-table {
-        min-width: 1400px;
+        min-width: 1148px;
     }
 }
 
@@ -2654,8 +2654,8 @@
 
     .report-filter-grid {
         grid-template-columns: 1fr !important;
-        gap: 12px;
-        padding: 14px;
+        gap: 10px;
+        padding: 11px;
     }
 
     .report-filter-grid > .report-search-field {
@@ -2688,17 +2688,17 @@
 .attendance-report-filter-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 14px;
+    gap: 11px;
     width: 100%;
     box-sizing: border-box;
-    padding: 0 18px 18px;
+    padding: 0 15px 15px;
     align-items: end;
 }
 
 .attendance-report-filter-grid > label {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 6px;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -2710,7 +2710,7 @@
 
 .attendance-report-filter-grid > label > span {
     color: #4f6670;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.2;
     font-weight: 800;
     letter-spacing: .03em;
@@ -2720,24 +2720,24 @@
 .attendance-report-filter-grid select {
     width: 100%;
     min-width: 0;
-    height: 44px;
+    height: 36px;
     box-sizing: border-box;
     border: 1px solid #cfdde0;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #fff;
     color: #17343d;
     font: inherit;
-    font-size: 13px;
+    font-size: 11px;
     outline: none;
     transition: border-color .16s ease, box-shadow .16s ease;
 }
 
 .attendance-report-filter-grid input {
-    padding: 0 13px;
+    padding: 0 11px;
 }
 
 .attendance-report-filter-grid select {
-    padding: 0 34px 0 13px;
+    padding: 0 28px 0 11px;
     cursor: pointer;
 }
 
@@ -2749,7 +2749,7 @@
 .attendance-report-filter-grid input:focus,
 .attendance-report-filter-grid select:focus {
     border-color: #527b86;
-    box-shadow: 0 0 0 3px rgba(73,111,121,.10);
+    box-shadow: 0 0 0 2px rgba(73,111,121,.10);
 }
 
 .attendance-report-search-control {
@@ -2759,7 +2759,7 @@
 
 .attendance-report-search-control > svg {
     position: absolute;
-    left: 14px;
+    left: 11px;
     top: 50%;
     z-index: 1;
     transform: translateY(-50%);
@@ -2769,9 +2769,9 @@
 
 .attendance-report-search-control input {
     width: 100%;
-    height: 46px;
-    padding: 0 42px 0 40px !important;
-    border-radius: 9px;
+    height: 38px;
+    padding: 0 34px 0 33px !important;
+    border-radius: 7px;
 }
 
 .attendance-report-search-control input::placeholder {
@@ -2779,7 +2779,7 @@
 }
 
 .attendance-report-search-control .search-clear {
-    right: 7px;
+    right: 6px;
 }
 
 @media (max-width: 1150px) {
@@ -2791,14 +2791,14 @@
 @media (max-width: 800px) {
     .attendance-report-filter-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        padding: 0 14px 14px;
+        padding: 0 11px 11px;
     }
 }
 
 @media (max-width: 560px) {
     .attendance-report-filter-grid {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 10px;
     }
 
     .attendance-report-search-field {
@@ -2808,19 +2808,19 @@
 
 /* Keep the report table readable while allowing horizontal scrolling. */
 .attendance-report-table {
-    min-width: 1320px;
+    min-width: 1082px;
 }
 
 .attendance-report-table th {
     background: #f3f7f8;
     color: #56717a;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
 }
 
 .attendance-report-table td {
     color: #334f58;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .attendance-report-table tbody tr:hover {
@@ -2830,8 +2830,8 @@
 /* Department-style action buttons in the report table. */
 .report-photo-button,
 .report-delete-button {
-    min-height: 34px;
-    border-radius: 7px;
+    min-height: 28px;
+    border-radius: 6px;
 }
 
 .report-photo-button {
@@ -2869,13 +2869,13 @@
 
     --att-ring: rgba(47, 111, 126, 0.14);
 
-    --att-shadow-sm: 0 2px 8px rgba(15, 43, 51, 0.05);
-    --att-shadow-md: 0 10px 26px rgba(15, 43, 51, 0.08);
-    --att-shadow-lg: 0 22px 48px rgba(15, 43, 51, 0.12);
+    --att-shadow-sm: 0 2px 7px rgba(15, 43, 51, 0.05);
+    --att-shadow-md: 0 8px 21px rgba(15, 43, 51, 0.08);
+    --att-shadow-lg: 0 18px 39px rgba(15, 43, 51, 0.12);
 
-    --att-radius-lg: 20px;
-    --att-radius-md: 14px;
-    --att-radius-sm: 10px;
+    --att-radius-lg: 16px;
+    --att-radius-md: 11px;
+    --att-radius-sm: 8px;
 }
 
 /* ---------------------------------------------------------------
@@ -2884,8 +2884,8 @@
 
 .attendance-page:has(.report-page-hero) {
     background:
-        radial-gradient(1100px 420px at 8% -8%, rgba(47, 111, 126, 0.08), transparent 60%),
-        radial-gradient(900px 380px at 100% 0%, rgba(109, 87, 200, 0.06), transparent 55%),
+        radial-gradient(902px 344px at 8% -8%, rgba(47, 111, 126, 0.08), transparent 60%),
+        radial-gradient(738px 312px at 100% 0%, rgba(109, 87, 200, 0.06), transparent 55%),
         linear-gradient(180deg, #f4f8f9 0%, #f8fafb 55%, #f6f9f9 100%);
 }
 
@@ -2897,8 +2897,8 @@
     position: relative;
     isolation: isolate;
 
-    padding: 26px 28px;
-    margin-bottom: 20px;
+    padding: 21px 23px;
+    margin-bottom: 16px;
 
     align-items: center;
 
@@ -2918,8 +2918,8 @@
     z-index: 0;
 
     background:
-        radial-gradient(420px 220px at 92% -10%, rgba(255, 255, 255, 0.14), transparent 65%),
-        radial-gradient(320px 220px at 12% 120%, rgba(109, 87, 200, 0.22), transparent 60%);
+        radial-gradient(344px 180px at 92% -10%, rgba(255, 255, 255, 0.14), transparent 65%),
+        radial-gradient(262px 180px at 12% 120%, rgba(109, 87, 200, 0.22), transparent 60%);
 
     pointer-events: none;
 }
@@ -2935,25 +2935,25 @@
 
 .report-page-hero h1 {
     color: #ffffff;
-    font-size: 28px;
+    font-size: 23px;
     font-weight: 800;
 }
 
 .report-page-hero p {
-    max-width: 480px;
+    max-width: 394px;
     color: rgba(255, 255, 255, 0.68);
 }
 
 .report-header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .report-page-hero .attendance-btn {
-    height: 40px;
-    border-radius: 11px;
+    height: 33px;
+    border-radius: 9px;
     font-weight: 750;
     letter-spacing: 0.01em;
     transition:
@@ -2965,20 +2965,20 @@
 
 .report-page-hero .attendance-btn.primary {
     background: linear-gradient(135deg, #46b394, #2a8f75);
-    box-shadow: 0 10px 22px rgba(42, 143, 117, 0.35);
+    box-shadow: 0 8px 18px rgba(42, 143, 117, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .report-page-hero .attendance-btn.primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 14px 28px rgba(42, 143, 117, 0.42);
+    box-shadow: 0 11px 23px rgba(42, 143, 117, 0.42);
 }
 
 .report-page-hero .attendance-btn.secondary {
     background: rgba(255, 255, 255, 0.08);
     color: #eaf4f2;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(5px);
 }
 
 .report-page-hero .attendance-btn.secondary:hover:not(:disabled) {
@@ -3009,15 +3009,15 @@
 
 .report-kpis {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 13px;
+    margin-bottom: 16px;
 }
 
 .report-kpis .attendance-kpi {
     position: relative;
     overflow: hidden;
 
-    padding: 18px 20px 20px;
+    padding: 15px 16px 16px;
 
     border: 1px solid rgba(15, 43, 51, 0.06);
     border-radius: var(--att-radius-md);
@@ -3037,7 +3037,7 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
-    height: 3px;
+    height: 2px;
 
     background: linear-gradient(90deg, var(--att-accent-1), var(--att-accent-2));
 }
@@ -3055,22 +3055,22 @@
 }
 
 .report-kpis .attendance-kpi:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--att-shadow-md);
     border-color: rgba(15, 43, 51, 0.1);
 }
 
 .report-kpis .attendance-kpi span {
     color: #7d9095;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
 .report-kpis .attendance-kpi strong {
-    margin-top: 9px;
-    font-size: 28px;
+    margin-top: 7px;
+    font-size: 23px;
     font-weight: 800;
     letter-spacing: -0.03em;
     color: var(--att-navy);
@@ -3092,7 +3092,7 @@
 
 .report-kpis .attendance-kpi small {
     color: #9aacb1;
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 600;
 }
 
@@ -3104,19 +3104,19 @@
     border: 1px solid rgba(15, 43, 51, 0.06);
     border-radius: var(--att-radius-md);
     box-shadow: var(--att-shadow-sm);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     overflow: hidden;
 }
 
 .report-filters .report-section-head {
-    padding: 18px 20px;
+    padding: 15px 16px;
     background: linear-gradient(180deg, var(--att-surface-tint), #ffffff);
     border-bottom: 1px solid rgba(15, 43, 51, 0.06);
 }
 
 .report-filters .card-kicker {
     color: var(--att-accent-1);
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -3128,24 +3128,24 @@
 }
 
 .report-filters .filter-head-icon {
-    width: 38px;
-    height: 38px;
+    width: 31px;
+    height: 31px;
     display: grid;
     place-items: center;
-    border-radius: 12px;
+    border-radius: 10px;
     color: #ffffff;
     background: linear-gradient(135deg, var(--att-accent-1), var(--att-navy-2));
-    box-shadow: 0 8px 18px rgba(47, 111, 126, 0.3);
+    box-shadow: 0 7px 15px rgba(47, 111, 126, 0.3);
 }
 
 .report-filters .attendance-report-filter-grid {
-    padding: 18px 20px 20px;
+    padding: 15px 16px 16px;
 }
 
 .attendance-report-filter-grid input,
 .attendance-report-filter-grid select,
 .attendance-report-search-control input {
-    border-radius: 10px !important;
+    border-radius: 8px !important;
     border-color: #dbe6e8 !important;
     transition: border-color .15s ease, box-shadow .15s ease;
 }
@@ -3154,7 +3154,7 @@
 .attendance-report-filter-grid select:focus,
 .attendance-report-search-control input:focus {
     border-color: var(--att-accent-1) !important;
-    box-shadow: 0 0 0 4px var(--att-ring) !important;
+    box-shadow: 0 0 0 3px var(--att-ring) !important;
     outline: none;
 }
 
@@ -3169,13 +3169,13 @@
 }
 
 .report-table-card .report-table-head {
-    padding: 18px 20px;
+    padding: 15px 16px;
     background: linear-gradient(180deg, var(--att-surface-tint), #ffffff);
 }
 
 .report-table-card .card-kicker {
     color: var(--att-accent-1);
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -3184,7 +3184,7 @@
 .report-table-card .report-table-head h2 {
     color: var(--att-navy);
     font-weight: 800;
-    font-size: 16px;
+    font-size: 13px;
 }
 
 .record-count-wrap {
@@ -3201,12 +3201,12 @@
     top: 0;
     z-index: 1;
 
-    padding: 13px 14px;
+    padding: 11px 11px;
 
     background: linear-gradient(180deg, #eef4f5, #e7eff0);
     color: #4c6a72;
 
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 850;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -3233,7 +3233,7 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: 3px;
+    width: 2px;
     background: transparent;
     transition: background .14s ease;
 }
@@ -3247,7 +3247,7 @@
 }
 
 .employee-primary {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 800;
     color: var(--att-navy);
 }
@@ -3260,15 +3260,15 @@
 .time-value {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
 
-    padding: 3px 9px;
-    border-radius: 999px;
+    padding: 2px 7px;
+    border-radius: 819px;
 
     background: #f1f7f7;
     color: var(--att-navy-2);
 
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 750;
 }
 
@@ -3280,18 +3280,18 @@
 /* ---------- Status pills (premium) ---------- */
 
 .attendance-status {
-    padding: 6px 11px;
-    border-radius: 999px;
-    font-size: 9.5px;
+    padding: 5px 9px;
+    border-radius: 819px;
+    font-size: 8px;
     font-weight: 850;
     letter-spacing: 0.02em;
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
 }
 
 .attendance-status i {
-    width: 6px;
-    height: 6px;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+    width: 5px;
+    height: 5px;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .attendance-status.present {
@@ -3326,7 +3326,7 @@
 /* ---------- Photo / delete / location buttons ---------- */
 
 .report-photo-button {
-    border-radius: 9px;
+    border-radius: 7px;
     font-weight: 800;
     box-shadow: var(--att-shadow-sm);
 }
@@ -3338,16 +3338,16 @@
 }
 
 .report-delete-button {
-    border-radius: 9px;
+    border-radius: 7px;
     font-weight: 800;
 }
 
 .report-delete-button:hover:not(:disabled) {
-    box-shadow: 0 6px 14px rgba(217, 75, 75, 0.18);
+    box-shadow: 0 5px 11px rgba(217, 75, 75, 0.18);
 }
 
 .report-action-link {
-    border-radius: 9px !important;
+    border-radius: 7px !important;
     font-weight: 800;
 }
 
@@ -3360,14 +3360,14 @@
 --------------------------------------------------------------- */
 
 .report-pagination {
-    padding: 16px 20px;
+    padding: 13px 16px;
     background: linear-gradient(180deg, #ffffff, var(--att-surface-tint));
     border-top: 1px solid rgba(15, 43, 51, 0.06);
 }
 
 .pagination-buttons button,
 .pagination-current {
-    border-radius: 999px;
+    border-radius: 819px;
     font-weight: 800;
     transition: all .15s ease;
 }
@@ -3376,7 +3376,7 @@
     color: #fff;
     border-color: transparent;
     background: linear-gradient(135deg, var(--att-accent-1), var(--att-navy-2));
-    box-shadow: 0 8px 16px rgba(47, 111, 126, 0.28);
+    box-shadow: 0 7px 13px rgba(47, 111, 126, 0.28);
 }
 
 .pagination-buttons button:hover:not(:disabled) {
@@ -3427,11 +3427,11 @@
     }
 
     .report-page-hero {
-        padding: 20px;
+        padding: 16px;
     }
 
     .report-page-hero h1 {
-        font-size: 22px;
+        font-size: 18px;
     }
 }
 
@@ -3451,11 +3451,11 @@
 
 .report-filters .attendance-report-filter-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
-    gap: 18px 20px !important;
+    grid-template-columns: repeat(auto-fit, minmax(156px, 1fr)) !important;
+    gap: 15px 16px !important;
     width: 100% !important;
     align-items: end !important;
-    padding: 20px 22px 24px !important;
+    padding: 16px 18px 20px !important;
     box-sizing: border-box !important;
 }
 
@@ -3471,7 +3471,7 @@
     min-width: 0 !important;
     max-width: none !important;
 
-    gap: 8px !important;
+    gap: 7px !important;
     box-sizing: border-box !important;
 }
 
@@ -3484,7 +3484,7 @@
 
     color: #5c7a82 !important;
 
-    font-size: 10.5px !important;
+    font-size: 9px !important;
     font-weight: 800 !important;
     line-height: 1.2 !important;
     letter-spacing: 0.07em !important;
@@ -3500,19 +3500,19 @@
     min-width: 0 !important;
     max-width: none !important;
 
-    height: 46px !important;
+    height: 38px !important;
 
     box-sizing: border-box !important;
 
-    padding: 0 14px !important;
+    padding: 0 11px !important;
 
     border: 1px solid #d7e3e6 !important;
-    border-radius: 10px !important;
+    border-radius: 8px !important;
 
     background: #ffffff !important;
     color: var(--att-navy, #17343d) !important;
 
-    font-size: 12.5px !important;
+    font-size: 10px !important;
     font-weight: 600 !important;
 
     appearance: auto;
@@ -3520,7 +3520,7 @@
 }
 
 .report-filters .attendance-report-filter-grid select {
-    padding-right: 34px !important;
+    padding-right: 28px !important;
     cursor: pointer;
 }
 
@@ -3534,7 +3534,7 @@
 .report-filters .attendance-report-filter-grid select:focus,
 .report-filters .attendance-report-search-control input:focus {
     border-color: var(--att-accent-1, #2f6f7e) !important;
-    box-shadow: 0 0 0 4px var(--att-ring, rgba(47, 111, 126, 0.14)) !important;
+    box-shadow: 0 0 0 3px var(--att-ring, rgba(47, 111, 126, 0.14)) !important;
     outline: none !important;
 }
 
@@ -3546,7 +3546,7 @@
 
 .report-filters .attendance-report-search-control > svg {
     position: absolute !important;
-    left: 15px !important;
+    left: 12px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     color: #7f959b !important;
@@ -3555,10 +3555,10 @@
 }
 
 .report-filters .attendance-report-search-control input {
-    height: 48px !important;
-    padding: 0 42px 0 42px !important;
-    border-radius: 11px !important;
-    font-size: 13px !important;
+    height: 39px !important;
+    padding: 0 34px 0 34px !important;
+    border-radius: 9px !important;
+    font-size: 11px !important;
 }
 
 .report-filters .date-control {
@@ -3569,17 +3569,17 @@
 
 .report-filters .date-control > svg {
     position: absolute !important;
-    left: 14px !important;
+    left: 11px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     color: #7f959b !important;
     z-index: 1;
     pointer-events: none;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .report-filters .date-control input {
-    padding-left: 38px !important;
+    padding-left: 31px !important;
 }
 
 @media (max-width: 640px) {
@@ -3608,30 +3608,30 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    min-height: 70px;
-    padding: 15px 20px 13px;
+    gap: 15px;
+    min-height: 57px;
+    padding: 12px 16px 11px;
     box-sizing: border-box;
 }
 
 .report-filters .report-section-head h2 {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
 }
 
 .report-filters .report-section-head p {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
 }
 
 .report-filters .filter-head-icon {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
+    width: 31px;
+    height: 31px;
+    flex: 0 0 31px;
     display: grid;
     place-items: center;
-    border-radius: 10px;
+    border-radius: 8px;
     color: #ffffff;
     background: linear-gradient(135deg, #315f6a, #1f4d59);
-    box-shadow: 0 7px 15px rgba(31, 77, 89, 0.18);
+    box-shadow: 0 6px 12px rgba(31, 77, 89, 0.18);
 }
 
 .report-filters .attendance-report-filter-grid {
@@ -3639,12 +3639,12 @@
 
     /* Search gets more room; the remaining five controls share the row. */
     grid-template-columns:
-        minmax(250px, 2fr)
-        repeat(5, minmax(130px, 1fr)) !important;
+        minmax(205px, 2fr)
+        repeat(5, minmax(107px, 1fr)) !important;
 
-    gap: 14px !important;
+    gap: 11px !important;
     width: 100% !important;
-    padding: 16px 20px 20px !important;
+    padding: 13px 16px 16px !important;
     box-sizing: border-box !important;
     align-items: end !important;
 }
@@ -3658,7 +3658,7 @@
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
-    gap: 7px !important;
+    gap: 6px !important;
     box-sizing: border-box !important;
 }
 
@@ -3670,7 +3670,7 @@
     display: block !important;
     margin: 0 !important;
     color: #5c7a82 !important;
-    font-size: 9.5px !important;
+    font-size: 8px !important;
     font-weight: 850 !important;
     line-height: 1.2 !important;
     letter-spacing: 0.075em !important;
@@ -3685,24 +3685,24 @@
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
-    height: 44px !important;
+    height: 36px !important;
     box-sizing: border-box !important;
     border: 1px solid #d7e3e6 !important;
-    border-radius: 10px !important;
+    border-radius: 8px !important;
     background: #ffffff !important;
     color: var(--att-ink, #17343d) !important;
-    font-size: 12px !important;
+    font-size: 10px !important;
     font-weight: 600 !important;
     outline: none !important;
     transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 
 .report-filters .attendance-report-filter-grid input {
-    padding: 0 12px !important;
+    padding: 0 10px !important;
 }
 
 .report-filters .attendance-report-filter-grid select {
-    padding: 0 32px 0 12px !important;
+    padding: 0 26px 0 10px !important;
     cursor: pointer;
 }
 
@@ -3716,7 +3716,7 @@
 .report-filters .attendance-report-filter-grid select:focus,
 .report-filters .attendance-report-search-control input:focus {
     border-color: var(--att-accent-1, #2f6f7e) !important;
-    box-shadow: 0 0 0 3px var(--att-ring, rgba(47, 111, 126, 0.12)) !important;
+    box-shadow: 0 0 0 2px var(--att-ring, rgba(47, 111, 126, 0.12)) !important;
 }
 
 .report-filters .attendance-report-search-control {
@@ -3728,7 +3728,7 @@
 
 .report-filters .attendance-report-search-control > svg {
     position: absolute !important;
-    left: 13px !important;
+    left: 11px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     color: #7f959b !important;
@@ -3737,10 +3737,10 @@
 }
 
 .report-filters .attendance-report-search-control input {
-    height: 44px !important;
-    padding: 0 40px 0 38px !important;
-    border-radius: 10px !important;
-    font-size: 12px !important;
+    height: 36px !important;
+    padding: 0 33px 0 31px !important;
+    border-radius: 8px !important;
+    font-size: 10px !important;
 }
 
 .report-filters .attendance-report-search-control input::placeholder {
@@ -3750,17 +3750,17 @@
 
 .report-filters .search-clear {
     position: absolute;
-    right: 9px;
+    right: 7px;
     top: 50%;
-    width: 27px;
-    height: 27px;
+    width: 22px;
+    height: 22px;
     transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     border: 0;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #f1f5f6;
     color: #738a90;
     cursor: pointer;
@@ -3780,23 +3780,23 @@
 
 .report-filters .date-control > svg {
     position: absolute !important;
-    left: 13px !important;
+    left: 11px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
     color: #7f959b !important;
     z-index: 2;
     pointer-events: none;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .report-filters .date-control input {
-    padding-left: 37px !important;
-    padding-right: 10px !important;
+    padding-left: 30px !important;
+    padding-right: 8px !important;
 }
 
 /* Keep the filter panel near the top of the report. */
 .attendance-page {
-    padding-top: 18px;
+    padding-top: 15px;
 }
 
 @media (max-width: 1200px) {
@@ -3822,8 +3822,8 @@
 @media (max-width: 640px) {
     .report-filters .attendance-report-filter-grid {
         grid-template-columns: 1fr !important;
-        gap: 12px !important;
-        padding: 14px !important;
+        gap: 10px !important;
+        padding: 11px !important;
     }
 
     .report-filters .attendance-report-search-field {
@@ -3831,13 +3831,13 @@
     }
 
     .report-filters .report-section-head {
-        padding: 14px;
+        padding: 11px;
     }
 
     .report-filters .filter-head-icon {
-        width: 34px;
-        height: 34px;
-        flex-basis: 34px;
+        width: 28px;
+        height: 28px;
+        flex-basis: 28px;
     }
 }
 .report-filters {
@@ -3851,9 +3851,9 @@
     width: 100% !important;
 
     grid-template-columns:
-        minmax(260px, 2fr)
-        repeat(5, minmax(130px, 1fr)) !important;
+        minmax(213px, 2fr)
+        repeat(5, minmax(107px, 1fr)) !important;
 
-    gap: 14px !important;
-    padding: 16px 20px 20px !important;
+    gap: 11px !important;
+    padding: 13px 16px 16px !important;
 }

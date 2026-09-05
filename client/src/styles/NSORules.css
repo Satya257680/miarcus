@@ -8,7 +8,7 @@
 
     min-height:100vh;
 
-    padding:20px;
+    padding:16px;
 
     background:#edf3f5;
 
@@ -24,7 +24,7 @@
 
     width:100%;
 
-    border-radius:16px;
+    border-radius:13px;
 
     overflow:hidden;
 
@@ -48,7 +48,7 @@
 
     width:100%;
 
-    min-width:1450px;
+    min-width:1189px;
 
 }
 
@@ -74,7 +74,7 @@
 
 .wrap-text{
 
-    max-width:300px;
+    max-width:246px;
 
     white-space:normal;
 
@@ -88,7 +88,7 @@
 
 .rule-description{
 
-    max-width:340px;
+    max-width:279px;
 
     white-space:normal;
 
@@ -130,15 +130,15 @@
 
     justify-content:center;
 
-    padding:5px 12px;
+    padding:4px 10px;
 
-    border-radius:20px;
+    border-radius:16px;
 
     background:#e8f3f6;
 
     color:#356d84;
 
-    font-size:12px;
+    font-size:10px;
 
     font-weight:600;
 
@@ -168,11 +168,11 @@
 
     justify-content:center;
 
-    padding:5px 12px;
+    padding:4px 10px;
 
-    border-radius:20px;
+    border-radius:16px;
 
-    font-size:12px;
+    font-size:10px;
 
     font-weight:600;
 
@@ -296,9 +296,9 @@
 
     align-items:center;
 
-    gap:8px;
+    gap:7px;
 
-    min-width:170px;
+    min-width:139px;
 
     white-space:nowrap;
 
@@ -332,7 +332,7 @@
 
 .nso-rules-page .pagination-container{
 
-    margin-top:20px;
+    margin-top:16px;
 
     width:100%;
 
@@ -344,7 +344,7 @@
 
 .nso-rules-page .empty-state{
 
-    padding:60px 20px;
+    padding:49px 16px;
 
 }
 
@@ -354,7 +354,7 @@
 
 .data-table-wrapper::-webkit-scrollbar{
 
-    height:8px;
+    height:7px;
 
 }
 
@@ -362,7 +362,7 @@
 
     background:#c3c3c3;
 
-    border-radius:10px;
+    border-radius:8px;
 
 }
 
@@ -380,7 +380,7 @@
 
     .nso-rules-page .data-table{
 
-        min-width:1350px;
+        min-width:1107px;
 
     }
 
@@ -390,13 +390,13 @@
 
     .nso-rules-page{
 
-        padding:16px;
+        padding:13px;
 
     }
 
     .wrap-text{
 
-        max-width:260px;
+        max-width:213px;
 
     }
 
@@ -406,19 +406,19 @@
 
     .wrap-text{
 
-        max-width:220px;
+        max-width:180px;
 
     }
 
     .rule-description{
 
-        max-width:240px;
+        max-width:197px;
 
     }
 
     .nso-rules-page .data-table{
 
-        min-width:1200px;
+        min-width:984px;
 
     }
 
@@ -428,19 +428,19 @@
 
     .nso-rules-page{
 
-        padding:12px;
+        padding:10px;
 
     }
 
     .wrap-text{
 
-        max-width:180px;
+        max-width:148px;
 
     }
 
     .action-buttons{
 
-        gap:6px;
+        gap:5px;
 
     }
 
@@ -450,13 +450,13 @@
 
     .nso-rules-page{
 
-        padding:10px;
+        padding:8px;
 
     }
 
     .nso-rules-page .data-table{
 
-        min-width:1100px;
+        min-width:902px;
 
     }
 

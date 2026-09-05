@@ -17,7 +17,7 @@
 
 .professional-form-section {
   width: 100%;
-  padding: 26px 28px;
+  padding: 21px 23px;
   box-sizing: border-box;
   border-bottom: 1px solid #e6edf3;
 }
@@ -34,17 +34,17 @@
 .professional-section-heading {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
   position: relative;
 }
 
 .professional-section-indicator {
-  width: 3px;
-  min-width: 3px;
-  height: 30px;
+  width: 2px;
+  min-width: 2px;
+  height: 25px;
   margin-top: 2px;
-  border-radius: 4px;
+  border-radius: 3px;
   background: linear-gradient(
     180deg,
     #2563eb 0%,
@@ -55,15 +55,15 @@
 .professional-section-heading h3 {
   margin: 0;
   color: #1e293b;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1.4;
   font-weight: 700;
 }
 
 .professional-section-heading p {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: #64748b;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -74,12 +74,12 @@
 
 .professional-section-count {
   margin-left: auto;
-  padding: 6px 11px;
-  border-radius: 20px;
+  padding: 5px 9px;
+  border-radius: 16px;
   background: #eff6ff;
   color: #2563eb;
   border: 1px solid #dbeafe;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -92,7 +92,7 @@
 .professional-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 
 
@@ -105,19 +105,19 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .professional-field-full {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .professional-field label {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   color: #334155;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -144,7 +144,7 @@
   color: #1e293b;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
 
   outline: none;
 
@@ -161,9 +161,9 @@
    ========================================================= */
 
 .professional-field input {
-  height: 46px;
-  padding: 0 13px;
-  border-radius: 9px;
+  height: 38px;
+  padding: 0 11px;
+  border-radius: 7px;
 }
 
 .professional-field input::placeholder {
@@ -177,7 +177,7 @@
 .professional-field input:focus {
   border-color: #2563eb;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.10);
+    0 0 0 2px rgba(37, 99, 235, 0.10);
 }
 
 
@@ -191,9 +191,9 @@
 }
 
 .professional-field select {
-  height: 46px;
-  padding: 0 38px 0 13px;
-  border-radius: 9px;
+  height: 38px;
+  padding: 0 31px 0 11px;
+  border-radius: 7px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -202,12 +202,12 @@
 .professional-select-wrapper::after {
   content: "⌄";
   position: absolute;
-  right: 14px;
+  right: 11px;
   top: 50%;
   transform: translateY(-55%);
 
   color: #64748b;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 
   pointer-events: none;
@@ -220,7 +220,7 @@
 .professional-field select:focus {
   border-color: #2563eb;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.10);
+    0 0 0 2px rgba(37, 99, 235, 0.10);
 }
 
 
@@ -229,9 +229,9 @@
    ========================================================= */
 
 .professional-field textarea {
-  min-height: 100px;
-  padding: 12px 13px;
-  border-radius: 9px;
+  min-height: 82px;
+  padding: 10px 11px;
+  border-radius: 7px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -247,7 +247,7 @@
 .professional-field textarea:focus {
   border-color: #2563eb;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.10);
+    0 0 0 2px rgba(37, 99, 235, 0.10);
 }
 
 
@@ -256,19 +256,19 @@
    ========================================================= */
 
 .department-employee-section {
-  padding-bottom: 28px;
+  padding-bottom: 23px;
 }
 
 .department-employee-container {
   width: 100%;
-  min-height: 180px;
+  min-height: 148px;
 
-  padding: 4px;
+  padding: 3px;
 
   box-sizing: border-box;
 
   border: 1px solid #dce6ef;
-  border-radius: 12px;
+  border-radius: 10px;
 
   background: #f8fafc;
 }
@@ -294,7 +294,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 
@@ -303,14 +303,14 @@
    ========================================================= */
 
 .professional-btn {
-  min-height: 42px;
+  min-height: 34px;
 
-  padding: 0 20px;
+  padding: 0 16px;
 
-  border-radius: 8px;
+  border-radius: 7px;
 
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 
   cursor: pointer;
@@ -318,7 +318,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
 
   transition:
     transform 0.18s ease,
@@ -341,7 +341,7 @@
    ========================================================= */
 
 .professional-btn-secondary {
-  min-width: 100px;
+  min-width: 82px;
 
   background: #ffffff;
 
@@ -354,7 +354,7 @@
   background: #f8fafc;
   border-color: #c4d0dc;
   box-shadow:
-    0 4px 12px rgba(15, 23, 42, 0.06);
+    0 3px 10px rgba(15, 23, 42, 0.06);
 }
 
 
@@ -363,7 +363,7 @@
    ========================================================= */
 
 .professional-btn-primary {
-  min-width: 170px;
+  min-width: 139px;
 
   color: #ffffff;
 
@@ -376,16 +376,16 @@
   );
 
   box-shadow:
-    0 6px 16px rgba(37, 99, 235, 0.20);
+    0 5px 13px rgba(37, 99, 235, 0.20);
 }
 
 .professional-btn-primary:hover {
   box-shadow:
-    0 9px 22px rgba(37, 99, 235, 0.28);
+    0 7px 18px rgba(37, 99, 235, 0.28);
 }
 
 .professional-btn-icon {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -397,23 +397,23 @@
 @media (max-width: 760px) {
   .professional-form-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 13px;
   }
 
   .professional-field-full {
-    margin-top: 16px;
+    margin-top: 13px;
   }
 
   .professional-form-section {
-    padding: 22px 20px;
+    padding: 18px 16px;
   }
 
   .professional-section-heading {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
 
   .professional-section-count {
-    font-size: 10px;
+    font-size: 8px;
   }
 
   .department-modal-footer {
@@ -429,19 +429,19 @@
 
 @media (max-width: 480px) {
   .professional-form-section {
-    padding: 18px 16px;
+    padding: 15px 13px;
   }
 
   .professional-section-heading {
-    gap: 9px;
+    gap: 7px;
   }
 
   .professional-section-heading h3 {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .professional-section-heading p {
-    font-size: 11px;
+    font-size: 9px;
   }
 
   .professional-section-count {

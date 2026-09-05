@@ -4,8 +4,8 @@
 
 .new-store-openings-page {
     width: 100%;
-    min-height: calc(100vh - 72px);
-    padding: 28px 32px 40px;
+    min-height: calc(100vh - 59px);
+    padding: 23px 26px 33px;
     background: #edf4f6;
     box-sizing: border-box;
 }
@@ -15,20 +15,20 @@
    ========================================================= */
 
 .new-store-openings-page .page-header {
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
 .new-store-openings-page .page-header h1 {
     margin: 0;
-    font-size: 26px;
+    font-size: 21px;
     font-weight: 700;
     color: #172033;
 }
 
 .new-store-openings-page .page-header p {
-    margin: 6px 0 0;
+    margin: 5px 0 0;
     color: #718096;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 /* =========================================================
@@ -39,40 +39,40 @@
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
+    gap: 11px;
+    margin-bottom: 16px;
     box-sizing: border-box;
 }
 
 .new-store-openings-toolbar .search-wrapper {
     flex: 1;
-    min-width: 250px;
+    min-width: 205px;
 }
 
 .new-store-openings-toolbar input {
     width: 100%;
-    height: 46px;
-    padding: 0 16px 0 42px;
+    height: 38px;
+    padding: 0 13px 0 34px;
     border: 1px solid #d5dee5;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #ffffff;
     color: #1f2937;
-    font-size: 14px;
+    font-size: 11px;
     outline: none;
     box-sizing: border-box;
 }
 
 .new-store-openings-toolbar input:focus {
     border-color: #39768d;
-    box-shadow: 0 0 0 3px rgba(57, 118, 141, 0.12);
+    box-shadow: 0 0 0 2px rgba(57, 118, 141, 0.12);
 }
 
 .new-store-openings-toolbar button {
-    height: 46px;
+    height: 38px;
     border: none;
-    border-radius: 7px;
-    padding: 0 18px;
-    font-size: 14px;
+    border-radius: 6px;
+    padding: 0 15px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -125,13 +125,13 @@
 
 .nso-clear-filter {
     margin-left: auto;
-    margin-bottom: 18px;
+    margin-bottom: 15px;
     display: block;
     background: #6c7882;
     color: #ffffff;
     border: none;
-    border-radius: 7px;
-    padding: 11px 18px;
+    border-radius: 6px;
+    padding: 9px 15px;
     font-weight: 600;
     cursor: pointer;
 }
@@ -143,21 +143,21 @@
 .nso-card {
     width: 100%;
     background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 3px 14px rgba(31, 41, 55, 0.08);
+    border-radius: 10px;
+    box-shadow: 0 2px 11px rgba(31, 41, 55, 0.08);
     overflow: hidden;
     box-sizing: border-box;
 }
 
 .nso-card-header {
-    padding: 18px 22px;
+    padding: 15px 18px;
     border-bottom: 1px solid #e5e7eb;
 }
 
 .nso-card-header h2 {
     margin: 0;
     color: #172033;
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 700;
 }
 
@@ -183,7 +183,7 @@
 
 .nso-table-container table {
     width: max-content;
-    min-width: 2200px;
+    min-width: 1804px;
     border-collapse: separate;
     border-spacing: 0;
     table-layout: auto;
@@ -194,13 +194,13 @@
    ========================================================= */
 
 .nso-table-container thead th {
-    height: 48px;
-    padding: 0 14px;
+    height: 39px;
+    padding: 0 11px;
     background: #39758a;
     color: #ffffff;
     border-right: 1px solid rgba(255, 255, 255, 0.18);
     border-bottom: 1px solid #2e6579;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     text-align: left;
     white-space: nowrap;
@@ -210,7 +210,7 @@
 /* First column */
 
 .nso-table-container thead th:first-child {
-    padding-left: 18px;
+    padding-left: 15px;
 }
 
 /* =========================================================
@@ -218,14 +218,14 @@
    ========================================================= */
 
 .nso-table-container tbody td {
-    min-height: 54px;
-    height: 54px;
-    padding: 10px 14px;
+    min-height: 44px;
+    height: 44px;
+    padding: 8px 11px;
     background: #f5fafc;
     color: #243447;
     border-right: 1px solid #e0e7eb;
     border-bottom: 1px solid #e0e7eb;
-    font-size: 13px;
+    font-size: 11px;
     white-space: nowrap;
     vertical-align: middle;
 }
@@ -253,7 +253,7 @@
 
 .nso-date-cell {
     white-space: nowrap !important;
-    min-width: 145px;
+    min-width: 119px;
 }
 
 /* =========================================================
@@ -261,19 +261,19 @@
    ========================================================= */
 
 .nso-text-cell {
-    min-width: 150px;
-    max-width: 280px;
+    min-width: 123px;
+    max-width: 230px;
 }
 
 .nso-remarks-cell {
-    min-width: 180px;
-    max-width: 300px;
+    min-width: 148px;
+    max-width: 246px;
     white-space: normal !important;
     line-height: 1.4;
 }
 
 .nso-attachment-cell {
-    min-width: 130px;
+    min-width: 107px;
 }
 
 /* =========================================================
@@ -281,7 +281,7 @@
    ========================================================= */
 
 .nso-delay-cell {
-    min-width: 130px;
+    min-width: 107px;
     text-align: center;
 }
 
@@ -294,7 +294,7 @@
    ========================================================= */
 
 .nso-action-cell {
-    min-width: 130px;
+    min-width: 107px;
     text-align: center;
     white-space: nowrap !important;
 }
@@ -307,14 +307,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    gap: 6px;
 }
 
 .nso-action-buttons button {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -349,17 +349,17 @@
    ========================================================= */
 
 .nso-table-container::-webkit-scrollbar {
-    height: 12px;
+    height: 10px;
 }
 
 .nso-table-container::-webkit-scrollbar-track {
     background: #eef2f4;
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 .nso-table-container::-webkit-scrollbar-thumb {
     background: #9bb4be;
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 .nso-table-container::-webkit-scrollbar-thumb:hover {
@@ -372,11 +372,11 @@
 
 .nso-pagination-wrapper {
     width: 100%;
-    min-height: 76px;
+    min-height: 62px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 18px 22px;
+    padding: 15px 18px;
     background: #ffffff;
     border-top: 1px solid #e5e7eb;
     box-sizing: border-box;
@@ -386,25 +386,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 7px;
 }
 
 .nso-pagination-total {
-    margin-right: 12px;
+    margin-right: 10px;
     color: #344054;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
 }
 
 .nso-pagination button {
-    min-width: 94px;
-    height: 38px;
-    padding: 0 14px;
+    min-width: 77px;
+    height: 31px;
+    padding: 0 11px;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #d5dae0;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
 }
@@ -415,14 +415,14 @@
 }
 
 .nso-pagination .active-page {
-    min-width: 65px;
+    min-width: 53px;
     background: #39758a;
     color: #ffffff;
 }
 
 .nso-pagination .next-page,
 .nso-pagination .previous-page {
-    min-width: 94px;
+    min-width: 77px;
 }
 
 /* =========================================================
@@ -432,21 +432,21 @@
 .nso-page-size {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: 12px;
+    gap: 7px;
+    margin-left: 10px;
     color: #475467;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .nso-page-size select {
-    height: 38px;
-    min-width: 66px;
-    padding: 0 10px;
+    height: 31px;
+    min-width: 54px;
+    padding: 0 8px;
     border: 1px solid #d0d5dd;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #ffffff;
     color: #344054;
-    font-size: 14px;
+    font-size: 11px;
     outline: none;
 }
 
@@ -455,12 +455,12 @@
    ========================================================= */
 
 .nso-loading {
-    min-height: 180px;
+    min-height: 148px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #39758a;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 600;
 }
 
@@ -469,11 +469,11 @@
    ========================================================= */
 
 .nso-no-data {
-    height: 160px;
+    height: 131px;
     text-align: center !important;
     vertical-align: middle !important;
     color: #667085 !important;
-    font-size: 14px !important;
+    font-size: 11px !important;
 }
 
 /* =========================================================
@@ -483,7 +483,7 @@
 @media (max-width: 1200px) {
 
     .new-store-openings-page {
-        padding: 22px 20px 32px;
+        padding: 18px 16px 26px;
     }
 
     .new-store-openings-toolbar {
@@ -503,17 +503,17 @@
 @media (max-width: 768px) {
 
     .new-store-openings-page {
-        padding: 16px 12px 25px;
+        padding: 13px 10px 20px;
     }
 
     .new-store-openings-toolbar {
-        gap: 8px;
+        gap: 7px;
     }
 
     .new-store-openings-toolbar button {
         flex: 1;
-        padding: 0 10px;
-        font-size: 12px;
+        padding: 0 8px;
+        font-size: 10px;
     }
 
     .nso-pagination-wrapper {

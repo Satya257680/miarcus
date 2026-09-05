@@ -5,7 +5,7 @@
 .checklist-page {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 /* ======================================================
@@ -16,8 +16,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 300px;
-    font-size: 18px;
+    min-height: 246px;
+    font-size: 15px;
     font-weight: 600;
     color: #4b5563;
 }
@@ -27,18 +27,18 @@
 ====================================================== */
 
 .no-permission {
-    padding: 60px 20px;
+    padding: 49px 16px;
     text-align: center;
 }
 
 .no-permission h2 {
     color: #dc2626;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .no-permission p {
     color: #6b7280;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 /* ======================================================
@@ -48,23 +48,23 @@
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 220px;
+    gap: 5px;
+    min-width: 180px;
 }
 
 .filter-group label {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #374151;
 }
 
 .filter-group select {
-    height: 40px;
+    height: 33px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 0 12px;
+    border-radius: 7px;
+    padding: 0 10px;
     background: #fff;
-    font-size: 14px;
+    font-size: 11px;
     outline: none;
     transition: 0.2s;
 }
@@ -78,7 +78,7 @@
 ====================================================== */
 
 .department-cell {
-    max-width: 250px;
+    max-width: 205px;
     white-space: normal;
     word-break: break-word;
     line-height: 1.5;
@@ -92,10 +92,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 60px;
-    padding: 5px 12px;
-    border-radius: 999px;
-    font-size: 12px;
+    min-width: 49px;
+    padding: 4px 10px;
+    border-radius: 819px;
+    font-size: 10px;
     font-weight: 600;
 }
 
@@ -113,10 +113,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 80px;
-    padding: 5px 14px;
-    border-radius: 999px;
-    font-size: 12px;
+    min-width: 66px;
+    padding: 4px 11px;
+    border-radius: 819px;
+    font-size: 10px;
     font-weight: 600;
 }
 
@@ -138,15 +138,15 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .edit-btn,
 .delete-btn {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     cursor: pointer;
     display: flex;
     justify-content: center;
@@ -183,7 +183,7 @@
     }
 
     .department-cell {
-        max-width: 180px;
+        max-width: 148px;
     }
 
 }
@@ -196,8 +196,8 @@
 
     .edit-btn,
     .delete-btn {
-        width: 34px;
-        height: 34px;
+        width: 28px;
+        height: 28px;
     }
 
 }

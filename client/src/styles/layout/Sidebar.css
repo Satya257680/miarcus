@@ -3,7 +3,7 @@
 ========================================================= */
 
 .sidebar {
-    width: 270px;
+    width: 221px;
     height: 100%;
 
     background: #9CBFC4;
@@ -36,7 +36,7 @@
     overflow-y: auto;
     overflow-x: hidden;
 
-    padding: 18px 0;
+    padding: 15px 0;
 
     box-sizing: border-box;
 }
@@ -47,7 +47,7 @@
 ========================================================= */
 
 .sidebar nav::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 
 .sidebar nav::-webkit-scrollbar-track {
@@ -56,7 +56,7 @@
 
 .sidebar nav::-webkit-scrollbar-thumb {
     background: #84AEB5;
-    border-radius: 50px;
+    border-radius: 41px;
 }
 
 .sidebar nav::-webkit-scrollbar-thumb:hover {
@@ -70,16 +70,16 @@
 
 .menu-item {
     width: 100%;
-    min-height: 48px;
+    min-height: 39px;
 
     display: flex;
     align-items: center;
 
     box-sizing: border-box;
 
-    padding: 14px 22px;
+    padding: 11px 18px;
 
-    gap: 14px;
+    gap: 11px;
 
     color: #2F4E58;
 
@@ -87,11 +87,11 @@
 
     text-decoration: none;
 
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 500;
 
     border: 0;
-    border-left: 4px solid transparent;
+    border-left: 3px solid transparent;
 
     cursor: pointer;
 
@@ -107,14 +107,14 @@
 ========================================================= */
 
 .menu-item > svg {
-    width: 20px;
-    min-width: 20px;
+    width: 16px;
+    min-width: 16px;
 
-    height: 20px;
+    height: 16px;
 
     flex-shrink: 0;
 
-    font-size: 18px;
+    font-size: 15px;
 
     color: #385661;
 }
@@ -195,8 +195,8 @@
     width: 100% !important;
     min-width: 100% !important;
 
-    height: 48px;
-    min-height: 48px;
+    height: 39px;
+    min-height: 39px;
 
     display: flex !important;
     align-items: center !important;
@@ -207,9 +207,9 @@
 
     margin: 0 !important;
 
-    padding: 14px 22px !important;
+    padding: 11px 18px !important;
 
-    gap: 14px;
+    gap: 11px;
 
     position: relative;
 
@@ -217,7 +217,7 @@
     -webkit-appearance: none;
 
     border: 0;
-    border-left: 4px solid transparent;
+    border-left: 3px solid transparent;
 
     background: transparent;
 
@@ -225,7 +225,7 @@
 
     font-family: inherit;
 
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 500;
 
     text-align: left;
@@ -260,7 +260,7 @@
 
     align-items: center;
 
-    gap: 14px;
+    gap: 11px;
 
     overflow: hidden;
 }
@@ -271,14 +271,14 @@
 ========================================================= */
 
 .sidebar-group-content > svg {
-    width: 20px;
-    min-width: 20px;
+    width: 16px;
+    min-width: 16px;
 
-    height: 20px;
+    height: 16px;
 
     flex-shrink: 0;
 
-    font-size: 18px;
+    font-size: 15px;
 
     color: #385661;
 }
@@ -344,20 +344,20 @@
 ========================================================= */
 
 .submenu-chevron {
-    width: 14px !important;
-    min-width: 14px !important;
-    max-width: 14px !important;
+    width: 11px !important;
+    min-width: 11px !important;
+    max-width: 11px !important;
 
-    height: 14px !important;
-    flex: 0 0 14px !important;
+    height: 11px !important;
+    flex: 0 0 11px !important;
 
     margin-left: auto !important;
     margin-right: 0 !important;
 
     display: block !important;
 
-    font-size: 12px !important;
-    line-height: 14px !important;
+    font-size: 10px !important;
+    line-height: 11px !important;
 
     color: #385661 !important;
 
@@ -436,7 +436,7 @@
 
 .submenu-item {
     width: 100%;
-    min-height: 48px;
+    min-height: 39px;
 
     display: flex;
 
@@ -444,9 +444,9 @@
 
     box-sizing: border-box;
 
-    padding: 14px 22px 14px 30px;
+    padding: 11px 18px 11px 25px;
 
-    gap: 14px;
+    gap: 11px;
 
     color: #2F4E58;
 
@@ -454,11 +454,11 @@
 
     text-decoration: none;
 
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 500;
 
     border: 0;
-    border-left: 4px solid transparent;
+    border-left: 3px solid transparent;
 
     transition:
         background 0.2s ease,
@@ -472,14 +472,14 @@
 ========================================================= */
 
 .submenu-item > svg {
-    width: 20px;
-    min-width: 20px;
+    width: 16px;
+    min-width: 16px;
 
-    height: 20px;
+    height: 16px;
 
     flex-shrink: 0;
 
-    font-size: 17px;
+    font-size: 14px;
 
     color: #385661;
 }
@@ -550,7 +550,7 @@
 
     margin-top: auto;
 
-    padding: 10px 0;
+    padding: 8px 0;
 
     box-sizing: border-box;
 
@@ -571,7 +571,7 @@
 ========================================================= */
 
 .sidebar.collapsed {
-    width: 80px;
+    width: 66px;
 }
 
 
@@ -584,18 +584,18 @@
 
     justify-content: center;
 
-    padding: 16px 0;
+    padding: 13px 0;
 
     gap: 0;
 }
 
 .sidebar.collapsed .menu-item > svg {
-    width: 22px;
-    min-width: 22px;
+    width: 18px;
+    min-width: 18px;
 
-    height: 22px;
+    height: 18px;
 
-    font-size: 20px;
+    font-size: 16px;
 }
 
 .sidebar.collapsed .menu-item > span {
@@ -613,7 +613,7 @@
 
     justify-content: center !important;
 
-    padding: 16px 0 !important;
+    padding: 13px 0 !important;
 
     gap: 0;
 }
@@ -640,12 +640,12 @@
 
 .sidebar.collapsed
 .sidebar-group-content > svg {
-    width: 22px;
-    min-width: 22px;
+    width: 18px;
+    min-width: 18px;
 
-    height: 22px;
+    height: 18px;
 
-    font-size: 20px;
+    font-size: 16px;
 }
 
 
@@ -711,30 +711,30 @@
 @media (max-width: 768px) {
 
     .sidebar {
-        width: 240px;
+        width: 197px;
     }
 
     .sidebar.collapsed {
-        width: 70px;
+        width: 57px;
     }
 
     .menu-item {
-        min-height: 46px;
+        min-height: 38px;
 
-        padding: 12px 18px;
+        padding: 10px 15px;
     }
 
     .sidebar-group-toggle {
-        height: 46px;
-        min-height: 46px;
+        height: 38px;
+        min-height: 38px;
 
-        padding: 12px 18px !important;
+        padding: 10px 15px !important;
     }
 
     .submenu-item {
-        min-height: 46px;
+        min-height: 38px;
 
-        padding: 12px 18px 12px 26px;
+        padding: 10px 15px 10px 21px;
     }
 }
 
@@ -746,17 +746,17 @@
 @media (max-width: 480px) {
 
     .sidebar {
-        width: 230px;
+        width: 189px;
     }
 
     .sidebar.collapsed {
-        width: 64px;
+        width: 52px;
     }
 
     .menu-item,
     .sidebar-group-toggle,
     .submenu-item {
-        font-size: 14px;
+        font-size: 11px;
     }
 }
 
@@ -880,13 +880,13 @@
 
 @media (max-width: 768px) {
     .sidebar-group-toggle {
-        min-height: 46px;
+        min-height: 38px;
         touch-action: manipulation;
     }
 }
 
 @media (max-width: 480px) {
     .sidebar-group-toggle {
-        min-height: 46px;
+        min-height: 38px;
     }
 }

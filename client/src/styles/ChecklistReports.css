@@ -5,7 +5,7 @@
 .checklist-reports-page {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 
@@ -16,12 +16,12 @@
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 220px;
+    gap: 5px;
+    min-width: 180px;
 }
 
 .filter-group label {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
     color: #374151;
 }
@@ -29,12 +29,12 @@
 .filter-group input,
 .filter-group select {
     width: 100%;
-    height: 42px;
-    padding: 0 12px;
+    height: 34px;
+    padding: 0 10px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #fff;
-    font-size: 14px;
+    font-size: 11px;
     color: #1f2937;
 }
 
@@ -53,10 +53,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 90px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 13px;
+    min-width: 74px;
+    padding: 5px 10px;
+    border-radius: 16px;
+    font-size: 11px;
     font-weight: 600;
     color: #fff;
 }
@@ -79,7 +79,7 @@
 ========================================================== */
 
 .question-cell {
-    min-width: 260px;
+    min-width: 213px;
     white-space: normal;
     line-height: 1.6;
     color: #1f2937;
@@ -87,7 +87,7 @@
 }
 
 .remarks-cell {
-    min-width: 220px;
+    min-width: 180px;
     white-space: normal;
     line-height: 1.6;
     color: #1f2937;
@@ -95,12 +95,12 @@
 }
 
 .device-cell {
-    min-width: 280px;
+    min-width: 230px;
     white-space: normal;
     word-break: break-word;
     line-height: 1.5;
     color: #374151;
-    font-size: 13px;
+    font-size: 11px;
 }
 
 /* Dark table text */
@@ -110,7 +110,7 @@
 table tbody td,
 tbody td {
     color: #1f2937 !important;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 500;
     vertical-align: top;
 }
@@ -141,7 +141,7 @@ tbody td {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
 }
 
 .view-btn,
@@ -150,15 +150,15 @@ tbody td {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
-    min-width: 72px;
-    height: 36px;
-    padding: 0 12px;
+    gap: 4px;
+    min-width: 59px;
+    height: 30px;
+    padding: 0 10px;
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
     cursor: pointer;
     color: #fff;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     transition: .2s;
 }
@@ -203,39 +203,39 @@ tbody td {
 }
 
 .report-modal {
-    width: 850px;
+    width: 697px;
     max-width: 95%;
     max-height: 90vh;
     overflow-y: auto;
     background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+    border-radius: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, .2);
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px 22px;
+    padding: 15px 18px;
     border-bottom: 1px solid #e5e7eb;
 }
 
 .modal-header h3 {
     margin: 0;
     color: #111827;
-    font-size: 22px;
+    font-size: 18px;
 }
 
 .close-btn {
     border: none;
     background: none;
-    font-size: 28px;
+    font-size: 23px;
     cursor: pointer;
     color: #6b7280;
 }
 
 .modal-body {
-    padding: 25px;
+    padding: 20px;
 }
 
 
@@ -246,12 +246,12 @@ tbody td {
 .detail-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    gap: 16px;
 }
 
 .detail-grid strong {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     color: #111827;
 }
 
@@ -266,11 +266,11 @@ tbody td {
 ========================================================== */
 
 .question-section {
-    margin-top: 25px;
+    margin-top: 20px;
 }
 
 .question-section h4 {
-    margin: 18px 0 8px;
+    margin: 15px 0 7px;
     color: #111827;
 }
 
@@ -286,7 +286,7 @@ tbody td {
 ========================================================== */
 
 .map-section {
-    margin-top: 25px;
+    margin-top: 20px;
 }
 
 
@@ -297,18 +297,18 @@ tbody td {
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 30px;
+    gap: 10px;
+    margin-top: 25px;
 }
 
 .cancel-btn,
 .upload-btn {
     border: none;
-    border-radius: 6px;
-    padding: 10px 18px;
+    border-radius: 5px;
+    padding: 8px 15px;
     cursor: pointer;
     color: #fff;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
 }
 
@@ -336,8 +336,8 @@ tbody td {
 .reports-loading,
 .no-permission {
     text-align: center;
-    padding: 60px 20px;
-    font-size: 18px;
+    padding: 49px 16px;
+    font-size: 15px;
     color: #6b7280;
 }
 
