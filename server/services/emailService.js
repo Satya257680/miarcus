@@ -95,19 +95,48 @@ const normalizeBrandLogoHtml = (html = "") => {
 
 const getBrandAttachments = () => {
 
-    if (!fs.existsSync(MI_ARCUS_LOGO_PATH)) {
-        throw new Error(
-            `Mi Arcus email logo not found at ${MI_ARCUS_LOGO_PATH}`
-        );
-    }
+    // --------------------------------------------------------
+    // Every single email — invitation, account updated, disabled,
+    // enabled, deleted, activated, OTP, reset — shares the same
+    // base template, and that template embeds this logo. Previously
+    // this threw when the file could not be read (missing on disk,
+    // a permissions issue, a path/case mismatch on the deploy
+    // filesystem, etc.), and because the throw happened before the
+    // actual mail-send call, it took the ENTIRE email down — not
+    // just the logo. That is exactly why invitation, delete, and
+    // bulk-upload emails were ALL failing identically: they all hit
+    // this same line. A decorative logo must never be able to block
+    // real mail delivery, so a missing/unreadable file now just
+    // means "send the email without the inline logo" instead of
+    // "send nothing."
+    // --------------------------------------------------------
 
-    return [{
-        filename: "Mi-Arcus.png",
-        contentType: "image/png",
-        content: fs.readFileSync(MI_ARCUS_LOGO_PATH),
-        cid: MI_ARCUS_LOGO_CID,
-        disposition: "inline"
-    }];
+    try {
+
+        if (!fs.existsSync(MI_ARCUS_LOGO_PATH)) {
+            console.error(
+                `⚠️  Mi Arcus email logo not found at ${MI_ARCUS_LOGO_PATH} — sending email(s) without the inline logo instead of blocking delivery.`
+            );
+            return [];
+        }
+
+        return [{
+            filename: "Mi-Arcus.png",
+            contentType: "image/png",
+            content: fs.readFileSync(MI_ARCUS_LOGO_PATH),
+            cid: MI_ARCUS_LOGO_CID,
+            disposition: "inline"
+        }];
+
+    } catch (logoErr) {
+
+        console.error(
+            "⚠️  Mi Arcus email logo could not be read — sending email(s) without the inline logo instead of blocking delivery:",
+            logoErr?.message || logoErr
+        );
+
+        return [];
+    }
 };
 
 // ==========================================================
