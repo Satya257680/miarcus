@@ -188,16 +188,21 @@ const exportCSV = () => {
 // Bulk Upload
 // ============================
 
-const handleBulkUpload = async (formData) => {
+const handleBulkUpload = async (file) => {
   try {
+    // BulkUploadModal hands back the raw File — it has to be wrapped in a
+    // FormData instance under the "file" field for multer to see it as
+    // req.file. Posting the File directly (as this used to do) with a
+    // manually-set "multipart/form-data" header produces a body with no
+    // boundary, so the server never saw a file at all and bulk upload
+    // silently failed. Leaving Content-Type unset lets axios/the browser
+    // generate the correct multipart boundary from the FormData itself.
+    const formData = new FormData();
+    formData.append("file", file);
+
     const res = await axios.post(
       API_BASE_URL + '/api/users/bulk-upload',
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      formData
     );
 
     return {
@@ -1013,7 +1018,8 @@ return (
   title="Bulk Upload Users"
   uploadFunction={handleBulkUpload}
   onSuccess={fetchUsers}
-  acceptedFile=".csv,.xlsx,.xls"
+  acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp"
+  maxFileSize={25 * 1024 * 1024}
   sampleFile={API_BASE_URL + '/api/users/sample'}
 />
 {/* ============================

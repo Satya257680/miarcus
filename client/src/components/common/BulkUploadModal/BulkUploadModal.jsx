@@ -3,6 +3,8 @@ import {
     FaCloudUploadAlt,
     FaFileExcel,
     FaFileCsv,
+    FaFilePdf,
+    FaFileImage,
     FaUpload,
     FaDownload,
     FaTimes
@@ -65,6 +67,22 @@ function BulkUploadModal({
     // ======================================================
     // VALIDATE FILE
     // ======================================================
+    //
+    // The allowed extensions come from the `acceptedFile` prop
+    // (e.g. ".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp") rather
+    // than a hardcoded list, so every page using this modal can
+    // opt into the wider "any format" bulk upload just by
+    // passing a broader `acceptedFile` string — the page's own
+    // backend route ultimately decides what it actually accepts.
+    // ======================================================
+
+    const allowedExtensions = acceptedFile
+
+        .split(",")
+
+        .map((ext) => ext.trim().replace(/^\./, "").toLowerCase())
+
+        .filter(Boolean);
 
     const validateFile = (selectedFile) => {
 
@@ -78,21 +96,11 @@ function BulkUploadModal({
 
             .toLowerCase();
 
-        const allowed = [
-
-            "csv",
-
-            "xlsx",
-
-            "xls"
-
-        ];
-
-        if (!allowed.includes(extension)) {
+        if (!allowedExtensions.includes(extension)) {
 
             alert(
 
-                "Only CSV, XLSX and XLS files are allowed."
+                `Only ${allowedExtensions.join(", ").toUpperCase()} files are allowed.`
 
             );
 
@@ -104,7 +112,7 @@ function BulkUploadModal({
 
             alert(
 
-                "Maximum file size is 10 MB."
+                `Maximum file size is ${Math.round(maxFileSize / (1024 * 1024))} MB.`
 
             );
 
@@ -362,9 +370,9 @@ function BulkUploadModal({
 
                         <small>
 
-                            Supported:
+                            Supported:{" "}
 
-                            CSV, XLSX, XLS
+                            {allowedExtensions.join(", ").toUpperCase()}
 
                         </small>
 
@@ -378,15 +386,17 @@ function BulkUploadModal({
 
                                 {
 
-                                    file.name.endsWith(".csv")
+                                    (() => {
 
-                                        ?
+                                        const ext = file.name.split(".").pop().toLowerCase();
 
-                                        <FaFileCsv />
+                                        if (ext === "csv") return <FaFileCsv />;
+                                        if (ext === "pdf") return <FaFilePdf />;
+                                        if (["jpg", "jpeg", "png", "webp"].includes(ext)) return <FaFileImage />;
 
-                                        :
+                                        return <FaFileExcel />;
 
-                                        <FaFileExcel />
+                                    })()
 
                                 }
 

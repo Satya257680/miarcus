@@ -1,5 +1,4 @@
 const fs = require("fs");
-const XLSX = require("xlsx");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
@@ -22,6 +21,7 @@ const {
 
 const { getAppUrl } = require("../config/appUrl");
 const db = require("../config/db");
+const { parseBulkFile } = require("../utils/bulkFileParser");
 
 // ==========================================================
 // EMAIL DELIVERY HELPER
@@ -631,29 +631,49 @@ const bulkUploadUsers = async (
 
 
         // --------------------------------------------------
-        // Read Excel
+        // Read File
+        // --------------------------------------------------
+        //
+        // Accepts CSV, Excel, PDF, or a photo — see
+        // utils/bulkFileParser.js. Whatever format it was,
+        // this always comes back as plain row objects keyed
+        // by the same column names ("Employee ID", "Name",
+        // "Email", ...), so nothing below this point needs to
+        // know or care which format the admin actually
+        // uploaded.
         // --------------------------------------------------
 
-        const workbook =
-            XLSX.readFile(
-                req.file.path
-            );
+        let users, sourceType, parseWarnings;
 
+        try {
 
-        const sheet =
-            workbook.Sheets[
-                workbook.SheetNames[0]
-            ];
+            const parsed =
+                await parseBulkFile(
+                    req.file.path,
+                    req.file.originalname,
+                    req.file.mimetype
+                );
 
+            users = parsed.rows;
+            sourceType = parsed.sourceType;
+            parseWarnings = parsed.warnings;
 
-        const users =
-            XLSX.utils.sheet_to_json(
-                sheet,
-                {
-                    defval: "",
-                    blankrows: false
-                }
-            );
+        } catch (parseErr) {
+
+            if (fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(parseErr.status || 400).json({
+
+                success: false,
+
+                message:
+                    parseErr.message ||
+                    "Could not read this file."
+
+            });
+        }
 
 
         // --------------------------------------------------
@@ -718,7 +738,11 @@ const bulkUploadUsers = async (
 
         let emailsSent = 0;
 
+        let emailsFailed = 0;
+
         const errors = [];
+
+        const emailFailures = [];
 
 
         // --------------------------------------------------
@@ -1119,24 +1143,50 @@ const bulkUploadUsers = async (
                 // --------------------------------------------------
                 // Send Email
                 // --------------------------------------------------
+                //
+                // Previously this fired the invitation email into the
+                // queue without awaiting or checking the result, so
+                // `emailsSent` was incremented unconditionally right
+                // here — it reported "sent" even when the send later
+                // failed (bad address, mail provider error, etc.), and
+                // any failure only ever reached the server console,
+                // never the admin running the bulk upload. Awaiting the
+                // queued job (the queue itself still sends one email at
+                // a time) lets us report the real outcome per user.
+                // --------------------------------------------------
 
-                addToQueue(
+                try {
 
-                    async () => {
+                    await addToQueue(
 
-                        await sendInvitationEmail(
+                        () => sendInvitationEmail(
 
                             user,
 
                             activationLink
 
-                        );
+                        )
+                    );
 
-                        console.log(
-                            `Invitation email sent to ${user.email}`
-                        );
-                    }
-                );
+                    console.log(
+                        `Invitation email sent to ${user.email}`
+                    );
+
+                    emailsSent++;
+
+                } catch (emailErr) {
+
+                    console.error(
+                        `Invitation email FAILED for ${user.email}:`,
+                        emailErr?.message || emailErr
+                    );
+
+                    emailsFailed++;
+
+                    emailFailures.push(
+                        `${user.email} - ${emailErr?.message || "Invitation email failed to send"}`
+                    );
+                }
 
 
                 // --------------------------------------------------
@@ -1176,8 +1226,6 @@ const bulkUploadUsers = async (
 
 
                 imported++;
-
-                emailsSent++;
 
             } catch (err) {
 
@@ -1220,13 +1268,22 @@ const bulkUploadUsers = async (
             message:
                 "Bulk Upload Completed",
 
+            sourceType,
+
             imported,
 
             skipped,
 
             emailsSent,
 
-            errors
+            emailsFailed,
+
+            errors,
+
+            emailFailures,
+
+            warnings:
+                parseWarnings
 
         });
 

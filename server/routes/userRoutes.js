@@ -1,5 +1,4 @@
 const express = require("express");
-const multer = require("multer");
 
 const router = express.Router();
 
@@ -23,61 +22,13 @@ const permissionMiddleware = require(
 //
 // Used only for bulk user upload.
 //
-// If your project already has a common upload middleware,
-// you can replace this multer configuration with:
-//
-// const upload = require("../middleware/upload");
-//
+// Shared with every other bulk-upload route in the app —
+// see middleware/bulkFileUpload.js. Accepts CSV, Excel,
+// PDF, or a photo; utils/bulkFileParser.js turns whichever
+// one was sent into the same row shape.
 // ======================================================
 
-const upload = multer({
-
-    dest: "uploads/",
-
-    limits: {
-        fileSize: 10 * 1024 * 1024
-    },
-
-    fileFilter: (
-        req,
-        file,
-        cb
-    ) => {
-
-        const allowedMimeTypes = [
-
-            "text/csv",
-
-            "application/vnd.ms-excel",
-
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            "application/octet-stream"
-
-        ];
-
-
-        if (
-            allowedMimeTypes.includes(
-                file.mimetype
-            )
-        ) {
-
-            return cb(
-                null,
-                true
-            );
-        }
-
-
-        return cb(
-            new Error(
-                "Only CSV or Excel files are allowed"
-            )
-        );
-    }
-
-});
+const upload = require("../middleware/bulkFileUpload");
 
 
 // ======================================================
