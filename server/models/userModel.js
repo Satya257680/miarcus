@@ -870,6 +870,15 @@ const markTokenUsed = (
 // ==========================================================
 // GET DEPARTMENT ID BY NAME
 // ==========================================================
+//
+// Bulk-upload files rarely spell department names exactly the way
+// they're stored (e.g. a sheet says "IT" while the department was
+// created as "IT Department"), so a strict `= ?` match silently
+// dropped otherwise-valid rows with "Department not found". This
+// now tries an exact, case/whitespace-insensitive match first, and
+// falls back to a "contains" match ONLY when it resolves to a
+// single, unambiguous department — never guessing between several.
+// ==========================================================
 
 const getDepartmentIdByName = (
 
@@ -879,36 +888,62 @@ const getDepartmentIdByName = (
 
 ) => {
 
-    const sql = `
+    const name = String(departmentName || "").trim();
 
-        SELECT
+    if (!name) {
+        return callback(null, []);
+    }
 
-            id
+    const exactSql = `
 
+        SELECT id
         FROM departments
-
-        WHERE department_name = ?
-
+        WHERE LOWER(TRIM(department_name)) = LOWER(?)
         LIMIT 1
 
     `;
 
+    db.query(exactSql, [name], (err, exactResult) => {
 
-    db.query(
+        if (err) {
+            return callback(err);
+        }
 
-        sql,
+        if (exactResult && exactResult.length > 0) {
+            return callback(null, exactResult);
+        }
 
-        [
-            departmentName
-        ],
+        const fuzzySql = `
 
-        callback
-    );
+            SELECT id
+            FROM departments
+            WHERE LOWER(department_name) LIKE LOWER(CONCAT('%', ?, '%'))
+            LIMIT 2
+
+        `;
+
+        db.query(fuzzySql, [name], (fuzzyErr, fuzzyResult) => {
+
+            if (fuzzyErr) {
+                return callback(fuzzyErr);
+            }
+
+            // Only accept the fuzzy match if it's unambiguous.
+            if (fuzzyResult && fuzzyResult.length === 1) {
+                return callback(null, fuzzyResult);
+            }
+
+            return callback(null, []);
+        });
+    });
 };
 
 
 // ==========================================================
 // GET DESIGNATION ID BY NAME
+// ==========================================================
+//
+// Same reasoning as getDepartmentIdByName above.
 // ==========================================================
 
 const getDesignationIdByName = (
@@ -919,31 +954,53 @@ const getDesignationIdByName = (
 
 ) => {
 
-    const sql = `
+    const name = String(designationName || "").trim();
 
-        SELECT
+    if (!name) {
+        return callback(null, []);
+    }
 
-            id
+    const exactSql = `
 
+        SELECT id
         FROM designations
-
-        WHERE designation_name = ?
-
+        WHERE LOWER(TRIM(designation_name)) = LOWER(?)
         LIMIT 1
 
     `;
 
+    db.query(exactSql, [name], (err, exactResult) => {
 
-    db.query(
+        if (err) {
+            return callback(err);
+        }
 
-        sql,
+        if (exactResult && exactResult.length > 0) {
+            return callback(null, exactResult);
+        }
 
-        [
-            designationName
-        ],
+        const fuzzySql = `
 
-        callback
-    );
+            SELECT id
+            FROM designations
+            WHERE LOWER(designation_name) LIKE LOWER(CONCAT('%', ?, '%'))
+            LIMIT 2
+
+        `;
+
+        db.query(fuzzySql, [name], (fuzzyErr, fuzzyResult) => {
+
+            if (fuzzyErr) {
+                return callback(fuzzyErr);
+            }
+
+            if (fuzzyResult && fuzzyResult.length === 1) {
+                return callback(null, fuzzyResult);
+            }
+
+            return callback(null, []);
+        });
+    });
 };
 
 

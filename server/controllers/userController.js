@@ -811,6 +811,37 @@ const bulkUploadUsers = async (
             try {
 
                 // --------------------------------------------------
+                // Validate Email Format
+                // --------------------------------------------------
+                //
+                // A malformed address (missing "@", no domain, etc.)
+                // used to sail straight through to the department/
+                // designation checks below and either get skipped for
+                // an unrelated reason or, worse, reach the DB insert
+                // and activation-email step with an address that could
+                // never receive mail. Catching it here up front gives
+                // the admin the real, specific reason immediately.
+                // --------------------------------------------------
+
+                const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                const emailValue = String(user.email || "").trim();
+
+                if (!EMAIL_REGEX.test(emailValue)) {
+
+                    skipped++;
+
+                    errors.push(
+                        `${emailValue || user.employeeId || "row"} - Invalid or missing email address`
+                    );
+
+                    continue;
+                }
+
+                user.email = emailValue;
+
+
+                // --------------------------------------------------
                 // Check Email
                 // --------------------------------------------------
 
@@ -1261,12 +1292,51 @@ const bulkUploadUsers = async (
         );
 
 
+        // --------------------------------------------------
+        // Build An Honest Summary Message
+        // --------------------------------------------------
+        //
+        // Previously this always replied with `success: true` and the
+        // static message "Bulk Upload Completed", even when every row
+        // was skipped and zero users were created — the admin saw a
+        // cheerful confirmation while nothing actually happened and no
+        // emails went out. The message and `success` flag now reflect
+        // what really occurred, and the skip reasons (department not
+        // found, invalid email, duplicate, etc.) are surfaced directly
+        // in the alert instead of only in the server console.
+        // --------------------------------------------------
+
+        const summaryParts = [];
+
+        if (imported > 0) {
+            summaryParts.push(`${imported} user${imported === 1 ? "" : "s"} imported`);
+        }
+
+        if (emailsSent > 0) {
+            summaryParts.push(`${emailsSent} invitation email${emailsSent === 1 ? "" : "s"} sent`);
+        }
+
+        if (emailsFailed > 0) {
+            summaryParts.push(`${emailsFailed} invitation email${emailsFailed === 1 ? "" : "s"} failed to send`);
+        }
+
+        if (skipped > 0) {
+            summaryParts.push(`${skipped} row${skipped === 1 ? "" : "s"} skipped`);
+        }
+
+        const reasonPreview = errors.length
+            ? ` Reason${errors.length === 1 ? "" : "s"}: ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? ` (+${errors.length - 5} more — see details)` : ""}`
+            : "";
+
+        const message = imported > 0
+            ? `${summaryParts.join(", ")}.${reasonPreview}`
+            : `No users were imported.${reasonPreview || " Check the file and try again."}`;
+
         return res.json({
 
-            success: true,
+            success: imported > 0,
 
-            message:
-                "Bulk Upload Completed",
+            message,
 
             sourceType,
 

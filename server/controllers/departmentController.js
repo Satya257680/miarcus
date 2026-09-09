@@ -2,8 +2,26 @@ const Department = require("../models/departmentModel");
 
 const { logActivity } = require("../utils/activityLogger");
 
-const XLSX = require("xlsx");
 const fs = require("fs");
+const { parseBulkFile } = require("../utils/bulkFileParser");
+
+// ======================================================
+// BULK UPLOAD — COLUMN NAMES THIS MODULE UNDERSTANDS
+// ======================================================
+//
+// Any of these header spellings (case/spacing-insensitive) map
+// onto the canonical name on the left. Passed into
+// utils/bulkFileParser.js so it also finds the real header row
+// even if the sheet has a title/banner row above it, or a note
+// row below the data — see that file for how detection works.
+// ======================================================
+
+const DEPARTMENT_COLUMN_ALIASES = {
+    "Department Name": ["departmentname", "department", "dept", "name"],
+    "Description": ["description", "desc", "details"],
+    "Status": ["status", "active"],
+    "Employee ID": ["employeeid", "empid", "employee id", "staffid"]
+};
 
 // ======================================================
 // GET ALL DEPARTMENTS
@@ -771,23 +789,51 @@ exports.bulkUploadDepartments = async (req, res) => {
 
                 success: false,
 
-                message: "Please upload an Excel file."
+                message: "Please upload a file."
 
             });
 
         }
 
         // ======================================
-        // Read Excel File
+        // Read File
+        // ======================================
+        //
+        // Accepts CSV, Excel, PDF, or a photo — see
+        // utils/bulkFileParser.js. It also auto-detects which
+        // row actually holds the headers, so a sheet with a
+        // title row above the real table (like this file's
+        // "DEPARTMENT MASTER LIST" banner) no longer gets
+        // rejected as empty.
         // ======================================
 
-        const workbook = XLSX.readFile(req.file.path);
+        let rows, sourceType, parseWarnings;
 
-        const sheetName = workbook.SheetNames[0];
+        try {
 
-        const sheet = workbook.Sheets[sheetName];
+            const parsed = await parseBulkFile(
+                req.file.path,
+                req.file.originalname,
+                req.file.mimetype,
+                DEPARTMENT_COLUMN_ALIASES
+            );
 
-        const rows = XLSX.utils.sheet_to_json(sheet);
+            rows = parsed.rows;
+            sourceType = parsed.sourceType;
+            parseWarnings = parsed.warnings;
+
+        } catch (parseErr) {
+
+            fs.unlinkSync(req.file.path);
+
+            return res.status(parseErr.status || 400).json({
+
+                success: false,
+
+                message: parseErr.message || "Could not read this file."
+
+            });
+        }
 
         if (!rows.length) {
 
@@ -797,7 +843,10 @@ exports.bulkUploadDepartments = async (req, res) => {
 
                 success: false,
 
-                message: "Excel file is empty."
+                message:
+                    sourceType === "spreadsheet"
+                        ? "No department rows were found. Make sure the file has a 'Department Name' column."
+                        : "No department rows could be read from this file. PDFs/photos need a clear table with a 'Department Name' column header."
 
             });
 
@@ -810,25 +859,16 @@ exports.bulkUploadDepartments = async (req, res) => {
         const departments = rows.map((row) => ({
 
             department_name:
-                row.department_name ||
-                row.Department ||
-                "",
+                String(row["Department Name"] || "").trim(),
 
             description:
-                row.description ||
-                row.Description ||
-                "",
+                String(row["Description"] || "").trim(),
 
             status:
-                row.status ||
-                row.Status ||
-                "Active",
+                String(row["Status"] || "Active").trim() || "Active",
 
             employee_id:
-                row.employee_id ||
-                row.Employee_ID ||
-                row["Employee ID"] ||
-                ""
+                String(row["Employee ID"] || "").trim()
 
         }));
 
@@ -900,7 +940,13 @@ exports.bulkUploadDepartments = async (req, res) => {
                     success: true,
 
                     message:
-                        `${validDepartments.length} departments uploaded successfully.`
+                        parseWarnings && parseWarnings.length
+                            ? `${validDepartments.length} departments uploaded successfully. ${parseWarnings.join(" ")}`
+                            : `${validDepartments.length} departments uploaded successfully.`,
+
+                    sourceType,
+
+                    warnings: parseWarnings
 
                 });
 

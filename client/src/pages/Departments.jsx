@@ -689,7 +689,8 @@ return (
     title="Bulk Upload Departments"
     uploadFunction={handleBulkUpload}
     onSuccess={fetchDepartments}
-    acceptedFile=".csv,.xlsx,.xls"
+    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp"
+    maxFileSize={25 * 1024 * 1024}
     sampleFile="/api/departments/sample"
 />
     {/* =====================================================
