@@ -91,7 +91,7 @@ const SMTP_CONFIGURED =
     Boolean(SMTP_PASS);
 
 const MAIL_TRANSPORT =
-    env("MAIL_TRANSPORT", "gmail_api").toLowerCase();
+    env("MAIL_TRANSPORT", "auto").toLowerCase();
 
 // ==========================================================
 // DEFAULT FROM ADDRESS
@@ -353,7 +353,7 @@ function getTransport() {
         return "resend";
     }
 
-    // AUTO: prefer Gmail API because it works over HTTPS on Render.
+    // AUTO: prefer Gmail API over HTTPS; then Resend; SMTP is legacy fallback.
     if (GMAIL_CONFIGURED) {
         return "gmail_api";
     }
@@ -945,12 +945,59 @@ async function sendMail(
                     mailOptions,
                     normalizedTo
                 );
-        } else {
+        } else if (transport === "resend") {
             result =
                 await sendThroughResend(
                     mailOptions,
                     normalizedTo
                 );
+        } else {
+            // AUTO: use Gmail API first (HTTPS, works reliably on Render).
+            // If Gmail OAuth is temporarily unavailable and Resend is configured,
+            // fail over to Resend instead of making Add User/Bulk Upload/Delete fail.
+            if (GMAIL_CONFIGURED && gmailApi) {
+                try {
+                    result = await sendThroughGmailApi(
+                        mailOptions,
+                        normalizedTo
+                    );
+                } catch (gmailError) {
+                    console.error(
+                        "⚠️ Gmail API send failed in AUTO mode:",
+                        gmailError?.message || gmailError
+                    );
+
+                    if (!RESEND_CONFIGURED || !resend) {
+                        throw gmailError;
+                    }
+
+                    console.warn(
+                        "⚠️ Falling back to Resend API for this email."
+                    );
+
+                    result = await sendThroughResend(
+                        mailOptions,
+                        normalizedTo
+                    );
+                }
+            } else if (RESEND_CONFIGURED && resend) {
+                result = await sendThroughResend(
+                    mailOptions,
+                    normalizedTo
+                );
+            } else if (SMTP_CONFIGURED) {
+                result = await sendThroughSmtp(
+                    mailOptions,
+                    normalizedTo
+                );
+            } else {
+                const error = new Error(
+                    "No email provider is configured. Configure Gmail API OAuth2 or Resend."
+                );
+                error.code = "EMAIL_TRANSPORT_NOT_CONFIGURED";
+                error.status = 500;
+                throw error;
+            }
         }
 
         console.log("==========================================");

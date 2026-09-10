@@ -1,6 +1,6 @@
 // ==========================================================
 // MIARCUS EMAIL SERVICE
-// Gmail SMTP / Nodemailer
+// Gmail API / Resend / SMTP via the central mailer
 // ==========================================================
 
 const mailer = require("../config/mailer");
@@ -47,11 +47,10 @@ const resetPassword = require(
 // EMAIL CONFIGURATION
 // ==========================================================
 //
-// Gmail SMTP is handled inside:
+// All email delivery is handled centrally by:
 // ../config/mailer.js
 //
-// The sender is configured with SMTP_FROM.
-// If SMTP_FROM is not provided, SMTP_USER is used.
+// Production should use Gmail API OAuth2 (or Resend as a fallback).
 //
 // ==========================================================
 
@@ -181,7 +180,7 @@ const validateUserEmail = (user) => {
 //
 // Every Miarcus email goes through this function.
 //
-// Gmail SMTP / Nodemailer authentication and sender configuration are handled by:
+// Gmail API / Resend / SMTP via the central mailer authentication and sender configuration are handled by:
 // server/config/mailer.js
 //
 // ==========================================================
