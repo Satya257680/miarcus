@@ -294,7 +294,7 @@ function Landing() {
             <header className={`landing-nav ${scrolled ? "landing-nav-scrolled" : ""}`}>
                 <div className="landing-nav-inner">
                     <a href="#top" className="landing-brand" onClick={scrollTo("top")}>
-                        <img src="/miarcus.png" alt="Miarcus" />
+                        <img src="/miarcus-brand-theme.png" alt="Miarcus" />
                         <span>Miarcus Portal</span>
                     </a>
 
@@ -663,7 +663,7 @@ function Landing() {
             <footer className="landing-footer">
                 <div className="landing-footer-inner">
                     <div className="landing-footer-brand">
-                        <img src="/miarcus.png" alt="Miarcus" />
+                        <img src="/miarcus-brand-theme.png" alt="Miarcus" />
                         <span>Miarcus Portal</span>
                     </div>
 

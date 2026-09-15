@@ -1,5 +1,9 @@
-import { useState, useEffect } from "react";
-import { getDashboardStats, getNSOSummary } from "../../../services/dashboardService";
+import { useState, useEffect, useMemo } from "react";
+import {
+  getDashboardStats,
+  getNSOSummary,
+} from "../../../services/dashboardService";
+import announcementService from "../../../services/announcementService";
 import {
   FaTasks,
   FaBullhorn,
@@ -16,6 +20,7 @@ import {
   FaUsers,
   FaCog,
   FaChartLine,
+  FaThLarge,
 
   // Dashboard KPI Icons
   FaUserFriends,
@@ -25,7 +30,7 @@ import {
 
 } from "react-icons/fa";
 
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import SearchBar from "../../../components/common/SearchBar";
 import Card from "../../../components/common/Card";
@@ -33,9 +38,24 @@ import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
 import RecentActivity from "../components/RecentActivity";
 
+// ======================================================
+// Module Category Filters
+// ======================================================
+
+const CATEGORY_FILTERS = [
+  { id: "all", label: "All Modules", icon: <FaThLarge /> },
+  { id: "core", label: "Core", icon: <FaClipboardCheck /> },
+  { id: "reports", label: "Reports", icon: <FaChartBar /> },
+  { id: "management", label: "Management", icon: <FaCog /> },
+];
+
 function Dashboard() {
 
   const [search, setSearch] = useState("");
+
+  const [searchParams] = useSearchParams();
+
+  const [activeCategory, setActiveCategory] = useState("all");
 
   const [nsoSummary, setNsoSummary] = useState({
     total: 0,
@@ -49,11 +69,29 @@ function Dashboard() {
     totalStores: 0,
     totalChecklists: 0,
     pendingActionPoints: 0,
+    openActionPoints: 0,
   });
+
+  const [announcementsCount, setAnnouncementsCount] = useState(0);
 
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   const navigate = useNavigate();
+
+  // ======================================================
+  // Pick up a search term handed off from the topbar's
+  // "Search modules, stores, checkpoints..." box.
+  // ======================================================
+
+  useEffect(() => {
+    const query = searchParams.get("search");
+
+    if (query) {
+      setSearch(query);
+    }
+    // Only read this once, on the initial navigation from the topbar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ======================================================
   // Load Dashboard Statistics
@@ -82,9 +120,34 @@ function Dashboard() {
 
   };
 
+  // ======================================================
+  // Load Announcements Count
+  // ======================================================
+
+  const loadAnnouncementsCount = async () => {
+
+    try {
+
+      const data = await announcementService.getAll();
+
+      const list = Array.isArray(data?.announcements)
+        ? data.announcements
+        : [];
+
+      setAnnouncementsCount(list.length);
+
+    } catch (error) {
+
+      console.error("Announcements Count Error:", error);
+
+    }
+
+  };
+
   useEffect(() => {
 
     loadDashboardStats();
+    loadAnnouncementsCount();
 
   }, []);
 
@@ -139,6 +202,8 @@ function Dashboard() {
       permission: ["Action Points"],
       icon: <FaTasks />,
       link: "/action-points",
+      category: "core",
+      color: "purple",
     },
     {
       title: "Announcements",
@@ -146,6 +211,8 @@ function Dashboard() {
       permission: ["Announcements"],
       icon: <FaBullhorn />,
       link: "/announcements",
+      category: "core",
+      color: "pink",
     },
     {
       title: "Asset Master",
@@ -153,6 +220,8 @@ function Dashboard() {
       permission: ["Asset Master"],
       icon: <FaBoxes />,
       link: "/asset-master",
+      category: "management",
+      color: "violet",
     },
     {
       title: "Attendance",
@@ -160,6 +229,8 @@ function Dashboard() {
       permission: ["Attendance"],
       icon: <FaCalendarAlt />,
       link: "/attendance",
+      category: "core",
+      color: "blue",
     },
     {
       title: "Checklist",
@@ -167,6 +238,8 @@ function Dashboard() {
       permission: ["Checklist Submit", "Checklist"],
       icon: <FaClipboardList />,
       link: "/checklist-submit",
+      category: "core",
+      color: "green",
     },
     {
       title: "Reports",
@@ -174,6 +247,8 @@ function Dashboard() {
       permission: ["Checklist Reports", "Reports"],
       icon: <FaChartBar />,
       link: "/checklist-reports",
+      category: "reports",
+      color: "blue",
     },
     {
       title: "Expenses",
@@ -181,6 +256,8 @@ function Dashboard() {
       permission: ["Expenses"],
       icon: <FaMoneyBillWave />,
       link: "/expenses",
+      category: "management",
+      color: "orange",
     },
     {
       title: "Collection Tracking",
@@ -188,6 +265,8 @@ function Dashboard() {
       permission: ["Collection Tracking"],
       icon: <FaLayerGroup />,
       link: "/collection-tracking",
+      category: "reports",
+      color: "teal",
     },
     {
       title: "Inventory Planning",
@@ -195,6 +274,8 @@ function Dashboard() {
       permission: ["Inventory Planning"],
       icon: <FaLayerGroup />,
       link: "/inventory-planning",
+      category: "management",
+      color: "violet",
     },
     {
       title: "Listing Tracker",
@@ -202,6 +283,8 @@ function Dashboard() {
       permission: ["Listing Tracker"],
       icon: <FaGlobe />,
       link: "/listing-tracker",
+      category: "reports",
+      color: "blue",
     },
     {
       title: "New Store Openings",
@@ -209,6 +292,8 @@ function Dashboard() {
       permission: ["New Store Openings"],
       icon: <FaStore />,
       link: "/new-store-openings",
+      category: "management",
+      color: "orange",
     },
     {
       title: "NSO Rules",
@@ -216,6 +301,8 @@ function Dashboard() {
       permission: ["NSO Rules"],
       icon: <FaBook />,
       link: "/nso-rules",
+      category: "management",
+      color: "pink",
     },
     {
       title: "Quiz",
@@ -223,6 +310,8 @@ function Dashboard() {
       permission: ["Quiz"],
       icon: <FaQuestionCircle />,
       link: "/quiz/take",
+      category: "core",
+      color: "teal",
     },
     {
       title: "Sales Team",
@@ -230,6 +319,8 @@ function Dashboard() {
       permission: ["Sales Team"],
       icon: <FaUsers />,
       link: "/visit-planner",
+      category: "management",
+      color: "purple",
     },
     {
       title: "Settings",
@@ -237,6 +328,8 @@ function Dashboard() {
       permission: ["Settings"],
       icon: <FaCog />,
       link: "/settings",
+      category: "management",
+      color: "green",
     },
   ];
 
@@ -300,13 +393,73 @@ function Dashboard() {
       );
 
   // ======================================================
-  // Search
+  // Category + Search Filtering
   // ======================================================
 
-  const filteredModules = visibleModules.filter((module) =>
+  const categorizedModules =
+    activeCategory === "all"
+      ? visibleModules
+      : visibleModules.filter(
+          (module) => module.category === activeCategory
+        );
+
+  const filteredModules = categorizedModules.filter((module) =>
     module.title
       .toLowerCase()
       .includes(search.toLowerCase())
+  );
+
+  // ======================================================
+  // Top KPI Cards (mirrors the Mi Arcus Portal preview)
+  // ======================================================
+
+  const statCards = useMemo(
+    () => [
+      {
+        key: "stores",
+        label: "Total Stores",
+        value: dashboardStats.totalStores || 0,
+        caption: "Active Stores",
+        icon: <FaStoreAlt />,
+        color: "stat-blue",
+      },
+      {
+        key: "employees",
+        label: "Active Employees",
+        value: dashboardStats.totalUsers || 0,
+        caption: "Registered Users",
+        icon: <FaUserFriends />,
+        color: "stat-purple",
+      },
+      {
+        key: "checklists",
+        label: "Pending Checklists",
+        value: dashboardStats.pendingActionPoints || 0,
+        caption: "Awaiting Submission",
+        icon: <FaClipboardList />,
+        color: "stat-orange",
+      },
+      {
+        key: "actionPoints",
+        label: "Action Points",
+        value:
+          dashboardStats.openActionPoints ??
+          dashboardStats.totalActionPoints ??
+          0,
+        caption: "Need Attention",
+        icon: <FaTasks />,
+        color: "stat-indigo",
+      },
+      {
+        key: "announcements",
+        label: "Announcements",
+        value: announcementsCount,
+        caption: "Company Updates",
+        icon: <FaBullhorn />,
+        color: "stat-pink",
+      },
+    ],
+    [dashboardStats, announcementsCount]
   );
 
   return (
@@ -317,187 +470,155 @@ function Dashboard() {
         title="Dashboard"
         subtitle={
           <>
-            <span className="dashboard-greeting">
-              {greeting}
+            <span className="dashboard-greeting-line">
+              <span className="dashboard-greeting">
+                {greeting}
+              </span>
+              {", "}
+              <span className="dashboard-username">
+                {user.name || "User"}
+              </span>
+              {" 👋"}
             </span>
-            {", "}
-            <span className="dashboard-username">
-              {user.name || "User"}
+
+            <span className="dashboard-subline">
+              Here&apos;s what&apos;s happening in your Mi Arcus portal today.
             </span>
-            {" 👋"}
           </>
+        }
+        actions={
+          <div className="dashboard-hero-side">
+
+            <div className="dashboard-datetime-card">
+              <span className="dashboard-datetime-icon">
+                <FaCalendarAlt />
+              </span>
+
+              <div className="dashboard-datetime-text">
+                <span className="dashboard-datetime-date">
+                  {currentDate}
+                </span>
+                <span className="dashboard-datetime-time">
+                  {currentTime}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="dashboard-quote-card"
+              onClick={() => navigate("/dashboard-analytics")}
+              title="Open Dashboard Analytics"
+            >
+              <img
+                src="/miarcus-brand-theme.png"
+                alt=""
+                className="dashboard-quote-logo"
+              />
+              <p>&ldquo;Better Stores, Brighter Tomorrows&rdquo;</p>
+            </button>
+
+          </div>
         }
       />
 
       {/* ==========================================
-          Welcome Card
+          KPI STAT CARDS
       ========================================== */}
 
-      <Card className="dashboard-welcome-card">
+      <div className="dashboard-stats-grid dashboard-stats-grid-v2">
 
-        <div className="dashboard-welcome">
+        {statCards.map((stat) => (
 
-          <div className="dashboard-welcome-left">
+          <Card key={stat.key} className="dashboard-stat-card dashboard-stat-card-v2">
 
-            <h2>
-              MIARCUS Management Portal
-            </h2>
-
-            <p>
-              Access all modules from one place. Use the search below to quickly find the module you need.
-            </p>
-
-            <div className="dashboard-user-info">
-
-              <span>
-                👤 {user.name || "User"}
-              </span>
-
-              <span>
-                {user.designation || (isAdmin ? "Administrator" : "User")}
-              </span>
-
-              <span>
-                🕒 {currentTime}
-              </span>
-
-              <span>
-                📅 {currentDate}
-              </span>
-
+            <div className={`dashboard-stat-icon ${stat.color}`}>
+              {stat.icon}
             </div>
 
-          </div>
+            <div className="dashboard-stat-body">
+              <p className="dashboard-stat-label">{stat.label}</p>
+              <h2>{stat.value}</h2>
+              <p className="dashboard-stat-caption">{stat.caption}</p>
+            </div>
 
-          <div
-            className="dashboard-welcome-right analytics-icon"
-            onClick={() => navigate("/dashboard-analytics")}
-            title="Dashboard Analytics"
-          >
-            <FaChartLine />
-          </div>
+          </Card>
 
-        </div>
+        ))}
 
-      </Card>
+      </div>
 
       {/* ==========================================
-          Search
+          SEARCH + QUICK ACTIONS
       ========================================== */}
 
-      <div className="dashboard-search-wrapper">
+      <div className="dashboard-toolbar">
 
         <SearchBar
           value={search}
           onChange={setSearch}
           placeholder="Search modules..."
+          className="dashboard-search-wrapper"
         />
+
+        <div className="dashboard-toolbar-actions">
+
+          <Link to="/checklist-reports" className="dashboard-btn dashboard-btn-primary">
+            <FaChartBar />
+            View Reports
+          </Link>
+
+          <Link to="/dashboard-analytics" className="dashboard-btn dashboard-btn-outline">
+            <FaChartLine />
+            Analytics
+          </Link>
+
+        </div>
 
       </div>
 
       {/* ==========================================
-          Modules
+          MODULES
       ========================================== */}
+
+      <div className="dashboard-modules-header">
+
+        <div>
+          <h2>Modules</h2>
+          <p>Access all modules from one place. Click on a module to get started.</p>
+        </div>
+
+        <div className="dashboard-filter-pills">
+
+          {CATEGORY_FILTERS.map((filter) => (
+
+            <button
+              key={filter.id}
+              type="button"
+              className={`dashboard-pill ${
+                activeCategory === filter.id ? "active" : ""
+              }`}
+              onClick={() => setActiveCategory(filter.id)}
+            >
+              {filter.icon}
+              <span>{filter.label}</span>
+            </button>
+
+          ))}
+
+        </div>
+
+      </div>
 
       <ModuleGrid
         modules={filteredModules}
       />
 
-      {/* ==========================================
-          Dashboard Statistics
-      ========================================== */}
-
-      <div className="dashboard-stats-grid">
-
-        <Card className="dashboard-stat-card">
-
-          <div className="dashboard-stat-top">
-
-            <div className="dashboard-stat-icon users">
-              <FaUserFriends />
-            </div>
-
-            <div>
-
-              <h3>Total Users</h3>
-
-              <h2>{dashboardStats.totalUsers}</h2>
-
-              <p>Registered Users</p>
-
-            </div>
-
-          </div>
-
-        </Card>
-
-        <Card className="dashboard-stat-card">
-
-          <div className="dashboard-stat-top">
-
-            <div className="dashboard-stat-icon stores">
-              <FaStore />
-            </div>
-
-            <div>
-
-              <h3>Total Stores</h3>
-
-              <h2>{dashboardStats.totalStores}</h2>
-
-              <p>Active Stores</p>
-
-            </div>
-
-          </div>
-
-        </Card>
-
-        <Card className="dashboard-stat-card">
-
-          <div className="dashboard-stat-top">
-
-            <div className="dashboard-stat-icon checklist">
-              <FaClipboardCheck />
-            </div>
-
-            <div>
-
-              <h3>Checklist Submissions</h3>
-
-              <h2>{dashboardStats.totalChecklists}</h2>
-
-              <p>Total Submissions</p>
-
-            </div>
-
-          </div>
-
-        </Card>
-
-        <Card className="dashboard-stat-card">
-
-          <div className="dashboard-stat-top">
-
-            <div className="dashboard-stat-icon pending">
-              <FaExclamationTriangle />
-            </div>
-
-            <div>
-
-              <h3>Pending Action Points</h3>
-
-              <h2>{dashboardStats.pendingActionPoints}</h2>
-
-              <p>Need Attention</p>
-
-            </div>
-
-          </div>
-
-        </Card>
-
-      </div>
+      {filteredModules.length === 0 && (
+        <p className="dashboard-empty-modules">
+          No modules match &ldquo;{search}&rdquo; in this category.
+        </p>
+      )}
 
       {/* ==========================================
           NSO BUSINESS SUMMARY

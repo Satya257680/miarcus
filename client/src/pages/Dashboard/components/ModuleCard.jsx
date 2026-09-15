@@ -4,6 +4,10 @@ import { FaArrowRight } from "react-icons/fa";
 
 function ModuleCard({ module }) {
 
+    const colorClass = module.color
+        ? `card-icon-box-${module.color}`
+        : "";
+
     return (
 
         <Link
@@ -11,7 +15,7 @@ function ModuleCard({ module }) {
             className="dashboard-card"
         >
 
-            <div className="card-icon-box">
+            <div className={`card-icon-box ${colorClass}`}>
 
                 <div className="card-icon">
 

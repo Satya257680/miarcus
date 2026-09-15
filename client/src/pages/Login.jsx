@@ -12,6 +12,7 @@ import {
   FaBullhorn,
 } from "react-icons/fa";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
+import InstallAppButton from "../components/InstallAppButton";
 import "./login.css";
 
 // =================================================================
@@ -422,6 +423,8 @@ function Login() {
               <Link to="/forgot-password" className="forgot-password">
                 Forgot password?
               </Link>
+
+              <InstallAppButton variant="login" />
             </form>
 
             <p className="login-security-note">
