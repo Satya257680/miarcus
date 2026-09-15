@@ -141,7 +141,7 @@ function ResetPassword() {
       >
         <div className="card-inner auth-card-inner">
           <div className="logo-container">
-            <img src="/miarcus.png" alt="Miarcus" className="logo" />
+            <img src="/miarcus-brand-theme.png" alt="Miarcus" className="logo" />
           </div>
 
           <div className="login-header auth-header">

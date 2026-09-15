@@ -89,7 +89,7 @@ function VerifyOTP() {
         <div className="card-inner auth-card-inner">
           <div className="logo-container">
             <img
-              src="/miarcus.png"
+              src="/miarcus-brand-theme.png"
               alt="Miarcus"
               className="logo"
             />

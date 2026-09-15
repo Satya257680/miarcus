@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  FaCamera,
-  FaStore,
+  FaClipboardCheck,
+  FaDesktop,
   FaChartBar,
+  FaEnvelope,
   FaLock,
   FaEye,
   FaEyeSlash,
   FaArrowRight,
-  FaCheckCircle,
+  FaBullhorn,
 } from "react-icons/fa";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "./login.css";
@@ -16,19 +17,19 @@ import "./login.css";
 // =================================================================
 // MIARCUS — LOGIN
 // =================================================================
-// Professional dark, split-screen sign-in screen matching the rest
-// of the Jawandsons Group product family (VistaraX, etc). Purely a
-// visual pass — the authentication flow below is unchanged.
+// Light, brand-matched split-screen sign-in screen (same lavender
+// palette as the marketing site). Purely a visual pass — the
+// authentication flow below is unchanged.
 // =================================================================
 
 const HIGHLIGHTS = [
   {
-    icon: <FaCamera />,
-    text: "Photo-verified attendance at every shift",
+    icon: <FaClipboardCheck />,
+    text: "Digital checklists for every store",
   },
   {
-    icon: <FaStore />,
-    text: "Live view of every store and who's on duty",
+    icon: <FaDesktop />,
+    text: "Live progress & real-time updates",
   },
   {
     icon: <FaChartBar />,
@@ -232,64 +233,68 @@ function Login() {
 
   return (
     <main className="login-page">
+      <div className="login-background-shape shape-one" />
+      <div className="login-background-shape shape-two" />
+      <div className="login-background-shape shape-three" />
+
       <section className="login-shell" aria-label="Miarcus sign in">
         {/* ==========================================================
             LEFT — BRAND PANEL
         ========================================================== */}
         <div className="login-brand-panel">
-          <div className="login-brand-glow glow-a" />
-          <div className="login-brand-glow glow-b" />
+          <span className="login-eyebrow">
+            <span className="login-eyebrow-dot" />
+            MIARCUS PORTAL
+          </span>
 
-          <div className="login-brand-top">
-            <Link to="/" className="login-brand-mark">
-              <img src="/miarcus.png" alt="Miarcus" />
-              <span>
-                Miarcus
-                <small>RETAIL OPERATIONS</small>
-              </span>
-            </Link>
-          </div>
+          <h1 className="login-brand-heading">
+            Every store,
+            <br />
+            verified <span className="login-heading-accent">checklist</span>
+            <br />
+            the moment work starts.
+          </h1>
 
-          <div className="login-brand-copy">
-            <h1>
-              Every store, verified
-              <br />
-              the moment work starts.
-            </h1>
+          <p className="login-brand-copy">
+            Built in-house for Mi Arcus Baby Products — one secure
+            portal for checklists, task tracking, store compliance
+            and team coordination across all locations.
+          </p>
 
-            <p>
-              Built in-house for Mi Arcus Baby Products — one secure
-              portal for attendance, billing, collections and store
-              operations.
-            </p>
+          <ul className="login-highlights">
+            {HIGHLIGHTS.map((item) => (
+              <li key={item.text}>
+                <span className="login-highlight-icon">{item.icon}</span>
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
 
-            <ul className="login-highlights">
-              {HIGHLIGHTS.map((item) => (
-                <li key={item.text}>
-                  <span className="login-highlight-icon">{item.icon}</span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="login-announcement-card">
+            <img
+              src="/announcement-baby.png"
+              alt=""
+              className="login-announcement-avatar"
+            />
 
-          <div className="login-brand-mock">
-            <div className="login-mock-avatar">
-              S
-              <FaCheckCircle className="login-mock-badge" />
-            </div>
+            <div className="login-announcement-body">
+              <div className="login-announcement-head">
+                <span className="login-announcement-title">
+                  <FaBullhorn />
+                  Announcement
+                </span>
 
-            <div className="login-mock-info">
-              <span className="login-mock-name">Satyajit Nayak</span>
-              <span className="login-mock-id">MIA-2026-000112</span>
-
-              <div className="login-mock-bars">
-                <span />
-                <span />
+                <Link to="/login" className="login-announcement-link">
+                  View All
+                  <FaArrowRight />
+                </Link>
               </div>
-            </div>
 
-            <span className="login-mock-status">Checked In</span>
+              <p>
+                Stay updated with the latest news, circulars and
+                important updates from Mi Arcus.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -299,8 +304,18 @@ function Login() {
         <div className="login-form-panel">
           <div className="login-form-inner">
             <div className="login-form-head">
+              <img
+                src="/miarcus-brand-theme.png"
+                alt="Miarcus"
+                className="login-form-logo"
+              />
+              <span className="login-form-caption">RETAIL OPERATIONS</span>
+
               <h2>Welcome back</h2>
-              <p>Sign in to access your Miarcus dashboard</p>
+              <p>
+                Sign in to access your Miarcus portal and manage
+                checklists across all stores.
+              </p>
             </div>
 
             {errorMessage && (
@@ -321,7 +336,11 @@ function Login() {
               <div className="form-group">
                 <label htmlFor="email">Email Address</label>
 
-                <div className="input-wrapper">
+                <div className="input-wrapper input-wrapper-icon">
+                  <span className="input-icon">
+                    <FaEnvelope />
+                  </span>
+
                   <input
                     id="email"
                     name="email"
@@ -337,12 +356,7 @@ function Login() {
               </div>
 
               <div className="form-group">
-                <div className="form-group-head">
-                  <label htmlFor="password">Password</label>
-                  <Link to="/forgot-password" className="forgot-password">
-                    Forgot password?
-                  </Link>
-                </div>
+                <label htmlFor="password">Password</label>
 
                 <div className="input-wrapper input-wrapper-icon">
                   <span className="input-icon">
@@ -404,6 +418,10 @@ function Login() {
                   </>
                 )}
               </button>
+
+              <Link to="/forgot-password" className="forgot-password">
+                Forgot password?
+              </Link>
             </form>
 
             <p className="login-security-note">
