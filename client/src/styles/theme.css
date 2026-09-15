@@ -3,32 +3,27 @@
 ========================================================= */
 
 :root {
-    /* Brand purple/lavender palette — same family used on the
-       login and landing pages, so the signed-in app matches the
-       marketing site instead of the older teal/blue look. */
     --mi-accent: #6d57c8;
-    --mi-accent-deep: #4b2fc4;
     --mi-accent-soft: rgba(109, 87, 200, .12);
-    --mi-accent-grad: linear-gradient(135deg, #7d52c5, #a066d3);
 
-    --mi-bg: #f5f2fb;
+    --mi-bg: #edf3f5;
     --mi-surface: #ffffff;
-    --mi-surface-2: #faf8ff;
+    --mi-surface-2: #f7fafb;
 
-    --mi-text: #27204c;
-    --mi-text-strong: #1c1638;
-    --mi-muted: #79708f;
+    --mi-text: #1f2937;
+    --mi-text-strong: #17385d;
+    --mi-muted: #6b7280;
 
-    --mi-border: #e7dff2;
-    --mi-sidebar: #ffffff;
-    --mi-sidebar-text: #5c5378;
-    --mi-navbar: #ffffff;
+    --mi-border: #d8dee5;
+    --mi-sidebar: #9cbfc4;
+    --mi-sidebar-text: #2f4e58;
+    --mi-navbar: #b7d7df;
 
     --mi-success: #16a34a;
     --mi-danger: #dc2626;
 
-    --mi-shadow: 0 7px 20px rgba(76, 53, 140, .06);
-    --mi-shadow-strong: 0 11px 26px rgba(76, 53, 140, .10);
+    --mi-shadow: 0 7px 20px rgba(0, 0, 0, .06);
+    --mi-shadow-strong: 0 11px 26px rgba(0, 0, 0, .10);
 
     --mi-font-scale: 1;
 }
@@ -164,24 +159,10 @@ body {
     border-top-color: var(--mi-border) !important;
 }
 
-.sidebar nav::-webkit-scrollbar-thumb {
-    background: var(--mi-accent-soft) !important;
-}
-
-.sidebar nav::-webkit-scrollbar-thumb:hover {
-    background: var(--mi-accent) !important;
-}
-
 .menu-item,
 .sidebar-group-toggle,
 .submenu-item {
     color: var(--mi-sidebar-text) !important;
-    width: calc(100% - 20px) !important;
-    min-width: 0 !important;
-    margin: 2px 10px !important;
-    border-radius: 10px !important;
-    border-left: 0 !important;
-    box-sizing: border-box !important;
 }
 
 .menu-item > svg,
@@ -201,16 +182,15 @@ body {
 .menu-item.active,
 .sidebar-group-toggle.active,
 .submenu-item.active {
-    background: var(--mi-accent-grad, var(--mi-accent)) !important;
-    color: #ffffff !important;
-    border-left-color: transparent !important;
-    box-shadow: 0 8px 18px var(--mi-accent-soft) !important;
+    background: var(--mi-surface) !important;
+    color: var(--mi-accent) !important;
+    border-left-color: var(--mi-accent) !important;
 }
 
 .menu-item.active > svg,
 .sidebar-group-toggle.active svg,
 .submenu-item.active > svg {
-    color: #ffffff !important;
+    color: var(--mi-accent) !important;
 }
 
 /* =========================================================

@@ -28,9 +28,9 @@
 
 .search-bar:focus-within{
 
-    border-color:#6d57c8;
+    border-color:#356d84;
 
-    box-shadow:0 0 0 2px rgba(109,87,200,.15);
+    box-shadow:0 0 0 2px rgba(53,109,132,.15);
 
 }
 

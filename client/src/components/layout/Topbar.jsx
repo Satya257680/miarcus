@@ -2,7 +2,6 @@ import {
   FaBars,
   FaUserCircle,
   FaSignOutAlt,
-  FaSearch,
 } from "react-icons/fa";
 
 import { useNavigate } from "react-router-dom";
@@ -51,7 +50,6 @@ function Topbar({ toggleSidebar }) {
 
   const [showProfile, setShowProfile] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [topbarSearch, setTopbarSearch] = useState("");
 
   const [profileImage, setProfileImage] = useState(
     getPhotoUrl(localStorage.getItem("profilePhoto") || "")
@@ -220,31 +218,13 @@ function Topbar({ toggleSidebar }) {
   }, []);
 
   // ==========================================================
-  // TOPBAR SEARCH
-  // Quick jump into the Dashboard's own module/store search
-  // instead of duplicating that search logic here.
-  // ==========================================================
-
-  const handleTopbarSearch = (event) => {
-    event.preventDefault();
-
-    const query = topbarSearch.trim();
-
-    navigate(
-      query
-        ? `/dashboard?search=${encodeURIComponent(query)}`
-        : "/dashboard"
-    );
-  };
-
-  // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
     <header className="topbar">
       {/* ======================================================
-          LEFT — MENU + BRAND
+          LEFT
       ====================================================== */}
 
       <div className="topbar-left">
@@ -257,40 +237,19 @@ function Topbar({ toggleSidebar }) {
         >
           <FaBars />
         </button>
-
-        <div className="topbar-brand">
-          <img
-            src="/miarcus-brand-theme.png?v=20260826-4"
-            alt="MIARCUS"
-            className="topbar-logo"
-          />
-
-          <div className="topbar-brand-text">
-            <span className="topbar-brand-name">Miarcus Portal</span>
-            <span className="topbar-brand-tagline">Retail Operations</span>
-          </div>
-        </div>
       </div>
 
       {/* ======================================================
-          CENTER — SEARCH
+          CENTER LOGO
       ====================================================== */}
 
-      <form
-        className="topbar-center topbar-search"
-        onSubmit={handleTopbarSearch}
-        role="search"
-      >
-        <FaSearch className="topbar-search-icon" />
-
-        <input
-          type="text"
-          value={topbarSearch}
-          onChange={(event) => setTopbarSearch(event.target.value)}
-          placeholder="Search modules, stores, checkpoints..."
-          aria-label="Search modules, stores, checkpoints"
+      <div className="topbar-center">
+        <img
+          src="/miarcus-brand-theme.png?v=20260826-4"
+          alt="MIARCUS"
+          className="topbar-logo"
         />
-      </form>
+      </div>
 
       {/* ======================================================
           RIGHT
