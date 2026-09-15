@@ -42,6 +42,8 @@ import {
     FaLifeRing
 } from "react-icons/fa";
 
+import InstallAppButton from "../InstallAppButton";
+
 import "../../styles/layout/Sidebar.css";
 
 function Sidebar({ collapsed }) {
@@ -1473,6 +1475,18 @@ function Sidebar({ collapsed }) {
                             </span>
                         )}
                     </NavLink>
+
+                    {/* ==============================================
+                        INSTALL AS APP
+                        Optional — lets anybody install Miarcus as a
+                        standalone app from their browser. Renders
+                        nothing once it's already installed.
+                    ============================================== */}
+
+                    <InstallAppButton
+                        variant="sidebar"
+                        collapsed={collapsed}
+                    />
 
                 </div>
 

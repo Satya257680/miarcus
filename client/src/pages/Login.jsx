@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
+import InstallAppButton from "../components/InstallAppButton";
 import "./login.css";
 
 
@@ -387,6 +388,15 @@ function Login() {
               )}
             </button>
           </form>
+
+          {/* ==================================================
+              INSTALL AS APP
+              Optional — lets anybody install Miarcus as a
+              standalone app from their browser, right from the
+              login screen.
+          ================================================== */}
+
+          <InstallAppButton variant="login" />
 
           <div className="login-footer">
             <span>

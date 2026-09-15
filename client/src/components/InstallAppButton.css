@@ -1,0 +1,192 @@
+/* =========================================================
+   INSTALL APP BUTTON — shared by the sidebar and the login card
+========================================================= */
+
+/* ---------------------------------------------------------
+   SIDEBAR VARIANT
+   Reuses the existing .menu-item look so it blends in with
+   the rest of the navigation, with a light accent so it still
+   reads as a distinct action.
+--------------------------------------------------------- */
+
+.install-app-menu-item {
+    width: 100%;
+    background: transparent;
+    font-family: inherit;
+}
+
+.install-app-menu-item > svg {
+    color: #5b3aa8;
+}
+
+.install-app-menu-item:hover {
+    background: rgba(109, 87, 200, 0.18);
+    color: #3d2a72;
+}
+
+.install-app-menu-item:hover > svg {
+    color: #3d2a72;
+}
+
+.install-app-menu-item.install-declined {
+    opacity: 0.65;
+}
+
+/* ---------------------------------------------------------
+   LOGIN CARD VARIANT
+   A soft outlined pill sitting above the footer, matching the
+   purple accent used by the sign-in button without competing
+   with it for attention.
+--------------------------------------------------------- */
+
+.install-app-pill {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+
+    margin-top: 16px;
+    padding: 12px 16px;
+
+    border: 1.5px dashed rgba(126, 82, 197, 0.45);
+    border-radius: 13px;
+    background: rgba(126, 82, 197, 0.06);
+
+    color: #6d4bb0;
+    font-size: 12.5px;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.install-app-pill svg {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.install-app-pill:hover {
+    background: rgba(126, 82, 197, 0.12);
+    border-color: rgba(126, 82, 197, 0.7);
+    transform: translateY(-1px);
+}
+
+.install-app-pill:active {
+    transform: translateY(0);
+}
+
+/* ---------------------------------------------------------
+   MANUAL INSTALL INSTRUCTIONS DIALOG
+--------------------------------------------------------- */
+
+.install-instructions-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+    box-sizing: border-box;
+
+    background: rgba(20, 12, 36, 0.45);
+    backdrop-filter: blur(2px);
+}
+
+.install-instructions-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+
+    background: #fff;
+    border-radius: 18px;
+    padding: 26px 24px 22px;
+    box-sizing: border-box;
+
+    box-shadow: 0 24px 60px rgba(30, 12, 60, 0.35);
+    outline: none;
+}
+
+.install-instructions-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+
+    width: 30px;
+    height: 30px;
+
+    display: grid;
+    place-items: center;
+
+    border: 0;
+    border-radius: 50%;
+    background: #f2edf8;
+    color: #6b5a8a;
+
+    cursor: pointer;
+}
+
+.install-instructions-close:hover {
+    background: #e6ddf5;
+}
+
+.install-instructions-card h3 {
+    margin: 0 0 16px;
+    padding-right: 24px;
+
+    font-size: 16px;
+    font-weight: 800;
+    color: #2c2140;
+}
+
+.install-instructions-steps {
+    margin: 0 0 16px;
+    padding-left: 20px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    font-size: 13px;
+    line-height: 1.5;
+    color: #443a5c;
+}
+
+.install-instructions-steps .inline-icon {
+    vertical-align: -2px;
+    color: #7d52c5;
+}
+
+.install-instructions-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+
+    margin: 0;
+    padding-top: 14px;
+
+    border-top: 1px solid #ece5f0;
+
+    font-size: 11.5px;
+    color: #8d8497;
+}
+
+.install-instructions-note svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #16a34a;
+}
+
+/* ---------------------------------------------------------
+   COLLAPSED SIDEBAR
+--------------------------------------------------------- */
+
+.sidebar.collapsed .install-app-menu-item {
+    justify-content: center;
+}
