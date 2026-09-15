@@ -1,31 +1,58 @@
 /* ================================================================
    MIARCUS — LANDING PAGE
-   A dark, professional pre-login page in the Miarcus purple/teal
-   palette. Every "Sign In" action routes to /login; nothing here
-   touches authentication.
+   A light, professional pre-login page using Miarcus's own brand
+   palette — the same soft lavender/pink gradient and purple accent
+   used on mi-arcus.com and the login page, not a generic dark theme.
+   Every "Sign In" action routes to /login; nothing here touches
+   authentication.
 ================================================================ */
 
 .landing-page {
-    --land-bg: #0d0b18;
-    --land-bg-2: #140f24;
-    --land-surface: rgba(255, 255, 255, 0.045);
-    --land-surface-strong: rgba(255, 255, 255, 0.07);
-    --land-border: rgba(255, 255, 255, 0.10);
-    --land-text: #f6f4fb;
-    --land-text-dim: #c4bdd6;
-    --land-muted: #8d84a3;
-    --land-accent: #8f6bf0;
-    --land-accent-2: #7fd8d1;
+    /* --- Colors sampled directly from the Mi Arcus storefront and
+       the existing login page, so this page matches the brand
+       exactly instead of approximating it. --- */
+    --land-bg-solid: #f8f5ff;
+    --land-surface: #ffffff;
+    --land-surface-strong: #ffffff;
+    --land-border: #e7dff2;
+    --land-text: #27204c;
+    --land-text-dim: #5c5378;
+    --land-muted: #8d8497;
+    --land-accent: #6d57c8;
+    --land-accent-deep: #4b2fc4;
+    --land-accent-2: #4b2fc4;
     --land-accent-grad: linear-gradient(135deg, #7d52c5, #a066d3);
+    --land-yellow: #f5e873;
+    --land-shadow: 0 10px 26px rgba(76, 53, 140, 0.08);
+    --land-shadow-strong: 0 16px 38px rgba(76, 53, 140, 0.14);
 
     position: relative;
     width: 100%;
-    min-height: 100vh;
-    background: var(--land-bg);
+    height: 100vh;
     color: var(--land-text);
     font-family: Inter, "Segoe UI", Arial, sans-serif;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+
+    background:
+        radial-gradient(circle at 16% 18%, rgba(255, 214, 240, 0.75), transparent 30%),
+        radial-gradient(circle at 86% 14%, rgba(201, 192, 250, 0.65), transparent 34%),
+        radial-gradient(circle at 90% 80%, rgba(245, 232, 115, 0.20), transparent 30%),
+        linear-gradient(135deg, #f8f5ff 0%, #fff7fa 46%, #f2efff 100%);
+
+    /* --- Page scrolls inside itself, and the scrollbar is hidden
+       while scrolling (wheel / trackpad / keyboard) still works
+       normally in every browser. Scoped to this page only. --- */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: none;      /* Firefox */
+    -ms-overflow-style: none;   /* legacy Edge */
+}
+
+.landing-page::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* Chrome, Safari, new Edge */
 }
 
 .landing-page * {
@@ -56,9 +83,9 @@
     justify-content: center;
 
     background:
-        radial-gradient(circle at 25% 20%, rgba(125, 82, 197, 0.25), transparent 45%),
-        radial-gradient(circle at 80% 75%, rgba(127, 216, 209, 0.14), transparent 45%),
-        #0d0b18;
+        radial-gradient(circle at 22% 20%, rgba(255, 214, 240, 0.85), transparent 40%),
+        radial-gradient(circle at 82% 78%, rgba(201, 192, 250, 0.6), transparent 42%),
+        linear-gradient(135deg, #f8f5ff 0%, #fff7fa 46%, #f2efff 100%);
 
     opacity: 1;
     transition: opacity 0.4s ease;
@@ -73,7 +100,7 @@
     position: absolute;
     width: 34px;
     height: 34px;
-    border-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(109, 87, 200, 0.28);
     border-style: solid;
 }
 
@@ -99,6 +126,7 @@
     height: 68px;
     margin: 0 auto 18px;
     border-radius: 18px;
+    box-shadow: var(--land-shadow-strong);
     animation: landing-loader-pulse 1.8s ease-in-out infinite;
 }
 
@@ -123,9 +151,9 @@
 
 .landing-loader-bar-track {
     margin-top: 26px;
-    height: 2px;
+    height: 3px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(109, 87, 200, 0.15);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -144,7 +172,7 @@
     font-size: 10.5px;
     letter-spacing: 1.5px;
     color: var(--land-muted);
-    font-weight: 600;
+    font-weight: 700;
 }
 
 /* ---------------------------------------------------------------
@@ -156,15 +184,16 @@
     top: 0;
     z-index: 100;
 
-    background: rgba(13, 11, 24, 0.55);
+    background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(14px);
     border-bottom: 1px solid transparent;
-    transition: border-color 0.25s ease, background 0.25s ease;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .landing-nav-scrolled {
-    background: rgba(13, 11, 24, 0.86);
+    background: rgba(255, 255, 255, 0.92);
     border-bottom-color: var(--land-border);
+    box-shadow: 0 6px 20px rgba(76, 53, 140, 0.06);
 }
 
 .landing-nav-inner {
@@ -209,7 +238,7 @@
 }
 
 .landing-nav-links a:hover {
-    color: var(--land-text);
+    color: var(--land-accent-deep);
 }
 
 .landing-nav-login {
@@ -217,7 +246,7 @@
     border-radius: 999px;
     background: var(--land-accent-grad);
     color: #fff !important;
-    box-shadow: 0 8px 20px rgba(125, 82, 197, 0.35);
+    box-shadow: 0 8px 20px rgba(125, 82, 197, 0.32);
 }
 
 .landing-nav-toggle {
@@ -241,20 +270,20 @@
     padding: 6px 14px;
     border-radius: 999px;
     border: 1px solid var(--land-border);
-    background: var(--land-surface);
+    background: rgba(109, 87, 200, 0.07);
 
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 1.6px;
-    color: var(--land-accent-2);
+    color: var(--land-accent-deep);
 }
 
 .landing-eyebrow-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--land-accent-2);
-    box-shadow: 0 0 0 3px rgba(127, 216, 209, 0.18);
+    background: var(--land-accent-deep);
+    box-shadow: 0 0 0 3px rgba(75, 47, 196, 0.16);
 }
 
 .landing-section-head {
@@ -268,6 +297,7 @@
     font-size: clamp(24px, 3.4vw, 34px);
     font-weight: 800;
     line-height: 1.25;
+    color: var(--land-text);
 }
 
 .landing-section-head p {
@@ -295,7 +325,7 @@
 .landing-hero-glow {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
+    filter: blur(90px);
     z-index: 0;
     pointer-events: none;
 }
@@ -305,7 +335,7 @@
     height: 480px;
     top: -160px;
     left: -120px;
-    background: radial-gradient(circle, rgba(125, 82, 197, 0.35), transparent 70%);
+    background: radial-gradient(circle, rgba(201, 192, 250, 0.55), transparent 70%);
 }
 
 .glow-two {
@@ -313,7 +343,7 @@
     height: 440px;
     bottom: -180px;
     right: -100px;
-    background: radial-gradient(circle, rgba(127, 216, 209, 0.22), transparent 70%);
+    background: radial-gradient(circle, rgba(255, 214, 240, 0.55), transparent 70%);
 }
 
 .landing-hero-inner {
@@ -333,6 +363,7 @@
     line-height: 1.16;
     font-weight: 800;
     letter-spacing: -0.5px;
+    color: var(--land-text);
 }
 
 .landing-hero-copy p {
@@ -366,13 +397,13 @@
     font-size: 14px;
     font-weight: 700;
 
-    box-shadow: 0 14px 30px rgba(125, 82, 197, 0.35);
+    box-shadow: 0 14px 30px rgba(125, 82, 197, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .landing-btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 36px rgba(125, 82, 197, 0.45);
+    box-shadow: 0 18px 36px rgba(125, 82, 197, 0.4);
 }
 
 .landing-btn-secondary {
@@ -390,7 +421,7 @@
 }
 
 .landing-btn-secondary:hover {
-    color: var(--land-text);
+    color: var(--land-accent-deep);
 }
 
 .landing-btn-secondary svg {
@@ -415,9 +446,9 @@
     border-radius: 18px;
     overflow: hidden;
 
-    background: var(--land-bg-2);
+    background: #ffffff;
     border: 1px solid var(--land-border);
-    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--land-shadow-strong);
 }
 
 .landing-mockup-bar {
@@ -431,7 +462,7 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(109, 87, 200, 0.18);
 }
 
 .landing-mockup-body {
@@ -442,7 +473,7 @@
 .landing-mockup-side {
     width: 34%;
     padding: 16px 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: #faf8ff;
     border-right: 1px solid var(--land-border);
 }
 
@@ -457,20 +488,21 @@
 .mockup-row {
     height: 8px;
     border-radius: 5px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(109, 87, 200, 0.14);
     margin-bottom: 10px;
     width: 82%;
 }
 
 .mockup-row-active {
-    background: var(--land-accent-2);
-    opacity: 0.55;
+    background: var(--land-accent-deep);
+    opacity: 0.7;
     width: 100%;
 }
 
 .landing-mockup-main {
     flex: 1;
     padding: 18px 16px;
+    background: #ffffff;
 }
 
 .mockup-stat-row {
@@ -483,14 +515,14 @@
     flex: 1;
     height: 40px;
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #faf8ff;
     border: 1px solid var(--land-border);
 }
 
 .mockup-panel {
     height: 70px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: #faf8ff;
     border: 1px solid var(--land-border);
     margin-bottom: 12px;
 }
@@ -530,13 +562,14 @@
     border-radius: 16px;
     background: var(--land-surface);
     border: 1px solid var(--land-border);
-    transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+    box-shadow: var(--land-shadow);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .landing-feature-card:hover {
     transform: translateY(-4px);
-    background: var(--land-surface-strong);
-    border-color: rgba(143, 107, 240, 0.4);
+    box-shadow: var(--land-shadow-strong);
+    border-color: rgba(109, 87, 200, 0.35);
 }
 
 .landing-feature-icon {
@@ -547,8 +580,8 @@
     border-radius: 11px;
     margin-bottom: 14px;
 
-    background: rgba(143, 107, 240, 0.14);
-    color: var(--land-accent-2);
+    background: rgba(109, 87, 200, 0.12);
+    color: var(--land-accent-deep);
     font-size: 17px;
 }
 
@@ -556,6 +589,7 @@
     font-size: 14.5px;
     font-weight: 700;
     margin: 0 0 8px;
+    color: var(--land-text);
 }
 
 .landing-feature-card p {
@@ -584,8 +618,9 @@
 
     padding: 44px;
     border-radius: 22px;
-    background: linear-gradient(145deg, rgba(125, 82, 197, 0.10), rgba(127, 216, 209, 0.05));
+    background: linear-gradient(145deg, rgba(201, 192, 250, 0.35), rgba(255, 214, 240, 0.25));
     border: 1px solid var(--land-border);
+    box-shadow: var(--land-shadow);
 }
 
 .landing-about-copy h2 {
@@ -593,6 +628,7 @@
     font-size: clamp(22px, 3vw, 30px);
     font-weight: 800;
     line-height: 1.28;
+    color: var(--land-text);
 }
 
 .landing-about-copy p {
@@ -615,7 +651,7 @@
 .landing-about-badges span {
     padding: 7px 14px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #ffffff;
     border: 1px solid var(--land-border);
     font-size: 11.5px;
     font-weight: 700;
@@ -632,14 +668,16 @@
 
     padding: 34px 20px;
     border-radius: 18px;
-    background: rgba(13, 11, 24, 0.5);
+    background: #ffffff;
     border: 1px solid var(--land-border);
+    box-shadow: var(--land-shadow);
 }
 
 .landing-about-mark {
     width: 84px;
     height: 84px;
     border-radius: 20px;
+    box-shadow: var(--land-shadow);
 }
 
 .landing-about-panel-text {
@@ -674,12 +712,14 @@
 
     background: var(--land-surface);
     border: 1px solid var(--land-border);
-    transition: transform 0.25s ease, border-color 0.25s ease;
+    box-shadow: var(--land-shadow);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .landing-team-card:hover {
     transform: translateY(-4px);
-    border-color: rgba(143, 107, 240, 0.4);
+    box-shadow: var(--land-shadow-strong);
+    border-color: rgba(109, 87, 200, 0.35);
 }
 
 .landing-team-photo {
@@ -688,8 +728,8 @@
     margin: 0 auto 18px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid rgba(143, 107, 240, 0.45);
-    box-shadow: 0 0 0 6px rgba(143, 107, 240, 0.08);
+    border: 2px solid rgba(109, 87, 200, 0.4);
+    box-shadow: 0 0 0 6px rgba(109, 87, 200, 0.08);
 }
 
 .landing-team-photo img {
@@ -702,6 +742,7 @@
     margin: 0 0 4px;
     font-size: 16.5px;
     font-weight: 800;
+    color: var(--land-text);
 }
 
 .landing-team-title {
@@ -711,7 +752,7 @@
     font-weight: 700;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    color: var(--land-accent-2);
+    color: var(--land-accent-deep);
 }
 
 .landing-team-card p {
@@ -735,13 +776,13 @@
     font-size: 12px;
     font-weight: 700;
 
-    transition: color 0.2s ease, border-color 0.2s ease;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .landing-team-linkedin:hover {
-    color: #fff;
+    color: var(--land-accent-deep);
     border-color: var(--land-accent);
-    background: rgba(143, 107, 240, 0.14);
+    background: rgba(109, 87, 200, 0.1);
 }
 
 /* ---------------------------------------------------------------
@@ -765,7 +806,7 @@
     border-radius: 22px;
 
     background: var(--land-accent-grad);
-    box-shadow: 0 30px 70px rgba(125, 82, 197, 0.3);
+    box-shadow: 0 30px 70px rgba(125, 82, 197, 0.28);
 }
 
 .landing-cta-inner .landing-eyebrow {
@@ -787,7 +828,7 @@
 }
 
 .landing-cta-inner p {
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     font-size: 14px;
     margin: 0;
 }
@@ -795,12 +836,12 @@
 .landing-cta-inner .landing-btn-primary {
     background: #fff;
     color: #6d3fc9;
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
 }
 
 .landing-cta-inner .landing-btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
 }
 
 /* ---------------------------------------------------------------
@@ -848,7 +889,7 @@
 .landing-footer-login {
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--land-accent-2);
+    color: var(--land-accent-deep);
     text-decoration: none;
 }
 
@@ -894,8 +935,8 @@
         gap: 4px;
 
         padding: 14px 20px 20px;
-        background: #100c1e;
-        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+        background: #fffdff;
+        box-shadow: 0 16px 30px rgba(76, 53, 140, 0.14);
         border-bottom: 1px solid var(--land-border);
 
         display: none;

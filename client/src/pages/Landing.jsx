@@ -209,6 +209,7 @@ function LoadingIntro({ done }) {
 // =================================================================
 
 function Landing() {
+    const pageRef = useRef(null);
     const [loading, setLoading] = useState(true);
     const [loaderDone, setLoaderDone] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -224,16 +225,25 @@ function Landing() {
         };
     }, []);
 
+    // .landing-page is its own scroll container (see landing.css), so the
+    // scroll position has to be read off that element instead of the
+    // window/document.
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 12);
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
+        const node = pageRef.current;
+        if (!node) return undefined;
+
+        const handleScroll = () => setScrolled(node.scrollTop > 12);
+        node.addEventListener("scroll", handleScroll, { passive: true });
+        return () => node.removeEventListener("scroll", handleScroll);
     }, []);
 
     useEffect(() => {
-        document.body.style.overflow = loading ? "hidden" : "";
+        const node = pageRef.current;
+        if (!node) return undefined;
+
+        node.style.overflowY = loading ? "hidden" : "";
         return () => {
-            document.body.style.overflow = "";
+            node.style.overflowY = "";
         };
     }, [loading]);
 
@@ -246,7 +256,7 @@ function Landing() {
     };
 
     return (
-        <div className="landing-page">
+        <div className="landing-page" ref={pageRef}>
             {loading && <LoadingIntro done={loaderDone} />}
 
             {/* ============================================================
