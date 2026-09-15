@@ -32,6 +32,22 @@
     opacity: 0.65;
 }
 
+/* Uninstall state — same shape, a muted red accent so it still
+   reads as distinct from "Install" without looking alarming. */
+
+.install-app-menu-item.install-app-menu-item-uninstall > svg {
+    color: #b0473f;
+}
+
+.install-app-menu-item.install-app-menu-item-uninstall:hover {
+    background: rgba(197, 82, 82, 0.16);
+    color: #7a2c26;
+}
+
+.install-app-menu-item.install-app-menu-item-uninstall:hover > svg {
+    color: #7a2c26;
+}
+
 /* ---------------------------------------------------------
    LOGIN CARD VARIANT
    A soft outlined pill sitting above the footer, matching the
@@ -77,6 +93,19 @@
 
 .install-app-pill:active {
     transform: translateY(0);
+}
+
+/* Uninstall state — same pill, a muted red accent. */
+
+.install-app-pill.install-app-pill-uninstall {
+    border-color: rgba(197, 82, 82, 0.4);
+    background: rgba(197, 82, 82, 0.06);
+    color: #b0473f;
+}
+
+.install-app-pill.install-app-pill-uninstall:hover {
+    background: rgba(197, 82, 82, 0.12);
+    border-color: rgba(197, 82, 82, 0.65);
 }
 
 /* ---------------------------------------------------------

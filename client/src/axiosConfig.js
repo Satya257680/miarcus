@@ -294,7 +294,6 @@ axios.interceptors.response.use(
             // ==================================================
 
             const alreadyOnLoginPage =
-                window.location.pathname === "/" ||
                 window.location.pathname === "/login";
 
 
@@ -365,7 +364,7 @@ axios.interceptors.response.use(
             if (!alreadyOnLoginPage) {
 
                 window.location.replace(
-                    "/"
+                    "/login"
                 );
             }
         }

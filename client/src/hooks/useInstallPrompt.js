@@ -54,10 +54,22 @@ const detectIOS = () => {
     return iOSDevice || iPadOS13Plus;
 };
 
+const detectPlatform = () => {
+    if (typeof navigator === "undefined") return "desktop";
+
+    const ua = navigator.userAgent || navigator.vendor || "";
+
+    if (detectIOS()) return "ios";
+    if (/android/i.test(ua)) return "android";
+
+    return "desktop";
+};
+
 export default function useInstallPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [installed, setInstalled] = useState(isStandaloneDisplay);
     const [isIOS] = useState(detectIOS);
+    const [platform] = useState(detectPlatform);
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (event) => {
@@ -79,6 +91,21 @@ export default function useInstallPrompt() {
 
         window.addEventListener("appinstalled", handleAppInstalled);
 
+        // Keep `installed` accurate if display-mode ever flips while
+        // the page is open (e.g. the OS reports the app was removed).
+        const standaloneQuery =
+            typeof window.matchMedia === "function" &&
+            window.matchMedia("(display-mode: standalone)");
+
+        const handleDisplayModeChange = (event) => {
+            setInstalled(event.matches || isStandaloneDisplay());
+        };
+
+        standaloneQuery?.addEventListener?.(
+            "change",
+            handleDisplayModeChange
+        );
+
         return () => {
             window.removeEventListener(
                 "beforeinstallprompt",
@@ -88,6 +115,11 @@ export default function useInstallPrompt() {
             window.removeEventListener(
                 "appinstalled",
                 handleAppInstalled
+            );
+
+            standaloneQuery?.removeEventListener?.(
+                "change",
+                handleDisplayModeChange
             );
         };
     }, []);
@@ -127,6 +159,10 @@ export default function useInstallPrompt() {
         needsManualInstructions: !deferredPrompt && !installed,
 
         isIOS,
+
+        // "ios" | "android" | "desktop" — used to tailor both the
+        // install and uninstall manual instructions.
+        platform,
 
         promptInstall,
     };

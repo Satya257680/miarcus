@@ -18,6 +18,7 @@ import PettyCashEmailSettings from "./pages/PettyCash/PettyCashEmailSettings";
 // ======================================================
 // PUBLIC PAGES
 // ======================================================
+import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyOTP from "./pages/VerifyOTP";
@@ -129,6 +130,11 @@ function App() {
 
                 <Route
                     path="/"
+                    element={<Landing />}
+                />
+
+                <Route
+                    path="/login"
                     element={<Login />}
                 />
 
@@ -755,7 +761,7 @@ function App() {
                 {/* ==================================================
                     FALLBACK
                     --------------------------------------------------
-                    Only genuinely unknown URLs go to Login.
+                    Only genuinely unknown URLs go to the landing page.
                 ================================================== */}
 
                 <Route
