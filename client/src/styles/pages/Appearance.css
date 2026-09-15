@@ -222,6 +222,131 @@
     border-color: #fff;
 }
 
+/* Auto (System) */
+
+.theme-preview-auto {
+    background: linear-gradient(
+        90deg,
+        #edf3f5 0 50%,
+        #0f172a 50% 100%
+    );
+}
+
+.theme-preview-auto .preview-sidebar {
+    background: linear-gradient(
+        180deg,
+        #9cbfc4,
+        #020617
+    );
+}
+
+.theme-preview-auto .preview-topbar {
+    background: linear-gradient(
+        90deg,
+        #b7d7df 0 50%,
+        #111827 50% 100%
+    );
+}
+
+/* Sunset */
+
+.theme-preview-sunset {
+    background: #fff2ea;
+}
+
+.theme-preview-sunset .preview-sidebar {
+    background: #7c2d12;
+}
+
+.theme-preview-sunset .preview-topbar {
+    background: #ffd9b8;
+}
+
+.theme-preview-sunset .preview-chart {
+    background: linear-gradient(
+        145deg,
+        #fff 0 55%,
+        #ffe0cc 55% 100%
+    );
+}
+
+/* Ocean */
+
+.theme-preview-ocean {
+    background: #eefcfc;
+}
+
+.theme-preview-ocean .preview-sidebar {
+    background: #075985;
+}
+
+.theme-preview-ocean .preview-topbar {
+    background: #cffafe;
+}
+
+/* Forest */
+
+.theme-preview-forest {
+    background: #f1f8f0;
+}
+
+.theme-preview-forest .preview-sidebar {
+    background: #14532d;
+}
+
+.theme-preview-forest .preview-topbar {
+    background: #dcfce7;
+}
+
+/* Rose */
+
+.theme-preview-rose {
+    background: #fdf2f8;
+}
+
+.theme-preview-rose .preview-sidebar {
+    background: #831843;
+}
+
+.theme-preview-rose .preview-topbar {
+    background: #fbcfe8;
+}
+
+/* Midnight */
+
+.theme-preview-midnight {
+    background: #05070f;
+}
+
+.theme-preview-midnight .preview-sidebar {
+    background: #000814;
+}
+
+.theme-preview-midnight .preview-topbar,
+.theme-preview-midnight .preview-cards span,
+.theme-preview-midnight .preview-chart {
+    background: #0b1220;
+    border-color: #1e3a5f;
+}
+
+/* Sepia */
+
+.theme-preview-sepia {
+    background: #f4ecd8;
+}
+
+.theme-preview-sepia .preview-sidebar {
+    background: #d8c9a3;
+}
+
+.theme-preview-sepia .preview-topbar {
+    background: #efe3c6;
+}
+
+.theme-preview-sepia .preview-cards span {
+    border-color: #d8c9a3;
+}
+
 /* =========================================================
    CARD BODY
 ========================================================= */
@@ -338,6 +463,31 @@
     background: var(--mi-accent-soft);
     color: var(--mi-accent);
     font-weight: 700;
+}
+
+/* =========================================================
+   FONT FAMILY
+========================================================= */
+
+.font-options {
+    align-items: stretch;
+}
+
+.font-option {
+    min-width: 128px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 13px;
+}
+
+.font-option-sample {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.font-option svg {
+    margin-top: 2px;
 }
 
 .appearance-note {

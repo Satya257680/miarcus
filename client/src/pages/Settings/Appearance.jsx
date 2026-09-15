@@ -1,5 +1,5 @@
 import React from "react";
-import { FaCheck, FaPalette, FaTextHeight } from "react-icons/fa";
+import { FaCheck, FaFont, FaPalette, FaTextHeight } from "react-icons/fa";
 
 import PageHeader from "../../components/common/PageHeader";
 import {
@@ -13,6 +13,7 @@ function Appearance() {
         preferences,
         themes,
         accentColors,
+        fontFamilies,
         updatePreferences
     } = useTheme();
 
@@ -212,6 +213,57 @@ function Appearance() {
 
                             {preferences.fontSize ===
                                 item.id && (
+                                <FaCheck />
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            <section className="appearance-section">
+                <div className="appearance-section-header">
+                    <div>
+                        <h2>
+                            <FaFont />
+                            Font family
+                        </h2>
+
+                        <p>
+                            Pick the typeface used throughout Miarcus.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="size-options font-options">
+                    {fontFamilies.map((font) => (
+                        <button
+                            key={font.id}
+                            type="button"
+                            className={`size-option font-option ${
+                                preferences.fontFamily ===
+                                font.id
+                                    ? "selected"
+                                    : ""
+                            }`}
+                            style={{
+                                fontFamily: font.stack
+                            }}
+                            onClick={() =>
+                                updatePreferences({
+                                    fontFamily:
+                                        font.id
+                                })
+                            }
+                            title={font.description}
+                        >
+                            <span className="font-option-sample">
+                                Aa
+                            </span>
+
+                            {font.name}
+
+                            {preferences.fontFamily ===
+                                font.id && (
                                 <FaCheck />
                             )}
                         </button>

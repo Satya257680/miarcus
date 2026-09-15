@@ -53,6 +53,55 @@ export const THEMES = [
         description: "Strong contrast for visibility.",
         icon: "⚡",
         preview: "high-contrast"
+    },
+    {
+        id: "auto",
+        name: "Auto (System)",
+        description: "Matches your device's light/dark setting.",
+        icon: "🌗",
+        preview: "auto"
+    },
+    {
+        id: "sunset",
+        name: "Sunset",
+        description: "Warm orange and coral tones.",
+        icon: "🌅",
+        preview: "sunset"
+    },
+    {
+        id: "ocean",
+        name: "Ocean",
+        description: "Cool teal and deep-blue workspace.",
+        icon: "🌊",
+        preview: "ocean"
+    },
+    {
+        id: "forest",
+        name: "Forest",
+        description: "Calming green, easy on the eyes.",
+        icon: "🌲",
+        preview: "forest"
+    },
+    {
+        id: "rose",
+        name: "Rose",
+        description: "Soft pink with a friendly feel.",
+        icon: "🌹",
+        preview: "rose"
+    },
+    {
+        id: "midnight",
+        name: "Midnight",
+        description: "Deeper, bluer take on dark mode.",
+        icon: "🌌",
+        preview: "midnight"
+    },
+    {
+        id: "sepia",
+        name: "Sepia",
+        description: "Warm, paper-like reading tone.",
+        icon: "📜",
+        preview: "sepia"
     }
 ];
 
@@ -62,17 +111,63 @@ export const ACCENT_COLORS = [
     { id: "teal", name: "Teal", value: "#0f766e" },
     { id: "green", name: "Green", value: "#16a34a" },
     { id: "orange", name: "Orange", value: "#ea580c" },
-    { id: "red", name: "Red", value: "#dc2626" }
+    { id: "red", name: "Red", value: "#dc2626" },
+    { id: "pink", name: "Pink", value: "#db2777" },
+    { id: "indigo", name: "Indigo", value: "#4f46e5" },
+    { id: "amber", name: "Amber", value: "#d97706" },
+    { id: "cyan", name: "Cyan", value: "#0891b2" }
 ];
+
+export const FONT_FAMILIES = [
+    {
+        id: "default",
+        name: "Default",
+        description: "The standard Miarcus typeface.",
+        stack: "Arial, 'Helvetica Neue', Helvetica, sans-serif"
+    },
+    {
+        id: "rounded",
+        name: "Rounded",
+        description: "Friendlier, softer letterforms.",
+        stack: "'Quicksand', 'Varela Round', Arial, sans-serif"
+    },
+    {
+        id: "serif",
+        name: "Serif",
+        description: "Classic, print-style lettering.",
+        stack: "Georgia, 'Times New Roman', Times, serif"
+    },
+    {
+        id: "mono",
+        name: "Monospace",
+        description: "Fixed-width, technical look.",
+        stack: "'JetBrains Mono', 'Courier New', Courier, monospace"
+    }
+];
+
+// The concrete theme applied to the page when the user picks "Auto" -
+// resolved from the device's own light/dark setting.
+const resolveSystemTheme = () => {
+    try {
+        return window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "miarcus-original";
+    } catch {
+        return "miarcus-original";
+    }
+};
 
 const DEFAULT_PREFERENCES = {
     theme: "miarcus-original",
     accentColor: "purple",
     fontSize: "medium",
+    fontFamily: "default",
     sidebarStyle: "comfortable"
 };
 
 const VALID_FONT_SIZES = ["small", "medium", "large"];
+const VALID_FONT_FAMILIES = FONT_FAMILIES.map((item) => item.id);
 const VALID_SIDEBAR_STYLES = ["comfortable", "compact"];
 
 const getUserKey = () => {
@@ -134,6 +229,12 @@ const normalizePreferences = (value = {}) => {
             ? value.fontSize
             : DEFAULT_PREFERENCES.fontSize,
 
+        fontFamily: VALID_FONT_FAMILIES.includes(
+            value.fontFamily
+        )
+            ? value.fontFamily
+            : DEFAULT_PREFERENCES.fontFamily,
+
         sidebarStyle: VALID_SIDEBAR_STYLES.includes(
             value.sidebarStyle
         )
@@ -160,7 +261,15 @@ function ThemeProvider({ children }) {
             const root =
                 document.documentElement;
 
+            // "Auto" isn't a real color palette - it just follows the
+            // device's light/dark setting, so resolve it to a concrete
+            // theme before writing the attribute the CSS keys off of.
             root.dataset.miarcusTheme =
+                normalized.theme === "auto"
+                    ? resolveSystemTheme()
+                    : normalized.theme;
+
+            root.dataset.miarcusThemeChoice =
                 normalized.theme;
 
             root.dataset.miarcusFontSize =
@@ -180,6 +289,19 @@ function ThemeProvider({ children }) {
                 "--mi-accent",
                 accent?.value ||
                     "#6d57c8"
+            );
+
+            const font =
+                FONT_FAMILIES.find(
+                    (item) =>
+                        item.id ===
+                        normalized.fontFamily
+                );
+
+            root.style.setProperty(
+                "--mi-font-family",
+                font?.stack ||
+                    FONT_FAMILIES[0].stack
             );
 
             try {
@@ -205,6 +327,48 @@ function ThemeProvider({ children }) {
             readLocalPreferences()
         );
     }, [applyPreferences]);
+
+    // --------------------------------------------------
+    // Keep "Auto" in sync if the device's light/dark
+    // setting changes while the app is open.
+    // --------------------------------------------------
+
+    useEffect(() => {
+        if (
+            preferences.theme !== "auto" ||
+            !window.matchMedia
+        ) {
+            return undefined;
+        }
+
+        const media = window.matchMedia(
+            "(prefers-color-scheme: dark)"
+        );
+
+        const handleChange = () => {
+            document.documentElement.dataset.miarcusTheme =
+                resolveSystemTheme();
+        };
+
+        if (media.addEventListener) {
+            media.addEventListener(
+                "change",
+                handleChange
+            );
+
+            return () =>
+                media.removeEventListener(
+                    "change",
+                    handleChange
+                );
+        }
+
+        // Safari < 14 fallback.
+        media.addListener(handleChange);
+
+        return () =>
+            media.removeListener(handleChange);
+    }, [preferences.theme]);
 
     // --------------------------------------------------
     // Load the authenticated user's saved preference.
@@ -307,6 +471,7 @@ function ThemeProvider({ children }) {
             preferences,
             themes: THEMES,
             accentColors: ACCENT_COLORS,
+            fontFamilies: FONT_FAMILIES,
             updatePreferences,
             loadedFromServer
         }),
