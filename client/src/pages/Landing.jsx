@@ -75,6 +75,28 @@ const FEATURES = [
     },
 ];
 
+// Board of Miarcus Retails Private Limited (the company behind Mi
+// Arcus Baby Products) — kept separate from the smaller build/run
+// team below.
+const LEADERSHIP = [
+    {
+        photo: "/leader-gian-singh.jpg",
+        name: "Gian Singh",
+        title: "Founder & Managing Director",
+        linkedin: "https://www.linkedin.com/in/gian-singh-14a2aa112/",
+    },
+    {
+        initials: "GS",
+        name: "Gurbakshish Singh",
+        title: "Director, Board Member",
+    },
+    {
+        initials: "GK",
+        name: "Gurnam Kaur",
+        title: "Director",
+    },
+];
+
 const TEAM = [
     {
         photo: "/team-developer.jpg",
@@ -89,6 +111,12 @@ const TEAM = [
         title: "Owner & Co-Founder",
         bio: "Co-founder of MiArcus, setting the direction for Mi Arcus Baby Products and the tools that run it.",
         linkedin: "https://www.linkedin.com/in/gian-singh-14a2aa112/",
+    },
+    {
+        initials: "VS",
+        name: "Vijay Sharma",
+        title: "IT Head",
+        bio: "Oversees IT infrastructure and systems for the Jawandsons Group, including Miarcus.",
     },
 ];
 
@@ -357,24 +385,63 @@ function Landing() {
                                 <div className="landing-mockup-body">
                                     <div className="landing-mockup-side">
                                         <div className="mockup-logo" />
-                                        {Array.from({ length: 6 }).map((_, index) => (
+                                        {[
+                                            "Dashboard",
+                                            "Attendance",
+                                            "Billing",
+                                            "Stores",
+                                            "Inventory",
+                                            "Team",
+                                        ].map((label, index) => (
                                             <div
-                                                key={index}
+                                                key={label}
                                                 className={`mockup-row ${
                                                     index === 1 ? "mockup-row-active" : ""
                                                 }`}
-                                            />
+                                            >
+                                                {label}
+                                            </div>
                                         ))}
                                     </div>
 
                                     <div className="landing-mockup-main">
                                         <div className="mockup-stat-row">
-                                            <div className="mockup-stat" />
-                                            <div className="mockup-stat" />
-                                            <div className="mockup-stat" />
+                                            <div className="mockup-stat">
+                                                <span className="mockup-stat-label">
+                                                    STORES LIVE
+                                                </span>
+                                                <span className="mockup-stat-value">42</span>
+                                            </div>
+                                            <div className="mockup-stat">
+                                                <span className="mockup-stat-label">
+                                                    ON SHIFT
+                                                </span>
+                                                <span className="mockup-stat-value">318</span>
+                                            </div>
+                                            <div className="mockup-stat">
+                                                <span className="mockup-stat-label">
+                                                    THIS MONTH
+                                                </span>
+                                                <span className="mockup-stat-value">2.1K</span>
+                                            </div>
                                         </div>
-                                        <div className="mockup-panel" />
-                                        <div className="mockup-panel mockup-panel-short" />
+
+                                        <div className="mockup-panel mockup-chart">
+                                            {[38, 62, 48, 74, 55, 82, 66].map((height, index) => (
+                                                <span
+                                                    key={index}
+                                                    style={{ height: `${height}%` }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        <div className="mockup-panel mockup-panel-short mockup-entry">
+                                            <span className="mockup-entry-dot" />
+                                            <span className="mockup-entry-text">
+                                                Store #14 — collection reconciled
+                                            </span>
+                                            <span className="mockup-entry-tag">Live</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -461,10 +528,61 @@ function Landing() {
                 </section>
 
                 {/* ========================================================
+                    GROUP LEADERSHIP
+                ======================================================== */}
+
+                <section id="team" className="landing-leadership">
+                    <Reveal as="div" className="landing-section-head">
+                        <span className="landing-eyebrow landing-eyebrow-dark">
+                            <span className="landing-eyebrow-dot" />
+                            GROUP LEADERSHIP
+                        </span>
+                        <h2>Guided from the top.</h2>
+                        <p>
+                            Miarcus Retails Private Limited, the company behind Mi
+                            Arcus Baby Products — its founder and board.
+                        </p>
+                    </Reveal>
+
+                    <div className="landing-leader-grid">
+                        {LEADERSHIP.map((leader) => (
+                            <Reveal key={leader.name} className="landing-leader-card">
+                                <div className="landing-leader-photo">
+                                    {leader.photo ? (
+                                        <img src={leader.photo} alt={leader.name} />
+                                    ) : (
+                                        <span className="landing-leader-initials">
+                                            {leader.initials}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <h3>{leader.name}</h3>
+                                <span className="landing-leader-title">
+                                    {leader.title}
+                                </span>
+
+                                {leader.linkedin && (
+                                    <a
+                                        href={leader.linkedin}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="landing-leader-linkedin"
+                                    >
+                                        <FaLinkedin />
+                                        LinkedIn
+                                    </a>
+                                )}
+                            </Reveal>
+                        ))}
+                    </div>
+                </section>
+
+                {/* ========================================================
                     TEAM
                 ======================================================== */}
 
-                <section id="team" className="landing-team">
+                <section className="landing-team">
                     <Reveal as="div" className="landing-section-head">
                         <span className="landing-eyebrow landing-eyebrow-dark">
                             <span className="landing-eyebrow-dot" />
@@ -472,8 +590,8 @@ function Landing() {
                         </span>
                         <h2>Small team, direct accountability.</h2>
                         <p>
-                            No layers, no hand-offs — the person who builds Miarcus
-                            and the person who owns the business are both reachable.
+                            No layers, no hand-offs — the people who build Miarcus
+                            and run it day to day are both reachable.
                         </p>
                     </Reveal>
 
@@ -481,7 +599,13 @@ function Landing() {
                         {TEAM.map((member) => (
                             <Reveal key={member.name} className="landing-team-card">
                                 <div className="landing-team-photo">
-                                    <img src={member.photo} alt={member.name} />
+                                    {member.photo ? (
+                                        <img src={member.photo} alt={member.name} />
+                                    ) : (
+                                        <span className="landing-team-initials">
+                                            {member.initials}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <h3>{member.name}</h3>
@@ -490,15 +614,17 @@ function Landing() {
                                 </span>
                                 <p>{member.bio}</p>
 
-                                <a
-                                    href={member.linkedin}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="landing-team-linkedin"
-                                >
-                                    <FaLinkedin />
-                                    LinkedIn
-                                </a>
+                                {member.linkedin && (
+                                    <a
+                                        href={member.linkedin}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="landing-team-linkedin"
+                                    >
+                                        <FaLinkedin />
+                                        LinkedIn
+                                    </a>
+                                )}
                             </Reveal>
                         ))}
                     </div>

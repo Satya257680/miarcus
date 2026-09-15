@@ -1,9 +1,40 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import {
+  FaCamera,
+  FaStore,
+  FaChartBar,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+  FaArrowRight,
+  FaCheckCircle,
+} from "react-icons/fa";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
-import InstallAppButton from "../components/InstallAppButton";
 import "./login.css";
 
+// =================================================================
+// MIARCUS — LOGIN
+// =================================================================
+// Professional dark, split-screen sign-in screen matching the rest
+// of the Jawandsons Group product family (VistaraX, etc). Purely a
+// visual pass — the authentication flow below is unchanged.
+// =================================================================
+
+const HIGHLIGHTS = [
+  {
+    icon: <FaCamera />,
+    text: "Photo-verified attendance at every shift",
+  },
+  {
+    icon: <FaStore />,
+    text: "Live view of every store and who's on duty",
+  },
+  {
+    icon: <FaChartBar />,
+    text: "Audit-ready reports, exportable anytime",
+  },
+];
 
 function Login() {
   const navigate = useNavigate();
@@ -13,6 +44,7 @@ function Login() {
     password: "",
   });
 
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -200,209 +232,188 @@ function Login() {
 
   return (
     <main className="login-page">
-      {/* Soft nursery background */}
-      <div className="nursery-glow glow-left" />
-      <div className="nursery-glow glow-right" />
+      <section className="login-shell" aria-label="Miarcus sign in">
+        {/* ==========================================================
+            LEFT — BRAND PANEL
+        ========================================================== */}
+        <div className="login-brand-panel">
+          <div className="login-brand-glow glow-a" />
+          <div className="login-brand-glow glow-b" />
 
-      <div className="cloud cloud-one" />
-      <div className="cloud cloud-two" />
-      <div className="star star-one">✦</div>
-      <div className="star star-two">✦</div>
-      <div className="star star-three">✦</div>
-      <div className="moon">☾</div>
-
-      {/* Decorative toys */}
-      <div className="toy toy-blocks">
-        <span className="block block-purple">♥</span>
-        <span className="block block-yellow">★</span>
-        <span className="block block-blue">●</span>
-      </div>
-
-      <div className="toy toy-bunny">🐰</div>
-      <div className="toy toy-bear">🧸</div>
-
-      {/* ==========================================================
-          BABY MASCOT
-          The baby slides into the page and then keeps both hands
-          around the login card.
-      ========================================================== */}
-      <div className="baby-scene" aria-hidden="true">
-        <div className="baby-shadow" />
-
-        <div className="baby-character">
-          <div className="baby-body">
-            <div className="baby-bib">♥</div>
+          <div className="login-brand-top">
+            <Link to="/" className="login-brand-mark">
+              <img src="/miarcus.png" alt="Miarcus" />
+              <span>
+                Miarcus
+                <small>RETAIL OPERATIONS</small>
+              </span>
+            </Link>
           </div>
 
-          <div className="baby-neck" />
+          <div className="login-brand-copy">
+            <h1>
+              Every store, verified
+              <br />
+              the moment work starts.
+            </h1>
 
-          <div className="baby-head">
-            <div className="baby-hair hair-one" />
-            <div className="baby-hair hair-two" />
-
-            <div className="baby-ear ear-left" />
-            <div className="baby-ear ear-right" />
-
-            <div className="baby-eye eye-left">
-              <span />
-            </div>
-            <div className="baby-eye eye-right">
-              <span />
-            </div>
-
-            <div className="baby-nose" />
-            <div className="baby-mouth" />
-            <div className="baby-cheek cheek-left" />
-            <div className="baby-cheek cheek-right" />
-          </div>
-
-          <div className="baby-arm arm-back" />
-          <div className="baby-hand hand-back" />
-
-          <div className="baby-arm arm-front" />
-          <div className="baby-hand hand-front" />
-        </div>
-      </div>
-
-      {/* ==========================================================
-          LOGIN CARD
-      ========================================================== */}
-      <section className="login-card" aria-label="Miarcus login">
-        <div className="card-inner">
-          <div className="logo-container">
-            <img
-              src="/miarcus.png"
-              alt="Miarcus"
-              className="logo"
-            />
-          </div>
-
-          <div className="login-header">
-            <h1>Welcome Back!</h1>
             <p>
-              Sign in to continue to your Miarcus account
-              <span className="header-heart">♥</span>
+              Built in-house for Mi Arcus Baby Products — one secure
+              portal for attendance, billing, collections and store
+              operations.
             </p>
+
+            <ul className="login-highlights">
+              {HIGHLIGHTS.map((item) => (
+                <li key={item.text}>
+                  <span className="login-highlight-icon">{item.icon}</span>
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {errorMessage && (
-            <div className="login-message login-error" role="alert">
-              <span className="message-icon">!</span>
-              <span>{errorMessage}</span>
+          <div className="login-brand-mock">
+            <div className="login-mock-avatar">
+              S
+              <FaCheckCircle className="login-mock-badge" />
             </div>
-          )}
 
-          {successMessage && (
-            <div className="login-message login-success" role="status">
-              <span className="message-icon">✓</span>
-              <span>{successMessage}</span>
-            </div>
-          )}
+            <div className="login-mock-info">
+              <span className="login-mock-name">Satyajit Nayak</span>
+              <span className="login-mock-id">MIA-2026-000112</span>
 
-          <form className="login-form" onSubmit={handleLogin}>
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-
-              <div className="input-wrapper">
-                <span className="input-icon email-icon">✉</span>
-
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  autoComplete="username"
-                  disabled={loading}
-                  required
-                />
+              <div className="login-mock-bars">
+                <span />
+                <span />
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
+            <span className="login-mock-status">Checked In</span>
+          </div>
+        </div>
 
-              <div className="input-wrapper">
-                <span className="input-icon password-icon">●</span>
-
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  autoComplete="current-password"
-                  disabled={loading}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() =>
-                    setShowPassword((previous) => !previous)
-                  }
-                  disabled={loading}
-                  aria-label={
-                    showPassword ? "Hide password" : "Show password"
-                  }
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
+        {/* ==========================================================
+            RIGHT — SIGN IN FORM
+        ========================================================== */}
+        <div className="login-form-panel">
+          <div className="login-form-inner">
+            <div className="login-form-head">
+              <h2>Welcome back</h2>
+              <p>Sign in to access your Miarcus dashboard</p>
             </div>
 
-            <div className="login-options">
+            {errorMessage && (
+              <div className="login-message login-error" role="alert">
+                <span className="message-icon">!</span>
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="login-message login-success" role="status">
+                <span className="message-icon">✓</span>
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <form className="login-form" onSubmit={handleLogin} noValidate>
+              <div className="form-group">
+                <label htmlFor="email">Email Address</label>
+
+                <div className="input-wrapper">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@miarcus.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    autoComplete="username"
+                    disabled={loading}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <div className="form-group-head">
+                  <label htmlFor="password">Password</label>
+                  <Link to="/forgot-password" className="forgot-password">
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <div className="input-wrapper input-wrapper-icon">
+                  <span className="input-icon">
+                    <FaLock />
+                  </span>
+
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    autoComplete="current-password"
+                    disabled={loading}
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() =>
+                      setShowPassword((previous) => !previous)
+                    }
+                    disabled={loading}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
+
               <label className="remember-option">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={() => setRememberMe((prev) => !prev)}
+                />
                 <span className="custom-checkbox" />
-                <span>Remember me</span>
+                <span>Remember me on this device</span>
               </label>
 
-              <Link
-                to="/forgot-password"
-                className="forgot-password"
+              <button
+                type="submit"
+                className="login-button"
+                disabled={loading}
               >
-                Forgot Password?
-              </Link>
-            </div>
+                {loading ? (
+                  <>
+                    <span className="login-spinner" />
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <FaArrowRight />
+                  </>
+                )}
+              </button>
+            </form>
 
-            <button
-              type="submit"
-              className="login-button"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="login-spinner" />
-                  <span>Signing In...</span>
-                </>
-              ) : (
-                <>
-                  <span className="button-login-icon">↪</span>
-                  <span>Sign In</span>
-                  <span className="button-arrow">→</span>
-                </>
-              )}
-            </button>
-          </form>
+            <p className="login-security-note">
+              Protected by JWT authentication, bcrypt password hashing,
+              and role-based access control.
+            </p>
 
-          {/* ==================================================
-              INSTALL AS APP
-              Optional — lets anybody install Miarcus as a
-              standalone app from their browser, right from the
-              login screen.
-          ================================================== */}
-
-          <InstallAppButton variant="login" />
-
-          <div className="login-footer">
-            <span>
-              © 2026 Miarcus Baby Products. All rights reserved.
-            </span>
-            <span className="footer-heart">♥</span>
+            <Link to="/" className="login-back-home">
+              ← Back to Miarcus home
+            </Link>
           </div>
         </div>
       </section>
