@@ -80,43 +80,20 @@ const FEATURES = [
 // team below.
 const LEADERSHIP = [
     {
-        photo: "/leader-gian-singh.jpg",
-        name: "Gian Singh",
-        title: "Founder & Managing Director",
-        linkedin: "https://www.linkedin.com/in/gian-singh-14a2aa112/",
+        initials: "GB",
+        name: "G.B Singh",
+        title: "Chairman",
     },
     {
-        initials: "GS",
-        name: "Gurbakshish Singh",
-        title: "Director, Board Member",
+        photo: "/leader-gian-singh.jpg",
+        name: "Gian Singh",
+        title: "Managing Director",
+        linkedin: "https://www.linkedin.com/in/gian-singh-14a2aa112/",
     },
     {
         initials: "GK",
-        name: "Gurnam Kaur",
+        name: "Garima Kalra",
         title: "Director",
-    },
-];
-
-const TEAM = [
-    {
-        photo: "/team-developer.jpg",
-        name: "Satyajit Nayak",
-        title: "Lead Developer",
-        bio: "Designs and builds the Miarcus portal end-to-end — every module, screen and integration in this system.",
-        linkedin: "https://www.linkedin.com/in/satyajit-nayak-981185247/",
-    },
-    {
-        photo: "/team-owner.jpg",
-        name: "Gian Singh",
-        title: "Owner & Co-Founder",
-        bio: "Co-founder of MiArcus, setting the direction for Mi Arcus Baby Products and the tools that run it.",
-        linkedin: "https://www.linkedin.com/in/gian-singh-14a2aa112/",
-    },
-    {
-        initials: "VS",
-        name: "Vijay Sharma",
-        title: "IT Head",
-        bio: "Oversees IT infrastructure and systems for the Jawandsons Group, including Miarcus.",
     },
 ];
 
@@ -568,58 +545,6 @@ function Landing() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="landing-leader-linkedin"
-                                    >
-                                        <FaLinkedin />
-                                        LinkedIn
-                                    </a>
-                                )}
-                            </Reveal>
-                        ))}
-                    </div>
-                </section>
-
-                {/* ========================================================
-                    TEAM
-                ======================================================== */}
-
-                <section className="landing-team">
-                    <Reveal as="div" className="landing-section-head">
-                        <span className="landing-eyebrow landing-eyebrow-dark">
-                            <span className="landing-eyebrow-dot" />
-                            THE PEOPLE BEHIND IT
-                        </span>
-                        <h2>Small team, direct accountability.</h2>
-                        <p>
-                            No layers, no hand-offs — the people who build Miarcus
-                            and run it day to day are both reachable.
-                        </p>
-                    </Reveal>
-
-                    <div className="landing-team-grid">
-                        {TEAM.map((member) => (
-                            <Reveal key={member.name} className="landing-team-card">
-                                <div className="landing-team-photo">
-                                    {member.photo ? (
-                                        <img src={member.photo} alt={member.name} />
-                                    ) : (
-                                        <span className="landing-team-initials">
-                                            {member.initials}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <h3>{member.name}</h3>
-                                <span className="landing-team-title">
-                                    {member.title}
-                                </span>
-                                <p>{member.bio}</p>
-
-                                {member.linkedin && (
-                                    <a
-                                        href={member.linkedin}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="landing-team-linkedin"
                                     >
                                         <FaLinkedin />
                                         LinkedIn
