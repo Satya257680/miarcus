@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
     FaCalendarCheck,
@@ -214,13 +214,31 @@ function LoadingIntro({ done }) {
 // =================================================================
 
 function Landing() {
+    const navigate = useNavigate();
     const pageRef = useRef(null);
     const [loading, setLoading] = useState(true);
     const [loaderDone, setLoaderDone] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
+    // Someone who is already signed in can still land here by hitting
+    // the browser's back/forward buttons (this page sits right before
+    // "/dashboard" in browser history). Bounce them straight back to
+    // the dashboard instead of showing the marketing site — signing
+    // out (Topbar's Logout button) is the only intended way back here.
+    const [isAuthenticated] = useState(
+        () => typeof window !== "undefined" && !!localStorage.getItem("userId")
+    );
+
     useEffect(() => {
+        if (isAuthenticated) {
+            navigate("/dashboard", { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
+
+    useEffect(() => {
+        if (isAuthenticated) return undefined;
+
         const finishTimer = setTimeout(() => setLoaderDone(true), 1450);
         const unmountTimer = setTimeout(() => setLoading(false), 1850);
 
@@ -259,6 +277,12 @@ function Landing() {
             .getElementById(id)
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
+
+    // Redirecting (see effect above) — render nothing so the marketing
+    // page never flashes on screen first.
+    if (isAuthenticated) {
+        return null;
+    }
 
     return (
         <div className="landing-page" ref={pageRef}>
