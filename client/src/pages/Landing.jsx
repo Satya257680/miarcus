@@ -92,7 +92,7 @@ const LEADERSHIP = [
     },
     {
         initials: "GK",
-        name: "Garima Kalra",
+        name: "Gurnam Kaur",
         title: "Director",
     },
 ];
@@ -432,6 +432,11 @@ function Landing() {
 
                 <section id="features" className="landing-section">
                     <Reveal as="div" className="landing-section-head">
+                        <img
+                            className="landing-section-logo"
+                            src="/miarcus-brand-theme.png"
+                            alt="Mi Arcus"
+                        />
                         <span className="landing-eyebrow landing-eyebrow-dark">
                             <span className="landing-eyebrow-dot" />
                             WHAT&apos;S INSIDE
