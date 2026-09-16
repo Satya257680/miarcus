@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   FaClipboardCheck,
@@ -51,21 +51,6 @@ function Login() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // Reaching /login via the browser's back/forward buttons while a
-  // session is already active (e.g. pressing "back" from the
-  // dashboard) should not show the sign-in form again — send the
-  // user straight back in. Logging out is the only intended way to
-  // see this screen again once signed in.
-  const [isAuthenticated] = useState(
-    () => typeof window !== "undefined" && !!localStorage.getItem("userId")
-  );
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -246,12 +231,6 @@ function Login() {
       setLoading(false);
     }
   };
-
-  // Redirecting (see effect above) — render nothing so the sign-in
-  // form never flashes on screen first.
-  if (isAuthenticated) {
-    return null;
-  }
 
   return (
     <main className="login-page">
