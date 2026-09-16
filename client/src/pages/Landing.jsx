@@ -80,7 +80,7 @@ const FEATURES = [
 // team below.
 const LEADERSHIP = [
     {
-        initials: "GB",
+        photo: "/leader-gb-singh.jpg",
         name: "G.B Singh",
         title: "Chairman",
     },
