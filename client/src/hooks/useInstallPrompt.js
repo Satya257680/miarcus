@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
+
+import {
+    getInstallState,
+    subscribeToInstallState,
+    triggerInstallPrompt,
+} from "../utils/installPromptStore";
 
 // =============================================================
 // MIARCUS — "INSTALL AS APP" (PWA) HOOK
@@ -15,29 +21,28 @@ import { useCallback, useEffect, useState } from "react";
 // app (own window, own icon, works offline for cached pages)
 // for whoever chooses to click "Install".
 //
+// The actual `beforeinstallprompt` event is captured once, at the
+// module level, in `../utils/installPromptStore` — imported as
+// early as possible (see main.jsx) so it is never missed no
+// matter which page/component happens to be mounted when the
+// browser decides to fire it. This hook just subscribes to that
+// shared store, so every "Install" button — sidebar, login page,
+// wherever — reflects the same, always-up-to-date state and can
+// fire the *same* native one-click prompt for every user whose
+// browser supports it.
+//
 // Support notes:
 // - Chrome / Edge / most Android browsers fire
 //   "beforeinstallprompt" — we capture it and can call
-//   `promptInstall()` on demand (e.g. from a button click).
+//   `promptInstall()` on demand (e.g. from a button click), which
+//   opens the browser's own native install dialog directly, no
+//   manual steps required.
 // - iOS Safari never fires that event; there is no programmatic
 //   install API there, so we detect iOS and let the caller show
 //   the manual "Share -> Add to Home Screen" instructions.
 // - Any other browser without support simply won't be able to
 //   install — the caller can show generic manual instructions.
 // =============================================================
-
-const isStandaloneDisplay = () => {
-    if (typeof window === "undefined") return false;
-
-    const mediaMatch =
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(display-mode: standalone)").matches;
-
-    // iOS Safari flag for "launched from home screen".
-    const iosStandalone = window.navigator?.standalone === true;
-
-    return Boolean(mediaMatch || iosStandalone);
-};
 
 const detectIOS = () => {
     if (typeof navigator === "undefined") return false;
@@ -66,86 +71,16 @@ const detectPlatform = () => {
 };
 
 export default function useInstallPrompt() {
-    const [deferredPrompt, setDeferredPrompt] = useState(null);
-    const [installed, setInstalled] = useState(isStandaloneDisplay);
-    const [isIOS] = useState(detectIOS);
-    const [platform] = useState(detectPlatform);
+    const { deferredPrompt, installed } = useSyncExternalStore(
+        subscribeToInstallState,
+        getInstallState,
+        getInstallState
+    );
 
-    useEffect(() => {
-        const handleBeforeInstallPrompt = (event) => {
-            // Stop the browser's default mini-infobar so we can
-            // show our own "Install App" button instead.
-            event.preventDefault();
-            setDeferredPrompt(event);
-        };
+    const isIOS = detectIOS();
+    const platform = detectPlatform();
 
-        const handleAppInstalled = () => {
-            setInstalled(true);
-            setDeferredPrompt(null);
-        };
-
-        window.addEventListener(
-            "beforeinstallprompt",
-            handleBeforeInstallPrompt
-        );
-
-        window.addEventListener("appinstalled", handleAppInstalled);
-
-        // Keep `installed` accurate if display-mode ever flips while
-        // the page is open (e.g. the OS reports the app was removed).
-        const standaloneQuery =
-            typeof window.matchMedia === "function" &&
-            window.matchMedia("(display-mode: standalone)");
-
-        const handleDisplayModeChange = (event) => {
-            setInstalled(event.matches || isStandaloneDisplay());
-        };
-
-        standaloneQuery?.addEventListener?.(
-            "change",
-            handleDisplayModeChange
-        );
-
-        return () => {
-            window.removeEventListener(
-                "beforeinstallprompt",
-                handleBeforeInstallPrompt
-            );
-
-            window.removeEventListener(
-                "appinstalled",
-                handleAppInstalled
-            );
-
-            standaloneQuery?.removeEventListener?.(
-                "change",
-                handleDisplayModeChange
-            );
-        };
-    }, []);
-
-    const promptInstall = useCallback(async () => {
-        if (!deferredPrompt) {
-            return "unavailable";
-        }
-
-        deferredPrompt.prompt();
-
-        try {
-            const choice = await deferredPrompt.userChoice;
-
-            setDeferredPrompt(null);
-
-            if (choice?.outcome === "accepted") {
-                setInstalled(true);
-            }
-
-            return choice?.outcome || "dismissed";
-        } catch {
-            setDeferredPrompt(null);
-            return "dismissed";
-        }
-    }, [deferredPrompt]);
+    const promptInstall = useCallback(() => triggerInstallPrompt(), []);
 
     return {
         // Native prompt is ready to fire right now.
