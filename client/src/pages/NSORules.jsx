@@ -43,6 +43,7 @@ import {
 // ======================================================
 
 import "../styles/NSORules.css";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 function NSORules() {
 
@@ -354,37 +355,20 @@ useEffect(() => {
 // EXPORT
 // ======================================================
 
-const handleExport = async () => {
+const handleExport = async (format = "csv") => {
 
     try {
 
         const response = await exportRules();
 
-        const blob = new Blob(
-            [response.data],
-            {
-                type: "text/csv;charset=utf-8;"
-            }
-        );
+        const csvText = await response.data.text();
 
-        const url = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-
-        link.href = url;
-
-        link.setAttribute(
-            "download",
-            "NSO_Rules.csv"
-        );
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        link.remove();
-
-        window.URL.revokeObjectURL(url);
+        await exportFromCSV({
+            csvText,
+            filename: "NSO_Rules",
+            format,
+            title: "NSO Rules",
+        });
 
     }
 

@@ -35,6 +35,8 @@ import {
 } from "../../services/collectionTrackingService";
 
 import "./CollectionTracking.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportFromCSV } from "../../utils/exportUtils.js";
 
 const STAGES = [
   "Designer",
@@ -584,35 +586,18 @@ function ProductList() {
     loadProducts();
   }, [query, stage, status, page]);
 
-  const handleExport = async () => {
+  const handleExport = async (format = "csv") => {
     try {
       const response = await exportProducts();
 
-      const blob = new Blob(
-        [response.data],
-        {
-          type:
-            "text/csv;charset=utf-8;",
-        }
-      );
+      const csvText = await response.data.text();
 
-      const url =
-        window.URL.createObjectURL(blob);
-
-      const anchor =
-        document.createElement("a");
-
-      anchor.href = url;
-      anchor.download =
-        "collection-tracking.csv";
-
-      document.body.appendChild(anchor);
-
-      anchor.click();
-
-      anchor.remove();
-
-      window.URL.revokeObjectURL(url);
+      await exportFromCSV({
+        csvText,
+        filename: "collection-tracking",
+        format,
+        title: "Collection Tracking",
+      });
     } catch (error) {
       console.error(error);
 
@@ -733,14 +718,7 @@ function ProductList() {
             Add Product
           </button>
 
-          <button
-            type="button"
-            className="ct-btn light"
-            onClick={handleExport}
-          >
-            <FaDownload />
-            Export CSV
-          </button>
+          <ExportButton onExport={handleExport} />
 
           <button
             type="button"

@@ -24,12 +24,13 @@ import {
     FaUndo,
     FaArrowLeft,
     FaCalculator,
-    FaDownload,
     FaTrash,
     FaBroom,
     FaEnvelope
 } from "react-icons/fa";
 import "./PettyCash.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 const money = (value) =>
     `₹${Number(value || 0).toLocaleString("en-IN", {
@@ -607,6 +608,30 @@ function PettyCash() {
         );
     }
 
+    const exportPettyCash = async (format = "csv") => {
+        const rows = visibleAdvances;
+        if (!rows.length) return;
+        const headers = ["Advance No", "Date", "Store", "Giver", "Receiver", "Advance", "Expense", "Deposit", "Balance", "Status"];
+        await exportTableData({
+            headers,
+            rows: rows.map((a) => [
+                a.advance_no,
+                a.advance_date,
+                a.store_name,
+                a.paid_by_name,
+                a.received_by_name,
+                Number(a.advance_amount || 0).toFixed(2),
+                Number(a.total_expense || 0).toFixed(2),
+                Number(a.total_deposit || 0).toFixed(2),
+                Number(a.balance || 0).toFixed(2),
+                a.status,
+            ]),
+            filename: `petty-cash-${new Date().toISOString().slice(0, 10)}`,
+            format,
+            title: "Petty Cash",
+        });
+    };
+
     return (
         <div className="petty-page">
             <div className="petty-page-header">
@@ -655,14 +680,7 @@ function PettyCash() {
             </div>
 
             <div className="petty-action-toolbar">
-                <button className="petty-btn secondary" onClick={() => {
-                    const rows = visibleAdvances;
-                    if (!rows.length) return;
-                    const headers = ["Advance No","Date","Store","Giver","Receiver","Advance","Expense","Deposit","Balance","Status"];
-                    const csv = [headers, ...rows.map(a => [a.advance_no,a.advance_date,a.store_name,a.paid_by_name,a.received_by_name,Number(a.advance_amount||0).toFixed(2),Number(a.total_expense||0).toFixed(2),Number(a.total_deposit||0).toFixed(2),Number(a.balance||0).toFixed(2),a.status])].map(row => row.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
-                    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8;"}));
-                    const a = document.createElement("a"); a.href=url; a.download=`petty-cash-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-                }}><FaDownload /> Export</button>
+                <ExportButton onExport={exportPettyCash} />
                 {access.canEdit && <button className="petty-btn danger" disabled={deleting || !visibleAdvances.length} onClick={async () => {
                     const scope = access.admin ? "ALL petty cash records in the system" : "ALL petty cash records given by you";
                     if (!window.confirm(`PERMANENT DELETE\n\nThis will permanently delete ${scope}, including their expenses, deposits and settlement records.\n\nThis cannot be undone. Continue?`)) return;

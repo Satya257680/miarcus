@@ -39,6 +39,7 @@ import {
 
 import "../styles/ActionPoints.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 // ======================================================
 // API
@@ -875,7 +876,7 @@ const saveActionPoint = async () => {
 // EXPORT
 // ======================================================
 
-const handleExport = async () => {
+const handleExport = async (format = "csv") => {
 
     try {
 
@@ -886,19 +887,14 @@ const handleExport = async () => {
             }
         );
 
-        const blob = new Blob(
-            [response.data],
-            { type: "text/csv;charset=utf-8;" }
-        );
+        const csvText = await response.data.text();
 
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = "ActionPoints.csv";
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
+        await exportFromCSV({
+            csvText,
+            filename: "ActionPoints",
+            format,
+            title: "Action Points",
+        });
 
     } catch (err) {
 

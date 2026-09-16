@@ -24,6 +24,7 @@ import PageToolbar from "../components/common/PageToolbar";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Announcements.css";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 // ======================================================
 // CONSTANTS
@@ -636,41 +637,21 @@ function Announcements() {
     // EXPORT
     // ==================================================
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
 
         try {
 
             const response =
                 await announcementService.export();
 
-            const url =
-                window.URL.createObjectURL(
-                    new Blob(
-                        [response.data],
-                        {
-                            type:
-                                "text/csv;charset=utf-8;",
-                        }
-                    )
-                );
+            const csvText = await response.data.text();
 
-            const link =
-                document.createElement("a");
-
-            link.href = url;
-
-            link.download =
-                "Announcements.csv";
-
-            document.body.appendChild(link);
-
-            link.click();
-
-            link.remove();
-
-            window.URL.revokeObjectURL(
-                url
-            );
+            await exportFromCSV({
+                csvText,
+                filename: "Announcements",
+                format,
+                title: "Announcements",
+            });
 
         } catch (error) {
 

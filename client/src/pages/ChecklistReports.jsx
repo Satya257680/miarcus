@@ -35,6 +35,7 @@ import {
 
 import "../styles/ChecklistReports.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
+import { exportTableData } from "../utils/exportUtils.js";
 
 
 // ======================================================
@@ -596,7 +597,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // EXPORT CSV
     // ======================================================
 
-    const handleExport = () => {
+    const handleExport = async (format = "csv") => {
 
         if (!filteredReports.length) {
 
@@ -646,51 +647,13 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         }));
 
-        const csv = [
-
-            Object.keys(rows[0]).join(","),
-
-            ...rows.map((row) =>
-
-                Object.values(row)
-
-                    .map((item) => `"${item}"`)
-
-                    .join(",")
-
-            )
-
-        ].join("\n");
-
-        const blob = new Blob(
-
-            [csv],
-
-            {
-
-                type: "text/csv;charset=utf-8;"
-
-            }
-
-        );
-
-        const url =
-
-            window.URL.createObjectURL(blob);
-
-        const link =
-
-            document.createElement("a");
-
-        link.href = url;
-
-        link.download =
-
-            "ChecklistReports.csv";
-
-        link.click();
-
-        window.URL.revokeObjectURL(url);
+        await exportTableData({
+            headers: Object.keys(rows[0]),
+            rows: rows.map((row) => Object.values(row)),
+            filename: "ChecklistReports",
+            format,
+            title: "Checklist Reports",
+        });
 
     };
 

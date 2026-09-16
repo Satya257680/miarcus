@@ -4,12 +4,13 @@ import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFileExport,
   FaFileImport,
 } from "react-icons/fa";
 
 import "../styles/StoreManagement.css";
 import AddStoreModal from "../components/AddStoreModal";
+import ExportButton from "../components/common/ExportButton";
+import { exportTableData } from "../utils/exportUtils.js";
 
 import {
   getStores,
@@ -386,7 +387,7 @@ const handleSave = async (data) => {
 // Export CSV
 // ==========================
 
-const handleExport = () => {
+const handleExport = async (format = "csv") => {
 
   if (!canView) {
 
@@ -428,22 +429,13 @@ const handleExport = () => {
     store.status,
   ]);
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
-  ].join("\n");
-
-  const blob = new Blob([csvContent], {
-    type: "text/csv;charset=utf-8;",
+  await exportTableData({
+    headers,
+    rows,
+    filename: "stores",
+    format,
+    title: "Stores",
   });
-
-  const link = document.createElement("a");
-
-  link.href = URL.createObjectURL(blob);
-
-  link.download = "stores.csv";
-
-  link.click();
 
 };
  // ==========================
@@ -546,13 +538,7 @@ const handleFileChange = async (e) => {
       <div className="store-actions">
 
         {canView && (
-          <button
-            className="export-btn"
-            onClick={handleExport}
-          >
-            <FaFileExport />
-            Export
-          </button>
+          <ExportButton onExport={handleExport} />
         )}
 
         {canAdd && (

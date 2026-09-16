@@ -28,6 +28,7 @@ import {
     updateAsset,
 } from "../services/assetService";
 import "../styles/pages/AssetManagement.css";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 const API = API_BASE_URL;
 
@@ -442,21 +443,20 @@ export default function AssetManagement({ type = "marketing" }) {
         }
     };
 
-    const exportCsv = async () => {
+    const exportCsv = async (format = "csv") => {
         setExporting(true);
         setError("");
         try {
             const blob = await exportAssets(type, { search });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `${type}-assets-${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
+            const csvText = await blob.text();
+            await exportFromCSV({
+                csvText,
+                filename: `${type}-assets-${new Date().toISOString().slice(0, 10)}`,
+                format,
+                title: `${type} Assets`,
+            });
         } catch (err) {
-            setError(err?.response?.data?.message || "Unable to export CSV.");
+            setError(err?.response?.data?.message || "Unable to export.");
         } finally { setExporting(false); }
     };
 
@@ -540,6 +540,7 @@ export default function AssetManagement({ type = "marketing" }) {
                 onAdd={openAdd}
                 showExport
                 onExport={exportCsv}
+                exportLoading={exporting}
                 showBulk
                 onBulk={() => setShowBulkModal(true)}
                 showDeleteAll={permissions.canDelete && total > 0}

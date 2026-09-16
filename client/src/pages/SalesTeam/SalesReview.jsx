@@ -48,6 +48,7 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import { exportFromCSV } from "../../utils/exportUtils.js";
 
 
 const departmentScoringStyles = `
@@ -872,17 +873,21 @@ function SalesReview() {
   ======================================================= */
 
   const exportCsv =
-    async () => {
+    async (format = "csv") => {
       try {
         const response =
           await exportSalesReview(
             filters
           );
 
-        downloadBlob(
-          response.data,
-          "sales-review.csv"
-        );
+        const csvText = await response.data.text();
+
+        await exportFromCSV({
+          csvText,
+          filename: "sales-review",
+          format,
+          title: "Sales Review",
+        });
       } catch (error) {
         console.error(
           "Sales Review export failed:",

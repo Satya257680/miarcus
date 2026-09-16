@@ -12,6 +12,7 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Designation.css";
+import { exportTableData } from "../utils/exportUtils.js";
 
 import DesignationModal from "../components/designations/DesignationModal";
 
@@ -543,7 +544,7 @@ function Designations() {
   // EXPORT
   // =====================================================
 
-  const handleExport = async () => {
+  const handleExport = async (format = "csv") => {
 
     try {
 
@@ -569,55 +570,13 @@ function Designations() {
 
       const headers = Object.keys(rows[0]);
 
-      let csv = headers.join(",") + "\n";
-
-      rows.forEach((row) => {
-
-        csv += headers
-
-          .map(
-
-            (header) => `"${row[header] ?? ""}"`
-
-          )
-
-          .join(",");
-
-        csv += "\n";
-
+      await exportTableData({
+        headers,
+        rows: rows.map((row) => headers.map((header) => row[header] ?? "")),
+        filename: "Designations",
+        format,
+        title: "Designations",
       });
-
-      const blob = new Blob(
-
-        [csv],
-
-        {
-
-          type: "text/csv;charset=utf-8;"
-
-        }
-
-      );
-
-      const url =
-
-        window.URL.createObjectURL(blob);
-
-      const link =
-
-        document.createElement("a");
-
-      link.href = url;
-
-      link.download = "Designations.csv";
-
-      document.body.appendChild(link);
-
-      link.click();
-
-      document.body.removeChild(link);
-
-      window.URL.revokeObjectURL(url);
 
     } catch (err) {
 

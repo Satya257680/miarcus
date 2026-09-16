@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaChartLine, FaMoneyBillWave, FaSyncAlt, FaFileExport } from "react-icons/fa";
+import { FaChartLine, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
 import { getCollectionReports, getDailyCollectionStores } from "../../services/billingService";
 import "../../styles/CollectionReports.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -81,7 +83,7 @@ export default function CollectionReports() {
         return reports.filter((row) => [row.store_name, row.store_code, row.manager_name].some((v) => String(v || "").toLowerCase().includes(keyword)));
     }, [reports, search]);
 
-    const exportCsv = () => {
+    const exportCsv = async (format = "csv") => {
         if (!filteredReports.length) return;
         const headers = ["Store", "Store Code", "Manager", "From Date", "To Date", "Days", "Submitted Days", "Missing Days", "Locked Days", "Bills", "System Billed", "UPI", "Cash", "Bank Transfer", "Card", "Total Collected", "Variance"];
         const rows = filteredReports.map((row) => [
@@ -90,13 +92,13 @@ export default function CollectionReports() {
             row.system_billed, row.upi_amount, row.cash_amount, row.bank_transfer_amount,
             row.card_amount, row.total_collected, row.variance
         ]);
-        const csv = [headers, ...rows].map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
-        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = `collection-reports-${period}-${date}.csv`;
-        anchor.click();
-        URL.revokeObjectURL(url);
+        await exportTableData({
+            headers,
+            rows,
+            filename: `collection-reports-${period}-${date}`,
+            format,
+            title: "Collection Reports",
+        });
     };
 
     if (!canView) return <div className="collection-reports-page"><div className="collection-reports-empty">You do not have permission to view Collection Reports.</div></div>;
@@ -127,7 +129,7 @@ export default function CollectionReports() {
                         </select>
                     </label>
                     <button className="collection-refresh" type="button" onClick={loadReports} disabled={loading || !selectedStore}><FaSyncAlt /> Refresh</button>
-                    <button className="collection-export" type="button" onClick={exportCsv} disabled={!selectedStore || !filteredReports.length}><FaFileExport /> Export</button>
+                    <ExportButton onExport={exportCsv} disabled={!selectedStore || !filteredReports.length} />
                 </div>
             </section>
 

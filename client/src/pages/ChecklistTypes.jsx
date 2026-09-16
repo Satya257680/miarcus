@@ -35,6 +35,7 @@ import {
 // ======================================================
 
 import "../styles/ChecklistTypes.css";
+import { exportFromXLSXBinary } from "../utils/exportUtils.js";
 
 // ======================================================
 // API
@@ -315,7 +316,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // EXPORT
     // ======================================================
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
 
         try {
 
@@ -326,19 +327,12 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
                 }
             );
 
-            const url = window.URL.createObjectURL(
-                new Blob([response.data])
-            );
-
-            const link = document.createElement("a");
-
-            link.href = url;
-
-            link.download = "ChecklistTypes.xlsx";
-
-            link.click();
-
-            window.URL.revokeObjectURL(url);
+            await exportFromXLSXBinary({
+                data: response.data,
+                filename: "ChecklistTypes",
+                format,
+                title: "Checklist Types",
+            });
 
         } catch (err) {
 

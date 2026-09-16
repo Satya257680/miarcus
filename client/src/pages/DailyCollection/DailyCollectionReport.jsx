@@ -14,6 +14,7 @@ import {
     deleteAllDailyCollections
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -115,7 +116,7 @@ export default function DailyCollectionReport() {
         return acc;
     }, { billed: 0, collected: 0, upi: 0, cash: 0, bank: 0, card: 0, submitted: 0, missing: 0, locked: 0 }), [filteredReports]);
 
-    const exportCsv = () => {
+    const exportCsv = async (format = "csv") => {
         if (!filteredReports.length) return;
         const headers = ["Date", "Store", "Store Code", "Status", "Bill Count", "System Billed", "UPI", "Cash", "Bank Transfer", "Card", "Total Collected", "Variance", "Submitted By", "Submitted At"];
         const rows = filteredReports.map((row) => [
@@ -126,13 +127,13 @@ export default function DailyCollectionReport() {
             row.card_amount || 0, row.total_collected || 0, row.variance || 0,
             row.submitted_by_name || "", row.submitted_at || ""
         ]);
-        const csv = [headers, ...rows].map((line) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
-        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = `daily-collection-report-${date}.csv`;
-        anchor.click();
-        URL.revokeObjectURL(url);
+        await exportTableData({
+            headers,
+            rows,
+            filename: `daily-collection-report-${date}`,
+            format,
+            title: "Daily Collection Report",
+        });
     };
 
     const handleView = async (row) => {

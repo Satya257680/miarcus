@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "./expenseApi";
 import {
     FaSearch,
-    FaFileExport,
     FaEye,
     FaShieldAlt,
     FaFilter,
@@ -15,6 +14,8 @@ import {
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 // ======================================================
 // HELPERS
@@ -491,7 +492,7 @@ This action cannot be undone.`
     // EXPORT CSV
     // ==================================================
 
-    const exportCsv = () => {
+    const exportCsv = async (format = "csv") => {
         const headers = [
             "Date",
             "Submitted By",
@@ -522,62 +523,15 @@ This action cannot be undone.`
             ]
         );
 
-        const csv = [
+        await exportTableData({
             headers,
-            ...rows
-        ]
-            .map((row) =>
-                row
-                    .map(
-                        (value) =>
-                            `"${String(value).replace(
-                                /"/g,
-                                '""'
-                            )}"`
-                    )
-                    .join(",")
-            )
-            .join("\n");
-
-        const blob = new Blob(
-            [
-                "\ufeff",
-                csv
-            ],
-            {
-                type:
-                    "text/csv;charset=utf-8;"
-            }
-        );
-
-        const url =
-            URL.createObjectURL(
-                blob
-            );
-
-        const anchor =
-            document.createElement(
-                "a"
-            );
-
-        anchor.href = url;
-
-        anchor.download =
-            `miarcus-expenses-${new Date()
+            rows,
+            filename: `miarcus-expenses-${new Date()
                 .toISOString()
-                .slice(0, 10)}.csv`;
-
-        document.body.appendChild(
-            anchor
-        );
-
-        anchor.click();
-
-        anchor.remove();
-
-        URL.revokeObjectURL(
-            url
-        );
+                .slice(0, 10)}`,
+            format,
+            title: "Expenses",
+        });
     };
 
     // ==================================================
@@ -845,13 +799,7 @@ This action cannot be undone.`
                         Clear Filters
                     </button>
 
-                    <button
-                        className="expense-outline-btn"
-                        onClick={exportCsv}
-                    >
-                        <FaFileExport />
-                        Export CSV
-                    </button>
+                    <ExportButton onExport={exportCsv} />
 
                 </div>
 

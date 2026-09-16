@@ -36,6 +36,7 @@ import {
 // ======================================================
 
 import "../styles/Questions.css";
+import { exportTableData } from "../utils/exportUtils.js";
 
 // ======================================================
 // API
@@ -340,7 +341,7 @@ const handleDeleteAll = async () => {
     // EXPORT CSV
     // ======================================================
 
-    const handleExport = () => {
+    const handleExport = async (format = "csv") => {
 
         if (!questions.length) {
 
@@ -375,48 +376,13 @@ const handleDeleteAll = async () => {
 
         }));
 
-        const csv = [
-
-            Object.keys(rows[0]).join(","),
-
-            ...rows.map((row) =>
-
-                Object.values(row)
-
-                    .map((item) => `"${item}"`)
-
-                    .join(",")
-
-            )
-
-        ].join("\n");
-
-        const blob = new Blob(
-
-            [csv],
-
-            {
-
-                type:
-                    "text/csv;charset=utf-8;"
-
-            }
-
-        );
-
-        const url =
-            window.URL.createObjectURL(blob);
-
-        const link =
-            document.createElement("a");
-
-        link.href = url;
-
-        link.download = "Questions.csv";
-
-        link.click();
-
-        window.URL.revokeObjectURL(url);
+        await exportTableData({
+            headers: Object.keys(rows[0]),
+            rows: rows.map((row) => Object.values(row)),
+            filename: "Questions",
+            format,
+            title: "Questions",
+        });
 
     };
 

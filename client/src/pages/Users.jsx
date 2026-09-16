@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
-import { saveAs } from "file-saver";
 import AddUserModal from "../components/AddUserModal";
 import BulkUploadModal from "../components/common/BulkUploadModal";
+import ExportButton from "../components/common/ExportButton";
+import { exportTableData } from "../utils/exportUtils.js";
 
 import {
   FaSearch,
@@ -138,7 +139,7 @@ const fetchManagers = async () => {
 // Export CSV
 // ============================
 
-const exportCSV = () => {
+const exportCSV = async (format = "csv") => {
 
   if (users.length === 0) {
     alert("No Users Found");
@@ -171,16 +172,13 @@ const exportCSV = () => {
     user.status || "",
   ]);
 
-  const csv = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
-  ].join("\n");
-
-  const blob = new Blob([csv], {
-    type: "text/csv;charset=utf-8;",
+  await exportTableData({
+    headers,
+    rows,
+    filename: "Users",
+    format,
+    title: "Users",
   });
-
-  saveAs(blob, "Users.csv");
 
 };
 
@@ -501,13 +499,7 @@ return (
 
   {canView && (
 
-    <button
-      className="export-btn"
-      onClick={exportCSV}
-    >
-      <FaUpload />
-      Export
-    </button>
+    <ExportButton onExport={exportCSV} />
 
   )}
 

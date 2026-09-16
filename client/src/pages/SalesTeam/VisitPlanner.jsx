@@ -45,6 +45,7 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import { exportFromCSV } from "../../utils/exportUtils.js";
 
 /* =========================================================
    INITIAL FORM
@@ -776,7 +777,7 @@ function VisitPlanner() {
      EXPORT
   ========================================================= */
 
-  const exportCsv = async () => {
+  const exportCsv = async (format = "csv") => {
     try {
       const response =
         await exportVisitPlans({
@@ -789,10 +790,14 @@ function VisitPlanner() {
           store: storeFilter,
         });
 
-      downloadBlob(
-        response.data,
-        "visit-planner.csv"
-      );
+      const csvText = await response.data.text();
+
+      await exportFromCSV({
+        csvText,
+        filename: "visit-planner",
+        format,
+        title: "Visit Planner",
+      });
     } catch (error) {
       console.error(
         "Visit planner export failed",

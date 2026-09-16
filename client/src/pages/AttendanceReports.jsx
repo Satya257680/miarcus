@@ -28,6 +28,8 @@ import {
 } from "../services/attendanceService";
 
 import "../styles/pages/Attendance.css";
+import ExportButton from "../components/common/ExportButton";
+import { exportTableData } from "../utils/exportUtils.js";
 
 // ======================================================
 // INITIAL FILTERS
@@ -613,7 +615,7 @@ export default function AttendanceReports() {
     // ==================================================
 
     const exportCsv =
-        async () => {
+        async (format = "csv") => {
             try {
                 setBusy(true);
                 setError("");
@@ -704,60 +706,15 @@ export default function AttendanceReports() {
                         ]
                     );
 
-                const csv = [
-                    header,
-                    ...rows,
-                ]
-                    .map(
-                        (row) =>
-                            row
-                                .map(
-                                    csvEscape
-                                )
-                                .join(",")
-                    )
-                    .join("\n");
-
-                const blob =
-                    new Blob(
-                        [csv],
-                        {
-                            type:
-                                "text/csv;charset=utf-8",
-                        }
-                    );
-
-                const url =
-                    URL.createObjectURL(
-                        blob
-                    );
-
-                const link =
-                    document.createElement(
-                        "a"
-                    );
-
-                link.href = url;
-
-                link.download =
-                    `attendance-report-${new Date()
+                await exportTableData({
+                    headers: header,
+                    rows,
+                    filename: `attendance-report-${new Date()
                         .toISOString()
-                        .slice(
-                            0,
-                            10
-                        )}.csv`;
-
-                document.body.appendChild(
-                    link
-                );
-
-                link.click();
-
-                link.remove();
-
-                URL.revokeObjectURL(
-                    url
-                );
+                        .slice(0, 10)}`,
+                    format,
+                    title: "Attendance Report",
+                });
 
                 setMessage(
                     `${
@@ -939,23 +896,12 @@ export default function AttendanceReports() {
                             Delete All
                         </button>
 
-                        <button
-                            type="button"
-                            className="attendance-btn primary"
-                            onClick={
-                                exportCsv
-                            }
-                            disabled={
-                                busy ||
-                                !data.total
-                            }
-                        >
-                            <FaDownload />
-
-                            {busy
-                                ? "Working…"
-                                : "Export CSV"}
-                        </button>
+                        <ExportButton
+                            onExport={exportCsv}
+                            loading={busy}
+                            disabled={!data.total}
+                            text="Export"
+                        />
 
                     </div>
 

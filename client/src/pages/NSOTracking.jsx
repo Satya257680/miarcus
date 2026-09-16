@@ -14,6 +14,8 @@ import {
 } from "../services/nsoTrackingService";
 
 import "../styles/NSOTracking.css";
+import ExportButton from "../components/common/ExportButton";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 import AddNSOTrackingModal
     from "../components/AddNSOTrackingModal";
@@ -460,7 +462,7 @@ function NSOTracking() {
     // EXPORT
     // ==================================================
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
 
         if (!canView) {
 
@@ -477,56 +479,14 @@ function NSOTracking() {
             const response =
                 await exportNSOTracking();
 
+            const csvText = await response.data.text();
 
-            const contentType =
-                response?.headers?.[
-                    "content-type"
-                ] ||
-                "text/csv";
-
-
-            const blob =
-                new Blob(
-                    [response.data],
-                    {
-                        type: contentType
-                    }
-                );
-
-
-            const url =
-                window.URL.createObjectURL(
-                    blob
-                );
-
-
-            const link =
-                document.createElement("a");
-
-
-            link.href = url;
-
-
-            link.setAttribute(
-                "download",
-                "NSO_Tracking.csv"
-            );
-
-
-            document.body.appendChild(
-                link
-            );
-
-
-            link.click();
-
-
-            link.remove();
-
-
-            window.URL.revokeObjectURL(
-                url
-            );
+            await exportFromCSV({
+                csvText,
+                filename: "NSO_Tracking",
+                format,
+                title: "NSO Tracking",
+            });
 
         }
 
@@ -742,16 +702,7 @@ function NSOTracking() {
                         EXPORT
                     ========================================== */}
 
-                    <button
-                        type="button"
-                        onClick={
-                            handleExport
-                        }
-                        className="export-btn"
-                        disabled={loading}
-                    >
-                        Export
-                    </button>
+                    <ExportButton onExport={handleExport} disabled={loading} />
 
 
                     {/* ==========================================

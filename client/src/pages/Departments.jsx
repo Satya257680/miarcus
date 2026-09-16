@@ -13,6 +13,7 @@ import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Departments.css";
 import DepartmentModal from "../components/Departments/DepartmentModal";
+import { exportTableData } from "../utils/exportUtils.js";
 import {
   getDepartments,
   getDepartmentById,
@@ -340,7 +341,7 @@ const handleSave = async (data) => {
 // =====================================================
 // EXPORT
 // =====================================================
-const handleExport = async () => {
+const handleExport = async (format = "csv") => {
 
   try {
 
@@ -366,45 +367,13 @@ const handleExport = async () => {
 
     const headers = Object.keys(rows[0]);
 
-    let csv = headers.join(",") + "\n";
-
-    rows.forEach((row) => {
-
-      csv += headers
-        .map((header) => `"${row[header] ?? ""}"`)
-        .join(",");
-
-      csv += "\n";
-
+    await exportTableData({
+      headers,
+      rows: rows.map((row) => headers.map((header) => row[header] ?? "")),
+      filename: "Departments",
+      format,
+      title: "Departments",
     });
-
-    const blob = new Blob(
-
-      [csv],
-
-      {
-
-        type: "text/csv;charset=utf-8;"
-
-      }
-
-    );
-
-    const url = window.URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-
-    link.download = "Departments.csv";
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    window.URL.revokeObjectURL(url);
 
   } catch (err) {
 

@@ -34,6 +34,8 @@ import {
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 /* ======================================================
    CONSTANTS
@@ -815,7 +817,7 @@ export default function DailyBillingReport() {
   ==================================================== */
 
   const handleExportCSV =
-    () => {
+    async (format = "csv") => {
 
       if (
         !filteredDetails.length
@@ -873,62 +875,17 @@ export default function DailyBillingReport() {
           ]
         );
 
-      const csvContent =
-        [
-          headers,
-          ...rows,
-        ]
-          .map(
-            (row) =>
-              row
-                .map(
-                  csvValue
-                )
-                .join(",")
-          )
-          .join("\n");
-
-      const blob =
-        new Blob(
-          [csvContent],
-          {
-            type:
-              "text/csv;charset=utf-8;",
-          }
-        );
-
-      const url =
-        URL.createObjectURL(
-          blob
-        );
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-      link.href = url;
-
-      link.download =
-        `billing-report-${date}${
+      await exportTableData({
+        headers,
+        rows,
+        filename: `billing-report-${date}${
           store
             ? `-store-${store}`
             : ""
-        }.csv`;
-
-      document.body.appendChild(
-        link
-      );
-
-      link.click();
-
-      document.body.removeChild(
-        link
-      );
-
-      URL.revokeObjectURL(
-        url
-      );
+        }`,
+        format,
+        title: "Daily Billing Report",
+      });
     };
 
   /* ====================================================
@@ -1043,20 +1000,10 @@ export default function DailyBillingReport() {
             Print
           </button>
 
-          <button
-            type="button"
-            className="billing-primary-btn"
-            onClick={
-              handleExportCSV
-            }
-            disabled={
-              loading ||
-              !filteredDetails.length
-            }
-          >
-            <FaDownload />
-            Export CSV
-          </button>
+          <ExportButton
+            onExport={handleExportCSV}
+            disabled={loading || !filteredDetails.length}
+          />
 
         </div>
 

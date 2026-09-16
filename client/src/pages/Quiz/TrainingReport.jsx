@@ -19,6 +19,8 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
+import ExportButton from "../../components/common/ExportButton";
+import { exportTableData } from "../../utils/exportUtils.js";
 
 const QUIZ_API_URL = (
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
@@ -1385,7 +1387,7 @@ window.onload = function () {
     // EXPORT REPORT
     // ============================================================
 
-    const exportReport = () => {
+    const exportReport = async (format = "csv") => {
 
         if (!filtered.length) {
 
@@ -1413,110 +1415,53 @@ window.onload = function () {
         ];
 
 
-        const csvRows = [
+        const rows = filtered.map(
+            row => [
 
+                row?.participant_name ||
+                "",
+
+                row?.participant_email ||
+                "",
+
+                row?.quiz_name ||
+                "",
+
+                formatDate(
+                    row?.submitted_at
+                ),
+
+                row?.score ??
+                "",
+
+                row?.max_score ??
+                "",
+
+                `${Number(
+                    row?.percentage ||
+                    0
+                ).toFixed(1)}%`,
+
+                row?.result ||
+                row?.status ||
+                "",
+
+                row?.participant_id ||
+                "",
+
+            ]
+        );
+
+
+        await exportTableData({
             headers,
-
-            ...filtered.map(
-                row => [
-
-                    row?.participant_name ||
-                    "",
-
-                    row?.participant_email ||
-                    "",
-
-                    row?.quiz_name ||
-                    "",
-
-                    formatDate(
-                        row?.submitted_at
-                    ),
-
-                    row?.score ??
-                    "",
-
-                    row?.max_score ??
-                    "",
-
-                    `${Number(
-                        row?.percentage ||
-                        0
-                    ).toFixed(1)}%`,
-
-                    row?.result ||
-                    row?.status ||
-                    "",
-
-                    row?.participant_id ||
-                    "",
-
-                ]
-            ),
-
-        ];
-
-
-        const csv =
-            csvRows
-                .map(
-                    row =>
-                        row
-                            .map(
-                                value =>
-                                    `"${String(
-                                        value
-                                    )
-                                        .replace(
-                                            /"/g,
-                                            '""'
-                                        )}"`
-                            )
-                            .join(",")
-                )
-                .join("\n");
-
-
-        const blob =
-            new Blob(
-                [csv],
-                {
-                    type:
-                        "text/csv;charset=utf-8;",
-                }
-            );
-
-
-        const url =
-            URL.createObjectURL(
-                blob
-            );
-
-
-        const link =
-            document.createElement(
-                "a"
-            );
-
-        link.href =
-            url;
-
-        link.download =
-            `training-report-${new Date()
+            rows,
+            filename: `training-report-${new Date()
                 .toISOString()
-                .slice(0, 10)}.csv`;
-
-        document.body.appendChild(
-            link
-        );
-
-        link.click();
-
-        link.remove();
-
-        URL.revokeObjectURL(
-            url
-        );
+                .slice(0, 10)}`,
+            format,
+            title: "Training Report",
+        });
 
 
         setMessage(
@@ -1560,19 +1505,7 @@ window.onload = function () {
                 </div>
 
 
-                <button
-                    type="button"
-                    className="quiz-secondary"
-                    onClick={
-                        exportReport
-                    }
-                >
-
-                    <FaDownload />
-
-                    Export Report
-
-                </button>
+                <ExportButton onExport={exportReport} text="Export Report" />
 
             </div>
 

@@ -25,6 +25,8 @@ import {
     updateListing,
 } from "../services/listingTrackerService";
 import "../styles/pages/ListingTracker.css";
+import ExportButton from "../components/common/ExportButton";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 const EMPTY_FORM = {
     ppk_code: "",
@@ -390,7 +392,7 @@ export default function ListingTracker() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
         try {
             const response = await exportListings({
                 search: search.trim(),
@@ -400,20 +402,16 @@ export default function ListingTracker() {
                 listed,
             });
 
-            const blob = new Blob([response.data], {
-                type: "text/csv;charset=utf-8;",
-            });
+            const csvText = await response.data.text();
 
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `miarcus-listing-tracker-${new Date()
-                .toISOString()
-                .slice(0, 10)}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
+            await exportFromCSV({
+                csvText,
+                filename: `miarcus-listing-tracker-${new Date()
+                    .toISOString()
+                    .slice(0, 10)}`,
+                format,
+                title: "Listing Tracker",
+            });
         } catch (err) {
             setError(
                 err.response?.data?.message ||
@@ -563,9 +561,7 @@ export default function ListingTracker() {
                         </>
                     )}
 
-                    <button className="listing-btn outline" onClick={handleExport}>
-                        <FaDownload /> Export CSV
-                    </button>
+                    <ExportButton onExport={handleExport} />
 
                     {permissions.canDelete && (
                         <button

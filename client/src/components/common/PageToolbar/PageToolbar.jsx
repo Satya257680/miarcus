@@ -1,10 +1,11 @@
 import {
   FaSearch,
   FaPlus,
-  FaFileExport,
   FaUpload,
   FaTrash,
 } from "react-icons/fa";
+
+import ExportButton from "../ExportButton/ExportButton";
 
 import "../../../styles/common/PageToolbar.css";
 
@@ -34,6 +35,8 @@ function PageToolbar({
 
   showExport = false,
   onExport,
+  exportFormats = ["csv", "xlsx", "pdf"],
+  exportLoading = false,
 
   // ==========================================
   // Bulk Upload
@@ -106,13 +109,11 @@ function PageToolbar({
 
         {showExport && (
 
-          <button
-            className="toolbar-btn export-btn"
-            onClick={onExport}
-          >
-            <FaFileExport />
-            Export
-          </button>
+          <ExportButton
+            onExport={onExport}
+            formats={exportFormats}
+            loading={exportLoading}
+          />
 
         )}
 

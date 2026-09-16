@@ -35,6 +35,7 @@ import {
 // ======================================================
 
 import "../styles/ReportsTo.css";
+import { exportFromXLSXBinary } from "../utils/exportUtils.js";
 
 // ======================================================
 // API
@@ -375,7 +376,7 @@ function ReportsTo() {
     // EXPORT
     // ======================================================
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
 
         try {
 
@@ -389,25 +390,12 @@ function ReportsTo() {
 
             );
 
-            const blob = new Blob(
-
-                [response.data]
-
-            );
-
-            const url =
-                window.URL.createObjectURL(blob);
-
-            const link =
-                document.createElement("a");
-
-            link.href = url;
-
-            link.download = "ReportsTo.xlsx";
-
-            link.click();
-
-            window.URL.revokeObjectURL(url);
+            await exportFromXLSXBinary({
+                data: response.data,
+                filename: "ReportsTo",
+                format,
+                title: "Reports To",
+            });
 
         } catch (err) {
 

@@ -38,6 +38,7 @@ import {
 // ======================================================
 
 import "../styles/NewStoreOpenings.css";
+import { exportFromCSV } from "../utils/exportUtils.js";
 
 function NewStoreOpenings() {
 
@@ -868,7 +869,7 @@ function NewStoreOpenings() {
     // EXPORT
     // ======================================================
 
-    const handleExport = async () => {
+    const handleExport = async (format = "csv") => {
 
         try {
 
@@ -889,46 +890,14 @@ function NewStoreOpenings() {
 
             }
 
-            const blob =
-                new Blob(
+            const csvText = await res.data.text();
 
-                    [res.data],
-
-                    {
-                        type:
-                            "text/csv;charset=utf-8;"
-                    }
-
-                );
-
-            const url =
-                window.URL.createObjectURL(
-                    blob
-                );
-
-            const link =
-                document.createElement(
-                    "a"
-                );
-
-            link.href = url;
-
-            link.download =
-                "NewStoreOpenings.csv";
-
-            document.body.appendChild(
-                link
-            );
-
-            link.click();
-
-            document.body.removeChild(
-                link
-            );
-
-            window.URL.revokeObjectURL(
-                url
-            );
+            await exportFromCSV({
+                csvText,
+                filename: "NewStoreOpenings",
+                format,
+                title: "New Store Openings",
+            });
 
         }
         catch (err) {
