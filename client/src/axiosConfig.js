@@ -4,16 +4,20 @@ import axios from "axios";
 // MIARCUS AXIOS CONFIGURATION
 // ======================================================
 //
-// Normal API requests:
+// Production server:
+// https://rytual2.miarcus.com
 //
-// Local:
-// VITE_API_URL=http://localhost:5000
+// Backend is running internally on:
+// http://127.0.0.1:5000
 //
-// Production:
-// VITE_API_URL=https://miarcus-backend.onrender.com
+// IIS reverse proxy handles:
+//
+// https://rytual2.miarcus.com/api/*
+//              ↓
+// http://127.0.0.1:5000/api/*
 //
 // IMPORTANT:
-// Do NOT add /api here.
+// Do NOT add /api to the base URL here.
 // API routes already contain /api/...
 // ======================================================
 
@@ -21,37 +25,67 @@ import axios from "axios";
 // ======================================================
 // MAIN API URL
 // ======================================================
+//
+// Local development:
+// VITE_API_URL=http://localhost:5000
+//
+// Production:
+// VITE_API_URL=https://rytual2.miarcus.com
+//
+// If VITE_API_URL is not configured,
+// the production MIARCUS server is used.
+// ======================================================
 
 const API_URL =
     import.meta.env.VITE_API_URL?.trim() ||
-    "https://miarcus-backend.onrender.com";
+    "https://rytual2.miarcus.com";
 
 
-// Remove accidental trailing slash
+// ======================================================
+// REMOVE ACCIDENTAL TRAILING SLASH
+// ======================================================
+
 const cleanApiUrl =
     API_URL.replace(/\/+$/, "");
 
-// Canonical API origin used by modules instead of hard-coded deployment URLs.
-const API_BASE_URL = cleanApiUrl;
+
+// ======================================================
+// CANONICAL API BASE URL
+// ======================================================
+
+const API_BASE_URL =
+    cleanApiUrl;
 
 
 // ======================================================
 // QUIZ API URL
 // ======================================================
 //
-// Quiz module is forced to use the deployed backend.
+// Quiz requests use VITE_QUIZ_API_URL if configured.
 //
-// This prevents Quiz requests from accidentally going
-// to localhost while the rest of the application keeps
-// using the normal API configuration.
+// Otherwise they use the same MIARCUS production
+// server as the normal API.
 //
-// If VITE_QUIZ_API_URL exists, it will be used.
-// Otherwise Render backend is used.
+// Example:
+//
+// /api/quiz
+// /api/quiz/1
+// /api/quiz/1/questions
+// /api/quiz/public/ABC123
+//
+// All requests are routed through IIS:
+//
+// https://rytual2.miarcus.com/api/quiz/...
+//
+// IIS then forwards them internally to:
+//
+// http://127.0.0.1:5000/api/quiz/...
 // ======================================================
 
 const QUIZ_API_URL =
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
     cleanApiUrl;
+
 
 const cleanQuizApiUrl =
     QUIZ_API_URL.replace(/\/+$/, "");
@@ -93,17 +127,22 @@ console.log(
 // AXIOS DEFAULT CONFIG
 // ======================================================
 //
-// All normal application APIs continue using the
-// existing VITE_API_URL configuration.
+// All normal application APIs use the MIARCUS server.
 //
-// Example:
+// Examples:
 //
 // /api/users
 // /api/stores
 // /api/departments
 // /api/action-points
 // /api/checklists
+// /api/questions
+// /api/reports
 //
+// Final URLs become:
+//
+// https://rytual2.miarcus.com/api/users
+// https://rytual2.miarcus.com/api/stores
 // etc.
 // ======================================================
 
@@ -111,8 +150,14 @@ axios.defaults.baseURL =
     cleanApiUrl;
 
 
-// Do not send browser cookies.
+// ======================================================
+// COOKIE CONFIGURATION
+// ======================================================
+//
 // Authentication is handled using JWT.
+// Browser cookies are not required.
+// ======================================================
+
 axios.defaults.withCredentials =
     false;
 
@@ -123,28 +168,10 @@ axios.defaults.withCredentials =
 //
 // Automatically:
 //
-// 1. Adds JWT token
-// 2. Detects Quiz requests
-// 3. Sends Quiz requests to Render
+// 1. Detects Quiz requests
+// 2. Selects the correct API base URL
+// 3. Adds JWT token when available
 //
-// Quiz examples:
-//
-// /api/quiz
-// /api/quiz/1
-// /api/quiz/1/questions
-// /api/quiz/public/ABC123
-// /api/quiz/public/ABC123/start
-// /api/quiz/public/session/XYZ/submit
-// /api/quiz/email/send
-// /api/quiz/reports
-//
-// All of them are routed to:
-//
-// https://miarcus-backend.onrender.com
-//
-// Other modules continue using:
-//
-// VITE_API_URL
 // ======================================================
 
 axios.interceptors.request.use(
@@ -177,7 +204,7 @@ axios.interceptors.request.use(
 
 
         // ==================================================
-        // QUIZ BASE URL
+        // SELECT API BASE URL
         // ==================================================
 
         if (isQuizRequest) {
@@ -186,10 +213,6 @@ axios.interceptors.request.use(
                 cleanQuizApiUrl;
 
         } else {
-
-            // ==================================================
-            // NORMAL API BASE URL
-            // ==================================================
 
             config.baseURL =
                 cleanApiUrl;
@@ -217,17 +240,13 @@ axios.interceptors.request.use(
 
 
         // ==================================================
-        // DEBUG
+        // DEBUG INFORMATION
         // ==================================================
 
-        if (isQuizRequest) {
-
-            console.log(
-                "QUIZ API REQUEST:",
-                `${config.baseURL}${requestUrl}`
-            );
-
-        }
+        console.log(
+            "MIARCUS API REQUEST:",
+            `${config.baseURL}${requestUrl}`
+        );
 
 
         return config;
@@ -254,8 +273,7 @@ axios.interceptors.request.use(
 // - User deactivated
 // - Protected session expired
 //
-// IMPORTANT:
-// We do NOT logout for:
+// We do NOT automatically logout for:
 //
 // 400
 // 403
@@ -358,7 +376,7 @@ axios.interceptors.response.use(
 
 
             // ==================================================
-            // REDIRECT LOGIN
+            // REDIRECT TO LOGIN
             // ==================================================
 
             if (!alreadyOnLoginPage) {
@@ -381,6 +399,10 @@ axios.interceptors.response.use(
 // EXPORT
 // ======================================================
 
-export { API_BASE_URL, cleanApiUrl, cleanQuizApiUrl };
+export {
+    API_BASE_URL,
+    cleanApiUrl,
+    cleanQuizApiUrl
+};
 
 export default axios;
