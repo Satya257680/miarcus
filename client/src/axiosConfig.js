@@ -4,36 +4,25 @@ import axios from "axios";
 // MIARCUS AXIOS CONFIGURATION
 // ======================================================
 //
-// Production server:
+// Production:
 // https://rytual2.miarcus.com
 //
-// Backend is running internally on:
+// Backend:
 // http://127.0.0.1:5000
 //
-// IIS reverse proxy handles:
+// IIS reverse proxy:
 //
 // https://rytual2.miarcus.com/api/*
 //              ↓
 // http://127.0.0.1:5000/api/*
 //
 // IMPORTANT:
-// Do NOT add /api to the base URL here.
-// API routes already contain /api/...
+// API_BASE_URL must NOT contain /api.
 // ======================================================
 
 
 // ======================================================
 // MAIN API URL
-// ======================================================
-//
-// Local development:
-// VITE_API_URL=http://localhost:5000
-//
-// Production:
-// VITE_API_URL=https://rytual2.miarcus.com
-//
-// If VITE_API_URL is not configured,
-// the production MIARCUS server is used.
 // ======================================================
 
 const API_URL =
@@ -42,7 +31,7 @@ const API_URL =
 
 
 // ======================================================
-// REMOVE ACCIDENTAL TRAILING SLASH
+// REMOVE TRAILING SLASHES
 // ======================================================
 
 const cleanApiUrl =
@@ -59,27 +48,6 @@ const API_BASE_URL =
 
 // ======================================================
 // QUIZ API URL
-// ======================================================
-//
-// Quiz requests use VITE_QUIZ_API_URL if configured.
-//
-// Otherwise they use the same MIARCUS production
-// server as the normal API.
-//
-// Example:
-//
-// /api/quiz
-// /api/quiz/1
-// /api/quiz/1/questions
-// /api/quiz/public/ABC123
-//
-// All requests are routed through IIS:
-//
-// https://rytual2.miarcus.com/api/quiz/...
-//
-// IIS then forwards them internally to:
-//
-// http://127.0.0.1:5000/api/quiz/...
 // ======================================================
 
 const QUIZ_API_URL =
@@ -126,37 +94,9 @@ console.log(
 // ======================================================
 // AXIOS DEFAULT CONFIG
 // ======================================================
-//
-// All normal application APIs use the MIARCUS server.
-//
-// Examples:
-//
-// /api/users
-// /api/stores
-// /api/departments
-// /api/action-points
-// /api/checklists
-// /api/questions
-// /api/reports
-//
-// Final URLs become:
-//
-// https://rytual2.miarcus.com/api/users
-// https://rytual2.miarcus.com/api/stores
-// etc.
-// ======================================================
 
 axios.defaults.baseURL =
     cleanApiUrl;
-
-
-// ======================================================
-// COOKIE CONFIGURATION
-// ======================================================
-//
-// Authentication is handled using JWT.
-// Browser cookies are not required.
-// ======================================================
 
 axios.defaults.withCredentials =
     false;
@@ -166,12 +106,25 @@ axios.defaults.withCredentials =
 // REQUEST INTERCEPTOR
 // ======================================================
 //
-// Automatically:
+// This interceptor prevents accidental URLs such as:
 //
-// 1. Detects Quiz requests
-// 2. Selects the correct API base URL
-// 3. Adds JWT token when available
+// https://rytual2.miarcus.comhttps://rytual2.miarcus.com/api/auth/login
 //
+// It converts full MIARCUS URLs into relative API paths:
+//
+// https://rytual2.miarcus.com/api/auth/login
+//
+// becomes:
+//
+// /api/auth/login
+//
+// Axios then combines it with:
+//
+// https://rytual2.miarcus.com
+//
+// Result:
+//
+// https://rytual2.miarcus.com/api/auth/login
 // ======================================================
 
 axios.interceptors.request.use(
@@ -179,17 +132,101 @@ axios.interceptors.request.use(
     (config) => {
 
         // ==================================================
-        // REQUEST URL
+        // GET REQUEST URL
         // ==================================================
 
-        const requestUrl =
+        let requestUrl =
             String(
                 config.url || ""
             ).trim();
 
 
         // ==================================================
-        // CHECK WHETHER THIS IS A QUIZ REQUEST
+        // REMOVE ACCIDENTAL DUPLICATED DOMAIN
+        // ==================================================
+        //
+        // Handles:
+        //
+        // https://rytual2.miarcus.comhttps://rytual2.miarcus.com/api/auth/login
+        //
+        // Converts to:
+        //
+        // https://rytual2.miarcus.com/api/auth/login
+        // ==================================================
+
+        const duplicatedDomain =
+            `${cleanApiUrl}${cleanApiUrl}`;
+
+        if (
+            requestUrl.startsWith(
+                duplicatedDomain
+            )
+        ) {
+
+            requestUrl =
+                requestUrl.substring(
+                    cleanApiUrl.length
+                );
+
+        }
+
+
+        // ==================================================
+        // CONVERT FULL MIARCUS URL TO RELATIVE URL
+        // ==================================================
+        //
+        // If another part of the application sends:
+        //
+        // https://rytual2.miarcus.com/api/auth/login
+        //
+        // convert it to:
+        //
+        // /api/auth/login
+        //
+        // This prevents baseURL duplication.
+        // ==================================================
+
+        if (
+            requestUrl.startsWith(
+                cleanApiUrl
+            )
+        ) {
+
+            requestUrl =
+                requestUrl.substring(
+                    cleanApiUrl.length
+                );
+
+        }
+
+
+        // ==================================================
+        // MAKE SURE API PATH STARTS WITH /
+        // ==================================================
+
+        if (
+            requestUrl &&
+            !requestUrl.startsWith("/") &&
+            !requestUrl.startsWith("http://") &&
+            !requestUrl.startsWith("https://")
+        ) {
+
+            requestUrl =
+                `/${requestUrl}`;
+
+        }
+
+
+        // ==================================================
+        // SAVE NORMALIZED URL
+        // ==================================================
+
+        config.url =
+            requestUrl;
+
+
+        // ==================================================
+        // CHECK QUIZ REQUEST
         // ==================================================
 
         const isQuizRequest =
@@ -216,6 +253,7 @@ axios.interceptors.request.use(
 
             config.baseURL =
                 cleanApiUrl;
+
         }
 
 
@@ -236,6 +274,7 @@ axios.interceptors.request.use(
 
             config.headers.Authorization =
                 `Bearer ${token}`;
+
         }
 
 
@@ -245,11 +284,16 @@ axios.interceptors.request.use(
 
         console.log(
             "MIARCUS API REQUEST:",
-            `${config.baseURL}${requestUrl}`
+            `${config.baseURL}${config.url}`
         );
 
 
+        // ==================================================
+        // RETURN CONFIG
+        // ==================================================
+
         return config;
+
     },
 
 
@@ -258,28 +302,14 @@ axios.interceptors.request.use(
         return Promise.reject(
             error
         );
+
     }
+
 );
 
 
 // ======================================================
 // RESPONSE INTERCEPTOR
-// ======================================================
-//
-// 401 means:
-//
-// - JWT expired
-// - JWT invalid
-// - User deactivated
-// - Protected session expired
-//
-// We do NOT automatically logout for:
-//
-// 400
-// 403
-// 404
-// 500
-//
 // ======================================================
 
 axios.interceptors.response.use(
@@ -287,6 +317,7 @@ axios.interceptors.response.use(
     (response) => {
 
         return response;
+
     },
 
 
@@ -324,6 +355,7 @@ axios.interceptors.response.use(
                 alert(
                     message
                 );
+
             }
 
 
@@ -384,14 +416,18 @@ axios.interceptors.response.use(
                 window.location.replace(
                     "/login"
                 );
+
             }
+
         }
 
 
         return Promise.reject(
             error
         );
+
     }
+
 );
 
 
@@ -404,5 +440,6 @@ export {
     cleanApiUrl,
     cleanQuizApiUrl
 };
+
 
 export default axios;
