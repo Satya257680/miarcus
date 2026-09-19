@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   FaClipboardCheck,
@@ -51,6 +51,55 @@ function Login() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // ================================================================
+  // "FORGOT PASSWORD?" — SUPER ADMIN ONLY
+  // ================================================================
+  // Every account's password is created and managed by an
+  // administrator (see Settings → Password Management). Self-service
+  // reset only exists for the Super Admin account, so the link below
+  // is only shown once the typed email is (debounced, checked against
+  // the server) confirmed to be the Super Admin's — nobody else ever
+  // sees it on this screen.
+  // ================================================================
+
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  useEffect(() => {
+    const email = formData.email.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setShowForgotPassword(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/api/auth/super-admin-check`,
+          {
+            params: { email },
+            timeout: 8000,
+          }
+        );
+
+        if (!cancelled) {
+          setShowForgotPassword(Boolean(response.data?.isSuperAdmin));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setShowForgotPassword(false);
+        }
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -421,13 +470,17 @@ function Login() {
               </button>
 
               {/* ==========================================================
-                  "Forgot password?" is intentionally not shown here.
-                  Every account's password is created and managed by an
-                  administrator (see Settings → Password Management), so
-                  self-service reset is not offered from the sign-in
-                  screen. It remains available only to the Super Admin
-                  account directly at /forgot-password.
+                  "Forgot password?" only ever appears for the Super
+                  Admin account — see the useEffect above. Everyone
+                  else manages passwords through their administrator
+                  (Settings → Password Management).
               ========================================================== */}
+
+              {showForgotPassword && (
+                <Link to="/forgot-password" className="forgot-password">
+                  Forgot password?
+                </Link>
+              )}
 
               <InstallAppButton variant="login" />
             </form>

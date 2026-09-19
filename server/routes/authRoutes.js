@@ -6,6 +6,7 @@ const {
     otpVerifyLimiter,
     signupLimiter,
     publicSignupGate,
+    superAdminCheckLimiter,
 } = require("../middleware/authRateLimit");
 
 const router = express.Router();
@@ -18,6 +19,7 @@ const {
     loginUser,
     signupUser,
     forgotPassword,
+    checkSuperAdminEmail,
     verifyOTP,
     resetPassword,
     getSignupData,
@@ -75,6 +77,20 @@ router.post(
     "/forgot-password",
     passwordResetLimiter,
     forgotPassword
+);
+
+// ======================================================
+// SUPER ADMIN CHECK
+// GET : /api/auth/super-admin-check?email=...
+//
+// PUBLIC ROUTE — used by the Login screen only to decide
+// whether to display the "Forgot password?" link.
+// ======================================================
+
+router.get(
+    "/super-admin-check",
+    superAdminCheckLimiter,
+    checkSuperAdminEmail
 );
 
 // ======================================================

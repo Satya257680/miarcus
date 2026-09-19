@@ -1307,6 +1307,53 @@ const getSignupData = (req, res) => {
 
 };
 
+// ======================================================
+// CHECK IF AN EMAIL IS THE SUPER ADMIN
+// GET : /api/auth/super-admin-check?email=...
+//
+// PUBLIC ROUTE (rate-limited)
+//
+// Used only by the Login screen to decide whether to show
+// the "Forgot password?" link — self-service password reset
+// is only available to the Super Admin account. Never reveals
+// anything about whether the email exists as a regular user,
+// only whether it is the Super Admin.
+// ======================================================
+
+const checkSuperAdminEmail = async (req, res) => {
+
+    const email = normalizeEmail(req.query?.email);
+
+    if (!email || validateEmail(email)) {
+        return res.status(200).json({
+            success: true,
+            isSuperAdmin: false
+        });
+    }
+
+    try {
+
+        const allowed = await isSuperAdminByEmail(email);
+
+        return res.status(200).json({
+            success: true,
+            isSuperAdmin: allowed
+        });
+
+    } catch (error) {
+
+        console.error("Super admin email check failed:", error.message);
+
+        // Fail closed — never show the link if the check errors out.
+        return res.status(200).json({
+            success: true,
+            isSuperAdmin: false
+        });
+
+    }
+
+};
+
 module.exports = {
 
     loginUser,
@@ -1314,6 +1361,8 @@ module.exports = {
     signupUser,
 
     forgotPassword,
+
+    checkSuperAdminEmail,
 
     verifyOTP,
 

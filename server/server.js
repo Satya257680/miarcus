@@ -619,6 +619,8 @@ SecurityModel.ensureSecuritySchema()
 
 PasswordVaultModel.ensurePasswordVaultSchema()
     .then(() => console.log("✅ Password vault schema verified"))
+    .then(() => PasswordVaultModel.ensureDefaultSuperAdmin())
+    .then(() => console.log("✅ Super Admin bootstrap verified"))
     .catch((error) => console.error("❌ Password vault schema initialization failed:", error.message));
 
 initializeDatabase();

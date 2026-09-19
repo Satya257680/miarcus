@@ -89,6 +89,17 @@ const otpVerifyLimiter = createLimiter({
     message: "Too many OTP attempts. Please request a new OTP later.",
 });
 
+// Used by the public "is this email the Super Admin?" check that the
+// Login screen calls (debounced) to decide whether to show the
+// "Forgot password?" link. Keyed by IP only — generous enough for
+// normal typing, but still capped against abuse.
+const superAdminCheckLimiter = createLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    keyGenerator: (req) => `super-admin-check:${getClientIp(req)}`,
+    message: "Too many requests. Please try again later.",
+});
+
 const signupLimiter = createLimiter({
     windowMs: 60 * 60 * 1000,
     max: 5,
@@ -113,4 +124,5 @@ module.exports = {
     otpVerifyLimiter,
     signupLimiter,
     publicSignupGate,
+    superAdminCheckLimiter,
 };

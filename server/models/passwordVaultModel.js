@@ -53,6 +53,57 @@ async function ensurePasswordVaultSchema() {
 }
 
 // ==========================================================
+// DEFAULT / BOOTSTRAP SUPER ADMIN
+// ==========================================================
+//
+// The application must always have exactly one guaranteed
+// Super Admin so nobody can ever be permanently locked out of
+// "Forgot Password". If no user currently has the flag set
+// (fresh install, or it was accidentally revoked from
+// everyone), this account is automatically (re)granted Super
+// Admin on the next server start.
+//
+// Override with DEFAULT_SUPER_ADMIN_EMAIL if needed — defaults
+// to Satyajit Nayak's account, the application's owner/creator.
+// ==========================================================
+
+const DEFAULT_SUPER_ADMIN_EMAIL = String(
+    process.env.DEFAULT_SUPER_ADMIN_EMAIL ||
+    "miarcus.notifications@gmail.com"
+).trim().toLowerCase();
+
+async function ensureDefaultSuperAdmin() {
+
+    if (!DEFAULT_SUPER_ADMIN_EMAIL) {
+        return;
+    }
+
+    const existing = await db.query(
+        `SELECT COUNT(*) AS count FROM users WHERE is_super_admin = 1`
+    );
+
+    if (Number(existing?.[0]?.count || 0) > 0) {
+        // A Super Admin already exists — never override it automatically.
+        return;
+    }
+
+    const result = await db.query(
+        `UPDATE users SET is_super_admin = 1 WHERE email = ? LIMIT 1`,
+        [DEFAULT_SUPER_ADMIN_EMAIL]
+    );
+
+    if (Number(result?.affectedRows || 0) > 0) {
+        console.log(
+            `✅ Super Admin bootstrap: ${DEFAULT_SUPER_ADMIN_EMAIL} granted Super Admin access.`
+        );
+    } else {
+        console.warn(
+            `⚠️ Super Admin bootstrap: no user found with email ${DEFAULT_SUPER_ADMIN_EMAIL}. No Super Admin is set.`
+        );
+    }
+}
+
+// ==========================================================
 // LIST ALL USERS FOR THE PASSWORD VAULT
 // ==========================================================
 
@@ -181,6 +232,7 @@ async function setSuperAdminFlag(userId, value) {
 
 module.exports = {
     ensurePasswordVaultSchema,
+    ensureDefaultSuperAdmin,
     listVaultUsers,
     getVaultUserById,
     setUserPassword,
