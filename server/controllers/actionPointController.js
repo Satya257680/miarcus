@@ -4,6 +4,56 @@ const { Parser } = require("json2csv");
 const actionPointService = require("../services/actionPointService");
 const { parseBulkFile } = require("../utils/bulkFileParser");
 const checklistReportService = require("../services/checklistReportService");
+const { getDepartmentIdByName } = require("../models/userModel");
+
+// ======================================================
+// RESOLVE DEPARTMENT ID FROM NAME (bulk upload)
+//
+// Bulk files identify a Department by name ("IT", "Operations"...),
+// not by numeric ID. Reuses the same exact -> fuzzy matcher already
+// used for Users bulk upload (models/userModel.js) instead of passing
+// the raw text straight into a numeric column.
+// ======================================================
+
+const resolveDepartmentId = (departmentText) =>
+    new Promise((resolve) => {
+        if (!departmentText || /^\d+$/.test(String(departmentText).trim())) {
+            resolve(departmentText ? Number(departmentText) : null);
+            return;
+        }
+
+        getDepartmentIdByName(departmentText, (err, rows) => {
+            if (err || !rows || !rows.length) {
+                resolve(null);
+                return;
+            }
+            resolve(rows[0].id);
+        });
+    });
+
+// ======================================================
+// DOES THIS ROW ALREADY SAY "NO ACTION REQUIRED"?
+//
+// A bulk Action Point row that already carries a resolved/closed
+// Status, or already has an Action Taken value filled in, is not a
+// new open task — it is a record of something already handled. Those
+// rows are filed straight into Checklist Reports (already Closed)
+// instead of opening an Action Point that would just need to be
+// closed again by hand.
+// ======================================================
+
+const NO_ACTION_STATUS_VALUES = new Set([
+    "closed", "complete", "completed", "done", "resolved",
+    "no action", "no action required", "no action needed",
+    "not required", "n/a", "na", "ok", "okay", "pass", "passed",
+    "compliant", "satisfactory"
+]);
+
+const isNoActionRequired = (row) => {
+    const statusText = String(row["Status"] || "").trim().toLowerCase();
+    const actionTakenText = String(row["Action Taken"] || "").trim();
+    return NO_ACTION_STATUS_VALUES.has(statusText) || Boolean(actionTakenText);
+};
 
 // ======================================================
 // BULK UPLOAD — COLUMN ALIASES
@@ -259,68 +309,101 @@ exports.bulkUploadActionPoints = async (req, res) => {
             const row = rows[index];
             const rowNumber = index + 2;
 
-            const normalized = {
-                store_id: row["Store"],
-                store_name: row["Store"],
-                department_id: row["Department"],
-                question: row["Question"],
-                submission_id: row["Submission ID"],
-                submission_answer_id: row["Answer ID"],
-                assigned_to: row["Assigned To"],
-                priority: row["Priority"] || "Medium",
-                sla_days: row["SLA Days"] || 0,
-                sla_value: row["SLA Value"],
-                status: row["Status"] || "Open",
-                remarks: row["Remarks"]
-            };
-
-            // Always try to create the row as an Action Point first — that
-            // is what Bulk Upload Action Points is for, and every column
-            // besides Store is optional (see actionPointService.createManual).
             try {
-                const result = await actionPointService.createManual(
-                    normalized,
-                    null,
-                    req.user.id
+
+                // ==================================================
+                // STEP 1 — FILE THE ROW AS A CHECKLIST SUBMISSION/ANSWER
+                //
+                // Every bulk-uploaded Action Point row is anchored to a
+                // real Checklist Report entry (see
+                // services/checklistReportService.js). `allowSynthetic`
+                // means a missing/unrecognized Checklist Type or Question
+                // never drops the row — Store is still the only hard
+                // requirement, same as before. This is what lets the row
+                // (a) show up in Checklist Reports immediately when no
+                // action is required, and (b) show up there automatically
+                // once its Action Point is closed, exactly like a normal
+                // checklist-triggered Action Point already does.
+                // ==================================================
+
+                const reportResult = await checklistReportService.createFromRow(
+                    {
+                        "Store": row["Store"],
+                        "Checklist Type": row["Checklist Type"],
+                        "Submission ID": row["Submission ID"],
+                        "Employee": row["Assigned To"],
+                        "Question": row["Question"],
+                        "Answer": row["Answer"] || row["Remarks"],
+                        "Remarks": row["Remarks"],
+                        "Submission Date": row["Submission Date"],
+                        "Device": row["Device"]
+                    },
+                    req.user.id,
+                    { allowSynthetic: true }
                 );
 
-                created.push({ row: rowNumber, id: result.id });
-                continue;
-            } catch (actionPointError) {
-
-                // No Action Point could be taken/created from this row
-                // (most often: the Store text couldn't be resolved to a
-                // known store). Rather than dropping the row, try to file
-                // it as a completed Checklist Report instead — the row's
-                // data is still preserved and visible, just in the right
-                // place — and only report it as an error if that also fails.
+                if (!reportResult.questionMatched && row["Question"]) {
+                    warnings.push(
+                        `Row ${rowNumber}: the Question "${row["Question"]}" wasn't recognized as a configured checklist question — it was kept in Remarks instead.`
+                    );
+                }
 
                 // ==================================================
-                // ACTION POINT CREATION FAILED —
-                // FILE IT AS A CHECKLIST REPORT INSTEAD OF DROPPING IT.
+                // STEP 2 — RESOLVE THE ACTION POINT FIELDS
                 // ==================================================
-                try {
-                    const reportResult = await checklistReportService.createFromRow(
+
+                const departmentId = await resolveDepartmentId(row["Department"]);
+
+                const actionPointBody = {
+                    submission_id: reportResult.submissionId,
+                    submission_answer_id: reportResult.answerId,
+                    department_id: departmentId,
+                    assigned_to: row["Assigned To"] || null,
+                    priority: row["Priority"] || "Medium",
+                    sla_days: row["SLA Days"] || 0,
+                    sla_value: row["SLA Value"],
+                    remarks: row["Remarks"] || ""
+                };
+
+                // ==================================================
+                // STEP 3 — NO ACTION REQUIRED -> STRAIGHT TO REPORTS
+                //
+                // ELSE -> A NORMAL OPEN ACTION POINT, LINKED SO THAT
+                // CLOSING IT LATER (Take Action) AUTOMATICALLY MOVES IT
+                // INTO CHECKLIST REPORTS TOO (existing behavior — see
+                // models/checklistReportModel.js / models/actionPointModel.js).
+                // ==================================================
+
+                if (isNoActionRequired(row)) {
+
+                    const actionTakenText = String(row["Action Taken"] || "").trim() || "No action required.";
+
+                    await actionPointService.createClosedFromImport(
                         {
-                            "Store": row["Store"],
-                            "Checklist Type": row["Checklist Type"],
-                            "Submission ID": row["Submission ID"],
-                            "Employee": row["Assigned To"],
-                            "Question": row["Question"],
-                            "Answer": row["Answer"] || row["Remarks"],
-                            "Remarks": row["Remarks"],
-                            "Submission Date": row["Submission Date"],
-                            "Device": row["Device"]
+                            ...actionPointBody,
+                            comment: actionTakenText
                         },
                         req.user.id
                     );
 
                     movedToReports.push({ row: rowNumber, submissionId: reportResult.submissionId });
-                } catch (reportError) {
-                    errors.push(
-                        `Row ${rowNumber}: could not create an Action Point (${actionPointError.message}), and could not file it as a Checklist Report either (${reportError.message}).`
+
+                } else {
+
+                    const result = await actionPointService.createManual(
+                        {
+                            ...actionPointBody,
+                            status: row["Status"] || "Open"
+                        },
+                        null,
+                        req.user.id
                     );
+
+                    created.push({ row: rowNumber, id: result.id });
                 }
+
+            } catch (rowError) {
+                errors.push(`Row ${rowNumber}: ${rowError.message}`);
             }
         }
 

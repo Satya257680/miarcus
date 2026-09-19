@@ -669,6 +669,10 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
                 ? (r.action_point_status || "Open")
                 : "Not Required",
 
+            Priority: r.action_point_id ? (r.action_point_priority || "Medium") : "-",
+
+            "SLA (Days)": r.action_point_id ? (r.action_point_sla_days || 0) : "-",
+
             "Action Taken": r.action_taken || "-",
 
             "Action Completed At": r.action_point_completed_at || r.completion_date || "-",
@@ -1164,6 +1168,23 @@ const uploadChecklistReport = async (file) => {
                         {status}
                     </span>
                 );
+            }
+        },
+
+        {
+            key: "action_point_priority",
+            title: "Priority",
+            render: (row) =>
+                row.action_point_id ? (row.action_point_priority || "Medium") : "-"
+        },
+
+        {
+            key: "action_point_sla_days",
+            title: "SLA (Days)",
+            render: (row) => {
+                if (!row.action_point_id) return "-";
+                const days = Number(row.action_point_sla_days || 0);
+                return days > 0 ? days : "-";
             }
         },
 

@@ -79,6 +79,12 @@ ChecklistReport.getAll = (
 
             ap.status AS action_point_status,
 
+            ap.priority AS action_point_priority,
+
+            ap.sla_value AS action_point_sla_days,
+
+            ap.sla_value AS action_point_sla_value,
+
             ap.comment AS action_point_comment,
 
             ap.remarks AS action_point_remarks,
@@ -454,6 +460,10 @@ sql += `
 
         ap.status,
 
+        ap.priority,
+
+        ap.sla_value,
+
         ap.comment,
 
         ap.remarks,
@@ -571,6 +581,12 @@ ChecklistReport.getById = (
 
             ap.status AS action_point_status,
 
+            ap.priority AS action_point_priority,
+
+            ap.sla_value AS action_point_sla_days,
+
+            ap.sla_value AS action_point_sla_value,
+
             ap.comment AS action_point_comment,
 
             ap.remarks AS action_point_remarks,
@@ -680,6 +696,10 @@ ChecklistReport.getById = (
             ap.id,
 
             ap.status,
+
+            ap.priority,
+
+            ap.sla_value,
 
             ap.comment,
 
@@ -1335,7 +1355,25 @@ ChecklistReport.exportReports = (
 
             csa.answer,
 
-            csa.remarks
+            csa.remarks,
+
+            ap.priority AS action_point_priority,
+
+            ap.sla_value AS action_point_sla_days,
+
+            ap.status AS action_point_status,
+
+            ap.comment AS action_point_comment,
+
+            ap.remarks AS action_point_remarks,
+
+            ap.completed_at AS action_point_completed_at,
+
+            csa.action_taken,
+
+            csa.action_remarks,
+
+            csa.completion_date
 
         FROM checklist_submissions cs
 
@@ -1357,6 +1395,15 @@ ChecklistReport.exportReports = (
         LEFT JOIN checklist_submission_answers csa
 
             ON csa.submission_id = cs.id
+
+        LEFT JOIN action_points ap
+            ON ap.id = (
+                SELECT ap1.id
+                FROM action_points ap1
+                WHERE ap1.submission_answer_id = csa.id
+                ORDER BY ap1.id DESC
+                LIMIT 1
+            )
 
         LEFT JOIN questions q
 
@@ -1401,7 +1448,27 @@ ChecklistReport.exportReports = (
 
             csa.answer,
 
-            csa.remarks
+            csa.remarks,
+
+            ap.id,
+
+            ap.priority,
+
+            ap.sla_value,
+
+            ap.status,
+
+            ap.comment,
+
+            ap.remarks,
+
+            ap.completed_at,
+
+            csa.action_taken,
+
+            csa.action_remarks,
+
+            csa.completion_date
 
         ORDER BY
 

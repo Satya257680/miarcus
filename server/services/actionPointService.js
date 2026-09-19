@@ -865,6 +865,67 @@ const createManual = async (
 
 
 // ======================================================
+// CREATE + IMMEDIATELY CLOSE (bulk import: "no action required")
+// ======================================================
+//
+// Used by the Action Points bulk uploader (controllers/
+// actionPointController.js) when the uploaded row itself says the
+// item needs no further action — its Status already reads something
+// like "Closed"/"Resolved"/"N/A", or it already has an Action Taken
+// value filled in. Rather than opening a new Action Point that would
+// immediately need to be closed by hand, this creates it already
+// Closed — with `completed_at` set and the linked checklist answer's
+// action_taken/completion_date populated exactly the way an
+// interactive "Take Action" would (see ActionPoint.takeAction in
+// models/actionPointModel.js) — so the row is visible in Checklist
+// Reports right away, with its Priority/SLA intact, instead of
+// sitting in Action Points needlessly.
+// ======================================================
+
+const createClosedFromImport = async (body, userId) => {
+
+    const result = await createManual(
+        { ...body, status: "Closed" },
+        null,
+        userId
+    );
+
+    const actionPointId = result.id;
+
+    await db.query(
+        `UPDATE action_points SET completed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [actionPointId]
+    );
+
+    if (body.submission_answer_id) {
+        await db.query(
+            `UPDATE checklist_submission_answers
+             SET action_taken = ?,
+                 action_remarks = ?,
+                 completion_date = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [
+                body.comment || "No action required.",
+                body.remarks || "",
+                body.submission_answer_id
+            ]
+        );
+    }
+
+    if (body.submission_id) {
+        await db.query(
+            `UPDATE checklist_submissions
+             SET status = 'Completed', updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [body.submission_id]
+        );
+    }
+
+    return { id: actionPointId };
+};
+
+
+// ======================================================
 // UPDATE ACTION POINT
 // ======================================================
 
@@ -1596,6 +1657,9 @@ module.exports = {
 
     // Manual creation
     createManual,
+
+    // Bulk import: already-resolved row -> straight to Checklist Reports
+    createClosedFromImport,
 
     // Update
     update,

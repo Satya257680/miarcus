@@ -17,9 +17,12 @@
 //
 // Used by:
 //   - controllers/checklistReportController.js  (direct bulk upload)
-//   - controllers/actionPointController.js       (fallback: a bulk
-//     Action Point row that isn't actionable — no action actually
-//     taken/assigned — is recorded here instead of being dropped)
+//   - controllers/actionPointController.js       (every bulk-uploaded
+//     Action Point row is filed here too, so it is preserved and
+//     visible in Checklist Reports — either immediately, when the row
+//     says no action is required, or automatically once its linked
+//     Action Point is closed. See createFromRow's `allowSynthetic`
+//     option below.)
 // ==========================================================
 
 const db = require("../config/db");
@@ -34,8 +37,73 @@ const queryOne = (sql, params = []) =>
         });
     });
 
+const runQuery = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.query(sql, params, (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+
 const hasValue = (value) =>
     value !== undefined && value !== null && String(value).trim() !== "";
+
+// ======================================================
+// SYNTHETIC CHECKLIST TYPE / QUESTION
+// ======================================================
+//
+// Checklist Reports are, under the hood, always a checklist
+// submission + answer (see models/checklistSubmissionModel.js —
+// `checklist_submission_answers.question_id` is NOT NULL). A bulk
+// Action Point upload very often has no "Checklist Type"/"Question"
+// column at all — it is describing a one-off finding, not a
+// configured checklist. Rather than dropping that row (or refusing
+// to file it as a report), a single reusable "Action Points (Bulk
+// Import)" checklist type/question is created on first use and
+// reused after that, purely so the row has somewhere real to live.
+// The original uploaded Question text (if any) is never discarded —
+// it is preserved in the answer's Remarks.
+// ======================================================
+
+const SYNTHETIC_CHECKLIST_TYPE_NAME = "Action Points (Bulk Import)";
+const SYNTHETIC_QUESTION_TEXT = "Action Point Item (Bulk Import)";
+
+async function ensureSyntheticChecklistType() {
+
+    const existing = await queryOne(
+        `SELECT id FROM checklist_types WHERE checklist_name = ? LIMIT 1`,
+        [SYNTHETIC_CHECKLIST_TYPE_NAME]
+    );
+
+    if (existing?.id) return existing.id;
+
+    const result = await runQuery(
+        `INSERT INTO checklist_types (checklist_name, allow_past_submission, cutoff_time, status)
+         VALUES (?, 1, NULL, 'Active')`,
+        [SYNTHETIC_CHECKLIST_TYPE_NAME]
+    );
+
+    return result.insertId;
+}
+
+async function ensureSyntheticQuestion(checklistTypeId) {
+
+    const existing = await queryOne(
+        `SELECT id FROM questions WHERE checklist_type_id = ? AND question = ? LIMIT 1`,
+        [checklistTypeId, SYNTHETIC_QUESTION_TEXT]
+    );
+
+    if (existing?.id) return existing.id;
+
+    const result = await runQuery(
+        `INSERT INTO questions
+            (checklist_type_id, question, sequence_no, answer_type, sla_value, sla_unit, answer_required, status)
+         VALUES (?, ?, 0, 'Text', NULL, NULL, 0, 'Active')`,
+        [checklistTypeId, SYNTHETIC_QUESTION_TEXT]
+    );
+
+    return result.insertId;
+}
 
 // ======================================================
 // STORE
@@ -139,20 +207,56 @@ async function resolveQuestionId(row, checklistTypeId) {
     return question?.id || null;
 }
 
+// ======================================================
+// "TODAY", IN THE BUSINESS'S OWN TIMEZONE (Asia/Kolkata)
+// ======================================================
+//
+// BUG FIX — bulk-upload timing was not "real time":
+// `new Date().toISOString().slice(0, 10)` reads the calendar date in
+// UTC. The server/DB run in UTC while the business operates in IST
+// (UTC+5:30), so any bulk-upload row uploaded between 12:00 AM and
+// 5:29 AM IST — a normal window for an overnight batch upload — was
+// silently stamped with the PREVIOUS day's date. That's the same
+// class of bug already fixed for Daily Collection/Attendance (see
+// controllers/dailyCollectionController.js's `indiaToday()` and
+// controllers/locationController.js) — this brings bulk-upload
+// Submission Date defaulting in line with the same fix.
+// ======================================================
+
+const indiaToday = () =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+
 function parseSubmissionDate(row) {
     const raw = row["Submission Date"];
 
     if (!hasValue(raw)) {
-        return new Date().toISOString().slice(0, 10);
+        return indiaToday();
+    }
+
+    // A plain "YYYY-MM-DD" (or "DD/MM/YYYY", "DD-MM-YYYY") date-only value
+    // has no timezone of its own — use it exactly as written instead of
+    // routing it through `new Date(...)`, which would otherwise treat it
+    // as UTC midnight and can shift it by a day once reformatted.
+    const text = String(raw).trim();
+
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+
+    const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (dmyMatch) {
+        const [, day, month, year] = dmyMatch;
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
 
     const asDate = new Date(raw);
 
     if (Number.isNaN(asDate.getTime())) {
-        return new Date().toISOString().slice(0, 10);
+        return indiaToday();
     }
 
-    return asDate.toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(asDate);
 }
 
 // ======================================================
@@ -171,9 +275,20 @@ function parseSubmissionDate(row) {
 // but without an answer row, and `questionMatched: false` is
 // returned so the caller can report that as a warning rather
 // than a hard failure.
+//
+// options.allowSynthetic (used by the Action Points bulk uploader —
+// see controllers/actionPointController.js): when true, a missing/
+// unrecognized Checklist Type or Question never fails the row. A
+// shared "Action Points (Bulk Import)" checklist type/question is
+// used instead (created once, reused after that), and the row's own
+// Question text (if any) is preserved in the answer's Remarks rather
+// than being dropped. This guarantees every row gets a real answer
+// row — and therefore an `answerId` — to attach an Action Point to.
 // ======================================================
 
-async function createFromRow(row, fallbackUserId) {
+async function createFromRow(row, fallbackUserId, options = {}) {
+    const { allowSynthetic = false } = options;
+
     const storeRaw = row["Store"];
     const checklistRaw = row["Checklist Type"];
 
@@ -207,25 +322,49 @@ async function createFromRow(row, fallbackUserId) {
         throw err;
     }
 
+    let usedSyntheticType = false;
+
     if (!checklistTypeId) {
-        const err = new Error(
-            hasValue(checklistRaw)
-                ? `Checklist Type "${checklistRaw}" was not recognized.`
-                : "No Checklist Type was provided."
-        );
-        err.code = "CHECKLIST_TYPE_NOT_FOUND";
-        throw err;
+        if (allowSynthetic) {
+            checklistTypeId = await ensureSyntheticChecklistType();
+            usedSyntheticType = true;
+        } else {
+            const err = new Error(
+                hasValue(checklistRaw)
+                    ? `Checklist Type "${checklistRaw}" was not recognized.`
+                    : "No Checklist Type was provided."
+            );
+            err.code = "CHECKLIST_TYPE_NOT_FOUND";
+            throw err;
+        }
     }
 
     const submittedBy = (await resolveUserId(row)) || fallbackUserId || null;
-    const questionId = await resolveQuestionId(row, checklistTypeId);
+    let questionId = await resolveQuestionId(row, checklistTypeId);
+    let usedSyntheticQuestion = false;
+
+    if (!questionId && allowSynthetic) {
+        questionId = await ensureSyntheticQuestion(checklistTypeId);
+        usedSyntheticQuestion = true;
+    }
 
     const answers = [];
     if (questionId) {
+
+        // Never lose the row's own wording just because it couldn't be
+        // matched to a configured question — keep it in Remarks instead.
+        const remarksParts = [];
+        if (usedSyntheticQuestion && hasValue(row["Question"])) {
+            remarksParts.push(`Question: ${String(row["Question"]).trim()}`);
+        }
+        if (hasValue(row["Remarks"])) {
+            remarksParts.push(String(row["Remarks"]).trim());
+        }
+
         answers.push({
             question_id: questionId,
             answer: row["Answer"] || "",
-            remarks: row["Remarks"] || ""
+            remarks: remarksParts.join(" | ")
         });
     }
 
@@ -247,9 +386,22 @@ async function createFromRow(row, fallbackUserId) {
         });
     });
 
+    // Exactly zero or one answer is ever created per row here, so the most
+    // recently inserted answer for this submission (if any) is unambiguous.
+    let answerId = null;
+    if (answers.length) {
+        const answerRow = await queryOne(
+            `SELECT id FROM checklist_submission_answers WHERE submission_id = ? ORDER BY id DESC LIMIT 1`,
+            [result.submissionId]
+        );
+        answerId = answerRow?.id || null;
+    }
+
     return {
         submissionId: result.submissionId,
-        questionMatched: Boolean(questionId)
+        answerId,
+        questionMatched: Boolean(questionId) && !usedSyntheticQuestion,
+        usedSyntheticType
     };
 }
 
