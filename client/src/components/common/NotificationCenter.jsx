@@ -44,12 +44,23 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
         // Use the backend SSE notification stream for immediate updates.
         // Polling remains as a reliable fallback for reconnects/proxies.
         const token = localStorage.getItem("token");
-        const apiOrigin = String(axios.defaults.baseURL || "").replace(/\/+$/, "");
+
+        // `axios.defaults.baseURL` is "/api" on the IIS deployment (a
+        // same-origin reverse-proxy prefix, not a separate domain — see
+        // axiosConfig.js). Appending "/api/notifications/stream" to that
+        // produced "/api/api/notifications/stream", which 404s (only
+        // "/api/notifications/stream" exists). Strip a trailing "/api"
+        // here so this always ends up with exactly one "/api" segment,
+        // whether baseURL is that relative prefix or a full external
+        // domain that doesn't include "/api" at all.
+        const rawBase = String(axios.defaults.baseURL || "").replace(/\/+$/, "");
+        const apiOrigin = rawBase.replace(/\/api$/, "");
+
         let stream = null;
         let reconnectTimer = null;
 
         const connect = () => {
-            if (!token || !apiOrigin || typeof window.EventSource === "undefined") return;
+            if (!token || typeof window.EventSource === "undefined") return;
             try {
                 stream = new EventSource(`${apiOrigin}/api/notifications/stream?token=${encodeURIComponent(token)}`);
                 stream.addEventListener("notification", (event) => {

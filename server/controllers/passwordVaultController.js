@@ -28,6 +28,7 @@ const {
 } = require("../config/passwordVault");
 
 const PasswordVault = require("../models/passwordVaultModel");
+const User = require("../models/userModel");
 const { logActivity } = require("../utils/activityLogger");
 const { sendPasswordUpdatedEmail } = require("../services/emailService");
 
@@ -261,8 +262,128 @@ const toggleSuperAdmin = async (req, res) => {
 
 };
 
+// ==========================================================
+// DELETE A SINGLE USER FROM THE VAULT
+// DELETE /api/password-vault/:id
+// ==========================================================
+//
+// Reuses the same account-deletion logic (and cascading
+// cleanup of every dependent record) already used by the
+// Users screen — this just gives the Password Management
+// screen its own Delete action without duplicating that
+// logic. Administrator and Super Admin accounts are never
+// deletable from here, matching the same rule already
+// enforced on the Users screen and on "Delete All" below.
+// ==========================================================
+
+const deleteVaultUser = async (req, res) => {
+
+    try {
+
+        const userId = Number(req.params.id);
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user."
+            });
+        }
+
+        const targetUser = await PasswordVault.getVaultUserById(userId);
+
+        if (!targetUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found."
+            });
+        }
+
+        const isProtected =
+            Number(targetUser.is_admin) === 1 ||
+            Number(targetUser.is_super_admin) === 1;
+
+        if (isProtected) {
+            return res.status(403).json({
+                success: false,
+                message: "Administrator and Super Admin accounts cannot be deleted."
+            });
+        }
+
+        await User.deleteUser(userId);
+
+        try {
+            logActivity({
+                activity_type: "User",
+                reference_id: userId,
+                title: "User Deleted",
+                description: `${targetUser.name} was deleted from Password Management`,
+                module_name: "Users",
+                status: "Closed",
+                priority: "High",
+                created_by: req.user?.id,
+                assigned_to: userId
+            });
+        } catch (activityErr) {
+            console.error("Activity log failed:", activityErr);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "User deleted successfully."
+        });
+
+    } catch (error) {
+
+        console.error("Password vault delete user error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to delete this user."
+        });
+
+    }
+
+};
+
+// ==========================================================
+// DELETE ALL USERS (EXCEPT ADMIN / SUPER ADMIN)
+// DELETE /api/password-vault/delete-all
+// ==========================================================
+//
+// Delegates to the same model function the Users screen's
+// "Delete All" uses, which already only ever removes rows
+// where is_admin = 0 AND is_super_admin = 0 — every
+// Administrator and Super Admin account is always kept.
+// ==========================================================
+
+const deleteAllVaultUsers = async (req, res) => {
+
+    try {
+
+        await User.deleteAllUsers();
+
+        return res.status(200).json({
+            success: true,
+            message: "All non-administrator users deleted successfully."
+        });
+
+    } catch (error) {
+
+        console.error("Password vault delete-all error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to delete users."
+        });
+
+    }
+
+};
+
 module.exports = {
     listPasswordVault,
     updateUserPassword,
-    toggleSuperAdmin
+    toggleSuperAdmin,
+    deleteVaultUser,
+    deleteAllVaultUsers
 };

@@ -12,6 +12,7 @@ import {
   FaSyncAlt,
   FaTimes,
   FaCheck,
+  FaTrash,
 } from "react-icons/fa";
 
 import "../styles/PasswordManagement.css";
@@ -76,6 +77,10 @@ function PasswordManagement() {
   const [modalError, setModalError] = useState("");
 
   const [superAdminBusyId, setSuperAdminBusyId] = useState(null);
+
+  const [deleteBusyId, setDeleteBusyId] = useState(null);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   // ==============================================================
   // CURRENT VIEWER
@@ -265,6 +270,71 @@ function PasswordManagement() {
   };
 
   // ==============================================================
+  // DELETE USER / DELETE ALL
+  // ==============================================================
+  //
+  // Administrator and Super Admin accounts are never deletable —
+  // enforced both here (the button/row is hidden) and on the
+  // server (DELETE /api/password-vault/:id and /delete-all both
+  // reject/skip them), matching the same rule the Users screen
+  // already applies.
+  // ==============================================================
+
+  const isProtectedUser = (user) =>
+    Boolean(user) && (Boolean(user.isAdmin) || Boolean(user.isSuperAdmin));
+
+  const deleteUser = async (user) => {
+    if (isProtectedUser(user)) {
+      alert("Administrator and Super Admin accounts cannot be deleted.");
+      return;
+    }
+
+    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeleteBusyId(user.id);
+
+    try {
+      const response = await axios.delete(
+        `${API_BASE_URL}/api/password-vault/${user.id}`
+      );
+
+      alert(response.data?.message || "User deleted successfully.");
+      fetchVault();
+    } catch (error) {
+      console.error("Password vault delete user error:", error);
+      alert(
+        error.response?.data?.message || "Unable to delete this user."
+      );
+    } finally {
+      setDeleteBusyId(null);
+    }
+  };
+
+  const deleteAllUsers = async () => {
+    setDeletingAll(true);
+
+    try {
+      const response = await axios.delete(
+        `${API_BASE_URL}/api/password-vault/delete-all`
+      );
+
+      alert(
+        response.data?.message ||
+          "All non-administrator users deleted successfully."
+      );
+      setShowDeleteAllModal(false);
+      fetchVault();
+    } catch (error) {
+      console.error("Password vault delete-all error:", error);
+      alert(error.response?.data?.message || "Unable to delete users.");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
+  // ==============================================================
   // RENDER
   // ==============================================================
 
@@ -307,6 +377,16 @@ function PasswordManagement() {
         >
           <FaSyncAlt className={loading ? "spinning" : ""} />
           Refresh
+        </button>
+
+        <button
+          type="button"
+          className="pwd-mgmt-delete-all-btn"
+          onClick={() => setShowDeleteAllModal(true)}
+          disabled={loading}
+        >
+          <FaTrash />
+          Delete All
         </button>
       </div>
 
@@ -439,6 +519,25 @@ function PasswordManagement() {
                             : "Make Super Admin"}
                         </button>
                       )}
+
+                      {isProtectedUser(user) ? (
+                        <span
+                          className="pwd-mgmt-protected-badge"
+                          title="Administrator and Super Admin accounts cannot be deleted."
+                        >
+                          Protected
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="pwd-mgmt-delete-btn"
+                          onClick={() => deleteUser(user)}
+                          disabled={deleteBusyId === user.id}
+                        >
+                          <FaTrash />
+                          {deleteBusyId === user.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -550,6 +649,51 @@ function PasswordManagement() {
                 disabled={saving}
               >
                 {saving ? "Saving..." : "Save & Send to User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================
+          DELETE ALL CONFIRM MODAL
+      ================================================================ */}
+
+      {showDeleteAllModal && (
+        <div
+          className="pwd-mgmt-confirm-overlay"
+          onMouseDown={() => !deletingAll && setShowDeleteAllModal(false)}
+        >
+          <div
+            className="pwd-mgmt-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2>Delete All Users</h2>
+            <p>
+              This permanently deletes every user except Administrator and
+              Super Admin accounts, which are always kept. This cannot be
+              undone.
+            </p>
+
+            <div className="pwd-mgmt-confirm-buttons">
+              <button
+                type="button"
+                className="pwd-mgmt-confirm-cancel-btn"
+                onClick={() => setShowDeleteAllModal(false)}
+                disabled={deletingAll}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="pwd-mgmt-confirm-delete-btn"
+                onClick={deleteAllUsers}
+                disabled={deletingAll}
+              >
+                {deletingAll ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

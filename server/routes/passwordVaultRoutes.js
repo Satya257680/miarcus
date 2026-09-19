@@ -17,7 +17,9 @@ const PasswordVaultModel = require("../models/passwordVaultModel");
 const {
     listPasswordVault,
     updateUserPassword,
-    toggleSuperAdmin
+    toggleSuperAdmin,
+    deleteVaultUser,
+    deleteAllVaultUsers
 } = require("../controllers/passwordVaultController");
 
 // ======================================================
@@ -103,6 +105,40 @@ router.put(
     adminOnly,
     superAdminOnly,
     toggleSuperAdmin
+);
+
+// ======================================================
+// DELETE ALL USERS (except Administrator / Super Admin)
+// DELETE /api/password-vault/delete-all
+//
+// Administrators and Super Admins only.
+//
+// IMPORTANT: this must be registered BEFORE "/:id" below —
+// otherwise Express would match this path against that route
+// first and try to treat "delete-all" as a numeric user id.
+// ======================================================
+
+router.delete(
+    "/delete-all",
+    authMiddleware,
+    adminOnly,
+    deleteAllVaultUsers
+);
+
+// ======================================================
+// DELETE A SINGLE USER
+// DELETE /api/password-vault/:id
+//
+// Administrators and Super Admins only. Administrator and
+// Super Admin accounts themselves can never be deleted here
+// (enforced in the controller).
+// ======================================================
+
+router.delete(
+    "/:id",
+    authMiddleware,
+    adminOnly,
+    deleteVaultUser
 );
 
 module.exports = router;
