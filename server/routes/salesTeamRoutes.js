@@ -16,8 +16,10 @@ const router = express.Router();
 const upload = multer({
   dest: path.resolve(__dirname, "../uploads/"),
 
+  // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
+  // not rejected before the controller ever sees them.
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 100 * 1024 * 1024,
   },
 
   fileFilter: (req, file, cb) => {

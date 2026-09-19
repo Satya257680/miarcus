@@ -2,8 +2,6 @@ const express = require("express");
 
 const router = express.Router();
 
-const multer = require("multer");
-
 // ======================================================
 // MIDDLEWARE
 // ======================================================
@@ -13,13 +11,17 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 // ======================================================
-// MULTER CONFIGURATION
+// BULK UPLOAD MULTER CONFIGURATION
+//
+// Shared "any format" bulk-upload middleware (CSV/XLSX/XLS/PDF/
+// photo/video, disk storage, 100 MB limit) — see
+// middleware/bulkFileUpload.js. Disk storage (rather than the
+// previous in-memory buffer) is required so the shared
+// utils/bulkFileParser.js can read the file the same way it does
+// for every other bulk-upload route in the app.
 // ======================================================
 
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024, files: 1, parts: 10, fields: 10, fieldSize: 1024 * 1024 }
-});
+const upload = require("../middleware/bulkFileUpload");
 
 // ======================================================
 // CONTROLLER

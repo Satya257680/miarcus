@@ -1,7 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const MAX_UPLOAD_SIZE = 25 * 1024 * 1024;
+// Raised from 25 MB to 100 MB so bulk uploads (large CSV/XLSX exports,
+// PDFs, and photos/video attachments) are not rejected by the shared
+// upload pipeline. See also middleware/bulkFileUpload.js, which uses its
+// own limit for the dedicated "any format" bulk-upload routes.
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 
 function readHeader(filePath, length = 16) {
     const fd = fs.openSync(filePath, "r");
@@ -63,7 +67,7 @@ function isValidSignature(filePath, extension) {
 
 function validateOne(file) {
     if (!file || !file.path) return null;
-    if (file.size > MAX_UPLOAD_SIZE) return "Uploaded file exceeds the 25 MB security limit.";
+    if (file.size > MAX_UPLOAD_SIZE) return `Uploaded file exceeds the ${Math.round(MAX_UPLOAD_SIZE / (1024 * 1024))} MB security limit.`;
 
     const ext = path.extname(file.originalname || file.filename || "").toLowerCase();
     if (!isValidSignature(file.path, ext)) {

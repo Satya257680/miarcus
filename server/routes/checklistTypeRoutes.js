@@ -18,7 +18,9 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024, files: 1, parts: 10, fields: 10, fieldSize: 1024 * 1024 }
+    // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
+    // not rejected before the controller ever sees them.
+    limits: { fileSize: 100 * 1024 * 1024, files: 1, parts: 20, fields: 20, fieldSize: 1024 * 1024 }
 });
 
 // ======================================================

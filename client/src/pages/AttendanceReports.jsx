@@ -1,1947 +1,2020 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios, { API_BASE_URL } from "../axiosConfig.js";
+
+
+// ======================================================
+// COMMON COMPONENTS
+// ======================================================
+
+import PageHeader from "../components/common/PageHeader";
+import PageToolbar from "../components/common/PageToolbar";
+import FilterBar from "../components/common/FilterBar";
+import Card from "../components/common/Card";
+import DataTable from "../components/common/DataTable";
+import Pagination from "../components/common/Pagination";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import BulkUploadModal from "../components/common/BulkUploadModal";
+
+
+// ======================================================
+// ICONS
+// ======================================================
 
 import {
-    FaCalendarAlt,
-    FaCamera,
-    FaChartBar,
-    FaCheckCircle,
-    FaDownload,
-    FaMapMarkerAlt,
-    FaSearch,
-    FaTimes,
-    FaTimesCircle,
+    FaEye,
+    FaEdit,
     FaTrash,
-    FaUsers,
+    FaMapMarkerAlt,
+    FaFileExcel
 } from "react-icons/fa";
 
-import ConfirmDialog from "../components/common/ConfirmDialog";
 
-import {
-    deleteAllAttendance,
-    deleteAttendanceRecord,
-    deleteAttendancePhoto,
-    downloadAttendancePhoto,
-    getAttendanceEmployees,
-    getAttendancePhotoAccess,
-    getAttendanceReports,
-    getAttendanceStores,
-} from "../services/attendanceService";
+// ======================================================
+// STYLE
+// ======================================================
 
-import "../styles/pages/Attendance.css";
-import ExportButton from "../components/common/ExportButton";
+import "../styles/ChecklistReports.css";
+import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportTableData } from "../utils/exportUtils.js";
 
-// ======================================================
-// INITIAL FILTERS
-// ======================================================
-
-const initialFilters = {
-    search: "",
-    userId: "",
-    storeId: "",
-    from: "",
-    to: "",
-    status: "",
-    page: 1,
-    pageSize: 10,
-};
-
-const INDIA_TIME_ZONE = "Asia/Kolkata";
 
 // ======================================================
-// DATE / TIME HELPERS
+// API
 // ======================================================
 
-const parseAttendanceDate = (value) => {
-    if (!value) {
-        return null;
-    }
+const API = API_BASE_URL + '/api';
 
-    if (value instanceof Date) {
-        return Number.isNaN(value.getTime())
-            ? null
-            : value;
-    }
-
-    const text = String(value).trim();
-
-    if (!text) {
-        return null;
-    }
-
-    // MySQL DATETIME:
-    // 2026-08-21 10:30:45
-    //
-    // Treat it explicitly as IST.
-    const mysqlMatch = text.match(
-        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?$/
-    );
-
-    if (mysqlMatch) {
-        const [
-            ,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-        ] = mysqlMatch;
-
-        const parsed = new Date(
-            `${year}-${month}-${day}T${hour}:${minute}:${second}+05:30`
-        );
-
-        return Number.isNaN(parsed.getTime())
-            ? null
-            : parsed;
-    }
-
-    const parsed = new Date(text);
-
-    return Number.isNaN(parsed.getTime())
-        ? null
-        : parsed;
-};
-
-// ======================================================
-// FORMAT DATE + TIME
-// ======================================================
-
-const fmt = (value) => {
-    const date = parseAttendanceDate(value);
-
-    if (!date) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-IN", {
-        timeZone: INDIA_TIME_ZONE,
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-    }).format(date);
-};
-
-// ======================================================
-// FORMAT WORK DATE
-// ======================================================
-
-const fmtDate = (value) => {
-    if (!value) {
-        return "—";
-    }
-
-    const text = String(value).slice(0, 10);
-
-    if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(text)
-    ) {
-        return text;
-    }
-
-    const [year, month, day] =
-        text.split("-").map(Number);
-
-    const date = new Date(
-        Date.UTC(
-            year,
-            month - 1,
-            day
-        )
-    );
-
-    return new Intl.DateTimeFormat(
-        "en-IN",
-        {
-            timeZone: INDIA_TIME_ZONE,
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        }
-    ).format(date);
-};
-
-// ======================================================
-// DURATION
-// ======================================================
-
-const duration = (
-    start,
-    end
-) => {
-    const from =
-        parseAttendanceDate(start);
-
-    const to =
-        parseAttendanceDate(end);
-
-    if (!from || !to) {
-        return "—";
-    }
-
-    const minutes = Math.max(
-        0,
-        Math.floor(
-            (to.getTime() -
-                from.getTime()) /
-                60000
-        )
-    );
-
-    return `${Math.floor(
-        minutes / 60
-    )}h ${String(
-        minutes % 60
-    ).padStart(2, "0")}m`;
-};
-
-// ======================================================
-// CSV ESCAPE
-// ======================================================
-
-const csvEscape = (value) =>
-    `"${String(
-        value ?? ""
-    ).replaceAll('"', '""')}"`;
-
-// ======================================================
-// LOCATION URL
-// ======================================================
-
-const getMapsUrl = (
-    latitude,
-    longitude
-) => {
-    if (
-        latitude === null ||
-        latitude === undefined ||
-        longitude === null ||
-        longitude === undefined
-    ) {
-        return "";
-    }
-
-    if (
-        !Number.isFinite(
-            Number(latitude)
-        ) ||
-        !Number.isFinite(
-            Number(longitude)
-        )
-    ) {
-        return "";
-    }
-
-    return (
-        `https://www.google.com/maps/search/?api=1&query=` +
-        `${latitude},${longitude}`
-    );
-};
-
-// ======================================================
-// STATUS CLASS
-// ======================================================
-
-const getStatusClass = (
-    status
-) =>
-    String(
-        status || ""
-    )
-        .toLowerCase()
-        .replace(/\s+/g, "-");
 
 // ======================================================
 // COMPONENT
 // ======================================================
 
-export default function AttendanceReports() {
-    // ==================================================
-    // DATA
-    // ==================================================
+function ChecklistReports() {
 
-    const [data, setData] = useState({
-        rows: [],
-        total: 0,
-        pages: 1,
-        page: 1,
-        summary: {},
-    });
+    // ======================================================
+    // STATES
+    // ======================================================
 
-    const [
-        employees,
-        setEmployees,
-    ] = useState([]);
+    const [reports, setReports] = useState([]);
 
-    const [
-        stores,
-        setStores,
-    ] = useState([]);
+    const [stores, setStores] = useState([]);
 
-    // ==================================================
+    const [users, setUsers] = useState([]);
+
+    const [checklistTypes, setChecklistTypes] = useState([]);
+
+    const [loading, setLoading] = useState(true);
+
+    const [managementExporting, setManagementExporting] = useState(false);
+
+    // ======================================================
+    // SEARCH
+    // ======================================================
+
+    const [search, setSearch] = useState("");
+
+    // ======================================================
     // FILTERS
-    // ==================================================
+    // ======================================================
 
-    const [
-        filters,
-        setFilters,
-    ] = useState({
-        ...initialFilters,
+    const [fromDate, setFromDate] = useState("");
+
+    const [toDate, setToDate] = useState("");
+
+    const [selectedStore, setSelectedStore] = useState("");
+
+    const [selectedChecklist, setSelectedChecklist] = useState("");
+
+    const [selectedEmployee, setSelectedEmployee] = useState("");
+
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const [pageSize, setPageSize] = useState(10);
+
+    // ======================================================
+    // MODALS
+    // ======================================================
+
+    const [showViewModal, setShowViewModal] = useState(false);
+
+    const [showEditModal, setShowEditModal] = useState(false);
+
+    const [showBulkModal, setShowBulkModal] = useState(false);
+
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+
+    // ======================================================
+    // SELECTED DATA
+    // ======================================================
+
+    const [selectedReport, setSelectedReport] = useState(null);
+
+    const [deleteId, setDeleteId] = useState(null);
+
+    const [editingReport, setEditingReport] = useState({
+
+        id: "",
+
+        status: "",
+
+        submission_date: "",
+
+        answer: "",
+
+        remarks: "",
+
+        device: ""
+
     });
 
-    // ==================================================
-    // UI STATE
-    // ==================================================
+    // ======================================================
+// BULK UPLOAD MODAL
+// ======================================================
 
-    const [
-        loading,
-        setLoading,
-    ] = useState(true);
+const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-    const [
-        busy,
-        setBusy,
-    ] = useState(false);
+    // ======================================================
+    // RBAC
+    // ======================================================
 
-    const [
-        error,
-        setError,
-    ] = useState("");
+    const user = JSON.parse(
 
-    const [
-        message,
-        setMessage,
-    ] = useState("");
+        localStorage.getItem("user") || "{}"
 
-    // ==================================================
-    // PHOTO VIEWER
-    // ==================================================
-
-    const [
-        photo,
-        setPhoto,
-    ] = useState(null);
-
-    const [
-        photoLoadingId,
-        setPhotoLoadingId,
-    ] = useState(null);
-
-    useEffect(() => {
-        return () => {
-            if (photo?.url?.startsWith("blob:")) {
-                URL.revokeObjectURL(photo.url);
-            }
-        };
-    }, [photo]);
-
-    // ==================================================
-    // DELETE
-    // ==================================================
-
-    const [
-        deleteId,
-        setDeleteId,
-    ] = useState(null);
-
-    const [
-        showDeleteAll,
-        setShowDeleteAll,
-    ] = useState(false);
-
-    // ==================================================
-    // LOAD REPORTS
-    // ==================================================
-
-    const load = useCallback(
-        async () => {
-            try {
-                setLoading(true);
-                setError("");
-
-                const response =
-                    await getAttendanceReports(
-                        filters
-                    );
-
-                setData({
-                    rows:
-                        response.rows || [],
-
-                    total:
-                        Number(
-                            response.total || 0
-                        ),
-
-                    pages:
-                        Number(
-                            response.pages || 1
-                        ),
-
-                    page:
-                        Number(
-                            response.page ||
-                                filters.page ||
-                                1
-                        ),
-
-                    pageSize:
-                        Number(
-                            response.pageSize ||
-                                filters.pageSize ||
-                                10
-                        ),
-
-                    summary:
-                        response.summary ||
-                        {},
-                });
-            } catch (err) {
-                setError(
-                    err.response?.data
-                        ?.message ||
-                        "Unable to load attendance reports."
-                );
-            } finally {
-                setLoading(false);
-            }
-        },
-        [filters]
     );
 
-    // ==================================================
-    // LOAD EMPLOYEES + STORES
-    // ==================================================
+    const permissions = JSON.parse(
 
-    useEffect(() => {
-        let active = true;
+        localStorage.getItem("permissions") || "{}"
 
-        const loadFilterData =
-            async () => {
-                try {
-                    const [
-                        employeeResponse,
-                        storeResponse,
-                    ] =
-                        await Promise.all([
-                            getAttendanceEmployees(),
-                            getAttendanceStores(),
-                        ]);
+    );
 
-                    if (!active) {
-                        return;
-                    }
+    const isAdmin =
 
-                    setEmployees(
-                        employeeResponse.data ||
-                            []
-                    );
+        user.administrator === true ||
 
-                    setStores(
-                        storeResponse.data ||
-                            []
-                    );
-                } catch {
-                    // Main report remains usable
-                    // even if filter lists fail.
-                }
-            };
+        user.administrator === 1;
 
-        loadFilterData();
+    const permission = isAdmin
 
-        return () => {
-            active = false;
-        };
-    }, []);
+        ? "Full"
 
-    // ==================================================
-    // LOAD WHEN FILTERS CHANGE
-    // ==================================================
+        : permissions["Checklist Reports"] || "None";
 
-    useEffect(() => {
-        const timer =
-            setTimeout(
-                load,
-                filters.search
-                    ? 300
-                    : 0
-            );
+    const canView = [
 
-        return () =>
-            clearTimeout(timer);
-    }, [
-        load,
-        filters.search,
-    ]);
+        "View",
 
-    // ==================================================
-    // SET FILTER
-    // ==================================================
+        "Add",
 
-    const set = (
-        key,
-        value
-    ) => {
-        setFilters(
-            (current) => ({
-                ...current,
+        "Edit",
 
-                [key]: value,
+        "Full"
 
-                page: 1,
-            })
-        );
-    };
+    ].includes(permission);
 
-    // ==================================================
-    // CLEAR FILTERS
-    // ==================================================
+    const canAdd = [
 
-    const clearFilters = () => {
-        setError("");
-        setMessage("");
+        "Add",
 
-        setFilters({
-            ...initialFilters,
-        });
-    };
+        "Edit",
 
-    // ==================================================
-    // ACTIVE FILTER COUNT
-    // ==================================================
+        "Full"
 
-    const activeFilterCount =
-        useMemo(
-            () =>
-                [
-                    filters.search,
-                    filters.userId,
-                    filters.storeId,
-                    filters.from,
-                    filters.to,
-                    filters.status,
-                ].filter(Boolean)
-                    .length,
-            [filters]
-        );
+    ].includes(permission);
 
-    const handlePhotoView = async (row, type) => {
-        const photoPath =
-            type === "check-in"
-                ? row.check_in_photo
-                : row.check_out_photo;
+    const canEdit = [
 
-        if (!photoPath || !row?.id) return;
+        "Edit",
 
-        const loadingKey = `${row.id}-${type}`;
-        setPhotoLoadingId(loadingKey);
-        setError("");
+        "Full"
+
+    ].includes(permission);
+
+    const canDelete =
+
+        permission === "Full";
+            // ======================================================
+    // LOAD DATA
+    // ======================================================
+
+    const loadData = async () => {
 
         try {
-            const url = await getAttendancePhotoAccess(row.id, type);
-            const timestamp = type === "check-in" ? row.check_in_at : row.check_out_at;
-            const latitude = type === "check-in" ? row.check_in_latitude : row.check_out_latitude;
-            const longitude = type === "check-in" ? row.check_in_longitude : row.check_out_longitude;
 
-            setPhoto({
-                url,
-                id: row.id,
-                type,
-                fileName: `attendance-${row.id}-${type}.jpg`,
-                title: `${row.name || "Employee"} · ${type === "check-in" ? "Check-in" : "Check-out"}`,
-                subtitle: `${fmtDate(row.work_date)} · ${fmt(timestamp)}`,
-                name: row.name || "Employee",
-                employeeCode: row.employee_id || "",
-                storeName: row.store_name || "Head Office",
-                storeCode: row.store_code || "",
-                timestamp,
-                latitude,
-                longitude,
-            });
-        } catch (error) {
-            console.error("Unable to load attendance photo:", error);
-            setError(
-                error?.response?.data?.message ||
-                error?.message ||
-                "Unable to load attendance photo."
-            );
-        } finally {
-            setPhotoLoadingId(null);
-        }
-    };
+            setLoading(true);
 
-    const handlePhotoDownload = async () => {
-        if (!photo?.id || !photo?.type) return;
-        try {
-            await downloadAttendancePhoto(photo.id, photo.type, photo.fileName);
-        } catch (error) {
-            console.error("Unable to download attendance photo:", error);
-            setError("Unable to download attendance photo.");
-        }
-    };
+            const results = await Promise.allSettled([
 
-    const handlePhotoDelete = async () => {
-        if (!photo?.id || !photo?.type) return;
+                // Fetch the complete report set once; the shared Pagination
+                // component then handles page navigation locally.
+                axios.get(`${API}/checklist-reports?limit=10000`),
 
-        const confirmed = window.confirm(
-            `Delete this ${photo.type === "check-in" ? "check-in" : "check-out"} photo? This will remove only the photo, not the attendance record.`
-        );
-        if (!confirmed) return;
+                axios.get(`${API}/stores`),
 
-        try {
-            setBusy(true);
-            await deleteAttendancePhoto(photo.id, photo.type);
-            if (photo.url?.startsWith("blob:")) URL.revokeObjectURL(photo.url);
-            setPhoto(null);
-            await load();
-            setMessage("Attendance photo deleted successfully.");
-        } catch (error) {
-            console.error("Unable to delete attendance photo:", error);
-            setError(
-                error?.response?.data?.message ||
-                "Unable to delete attendance photo."
-            );
-        } finally {
-            setBusy(false);
-        }
-    };
+                axios.get(`${API}/checklist-types`),
 
-    // ==================================================
-    // EXPORT CSV
-    // ==================================================
+                axios.get(`${API}/users`)
 
-    const exportCsv =
-        async (format = "csv") => {
-            try {
-                setBusy(true);
-                setError("");
+            ]);
 
-                const all =
-                    await getAttendanceReports(
-                        {
-                            ...filters,
+            const [
 
-                            page: 1,
+                reportRes,
 
-                            pageSize: 10000,
-                        }
-                    );
+                storeRes,
 
-                const header = [
-                    "Date",
-                    "Employee",
-                    "Employee ID",
-                    "Department",
-                    "Designation",
-                    "Store",
-                    "Store Code",
-                    "Status",
-                    "Check-in",
-                    "Check-out",
-                    "Duration",
-                    "Check-in Latitude",
-                    "Check-in Longitude",
-                    "Check-in Accuracy",
-                    "Check-out Latitude",
-                    "Check-out Longitude",
-                    "Check-out Accuracy",
-                    "Remarks",
-                ];
+                checklistRes,
 
-                const rows =
-                    (
-                        all.rows ||
-                        []
-                    ).map(
-                        (row) => [
-                            fmtDate(
-                                row.work_date
-                            ),
+                userRes
 
-                            row.name,
+            ] = results;
 
-                            row.employee_id,
+            // ==========================================
+            // REPORTS
+            // ==========================================
 
-                            row.department,
+            if (reportRes.status === "fulfilled") {
 
-                            row.designation,
+                setReports(
 
-                            row.store_name,
+                    (reportRes.value.data.data || []).map((report) => ({
+                        ...report,
+                        // Checklist Reports always represent completed
+                        // submitted checklist history. Action Point status
+                        // is displayed separately in the Action Status column.
+                        status: "Completed"
+                    }))
 
-                            row.store_code,
-
-                            row.status,
-
-                            fmt(
-                                row.check_in_at
-                            ),
-
-                            fmt(
-                                row.check_out_at
-                            ),
-
-                            duration(
-                                row.check_in_at,
-                                row.check_out_at
-                            ),
-
-                            row.check_in_latitude,
-
-                            row.check_in_longitude,
-
-                            row.check_in_accuracy,
-
-                            row.check_out_latitude,
-
-                            row.check_out_longitude,
-
-                            row.check_out_accuracy,
-
-                            row.check_in_remarks ||
-                                row.check_out_remarks,
-                        ]
-                    );
-
-                await exportTableData({
-                    headers: header,
-                    rows,
-                    filename: `attendance-report-${new Date()
-                        .toISOString()
-                        .slice(0, 10)}`,
-                    format,
-                    title: "Attendance Report",
-                });
-
-                setMessage(
-                    `${
-                        rows.length
-                    } attendance records exported successfully.`
                 );
-            } catch (err) {
-                setError(
-                    err.response?.data
-                        ?.message ||
-                        "Unable to export attendance records."
+
+            } else {
+
+                console.error(
+
+                    "Checklist Reports Error:",
+
+                    reportRes.reason
+
                 );
-            } finally {
-                setBusy(false);
+
+                setReports([]);
+
             }
-        };
 
-    // ==================================================
-    // DELETE SINGLE
-    // ==================================================
+            // ==========================================
+            // STORES
+            // ==========================================
 
-    const confirmDelete =
-        async () => {
-            if (!deleteId) {
+            if (storeRes.status === "fulfilled") {
+
+                setStores(
+
+                    storeRes.value.data.data || []
+
+                );
+
+            } else {
+
+                setStores([]);
+
+            }
+
+            // ==========================================
+            // CHECKLIST TYPES
+            // ==========================================
+
+            if (checklistRes.status === "fulfilled") {
+
+                setChecklistTypes(
+
+                    checklistRes.value.data.data || []
+
+                );
+
+            } else {
+
+                setChecklistTypes([]);
+
+            }
+
+            // ==========================================
+            // USERS
+            // ==========================================
+
+            if (userRes.status === "fulfilled") {
+
+                setUsers(
+
+                    userRes.value.data.data || []
+
+                );
+
+            } else {
+
+                setUsers([]);
+
+            }
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                "Unable to load Checklist Reports."
+
+            );
+
+            setReports([]);
+
+        }
+        finally {
+
+            setLoading(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // SILENT REFRESH
+    //
+    // Same data fetch as loadData(), but never flips `loading` to true —
+    // used for the background window-focus refresh so the page never
+    // swaps out to the "Loading..." screen (and never unmounts an open
+    // modal) just because the browser window regained focus.
+    // ======================================================
+
+    const silentRefresh = async () => {
+
+        try {
+
+            const reportRes = await axios.get(`${API}/checklist-reports?limit=10000`);
+
+            setReports(
+                (reportRes.data.data || []).map((report) => ({
+                    ...report,
+                    status: "Completed"
+                }))
+            );
+
+        } catch (err) {
+
+            // A quiet background refresh failing is not worth interrupting
+            // the user with an alert — the next successful refresh (or a
+            // manual action) will catch the page back up.
+            console.error("Checklist Reports background refresh failed:", err);
+
+        }
+
+    };
+
+    useEffect(() => {
+
+        if (!canView) {
+
+            setLoading(false);
+
+            return;
+
+        }
+
+        loadData();
+
+        // ==========================================================
+        // BACKGROUND REFRESH ON WINDOW FOCUS
+        //
+        // Refresh the list when the user comes back to this tab so
+        // changes made elsewhere are picked up — but do it silently
+        // (no full-page "Loading..." state) and never while a modal is
+        // open. The native file picker used by Bulk Upload repeatedly
+        // blurs/refocuses the browser window while it's open (every
+        // click inside the OS "Open" dialog), and the previous version
+        // of this refresh called the same loadData() used on first
+        // mount, which flips `loading` to true and swaps the whole page
+        // out for a "Loading Checklist Reports..." screen — unmounting
+        // the open Bulk Upload modal (and any other open modal) out
+        // from under the user mid-upload. This kept the page feeling
+        // like it was "repeatedly refreshing" and made it impossible to
+        // stay on the Bulk Upload dialog long enough to pick a file.
+        // ==========================================================
+
+        const handleFocus = () => {
+
+            if (
+                showBulkUpload ||
+                showViewModal ||
+                showEditModal ||
+                showDeleteDialog ||
+                showDeleteAllDialog
+            ) {
                 return;
             }
 
-            try {
-                setBusy(true);
-                setError("");
-
-                await deleteAttendanceRecord(
-                    deleteId
-                );
-
-                setDeleteId(
-                    null
-                );
-
-                setMessage(
-                    "Attendance record deleted successfully."
-                );
-
-                await load();
-            } catch (err) {
-                setError(
-                    err.response?.data
-                        ?.message ||
-                        "Unable to delete attendance record."
-                );
-            } finally {
-                setBusy(false);
-            }
+            silentRefresh();
         };
 
-    // ==================================================
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
+
+    }, [
+        canView,
+        showBulkUpload,
+        showViewModal,
+        showEditModal,
+        showDeleteDialog,
+        showDeleteAllDialog
+    ]);
+
+    // ======================================================
+    // VIEW REPORT
+    // ======================================================
+
+    const handleView = async (id) => {
+
+        if (!canView) return;
+
+        try {
+
+            const res = await axios.get(
+
+                `${API}/checklist-reports/${id}`
+
+            );
+
+            setSelectedReport(
+
+                res.data.data
+
+            );
+
+            setShowViewModal(true);
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                "Unable to load report."
+
+            );
+
+        }
+
+    };
+
+    // ======================================================
+    // EDIT REPORT
+    // ======================================================
+
+    const handleEdit = (row) => {
+
+        if (!canEdit) return;
+
+        setEditingReport({
+
+            id: row.id,
+
+            // Checklist Report history is always completed.
+            status: "Completed",
+
+            submission_date:
+
+                row.submission_date || "",
+
+            answer: row.answer || "",
+
+            remarks: row.remarks || "",
+
+            device: row.device || ""
+
+        });
+
+        setShowEditModal(true);
+
+    };
+
+    // ======================================================
+    // UPDATE REPORT
+    // ======================================================
+
+    const updateReport = async () => {
+
+        try {
+
+            await axios.put(
+
+                `${API}/checklist-reports/${editingReport.id}`,
+
+                {
+
+                    status: "Completed",
+
+                    answer: editingReport.answer,
+
+                    remarks: editingReport.remarks
+
+                }
+
+            );
+
+            alert(
+
+                "Checklist Report updated successfully."
+
+            );
+
+            setShowEditModal(false);
+
+            loadData();
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                err.message ||
+
+                "Unable to update report."
+
+            );
+
+        }
+
+    };
+
+    // ======================================================
+    // DELETE
+    // ======================================================
+
+    const handleDelete = (id) => {
+
+        if (!canDelete) return;
+
+        setDeleteId(id);
+
+        setShowDeleteDialog(true);
+
+    };
+
+    const confirmDelete = async () => {
+
+        try {
+
+            await axios.delete(
+
+                `${API}/checklist-reports/${deleteId}`
+
+            );
+
+            loadData();
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                "Unable to delete report."
+
+            );
+
+        }
+        finally {
+
+            setDeleteId(null);
+
+            setShowDeleteDialog(false);
+
+        }
+
+    };
+
+    // ======================================================
     // DELETE ALL
-    // ==================================================
+    // ======================================================
 
-    const confirmDeleteAll =
-        async () => {
-            try {
-                setBusy(true);
-                setError("");
+    const handleDeleteAll = () => {
 
-                await deleteAllAttendance();
+        if (!canDelete) return;
 
-                setShowDeleteAll(
-                    false
-                );
+        if (!filteredReports.length) {
+            alert("No Checklist Reports found.");
+            return;
+        }
 
-                setMessage(
-                    "All attendance records were deleted successfully."
-                );
+        setShowDeleteAllDialog(true);
+    };
 
-                setFilters({
-                    ...initialFilters,
-                });
+    const confirmDeleteAll = async () => {
 
-                await load();
-            } catch (err) {
-                setError(
-                    err.response?.data
-                        ?.message ||
-                        "Unable to delete attendance records."
-                );
-            } finally {
-                setBusy(false);
-            }
+        try {
+
+            const response = await axios.delete(
+                `${API}/checklist-reports/all`
+            );
+
+            alert(
+                response.data?.message ||
+                "Checklist Reports deleted successfully."
+            );
+
+            setCurrentPage(1);
+            await loadData();
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Unable to delete Checklist Reports."
+            );
+
+        }
+        finally {
+
+            setShowDeleteAllDialog(false);
+
+        }
+
+    };
+
+    // ======================================================
+    // EXPORT CSV
+    // ======================================================
+
+    const handleExport = async (format = "csv") => {
+
+        if (!filteredReports.length) {
+
+            alert("No records found.");
+
+            return;
+
+        }
+
+        const rows = filteredReports.map((r) => ({
+
+            "Submitted At": r.submission_date,
+
+            Status: r.status,
+
+            Checklist: r.checklist_name,
+
+            Store: r.store_name,
+
+            Employee: r.employee_name,
+
+            "Employee ID": r.employee_id || "-",
+
+            Department: r.department_name || "-",
+
+            Question: r.question || "-",
+
+            Answer: r.answer || "-",
+
+            Comment: r.remarks || "-",
+
+            "Action Status": r.action_point_id
+                ? (r.action_point_status || "Open")
+                : "Not Required",
+
+            "Action Taken": r.action_taken || "-",
+
+            "Action Completed At": r.action_point_completed_at || r.completion_date || "-",
+
+            Device: r.device || "-",
+
+            Attachment: r.attachment || "-",
+
+            Latitude: r.latitude || "-",
+
+            Longitude: r.longitude || "-"
+
+        }));
+
+        await exportTableData({
+            headers: Object.keys(rows[0]),
+            rows: rows.map((row) => Object.values(row)),
+            filename: "ChecklistReports",
+            format,
+            title: "Checklist Reports",
+        });
+
+    };
+
+    // ======================================================
+    // MANAGEMENT XLSX EXPORT
+    // Uses the management-provided Store Health Check template.
+    // One worksheet is created per checklist submission.
+    // ======================================================
+
+    const handleManagementExport = async () => {
+
+        if (!canView) return;
+
+        if (!filteredReports.length) {
+            alert("No Checklist Reports found for the selected filters.");
+            return;
+        }
+
+        try {
+            setManagementExporting(true);
+
+            await exportManagementHealthCheck({
+                records: filteredReports,
+                stores,
+                mode: "checklist",
+                filename: "Store_Health_Check_Report.xlsx",
+            });
+        } catch (error) {
+            console.error("MANAGEMENT CHECKLIST EXPORT ERROR:", error);
+            alert(error?.message || "Unable to create Management XLSX export.");
+        } finally {
+            setManagementExporting(false);
+        }
+    };
+
+    // ======================================================
+// BULK UPLOAD CHECKLIST REPORT
+// ======================================================
+
+const uploadChecklistReport = async (file) => {
+
+    if (!canAdd) {
+
+        return {
+
+            success: false,
+
+            message: "You don't have permission."
+
         };
 
-    // ==================================================
-    // SUMMARY
-    // ==================================================
-
-    const summary =
-        data.summary || {};
-
-    // ==================================================
-    // RENDER
-    // ==================================================
-
-    return (
-        <div className="attendance-page">
-            <div className="attendance-shell">
-
-                {/* ==================================================
-                    PAGE HEADER
-                ================================================== */}
-
-                <header className="attendance-hero report-page-hero">
-
-                    <div>
-                        <div className="attendance-eyebrow">
-                            <FaChartBar />
-
-                            Workforce
-                            analytics
-                        </div>
-
-                        <h1>
-                            Attendance
-                            Reports
-                        </h1>
-
-                        <p>
-                            Monitor employee
-                            attendance,
-                            working duration,
-                            location evidence
-                            and attendance
-                            photos from one
-                            professional
-                            workspace.
-                        </p>
-                    </div>
-
-                    <div className="report-header-actions">
-
-                        <button
-                            type="button"
-                            className="attendance-btn secondary"
-                            onClick={
-                                clearFilters
-                            }
-                            disabled={
-                                busy
-                            }
-                        >
-                            <FaTimes />
-
-                            Clear Filters
-
-                            {activeFilterCount >
-                                0 && (
-                                <span className="button-count">
-                                    {
-                                        activeFilterCount
-                                    }
-                                </span>
-                            )}
-                        </button>
-
-                        <button
-                            type="button"
-                            className="attendance-btn secondary danger-outline"
-                            onClick={() =>
-                                setShowDeleteAll(
-                                    true
-                                )
-                            }
-                            disabled={
-                                busy ||
-                                !data.total
-                            }
-                        >
-                            <FaTrash />
-
-                            Delete All
-                        </button>
-
-                        <ExportButton
-                            onExport={exportCsv}
-                            loading={busy}
-                            disabled={!data.total}
-                            text="Export"
-                        />
-
-                    </div>
-
-                </header>
-
-                {/* ==================================================
-                    ALERTS
-                ================================================== */}
-
-                {error && (
-                    <div className="attendance-alert error">
-                        <FaTimesCircle />
-
-                        <span>
-                            {error}
-                        </span>
-                    </div>
-                )}
-
-                {message && (
-                    <div className="attendance-alert success">
-                        <FaCheckCircle />
-
-                        <span>
-                            {message}
-                        </span>
-                    </div>
-                )}
-
-                {/* ==================================================
-                    FILTER PANEL
-                ================================================== */}
-
-                <section className="attendance-card report-filters">
-
-                    <div className="report-section-head">
-
-                        <div>
-                            <span className="card-kicker">
-                                Smart filters
-                            </span>
-
-                            <h2>
-                                Attendance
-                                search
-                            </h2>
-
-                            <p>
-                                Search and
-                                narrow records
-                                without leaving
-                                the report.
-                            </p>
-                        </div>
-
-                        <div className="filter-head-icon">
-                            <FaSearch />
-                        </div>
-
-                    </div>
-
-                    <div className="attendance-report-filter-grid">
-
-                        {/* SEARCH */}
-
-                        <label className="attendance-report-search-field">
-
-                            <span>
-                                Search
-                            </span>
-
-                            <div className="attendance-report-search-control">
-
-                                <FaSearch />
-
-                                <input
-                                    type="search"
-                                    value={
-                                        filters.search
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        set(
-                                            "search",
-                                            event
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    placeholder="Employee, ID, email or store…"
-                                />
-
-                                {filters.search && (
-                                    <button
-                                        type="button"
-                                        className="search-clear"
-                                        onClick={() =>
-                                            set(
-                                                "search",
-                                                ""
-                                            )
-                                        }
-                                        aria-label="Clear search"
-                                    >
-                                        <FaTimes />
-                                    </button>
-                                )}
-
-                            </div>
-
-                        </label>
-
-                        {/* EMPLOYEE */}
-
-                        <label>
-
-                            <span>
-                                Employee
-                            </span>
-
-                            <select
-                                value={
-                                    filters.userId
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    set(
-                                        "userId",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    All employees
-                                </option>
-
-                                {employees.map(
-                                    (
-                                        employee
-                                    ) => (
-                                        <option
-                                            key={
-                                                employee.id
-                                            }
-                                            value={
-                                                employee.id
-                                            }
-                                        >
-                                            {
-                                                employee.name
-                                            }{" "}
-                                            (
-                                            {
-                                                employee.employee_id
-                                            }
-                                            )
-                                        </option>
-                                    )
-                                )}
-                            </select>
-
-                        </label>
-
-                        {/* STORE */}
-
-                        <label>
-
-                            <span>
-                                Store
-                            </span>
-
-                            <select
-                                value={
-                                    filters.storeId
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    set(
-                                        "storeId",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    All stores
-                                </option>
-
-                                {stores.map(
-                                    (
-                                        store
-                                    ) => (
-                                        <option
-                                            key={
-                                                store.id
-                                            }
-                                            value={
-                                                store.id
-                                            }
-                                        >
-                                            {
-                                                store.store_name
-                                            }{" "}
-                                            (
-                                            {
-                                                store.store_code
-                                            }
-                                            )
-                                        </option>
-                                    )
-                                )}
-                            </select>
-
-                        </label>
-
-                        {/* STATUS */}
-
-                        <label>
-
-                            <span>
-                                Status
-                            </span>
-
-                            <select
-                                value={
-                                    filters.status
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    set(
-                                        "status",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    All status
-                                </option>
-
-                                <option value="Present">
-                                    Present
-                                </option>
-
-                                <option value="Completed">
-                                    Completed
-                                </option>
-                            </select>
-
-                        </label>
-
-                        {/* FROM */}
-
-                        <label>
-
-                            <span>
-                                From date
-                            </span>
-
-                            <div className="date-control">
-                                <FaCalendarAlt />
-
-                                <input
-                                    type="date"
-                                    value={
-                                        filters.from
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        set(
-                                            "from",
-                                            event
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                />
-                            </div>
-
-                        </label>
-
-                        {/* TO */}
-
-                        <label>
-
-                            <span>
-                                To date
-                            </span>
-
-                            <div className="date-control">
-                                <FaCalendarAlt />
-
-                                <input
-                                    type="date"
-                                    value={
-                                        filters.to
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        set(
-                                            "to",
-                                            event
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                />
-                            </div>
-
-                        </label>
-
-                    </div>
-
-                </section>
-
-                {/* ==================================================
-                    KPI CARDS
-                ================================================== */}
-
-                <section className="attendance-kpis report-kpis">
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Total records
-                        </span>
-
-                        <strong>
-                            {summary.total ||
-                                0}
-                        </strong>
-
-                        <small>
-                            Matching your
-                            filters
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Present
-                        </span>
-
-                        <strong className="active">
-                            {Number(
-                                summary.present ||
-                                    0
-                            ) +
-                                Number(
-                                    summary.completed ||
-                                        0
-                                )}
-                        </strong>
-
-                        <small>
-                            Employees with
-                            attendance
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Late check-ins
-                        </span>
-
-                        <strong className="ready">
-                            {summary.late ||
-                                0}
-                        </strong>
-
-                        <small>
-                            After 09:15 AM
-                        </small>
-                    </div>
-
-                    <div className="attendance-kpi">
-                        <span>
-                            Open sessions
-                        </span>
-
-                        <strong className="active">
-                            {summary.open_sessions ||
-                                0}
-                        </strong>
-
-                        <small>
-                            Currently checked
-                            in
-                        </small>
-                    </div>
-
-                </section>
-
-                {/* ==================================================
-                    TABLE
-                ================================================== */}
-
-                <section className="attendance-card report-table-card">
-
-                    <div className="report-table-head">
-
-                        <div>
-                            <span className="card-kicker">
-                                Live records
-                            </span>
-
-                            <h2>
-                                Attendance
-                                register
-                            </h2>
-
-                            <p>
-                                Detailed employee
-                                attendance
-                                activity.
-                            </p>
-                        </div>
-
-                        <div className="record-count-wrap">
-
-                            <FaUsers />
-
-                            <span className="record-count">
-                                {data.total ||
-                                    0}{" "}
-                                records
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                    <div className="attendance-table-wrap">
-
-                        <table className="attendance-table attendance-report-table">
-
-                            <thead>
-                                <tr>
-
-                                    <th>
-                                        Employee
-                                    </th>
-
-                                    <th>
-                                        Store
-                                    </th>
-
-                                    <th>
-                                        Date
-                                    </th>
-
-                                    <th>
-                                        Check-in
-                                    </th>
-
-                                    <th>
-                                        Check-out
-                                    </th>
-
-                                    <th>
-                                        Duration
-                                    </th>
-
-                                    <th>
-                                        Status
-                                    </th>
-
-                                    <th>
-                                        Location
-                                    </th>
-
-                                    <th>
-                                        Check-in
-                                        Photo
-                                    </th>
-
-                                    <th>
-                                        Check-out
-                                        Photo
-                                    </th>
-
-                                    <th>
-                                        Actions
-                                    </th>
-
-                                </tr>
-                            </thead>
-
-                            <tbody>
-
-                                {loading && (
-                                    <tr>
-                                        <td
-                                            colSpan="11"
-                                            className="table-state"
-                                        >
-                                            <div className="table-loading">
-                                                <span />
-                                                Loading
-                                                attendance
-                                                records…
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-
-                                {!loading &&
-                                    data.rows
-                                        ?.length >
-                                        0 &&
-                                    data.rows.map(
-                                        (
-                                            row
-                                        ) => {
-
-                                            const checkInPhoto =
-                                                row.check_in_photo || "";
-
-                                            const checkOutPhoto =
-                                                row.check_out_photo || "";
-
-                                            const locationUrl =
-                                                getMapsUrl(
-                                                    row.check_in_latitude,
-                                                    row.check_in_longitude
-                                                );
-
-                                            return (
-                                                <tr
-                                                    key={
-                                                        row.id
-                                                    }
-                                                >
-
-                                                    {/* EMPLOYEE */}
-
-                                                    <td className="employee-cell">
-
-                                                        <div className="employee-primary">
-                                                            {
-                                                                row.name ||
-                                                                    "—"
-                                                            }
-                                                        </div>
-
-                                                        <div className="employee-secondary">
-                                                            {
-                                                                row.employee_id ||
-                                                                    "—"
-                                                            }
-
-                                                            {row.department && (
-                                                                <>
-                                                                    <span>
-                                                                        ·
-                                                                    </span>
-
-                                                                    {
-                                                                        row.department
-                                                                    }
-                                                                </>
-                                                            )}
-                                                        </div>
-
-                                                    </td>
-
-                                                    {/* STORE */}
-
-                                                    <td className="store-cell">
-
-                                                        <strong>
-                                                            {
-                                                                row.store_name ||
-                                                                    "—"
-                                                            }
-                                                        </strong>
-
-                                                        {row.store_code && (
-                                                            <small>
-                                                                {
-                                                                    row.store_code
-                                                                }
-                                                            </small>
-                                                        )}
-
-                                                    </td>
-
-                                                    {/* DATE */}
-
-                                                    <td>
-                                                        <span className="date-value">
-                                                            {fmtDate(
-                                                                row.work_date
-                                                            )}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* CHECK-IN */}
-
-                                                    <td>
-                                                        <span className="time-value">
-                                                            {fmt(
-                                                                row.check_in_at
-                                                            )}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* CHECK-OUT */}
-
-                                                    <td>
-                                                        <span className="time-value">
-                                                            {fmt(
-                                                                row.check_out_at
-                                                            )}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* DURATION */}
-
-                                                    <td>
-                                                        <span className="duration-value">
-                                                            {duration(
-                                                                row.check_in_at,
-                                                                row.check_out_at
-                                                            )}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* STATUS */}
-
-                                                    <td>
-
-                                                        <span
-                                                            className={`attendance-status ${getStatusClass(
-                                                                row.status
-                                                            )}`}
-                                                        >
-                                                            <i />
-
-                                                            {
-                                                                row.status ||
-                                                                    "Unknown"
-                                                            }
-                                                        </span>
-
-                                                    </td>
-
-                                                    {/* LOCATION */}
-
-                                                    <td>
-
-                                                        {locationUrl ? (
-                                                            <a
-                                                                className="report-action-link"
-                                                                href={
-                                                                    locationUrl
-                                                                }
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                            >
-                                                                <FaMapMarkerAlt />
-
-                                                                View
-                                                            </a>
-                                                        ) : (
-                                                            <span className="table-muted">
-                                                                —
-                                                            </span>
-                                                        )}
-
-                                                    </td>
-
-                                                    {/* CHECK-IN PHOTO */}
-
-                                                    <td>
-
-                                                        {checkInPhoto ? (
-                                                            <button
-                                                                type="button"
-                                                                className="report-photo-button"
-                                                                disabled={
-                                                                    photoLoadingId === `${row.id}-check-in`
-                                                                }
-                                                                onClick={() =>
-                                                                    handlePhotoView(
-                                                                        row,
-                                                                        "check-in"
-                                                                    )
-                                                                }
-                                                            >
-                                                                <FaCamera />
-
-                                                                {photoLoadingId === `${row.id}-check-in`
-                                                                    ? "Loading…"
-                                                                    : "View"}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="table-muted">
-                                                                —
-                                                            </span>
-                                                        )}
-
-                                                    </td>
-
-                                                    {/* CHECK-OUT PHOTO */}
-
-                                                    <td>
-
-                                                        {checkOutPhoto ? (
-                                                            <button
-                                                                type="button"
-                                                                className="report-photo-button"
-                                                                disabled={
-                                                                    photoLoadingId === `${row.id}-check-out`
-                                                                }
-                                                                onClick={() =>
-                                                                    handlePhotoView(
-                                                                        row,
-                                                                        "check-out"
-                                                                    )
-                                                                }
-                                                            >
-                                                                <FaCamera />
-
-                                                                {photoLoadingId === `${row.id}-check-out`
-                                                                    ? "Loading…"
-                                                                    : "View"}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="table-muted">
-                                                                —
-                                                            </span>
-                                                        )}
-
-                                                    </td>
-
-                                                    {/* DELETE */}
-
-                                                    <td>
-
-                                                        <button
-                                                            type="button"
-                                                            className="report-delete-button"
-                                                            onClick={() =>
-                                                                setDeleteId(
-                                                                    row.id
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                busy
-                                                            }
-                                                            title="Delete attendance record"
-                                                        >
-                                                            <FaTrash />
-
-                                                            Delete
-                                                        </button>
-
-                                                    </td>
-
-                                                </tr>
-                                            );
-                                        }
-                                    )}
-
-                                {!loading &&
-                                    (
-                                        !data.rows ||
-                                        data.rows.length ===
-                                            0
-                                    ) && (
-                                        <tr>
-                                            <td
-                                                colSpan="11"
-                                                className="table-state"
-                                            >
-                                                <div className="empty-report">
-
-                                                    <div>
-                                                        <FaSearch />
-                                                    </div>
-
-                                                    <strong>
-                                                        No attendance
-                                                        records found
-                                                    </strong>
-
-                                                    <span>
-                                                        Try changing
-                                                        your search
-                                                        or filters.
-                                                    </span>
-
-                                                    {activeFilterCount >
-                                                        0 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={
-                                                                clearFilters
-                                                            }
-                                                        >
-                                                            Clear
-                                                            filters
-                                                        </button>
-                                                    )}
-
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                    {/* ==================================================
-                        PAGINATION
-                    ================================================== */}
-
-                    <div className="report-pagination">
-
-                        <div className="pagination-summary">
-
-                            Showing page{" "}
-                            <strong>
-                                {data.page ||
-                                    1}
-                            </strong>{" "}
-                            of{" "}
-                            <strong>
-                                {data.pages ||
-                                    1}
-                            </strong>
-
-                        </div>
-
-                        <div className="pagination-buttons">
-
-                            <button
-                                type="button"
-                                disabled={
-                                    (data.page ||
-                                        1) <=
-                                        1 ||
-                                    busy
-                                }
-                                onClick={() =>
-                                    setFilters(
-                                        (
-                                            current
-                                        ) => ({
-                                            ...current,
-
-                                            page:
-                                                Math.max(
-                                                    1,
-                                                    current.page -
-                                                        1
-                                                ),
-                                        })
-                                    )
-                                }
-                            >
-                                Previous
-                            </button>
-
-                            <span className="pagination-current">
-                                {data.page ||
-                                    1}
-                            </span>
-
-                            <button
-                                type="button"
-                                disabled={
-                                    (data.page ||
-                                        1) >=
-                                        (data.pages ||
-                                            1) ||
-                                    busy
-                                }
-                                onClick={() =>
-                                    setFilters(
-                                        (
-                                            current
-                                        ) => ({
-                                            ...current,
-
-                                            page:
-                                                current.page +
-                                                1,
-                                        })
-                                    )
-                                }
-                            >
-                                Next
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </section>
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    const token = localStorage.getItem("token");
+
+    try {
+
+        const response = await axios.post(
+
+            `${API}/checklist-reports/bulk-upload`,
+
+            formData,
+
+            {
+
+                headers: {
+
+                    Authorization: `Bearer ${token}`
+
+                }
+
+            }
+
+        );
+
+        return response.data;
+
+    } catch (err) {
+
+        console.error(err);
+
+        return {
+
+            success: false,
+
+            message:
+
+                err.response?.data?.message ||
+
+                "Bulk upload failed.",
+
+            errors: err.response?.data?.errors || err.response?.data?.data?.errors || [],
+
+            warnings: err.response?.data?.warnings || err.response?.data?.data?.warnings || []
+
+        };
+
+    }
+
+};
+    // ======================================================
+    // CLEAR FILTERS
+    // ======================================================
+
+    const handleClearFilters = () => {
+
+        setSearch("");
+
+        setFromDate("");
+
+        setToDate("");
+
+        setSelectedStore("");
+
+        setSelectedChecklist("");
+
+        setSelectedEmployee("");
+
+        setCurrentPage(1);
+
+    };
+        // ======================================================
+    // FILTER REPORTS
+    // ======================================================
+
+    const filteredReports = useMemo(() => {
+
+        return reports.filter((item) => {
+
+            // ==========================================
+            // SEARCH
+            // ==========================================
+
+            const searchMatch =
+
+                !search ||
+
+                item.store_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.checklist_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.employee_name
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.question
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase()) ||
+
+                item.answer
+                    ?.toLowerCase()
+                    .includes(search.toLowerCase());
+
+            // ==========================================
+            // STORE
+            // ==========================================
+
+            const storeMatch =
+
+                !selectedStore ||
+
+                item.store_id == selectedStore;
+
+            // ==========================================
+            // CHECKLIST
+            // ==========================================
+
+            const checklistMatch =
+
+                !selectedChecklist ||
+
+                item.checklist_type_id == selectedChecklist;
+
+            // ==========================================
+            // EMPLOYEE
+            // ==========================================
+
+            const employeeMatch =
+
+                !selectedEmployee ||
+
+                item.submitted_by == selectedEmployee;
+
+            // ==========================================
+            // DATE FILTER
+            // ==========================================
+
+            const fromMatch =
+
+                !fromDate ||
+
+                new Date(item.submission_date) >=
+
+                new Date(fromDate);
+
+            const toMatch =
+
+                !toDate ||
+
+                new Date(item.submission_date) <=
+
+                new Date(toDate + "T23:59:59");
+
+            return (
+
+                searchMatch &&
+
+                storeMatch &&
+
+                checklistMatch &&
+
+                employeeMatch &&
+
+                fromMatch &&
+
+                toMatch
+
+            );
+
+        });
+
+    }, [
+
+        reports,
+
+        search,
+
+        selectedStore,
+
+        selectedChecklist,
+
+        selectedEmployee,
+
+        fromDate,
+
+        toDate
+
+    ]);
+
+    // ======================================================
+    // PAGINATION
+    // ======================================================
+
+    const totalRecords = filteredReports.length;
+
+    const totalPages = Math.ceil(
+
+        totalRecords / pageSize
+
+    );
+
+    const startIndex =
+
+        (currentPage - 1) * pageSize;
+
+    const endIndex =
+
+        startIndex + pageSize;
+
+    const currentReports =
+
+        filteredReports.slice(
+
+            startIndex,
+
+            endIndex
+
+        );
+
+    useEffect(() => {
+
+        setCurrentPage(1);
+
+    }, [
+
+        pageSize,
+
+        search,
+
+        selectedStore,
+
+        selectedChecklist,
+
+        selectedEmployee,
+
+        fromDate,
+
+        toDate
+
+    ]);
+
+
+
+    useEffect(() => {
+        const pages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+        if (currentPage > pages) setCurrentPage(pages);
+    }, [filteredReports.length, pageSize, currentPage]);
+
+    // ======================================================
+    // FORMAT DATE
+    // ======================================================
+
+    const formatDate = (value) => {
+
+        if (!value) return "-";
+
+        return new Date(value).toLocaleString(
+
+            "en-GB"
+
+        );
+
+    };
+
+    // ======================================================
+    // ACCESS DENIED
+    // ======================================================
+
+    if (!canView) {
+
+        return (
+
+            <div className="no-permission">
+
+                <h2>Access Denied</h2>
+
+                <p>
+
+                    You don't have permission to view
+                    Checklist Reports.
+
+                </p>
 
             </div>
 
-            {/* ======================================================
-                FULL-SCREEN ATTENDANCE PHOTO VIEWER
-            ====================================================== */}
+        );
 
-            {photo && (
-                <div
-                    className="attendance-photo-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    onClick={() => setPhoto(null)}
+    }
+
+    // ======================================================
+    // LOADING
+    // ======================================================
+
+    if (loading) {
+
+        return (
+
+            <div className="reports-loading">
+
+                Loading Checklist Reports...
+
+            </div>
+
+        );
+
+    };
+
+    // ======================================================
+    // TABLE COLUMNS
+    // ======================================================
+        const columns = [
+
+        // ==================================================
+        // SUBMISSION DETAILS
+        // ==================================================
+
+        {
+            key: "submission_date",
+            title: "Submitted At",
+            render: (row) => formatDate(row.submission_date)
+        },
+
+        {
+            key: "status",
+            title: "Status",
+            render: (row) => (
+                <span
+                    className={`status-badge ${(
+                        row.status || "Pending"
+                    )
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
                 >
-                    <button
-                        type="button"
-                        className="attendance-photo-close"
-                        onClick={() => setPhoto(null)}
-                        aria-label="Close photo"
-                    >
-                        <FaTimes />
-                    </button>
+                    {row.status || "Pending"}
+                </span>
+            )
+        },
 
-                    <div
-                        className="attendance-photo-fullscreen"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="attendance-photo-image-area">
-                            <img
-                                src={photo.url}
-                                alt={photo.title}
-                                className="attendance-photo-full-image"
-                            />
-                        </div>
+        {
+            key: "checklist_name",
+            title: "Checklist",
+            render: (row) => row.checklist_name || "-"
+        },
 
-                        <div className="attendance-photo-info-bar">
-                            <div className="attendance-photo-info">
-                                <span className="attendance-photo-kicker">Attendance</span>
-                                <h2>Attendance attachment</h2>
-                                <p>
-                                    Uploaded by <strong>{photo.name}</strong>
-                                    {photo.employeeCode ? ` (${photo.employeeCode})` : ""}
-                                    {photo.timestamp ? ` · ${fmt(photo.timestamp)}` : ""}
-                                </p>
-                                <div className="attendance-photo-location">
-                                    <FaMapMarkerAlt />
-                                    <strong>{photo.storeName}</strong>
-                                    {photo.storeCode ? <span>{photo.storeCode}</span> : null}
-                                    {photo.latitude !== null && photo.longitude !== null ? (
-                                        <span>{Number(photo.latitude).toFixed(6)}, {Number(photo.longitude).toFixed(6)}</span>
-                                    ) : null}
-                                </div>
-                            </div>
+        {
+            key: "store_name",
+            title: "Store",
+            render: (row) => row.store_name || "-"
+        },
 
-                            <div className="attendance-photo-actions">
-                                <button
-                                    type="button"
-                                    className="attendance-photo-download"
-                                    onClick={handlePhotoDownload}
-                                    disabled={busy}
-                                >
-                                    <FaDownload />
-                                    Download
-                                </button>
-                                <button
-                                    type="button"
-                                    className="attendance-photo-delete"
-                                    onClick={handlePhotoDelete}
-                                    disabled={busy}
-                                >
-                                    <FaTrash />
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+        {
+            key: "employee_name",
+            title: "Employee",
+            render: (row) => row.employee_name || "-"
+        },
+
+        {
+            key: "employee_id",
+            title: "Employee ID",
+            render: (row) => row.employee_id || "-"
+        },
+
+        // ==================================================
+        // CHECKLIST DETAILS
+        // ==================================================
+
+        {
+            key: "department_name",
+            title: "Department",
+            render: (row) => row.department_name || "-"
+        },
+
+        {
+            key: "question",
+            title: "Question",
+            render: (row) => (
+                <div className="question-cell">
+                    {row.question || "-"}
                 </div>
+            )
+        },
+
+        {
+            key: "answer",
+            title: "Answer",
+            render: (row) => row.answer || "-"
+        },
+
+        {
+            key: "remarks",
+            title: "Comment",
+            render: (row) => (
+                <div className="remarks-cell">
+                    {row.remarks || "-"}
+                </div>
+            )
+        },
+
+        // ==================================================
+        // ACTION POINT STATUS / COMPLETION
+        // ==================================================
+
+        {
+            key: "action_point_status",
+            title: "Action Status",
+            render: (row) => {
+                if (!row.action_point_id) {
+                    return <span className="status-badge">Not Required</span>;
+                }
+
+                const status = row.action_point_status || "Open";
+                return (
+                    <span
+                        className={`status-badge ${String(status)
+                            .toLowerCase()
+                            .replace(/\s+/g, "-")}`}
+                    >
+                        {status}
+                    </span>
+                );
+            }
+        },
+
+        {
+            key: "action_taken",
+            title: "Action Taken",
+            render: (row) => row.action_taken || "-"
+        },
+
+        {
+            key: "action_point_comment",
+            title: "Action Point Comment",
+            render: (row) => (
+                <div className="remarks-cell">
+                    {row.action_point_comment || "-"}
+                </div>
+            )
+        },
+
+        {
+            key: "action_point_completed_at",
+            title: "Action Completed At",
+            render: (row) =>
+                row.action_point_completed_at || row.completion_date
+                    ? formatDate(row.action_point_completed_at || row.completion_date)
+                    : "-"
+        },
+
+        {
+            key: "action_point_sla_minutes",
+            title: "SLA",
+            render: (row) => {
+                const minutes = Number(row.action_point_sla_minutes || 0);
+                if (!row.action_point_id || minutes <= 0) return "No SLA";
+                const days = Math.floor(minutes / 1440);
+                const hours = Math.floor((minutes % 1440) / 60);
+                const mins = minutes % 60;
+                return `${days}d ${String(hours).padStart(2, "0")}h ${String(mins).padStart(2, "0")}m`;
+            }
+        },
+
+       // ==================================================
+// ATTACHMENT & DEVICE
+// ==================================================
+
+{
+    key: "attachment",
+    title: "Attachment",
+    minWidth: "120px",
+    align: "center",
+
+    render: (row) => (
+
+        row.attachment ? (
+
+            <a
+                href={`${API_BASE_URL}/${row.attachment}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="table-link"
+            >
+                View
+            </a>
+
+        ) : (
+
+            "-"
+
+        )
+
+    )
+},
+
+{
+    key: "device",
+    title: "Device",
+    minWidth: "220px",   // Reduce width
+    render: (row) => (
+        <div className="device-cell">
+            {row.device || "-"}
+        </div>
+    )
+},
+
+        // ==================================================
+        // LOCATION
+        // ==================================================
+
+        {
+            key: "latitude",
+            title: "Latitude",
+            render: (row) => row.latitude || "-"
+        },
+
+        {
+            key: "longitude",
+            title: "Longitude",
+            render: (row) => row.longitude || "-"
+        },
+
+        {
+            key: "location",
+            title: "Geo Location",
+            render: (row) => (
+
+                row.latitude && row.longitude ? (
+
+                    <a
+                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="table-link"
+                    >
+                        <FaMapMarkerAlt />
+
+                        {" "}View Map
+                    </a>
+
+                ) : (
+
+                    "-"
+
+                )
+
+            )
+        },
+
+      {
+    key: "actions",
+    title: "Actions",
+    minWidth: "360px",
+    width: "360px",
+    align: "center",
+
+    render: (row) => (
+
+        <div className="action-buttons">
+
+            {canView && (
+
+                <button
+                    type="button"
+                    className="view-btn"
+                    onClick={() => handleView(row.id)}
+                >
+                    <FaEye />
+                    <span>View</span>
+                </button>
+
             )}
 
-            {/* ======================================================
-                DELETE SINGLE
-            ====================================================== */}
+            {canEdit && (
 
-            <ConfirmDialog
-                open={Boolean(
-                    deleteId
-                )}
-                title="Delete Attendance Record"
-                message="Are you sure you want to delete this attendance record? This action cannot be undone."
-                confirmText="Delete"
-                cancelText="Cancel"
-                loading={busy}
-                confirmVariant="danger"
-                onConfirm={
-                    confirmDelete
-                }
-                onCancel={() =>
-                    setDeleteId(
-                        null
-                    )
-                }
-            />
+                <button
+                    type="button"
+                    className="edit-btn"
+                    onClick={() => handleEdit(row)}
+                >
+                    <FaEdit />
+                    <span>Edit</span>
+                </button>
 
-            {/* ======================================================
-                DELETE ALL
-            ====================================================== */}
+            )}
 
-            <ConfirmDialog
-                open={
-                    showDeleteAll
-                }
-                title="Delete All Attendance"
-                message="Are you sure you want to delete ALL attendance records? This will permanently remove the attendance history and stored attendance photos."
-                confirmText="Delete All"
-                cancelText="Cancel"
-                loading={busy}
-                confirmVariant="danger"
-                onConfirm={
-                    confirmDeleteAll
-                }
-                onCancel={() =>
-                    setShowDeleteAll(
-                        false
-                    )
-                }
-            />
+            {canDelete && (
+
+                <button
+                    type="button"
+                    className="delete-btn"
+                    onClick={() => handleDelete(row.id)}
+                >
+                    <FaTrash />
+                    <span>Delete</span>
+                </button>
+
+            )}
 
         </div>
-    );
+
+    )
+
 }
+    ];
+        return (
+
+        <div className="checklist-reports-page">
+
+            {/* ======================================================
+                PAGE HEADER
+            ====================================================== */}
+
+            <PageHeader
+                title="Checklist Reports"
+                subtitle="Manage submitted checklist reports."
+            />
+
+            {/* ======================================================
+                PAGE TOOLBAR
+            ====================================================== */}
+<PageToolbar
+
+    search={search}
+
+    setSearch={setSearch}
+
+    placeholder="Search Checklist Reports..."
+
+    showAdd={false}
+
+    showExport={canView}
+
+    onExport={handleExport}
+
+    showBulkUpload={canAdd}
+
+    bulkUploadText="Bulk Upload"
+
+    onBulkUpload={() => setShowBulkUpload(true)}
+
+    showDeleteAll={canDelete}
+
+    onDeleteAll={handleDeleteAll}
+
+>
+    {canView && (
+        <button
+            type="button"
+            className="toolbar-btn export-btn"
+            onClick={handleManagementExport}
+            disabled={managementExporting}
+            title="Export using the management Store Health Check format"
+        >
+            <FaFileExcel />
+            {managementExporting ? "Creating XLSX..." : "Management XLSX"}
+        </button>
+    )}
+
+</PageToolbar>
+            {/* ======================================================
+                FILTER BAR
+            ====================================================== */}
+
+            <FilterBar
+                onClear={handleClearFilters}
+            >
+
+                <div className="filter-group">
+
+                    <label>From Date</label>
+
+                    <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) =>
+                            setFromDate(e.target.value)
+                        }
+                    />
+
+                </div>
+
+                <div className="filter-group">
+
+                    <label>To Date</label>
+
+                    <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) =>
+                            setToDate(e.target.value)
+                        }
+                    />
+
+                </div>
+
+                <div className="filter-group">
+
+                    <label>Checklist Type</label>
+
+                    <select
+                        value={selectedChecklist}
+                        onChange={(e) =>
+                            setSelectedChecklist(e.target.value)
+                        }
+                    >
+
+                        <option value="">
+                            All Checklist Types
+                        </option>
+
+                        {checklistTypes.map((item) => (
+
+                            <option
+                                key={item.id}
+                                value={item.id}
+                            >
+
+                                {item.checklist_name}
+
+                            </option>
+
+                        ))}
+
+                    </select>
+
+                </div>
+
+                <div className="filter-group">
+
+                    <label>Store</label>
+
+                    <select
+                        value={selectedStore}
+                        onChange={(e) =>
+                            setSelectedStore(e.target.value)
+                        }
+                    >
+
+                        <option value="">
+                            All Stores
+                        </option>
+
+                        {stores.map((item) => (
+
+                            <option
+                                key={item.id}
+                                value={item.id}
+                            >
+
+                                {item.store_name}
+
+                            </option>
+
+                        ))}
+
+                    </select>
+
+                </div>
+
+                <div className="filter-group">
+
+                    <label>Employee</label>
+
+                    <select
+                        value={selectedEmployee}
+                        onChange={(e) =>
+                            setSelectedEmployee(e.target.value)
+                        }
+                    >
+
+                        <option value="">
+                            All Employees
+                        </option>
+
+                        {users.map((item) => (
+
+                            <option
+                                key={item.id}
+                                value={item.id}
+                            >
+
+                                {item.name}
+
+                            </option>
+
+                        ))}
+
+                    </select>
+
+                </div>
+
+            </FilterBar>
+
+            {/* ======================================================
+                CARD
+            ====================================================== */}
+
+            <Card
+                title="Checklist Report List"
+            >
+
+                <DataTable
+
+                    columns={columns}
+
+                    data={currentReports}
+
+                    loading={loading}
+
+                    emptyTitle="No Reports Found"
+
+                    emptyDescription="There are no Checklist Reports available."
+
+                />
+
+                <Pagination
+
+                    currentPage={currentPage}
+
+                    totalPages={totalPages}
+
+                    totalRecords={totalRecords}
+
+                    pageSize={pageSize}
+
+                    onPageChange={setCurrentPage}
+
+                    onPageSizeChange={(size) => {
+
+                        setPageSize(size);
+
+                        setCurrentPage(1);
+
+                    }}
+
+                />
+
+            </Card>
+            
+ {/* ======================================================
+    BULK UPLOAD MODAL
+====================================================== */}
+
+<BulkUploadModal
+
+    isOpen={showBulkUpload}
+
+    onClose={() => setShowBulkUpload(false)}
+
+ onSuccess={async () => {
+
+    // Silent — a full loadData() flips `loading` to true, which would
+    // swap this page out for the "Loading..." screen and unmount this
+    // very modal while it may still be showing per-row bulk-upload
+    // results the user hasn't dismissed yet.
+    await silentRefresh();
+
+}}
+
+    uploadFunction={uploadChecklistReport}
+
+    title="Bulk Upload Checklist Reports"
+
+    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm"
+
+    maxFileSize={100 * 1024 * 1024}
+
+    sampleFile="/samples/checklist-report-sample.xlsx"
+
+/>
+
+            {/* ======================================================
+                DELETE CONFIRMATION
+            ====================================================== */}
+
+            <ConfirmDialog
+                open={showDeleteDialog}
+                title="Delete Checklist Report"
+                message="Are you sure you want to delete this Checklist Report?"
+                confirmText="Delete"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                onConfirm={confirmDelete}
+                onCancel={() => {
+                    setDeleteId(null);
+                    setShowDeleteDialog(false);
+                }}
+            />
+
+            <ConfirmDialog
+                open={showDeleteAllDialog}
+                title="Delete All Checklist Reports"
+                message="Are you sure you want to delete all available Checklist Reports? Active Action Points will be preserved."
+                confirmText="Delete All"
+                cancelText="Cancel"
+                confirmVariant="danger"
+                onConfirm={confirmDeleteAll}
+                onCancel={() => setShowDeleteAllDialog(false)}
+            />
+
+            {/* ======================================================
+                VIEW MODAL
+            ======================================================}
+
+            {showViewModal && selectedReport && (
+
+                <div className="modal-overlay">
+
+                    <div className="report-modal">
+
+                        <div className="modal-header">
+
+                            <h3>
+                                Checklist Report Details
+                            </h3>
+
+                            <button
+                                className="close-btn"
+                                onClick={() =>
+                                    setShowViewModal(false)
+                                }
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        <div className="modal-body">
+
+                            <div className="detail-grid">
+
+                                <div>
+                                    <strong>Checklist</strong>
+                                    <p>
+                                        {selectedReport.checklist_name || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Store</strong>
+                                    <p>
+                                        {selectedReport.store_name || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Employee</strong>
+                                    <p>
+                                        {selectedReport.employee_name || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Employee ID</strong>
+                                    <p>
+                                        {selectedReport.employee_id || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Status</strong>
+                                    <p>
+                                        {selectedReport.status || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Submission Date</strong>
+                                    <p>
+                                        {formatDate(
+                                            selectedReport.submission_date
+                                        )}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Department</strong>
+                                    <p>
+                                        {selectedReport.department_name || "-"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <strong>Device</strong>
+                                    <p>
+                                        {selectedReport.device || "-"}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <hr />
+
+                            <div className="question-section">
+
+                                <h4>Question</h4>
+
+                                <p>
+                                    {selectedReport.question || "-"}
+                                </p>
+
+                                <h4>Answer</h4>
+
+                                <p>
+                                    {selectedReport.answer || "-"}
+                                </p>
+
+                                <h4>Comment</h4>
+
+                                <p>
+                                    {selectedReport.remarks || "-"}
+                                </p>
+
+                                {selectedReport.action_point_id && (
+                                    <>
+                                        <h4>Action Point Comment</h4>
+                                        <p>
+                                            {selectedReport.action_point_comment || "-"}
+                                        </p>
+                                        <h4>Action Point Remarks</h4>
+                                        <p>
+                                            {selectedReport.action_point_remarks || "-"}
+                                        </p>
+                                    </>
+                                )}
+
+                                <h4>Attachment</h4>
+
+                                <p>
+
+                                    {selectedReport.attachment ? (
+
+                                        <a
+                                            href={`${API_BASE_URL}/${selectedReport.attachment}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="table-link"
+                                        >
+                                            View Attachment
+                                        </a>
+
+                                    ) : (
+
+                                        "-"
+
+                                    )}
+
+                                </p>
+
+                            </div>
+
+                            <div className="map-section">
+
+                                {selectedReport.latitude &&
+                                selectedReport.longitude ? (
+
+                                    <a
+                                        href={`https://www.google.com/maps?q=${selectedReport.latitude},${selectedReport.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="map-link"
+                                    >
+                                        <FaMapMarkerAlt />
+
+                                        {" "}Open Location in Google Maps
+                                    </a>
+
+                                ) : (
+
+                                    <p>
+                                        Location Not Available
+                                    </p>
+
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            )}
+                        {/* ======================================================
+                EDIT MODAL
+            ====================================================== */}
+
+            {showEditModal && (
+
+                <div className="modal-overlay">
+
+                    <div className="report-modal">
+
+                        {/* ==========================================
+                            HEADER
+                        ========================================== */}
+
+                        <div className="modal-header">
+
+                            <h3>Edit Checklist Report</h3>
+
+                            <button
+                                className="close-btn"
+                                onClick={() =>
+                                    setShowEditModal(false)
+                                }
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        {/* ==========================================
+                            BODY
+                        ========================================== */}
+
+                        <div className="modal-body">
+
+                            <div className="filter-group">
+
+                                <label>Status</label>
+
+                                <select
+                                    value="Completed"
+                                    disabled
+                                    aria-label="Checklist report status"
+                                >
+                                    <option value="Completed">
+                                        Completed
+                                    </option>
+                                </select>
+
+                            </div>
+
+                            <br />
+
+                            <div className="filter-group">
+
+                                <label>Answer</label>
+
+                                <input
+                                    type="text"
+                                    value={editingReport.answer}
+                                    onChange={(e) =>
+                                        setEditingReport({
+                                            ...editingReport,
+                                            answer: e.target.value
+                                        })
+                                    }
+                                />
+
+                            </div>
+
+                            <br />
+
+                            <div className="filter-group">
+
+                                <label>Remarks</label>
+
+                                <textarea
+                                    rows={5}
+                                    value={editingReport.remarks}
+                                    onChange={(e) =>
+                                        setEditingReport({
+                                            ...editingReport,
+                                            remarks: e.target.value
+                                        })
+                                    }
+                                />
+
+                            </div>
+
+                            <br />
+
+                            <div className="filter-group">
+
+                                <label>Device</label>
+
+                                <input
+                                    type="text"
+                                    value={editingReport.device}
+                                    onChange={(e) =>
+                                        setEditingReport({
+                                            ...editingReport,
+                                            device: e.target.value
+                                        })
+                                    }
+                                />
+
+                            </div>
+
+                            {/* ==========================================
+                                ACTIONS
+                            ========================================== */}
+
+                            <div className="modal-actions">
+
+                                <button
+                                    className="cancel-btn"
+                                    onClick={() =>
+                                        setShowEditModal(false)
+                                    }
+                                >
+                                    Cancel
+                                </button>
+
+                                {canEdit && (
+
+                                    <button
+                                        className="upload-btn"
+                                        onClick={updateReport}
+                                    >
+                                        Save Changes
+                                    </button>
+
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            )}
+
+        </div>
+
+    );
+
+}
+
+export default ChecklistReports;

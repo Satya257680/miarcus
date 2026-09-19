@@ -23,8 +23,10 @@ const upload = multer({
   ),
 
   limits: {
+    // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
+    // not rejected before the controller ever sees them.
     fileSize:
-      10 * 1024 * 1024, // 10 MB
+      100 * 1024 * 1024, // 100 MB
   },
 
   fileFilter: (

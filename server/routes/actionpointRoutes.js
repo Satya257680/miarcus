@@ -7,6 +7,12 @@ const router = express.Router();
 // ======================================================
 
 const upload = require("../middleware/upload");
+// Shared "any format" bulk-upload middleware (CSV/XLSX/XLS/PDF/photo/
+// video, disk storage, 100 MB limit) — used only for the dedicated
+// bulk-upload route below so the shared utils/bulkFileParser.js can
+// read the uploaded file the same way every other bulk-upload route
+// in the app does.
+const bulkFileUpload = require("../middleware/bulkFileUpload");
 const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -111,7 +117,7 @@ router.post(
         "Action Points",
         "Add"
     ),
-    upload.single("file"),
+    bulkFileUpload.single("file"),
     bulkUploadActionPoints
 );
 

@@ -328,6 +328,139 @@
 }
 
 /* ==========================================================
+   RESULT — per-row created/skipped detail after an upload,
+   shown inline instead of a single alert() popup.
+========================================================== */
+
+.bulk-result{
+
+    margin-top:18px;
+
+    padding:14px 16px;
+
+    border-radius:8px;
+
+    border:1px solid #dbeafe;
+
+    background:#f8fbff;
+
+    max-height:260px;
+
+    overflow-y:auto;
+
+}
+
+.bulk-result-success{
+
+    border-color:#bbf7d0;
+
+    background:#f0fdf4;
+
+}
+
+.bulk-result-error{
+
+    border-color:#fecaca;
+
+    background:#fef2f2;
+
+}
+
+.bulk-result-summary{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:9px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    color:#111827;
+
+}
+
+.bulk-result-success .bulk-result-summary svg{
+
+    color:#16a34a;
+
+    flex-shrink:0;
+
+    margin-top:1px;
+
+}
+
+.bulk-result-error .bulk-result-summary svg{
+
+    color:#dc2626;
+
+    flex-shrink:0;
+
+    margin-top:1px;
+
+}
+
+.bulk-result-list{
+
+    margin-top:12px;
+
+    padding-top:12px;
+
+    border-top:1px dashed #e5e7eb;
+
+}
+
+.bulk-result-list strong{
+
+    display:block;
+
+    font-size:11px;
+
+    color:#374151;
+
+    margin-bottom:6px;
+
+}
+
+.bulk-result-list ul{
+
+    margin:0;
+
+    padding-left:18px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:4px;
+
+}
+
+.bulk-result-list li{
+
+    font-size:11px;
+
+    line-height:1.5;
+
+    color:#4b5563;
+
+}
+
+.bulk-result-errors li{
+
+    color:#b91c1c;
+
+}
+
+.bulk-result-warnings li{
+
+    color:#92400e;
+
+}
+
+/* ==========================================================
    SAMPLE FILE
 ========================================================== */
 

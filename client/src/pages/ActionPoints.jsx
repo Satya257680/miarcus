@@ -342,11 +342,16 @@ function ActionPoints() {
 // LOAD ACTION POINTS
 // ======================================================
 
-const fetchActionPoints = async () => {
+// `silent` skips the loading flag so callers that must not unmount the
+// current view (e.g. refreshing the table right after a Bulk Upload,
+// while the Bulk Upload modal may still be open showing per-row results)
+// can refresh the data without swapping the whole page out for the
+// "Loading Action Points..." screen.
+const fetchActionPoints = async ({ silent = false } = {}) => {
 
     try {
 
-        setLoading(true);
+        if (!silent) setLoading(true);
 
         const res = await axios.get(
 
@@ -435,7 +440,7 @@ const fetchActionPoints = async () => {
 
     finally {
 
-        setLoading(false);
+        if (!silent) setLoading(false);
 
     }
 
@@ -2115,8 +2120,9 @@ return (
     onClose={() => setShowBulkModal(false)}
     title="Bulk Upload Action Points"
     uploadFunction={handleBulkUpload}
-    onSuccess={fetchActionPoints}
-    acceptedFile=".csv,.xlsx,.xls"
+    onSuccess={() => fetchActionPoints({ silent: true })}
+    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm"
+    maxFileSize={100 * 1024 * 1024}
 />
 
 {/* ======================================================

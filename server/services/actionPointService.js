@@ -45,13 +45,27 @@ const resolveGlobalReferences = async (data) => {
         : NaN;
 
     if ((!Number.isFinite(numericStoreId) || numericStoreId <= 0) && hasValue(resolved.store_name)) {
-        const store = await queryOne(
+        const storeText = String(resolved.store_name).trim();
+
+        // Case-insensitive exact match first (tolerates a bulk file that
+        // spells the store name in a different case than the database).
+        let store = await queryOne(
             `SELECT id
              FROM stores
-             WHERE store_name = ? OR store_code = ?
+             WHERE LOWER(store_name) = LOWER(?) OR LOWER(store_code) = LOWER(?)
              LIMIT 1`,
-            [String(resolved.store_name).trim(), String(resolved.store_name).trim()]
+            [storeText, storeText]
         );
+
+        // Fall back to a partial match so extra whitespace/punctuation or a
+        // slightly different spelling in a bulk file still resolves rather
+        // than failing the whole row.
+        if (!store) {
+            store = await queryOne(
+                `SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1`,
+                [`%${storeText}%`]
+            );
+        }
 
         if (store?.id) {
             resolved.store_id = store.id;
@@ -94,13 +108,22 @@ const resolveGlobalReferences = async (data) => {
     // file contains a matching question, use it; otherwise leave question_id
     // NULL and still allow the Action Point to be created.
     if (!hasValue(resolved.question_id) && hasValue(resolved.question)) {
-        const question = await queryOne(
+        const questionText = String(resolved.question).trim();
+
+        let question = await queryOne(
             `SELECT id
              FROM questions
-             WHERE question = ?
+             WHERE LOWER(question) = LOWER(?)
              LIMIT 1`,
-            [String(resolved.question).trim()]
+            [questionText]
         );
+
+        if (!question) {
+            question = await queryOne(
+                `SELECT id FROM questions WHERE question LIKE ? LIMIT 1`,
+                [`%${questionText}%`]
+            );
+        }
 
         if (question?.id) {
             resolved.question_id = question.id;

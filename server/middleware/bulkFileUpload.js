@@ -28,7 +28,15 @@ const storage = multer.diskStorage({
     }
 });
 
-const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls", ".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+const ALLOWED_EXTENSIONS = [
+    ".csv", ".xlsx", ".xls", ".pdf",
+    ".jpg", ".jpeg", ".png", ".webp",
+    // Video is accepted so it is never bounced at the upload layer.
+    // Row/table data cannot be extracted from a video, so
+    // utils/bulkFileParser.js reports a clear, friendly message for it
+    // instead of silently importing nothing — see VIDEO_EXTENSIONS there.
+    ".mp4", ".mov", ".avi", ".mkv", ".webm"
+];
 
 const ALLOWED_MIME_TYPES = [
     "text/csv",
@@ -38,7 +46,12 @@ const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "image/jpeg",
     "image/png",
-    "image/webp"
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/x-matroska",
+    "video/webm"
 ];
 
 const fileFilter = (req, file, cb) => {
@@ -49,17 +62,17 @@ const fileFilter = (req, file, cb) => {
     }
 
     return cb(
-        new Error("Only CSV, Excel (.xlsx/.xls), PDF, or photo (.jpg/.png/.webp) files are allowed.")
+        new Error("Only CSV, Excel (.xlsx/.xls), PDF, photo (.jpg/.png/.webp), or video (.mp4/.mov/.avi/.mkv/.webm) files are allowed.")
     );
 };
 
-// Photos and PDFs run noticeably bigger than a spreadsheet, so the
-// ceiling is higher than the old CSV-only 10 MB limit.
+// Photos, PDFs and video run noticeably bigger than a spreadsheet, so the
+// ceiling is well above the old CSV-only 10 MB limit.
 const bulkFileUpload = multer({
     storage,
     fileFilter,
     limits: {
-        fileSize: 25 * 1024 * 1024 // 25 MB
+        fileSize: 100 * 1024 * 1024 // 100 MB
     }
 });
 

@@ -1,7 +1,40 @@
+const fs = require("fs");
 const { Parser } = require("json2csv");
-const XLSX = require("xlsx");
 
 const actionPointService = require("../services/actionPointService");
+const { parseBulkFile } = require("../utils/bulkFileParser");
+const checklistReportService = require("../services/checklistReportService");
+
+// ======================================================
+// BULK UPLOAD — COLUMN ALIASES
+//
+// Every alias is lower-cased and stripped of non-alphanumeric
+// characters before matching (see utils/bulkFileParser.js), so a
+// real-world export that spells things differently from the
+// sample file — "Outlet" instead of "Store", "Emp ID" instead
+// of "Assigned To", extra spacing/casing, a banner row above the
+// real header — still gets recognized instead of the entire
+// file being rejected.
+// ======================================================
+
+const ACTION_POINT_COLUMN_ALIASES = {
+    "Store": ["store", "storename", "store name", "storeid", "store id", "outlet", "outletname", "location", "branch", "storecode", "store code"],
+    "Department": ["department", "dept", "departmentid", "department id", "departmentname"],
+    "Checklist Type": ["checklisttype", "checklist type", "checklist", "checklistname"],
+    "Question": ["question", "questiontext", "question text", "checklistquestion"],
+    "Answer": ["answer", "response", "answertext"],
+    "Submission ID": ["submissionid", "submission id"],
+    "Answer ID": ["answerid", "submission answer id", "submissionanswerid"],
+    "Assigned To": ["assignedto", "assigned to", "employeeid", "employee id", "owner", "assignee"],
+    "Priority": ["priority"],
+    "SLA Days": ["sladays", "sla days"],
+    "SLA Value": ["slavalue", "sla value", "sla"],
+    "Status": ["status"],
+    "Remarks": ["remarks", "comment", "comments", "notes"],
+    "Action Taken": ["actiontaken", "action taken", "actiontakennotes", "resolution"],
+    "Submission Date": ["submissiondate", "submission date", "date", "reportdate"],
+    "Device": ["device", "devicename"]
+};
 
 // ======================================================
 // GET ALL ACTION POINTS
@@ -183,112 +216,136 @@ exports.bulkUploadActionPoints = async (req, res) => {
         if (!uploadedPath) {
             return res.status(400).json({
                 success: false,
-                message: "Please upload a CSV or Excel file."
+                message: "Please upload a CSV, Excel, PDF, or photo file."
             });
         }
 
-        const workbook = XLSX.readFile(uploadedPath, {
-            cellDates: false
-        });
-
-        const firstSheet =
-            workbook.Sheets[workbook.SheetNames[0]];
-
-        if (!firstSheet) {
-            return res.status(400).json({
+        // Accepts CSV/XLSX/XLS/PDF/photo, auto-detects the real header row
+        // even when it isn't row 1, and matches columns by alias rather
+        // than an exact string — a mismatched/reordered/renamed column
+        // layout no longer fails the whole file. See utils/bulkFileParser.js.
+        let parsed;
+        try {
+            parsed = await parseBulkFile(
+                uploadedPath,
+                req.file.originalname,
+                req.file.mimetype,
+                ACTION_POINT_COLUMN_ALIASES
+            );
+        } catch (parseError) {
+            return res.status(parseError.status || 400).json({
                 success: false,
-                message: "The uploaded file does not contain a worksheet."
+                message: parseError.message
             });
         }
 
-        const rows = XLSX.utils.sheet_to_json(firstSheet, {
-            defval: "",
-            raw: false
-        });
+        const { rows, warnings: parseWarnings } = parsed;
 
         if (!rows.length) {
             return res.status(400).json({
                 success: false,
-                message: "The uploaded file is empty."
+                message: "No recognizable rows were found in this file. Make sure it has at least a Store column (any reasonable header wording is fine) and try again.",
+                warnings: parseWarnings
             });
         }
 
-        const value = (row, ...keys) => {
-            for (const key of keys) {
-                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
-                    return row[key];
-                }
-            }
-            return "";
-        };
-
         const created = [];
+        const movedToReports = [];
         const errors = [];
+        const warnings = [...parseWarnings];
 
         for (let index = 0; index < rows.length; index += 1) {
 
             const row = rows[index];
             const rowNumber = index + 2;
 
-            // Global upload: no store selection is taken from the page.
-            // Store ID may be supplied per row OR resolved from Submission ID.
             const normalized = {
-                store_id: value(row,
-                    "Store ID", "store_id", "Store", "store", "Store Name", "store_name"),
-                store_name: value(row, "Store Name", "store_name", "Store", "store"),
-                department_id: value(row,
-                    "Department ID", "department_id", "Department", "department"),
-                question_id: value(row,
-                    "Question ID", "question_id"),
-                question: value(row,
-                    "Question", "question", "Question Text", "question_text"),
-                submission_id: value(row,
-                    "Submission ID", "submission_id"),
-                submission_answer_id: value(row,
-                    "Submission Answer ID", "submission_answer_id", "Answer ID", "answer_id"),
-                assigned_to: value(row,
-                    "Assigned To", "assigned_to", "Employee ID", "employee_id"),
-                priority: value(row, "Priority", "priority") || "Medium",
-                sla_days: value(row, "SLA Days", "sla_days") || 0,
-                sla_value: value(row, "SLA Value", "sla_value"),
-                status: value(row, "Status", "status") || "Open",
-                remarks: value(row, "Remarks", "remarks")
+                store_id: row["Store"],
+                store_name: row["Store"],
+                department_id: row["Department"],
+                question: row["Question"],
+                submission_id: row["Submission ID"],
+                submission_answer_id: row["Answer ID"],
+                assigned_to: row["Assigned To"],
+                priority: row["Priority"] || "Medium",
+                sla_days: row["SLA Days"] || 0,
+                sla_value: row["SLA Value"],
+                status: row["Status"] || "Open",
+                remarks: row["Remarks"]
             };
 
+            // Always try to create the row as an Action Point first — that
+            // is what Bulk Upload Action Points is for, and every column
+            // besides Store is optional (see actionPointService.createManual).
             try {
-                const result =
-                    await actionPointService.createManual(
-                        normalized,
-                        null,
+                const result = await actionPointService.createManual(
+                    normalized,
+                    null,
+                    req.user.id
+                );
+
+                created.push({ row: rowNumber, id: result.id });
+                continue;
+            } catch (actionPointError) {
+
+                // No Action Point could be taken/created from this row
+                // (most often: the Store text couldn't be resolved to a
+                // known store). Rather than dropping the row, try to file
+                // it as a completed Checklist Report instead — the row's
+                // data is still preserved and visible, just in the right
+                // place — and only report it as an error if that also fails.
+
+                // ==================================================
+                // ACTION POINT CREATION FAILED —
+                // FILE IT AS A CHECKLIST REPORT INSTEAD OF DROPPING IT.
+                // ==================================================
+                try {
+                    const reportResult = await checklistReportService.createFromRow(
+                        {
+                            "Store": row["Store"],
+                            "Checklist Type": row["Checklist Type"],
+                            "Submission ID": row["Submission ID"],
+                            "Employee": row["Assigned To"],
+                            "Question": row["Question"],
+                            "Answer": row["Answer"] || row["Remarks"],
+                            "Remarks": row["Remarks"],
+                            "Submission Date": row["Submission Date"],
+                            "Device": row["Device"]
+                        },
                         req.user.id
                     );
 
-                created.push({
-                    row: rowNumber,
-                    id: result.id
-                });
-
-            } catch (rowError) {
-                errors.push(
-                    `Row ${rowNumber}: ${rowError.message}`
-                );
+                    movedToReports.push({ row: rowNumber, submissionId: reportResult.submissionId });
+                } catch (reportError) {
+                    errors.push(
+                        `Row ${rowNumber}: could not create an Action Point (${actionPointError.message}), and could not file it as a Checklist Report either (${reportError.message}).`
+                    );
+                }
             }
         }
 
-        if (!created.length) {
+        if (!created.length && !movedToReports.length) {
             return res.status(400).json({
                 success: false,
-                message: "No Action Points were created.",
+                message: "No Action Points were created and no rows could be filed as Checklist Reports. See the row-by-row problems below.",
+                warnings,
                 errors
             });
         }
 
+        const messageParts = [];
+        if (created.length) messageParts.push(`${created.length} Action Point(s) created`);
+        if (movedToReports.length) messageParts.push(`${movedToReports.length} row(s) had no action to take and were filed as Checklist Reports instead`);
+        if (errors.length) messageParts.push(`${errors.length} row(s) skipped`);
+
         return res.status(201).json({
             success: true,
-            message: `Bulk upload completed. ${created.length} Action Point(s) created.`,
+            message: `Bulk upload completed. ${messageParts.join(", ")}.`,
             data: {
                 created,
-                errors
+                movedToReports,
+                errors,
+                warnings
             }
         });
 
@@ -310,7 +367,6 @@ exports.bulkUploadActionPoints = async (req, res) => {
         // Remove it after processing so repeated uploads do not accumulate files.
         if (uploadedPath) {
             try {
-                const fs = require("fs");
                 if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
             } catch (cleanupError) {
                 console.warn("Unable to remove Action Point bulk-upload file:", cleanupError.message);

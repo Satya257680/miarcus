@@ -5,9 +5,12 @@ import {
     FaFileCsv,
     FaFilePdf,
     FaFileImage,
+    FaFileVideo,
     FaUpload,
     FaDownload,
-    FaTimes
+    FaTimes,
+    FaCheckCircle,
+    FaExclamationTriangle
 } from "react-icons/fa";
 
 import "../../../styles/common/BulkUploadModal.css";
@@ -24,11 +27,17 @@ function BulkUploadModal({
 
     title = "Bulk Upload",
 
-    acceptedFile = ".csv,.xlsx,.xls",
+    // Every bulk upload across the app now accepts CSV, Excel, PDF, a
+    // photo of a printed/handwritten list, or a video (attached rather
+    // than parsed into rows — see server/utils/bulkFileParser.js) unless
+    // a page explicitly narrows this down.
+    acceptedFile = ".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm",
 
     sampleFile = null,
 
-    maxFileSize = 10 * 1024 * 1024 // 10 MB
+    // Raised from 10 MB to 100 MB to match the server-side limit — see
+    // server/middleware/bulkFileUpload.js and server/middleware/fileSecurity.js.
+    maxFileSize = 100 * 1024 * 1024 // 100 MB
 
 }) {
 
@@ -41,6 +50,11 @@ function BulkUploadModal({
     const [loading, setLoading] = useState(false);
 
     const [dragging, setDragging] = useState(false);
+
+    // Holds the last upload response so partial results (some rows
+    // created, some skipped with a reason) can be shown inline instead of
+    // a single opaque alert() that hides the per-row detail.
+    const [result, setResult] = useState(null);
 
     const inputRef = useRef(null);
 
@@ -57,6 +71,8 @@ function BulkUploadModal({
             setLoading(false);
 
             setDragging(false);
+
+            setResult(null);
 
         }
 
@@ -189,6 +205,8 @@ function BulkUploadModal({
 
         }
 
+        setResult(null);
+
         try {
 
             setLoading(true);
@@ -196,21 +214,31 @@ function BulkUploadModal({
             // Pass File only.
             // Each page creates its own FormData.
 
-            const result = await uploadFunction(file);
+            const response = await uploadFunction(file);
 
-            if (result?.success) {
+            // Collect the row-by-row detail wherever the caller's API put
+            // it, so "why didn't this row import?" is always answerable
+            // from the modal instead of a vague popup.
+            const errors = response?.errors || response?.data?.errors || [];
+            const warnings = response?.warnings || response?.data?.warnings || [];
+            const hasDetail = errors.length > 0 || warnings.length > 0;
 
-                alert(
+            setResult({
+                success: Boolean(response?.success),
+                message:
+                    response?.message ||
+                    (response?.success
+                        ? "Bulk upload completed successfully."
+                        : "Upload failed."),
+                errors,
+                warnings
+            });
 
-                    result.message ||
-
-                    "Bulk upload completed successfully."
-
-                );
+            if (response?.success) {
 
                 setFile(null);
 
-                inputRef.current.value = "";
+                if (inputRef.current) inputRef.current.value = "";
 
                 if (onSuccess) {
 
@@ -218,17 +246,13 @@ function BulkUploadModal({
 
                 }
 
-                onClose();
-
-            } else {
-
-                alert(
-
-                    result?.message ||
-
-                    "Upload failed."
-
-                );
+                // Only auto-close when everything imported cleanly. When
+                // some rows were skipped, keep the modal open so the
+                // problem rows stay visible instead of vanishing the
+                // moment the alert would otherwise have been dismissed.
+                if (!hasDetail) {
+                    onClose();
+                }
 
             }
 
@@ -236,15 +260,15 @@ function BulkUploadModal({
 
             console.error(err);
 
-            alert(
-
-                err.response?.data?.message ||
-
-                err.message ||
-
-                "Upload failed."
-
-            );
+            setResult({
+                success: false,
+                message:
+                    err.response?.data?.message ||
+                    err.message ||
+                    "Upload failed.",
+                errors: err.response?.data?.errors || err.response?.data?.data?.errors || [],
+                warnings: err.response?.data?.warnings || err.response?.data?.data?.warnings || []
+            });
 
         } finally {
 
@@ -261,6 +285,8 @@ function BulkUploadModal({
     const removeFile = () => {
 
         setFile(null);
+
+        setResult(null);
 
         if (inputRef.current) {
 
@@ -393,6 +419,7 @@ function BulkUploadModal({
                                         if (ext === "csv") return <FaFileCsv />;
                                         if (ext === "pdf") return <FaFilePdf />;
                                         if (["jpg", "jpeg", "png", "webp"].includes(ext)) return <FaFileImage />;
+                                        if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return <FaFileVideo />;
 
                                         return <FaFileExcel />;
 
@@ -465,6 +492,49 @@ function BulkUploadModal({
 
                         )
 
+                    }
+
+                    {/* =====================================
+                        RESULT — shows exactly which rows were
+                        created/skipped and why, instead of a
+                        single alert() that hides the detail.
+                    ===================================== */}
+
+                    {
+                        result && (
+
+                            <div className={`bulk-result ${result.success ? "bulk-result-success" : "bulk-result-error"}`}>
+
+                                <div className="bulk-result-summary">
+                                    {result.success ? <FaCheckCircle /> : <FaExclamationTriangle />}
+                                    <span>{result.message}</span>
+                                </div>
+
+                                {result.errors.length > 0 && (
+                                    <div className="bulk-result-list bulk-result-errors">
+                                        <strong>Rows that couldn't be imported ({result.errors.length}):</strong>
+                                        <ul>
+                                            {result.errors.map((line, idx) => (
+                                                <li key={`error-${idx}`}>{line}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {result.warnings.length > 0 && (
+                                    <div className="bulk-result-list bulk-result-warnings">
+                                        <strong>Please review ({result.warnings.length}):</strong>
+                                        <ul>
+                                            {result.warnings.map((line, idx) => (
+                                                <li key={`warning-${idx}`}>{line}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                            </div>
+
+                        )
                     }
 
                 </div>

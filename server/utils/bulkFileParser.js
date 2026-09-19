@@ -421,6 +421,7 @@ async function parsePhoto(filePath, aliasLookup) {
 const SPREADSHEET_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 const PDF_EXTENSIONS = [".pdf"];
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
 
 function detectSourceType(originalName, mimetype) {
     const ext = path.extname(originalName || "").toLowerCase();
@@ -428,6 +429,7 @@ function detectSourceType(originalName, mimetype) {
     if (SPREADSHEET_EXTENSIONS.includes(ext)) return "spreadsheet";
     if (PDF_EXTENSIONS.includes(ext) || mimetype === "application/pdf") return "pdf";
     if (IMAGE_EXTENSIONS.includes(ext) || /^image\//.test(mimetype || "")) return "photo";
+    if (VIDEO_EXTENSIONS.includes(ext) || /^video\//.test(mimetype || "")) return "video";
 
     // Fall back to mimetype alone if the extension was stripped/renamed.
     if (/spreadsheet|excel|csv/.test(mimetype || "")) return "spreadsheet";
@@ -447,6 +449,19 @@ async function parseBulkFile(filePath, originalName, mimetype, columnAliases = D
             "Unsupported file type. Upload a CSV, Excel (.xlsx/.xls), PDF, or photo (.jpg/.png/.webp)."
         );
         error.code = "UNSUPPORTED_BULK_FILE_TYPE";
+        error.status = 400;
+        throw error;
+    }
+
+    // Video is accepted by the upload layer (so it is never bounced by the
+    // file picker or multer), but there is no reliable way to turn a video
+    // into table rows. Say so plainly instead of pretending to import 0
+    // rows silently, or crashing.
+    if (sourceType === "video") {
+        const error = new Error(
+            "This is a video file. Bulk row import needs a CSV, Excel (.xlsx/.xls), PDF, or photo of the list — a video can't be converted into rows. Attach the video to an individual record instead."
+        );
+        error.code = "VIDEO_NOT_ROW_SOURCE";
         error.status = 400;
         throw error;
     }
