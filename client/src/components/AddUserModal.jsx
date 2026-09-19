@@ -19,6 +19,9 @@ import {
   LuUserRoundCog,
   LuCircleAlert,
   LuPower,
+  LuEye,
+  LuEyeOff,
+  LuRefreshCw,
 } from "react-icons/lu";
 
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -86,6 +89,56 @@ function AddUserModal({
   const [whatsappContact, setWhatsappContact] = useState("");
   const [confirmWhatsappContact, setConfirmWhatsappContact] =
     useState("");
+
+  // =====================================================
+  // SIGN-IN PASSWORD (set by the person creating this
+  // account — the new user never chooses their own
+  // password; it is emailed to them directly)
+  // =====================================================
+
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Matches the server-side rule in config/security.js:
+  // 8-10 characters, at least one uppercase, one lowercase,
+  // one number and one special character.
+  const PASSWORD_RULE =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,10}$/;
+
+  const generatePassword = () => {
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghijkmnpqrstuvwxyz";
+    const digits = "23456789";
+    const special = "!@#$%&*";
+
+    const pick = (chars) =>
+      chars[Math.floor(Math.random() * chars.length)];
+
+    const required = [
+      pick(upper),
+      pick(lower),
+      pick(digits),
+      pick(special),
+    ];
+
+    const all = upper + lower + digits + special;
+
+    while (required.length < 9) {
+      required.push(pick(all));
+    }
+
+    for (let i = required.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [required[i], required[j]] = [required[j], required[i]];
+    }
+
+    const generated = required.join("");
+
+    setPassword(generated);
+    setConfirmPassword(generated);
+    setShowPassword(true);
+  };
 
   // =====================================================
   // ORGANIZATION
@@ -750,6 +803,36 @@ function AddUserModal({
         }
       }
 
+      if (!editingUser) {
+        if (!password) {
+          alert(
+            "Please set a sign-in password for this user."
+          );
+          return false;
+        }
+
+        if (!PASSWORD_RULE.test(password)) {
+          alert(
+            "Password must be 8-10 characters and include an uppercase letter, a lowercase letter, a number and a special character."
+          );
+          return false;
+        }
+
+        if (!confirmPassword) {
+          alert(
+            "Please confirm the password."
+          );
+          return false;
+        }
+
+        if (password !== confirmPassword) {
+          alert(
+            "Password and Confirm Password do not match."
+          );
+          return false;
+        }
+      }
+
       return true;
     }
 
@@ -952,6 +1035,14 @@ function AddUserModal({
         administrator:
           isAdmin,
       };
+
+      // Only send a password when creating a brand-new account.
+      // Existing users' passwords are changed exclusively from
+      // Settings → Password Management.
+      if (!editingUser) {
+        payload.password = password;
+        payload.confirmPassword = confirmPassword;
+      }
 
       if (editingUser) {
         await axios.put(
@@ -1159,6 +1250,79 @@ function AddUserModal({
             />
           </div>
         )}
+
+        {!editingUser && (
+          <div className="user-field">
+            <label>
+              Sign-in Password <span>*</span>
+            </label>
+
+            <div className="user-password-input-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="8-10 characters"
+                autoComplete="new-password"
+                maxLength={10}
+              />
+
+              <button
+                type="button"
+                className="user-password-toggle"
+                onClick={() =>
+                  setShowPassword((previous) => !previous)
+                }
+                tabIndex={-1}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
+              >
+                {showPassword ? <LuEyeOff /> : <LuEye />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!editingUser && (
+          <div className="user-field">
+            <label>
+              Confirm Password <span>*</span>
+            </label>
+
+            <div className="user-password-input-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) =>
+                  setConfirmPassword(e.target.value)
+                }
+                placeholder="Re-enter password"
+                autoComplete="new-password"
+                maxLength={10}
+              />
+            </div>
+          </div>
+        )}
+
+        {!editingUser && (
+          <div className="user-field full">
+            <button
+              type="button"
+              className="user-generate-password-btn"
+              onClick={generatePassword}
+            >
+              <LuRefreshCw />
+              Generate Strong Password
+            </button>
+
+            <p className="user-password-hint">
+              Must be 8-10 characters with at least one uppercase
+              letter, one lowercase letter, one number and one
+              special character.
+            </p>
+          </div>
+        )}
       </div>
 
       {!editingUser && (
@@ -1169,13 +1333,14 @@ function AddUserModal({
 
           <div>
             <strong>
-              Invitation Workflow
+              Account Credentials
             </strong>
 
             <p>
-              After completing all steps and
-              creating the account, the user
-              will receive an activation email.
+              This user will not create their own password. Once
+              the account is created, it is active immediately and
+              the password you set above is emailed directly to
+              them along with their login link.
             </p>
           </div>
         </div>

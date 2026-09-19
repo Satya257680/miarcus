@@ -25,6 +25,10 @@ import VerifyOTP from "./pages/VerifyOTP";
 import ResetPassword from "./pages/ResetPassword";
 import ActivateAccount from "./pages/ActivateAccount";
 
+// NEW: PUBLIC LEGAL PAGES
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+
 // ======================================================
 // DASHBOARD
 // ======================================================
@@ -46,6 +50,7 @@ import EmployeeLocation from "./pages/EmployeeLocation";
 // ADMIN / SETTINGS MODULES
 // ======================================================
 import Users from "./pages/Users";
+import PasswordManagement from "./pages/PasswordManagement";
 import Departments from "./pages/Departments";
 import Designations from "./pages/Designations";
 import StoreManagement from "./pages/StoreManagement";
@@ -112,10 +117,17 @@ import AttendanceReports from "./pages/AttendanceReports";
 import AssetManagement from "./pages/AssetManagement";
 import ERPDataUpload from "./pages/InventoryPlanning/ERPDataUpload";
 import InventoryPlanning from "./pages/InventoryPlanning/InventoryPlanning";
-import {ProductList as CollectionTracking,AddProduct as CollectionAddProduct,Details as CollectionDetails,MasterData as CollectionMasterData,Insight as CollectionInsight,Requests as CollectionRequests,Permissions as CollectionPermissions} from "./pages/CollectionTracking/CollectionTracking";
+import {
+    ProductList as CollectionTracking,
+    AddProduct as CollectionAddProduct,
+    Details as CollectionDetails,
+    MasterData as CollectionMasterData,
+    Insight as CollectionInsight,
+    Requests as CollectionRequests,
+    Permissions as CollectionPermissions
+} from "./pages/CollectionTracking/CollectionTracking";
 import Chat from "./pages/Chat/Chat";
 import HelpCenter from "./pages/HelpCenter/HelpCenter";
-
 
 
 function App() {
@@ -159,6 +171,21 @@ function App() {
                 />
 
                 {/* ==================================================
+                    GOOGLE OAUTH VERIFICATION / LEGAL PAGES
+                    These routes MUST remain PUBLIC.
+                ================================================== */}
+
+                <Route
+                    path="/privacy-policy"
+                    element={<PrivacyPolicy />}
+                />
+
+                <Route
+                    path="/terms"
+                    element={<Terms />}
+                />
+
+                {/* ==================================================
                     PUBLIC QUIZ
                 ================================================== */}
 
@@ -181,7 +208,6 @@ function App() {
                     path="/help"
                     element={<HelpCenter publicMode />}
                 />
-
 
                 {/* ==================================================
                     PROTECTED APPLICATION ROUTES
@@ -232,7 +258,6 @@ function App() {
                         element={<HelpCenter />}
                     />
 
-
                     {/* ==================================================
                         ACTIVITY CENTER
                     ================================================== */}
@@ -246,7 +271,6 @@ function App() {
                         path="/activity-center/:id"
                         element={<ActivityDetails />}
                     />
-
 
                     {/* ==================================================
                         CHECKLIST
@@ -287,7 +311,6 @@ function App() {
                         }
                     />
 
-
                     <Route
                         path="/legal-assets"
                         element={
@@ -296,7 +319,6 @@ function App() {
                             </ModulePermissionRoute>
                         }
                     />
-
 
                     {/* ==================================================
                         ANNOUNCEMENTS
@@ -337,7 +359,6 @@ function App() {
                         }
                     />
 
-
                     {/* ==================================================
                         EMPLOYEE LOCATION
                     ================================================== */}
@@ -345,22 +366,18 @@ function App() {
                     <Route
                         path="/employee-location"
                         element={
-                            <ModulePermissionRoute moduleName="Employee Location" adminOnly>
+                            <ModulePermissionRoute
+                                moduleName="Employee Location"
+                                adminOnly
+                            >
                                 <EmployeeLocation />
                             </ModulePermissionRoute>
                         }
                     />
 
-
                     {/* ==================================================
-                        ==================================================
                         SETTINGS
-                        ==================================================
                     ================================================== */}
-
-                    {/* --------------------------------------------------
-                        SETTINGS MAIN PAGE
-                    -------------------------------------------------- */}
 
                     <Route
                         path="/settings"
@@ -374,79 +391,69 @@ function App() {
 
                     <Route
                         path="/settings/new-store-openings-email"
-                        element={<ModulePermissionRoute adminOnly><NSOEmailSettings /></ModulePermissionRoute>}
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <NSOEmailSettings />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/settings/checklist-email"
-                        element={<ModulePermissionRoute adminOnly><ChecklistEmailSettings /></ModulePermissionRoute>}
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <ChecklistEmailSettings />
+                            </ModulePermissionRoute>
+                        }
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → USERS
-                    -------------------------------------------------- */}
-
+                    {/* USERS */}
                     <Route
                         path="/settings/users"
                         element={<Users />}
                     />
 
+                    {/* PASSWORD MANAGEMENT */}
+                    <Route
+                        path="/settings/password-management"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <PasswordManagement />
+                            </ModulePermissionRoute>
+                        }
+                    />
 
-                    {/* --------------------------------------------------
-                        SETTINGS → DEPARTMENTS
-                    -------------------------------------------------- */}
-
+                    {/* DEPARTMENTS */}
                     <Route
                         path="/settings/departments"
                         element={<Departments />}
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → DESIGNATIONS
-                    -------------------------------------------------- */}
-
+                    {/* DESIGNATIONS */}
                     <Route
                         path="/settings/designations"
                         element={<Designations />}
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → STORE MANAGEMENT
-                    -------------------------------------------------- */}
-
+                    {/* STORES */}
                     <Route
                         path="/settings/stores"
                         element={<StoreManagement />}
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → QUESTIONS
-                    -------------------------------------------------- */}
-
+                    {/* QUESTIONS */}
                     <Route
                         path="/settings/questions"
                         element={<Questions />}
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → CHECKLIST TYPES
-                    -------------------------------------------------- */}
-
+                    {/* CHECKLIST TYPES */}
                     <Route
                         path="/settings/checklist-types"
                         element={<ChecklistTypes />}
                     />
 
-
-                    {/* --------------------------------------------------
-                        SETTINGS → REPORTS TO
-                    -------------------------------------------------- */}
-
+                    {/* REPORTS TO */}
                     <Route
                         path="/settings/hierarchy"
                         element={<ReportsTo />}
@@ -457,12 +464,8 @@ function App() {
                         element={<ReportsTo />}
                     />
 
-
                     {/* ==================================================
                         LEGACY ADMIN ROUTES
-                        --------------------------------------------------
-                        These are intentionally kept so existing links,
-                        bookmarks and internal navigation continue working.
                     ================================================== */}
 
                     <Route
@@ -500,7 +503,6 @@ function App() {
                         element={<ReportsTo />}
                     />
 
-
                     {/* ==================================================
                         NEW STORE OPENING
                     ================================================== */}
@@ -519,7 +521,6 @@ function App() {
                         path="/nso-tracking"
                         element={<NSOTracking />}
                     />
-
 
                     {/* ==================================================
                         QUIZ
@@ -544,7 +545,6 @@ function App() {
                         path="/quiz/email"
                         element={<EmailSettings />}
                     />
-
 
                     {/* ==================================================
                         EXPENSES
@@ -572,7 +572,6 @@ function App() {
                             </ExpensePermissionRoute>
                         }
                     />
-
 
                     {/* ==================================================
                         LEGACY / DIRECT EXPENSE URLS
@@ -611,7 +610,6 @@ function App() {
                         }
                     />
 
-
                     {/* ==================================================
                         PETTY CASH
                     ================================================== */}
@@ -642,7 +640,6 @@ function App() {
                             </PettyCashPermissionRoute>
                         }
                     />
-
 
                     {/* ==================================================
                         BILLING
@@ -680,7 +677,10 @@ function App() {
                     <Route
                         path="/daily-collection/report"
                         element={
-                            <ModulePermissionRoute moduleName="Daily Collection" requiredPermission="View">
+                            <ModulePermissionRoute
+                                moduleName="Daily Collection"
+                                requiredPermission="View"
+                            >
                                 <DailyCollectionReport />
                             </ModulePermissionRoute>
                         }
@@ -689,27 +689,65 @@ function App() {
                     <Route
                         path="/daily-collection/reports"
                         element={
-                            <ModulePermissionRoute moduleName="Daily Collection" requiredPermission="View">
+                            <ModulePermissionRoute
+                                moduleName="Daily Collection"
+                                requiredPermission="View"
+                            >
                                 <CollectionReports />
                             </ModulePermissionRoute>
                         }
                     />
 
-                    {/* Legacy route kept for bookmarks; it no longer belongs to Billing. */}
                     <Route
                         path="/billing/daily-collection"
-                        element={<Navigate to="/daily-collection" replace />}
+                        element={
+                            <Navigate
+                                to="/daily-collection"
+                                replace
+                            />
+                        }
                     />
-
 
                     {/* ==================================================
                         SALES TEAM
                     ================================================== */}
 
-                    <Route path="/visit-planner" element={<ModulePermissionRoute moduleName="Visit Planner"><VisitPlanner /></ModulePermissionRoute>} />
-                    <Route path="/travel-plan" element={<ModulePermissionRoute moduleName="Travel Plan"><TravelPlan /></ModulePermissionRoute>} />
-                    <Route path="/travel-plan-approval" element={<ModulePermissionRoute moduleName="Travel Plan Approvals"><TravelPlanApprovals /></ModulePermissionRoute>} />
-                    <Route path="/sales-review" element={<ModulePermissionRoute moduleName="Sales Review"><SalesReview /></ModulePermissionRoute>} />
+                    <Route
+                        path="/visit-planner"
+                        element={
+                            <ModulePermissionRoute moduleName="Visit Planner">
+                                <VisitPlanner />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/travel-plan"
+                        element={
+                            <ModulePermissionRoute moduleName="Travel Plan">
+                                <TravelPlan />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/travel-plan-approval"
+                        element={
+                            <ModulePermissionRoute moduleName="Travel Plan Approvals">
+                                <TravelPlanApprovals />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/sales-review"
+                        element={
+                            <ModulePermissionRoute moduleName="Sales Review">
+                                <SalesReview />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
                     <Route
                         path="/listing-tracker"
                         element={
@@ -738,13 +776,68 @@ function App() {
                     />
 
                     {/* COLLECTION TRACKING */}
-                    <Route path="/collection-tracking" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionTracking /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/add-products" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionAddProduct /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/sku-details/:id" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionDetails /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/insight" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionInsight /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/requests" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionRequests /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/permissions" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionPermissions /></ModulePermissionRoute>} />
-                    <Route path="/collection-tracking/master-data" element={<ModulePermissionRoute moduleName="Collection Tracking"><CollectionMasterData /></ModulePermissionRoute>} />
+                    <Route
+                        path="/collection-tracking"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionTracking />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/add-products"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionAddProduct />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/sku-details/:id"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionDetails />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/insight"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionInsight />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/requests"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionRequests />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/permissions"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionPermissions />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/collection-tracking/master-data"
+                        element={
+                            <ModulePermissionRoute moduleName="Collection Tracking">
+                                <CollectionMasterData />
+                            </ModulePermissionRoute>
+                        }
+                    />
 
                     {/* ==================================================
                         PROFILE
@@ -757,11 +850,8 @@ function App() {
 
                 </Route>
 
-
                 {/* ==================================================
                     FALLBACK
-                    --------------------------------------------------
-                    Only genuinely unknown URLs go to the landing page.
                 ================================================== */}
 
                 <Route
@@ -779,6 +869,5 @@ function App() {
         </BrowserRouter>
     );
 }
-
 
 export default App;

@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
 const { incrementTokenVersion } = require("../models/securityModel");
+const { encryptPassword } = require("../config/passwordVault");
 const multer = require("multer");
 
 const router = express.Router();
@@ -691,17 +692,32 @@ router.put(
             // ----------------------------------------------
             // SAVE NEW PASSWORD
             // ----------------------------------------------
+            //
+            // Also keeps the Password Management vault (visible
+            // to Administrators / Super Admins) in sync so it
+            // never shows a stale password after a user changes
+            // their own from Profile.
+            // ----------------------------------------------
+
+            const encryptedPassword =
+                encryptPassword(newPassword);
 
             await db.query(
                 `
                 UPDATE users
 
-                SET password = ?
+                SET
+                    password = ?,
+                    password_vault = ?,
+                    password_updated_at = NOW(),
+                    password_updated_by = ?
 
                 WHERE id = ?
                 `,
                 [
                     hashedPassword,
+                    encryptedPassword,
+                    userId,
                     userId,
                 ]
             );

@@ -158,6 +158,8 @@ const installActivityAuditMiddleware =
 
 const Activity = require("./models/activityModel");
 
+const PasswordVaultModel = require("./models/passwordVaultModel");
+
 // ======================================================
 // CREATE TABLE HELPER
 // ======================================================
@@ -614,6 +616,10 @@ async function initializeDatabase() {
 SecurityModel.ensureSecuritySchema()
     .then(() => console.log("✅ Security schema verified"))
     .catch((error) => console.error("❌ Security schema initialization failed:", error.message));
+
+PasswordVaultModel.ensurePasswordVaultSchema()
+    .then(() => console.log("✅ Password vault schema verified"))
+    .catch((error) => console.error("❌ Password vault schema initialization failed:", error.message));
 
 initializeDatabase();
 startDailyCollectionScheduler();
@@ -1418,6 +1424,20 @@ loadRoute(
     "/api/users",
 
     "User Routes"
+
+);
+
+// ======================================================
+// PASSWORD VAULT (ADMIN PASSWORD MANAGEMENT)
+// ======================================================
+
+loadRoute(
+
+    "./routes/passwordVaultRoutes",
+
+    "/api/password-vault",
+
+    "Password Vault Routes"
 
 );
 

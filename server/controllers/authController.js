@@ -22,6 +22,7 @@ const {
     sendResetPasswordEmail
 } = require("../services/emailService");
 const { incrementTokenVersion } = require("../models/securityModel");
+const { isSuperAdminByEmail } = require("../models/passwordVaultModel");
 
 // ======================================================
 // SECURITY HELPERS
@@ -246,7 +247,7 @@ const token = jwt.sign(
 // POST : /api/auth/forgot-password
 // ======================================================
 
-const forgotPassword = (req, res) => {
+const forgotPassword = async (req, res) => {
 
     const email = normalizeEmail(req.body?.email);
 
@@ -256,6 +257,36 @@ const forgotPassword = (req, res) => {
         return res.status(400).json({
             success: false,
             message: emailError
+        });
+    }
+
+    // ======================================================
+    // RESTRICT SELF-SERVICE "FORGOT PASSWORD" TO SUPER ADMIN
+    // ======================================================
+    //
+    // Every other account's password is created and managed by
+    // an administrator (see the Password Management screen), so
+    // the self-service OTP/reset flow below is only available to
+    // the Super Admin (the application's creator/owner). Anyone
+    // else who is locked out must contact their administrator.
+    // ======================================================
+
+    let superAdminAllowed = false;
+
+    try {
+        superAdminAllowed = await isSuperAdminByEmail(email);
+    } catch (superAdminErr) {
+        console.error("Super admin lookup failed:", superAdminErr.message);
+        return res.status(500).json({
+            success: false,
+            message: "Database Error"
+        });
+    }
+
+    if (!superAdminAllowed) {
+        return res.status(403).json({
+            success: false,
+            message: "Self-service password reset is disabled for this account. Please contact your administrator to reset your password."
         });
     }
 

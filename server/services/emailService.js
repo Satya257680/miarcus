@@ -43,6 +43,10 @@ const resetPassword = require(
     "../utils/emailTemplates/resetPassword"
 );
 
+const accountCredentials = require(
+    "../utils/emailTemplates/accountCredentials"
+);
+
 // ==========================================================
 // EMAIL CONFIGURATION
 // ==========================================================
@@ -502,6 +506,95 @@ const sendInvitationEmail = async (
 };
 
 // ==========================================================
+// ACCOUNT CREDENTIALS (NEW USER — ADMIN-SET PASSWORD)
+// ==========================================================
+//
+// Used when an administrator creates a new user. The user's
+// password is chosen by the administrator (not the user) and
+// is delivered directly by email. The account is active
+// immediately — there is no separate self-service activation
+// step.
+//
+// ==========================================================
+
+const sendUserCredentialsEmail = async (
+    user,
+    password
+) => {
+
+    validateUserEmail(user);
+
+    if (!password) {
+
+        throw new Error(
+            "Password is required."
+        );
+
+    }
+
+    return sendEmail({
+
+        to:
+            user.email,
+
+        subject:
+            "Welcome to Mi Arcus — Your Account Details",
+
+        html:
+            accountCredentials(
+                user,
+                password,
+                { isNewAccount: true }
+            )
+
+    });
+
+};
+
+// ==========================================================
+// ACCOUNT CREDENTIALS (ADMIN PASSWORD UPDATE)
+// ==========================================================
+//
+// Used when an administrator updates an existing user's
+// password from the Password Management screen.
+//
+// ==========================================================
+
+const sendPasswordUpdatedEmail = async (
+    user,
+    password
+) => {
+
+    validateUserEmail(user);
+
+    if (!password) {
+
+        throw new Error(
+            "Password is required."
+        );
+
+    }
+
+    return sendEmail({
+
+        to:
+            user.email,
+
+        subject:
+            "Your Mi Arcus Password Has Been Updated",
+
+        html:
+            accountCredentials(
+                user,
+                password,
+                { isNewAccount: false }
+            )
+
+    });
+
+};
+
+// ==========================================================
 // ACCOUNT UPDATED
 // ==========================================================
 
@@ -739,6 +832,14 @@ module.exports = {
     // ------------------------------------------------------
 
     sendInvitationEmail,
+
+    // ------------------------------------------------------
+    // Admin-issued credentials (new account / password update)
+    // ------------------------------------------------------
+
+    sendUserCredentialsEmail,
+
+    sendPasswordUpdatedEmail,
 
     // ------------------------------------------------------
     // User account lifecycle

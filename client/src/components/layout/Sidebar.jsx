@@ -39,7 +39,8 @@ import {
     FaTags,
     FaPlus,
     FaComments,
-    FaLifeRing
+    FaLifeRing,
+    FaKey
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -574,6 +575,32 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Employee Location
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    PASSWORD MANAGEMENT
+                    (Administrators / Super Admin only)
+
+                    Every user's password is created and managed by
+                    an administrator here — this is also where a
+                    forgotten password gets reset, since self-service
+                    "Forgot Password" is disabled for everyone except
+                    the Super Admin account.
+                ================================================== */}
+
+                {isAdministrator && (
+                    <NavLink
+                        to="/settings/password-management"
+                        className={getMenuClass}
+                    >
+                        <FaKey />
+
+                        {!collapsed && (
+                            <span>
+                                Password Management
                             </span>
                         )}
                     </NavLink>

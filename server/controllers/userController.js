@@ -2,12 +2,15 @@ const fs = require("fs");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { validatePassword, BCRYPT_ROUNDS } = require("../config/security");
+const { encryptPassword } = require("../config/passwordVault");
+const PasswordVault = require("../models/passwordVaultModel");
 
 const User = require("../models/userModel");
 const { logActivity } = require("../utils/activityLogger");
 
 const {
     sendInvitationEmail,
+    sendUserCredentialsEmail,
     sendAccountUpdatedEmail,
     sendAccountActivatedEmail,
     sendAccountDisabledEmail,
@@ -298,6 +301,50 @@ const createUser = (
 
 
     // ------------------------------------------------------
+    // Validate Admin-Supplied Password
+    // ------------------------------------------------------
+    //
+    // The person creating the account sets the new user's
+    // password directly — the new user never creates or
+    // chooses their own password. It is emailed to them
+    // directly once the account has been created, and the
+    // account is active immediately (no separate self-service
+    // "activate & choose a password" step).
+    // ------------------------------------------------------
+
+    const rawPassword = String(req.body?.password || "");
+    const confirmRawPassword = String(req.body?.confirmPassword || "");
+
+    const createPasswordError = validatePassword(rawPassword);
+
+    if (createPasswordError) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: createPasswordError
+
+        });
+    }
+
+    if (
+        confirmRawPassword &&
+        rawPassword !== confirmRawPassword
+    ) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message:
+                "Password and Confirm Password do not match."
+
+        });
+    }
+
+
+    // ------------------------------------------------------
     // Check Duplicate Email
     // ------------------------------------------------------
 
@@ -387,7 +434,7 @@ const createUser = (
 
                         user,
 
-                        (addErr, addResult) => {
+                        async (addErr, addResult) => {
 
                             if (addErr) {
 
@@ -408,186 +455,182 @@ const createUser = (
                                 addResult.insertId;
 
 
-                            const token =
-                                crypto
-                                    .randomBytes(32)
-                                    .toString("hex");
+                            // --------------------------------------------------
+                            // Set Admin-Supplied Password
+                            // --------------------------------------------------
+                            //
+                            // Hashes the password for real authentication,
+                            // keeps an encrypted copy for the Password
+                            // Management screen, and activates the account
+                            // immediately — no self-service activation link.
+                            // --------------------------------------------------
+
+                            let hashedPassword;
+                            let encryptedPassword;
+
+                            try {
+
+                                hashedPassword =
+                                    await bcrypt.hash(
+                                        rawPassword,
+                                        BCRYPT_ROUNDS
+                                    );
+
+                                encryptedPassword =
+                                    encryptPassword(rawPassword);
+
+                                await PasswordVault.setUserPassword(
+                                    userId,
+                                    hashedPassword,
+                                    encryptedPassword,
+                                    req.user.id
+                                );
+
+                            } catch (passwordSetErr) {
+
+                                console.error(
+                                    "Unable to set password for new user:",
+                                    passwordSetErr
+                                );
+
+                                return res.status(500).json({
+
+                                    success: false,
+
+                                    message:
+                                        "User record was created, but the password could not be saved. Please update the password from Password Management."
+
+                                });
+                            }
 
 
-                            const expiresAt =
-                                new Date(
-                                    Date.now() +
-                                    24 *
-                                    60 *
-                                    60 *
-                                    1000
+                            // --------------------------------------------------
+                            // Send Account Credentials Email
+                            // --------------------------------------------------
+
+                            sendUserCredentialsEmail(
+
+                                user,
+
+                                rawPassword
+
+                            )
+
+                            .then(() => {
+
+                                // ----------------------------------------------
+                                // Activity Log
+                                // ----------------------------------------------
+
+                                logActivity({
+
+                                    activity_type:
+                                        "User",
+
+                                    reference_id:
+                                        userId,
+
+                                    title:
+                                        "User Created",
+
+                                    description:
+                                        `${user.fullName || user.name} was added`,
+
+                                    module_name:
+                                        "Users",
+
+                                    status:
+                                        "Open",
+
+                                    priority:
+                                        "Medium",
+
+                                    created_by:
+                                        req.user.id,
+
+                                    assigned_to:
+                                        userId
+
+                                });
+
+
+                                return res.status(201).json({
+
+                                    success: true,
+
+                                    message:
+                                        "User created and login credentials sent successfully"
+
+                                });
+
+                            })
+
+                            .catch((mailErr) => {
+
+                                console.error(
+                                    "Account credentials email failed:",
+                                    mailErr?.message ||
+                                    mailErr
                                 );
 
 
-                            // --------------------------------------------------
-                            // Save Activation Token
-                            // --------------------------------------------------
+                                try {
 
-                            User.saveActivationToken(
+                                    logActivity({
 
-                                userId,
+                                        activity_type:
+                                            "User",
 
-                                token,
+                                        reference_id:
+                                            userId,
 
-                                expiresAt,
+                                        title:
+                                            "User Created - Credentials Email Failed",
 
-                                (tokenErr) => {
+                                        description:
+                                            `${user.fullName || user.name} was added but the credentials email failed`,
 
-                                    if (tokenErr) {
+                                        module_name:
+                                            "Users",
 
-                                        console.log(
-                                            tokenErr
-                                        );
+                                        status:
+                                            "Open",
 
-                                        return res.status(500).json({
+                                        priority:
+                                            "High",
 
-                                            success: false,
+                                        created_by:
+                                            req.user.id,
 
-                                            message:
-                                                "Unable to create activation token"
+                                        assigned_to:
+                                            userId
 
-                                        });
-                                    }
-
-
-                                    const activationLink =
-                                        `${getAppUrl()}/activate-account/${token}`;
-
-
-                                    // --------------------------------------------------
-                                    // Send Invitation Email
-                                    // --------------------------------------------------
-
-                                    sendInvitationEmail(
-
-                                        user,
-
-                                        activationLink
-
-                                    )
-
-                                    .then(() => {
-
-                                        // ----------------------------------------------
-                                        // Activity Log
-                                        // ----------------------------------------------
-
-                                        logActivity({
-
-                                            activity_type:
-                                                "User",
-
-                                            reference_id:
-                                                userId,
-
-                                            title:
-                                                "User Created",
-
-                                            description:
-                                                `${user.fullName || user.name} was added`,
-
-                                            module_name:
-                                                "Users",
-
-                                            status:
-                                                "Open",
-
-                                            priority:
-                                                "Medium",
-
-                                            created_by:
-                                                req.user.id,
-
-                                            assigned_to:
-                                                userId
-
-                                        });
-
-
-                                        return res.status(201).json({
-
-                                            success: true,
-
-                                            message:
-                                                "User created and invitation sent successfully"
-
-                                        });
-
-                                    })
-
-                                    .catch((mailErr) => {
-
-                                        console.error(
-                                            "Invitation email failed:",
-                                            mailErr?.message ||
-                                            mailErr
-                                        );
-
-
-                                        try {
-
-                                            logActivity({
-
-                                                activity_type:
-                                                    "User",
-
-                                                reference_id:
-                                                    userId,
-
-                                                title:
-                                                    "User Created - Invitation Email Failed",
-
-                                                description:
-                                                    `${user.fullName || user.name} was added but invitation email failed`,
-
-                                                module_name:
-                                                    "Users",
-
-                                                status:
-                                                    "Open",
-
-                                                priority:
-                                                    "High",
-
-                                                created_by:
-                                                    req.user.id,
-
-                                                assigned_to:
-                                                    userId
-
-                                            });
-
-                                        } catch (
-                                            activityErr
-                                        ) {
-
-                                            console.error(
-                                                "Activity log failed:",
-                                                activityErr
-                                            );
-                                        }
-
-
-                                        return res.status(201).json({
-
-                                            success: true,
-
-                                            warning: true,
-
-                                            emailSent: false,
-
-                                            message:
-                                                "User created successfully, but invitation email could not be sent."
-
-                                        });
                                     });
+
+                                } catch (
+                                    activityErr
+                                ) {
+
+                                    console.error(
+                                        "Activity log failed:",
+                                        activityErr
+                                    );
                                 }
-                            );
+
+
+                                return res.status(201).json({
+
+                                    success: true,
+
+                                    warning: true,
+
+                                    emailSent: false,
+
+                                    message:
+                                        "User created successfully, but the credentials email could not be sent. Please share the password with the user manually from Password Management."
+
+                                });
+                            });
                         }
                     );
                 }

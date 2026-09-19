@@ -420,9 +420,14 @@ function Login() {
                 )}
               </button>
 
-              <Link to="/forgot-password" className="forgot-password">
-                Forgot password?
-              </Link>
+              {/* ==========================================================
+                  "Forgot password?" is intentionally not shown here.
+                  Every account's password is created and managed by an
+                  administrator (see Settings → Password Management), so
+                  self-service reset is not offered from the sign-in
+                  screen. It remains available only to the Super Admin
+                  account directly at /forgot-password.
+              ========================================================== */}
 
               <InstallAppButton variant="login" />
             </form>
