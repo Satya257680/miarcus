@@ -24,6 +24,7 @@
 
 const db = require("../config/db");
 const ChecklistSubmission = require("../models/checklistSubmissionModel");
+const { resolveStoreIdFuzzy } = require("../utils/storeMatcher");
 
 const queryOne = (sql, params = []) =>
     new Promise((resolve, reject) => {
@@ -44,23 +45,11 @@ async function resolveStoreId(row) {
     const raw = String(row["Store"] || "").trim();
     if (!raw) return null;
 
-    if (/^\d+$/.test(raw)) return Number(raw);
-
-    let store = await queryOne(
-        `SELECT id FROM stores
-         WHERE LOWER(store_name) = LOWER(?) OR LOWER(store_code) = LOWER(?)
-         LIMIT 1`,
-        [raw, raw]
-    );
-
-    if (!store) {
-        store = await queryOne(
-            `SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1`,
-            [`%${raw}%`]
-        );
-    }
-
-    return store?.id || null;
+    // Shared with Action Points (see utils/storeMatcher.js) so a store
+    // recognized here is recognized the same way in every other bulk
+    // upload — including composite exported labels like
+    // "MRPL - MVN DEHRADUN (589)" that a plain substring match misses.
+    return resolveStoreIdFuzzy(raw);
 }
 
 // ======================================================

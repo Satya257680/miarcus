@@ -28,6 +28,8 @@
 
 .bulk-modal{
 
+    position:relative;
+
     width:459px;
 
     max-width:100%;
@@ -41,6 +43,89 @@
     box-shadow:0 16px 41px rgba(0,0,0,.18);
 
     animation:bulkPopup .25s ease;
+
+}
+
+/* ==========================================================
+   PROCESSING OVERLAY
+   Shown across the whole modal — regardless of what the file
+   contains or which page opened this component — for the
+   entire time the server is reading/validating/importing it.
+========================================================== */
+
+.bulk-processing-overlay{
+
+    position:absolute;
+
+    inset:0;
+
+    z-index:5;
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    padding:24px;
+
+    text-align:center;
+
+    background:rgba(255,255,255,.94);
+
+    backdrop-filter:blur(1px);
+
+}
+
+.bulk-processing-spinner{
+
+    width:34px;
+
+    height:34px;
+
+    border-radius:50%;
+
+    border:3px solid #d9e4ee;
+
+    border-top-color:#2875e8;
+
+    animation:bulkSpin .7s linear infinite;
+
+    margin-bottom:4px;
+
+}
+
+@keyframes bulkSpin{
+
+    to{
+
+        transform:rotate(360deg);
+
+    }
+
+}
+
+.bulk-processing-overlay strong{
+
+    color:#243447;
+
+    font-size:13px;
+
+}
+
+.bulk-processing-overlay span{
+
+    color:#6b7b87;
+
+    font-size:11px;
+
+    max-width:280px;
+
+    line-height:1.5;
 
 }
 

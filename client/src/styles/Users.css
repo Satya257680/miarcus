@@ -441,6 +441,21 @@
   background: #ffc9cd;
 }
 
+.protected-account-badge {
+  display: inline-flex;
+  align-items: center;
+  min-width: 51px;
+  height: 25px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: #eef1f3;
+  color: #6b7b87;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: not-allowed;
+  white-space: nowrap;
+}
+
 /* =========================================================
    EMPTY STATE
 ========================================================= */
@@ -520,12 +535,17 @@
 }
 
 /* =========================================================
-   LEGACY USER MODAL SUPPORT
-   Kept for Add User / Delete All if those components
-   still use these classes.
+   DELETE ALL CONFIRM MODAL
+   Deliberately unique class names (not the generic
+   ".modal-overlay" / ".user-modal" / ".cancel-btn" names used
+   elsewhere in the app) — those generic names collide with
+   AddUserModal.css's own ".user-modal" (a completely different,
+   ~1000x672px multi-step wizard), which made this confirm
+   dialog render as a huge, mostly-empty box instead of a small
+   confirmation prompt.
 ========================================================= */
 
-.modal-overlay {
+.users-confirm-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -538,7 +558,7 @@
   backdrop-filter: blur(2px);
 }
 
-.user-modal {
+.users-confirm-modal {
   width: min(426px, 100%);
   max-height: 90vh;
   overflow-y: auto;
@@ -549,36 +569,27 @@
   box-shadow: 0 16px 49px rgba(0, 0, 0, 0.22);
 }
 
-.user-modal h2 {
+.users-confirm-modal h2 {
   margin: 0 0 7px;
   color: #243447;
   font-size: 17px;
 }
 
-.user-modal p {
+.users-confirm-modal p {
   margin: 0 0 15px;
   color: #6b7b87;
   font-size: 11px;
   line-height: 1.5;
 }
 
-.user-modal input[type="file"] {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 9px;
-  border: 1px solid #d5e0e5;
-  border-radius: 6px;
-  background: #fafcfd;
-}
-
-.modal-buttons {
+.users-confirm-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
 }
 
-.modal-buttons button {
+.users-confirm-buttons button {
   min-width: 90px;
   height: 31px;
   padding: 0 12px;
@@ -588,18 +599,13 @@
   cursor: pointer;
 }
 
-.cancel-btn {
+.users-confirm-cancel-btn {
   background: #ffffff;
   border: 1px solid #ccd7dd !important;
   color: #4b5b66;
 }
 
-.save-btn {
-  background: #2875e8;
-  color: #ffffff;
-}
-
-.modal-delete-btn {
+.users-confirm-delete-btn {
   background: #dc3545;
   color: #ffffff;
 }

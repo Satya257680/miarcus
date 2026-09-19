@@ -90,6 +90,14 @@ const canEdit =
 const canDelete =
   userPermission === "Full";
 
+// Administrator and Super Admin accounts are never disable-able or
+// delete-able from this screen — "Delete All" already keeps every
+// is_admin = 1 row, this extends the same rule to the per-row
+// Disable/Delete actions so they can't be used to work around it.
+const isProtectedUser = (user) =>
+  Boolean(user) &&
+  (Number(user.is_admin) === 1 || Number(user.is_super_admin) === 1);
+
   // ============================
   // Load Users
   // ============================
@@ -249,7 +257,12 @@ const deleteAllUsers = async () => {
 // Delete User
 // ============================
 
-const deleteUser = async (id) => {
+const deleteUser = async (id, user) => {
+
+  if (isProtectedUser(user)) {
+    alert("Administrator and Super Admin accounts cannot be deleted.");
+    return;
+  }
 
   if (!window.confirm("Delete this user?")) return;
 
@@ -266,7 +279,7 @@ const deleteUser = async (id) => {
   } catch (err) {
 
     console.log(err);
-    alert("Delete Failed");
+    alert(err.response?.data?.message || "Delete Failed");
 
   }
 
@@ -276,7 +289,12 @@ const deleteUser = async (id) => {
 // Disable User
 // ============================
 
-const disableUser = async (id) => {
+const disableUser = async (id, user) => {
+
+  if (isProtectedUser(user)) {
+    alert("Administrator and Super Admin accounts cannot be disabled.");
+    return;
+  }
 
   try {
 
@@ -291,7 +309,7 @@ const disableUser = async (id) => {
   } catch (err) {
 
     console.log(err);
-    alert("Disable Failed");
+    alert(err.response?.data?.message || "Disable Failed");
 
   }
 
@@ -817,7 +835,9 @@ return (
 
             <td>
 
-              {user.is_admin
+              {user.is_super_admin
+                ? "Super Admin"
+                : user.is_admin
                 ? "Yes"
                 : "No"}
 
@@ -839,21 +859,30 @@ return (
     )}
 
     {canDelete && (
-      <button
-        className="disable-btn"
-        onClick={() => disableUser(user.id)}
-      >
-        Disable
-      </button>
-    )}
+      isProtectedUser(user) ? (
+        <span
+          className="protected-account-badge"
+          title="Administrator and Super Admin accounts cannot be disabled or deleted."
+        >
+          Protected
+        </span>
+      ) : (
+        <>
+          <button
+            className="disable-btn"
+            onClick={() => disableUser(user.id, user)}
+          >
+            Disable
+          </button>
 
-    {canDelete && (
-      <button
-        className="remove-btn"
-        onClick={() => deleteUser(user.id)}
-      >
-        Delete
-      </button>
+          <button
+            className="remove-btn"
+            onClick={() => deleteUser(user.id, user)}
+          >
+            Delete
+          </button>
+        </>
+      )
     )}
 
   </div>
@@ -1020,20 +1049,21 @@ return (
 
 {showDeleteModal && (
 
-<div className="modal-overlay">
+<div className="users-confirm-overlay">
 
-  <div className="user-modal">
+  <div className="users-confirm-modal">
 
     <h2>Delete All Users</h2>
 
     <p>
-      Are you sure you want to delete all users?
+      This permanently deletes every user except Administrator and
+      Super Admin accounts, which are always kept. This cannot be undone.
     </p>
 
-    <div className="modal-buttons">
+    <div className="users-confirm-buttons">
 
       <button
-        className="cancel-btn"
+        className="users-confirm-cancel-btn"
         onClick={() =>
           setShowDeleteModal(false)
         }
@@ -1041,7 +1071,7 @@ return (
         Cancel
       </button>
 <button
-  className="modal-delete-btn"
+  className="users-confirm-delete-btn"
   onClick={deleteAllUsers}
 >
   Delete

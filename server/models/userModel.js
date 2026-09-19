@@ -150,6 +150,8 @@ const getAllUsers = (
 
             u.is_admin,
 
+            u.is_super_admin,
+
             u.is_activated,
 
             u.activated_at,
@@ -1656,6 +1658,7 @@ const deleteAllUsers = (
                         SELECT id
                         FROM users
                         WHERE is_admin = 0
+                          AND is_super_admin = 0
                         ORDER BY id ASC
                     `
                 );
@@ -1693,6 +1696,7 @@ const deleteAllUsers = (
                         DELETE
                         FROM users
                         WHERE is_admin = 0
+                          AND is_super_admin = 0
                     `
                 );
 
@@ -1761,7 +1765,11 @@ const getUserById = (
 
             whatsapp_contact,
 
-            is_activated
+            is_activated,
+
+            is_admin,
+
+            is_super_admin
 
         FROM users
 

@@ -307,6 +307,35 @@ function BulkUploadModal({
             <div className="bulk-modal">
 
                 {/* =====================================
+                    PROCESSING OVERLAY
+
+                    Large files (thousands of rows) can take a
+                    while to validate/import on the server. The
+                    "Uploading..." button label alone is easy to
+                    miss, which makes the modal look frozen/stuck.
+                    This overlay makes it unmistakable, on every
+                    page that uses this shared component, that the
+                    file is actively being read and processed.
+                ===================================== */}
+
+                {loading && (
+
+                    <div className="bulk-processing-overlay">
+
+                        <div className="bulk-processing-spinner" />
+
+                        <strong>Processing your file…</strong>
+
+                        <span>
+                            This can take a moment for large files.
+                            Please don't close this window.
+                        </span>
+
+                    </div>
+
+                )}
+
+                {/* =====================================
                     HEADER
                 ===================================== */}
 

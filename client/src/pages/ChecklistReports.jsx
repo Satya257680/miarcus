@@ -358,14 +358,50 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         loadData();
 
-        const handleFocus = () => loadData();
+        // ==========================================================
+        // BACKGROUND REFRESH ON WINDOW FOCUS
+        //
+        // Refresh the list when the user comes back to this tab so
+        // changes made elsewhere are picked up — but never while a
+        // modal is open. The native "Browse File" dialog opened by
+        // Bulk Upload blurs/refocuses the browser window while it's
+        // open, and loadData() sets `loading = true`, which — see the
+        // "if (loading) return <div>Loading...</div>" below — replaces
+        // this entire page (including any open modal) with a bare
+        // "Loading Checklist Reports..." screen. That unmounted the
+        // Bulk Upload modal (and any edit/view/delete dialog) out from
+        // under the user just from picking a file. Same fix already
+        // applied in AttendanceReports.jsx.
+        // ==========================================================
+
+        const handleFocus = () => {
+
+            if (
+                showBulkUpload ||
+                showViewModal ||
+                showEditModal ||
+                showDeleteDialog ||
+                showDeleteAllDialog
+            ) {
+                return;
+            }
+
+            loadData();
+        };
         window.addEventListener("focus", handleFocus);
 
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
 
-    }, [canView]);
+    }, [
+        canView,
+        showBulkUpload,
+        showViewModal,
+        showEditModal,
+        showDeleteDialog,
+        showDeleteAllDialog
+    ]);
 
     // ======================================================
     // VIEW REPORT

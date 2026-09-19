@@ -1547,112 +1547,141 @@ const disableUser = (
     res
 ) => {
 
-    User.disableUser(
+    // --------------------------------------------------
+    // Get User Details FIRST — Administrator and Super Admin
+    // accounts can never be disabled from here, so that has to be
+    // checked before anything is changed in the database.
+    // --------------------------------------------------
+
+    User.getUserById(
 
         req.params.id,
 
-        (err) => {
+        async (
+            userErr,
+            users
+        ) => {
 
-            if (err) {
+            if (userErr) {
 
-                console.log(err);
+                console.log(
+                    userErr
+                );
 
                 return res.status(500).json({
 
                     success: false,
 
                     message:
-                        "Unable to Disable User"
+                        "Database Error"
 
                 });
             }
 
 
-            // --------------------------------------------------
-            // Get User Details
-            // --------------------------------------------------
+            if (
+                !users ||
+                users.length === 0
+            ) {
 
-            User.getUserById(
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        "User Not Found"
+
+                });
+            }
+
+
+            const user =
+                users[0];
+
+
+            const isProtected =
+                Number(user.is_admin) === 1 ||
+                Number(user.is_super_admin) === 1;
+
+            if (isProtected) {
+
+                return res.status(403).json({
+
+                    success: false,
+
+                    message:
+                        "Administrator and Super Admin accounts cannot be disabled."
+
+                });
+            }
+
+
+            User.disableUser(
 
                 req.params.id,
 
-                async (
-                    userErr,
-                    users
-                ) => {
+                async (err) => {
 
-                    if (userErr) {
+                    if (err) {
 
-                        console.log(
-                            userErr
-                        );
+                        console.log(err);
 
                         return res.status(500).json({
 
                             success: false,
 
                             message:
-                                "Database Error"
+                                "Unable to Disable User"
 
                         });
                     }
 
 
-                    if (
-                        users &&
-                        users.length > 0
-                    ) {
+                    // --------------------------------------------------
+                    // Send Account Disabled Email
+                    // --------------------------------------------------
 
-                        const user =
-                            users[0];
-
-
-                        // --------------------------------------------------
-                        // Send Account Disabled Email
-                        // --------------------------------------------------
-
-                        const emailResult = await sendLifecycleEmail(
-                            sendAccountDisabledEmail,
-                            user,
-                            "Account disabled"
-                        );
+                    const emailResult = await sendLifecycleEmail(
+                        sendAccountDisabledEmail,
+                        user,
+                        "Account disabled"
+                    );
 
 
-                        // --------------------------------------------------
-                        // Activity Log
-                        // --------------------------------------------------
+                    // --------------------------------------------------
+                    // Activity Log
+                    // --------------------------------------------------
 
-                        logActivity({
+                    logActivity({
 
-                            activity_type:
-                                "User",
+                        activity_type:
+                            "User",
 
-                            reference_id:
-                                user.id,
+                        reference_id:
+                            user.id,
 
-                            title:
-                                "User Disabled",
+                        title:
+                            "User Disabled",
 
-                            description:
-                                `${user.name || user.fullName} was disabled`,
+                        description:
+                            `${user.name || user.fullName} was disabled`,
 
-                            module_name:
-                                "Users",
+                        module_name:
+                            "Users",
 
-                            status:
-                                "Closed",
+                        status:
+                            "Closed",
 
-                            priority:
-                                "High",
+                        priority:
+                            "High",
 
-                            created_by:
-                                req.user.id,
+                        created_by:
+                            req.user.id,
 
-                            assigned_to:
-                                user.id
+                        assigned_to:
+                            user.id
 
-                        });
-                    }
+                    });
 
 
                     return res.json({
@@ -1855,6 +1884,31 @@ const deleteUser = (
 
             const user =
                 users[0];
+
+
+            // --------------------------------------------------
+            // Administrator and Super Admin accounts can never be
+            // deleted from here — the same protection "Delete All"
+            // already applies (it only ever removes is_admin = 0
+            // rows), extended to the single-user delete action so
+            // it can't be used to route around that rule.
+            // --------------------------------------------------
+
+            const isProtected =
+                Number(user.is_admin) === 1 ||
+                Number(user.is_super_admin) === 1;
+
+            if (isProtected) {
+
+                return res.status(403).json({
+
+                    success: false,
+
+                    message:
+                        "Administrator and Super Admin accounts cannot be deleted."
+
+                });
+            }
 
 
             User.deleteUser(

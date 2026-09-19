@@ -4,6 +4,7 @@ const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
 const Notification = require("./notificationService");
 const checklistEmailService = require("./checklistEmailService");
+const { resolveStoreIdFuzzy } = require("../utils/storeMatcher");
 
 // ======================================================
 // HELPER
@@ -45,30 +46,15 @@ const resolveGlobalReferences = async (data) => {
         : NaN;
 
     if ((!Number.isFinite(numericStoreId) || numericStoreId <= 0) && hasValue(resolved.store_name)) {
-        const storeText = String(resolved.store_name).trim();
 
-        // Case-insensitive exact match first (tolerates a bulk file that
-        // spells the store name in a different case than the database).
-        let store = await queryOne(
-            `SELECT id
-             FROM stores
-             WHERE LOWER(store_name) = LOWER(?) OR LOWER(store_code) = LOWER(?)
-             LIMIT 1`,
-            [storeText, storeText]
-        );
+        // Shared with Checklist Reports (see utils/storeMatcher.js) so a
+        // store recognized in one bulk-upload module is recognized the
+        // same way everywhere — including composite exported labels like
+        // "MRPL - MVN DEHRADUN (589)" that a plain substring match misses.
+        const matchedStoreId = await resolveStoreIdFuzzy(resolved.store_name);
 
-        // Fall back to a partial match so extra whitespace/punctuation or a
-        // slightly different spelling in a bulk file still resolves rather
-        // than failing the whole row.
-        if (!store) {
-            store = await queryOne(
-                `SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1`,
-                [`%${storeText}%`]
-            );
-        }
-
-        if (store?.id) {
-            resolved.store_id = store.id;
+        if (matchedStoreId) {
+            resolved.store_id = matchedStoreId;
         }
     }
 
