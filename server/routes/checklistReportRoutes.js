@@ -33,11 +33,15 @@ const upload = require("../middleware/bulkFileUpload");
 // concurrent row processing. Raise it just for this route so a big
 // file is never cut off mid-request; small/normal files are
 // unaffected since they finish long before the old limit anyway.
+//
+// Raised from 15 to 60 minutes to match the upload size limit itself
+// being removed (see middleware/bulkFileUpload.js) — a much bigger
+// file legitimately needs much longer to transfer + parse + import.
 // ======================================================
 
 const extendUploadTimeout = (req, res, next) => {
-    req.setTimeout(15 * 60 * 1000); // 15 minutes
-    res.setTimeout(15 * 60 * 1000);
+    req.setTimeout(60 * 60 * 1000); // 60 minutes
+    res.setTimeout(60 * 60 * 1000);
     next();
 };
 

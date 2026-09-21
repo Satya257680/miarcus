@@ -618,6 +618,39 @@ async function initializeDatabase() {
 
         }
 
+        // ==================================================
+        // CHECKLIST SUBMISSION EXACT DATE/TIME MIGRATION
+        //
+        // Upgrades submission_date from DATE to DATETIME on existing
+        // databases so the real submission time is preserved instead
+        // of always being stored/displayed as midnight — see
+        // ensureSubmissionDateTime() in models/checklistSubmissionModel.js.
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ChecklistSubmission.ensureSubmissionDateTime ===
+                "function"
+            ) {
+
+                await ChecklistSubmission.ensureSubmissionDateTime();
+
+                console.log(
+                    "✅ checklist_submissions.submission_date verified as DATETIME (exact submission time preserved)"
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ checklist_submissions submission_date DATETIME migration failed:",
+                error.message
+            );
+
+        }
+
         console.log(
             "=============================================="
         );

@@ -269,6 +269,56 @@ async function resolveQuestionId(row, checklistTypeId) {
 const indiaToday = () =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
+const pad2 = (value) => String(value).padStart(2, "0");
+
+// Combines a date part with an optional time part into the
+// "YYYY-MM-DD HH:MM:SS" string the (now DATETIME) submission_date
+// column expects. Defaults the time to midnight only when no time is
+// available at all — see the callers below, which always try to find
+// a real time first.
+const toDateTimeString = (year, month, day, hour = "00", minute = "00", second = "00") =>
+    `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;
+
+// Parses a 12-hour "12:37:52 PM" / "9:23 AM" style time into 24-hour
+// { hour, minute, second } — returns null when it doesn't look like a
+// time at all.
+function parseClockTime(text) {
+    const match = String(text || "").trim().match(
+        /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/
+    );
+    if (!match) return null;
+
+    let [, hour, minute, second, meridiem] = match;
+    hour = Number(hour);
+    minute = Number(minute);
+    second = Number(second || 0);
+
+    if (meridiem) {
+        const isPM = /p/i.test(meridiem);
+        if (isPM && hour < 12) hour += 12;
+        if (!isPM && hour === 12) hour = 0;
+    }
+
+    if (hour > 23 || minute > 59 || second > 59) return null;
+
+    return { hour, minute, second };
+}
+
+// ======================================================
+// EXACT SUBMISSION DATE + TIME
+//
+// BUG FIX ("Submitted At always shows 00:00:00" on bulk-uploaded rows):
+// this used to extract only the calendar date out of "Actual
+// Submission Time" (e.g. "8/31/2026, 12:37:52 PM") and threw the
+// 12:37:52 PM part away entirely — every bulk-imported row therefore
+// always showed midnight, no matter what the Excel file actually said.
+// This now keeps the exact time from the file whenever one is present,
+// and only ever falls back to midnight when the source genuinely has
+// no time information at all (submission_date is a DATETIME column —
+// see models/checklistSubmissionModel.js — so there is always
+// somewhere for it to go).
+// ======================================================
+
 function parseSubmissionDate(row) {
     // "Actual Submission Time" (e.g. "8/31/2026, 12:37:52 PM") is the real
     // moment the checklist was submitted and is preferred over "Submission
@@ -279,28 +329,68 @@ function parseSubmissionDate(row) {
         : row["Submission Date"];
 
     if (hasValue(raw)) {
-        // A plain "YYYY-MM-DD" (or "DD/MM/YYYY", "DD-MM-YYYY") date-only
-        // value has no timezone of its own — use it exactly as written
-        // instead of routing it through `new Date(...)`, which would
-        // otherwise treat it as UTC midnight and can shift it by a day
-        // once reformatted.
         const text = String(raw).trim();
 
-        const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (isoMatch) {
-            return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+        // "YYYY-MM-DD HH:MM:SS" / "YYYY-MM-DDTHH:MM:SS" — already exact.
+        const isoDateTimeMatch = text.match(
+            /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/
+        );
+        if (isoDateTimeMatch) {
+            const [, y, m, d, hh, mm, ss] = isoDateTimeMatch;
+            return toDateTimeString(y, m, d, hh, mm, ss || "00");
         }
 
-        const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-        if (dmyMatch) {
-            const [, day, month, year] = dmyMatch;
-            return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        // Plain "YYYY-MM-DD" — date-only, no time to preserve.
+        const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+            return toDateTimeString(isoMatch[1], isoMatch[2], isoMatch[3]);
+        }
+
+        // "M/D/YYYY, H:MM:SS AM/PM" / "D-M-YYYY H:MM AM/PM" — the exact
+        // export format of "Actual Submission Time". The date and time
+        // are split on the comma (when present) or the first run of
+        // whitespace after the date, so both halves are parsed on their
+        // own rather than routed through `new Date(...)`, which would
+        // otherwise silently reinterpret the date as UTC and shift it.
+        const dmySplit = text.match(
+            /^(\d{1,2})[-/](\d{1,2})[-/](\d{4}),?\s*(.*)$/
+        );
+        if (dmySplit) {
+            const [, part1, part2, year, timePart] = dmySplit;
+
+            // The export always writes this column as M/D/YYYY (US
+            // order); a plain DD-MM-YYYY "Submission Date"/"Intended
+            // Date" column has no time part, so only trust the M/D
+            // reading when there is a time to go with it.
+            const time = parseClockTime(timePart);
+            const [month, day] = time ? [part1, part2] : [part2, part1];
+
+            return time
+                ? toDateTimeString(year, month, day, time.hour, time.minute, time.second)
+                : toDateTimeString(year, month, day);
         }
 
         const asDate = new Date(raw);
 
         if (!Number.isNaN(asDate.getTime())) {
-            return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(asDate);
+            const parts = new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Kolkata",
+                hour12: false,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }).formatToParts(asDate).reduce((acc, part) => {
+                if (part.type !== "literal") acc[part.type] = part.value;
+                return acc;
+            }, {});
+
+            return toDateTimeString(
+                parts.year, parts.month, parts.day,
+                parts.hour === "24" ? "00" : parts.hour, parts.minute, parts.second
+            );
         }
 
         // Unparseable — fall through to the Remarks/today fallback below
@@ -313,19 +403,22 @@ function parseSubmissionDate(row) {
     // Time column at all. The real timestamp is still there, but
     // embedded inside the Remarks text instead, e.g.
     // "[7/26/2026, 9:23:01 PM] Store did not have stock." Extract that
-    // bracketed date/time rather than silently defaulting every such
-    // row to today's date.
+    // bracketed date/time — including the time, not just the date —
+    // rather than silently defaulting every such row to today's date.
     const remarksText = String(row["Remarks"] || row["Comment"] || "");
     const bracketMatch = remarksText.match(
-        /\[(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp][Mm]?\]/
+        /\[(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp][Mm]?)\]/
     );
 
     if (bracketMatch) {
-        const [, month, day, year] = bracketMatch;
-        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const [, month, day, year, timeText] = bracketMatch;
+        const time = parseClockTime(timeText);
+        return time
+            ? toDateTimeString(year, month, day, time.hour, time.minute, time.second)
+            : toDateTimeString(year, month, day);
     }
 
-    return indiaToday();
+    return toDateTimeString(...indiaToday().split("-"));
 }
 
 // ======================================================

@@ -2,6 +2,20 @@ import React from "react";
 
 import "../../../styles/common/Pagination.css";
 
+// ======================================================
+// PAGINATION
+//
+// REDESIGN: this used to render a numbered page-button strip
+// ("Previous 1 ... 3024 3025 3026 Next") that, on a list with
+// thousands of pages (e.g. Checklist Reports with 30,000+ rows),
+// became a huge, confusing wall of buttons and "..." — nothing like
+// the rest of the app's own "Previous / Page X of Y / Next" pattern
+// (see client/src/pages/StoreManagement.jsx's pagination). This now
+// matches that same simple, page-count-independent style everywhere
+// this shared component is used, instead of every page needing its
+// own bespoke pagination markup just to get it.
+// ======================================================
+
 function Pagination({
 
     currentPage = 1,
@@ -22,17 +36,7 @@ function Pagination({
 
 }) {
 
-    const pages = [];
-
-    const start = Math.max(1, currentPage - 2);
-
-    const end = Math.min(totalPages, currentPage + 2);
-
-    for (let i = start; i <= end; i++) {
-
-        pages.push(i);
-
-    }
+    const safeTotalPages = Math.max(totalPages || 1, 1);
 
     return (
 
@@ -51,114 +55,13 @@ function Pagination({
 
             </div>
 
-            {/* Center */}
-
-            <div className="pagination-center">
-
-                <button
-                    type="button"
-                    className="page-btn"
-                    disabled={currentPage === 1}
-                    onClick={() =>
-                        onPageChange(currentPage - 1)
-                    }
-                >
-                    Previous
-                </button>
-
-                {start > 1 && (
-
-                    <>
-                        <button
-                            className="page-btn"
-                            onClick={() =>
-                                onPageChange(1)
-                            }
-                        >
-                            1
-                        </button>
-
-                        {start > 2 && (
-
-                            <span className="page-dots">
-
-                                ...
-
-                            </span>
-
-                        )}
-
-                    </>
-
-                )}
-
-                {pages.map((page) => (
-
-                    <button
-                        key={page}
-                        type="button"
-                        className={`page-btn ${
-                            page === currentPage
-                                ? "active"
-                                : ""
-                        }`}
-                        onClick={() =>
-                            onPageChange(page)
-                        }
-                    >
-                        {page}
-                    </button>
-
-                ))}
-
-                {end < totalPages && (
-
-                    <>
-                        {end < totalPages - 1 && (
-
-                            <span className="page-dots">
-
-                                ...
-
-                            </span>
-
-                        )}
-
-                        <button
-                            className="page-btn"
-                            onClick={() =>
-                                onPageChange(totalPages)
-                            }
-                        >
-                            {totalPages}
-                        </button>
-
-                    </>
-
-                )}
-
-                <button
-                    type="button"
-                    className="page-btn"
-                    disabled={
-                        currentPage === totalPages
-                    }
-                    onClick={() =>
-                        onPageChange(currentPage + 1)
-                    }
-                >
-                    Next
-                </button>
-
-            </div>
-
-            {/* Right */}
+            {/* Rows per page */}
 
             <div className="pagination-right">
 
                 <label>
 
-                    Rows :
+                    Rows Per Page :
 
                     <select
                         value={pageSize}
@@ -185,6 +88,42 @@ function Pagination({
                     </select>
 
                 </label>
+
+            </div>
+
+            {/* Center — Previous / Page X of Y / Next */}
+
+            <div className="pagination-center">
+
+                <button
+                    type="button"
+                    className="page-btn"
+                    disabled={currentPage === 1}
+                    onClick={() =>
+                        onPageChange(currentPage - 1)
+                    }
+                >
+                    Previous
+                </button>
+
+                <span className="page-info">
+
+                    Page {currentPage} of {safeTotalPages}
+
+                </span>
+
+                <button
+                    type="button"
+                    className="page-btn"
+                    disabled={
+                        currentPage === safeTotalPages
+                    }
+                    onClick={() =>
+                        onPageChange(currentPage + 1)
+                    }
+                >
+                    Next
+                </button>
 
             </div>
 

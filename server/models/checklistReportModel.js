@@ -31,7 +31,7 @@ ChecklistReport.getAll = (
 
             cs.submitted_by,
 
-            cs.submission_date,
+            DATE_FORMAT(cs.submission_date, '%Y-%m-%d %H:%i:%s') AS submission_date,
 
             'Completed' AS status,
 
@@ -561,7 +561,7 @@ ChecklistReport.getById = (
 
             cs.submitted_by,
 
-            cs.submission_date,
+            DATE_FORMAT(cs.submission_date, '%Y-%m-%d %H:%i:%s') AS submission_date,
 
             'Completed' AS status,
 
@@ -1379,7 +1379,7 @@ ChecklistReport.exportReports = (
                 cs.department_override
             ) AS department_name,
 
-            cs.submission_date,
+            DATE_FORMAT(cs.submission_date, '%Y-%m-%d %H:%i:%s') AS submission_date,
 
             'Completed' AS status,
 

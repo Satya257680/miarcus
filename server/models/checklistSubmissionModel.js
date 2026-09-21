@@ -4,6 +4,92 @@ const db = require("../config/db");
 const ChecklistSubmission = {};
 
 
+// ======================================================
+// EXACT SUBMISSION DATE/TIME
+// ======================================================
+//
+// BUG FIX ("Submitted At always shows 00:00:00"): submission_date used
+// to be a plain DATE column (see ensureSubmissionDateTime() below for
+// the migration that upgrades it), and the Checklist Submission page's
+// date input only ever sends a bare "YYYY-MM-DD" — so every
+// submission's time-of-day was silently discarded before it even
+// reached the database, and every report row showed midnight
+// regardless of when it was actually submitted.
+//
+// submission_date is now a DATETIME column, and this helper makes
+// sure a real, exact time is always attached to it:
+//
+//   - A bulk-upload row that already resolved a full "YYYY-MM-DD
+//     HH:MM:SS" (from the Excel file's own "Actual Submission Time"
+//     column — see parseSubmissionDate() in
+//     services/checklistReportService.js) is used exactly as given,
+//     second-for-second, instead of being truncated back to a bare
+//     date.
+//   - A bare date (from the manual Checklist Submission form, which
+//     only lets a user pick a DATE, never a time) is stamped with the
+//     actual current time, in the business's own timezone
+//     (Asia/Kolkata — same convention as indiaToday() in
+//     checklistReportService.js), so it reflects the real moment the
+//     submission was saved rather than a fabricated midnight.
+// ======================================================
+
+function currentIndiaTimeParts() {
+
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    }).formatToParts(new Date());
+
+    const lookup = {};
+    for (const part of parts) {
+        if (part.type !== "literal") lookup[part.type] = part.value;
+    }
+
+    // Midnight is sometimes reported as "24" by Intl — normalize.
+    if (lookup.hour === "24") lookup.hour = "00";
+
+    return lookup;
+}
+
+function resolveSubmissionDateTime(value) {
+
+    const raw = String(value || "").trim();
+
+    // Already a full date + time (bulk upload rows resolved via
+    // parseSubmissionDate) — keep it exactly as given.
+    const dateTimeMatch = raw.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
+    );
+
+    if (dateTimeMatch) {
+        const [, y, m, d, hh, mm, ss] = dateTimeMatch;
+        return `${y}-${m}-${d} ${hh}:${mm}:${ss || "00"}`;
+    }
+
+    const now = currentIndiaTimeParts();
+
+    // A bare "YYYY-MM-DD" (manual Checklist Submission form) — keep the
+    // chosen calendar date, but attach the actual time of submission.
+    const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (dateOnlyMatch) {
+        const [, y, m, d] = dateOnlyMatch;
+        return `${y}-${m}-${d} ${now.hour}:${now.minute}:${now.second}`;
+    }
+
+    // Unrecognized/empty — fall back to right now, in India time,
+    // rather than failing the whole submission.
+    return `${now.year}-${now.month}-${now.day} ${now.hour}:${now.minute}:${now.second}`;
+}
+
+ChecklistSubmission.resolveSubmissionDateTime = resolveSubmissionDateTime;
+
 
 // ======================================================
 // CREATE REQUIRED TABLES
@@ -27,7 +113,7 @@ ChecklistSubmission.createTables = (callback) => {
 
         submitted_by INT NULL,
 
-        submission_date DATE NOT NULL,
+        submission_date DATETIME NOT NULL,
 
         latitude DECIMAL(10,7) NULL,
 
@@ -261,6 +347,49 @@ ChecklistSubmission.ensureSubmitterOverrideColumns = async () => {
 };
 
 // ======================================================
+// ENSURE submission_date IS A DATETIME (NOT JUST A DATE)
+//
+// Existing databases may already have this table created back when
+// submission_date was `DATE NOT NULL` — CREATE TABLE IF NOT EXISTS
+// (above) never alters an existing table, so that column has to be
+// upgraded explicitly, exactly like ensureParentColumn()/
+// ensureSubmitterOverrideColumns() above do for their own columns.
+//
+// This is what actually fixes "Submitted At always shows 00:00:00":
+// a DATE column has physically nowhere to store a time-of-day at all,
+// no matter what the app sends it. Existing rows keep their date and
+// simply gain a 00:00:00 time (there was never a real time to recover
+// for them); every new submission going forward gets its exact time —
+// see resolveSubmissionDateTime() above and its use in create() below.
+// ======================================================
+
+ChecklistSubmission.ensureSubmissionDateTime = async () => {
+
+    const column = await new Promise((resolve, reject) => {
+        db.query(
+            `SELECT DATA_TYPE
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'checklist_submissions'
+               AND COLUMN_NAME = 'submission_date'
+             LIMIT 1`,
+            (err, rows) => err ? reject(err) : resolve(rows?.[0] || null)
+        );
+    });
+
+    const currentType = String(column?.DATA_TYPE || "").toLowerCase();
+
+    if (currentType && currentType !== "datetime") {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE checklist_submissions MODIFY COLUMN submission_date DATETIME NOT NULL`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+};
+
+// ======================================================
 // CREATE SUBMISSION WITH ANSWERS
 //
 // FIX (v2 - matches actual config/db.js):
@@ -381,7 +510,11 @@ ChecklistSubmission.create = async (
 
             submission.department_override || null,
 
-            submission.submission_date,
+            // See resolveSubmissionDateTime() above — attaches the
+            // exact submission time (from the Excel file for bulk
+            // uploads, or the actual moment of saving for a manual
+            // submission) instead of always defaulting to midnight.
+            resolveSubmissionDateTime(submission.submission_date),
 
             submission.latitude || null,
 

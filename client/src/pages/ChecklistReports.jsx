@@ -1076,9 +1076,16 @@ const uploadChecklistReport = async (file) => {
 
     const status = lastErr?.response?.status;
 
+    // NOTE: the app itself no longer imposes any upload size limit (see
+    // components/common/BulkUploadModal usage above, and
+    // server/middleware/bulkFileUpload.js). A 413 at this point can only
+    // be coming from the IIS reverse proxy in front of the API — see
+    // server/web.config, which raises IIS's own ceiling to the maximum
+    // it supports; that file has to be deployed to the live IIS site for
+    // this message to stop appearing.
     const message =
         status === 413
-            ? "This file is too large for the server to accept right now. Try a smaller export, or ask an admin to raise the upload size limit on the server."
+            ? "This file was rejected by the server before it even reached the app (a proxy/IIS request-size limit, not an app limit). Ask an admin to deploy the updated server/web.config to the IIS site in front of this app."
             : lastErr?.response?.data?.message ||
               "Bulk upload failed. Please check your connection and try again.";
 
@@ -1146,6 +1153,40 @@ const uploadChecklistReport = async (file) => {
     const formatDate = (value) => {
 
         if (!value) return "-";
+
+        // BUG FIX ("exact submission time shows shifted / wrong"):
+        // submission_date now comes back from the server as a literal
+        // "YYYY-MM-DD HH:MM:SS" string (see DATE_FORMAT(...) in
+        // models/checklistReportModel.js) — the exact wall-clock moment
+        // the checklist was actually submitted, in the business's own
+        // timezone. Routing that through `new Date(value)` would let the
+        // browser's own timezone-parsing rules reinterpret it (and, for
+        // some string shapes, silently shift it by hours), which is
+        // exactly the kind of subtle bug that makes an "exact" time
+        // untrustworthy. Instead, a value already in this shape is
+        // reformatted with plain string manipulation — no Date object,
+        // no timezone conversion, so the numbers shown are always
+        // exactly the numbers the server sent.
+        // Anchored at both ends, with no trailing "Z"/offset allowed —
+        // this only matches a bare, timezone-less "YYYY-MM-DD HH:MM:SS"
+        // (what DATE_FORMAT produces), never a real ISO instant like
+        // "...T12:37:52.000Z" (e.g. created_at / completion timestamps
+        // elsewhere on this page), which still needs to go through
+        // `new Date(...)` below to convert correctly to the viewer's
+        // local time.
+        const exactMatch = String(value).trim().match(
+
+            /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?$/
+
+        );
+
+        if (exactMatch) {
+
+            const [, year, month, day, hour, minute, second] = exactMatch;
+
+            return `${day}/${month}/${year}, ${hour}:${minute}:${second}`;
+
+        }
 
         return new Date(value).toLocaleString(
 
@@ -1793,6 +1834,12 @@ const uploadChecklistReport = async (file) => {
     acceptedFile=".csv,.xlsx,.xls"
 
     sampleFile="/samples/checklist-report-sample.xlsx"
+
+    // UNLIMITED UPLOAD SIZE: no client-side size gate at all — see
+    // server/middleware/bulkFileUpload.js (no multer fileSize limit
+    // either) and server/web.config (the IIS reverse-proxy ceiling,
+    // raised to the maximum IIS itself supports).
+    maxFileSize={Infinity}
 
 />
 
