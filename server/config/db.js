@@ -72,6 +72,23 @@ const dbConfig = {
     database: DB_NAME,
 
     // --------------------------------------------------------
+    // CHARACTER SET
+    //
+    // BUG FIX (garbled text like "â€"" / boxes in Question, Comment
+    // and Remarks text — visible on Action Points rows that contain
+    // a dash, curly quote, arrow or similar special character):
+    // mysql2 was left on its default connection charset, which does
+    // not reliably round-trip every multi-byte UTF-8 character a
+    // bulk-uploaded spreadsheet or a checklist answer can contain.
+    // utf8mb4 is MySQL's actual full-Unicode charset (utf8mb4_general_ci
+    // collation is a safe, broadly compatible default) — this makes
+    // the connection itself byte-for-byte UTF-8 safe end to end,
+    // instead of only appearing to work for plain ASCII text.
+    // --------------------------------------------------------
+
+    charset: "utf8mb4_general_ci",
+
+    // --------------------------------------------------------
     // CONNECTION
     // --------------------------------------------------------
 

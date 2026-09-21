@@ -153,8 +153,36 @@ function findHeaderRowIndex(rowsAoA, aliasLookup, maxScanRows = 15) {
     return bestIndex;
 }
 
+// ==========================================================
+// BUG FIX — GARBLED CHARACTERS ON CSV IMPORT
+// ("â€\"", boxes, etc. in place of a dash/quote/arrow that was
+// in the original Excel/CSV file, e.g. a Question or Remarks
+// cell containing an en dash or a curly quote)
+//
+// XLSX.readFile() opens a .csv purely as bytes and, without an
+// explicit codepage, does not reliably treat it as UTF-8 — any
+// multi-byte character in the file (a "–", "’", "→", ...) comes
+// out re-interpreted as if each byte were its own Latin-1/cp1252
+// character, which is exactly the "â€" + box-glyph pattern bulk
+// -uploaded rows were showing. .xlsx/.xls are unaffected (their
+// text lives inside UTF-8 XML already), so only the CSV path
+// needs to be read as an explicit UTF-8 string first.
+// ==========================================================
+
+function readWorkbook(filePath) {
+    if (path.extname(filePath).toLowerCase() === ".csv") {
+        let text = fs.readFileSync(filePath, "utf8");
+        // Strip a UTF-8 BOM if present so the first header cell
+        // doesn't end up with an invisible character glued to it.
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        return XLSX.read(text, { type: "string", raw: true });
+    }
+
+    return XLSX.readFile(filePath);
+}
+
 function parseSpreadsheet(filePath, aliasLookup) {
-    const workbook = XLSX.readFile(filePath);
+    const workbook = readWorkbook(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
     // Read as an array-of-arrays first (rather than letting XLSX

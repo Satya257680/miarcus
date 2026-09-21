@@ -57,6 +57,43 @@ const API = API_BASE_URL;
 // ======================================================
 
 // ==================================================
+// DISPLAY FIX — GARBLED TEXT ("â€\"", boxes, etc.)
+//
+// Some Question/Comment/Remarks text (mostly rows that came in
+// through a bulk import, or older data written before the
+// database connection was pinned to utf8mb4 — see config/db.js)
+// contains a dash, curly quote or arrow that got mis-decoded as
+// if it were Latin-1/cp1252 instead of UTF-8 — it now displays as
+// "â€" followed by a box/replacement glyph instead of the real
+// character. This repairs that specific, well-known pattern for
+// display only (it never touches what's stored) by re-reading the
+// mangled string's char codes as UTF-8 bytes. If the text doesn't
+// actually look mangled, or the repair doesn't produce anything
+// cleaner, the original text is returned untouched.
+// ==================================================
+
+const MOJIBAKE_PATTERN = /[ÂÃ][\u0080-¿]|�/;
+
+const fixMojibake = (value) => {
+    const text = String(value ?? "");
+    if (!text || !MOJIBAKE_PATTERN.test(text)) return text;
+
+    try {
+        const bytes = Uint8Array.from(
+            [...text].map((char) => char.charCodeAt(0))
+        );
+        const repaired = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+
+        // Only use the repaired version if it actually removed the
+        // mangled pattern — otherwise the original text (which may
+        // just happen to contain a real "Â"/"Ã" character) is safer.
+        return MOJIBAKE_PATTERN.test(repaired) ? text : repaired;
+    } catch {
+        return text;
+    }
+};
+
+// ==================================================
 // SLA COUNTDOWN
 // ==================================================
 
@@ -1224,6 +1261,16 @@ if (loading) {
         {
             key: "date",
             title: "Date",
+            minWidth: "150px",
+            // `row.date` is COALESCE(checklist submission_date, Action
+            // Point created_at) from the server (see models/
+            // actionPointModel.js) — the real checklist submission
+            // timestamp, or the bulk-uploaded file's own timestamp (see
+            // checklistReportService.parseSubmissionDate), whenever one
+            // exists. It only ever falls back to "now" for something
+            // that genuinely has no submission to date itself by (a
+            // manually added Action Point, or a fresh submission made
+            // today) — it's never forced to today's date otherwise.
             render: (row) => formatDate(row.date)
         },
 
@@ -1258,9 +1305,10 @@ if (loading) {
         {
             key: "question",
             title: "Question",
+            minWidth: "287px",
             render: (row) => (
                 <div className="question-cell">
-                    {row.question || "-"}
+                    {fixMojibake(row.question) || "-"}
                 </div>
             )
         },
@@ -1277,9 +1325,10 @@ if (loading) {
         {
             key: "answer",
             title: "Answer",
+            minWidth: "180px",
             render: (row) => (
                 <div className="answer-cell">
-                    {row.answer ?? "-"}
+                    {fixMojibake(row.answer) || "-"}
                 </div>
             )
         },
@@ -1290,9 +1339,10 @@ if (loading) {
         {
             key: "comment",
             title: "Comment",
+            minWidth: "260px",
             render: (row) => (
                 <div className="comment-cell">
-                    {row.comment || row.answer_remarks || "-"}
+                    {fixMojibake(row.comment || row.answer_remarks) || "-"}
                 </div>
             )
         },
@@ -1334,7 +1384,7 @@ if (loading) {
 
     render: (row) => (
 
-        <div className="remarks-cell">
+        <div className="assigned-to-cell">
 
             {row.assigned_to_name ||
 
@@ -1445,6 +1495,64 @@ if (loading) {
 
 },
 
+// ==================================================
+// SLA (DAYS) — the configured SLA itself, shown as its own
+// column so the number of days is visible at a glance instead
+// of only ever being buried inside the live countdown text.
+// ==================================================
+
+{
+    key: "sla_days_display",
+
+    title: "SLA (Days)",
+
+    render: (row) => {
+
+        const rawDays = row.sla_days;
+        const hasDays = rawDays !== null && rawDays !== undefined && rawDays !== "" && Number(rawDays) > 0;
+
+        return (
+            <span className={`sla-days-cell ${hasDays ? "" : "sla-days-none"}`}>
+                {hasDays
+                    ? `${rawDays} day${Number(rawDays) === 1 ? "" : "s"}`
+                    : "No SLA"}
+            </span>
+        );
+
+    }
+
+},
+
+// ==================================================
+// OVERDUE — a dedicated Yes/No column, on top of the SLA
+// Countdown badge already turning red: once the SLA deadline
+// has passed — including simply rolling over into the next
+// day, exactly like the "Overdue by Xd Yh Zm" figure the
+// Action Points export already writes — this reads "Overdue"
+// at a glance without needing to read the countdown text.
+// ==================================================
+
+{
+    key: "overdue",
+
+    title: "Overdue",
+
+    render: (row) => {
+
+        const meta = getSlaMeta(row, slaNow);
+        const isOverdue = meta.state === "overdue";
+        const notApplicable = meta.state === "none" || meta.state === "completed";
+
+        return (
+            <span className={`overdue-badge ${isOverdue ? "overdue-yes" : "overdue-no"}`}>
+                {isOverdue ? "Overdue" : notApplicable ? "-" : "On Time"}
+            </span>
+        );
+
+    }
+
+},
+
 
 
 // ==================================================
@@ -1481,11 +1589,13 @@ if (loading) {
 
     title: "Remarks",
 
+    minWidth: "220px",
+
     render: (row) => (
 
         <div className="remarks-cell">
 
-            {row.remarks || "-"}
+            {fixMojibake(row.remarks) || "-"}
 
         </div>
 
@@ -1502,6 +1612,7 @@ if (loading) {
 {
     key: "history",
     title: "History",
+    minWidth: "210px",
     render: (row) => (
         <div className="history-cell-content">
             <div className="history-last-entry">
@@ -2605,8 +2716,8 @@ return (
                                         <strong>{item.changed_by_name || "System"}</strong>
                                         {item.changed_by_employee_id && <span>Employee ID: {item.changed_by_employee_id}</span>}
                                     </div>
-                                    {item.comment && <div className="history-note"><b>Comment</b><span>{item.comment}</span></div>}
-                                    {item.remarks && <div className="history-note"><b>Remarks</b><span>{item.remarks}</span></div>}
+                                    {item.comment && <div className="history-note"><b>Comment</b><span>{fixMojibake(item.comment)}</span></div>}
+                                    {item.remarks && <div className="history-note"><b>Remarks</b><span>{fixMojibake(item.remarks)}</span></div>}
                                 </div>
                             </div>
                         ))}

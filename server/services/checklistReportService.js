@@ -418,6 +418,27 @@ function parseSubmissionDate(row) {
             : toDateTimeString(year, month, day);
     }
 
+    // FALLBACK 2 — the "History" column (the audit-trail export, e.g.
+    // "No Action Taken by System Auto-generated at 8/31/2026, 10:15:24
+    // PM; Opened by Ajay at 9/1/2026, 2:44:48 PM; ..."). No square
+    // brackets here — the timestamp instead follows the word "at". The
+    // FIRST "at <date>, <time>" in the column is used (not the last),
+    // since that entry is the row's original creation/auto-generated
+    // event — the same moment the matching bracketed Remarks timestamp
+    // records on files that have both.
+    const historyText = String(row["History"] || "");
+    const historyMatch = historyText.match(
+        /\bat\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp][Mm])/
+    );
+
+    if (historyMatch) {
+        const [, month, day, year, timeText] = historyMatch;
+        const time = parseClockTime(timeText);
+        return time
+            ? toDateTimeString(year, month, day, time.hour, time.minute, time.second)
+            : toDateTimeString(year, month, day);
+    }
+
     return toDateTimeString(...indiaToday().split("-"));
 }
 

@@ -78,13 +78,35 @@
 
 .remarks-cell{
 
-    min-width:180px;
+    min-width:220px;
+
+    max-width:280px;
+
+    white-space:normal;
+
+    word-break:normal;
+
+    overflow-wrap:break-word;
+
+    line-height:1.6;
+
+    color:#1f2937;
+
+    font-weight:500;
+
+}
+
+/* "Assigned To" used to share .remarks-cell — split out so
+   widening Remarks doesn't also force a short name column wide. */
+.assigned-to-cell{
+
+    min-width:120px;
 
     white-space:normal;
 
     word-break:break-word;
 
-    line-height:1.6;
+    line-height:1.5;
 
     color:#1f2937;
 
@@ -689,6 +711,65 @@ table td:last-child{
     border: 1px solid #e5e7eb;
 }
 
+/* ==========================================================
+   SLA (DAYS) COLUMN — the configured SLA itself, distinct from
+   the live SLA Countdown badge above.
+   ========================================================== */
+
+.sla-days-cell{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:76px;
+    padding:5px 10px;
+    border-radius:819px;
+    font-weight:700;
+    font-size:10px;
+    color:#1d4ed8;
+    background:#eef4ff;
+    border:1px solid #c7d9fb;
+    white-space:nowrap;
+}
+
+.sla-days-cell.sla-days-none{
+    color:#667085;
+    background:#f3f4f6;
+    border-color:#e5e7eb;
+}
+
+/* ==========================================================
+   OVERDUE COLUMN — a plain Yes/No read on top of the SLA
+   Countdown badge, so a breached SLA (including one that simply
+   rolled into the next day — the same "Overdue by Xd Yh Zm" the
+   Action Points export already reports) is visible without
+   reading the countdown text.
+   ========================================================== */
+
+.overdue-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:76px;
+    padding:5px 10px;
+    border-radius:819px;
+    font-weight:700;
+    font-size:10px;
+    white-space:nowrap;
+}
+
+.overdue-badge.overdue-yes{
+    color:#a61b1b;
+    background:#ffe7e7;
+    border:1px solid #ffb7b7;
+    animation:slaPulseCritical 1.5s ease-in-out infinite;
+}
+
+.overdue-badge.overdue-no{
+    color:#17623a;
+    background:#e7f7ed;
+    border:1px solid #bde8cc;
+}
+
 @keyframes slaPulseWarning {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.03); }
@@ -896,7 +977,24 @@ table td:last-child{
     }
 }
 
-.answer-cell,.comment-cell{max-width:213px;white-space:normal;word-break:break-word;line-height:1.35}
+/* BUG FIX ("Comment enlarge, not small and wrapping mid-word"):
+   213px was too narrow for the Comment column's real content
+   (often a combined "Question: ... | ... | [timestamp]" string —
+   see checklistReportService.js) — that squeezed it down to only
+   a couple of words per line and, combined with word-break:
+   break-word, could split a normal-length word across two lines.
+   Widened to a readable column and switched to breaking only at
+   real word boundaries (a very long single "word" — a long
+   number/URL with no spaces — still wraps via overflow-wrap so it
+   can never force the table wider than the column). */
+.answer-cell,.comment-cell{
+    min-width:260px;
+    max-width:340px;
+    white-space:normal;
+    word-break:normal;
+    overflow-wrap:break-word;
+    line-height:1.5;
+}
 
 
 /* ==========================================================
@@ -910,7 +1008,18 @@ table td:last-child{
 .next-action-select.next-in-progress{border-color:#f3d19a;background:#fff9ed;color:#b76b00}
 .next-action-select.next-closed{border-color:#b9e3cf;background:#f0fbf5;color:#16845a}
 
-.history-cell-content{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:148px}.history-last-entry{display:flex;flex-direction:column;align-items:center;line-height:1.25}.history-last-entry strong{font-size:9px;color:#2d5269}.history-last-entry span{font-size:9px;color:#5f7482}.history-last-entry small{font-size:8px;color:#8a9aa4;text-align:center;margin-top:2px}.history-view-btn,.history-edit-btn{border:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;transition:.18s ease}
+/* BUG FIX ("History enlarge, not small and cramped down"): the
+   last-history summary was set in 8-9px type inside a 148px
+   column — effectively unreadable. Widened and bumped every size
+   up to something legible while still keeping the compact,
+   Checklist-Report-style row height (no extra vertical padding
+   was added). */
+.history-cell-content{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:210px;max-width:260px}
+.history-last-entry{display:flex;flex-direction:column;align-items:center;line-height:1.4;white-space:normal;word-break:normal;overflow-wrap:break-word;text-align:center}
+.history-last-entry strong{font-size:11px;color:#2d5269}
+.history-last-entry span{font-size:10.5px;color:#5f7482}
+.history-last-entry small{font-size:10px;color:#8a9aa4;text-align:center;margin-top:2px}
+.history-view-btn,.history-edit-btn{border:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;transition:.18s ease}
 .history-view-btn{background:#eef7fb;color:#23708e;border:1px solid #cfe7f0}
 .history-view-btn:hover{transform:translateY(-1px);background:#e3f3f8}
 .history-edit-btn{background:#eef4ff;color:#326fd1;border:1px solid #cdddf8;white-space:nowrap}

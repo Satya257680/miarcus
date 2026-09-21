@@ -150,6 +150,16 @@
    WRAPPING CELLS
 ===================================================== */
 
+/* BUG FIX ("text breaking down the middle of a word"):
+   word-break: break-word + overflow-wrap: anywhere together will
+   split ANY word that doesn't fit, even an ordinary-length one,
+   the moment the column is a little too narrow — instead of
+   wrapping at the space before it like normal text. word-break:
+   normal wraps at real word boundaries first; overflow-wrap:
+   break-word is kept as a safety net so a genuinely unbreakable
+   long token (a long number, a URL) still wraps instead of
+   overflowing the column. */
+
 .question-cell{
 
     min-width:287px;
@@ -158,9 +168,9 @@
 
     white-space:normal !important;
 
-    word-break:break-word;
+    word-break:normal;
 
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
 
     line-height:1.6;
 
@@ -174,9 +184,9 @@
 
     white-space:normal !important;
 
-    word-break:break-word;
+    word-break:normal;
 
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
 
     line-height:1.6;
 
@@ -190,9 +200,9 @@
 
     white-space:normal !important;
 
-    word-break:break-word;
+    word-break:normal;
 
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
 
     line-height:1.6;
 
@@ -206,9 +216,9 @@
 
     white-space:normal !important;
 
-    word-break:break-word;
+    word-break:normal;
 
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
 
     line-height:1.6;
 

@@ -149,7 +149,24 @@ const ACTION_POINT_COLUMN_ALIASES = {
     "SLA Value": ["slavalue", "sla value", "sla"],
     "SLA Unit": ["slaunit", "sla unit"],
     "Status": ["status"],
-    "Remarks": ["remarks", "comment", "comments", "notes"],
+    // BUG FIX: "Remarks" and "Comment" used to share one canonical
+    // column ("comment"/"comments" were listed as Remarks aliases), so
+    // a file with BOTH a "Comment" column and a separate "Remarks"
+    // column (the Action Points export itself is exactly this shape)
+    // had one silently overwrite the other — whichever header came
+    // later in the row won, and the other column's text was dropped
+    // entirely. They are genuinely different action_points columns
+    // (see models/actionPointModel.js's `ap.remarks` / `ap.comment`),
+    // so they now get their own canonical fields and are both kept.
+    "Remarks": ["remarks", "notes"],
+    "Comment": ["comment", "comments"],
+    // "History" (the export's audit-trail column, e.g. "No Action
+    // Taken by System Auto-generated at 8/31/2026, 10:15:24 PM; ...")
+    // carries the row's real original timestamp even on files that
+    // have no dedicated Submission Date/Actual Submission Time column
+    // — see checklistReportService.parseSubmissionDate's History
+    // fallback.
+    "History": ["history", "audittrail", "audit trail"],
     "Action Taken": ["actiontaken", "action taken", "actiontakennotes", "resolution"],
     "Submission Date": ["submissiondate", "submission date", "date", "reportdate", "intendeddate", "intended date"],
     "Actual Submission Time": ["actualsubmissiontime", "actual submission time", "submissiontime", "submission time", "submittedtime", "submitted time"],
@@ -247,6 +264,7 @@ exports.exportActionPointsCSV = async (req, res) => {
             const hasDays = rawDays !== null && rawDays !== undefined && rawDays !== "";
 
             let slaDisplay = hasDays ? String(rawDays) : "-";
+            let overdue = "No";
 
             if (status !== "closed") {
                 let totalMinutes = Number(row.sla_minutes) || 0;
@@ -260,11 +278,16 @@ exports.exportActionPointsCSV = async (req, res) => {
                         slaDisplay = hasDays
                             ? `Overdue (${rawDays} day${Number(rawDays) === 1 ? "" : "s"})`
                             : "Overdue";
+                        overdue = "Yes";
                     }
                 }
             }
 
-            return { ...row, sla_days: slaDisplay };
+            // Dedicated "Overdue" column (Yes/No), alongside the sla_days
+            // column above — mirrors the Action Points table's own
+            // Overdue column (client/src/pages/ActionPoints.jsx) so the
+            // export reads the same way the live page does.
+            return { ...row, sla_days: slaDisplay, overdue };
         });
 
         const parser = new Parser({
@@ -280,6 +303,7 @@ exports.exportActionPointsCSV = async (req, res) => {
                 "answer",
                 "priority",
                 "sla_days",
+                "overdue",
                 "status",
                 "remarks",
                 "comment",
@@ -456,6 +480,16 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         // Answer column actually says.
                         "Answer": row["Answer"],
                         "Remarks": row["Remarks"],
+                        // "Comment" and "History" are no longer folded into
+                        // Remarks (see ACTION_POINT_COLUMN_ALIASES above) —
+                        // History in particular is what lets
+                        // parseSubmissionDate() recover the row's real
+                        // original date/time on a file that has no
+                        // dedicated Submission Date/Actual Submission Time
+                        // column at all (the Action Points export's own
+                        // shape).
+                        "Comment": row["Comment"],
+                        "History": row["History"],
                         "Submission Date": row["Submission Date"],
                         "Actual Submission Time": row["Actual Submission Time"],
                         "Device": row["Device"]
@@ -502,7 +536,13 @@ exports.bulkUploadActionPoints = async (req, res) => {
                     // regardless of what the file actually said.
                     sla_days: toSafeInt(row["SLA Days"], null),
                     sla_value: toSafeInt(row["SLA Value"], null),
-                    remarks: row["Remarks"] || ""
+                    remarks: row["Remarks"] || "",
+                    // BUG FIX: a file's own "Comment" column used to never
+                    // reach an open Action Point at all — only the Closed/
+                    // "no action required" path below ever set `comment`
+                    // (and only to the Action Taken text). Any Comment text
+                    // the row actually had was silently dropped.
+                    comment: row["Comment"] || ""
                 };
 
                 // ==================================================
@@ -516,12 +556,22 @@ exports.bulkUploadActionPoints = async (req, res) => {
 
                 if (isNoActionRequired(row)) {
 
-                    const actionTakenText = String(row["Action Taken"] || "").trim() || "No action required.";
+                    const actionTakenText = String(row["Action Taken"] || "").trim();
+                    const rowCommentText = String(row["Comment"] || "").trim();
+
+                    // Keep the row's own Comment text instead of discarding
+                    // it whenever an Action Taken value is also present —
+                    // both are shown (Action Taken first, since that's the
+                    // resolution), only falling back to a generic note when
+                    // the row genuinely has neither.
+                    const closedComment = [actionTakenText, rowCommentText]
+                        .filter(Boolean)
+                        .join(" | ") || "No action required.";
 
                     await actionPointService.createClosedFromImport(
                         {
                             ...actionPointBody,
-                            comment: actionTakenText
+                            comment: closedComment
                         },
                         req.user.id
                     );
