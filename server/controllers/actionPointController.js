@@ -15,21 +15,82 @@ const { getDepartmentIdByName } = require("../models/userModel");
 // the raw text straight into a numeric column.
 // ======================================================
 
+// A bulk row's Department text can be a comma-separated list — the
+// Action Points export writes "Regional Head, ASM" etc. (several
+// departments can be tied to one question/action) — but
+// action_points.department_id is a single value. Try each
+// comma-separated token in turn (in the order written) and use the
+// first one that actually matches a configured Department, rather
+// than passing the whole list straight into a single-name lookup
+// (which would never match anything and silently leave Department
+// blank, even though the text was right there in the file).
 const resolveDepartmentId = (departmentText) =>
     new Promise((resolve) => {
-        if (!departmentText || /^\d+$/.test(String(departmentText).trim())) {
-            resolve(departmentText ? Number(departmentText) : null);
+        const raw = String(departmentText || "").trim();
+
+        if (!raw) {
+            resolve(null);
             return;
         }
 
-        getDepartmentIdByName(departmentText, (err, rows) => {
-            if (err || !rows || !rows.length) {
+        if (/^\d+$/.test(raw)) {
+            resolve(Number(raw));
+            return;
+        }
+
+        const candidates = raw
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean);
+
+        if (!candidates.length) {
+            resolve(null);
+            return;
+        }
+
+        const tryNext = (index) => {
+            if (index >= candidates.length) {
                 resolve(null);
                 return;
             }
-            resolve(rows[0].id);
-        });
+
+            getDepartmentIdByName(candidates[index], (err, rows) => {
+                if (!err && rows && rows.length) {
+                    resolve(rows[0].id);
+                    return;
+                }
+                tryNext(index + 1);
+            });
+        };
+
+        tryNext(0);
     });
+
+// ======================================================
+// SAFE INTEGER FOR A BULK-UPLOAD NUMERIC COLUMN
+//
+// sla_days / sla_value are INT columns. A spreadsheet cell can contain
+// "NA", a blank, or descriptive text ("2 days") instead of a clean
+// number — passing that straight through risks the exact class of
+// "Incorrect [...] value" SQL error New Store Openings bulk upload
+// hits for its decimal columns (see controllers/newStoreOpeningController.js).
+// Extracts the first number found and returns `fallback` (default
+// null) for anything with no digits at all.
+// ======================================================
+
+const toSafeInt = (value, fallback = null) => {
+    if (value === null || value === undefined || value === "") return fallback;
+    if (typeof value === "number") return Number.isFinite(value) ? Math.round(value) : fallback;
+
+    const text = String(value).trim();
+    if (!text) return fallback;
+
+    const match = text.match(/-?\d+(\.\d+)?/);
+    if (!match) return fallback;
+
+    const num = Number(match[0]);
+    return Number.isFinite(num) ? Math.round(num) : fallback;
+};
 
 // ======================================================
 // DOES THIS ROW ALREADY SAY "NO ACTION REQUIRED"?
@@ -69,21 +130,32 @@ const isNoActionRequired = (row) => {
 
 const ACTION_POINT_COLUMN_ALIASES = {
     "Store": ["store", "storename", "store name", "storeid", "store id", "outlet", "outletname", "location", "branch", "storecode", "store code"],
-    "Department": ["department", "dept", "departmentid", "department id", "departmentname"],
+    // "Action Department" (the export's "who should act" column) is
+    // preferred over the generic "Department"/"Departments" header when
+    // both are present — see resolveDepartmentId() above, which also
+    // handles a comma-separated list like "Regional Head, ASM".
+    "Department": ["department", "dept", "departmentid", "department id", "departmentname", "actiondepartment", "action department"],
     "Checklist Type": ["checklisttype", "checklist type", "checklist", "checklistname"],
     "Question": ["question", "questiontext", "question text", "checklistquestion"],
-    "Answer": ["answer", "response", "answertext"],
+    // BUG FIX: the Action Points export's actual header is "Answer
+    // Given", not "Answer" — it wasn't recognized at all before, so the
+    // real filled-in value (e.g. "498056", "Yes") was silently dropped.
+    "Answer": ["answer", "response", "answertext", "answergiven", "answer given"],
     "Submission ID": ["submissionid", "submission id"],
     "Answer ID": ["answerid", "submission answer id", "submissionanswerid"],
     "Assigned To": ["assignedto", "assigned to", "employeeid", "employee id", "owner", "assignee"],
     "Priority": ["priority"],
     "SLA Days": ["sladays", "sla days"],
     "SLA Value": ["slavalue", "sla value", "sla"],
+    "SLA Unit": ["slaunit", "sla unit"],
     "Status": ["status"],
     "Remarks": ["remarks", "comment", "comments", "notes"],
     "Action Taken": ["actiontaken", "action taken", "actiontakennotes", "resolution"],
-    "Submission Date": ["submissiondate", "submission date", "date", "reportdate"],
-    "Device": ["device", "devicename"]
+    "Submission Date": ["submissiondate", "submission date", "date", "reportdate", "intendeddate", "intended date"],
+    "Actual Submission Time": ["actualsubmissiontime", "actual submission time", "submissiontime", "submission time", "submittedtime", "submitted time"],
+    "Device": ["device", "devicename"],
+    "City": ["city"],
+    "State": ["state"]
 };
 
 // ======================================================
@@ -332,10 +404,12 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         "Checklist Type": row["Checklist Type"],
                         "Submission ID": row["Submission ID"],
                         "Employee": row["Assigned To"],
+                        "Department": row["Department"],
                         "Question": row["Question"],
                         "Answer": row["Answer"] || row["Remarks"],
                         "Remarks": row["Remarks"],
                         "Submission Date": row["Submission Date"],
+                        "Actual Submission Time": row["Actual Submission Time"],
                         "Device": row["Device"]
                     },
                     req.user.id,
@@ -354,14 +428,23 @@ exports.bulkUploadActionPoints = async (req, res) => {
 
                 const departmentId = await resolveDepartmentId(row["Department"]);
 
+                // BUG FIX: `assigned_to` is an INT column (a Users FK) —
+                // it can't hold the raw "Rahul (40090)" text straight from
+                // the spreadsheet (that used to risk the same class of
+                // "Incorrect [...] value" SQL error as the New Store
+                // Openings numeric columns). Reuse the same Employee
+                // resolution already done for the linked Checklist Report
+                // row above instead of re-parsing (or mis-typing) it here.
+                const assignedToUserId = reportResult.submittedByUserId || null;
+
                 const actionPointBody = {
                     submission_id: reportResult.submissionId,
                     submission_answer_id: reportResult.answerId,
                     department_id: departmentId,
-                    assigned_to: row["Assigned To"] || null,
+                    assigned_to: assignedToUserId,
                     priority: row["Priority"] || "Medium",
-                    sla_days: row["SLA Days"] || 0,
-                    sla_value: row["SLA Value"],
+                    sla_days: toSafeInt(row["SLA Days"], 0),
+                    sla_value: toSafeInt(row["SLA Value"], null),
                     remarks: row["Remarks"] || ""
                 };
 

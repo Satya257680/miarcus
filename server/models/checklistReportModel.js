@@ -49,18 +49,17 @@ ChecklistReport.getAll = (
 
             s.store_name,
 
-            u.name AS employee_name,
+            COALESCE(u.name, cs.submitted_by_name) AS employee_name,
 
-            u.employee_id,
+            COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
-            GROUP_CONCAT(
-
-                DISTINCT d.department_name
-
-                ORDER BY d.department_name
-
-                SEPARATOR ', '
-
+            COALESCE(
+                GROUP_CONCAT(
+                    DISTINCT d.department_name
+                    ORDER BY d.department_name
+                    SEPARATOR ', '
+                ),
+                cs.department_override
             ) AS department_name,
 
             q.id AS question_id,
@@ -422,6 +421,12 @@ sql += `
 
         cs.submitted_by,
 
+        cs.submitted_by_name,
+
+        cs.submitted_by_employee_code,
+
+        cs.department_override,
+
         cs.submission_date,
 
         cs.status,
@@ -551,18 +556,17 @@ ChecklistReport.getById = (
 
             s.store_name,
 
-            u.name AS employee_name,
+            COALESCE(u.name, cs.submitted_by_name) AS employee_name,
 
-            u.employee_id,
+            COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
-            GROUP_CONCAT(
-
-                DISTINCT d.department_name
-
-                ORDER BY d.department_name
-
-                SEPARATOR ', '
-
+            COALESCE(
+                GROUP_CONCAT(
+                    DISTINCT d.department_name
+                    ORDER BY d.department_name
+                    SEPARATOR ', '
+                ),
+                cs.department_override
             ) AS department_name,
 
             q.id AS question_id,
@@ -658,6 +662,12 @@ ChecklistReport.getById = (
             cs.store_id,
 
             cs.submitted_by,
+
+            cs.submitted_by_name,
+
+            cs.submitted_by_employee_code,
+
+            cs.department_override,
 
             cs.submission_date,
 
@@ -1333,18 +1343,17 @@ ChecklistReport.exportReports = (
 
             s.store_name,
 
-            u.name AS employee_name,
+            COALESCE(u.name, cs.submitted_by_name) AS employee_name,
 
-            u.employee_id,
+            COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
-            GROUP_CONCAT(
-
-                DISTINCT d.department_name
-
-                ORDER BY d.department_name
-
-                SEPARATOR ', '
-
+            COALESCE(
+                GROUP_CONCAT(
+                    DISTINCT d.department_name
+                    ORDER BY d.department_name
+                    SEPARATOR ', '
+                ),
+                cs.department_override
             ) AS department_name,
 
             cs.submission_date,
@@ -1425,6 +1434,9 @@ ChecklistReport.exportReports = (
         GROUP BY
 
             cs.id,
+            cs.submitted_by_name,
+            cs.submitted_by_employee_code,
+            cs.department_override,
             cs.new_store_opening_id,
             nso.location,
             nso.city,

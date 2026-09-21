@@ -212,6 +212,55 @@ ChecklistSubmission.ensureParentColumn = async () => {
 };
 
 // ======================================================
+// ENSURE BULK-UPLOAD "EXACT AS EXCEL" OVERRIDE COLUMNS
+//
+// A bulk-uploaded row (Checklist Reports / Action Points) can name an
+// Employee ("Rahul (40090)") or Department ("ASM, Management") that
+// doesn't resolve to an existing Users/Departments record — the
+// spreadsheet is describing reality, not what happens to already be
+// configured in the app. Previously an unmatched Employee silently
+// fell back to whichever admin ran the bulk upload (very confusing —
+// every row looked like it was submitted by the uploader), and an
+// unmatched Department was just dropped.
+//
+// These columns store the row's own text as a fallback ONLY — see
+// models/checklistReportModel.js, which COALESCEs the real
+// users/departments join first and only falls back to this raw text
+// when there is no match. So a recognized Employee/Department still
+// displays the canonical record; only a genuinely unmatched one shows
+// exactly what the spreadsheet said instead of showing nothing (or
+// showing the wrong person).
+// ======================================================
+
+ChecklistSubmission.ensureSubmitterOverrideColumns = async () => {
+
+    const columns = [
+        { name: "submitted_by_name", ddl: "VARCHAR(255) NULL" },
+        { name: "submitted_by_employee_code", ddl: "VARCHAR(100) NULL" },
+        { name: "department_override", ddl: "VARCHAR(500) NULL" }
+    ];
+
+    for (const column of columns) {
+        const hasColumn = await new Promise((resolve, reject) => {
+            db.query(
+                `SHOW COLUMNS FROM checklist_submissions LIKE ?`,
+                [column.name],
+                (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+            );
+        });
+
+        if (!hasColumn) {
+            await new Promise((resolve, reject) => {
+                db.query(
+                    `ALTER TABLE checklist_submissions ADD COLUMN ${column.name} ${column.ddl}`,
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
+        }
+    }
+};
+
+// ======================================================
 // CREATE SUBMISSION WITH ANSWERS
 //
 // FIX (v2 - matches actual config/db.js):
@@ -272,6 +321,12 @@ ChecklistSubmission.create = async (
 
                 submitted_by,
 
+                submitted_by_name,
+
+                submitted_by_employee_code,
+
+                department_override,
+
                 submission_date,
 
                 latitude,
@@ -298,7 +353,7 @@ ChecklistSubmission.create = async (
 
             (
 
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 
             )
 
@@ -315,6 +370,16 @@ ChecklistSubmission.create = async (
             submission.store_id,
 
             submission.submitted_by || null,
+
+            // "Exact as Excel" fallbacks — only ever displayed when
+            // submitted_by has no matching Users record (see
+            // models/checklistReportModel.js COALESCE). See
+            // ensureSubmitterOverrideColumns() above.
+            submission.submitted_by_name || null,
+
+            submission.submitted_by_employee_code || null,
+
+            submission.department_override || null,
 
             submission.submission_date,
 

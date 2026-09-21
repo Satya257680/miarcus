@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 
 // ======================================================
@@ -13,7 +12,6 @@ import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
 import Pagination from "../components/common/Pagination";
 import ConfirmDialog from "../components/common/ConfirmDialog";
-import BulkUploadModal from "../components/common/BulkUploadModal";
 
 
 // ======================================================
@@ -22,50 +20,71 @@ import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import {
     FaEye,
-    FaEdit,
     FaTrash,
     FaMapMarkerAlt,
-    FaFileExcel
+    FaDownload
 } from "react-icons/fa";
 
 
 // ======================================================
 // STYLE
 // ======================================================
+//
+// Reuses the Checklist Reports table styling (same DataTable/Card/
+// FilterBar/status-badge classes) so this page looks consistent with
+// the rest of the app without duplicating a stylesheet.
 
 import "../styles/ChecklistReports.css";
-import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportTableData } from "../utils/exportUtils.js";
 
 
 // ======================================================
-// API
+// ATTENDANCE API
 // ======================================================
+//
+// BUG FIX: this file used to be an accidental copy of
+// pages/ChecklistReports.jsx — it fetched `/api/checklist-reports`
+// and rendered Checklist Report rows (Question/Answer/Checklist Type)
+// under the "Attendance Reports" heading, which is why opening
+// Attendance Reports actually showed Checklist Report data. A real,
+// working Attendance API + service already existed
+// (services/attendanceService.js — getAttendanceReports,
+// getAttendanceEmployees, getAttendanceStores, deleteAttendanceRecord,
+// deleteAllAttendance, photo access) but was never wired up to any
+// page. This rewrite uses that service instead.
 
-const API = API_BASE_URL + '/api';
+import {
+    getAttendanceReports,
+    getAttendanceEmployees,
+    getAttendanceStores,
+    deleteAttendanceRecord,
+    deleteAllAttendance,
+    getAttendancePhotoAccess,
+    downloadAttendancePhoto
+} from "../services/attendanceService.js";
 
 
 // ======================================================
 // COMPONENT
 // ======================================================
 
-function ChecklistReports() {
+function AttendanceReports() {
 
     // ======================================================
     // STATES
     // ======================================================
 
-    const [reports, setReports] = useState([]);
+    const [records, setRecords] = useState([]);
+
+    const [summary, setSummary] = useState({});
 
     const [stores, setStores] = useState([]);
 
-    const [users, setUsers] = useState([]);
-
-    const [checklistTypes, setChecklistTypes] = useState([]);
+    const [employees, setEmployees] = useState([]);
 
     const [loading, setLoading] = useState(true);
 
-    const [managementExporting, setManagementExporting] = useState(false);
+    const [loadError, setLoadError] = useState(false);
 
     // ======================================================
     // SEARCH
@@ -83,9 +102,9 @@ function ChecklistReports() {
 
     const [selectedStore, setSelectedStore] = useState("");
 
-    const [selectedChecklist, setSelectedChecklist] = useState("");
-
     const [selectedEmployee, setSelectedEmployee] = useState("");
+
+    const [selectedStatus, setSelectedStatus] = useState("");
 
     // ======================================================
     // PAGINATION
@@ -101,10 +120,6 @@ function ChecklistReports() {
 
     const [showViewModal, setShowViewModal] = useState(false);
 
-    const [showEditModal, setShowEditModal] = useState(false);
-
-    const [showBulkModal, setShowBulkModal] = useState(false);
-
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
@@ -113,314 +128,140 @@ function ChecklistReports() {
     // SELECTED DATA
     // ======================================================
 
-    const [selectedReport, setSelectedReport] = useState(null);
+    const [selectedRecord, setSelectedRecord] = useState(null);
 
     const [deleteId, setDeleteId] = useState(null);
 
-    const [editingReport, setEditingReport] = useState({
-
-        id: "",
-
-        status: "",
-
-        submission_date: "",
-
-        answer: "",
-
-        remarks: "",
-
-        device: ""
-
-    });
-
-    // ======================================================
-// BULK UPLOAD MODAL
-// ======================================================
-
-const [showBulkUpload, setShowBulkUpload] = useState(false);
+    const [photoPreview, setPhotoPreview] = useState({ loading: false, url: "", type: "" });
 
     // ======================================================
     // RBAC
     // ======================================================
+    //
+    // Attendance Reports (server/routes/attendanceRoutes.js) restrict
+    // every reporting endpoint — reports/employees/stores/photos/
+    // delete — to an administrator or a user with Full Attendance
+    // access. There is no separate view-only tier on the backend for
+    // this page, so the frontend mirrors that exactly instead of
+    // reusing the generic View/Add/Edit/Full permission ladder the
+    // other report pages use.
 
     const user = JSON.parse(
-
         localStorage.getItem("user") || "{}"
-
     );
 
     const permissions = JSON.parse(
-
         localStorage.getItem("permissions") || "{}"
-
     );
 
     const isAdmin =
-
         user.administrator === true ||
-
         user.administrator === 1;
 
     const permission = isAdmin
-
         ? "Full"
+        : permissions["Attendance"] || "None";
 
-        : permissions["Checklist Reports"] || "None";
+    const canView = permission === "Full";
 
-    const canView = [
+    const canDelete = permission === "Full";
 
-        "View",
-
-        "Add",
-
-        "Edit",
-
-        "Full"
-
-    ].includes(permission);
-
-    const canAdd = [
-
-        "Add",
-
-        "Edit",
-
-        "Full"
-
-    ].includes(permission);
-
-    const canEdit = [
-
-        "Edit",
-
-        "Full"
-
-    ].includes(permission);
-
-    const canDelete =
-
-        permission === "Full";
-            // ======================================================
+    // ======================================================
     // LOAD DATA
+    //
+    // BUG FIX ("blank on refresh, appears on the next refresh"): the
+    // Checklist Reports version of this pattern used Promise.allSettled
+    // and silently set the list to [] on a failed request with no
+    // retry and no visible error — a transient failure (a cold-start
+    // lazy-dependency hiccup, a dropped connection) looked exactly like
+    // "no records" until the user manually refreshed. This retries the
+    // main Reports request once automatically before giving up.
     // ======================================================
 
-    const loadData = async () => {
+    const loadReports = async (attempt = 1) => {
 
         try {
+            const data = await getAttendanceReports({
+                page: 1,
+                pageSize: 10000,
+                search,
+                userId: selectedEmployee,
+                storeId: selectedStore,
+                from: fromDate,
+                to: toDate,
+                status: selectedStatus
+            });
 
-            setLoading(true);
+            setRecords(data.rows || []);
+            setSummary(data.summary || {});
+            setLoadError(false);
 
-            const results = await Promise.allSettled([
+        } catch (err) {
 
-                // Fetch the complete report set once; the shared Pagination
-                // component then handles page navigation locally.
-                axios.get(`${API}/checklist-reports?limit=10000`),
-
-                axios.get(`${API}/stores`),
-
-                axios.get(`${API}/checklist-types`),
-
-                axios.get(`${API}/users`)
-
-            ]);
-
-            const [
-
-                reportRes,
-
-                storeRes,
-
-                checklistRes,
-
-                userRes
-
-            ] = results;
-
-            // ==========================================
-            // REPORTS
-            // ==========================================
-
-            if (reportRes.status === "fulfilled") {
-
-                setReports(
-
-                    (reportRes.value.data.data || []).map((report) => ({
-                        ...report,
-                        // Checklist Reports always represent completed
-                        // submitted checklist history. Action Point status
-                        // is displayed separately in the Action Status column.
-                        status: "Completed"
-                    }))
-
-                );
-
-            } else {
-
-                console.error(
-
-                    "Checklist Reports Error:",
-
-                    reportRes.reason
-
-                );
-
-                setReports([]);
-
+            if (attempt < 2) {
+                await new Promise((resolve) => setTimeout(resolve, 900));
+                return loadReports(attempt + 1);
             }
 
-            // ==========================================
-            // STORES
-            // ==========================================
-
-            if (storeRes.status === "fulfilled") {
-
-                setStores(
-
-                    storeRes.value.data.data || []
-
-                );
-
-            } else {
-
-                setStores([]);
-
-            }
-
-            // ==========================================
-            // CHECKLIST TYPES
-            // ==========================================
-
-            if (checklistRes.status === "fulfilled") {
-
-                setChecklistTypes(
-
-                    checklistRes.value.data.data || []
-
-                );
-
-            } else {
-
-                setChecklistTypes([]);
-
-            }
-
-            // ==========================================
-            // USERS
-            // ==========================================
-
-            if (userRes.status === "fulfilled") {
-
-                setUsers(
-
-                    userRes.value.data.data || []
-
-                );
-
-            } else {
-
-                setUsers([]);
-
-            }
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to load Checklist Reports."
-
-            );
-
-            setReports([]);
-
-        }
-        finally {
-
-            setLoading(false);
-
+            console.error("Attendance Reports Error:", err);
+            setRecords([]);
+            setLoadError(true);
         }
 
     };
 
-    // ======================================================
-    // SILENT REFRESH
-    //
-    // Same data fetch as loadData(), but never flips `loading` to true —
-    // used for the background window-focus refresh so the page never
-    // swaps out to the "Loading..." screen (and never unmounts an open
-    // modal) just because the browser window regained focus.
-    // ======================================================
-
-    const silentRefresh = async () => {
+    const loadFilters = async () => {
 
         try {
+            const [employeeRes, storeRes] = await Promise.allSettled([
+                getAttendanceEmployees(),
+                getAttendanceStores()
+            ]);
 
-            const reportRes = await axios.get(`${API}/checklist-reports?limit=10000`);
+            setEmployees(
+                employeeRes.status === "fulfilled"
+                    ? employeeRes.value.data || []
+                    : []
+            );
 
-            setReports(
-                (reportRes.data.data || []).map((report) => ({
-                    ...report,
-                    status: "Completed"
-                }))
+            setStores(
+                storeRes.status === "fulfilled"
+                    ? storeRes.value.data || []
+                    : []
             );
 
         } catch (err) {
-
-            // A quiet background refresh failing is not worth interrupting
-            // the user with an alert — the next successful refresh (or a
-            // manual action) will catch the page back up.
-            console.error("Checklist Reports background refresh failed:", err);
-
+            console.error("Attendance filters error:", err);
         }
 
+    };
+
+    const loadData = async () => {
+        setLoading(true);
+        await Promise.all([loadReports(), loadFilters()]);
+        setLoading(false);
+    };
+
+    // Silent refresh — same fetch as loadData(), but never flips
+    // `loading` to true so a background refresh (window focus) never
+    // swaps the page out for the "Loading..." screen.
+    const silentRefresh = async () => {
+        await loadReports();
     };
 
     useEffect(() => {
 
         if (!canView) {
-
             setLoading(false);
-
             return;
-
         }
 
         loadData();
 
-        // ==========================================================
-        // BACKGROUND REFRESH ON WINDOW FOCUS
-        //
-        // Refresh the list when the user comes back to this tab so
-        // changes made elsewhere are picked up — but do it silently
-        // (no full-page "Loading..." state) and never while a modal is
-        // open. The native file picker used by Bulk Upload repeatedly
-        // blurs/refocuses the browser window while it's open (every
-        // click inside the OS "Open" dialog), and the previous version
-        // of this refresh called the same loadData() used on first
-        // mount, which flips `loading` to true and swaps the whole page
-        // out for a "Loading Checklist Reports..." screen — unmounting
-        // the open Bulk Upload modal (and any other open modal) out
-        // from under the user mid-upload. This kept the page feeling
-        // like it was "repeatedly refreshing" and made it impossible to
-        // stay on the Bulk Upload dialog long enough to pick a file.
-        // ==========================================================
-
         const handleFocus = () => {
-
-            if (
-                showBulkUpload ||
-                showViewModal ||
-                showEditModal ||
-                showDeleteDialog ||
-                showDeleteAllDialog
-            ) {
+            if (showViewModal || showDeleteDialog || showDeleteAllDialog) {
                 return;
             }
-
             silentRefresh();
         };
 
@@ -430,138 +271,72 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             window.removeEventListener("focus", handleFocus);
         };
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         canView,
-        showBulkUpload,
         showViewModal,
-        showEditModal,
         showDeleteDialog,
         showDeleteAllDialog
     ]);
 
-    // ======================================================
-    // VIEW REPORT
-    // ======================================================
-
-    const handleView = async (id) => {
-
+    // Re-run the reports query (server-side filtering) whenever a
+    // filter changes — the employee/store lists don't need reloading.
+    useEffect(() => {
         if (!canView) return;
+        loadReports();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
+
+    // ======================================================
+    // VIEW RECORD
+    // ======================================================
+
+    const handleView = (row) => {
+        if (!canView) return;
+        setSelectedRecord(row);
+        setShowViewModal(true);
+    };
+
+    // ======================================================
+    // VIEW PHOTO
+    // ======================================================
+
+    const handleViewPhoto = async (row, type) => {
+
+        const hasPhoto = type === "check-in" ? row.check_in_photo : row.check_out_photo;
+        if (!hasPhoto) return;
+
+        setPhotoPreview({ loading: true, url: "", type });
 
         try {
-
-            const res = await axios.get(
-
-                `${API}/checklist-reports/${id}`
-
-            );
-
-            setSelectedReport(
-
-                res.data.data
-
-            );
-
-            setShowViewModal(true);
-
-        }
-        catch (err) {
-
+            const url = await getAttendancePhotoAccess(row.id, type);
+            setPhotoPreview({ loading: false, url, type });
+        } catch (err) {
             console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                "Unable to load report."
-
-            );
-
+            alert("Unable to load attendance photo.");
+            setPhotoPreview({ loading: false, url: "", type: "" });
         }
 
     };
 
-    // ======================================================
-    // EDIT REPORT
-    // ======================================================
-
-    const handleEdit = (row) => {
-
-        if (!canEdit) return;
-
-        setEditingReport({
-
-            id: row.id,
-
-            // Checklist Report history is always completed.
-            status: "Completed",
-
-            submission_date:
-
-                row.submission_date || "",
-
-            answer: row.answer || "",
-
-            remarks: row.remarks || "",
-
-            device: row.device || ""
-
-        });
-
-        setShowEditModal(true);
-
+    const closePhotoPreview = () => {
+        if (photoPreview.url) {
+            URL.revokeObjectURL(photoPreview.url);
+        }
+        setPhotoPreview({ loading: false, url: "", type: "" });
     };
 
-    // ======================================================
-    // UPDATE REPORT
-    // ======================================================
-
-    const updateReport = async () => {
-
+    const handleDownloadPhoto = async (row, type) => {
         try {
-
-            await axios.put(
-
-                `${API}/checklist-reports/${editingReport.id}`,
-
-                {
-
-                    status: "Completed",
-
-                    answer: editingReport.answer,
-
-                    remarks: editingReport.remarks
-
-                }
-
+            await downloadAttendancePhoto(
+                row.id,
+                type,
+                `attendance-${row.id}-${type}.jpg`
             );
-
-            alert(
-
-                "Checklist Report updated successfully."
-
-            );
-
-            setShowEditModal(false);
-
-            loadData();
-
-        }
-        catch (err) {
-
+        } catch (err) {
             console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                err.message ||
-
-                "Unable to update report."
-
-            );
-
+            alert("Unable to download attendance photo.");
         }
-
     };
 
     // ======================================================
@@ -569,100 +344,51 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // ======================================================
 
     const handleDelete = (id) => {
-
         if (!canDelete) return;
-
         setDeleteId(id);
-
         setShowDeleteDialog(true);
-
     };
 
     const confirmDelete = async () => {
-
         try {
-
-            await axios.delete(
-
-                `${API}/checklist-reports/${deleteId}`
-
-            );
-
-            loadData();
-
-        }
-        catch (err) {
-
+            await deleteAttendanceRecord(deleteId);
+            await loadReports();
+        } catch (err) {
             console.error(err);
-
             alert(
-
                 err.response?.data?.message ||
-
-                "Unable to delete report."
-
+                "Unable to delete attendance record."
             );
-
-        }
-        finally {
-
+        } finally {
             setDeleteId(null);
-
             setShowDeleteDialog(false);
-
         }
-
     };
 
-    // ======================================================
-    // DELETE ALL
-    // ======================================================
-
     const handleDeleteAll = () => {
-
         if (!canDelete) return;
-
-        if (!filteredReports.length) {
-            alert("No Checklist Reports found.");
+        if (!filteredRecords.length) {
+            alert("No Attendance Records found.");
             return;
         }
-
         setShowDeleteAllDialog(true);
     };
 
     const confirmDeleteAll = async () => {
-
         try {
-
-            const response = await axios.delete(
-                `${API}/checklist-reports/all`
-            );
-
-            alert(
-                response.data?.message ||
-                "Checklist Reports deleted successfully."
-            );
-
+            const response = await deleteAllAttendance();
+            alert(response?.message || "All attendance records were deleted successfully.");
             setCurrentPage(1);
-            await loadData();
-
-        }
-        catch (err) {
-
+            await loadReports();
+        } catch (err) {
             console.error(err);
-
             alert(
                 err.response?.data?.message ||
-                "Unable to delete Checklist Reports."
+                "Unable to delete attendance records."
             );
-
-        }
-        finally {
-
+        } finally {
             setShowDeleteAllDialog(false);
-
         }
-
     };
 
     // ======================================================
@@ -671,381 +397,115 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     const handleExport = async (format = "csv") => {
 
-        if (!filteredReports.length) {
-
+        if (!filteredRecords.length) {
             alert("No records found.");
-
             return;
-
         }
 
-        const rows = filteredReports.map((r) => ({
-
-            "Submitted At": r.submission_date,
-
+        const rows = filteredRecords.map((r) => ({
+            "Work Date": formatDateOnly(r.work_date),
             Status: r.status,
-
-            Checklist: r.checklist_name,
-
-            Store: r.store_name,
-
-            Employee: r.employee_name,
-
+            Employee: r.name,
             "Employee ID": r.employee_id || "-",
-
-            Department: r.department_name || "-",
-
-            Question: r.question || "-",
-
-            Answer: r.answer || "-",
-
-            Comment: r.remarks || "-",
-
-            "Action Status": r.action_point_id
-                ? (r.action_point_status || "Open")
-                : "Not Required",
-
-            "Action Taken": r.action_taken || "-",
-
-            "Action Completed At": r.action_point_completed_at || r.completion_date || "-",
-
-            Device: r.device || "-",
-
-            Attachment: r.attachment || "-",
-
-            Latitude: r.latitude || "-",
-
-            Longitude: r.longitude || "-"
-
+            Department: r.department || "-",
+            Designation: r.designation || "-",
+            Store: r.store_name || "-",
+            "Check-in At": formatDateTime(r.check_in_at),
+            "Check-in Latitude": r.check_in_latitude ?? "-",
+            "Check-in Longitude": r.check_in_longitude ?? "-",
+            "Check-out At": formatDateTime(r.check_out_at),
+            "Check-out Latitude": r.check_out_latitude ?? "-",
+            "Check-out Longitude": r.check_out_longitude ?? "-",
+            "Check-in Remarks": r.check_in_remarks || "-",
+            "Check-out Remarks": r.check_out_remarks || "-"
         }));
 
         await exportTableData({
             headers: Object.keys(rows[0]),
             rows: rows.map((row) => Object.values(row)),
-            filename: "ChecklistReports",
+            filename: "AttendanceReports",
             format,
-            title: "Checklist Reports",
+            title: "Attendance Reports",
         });
 
     };
 
-    // ======================================================
-    // MANAGEMENT XLSX EXPORT
-    // Uses the management-provided Store Health Check template.
-    // One worksheet is created per checklist submission.
-    // ======================================================
-
-    const handleManagementExport = async () => {
-
-        if (!canView) return;
-
-        if (!filteredReports.length) {
-            alert("No Checklist Reports found for the selected filters.");
-            return;
-        }
-
-        try {
-            setManagementExporting(true);
-
-            await exportManagementHealthCheck({
-                records: filteredReports,
-                stores,
-                mode: "checklist",
-                filename: "Store_Health_Check_Report.xlsx",
-            });
-        } catch (error) {
-            console.error("MANAGEMENT CHECKLIST EXPORT ERROR:", error);
-            alert(error?.message || "Unable to create Management XLSX export.");
-        } finally {
-            setManagementExporting(false);
-        }
-    };
-
-    // ======================================================
-// BULK UPLOAD CHECKLIST REPORT
-// ======================================================
-
-const uploadChecklistReport = async (file) => {
-
-    if (!canAdd) {
-
-        return {
-
-            success: false,
-
-            message: "You don't have permission."
-
-        };
-
-    }
-
-    const formData = new FormData();
-
-    formData.append("file", file);
-
-    const token = localStorage.getItem("token");
-
-    try {
-
-        const response = await axios.post(
-
-            `${API}/checklist-reports/bulk-upload`,
-
-            formData,
-
-            {
-
-                headers: {
-
-                    Authorization: `Bearer ${token}`
-
-                }
-
-            }
-
-        );
-
-        return response.data;
-
-    } catch (err) {
-
-        console.error(err);
-
-        return {
-
-            success: false,
-
-            message:
-
-                err.response?.data?.message ||
-
-                "Bulk upload failed.",
-
-            errors: err.response?.data?.errors || err.response?.data?.data?.errors || [],
-
-            warnings: err.response?.data?.warnings || err.response?.data?.data?.warnings || []
-
-        };
-
-    }
-
-};
     // ======================================================
     // CLEAR FILTERS
     // ======================================================
 
     const handleClearFilters = () => {
-
         setSearch("");
-
         setFromDate("");
-
         setToDate("");
-
         setSelectedStore("");
-
-        setSelectedChecklist("");
-
         setSelectedEmployee("");
-
+        setSelectedStatus("");
         setCurrentPage(1);
-
     };
-        // ======================================================
-    // FILTER REPORTS
+
+    // ======================================================
+    // CLIENT-SIDE SEARCH (server already filters store/employee/status/
+    // date — search narrows further across name/id/store already
+    // loaded for the selected filters).
     // ======================================================
 
-    const filteredReports = useMemo(() => {
+    const filteredRecords = useMemo(() => {
 
-        return reports.filter((item) => {
+        if (!search) return records;
 
-            // ==========================================
-            // SEARCH
-            // ==========================================
+        const q = search.toLowerCase();
 
-            const searchMatch =
+        return records.filter((item) =>
+            item.name?.toLowerCase().includes(q) ||
+            item.employee_id?.toLowerCase?.().includes(q) ||
+            item.store_name?.toLowerCase().includes(q) ||
+            item.department?.toLowerCase().includes(q)
+        );
 
-                !search ||
-
-                item.store_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.checklist_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.employee_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.question
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.answer
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase());
-
-            // ==========================================
-            // STORE
-            // ==========================================
-
-            const storeMatch =
-
-                !selectedStore ||
-
-                item.store_id == selectedStore;
-
-            // ==========================================
-            // CHECKLIST
-            // ==========================================
-
-            const checklistMatch =
-
-                !selectedChecklist ||
-
-                item.checklist_type_id == selectedChecklist;
-
-            // ==========================================
-            // EMPLOYEE
-            // ==========================================
-
-            const employeeMatch =
-
-                !selectedEmployee ||
-
-                item.submitted_by == selectedEmployee;
-
-            // ==========================================
-            // DATE FILTER
-            // ==========================================
-
-            const fromMatch =
-
-                !fromDate ||
-
-                new Date(item.submission_date) >=
-
-                new Date(fromDate);
-
-            const toMatch =
-
-                !toDate ||
-
-                new Date(item.submission_date) <=
-
-                new Date(toDate + "T23:59:59");
-
-            return (
-
-                searchMatch &&
-
-                storeMatch &&
-
-                checklistMatch &&
-
-                employeeMatch &&
-
-                fromMatch &&
-
-                toMatch
-
-            );
-
-        });
-
-    }, [
-
-        reports,
-
-        search,
-
-        selectedStore,
-
-        selectedChecklist,
-
-        selectedEmployee,
-
-        fromDate,
-
-        toDate
-
-    ]);
+    }, [records, search]);
 
     // ======================================================
     // PAGINATION
     // ======================================================
 
-    const totalRecords = filteredReports.length;
+    const totalRecords = filteredRecords.length;
 
-    const totalPages = Math.ceil(
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
 
-        totalRecords / pageSize
+    const startIndex = (currentPage - 1) * pageSize;
 
-    );
-
-    const startIndex =
-
-        (currentPage - 1) * pageSize;
-
-    const endIndex =
-
-        startIndex + pageSize;
-
-    const currentReports =
-
-        filteredReports.slice(
-
-            startIndex,
-
-            endIndex
-
-        );
+    const currentRecords = filteredRecords.slice(startIndex, startIndex + pageSize);
 
     useEffect(() => {
-
         setCurrentPage(1);
-
-    }, [
-
-        pageSize,
-
-        search,
-
-        selectedStore,
-
-        selectedChecklist,
-
-        selectedEmployee,
-
-        fromDate,
-
-        toDate
-
-    ]);
-
-
+    }, [pageSize, search, selectedStore, selectedEmployee, selectedStatus, fromDate, toDate]);
 
     useEffect(() => {
-        const pages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+        const pages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
         if (currentPage > pages) setCurrentPage(pages);
-    }, [filteredReports.length, pageSize, currentPage]);
+    }, [filteredRecords.length, pageSize, currentPage]);
 
     // ======================================================
-    // FORMAT DATE
+    // FORMAT HELPERS
     // ======================================================
 
-    const formatDate = (value) => {
-
+    const formatDateTime = (value) => {
         if (!value) return "-";
+        // Backend already formats as 'YYYY-MM-DD HH:mm:ss' (Asia/Kolkata) —
+        // treat it as local rather than routing it through `new Date()`
+        // (which would otherwise interpret it as UTC and shift the time).
+        const [datePart, timePart] = String(value).split(" ");
+        if (!datePart) return "-";
+        const [y, m, d] = datePart.split("-");
+        return `${d}/${m}/${y}${timePart ? `, ${timePart}` : ""}`;
+    };
 
-        return new Date(value).toLocaleString(
-
-            "en-GB"
-
-        );
-
+    const formatDateOnly = (value) => {
+        if (!value) return "-";
+        const [y, m, d] = String(value).split("-");
+        if (!y || !m || !d) return String(value);
+        return `${d}/${m}/${y}`;
     };
 
     // ======================================================
@@ -1053,24 +513,15 @@ const uploadChecklistReport = async (file) => {
     // ======================================================
 
     if (!canView) {
-
         return (
-
             <div className="no-permission">
-
                 <h2>Access Denied</h2>
-
                 <p>
-
-                    You don't have permission to view
-                    Checklist Reports.
-
+                    You don't have permission to view Attendance Reports.
+                    This requires administrator or Full Attendance access.
                 </p>
-
             </div>
-
         );
-
     }
 
     // ======================================================
@@ -1078,32 +529,23 @@ const uploadChecklistReport = async (file) => {
     // ======================================================
 
     if (loading) {
-
         return (
-
             <div className="reports-loading">
-
-                Loading Checklist Reports...
-
+                Loading Attendance Reports...
             </div>
-
         );
-
-    };
+    }
 
     // ======================================================
     // TABLE COLUMNS
     // ======================================================
-        const columns = [
 
-        // ==================================================
-        // SUBMISSION DETAILS
-        // ==================================================
+    const columns = [
 
         {
-            key: "submission_date",
-            title: "Submitted At",
-            render: (row) => formatDate(row.submission_date)
+            key: "work_date",
+            title: "Work Date",
+            render: (row) => formatDateOnly(row.work_date)
         },
 
         {
@@ -1111,21 +553,37 @@ const uploadChecklistReport = async (file) => {
             title: "Status",
             render: (row) => (
                 <span
-                    className={`status-badge ${(
-                        row.status || "Pending"
-                    )
+                    className={`status-badge ${(row.status || "Present")
                         .toLowerCase()
                         .replace(/\s+/g, "-")}`}
                 >
-                    {row.status || "Pending"}
+                    {row.status || "Present"}
                 </span>
             )
         },
 
         {
-            key: "checklist_name",
-            title: "Checklist",
-            render: (row) => row.checklist_name || "-"
+            key: "name",
+            title: "Employee",
+            render: (row) => row.name || "-"
+        },
+
+        {
+            key: "employee_id",
+            title: "Employee ID",
+            render: (row) => row.employee_id || "-"
+        },
+
+        {
+            key: "department",
+            title: "Department",
+            render: (row) => row.department || "-"
+        },
+
+        {
+            key: "designation",
+            title: "Designation",
+            render: (row) => row.designation || "-"
         },
 
         {
@@ -1135,524 +593,245 @@ const uploadChecklistReport = async (file) => {
         },
 
         {
-            key: "employee_name",
-            title: "Employee",
-            render: (row) => row.employee_name || "-"
+            key: "check_in_at",
+            title: "Check-in At",
+            render: (row) => formatDateTime(row.check_in_at)
         },
 
         {
-            key: "employee_id",
-            title: "Employee ID",
-            render: (row) => row.employee_id || "-"
-        },
-
-        // ==================================================
-        // CHECKLIST DETAILS
-        // ==================================================
-
-        {
-            key: "department_name",
-            title: "Department",
-            render: (row) => row.department_name || "-"
-        },
-
-        {
-            key: "question",
-            title: "Question",
+            key: "check_in_photo",
+            title: "Check-in Photo",
+            align: "center",
             render: (row) => (
-                <div className="question-cell">
-                    {row.question || "-"}
-                </div>
-            )
-        },
-
-        {
-            key: "answer",
-            title: "Answer",
-            render: (row) => row.answer || "-"
-        },
-
-        {
-            key: "remarks",
-            title: "Comment",
-            render: (row) => (
-                <div className="remarks-cell">
-                    {row.remarks || "-"}
-                </div>
-            )
-        },
-
-        // ==================================================
-        // ACTION POINT STATUS / COMPLETION
-        // ==================================================
-
-        {
-            key: "action_point_status",
-            title: "Action Status",
-            render: (row) => {
-                if (!row.action_point_id) {
-                    return <span className="status-badge">Not Required</span>;
-                }
-
-                const status = row.action_point_status || "Open";
-                return (
-                    <span
-                        className={`status-badge ${String(status)
-                            .toLowerCase()
-                            .replace(/\s+/g, "-")}`}
+                row.check_in_photo ? (
+                    <button
+                        type="button"
+                        className="table-link"
+                        onClick={() => handleViewPhoto(row, "check-in")}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
                     >
-                        {status}
-                    </span>
-                );
-            }
-        },
-
-        {
-            key: "action_taken",
-            title: "Action Taken",
-            render: (row) => row.action_taken || "-"
-        },
-
-        {
-            key: "action_point_comment",
-            title: "Action Point Comment",
-            render: (row) => (
-                <div className="remarks-cell">
-                    {row.action_point_comment || "-"}
-                </div>
+                        View
+                    </button>
+                ) : "-"
             )
         },
 
         {
-            key: "action_point_completed_at",
-            title: "Action Completed At",
-            render: (row) =>
-                row.action_point_completed_at || row.completion_date
-                    ? formatDate(row.action_point_completed_at || row.completion_date)
-                    : "-"
-        },
-
-        {
-            key: "action_point_sla_minutes",
-            title: "SLA",
-            render: (row) => {
-                const minutes = Number(row.action_point_sla_minutes || 0);
-                if (!row.action_point_id || minutes <= 0) return "No SLA";
-                const days = Math.floor(minutes / 1440);
-                const hours = Math.floor((minutes % 1440) / 60);
-                const mins = minutes % 60;
-                return `${days}d ${String(hours).padStart(2, "0")}h ${String(mins).padStart(2, "0")}m`;
-            }
-        },
-
-       // ==================================================
-// ATTACHMENT & DEVICE
-// ==================================================
-
-{
-    key: "attachment",
-    title: "Attachment",
-    minWidth: "120px",
-    align: "center",
-
-    render: (row) => (
-
-        row.attachment ? (
-
-            <a
-                href={`${API_BASE_URL}/${row.attachment}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="table-link"
-            >
-                View
-            </a>
-
-        ) : (
-
-            "-"
-
-        )
-
-    )
-},
-
-{
-    key: "device",
-    title: "Device",
-    minWidth: "220px",   // Reduce width
-    render: (row) => (
-        <div className="device-cell">
-            {row.device || "-"}
-        </div>
-    )
-},
-
-        // ==================================================
-        // LOCATION
-        // ==================================================
-
-        {
-            key: "latitude",
-            title: "Latitude",
-            render: (row) => row.latitude || "-"
-        },
-
-        {
-            key: "longitude",
-            title: "Longitude",
-            render: (row) => row.longitude || "-"
-        },
-
-        {
-            key: "location",
-            title: "Geo Location",
+            key: "check_in_location",
+            title: "Check-in Location",
             render: (row) => (
-
-                row.latitude && row.longitude ? (
-
+                row.check_in_latitude && row.check_in_longitude ? (
                     <a
-                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        href={`https://www.google.com/maps?q=${row.check_in_latitude},${row.check_in_longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="table-link"
                     >
-                        <FaMapMarkerAlt />
-
-                        {" "}View Map
+                        <FaMapMarkerAlt />{" "}View Map
                     </a>
-
-                ) : (
-
-                    "-"
-
-                )
-
+                ) : "-"
             )
         },
 
-      {
-    key: "actions",
-    title: "Actions",
-    minWidth: "360px",
-    width: "360px",
-    align: "center",
+        {
+            key: "check_out_at",
+            title: "Check-out At",
+            render: (row) => formatDateTime(row.check_out_at)
+        },
 
-    render: (row) => (
+        {
+            key: "check_out_photo",
+            title: "Check-out Photo",
+            align: "center",
+            render: (row) => (
+                row.check_out_photo ? (
+                    <button
+                        type="button"
+                        className="table-link"
+                        onClick={() => handleViewPhoto(row, "check-out")}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    >
+                        View
+                    </button>
+                ) : "-"
+            )
+        },
 
-        <div className="action-buttons">
+        {
+            key: "check_out_location",
+            title: "Check-out Location",
+            render: (row) => (
+                row.check_out_latitude && row.check_out_longitude ? (
+                    <a
+                        href={`https://www.google.com/maps?q=${row.check_out_latitude},${row.check_out_longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="table-link"
+                    >
+                        <FaMapMarkerAlt />{" "}View Map
+                    </a>
+                ) : "-"
+            )
+        },
 
-            {canView && (
+        {
+            key: "actions",
+            title: "Actions",
+            minWidth: "220px",
+            width: "220px",
+            align: "center",
+            render: (row) => (
+                <div className="action-buttons">
 
-                <button
-                    type="button"
-                    className="view-btn"
-                    onClick={() => handleView(row.id)}
-                >
-                    <FaEye />
-                    <span>View</span>
-                </button>
+                    <button
+                        type="button"
+                        className="view-btn"
+                        onClick={() => handleView(row)}
+                    >
+                        <FaEye />
+                        <span>View</span>
+                    </button>
 
-            )}
+                    {canDelete && (
+                        <button
+                            type="button"
+                            className="delete-btn"
+                            onClick={() => handleDelete(row.id)}
+                        >
+                            <FaTrash />
+                            <span>Delete</span>
+                        </button>
+                    )}
 
-            {canEdit && (
-
-                <button
-                    type="button"
-                    className="edit-btn"
-                    onClick={() => handleEdit(row)}
-                >
-                    <FaEdit />
-                    <span>Edit</span>
-                </button>
-
-            )}
-
-            {canDelete && (
-
-                <button
-                    type="button"
-                    className="delete-btn"
-                    onClick={() => handleDelete(row.id)}
-                >
-                    <FaTrash />
-                    <span>Delete</span>
-                </button>
-
-            )}
-
-        </div>
-
-    )
-
-}
+                </div>
+            )
+        }
     ];
-        return (
+
+    return (
 
         <div className="checklist-reports-page">
 
-            {/* ======================================================
-                PAGE HEADER
-            ====================================================== */}
-
             <PageHeader
-                title="Checklist Reports"
-                subtitle="Manage submitted checklist reports."
+                title="Attendance Reports"
+                subtitle="Manage employee check-in and check-out attendance records."
             />
 
-            {/* ======================================================
-                PAGE TOOLBAR
-            ====================================================== */}
-<PageToolbar
+            {loadError && (
+                <div className="reports-loading" style={{ color: "#b91c1c" }}>
+                    Unable to load Attendance Reports right now. Showing what's cached —
+                    <button
+                        type="button"
+                        className="table-link"
+                        style={{ marginLeft: 6, background: "none", border: "none", cursor: "pointer" }}
+                        onClick={() => loadReports()}
+                    >
+                        try again
+                    </button>.
+                </div>
+            )}
 
-    search={search}
+            <PageToolbar
+                search={search}
+                setSearch={setSearch}
+                placeholder="Search Attendance Reports..."
+                showAdd={false}
+                showExport={canView}
+                onExport={handleExport}
+                showBulkUpload={false}
+                showDeleteAll={canDelete}
+                onDeleteAll={handleDeleteAll}
+            />
 
-    setSearch={setSearch}
-
-    placeholder="Search Checklist Reports..."
-
-    showAdd={false}
-
-    showExport={canView}
-
-    onExport={handleExport}
-
-    showBulkUpload={canAdd}
-
-    bulkUploadText="Bulk Upload"
-
-    onBulkUpload={() => setShowBulkUpload(true)}
-
-    showDeleteAll={canDelete}
-
-    onDeleteAll={handleDeleteAll}
-
->
-    {canView && (
-        <button
-            type="button"
-            className="toolbar-btn export-btn"
-            onClick={handleManagementExport}
-            disabled={managementExporting}
-            title="Export using the management Store Health Check format"
-        >
-            <FaFileExcel />
-            {managementExporting ? "Creating XLSX..." : "Management XLSX"}
-        </button>
-    )}
-
-</PageToolbar>
-            {/* ======================================================
-                FILTER BAR
-            ====================================================== */}
-
-            <FilterBar
-                onClear={handleClearFilters}
-            >
+            <FilterBar onClear={handleClearFilters}>
 
                 <div className="filter-group">
-
                     <label>From Date</label>
-
                     <input
                         type="date"
                         value={fromDate}
-                        onChange={(e) =>
-                            setFromDate(e.target.value)
-                        }
+                        onChange={(e) => setFromDate(e.target.value)}
                     />
-
                 </div>
 
                 <div className="filter-group">
-
                     <label>To Date</label>
-
                     <input
                         type="date"
                         value={toDate}
-                        onChange={(e) =>
-                            setToDate(e.target.value)
-                        }
+                        onChange={(e) => setToDate(e.target.value)}
                     />
-
                 </div>
 
                 <div className="filter-group">
-
-                    <label>Checklist Type</label>
-
+                    <label>Status</label>
                     <select
-                        value={selectedChecklist}
-                        onChange={(e) =>
-                            setSelectedChecklist(e.target.value)
-                        }
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
                     >
-
-                        <option value="">
-                            All Checklist Types
-                        </option>
-
-                        {checklistTypes.map((item) => (
-
-                            <option
-                                key={item.id}
-                                value={item.id}
-                            >
-
-                                {item.checklist_name}
-
-                            </option>
-
-                        ))}
-
+                        <option value="">All Statuses</option>
+                        <option value="Present">Present</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Absent">Absent</option>
+                        <option value="On Leave">On Leave</option>
                     </select>
-
                 </div>
 
                 <div className="filter-group">
-
                     <label>Store</label>
-
                     <select
                         value={selectedStore}
-                        onChange={(e) =>
-                            setSelectedStore(e.target.value)
-                        }
+                        onChange={(e) => setSelectedStore(e.target.value)}
                     >
-
-                        <option value="">
-                            All Stores
-                        </option>
-
+                        <option value="">All Stores</option>
                         {stores.map((item) => (
-
-                            <option
-                                key={item.id}
-                                value={item.id}
-                            >
-
+                            <option key={item.id} value={item.id}>
                                 {item.store_name}
-
                             </option>
-
                         ))}
-
                     </select>
-
                 </div>
 
                 <div className="filter-group">
-
                     <label>Employee</label>
-
                     <select
                         value={selectedEmployee}
-                        onChange={(e) =>
-                            setSelectedEmployee(e.target.value)
-                        }
+                        onChange={(e) => setSelectedEmployee(e.target.value)}
                     >
-
-                        <option value="">
-                            All Employees
-                        </option>
-
-                        {users.map((item) => (
-
-                            <option
-                                key={item.id}
-                                value={item.id}
-                            >
-
-                                {item.name}
-
+                        <option value="">All Employees</option>
+                        {employees.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                {item.name}{item.employee_id ? ` (${item.employee_id})` : ""}
                             </option>
-
                         ))}
-
                     </select>
-
                 </div>
 
             </FilterBar>
 
-            {/* ======================================================
-                CARD
-            ====================================================== */}
-
-            <Card
-                title="Checklist Report List"
-            >
+            <Card title="Attendance Report List">
 
                 <DataTable
-
                     columns={columns}
-
-                    data={currentReports}
-
+                    data={currentRecords}
                     loading={loading}
-
-                    emptyTitle="No Reports Found"
-
-                    emptyDescription="There are no Checklist Reports available."
-
+                    emptyTitle="No Records Found"
+                    emptyDescription="There are no Attendance Records available."
                 />
 
                 <Pagination
-
                     currentPage={currentPage}
-
                     totalPages={totalPages}
-
                     totalRecords={totalRecords}
-
                     pageSize={pageSize}
-
                     onPageChange={setCurrentPage}
-
                     onPageSizeChange={(size) => {
-
                         setPageSize(size);
-
                         setCurrentPage(1);
-
                     }}
-
                 />
 
             </Card>
-            
- {/* ======================================================
-    BULK UPLOAD MODAL
-====================================================== */}
-
-<BulkUploadModal
-
-    isOpen={showBulkUpload}
-
-    onClose={() => setShowBulkUpload(false)}
-
- onSuccess={async () => {
-
-    // Silent — a full loadData() flips `loading` to true, which would
-    // swap this page out for the "Loading..." screen and unmount this
-    // very modal while it may still be showing per-row bulk-upload
-    // results the user hasn't dismissed yet.
-    await silentRefresh();
-
-}}
-
-    uploadFunction={uploadChecklistReport}
-
-    title="Bulk Upload Checklist Reports"
-
-    acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm"
-
-    maxFileSize={100 * 1024 * 1024}
-
-    sampleFile="/samples/checklist-report-sample.xlsx"
-
-/>
 
             {/* ======================================================
                 DELETE CONFIRMATION
@@ -1660,8 +839,8 @@ const uploadChecklistReport = async (file) => {
 
             <ConfirmDialog
                 open={showDeleteDialog}
-                title="Delete Checklist Report"
-                message="Are you sure you want to delete this Checklist Report?"
+                title="Delete Attendance Record"
+                message="Are you sure you want to delete this attendance record? Its photos will also be removed."
                 confirmText="Delete"
                 cancelText="Cancel"
                 confirmVariant="danger"
@@ -1674,8 +853,8 @@ const uploadChecklistReport = async (file) => {
 
             <ConfirmDialog
                 open={showDeleteAllDialog}
-                title="Delete All Checklist Reports"
-                message="Are you sure you want to delete all available Checklist Reports? Active Action Points will be preserved."
+                title="Delete All Attendance Records"
+                message="Are you sure you want to delete all available Attendance Records? This cannot be undone."
                 confirmText="Delete All"
                 cancelText="Cancel"
                 confirmVariant="danger"
@@ -1685,29 +864,20 @@ const uploadChecklistReport = async (file) => {
 
             {/* ======================================================
                 VIEW MODAL
-            ======================================================}
+            ====================================================== */}
 
-            {showViewModal && selectedReport && (
-
+            {showViewModal && selectedRecord && (
                 <div className="modal-overlay">
-
                     <div className="report-modal">
 
                         <div className="modal-header">
-
-                            <h3>
-                                Checklist Report Details
-                            </h3>
-
+                            <h3>Attendance Record Details</h3>
                             <button
                                 className="close-btn"
-                                onClick={() =>
-                                    setShowViewModal(false)
-                                }
+                                onClick={() => setShowViewModal(false)}
                             >
                                 ×
                             </button>
-
                         </div>
 
                         <div className="modal-body">
@@ -1715,61 +885,38 @@ const uploadChecklistReport = async (file) => {
                             <div className="detail-grid">
 
                                 <div>
-                                    <strong>Checklist</strong>
-                                    <p>
-                                        {selectedReport.checklist_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Store</strong>
-                                    <p>
-                                        {selectedReport.store_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
                                     <strong>Employee</strong>
-                                    <p>
-                                        {selectedReport.employee_name || "-"}
-                                    </p>
+                                    <p>{selectedRecord.name || "-"}</p>
                                 </div>
 
                                 <div>
                                     <strong>Employee ID</strong>
-                                    <p>
-                                        {selectedReport.employee_id || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Status</strong>
-                                    <p>
-                                        {selectedReport.status || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Submission Date</strong>
-                                    <p>
-                                        {formatDate(
-                                            selectedReport.submission_date
-                                        )}
-                                    </p>
+                                    <p>{selectedRecord.employee_id || "-"}</p>
                                 </div>
 
                                 <div>
                                     <strong>Department</strong>
-                                    <p>
-                                        {selectedReport.department_name || "-"}
-                                    </p>
+                                    <p>{selectedRecord.department || "-"}</p>
                                 </div>
 
                                 <div>
-                                    <strong>Device</strong>
-                                    <p>
-                                        {selectedReport.device || "-"}
-                                    </p>
+                                    <strong>Designation</strong>
+                                    <p>{selectedRecord.designation || "-"}</p>
+                                </div>
+
+                                <div>
+                                    <strong>Store</strong>
+                                    <p>{selectedRecord.store_name || "-"}</p>
+                                </div>
+
+                                <div>
+                                    <strong>Status</strong>
+                                    <p>{selectedRecord.status || "-"}</p>
+                                </div>
+
+                                <div>
+                                    <strong>Work Date</strong>
+                                    <p>{formatDateOnly(selectedRecord.work_date)}</p>
                                 </div>
 
                             </div>
@@ -1778,237 +925,124 @@ const uploadChecklistReport = async (file) => {
 
                             <div className="question-section">
 
-                                <h4>Question</h4>
+                                <h4>Check-in At</h4>
+                                <p>{formatDateTime(selectedRecord.check_in_at)}</p>
 
-                                <p>
-                                    {selectedReport.question || "-"}
-                                </p>
+                                <h4>Check-in Remarks</h4>
+                                <p>{selectedRecord.check_in_remarks || "-"}</p>
 
-                                <h4>Answer</h4>
+                                <h4>Check-out At</h4>
+                                <p>{formatDateTime(selectedRecord.check_out_at)}</p>
 
-                                <p>
-                                    {selectedReport.answer || "-"}
-                                </p>
-
-                                <h4>Comment</h4>
-
-                                <p>
-                                    {selectedReport.remarks || "-"}
-                                </p>
-
-                                {selectedReport.action_point_id && (
-                                    <>
-                                        <h4>Action Point Comment</h4>
-                                        <p>
-                                            {selectedReport.action_point_comment || "-"}
-                                        </p>
-                                        <h4>Action Point Remarks</h4>
-                                        <p>
-                                            {selectedReport.action_point_remarks || "-"}
-                                        </p>
-                                    </>
-                                )}
-
-                                <h4>Attachment</h4>
-
-                                <p>
-
-                                    {selectedReport.attachment ? (
-
-                                        <a
-                                            href={`${API_BASE_URL}/${selectedReport.attachment}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="table-link"
-                                        >
-                                            View Attachment
-                                        </a>
-
-                                    ) : (
-
-                                        "-"
-
-                                    )}
-
-                                </p>
+                                <h4>Check-out Remarks</h4>
+                                <p>{selectedRecord.check_out_remarks || "-"}</p>
 
                             </div>
 
-                            <div className="map-section">
+                            <div className="map-section" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
 
-                                {selectedReport.latitude &&
-                                selectedReport.longitude ? (
-
+                                {selectedRecord.check_in_latitude && selectedRecord.check_in_longitude ? (
                                     <a
-                                        href={`https://www.google.com/maps?q=${selectedReport.latitude},${selectedReport.longitude}`}
+                                        href={`https://www.google.com/maps?q=${selectedRecord.check_in_latitude},${selectedRecord.check_in_longitude}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="map-link"
                                     >
-                                        <FaMapMarkerAlt />
-
-                                        {" "}Open Location in Google Maps
+                                        <FaMapMarkerAlt />{" "}Check-in Location
                                     </a>
-
                                 ) : (
+                                    <p>Check-in Location Not Available</p>
+                                )}
 
-                                    <p>
-                                        Location Not Available
-                                    </p>
-
+                                {selectedRecord.check_out_latitude && selectedRecord.check_out_longitude ? (
+                                    <a
+                                        href={`https://www.google.com/maps?q=${selectedRecord.check_out_latitude},${selectedRecord.check_out_longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="map-link"
+                                    >
+                                        <FaMapMarkerAlt />{" "}Check-out Location
+                                    </a>
+                                ) : (
+                                    <p>Check-out Location Not Available</p>
                                 )}
 
                             </div>
 
+                            {(selectedRecord.check_in_photo || selectedRecord.check_out_photo) && (
+                                <div className="modal-actions" style={{ marginTop: "1rem" }}>
+                                    {selectedRecord.check_in_photo && (
+                                        <button
+                                            type="button"
+                                            className="upload-btn"
+                                            onClick={() => handleViewPhoto(selectedRecord, "check-in")}
+                                        >
+                                            View Check-in Photo
+                                        </button>
+                                    )}
+                                    {selectedRecord.check_out_photo && (
+                                        <button
+                                            type="button"
+                                            className="upload-btn"
+                                            onClick={() => handleViewPhoto(selectedRecord, "check-out")}
+                                        >
+                                            View Check-out Photo
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
                         </div>
 
                     </div>
-
                 </div>
-
             )}
-                        {/* ======================================================
-                EDIT MODAL
+
+            {/* ======================================================
+                PHOTO PREVIEW MODAL
             ====================================================== */}
 
-            {showEditModal && (
-
-                <div className="modal-overlay">
-
-                    <div className="report-modal">
-
-                        {/* ==========================================
-                            HEADER
-                        ========================================== */}
-
+            {(photoPreview.loading || photoPreview.url) && (
+                <div className="modal-overlay" onClick={closePhotoPreview}>
+                    <div
+                        className="report-modal"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ maxWidth: "560px" }}
+                    >
                         <div className="modal-header">
-
-                            <h3>Edit Checklist Report</h3>
-
-                            <button
-                                className="close-btn"
-                                onClick={() =>
-                                    setShowEditModal(false)
-                                }
-                            >
-                                ×
-                            </button>
-
+                            <h3>
+                                {photoPreview.type === "check-in" ? "Check-in Photo" : "Check-out Photo"}
+                            </h3>
+                            <button className="close-btn" onClick={closePhotoPreview}>×</button>
                         </div>
 
-                        {/* ==========================================
-                            BODY
-                        ========================================== */}
-
-                        <div className="modal-body">
-
-                            <div className="filter-group">
-
-                                <label>Status</label>
-
-                                <select
-                                    value="Completed"
-                                    disabled
-                                    aria-label="Checklist report status"
-                                >
-                                    <option value="Completed">
-                                        Completed
-                                    </option>
-                                </select>
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Answer</label>
-
-                                <input
-                                    type="text"
-                                    value={editingReport.answer}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            answer: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Remarks</label>
-
-                                <textarea
-                                    rows={5}
-                                    value={editingReport.remarks}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            remarks: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Device</label>
-
-                                <input
-                                    type="text"
-                                    value={editingReport.device}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            device: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            {/* ==========================================
-                                ACTIONS
-                            ========================================== */}
-
-                            <div className="modal-actions">
-
-                                <button
-                                    className="cancel-btn"
-                                    onClick={() =>
-                                        setShowEditModal(false)
-                                    }
-                                >
-                                    Cancel
-                                </button>
-
-                                {canEdit && (
-
-                                    <button
-                                        className="upload-btn"
-                                        onClick={updateReport}
-                                    >
-                                        Save Changes
-                                    </button>
-
-                                )}
-
-                            </div>
-
+                        <div className="modal-body" style={{ textAlign: "center" }}>
+                            {photoPreview.loading ? (
+                                <p>Loading photo...</p>
+                            ) : (
+                                <>
+                                    <img
+                                        src={photoPreview.url}
+                                        alt="Attendance"
+                                        style={{ maxWidth: "100%", borderRadius: "8px" }}
+                                    />
+                                    <div className="modal-actions" style={{ marginTop: "1rem" }}>
+                                        <button
+                                            type="button"
+                                            className="upload-btn"
+                                            onClick={() =>
+                                                selectedRecord &&
+                                                handleDownloadPhoto(selectedRecord, photoPreview.type)
+                                            }
+                                        >
+                                            <FaDownload /> Download
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
-
                     </div>
-
                 </div>
-
             )}
 
         </div>
@@ -2017,4 +1051,4 @@ const uploadChecklistReport = async (file) => {
 
 }
 
-export default ChecklistReports;
+export default AttendanceReports;

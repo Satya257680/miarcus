@@ -23,13 +23,23 @@ const CHECKLIST_REPORT_COLUMN_ALIASES = {
     "Store": ["store", "storename", "store name", "outlet", "outletname", "location", "branch", "storecode", "store code"],
     "Checklist Type": ["checklisttype", "checklist type", "checklist", "checklistname", "type"],
     "Employee": ["employee", "employeename", "employee name", "submittedby", "submitted by", "staff", "staffname", "employeeid", "employee id"],
+    "Department": ["department", "departments", "dept", "departmentname"],
     "Question": ["question", "questiontext", "question text", "checklistquestion"],
     "Answer": ["answer", "response", "answertext"],
     "Remarks": ["remarks", "comment", "comments", "notes"],
-    "Submission Date": ["submissiondate", "submission date", "date", "reportdate", "submitteddate", "submitted date"],
+    // "Submission Date" also covers "Intended Date" (the export's target/
+    // due-date column) — "Actual Submission Time" is matched separately
+    // below and, when present, wins (see parseSubmissionDate in
+    // services/checklistReportService.js) since it's the real submission
+    // moment rather than a target date.
+    "Submission Date": ["submissiondate", "submission date", "date", "reportdate", "submitteddate", "submitted date", "intendeddate", "intended date"],
+    "Actual Submission Time": ["actualsubmissiontime", "actual submission time", "submissiontime", "submission time", "submittedtime", "submitted time"],
     "Device": ["device", "devicename"],
     "Latitude": ["latitude", "lat"],
-    "Longitude": ["longitude", "lng", "long"]
+    "Longitude": ["longitude", "lng", "long"],
+    // Combined "lat, long" export column — see parseGeoLocation() in
+    // services/checklistReportService.js.
+    "Geo Location": ["geolocation", "geo location", "coordinates", "latlong", "lat long", "gpscoordinates", "gps coordinates"]
 };
 
 // ======================================================

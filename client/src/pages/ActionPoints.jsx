@@ -347,45 +347,46 @@ function ActionPoints() {
 // while the Bulk Upload modal may still be open showing per-row results)
 // can refresh the data without swapping the whole page out for the
 // "Loading Action Points..." screen.
+//
+// BUG FIX ("blank on refresh, appears on the next refresh"): the fetch
+// itself is retried once automatically (e.g. a transient/cold-start
+// failure) before bothering the user with an alert and an empty table
+// — the retry lives inside a single try/finally so `loading` is only
+// ever toggled once per call, instead of flickering off and back on.
+const fetchActionPointsOnce = () =>
+    axios.get(
+        "/api/action-points",
+        {
+            params: {
+                page: currentPage,
+                limit: pageSize,
+                search,
+                store_id: store,
+                department_id: department,
+                checklist_type_id: checklistType,
+                priority,
+                status,
+                start_date: startDate,
+                end_date: endDate
+            }
+        }
+    );
+
 const fetchActionPoints = async ({ silent = false } = {}) => {
 
     try {
 
         if (!silent) setLoading(true);
 
-        const res = await axios.get(
+        let res;
 
-            "/api/action-points",
-
-            {
-
-                params: {
-
-                    page: currentPage,
-
-                    limit: pageSize,
-
-                    search,
-
-                    store_id: store,
-
-                    department_id: department,
-
-                    checklist_type_id: checklistType,
-
-                    priority,
-
-                    status,
-
-                    start_date: startDate,
-
-                    end_date: endDate
-
-                }
-
-            }
-
-        );
+        try {
+            res = await fetchActionPointsOnce();
+        } catch (firstError) {
+            console.warn("Action Points load failed, retrying once:", firstError.message);
+            await new Promise((resolve) => setTimeout(resolve, 900));
+            res = await fetchActionPointsOnce();
+        }
 
         const result = res.data || {};
 

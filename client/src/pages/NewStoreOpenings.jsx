@@ -560,18 +560,27 @@ function NewStoreOpenings() {
 
             setLoading(true);
 
-            const res =
-                await getNewStoreOpenings({
+            // BUG FIX ("blank on refresh, appears on the next refresh"):
+            // retry once automatically (e.g. a transient/cold-start
+            // failure) before bothering the user with an alert and an
+            // empty table.
+            let res;
 
-                    page:
-                        currentPage,
-
-                    limit:
-                        pageSize,
-
+            try {
+                res = await getNewStoreOpenings({
+                    page: currentPage,
+                    limit: pageSize,
                     search
-
                 });
+            } catch (firstError) {
+                console.warn("New Store Openings load failed, retrying once:", firstError.message);
+                await new Promise((resolve) => setTimeout(resolve, 900));
+                res = await getNewStoreOpenings({
+                    page: currentPage,
+                    limit: pageSize,
+                    search
+                });
+            }
 
             const result =
                 res?.data || {};

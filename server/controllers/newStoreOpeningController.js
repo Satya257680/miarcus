@@ -6,6 +6,133 @@ const workflowService = require("../services/nsoWorkflowService");
 
 const nsoService = require("../services/nsoService");
 
+const db = require("../config/db");
+
+// ======================================================
+// WHICH new_store_openings COLUMNS ARE ACTUALLY NUMERIC?
+// ======================================================
+//
+// There's no CREATE TABLE for new_store_openings in this codebase (the
+// table already existed in the live database), so its real column
+// types aren't something this file can just assume — guessing wrong
+// either strips legitimate free text out of a VARCHAR column (e.g.
+// Electricity, which is routinely "10KVA"/"3530 per KVA") or leaves a
+// genuinely DECIMAL/INT column exposed to the exact "Incorrect [...]
+// value" bulk-upload failure this fix exists to prevent.
+//
+// Instead, ask the database itself once per bulk upload which columns
+// are numeric, and only run toDecimalOrNull() (below) on those. Falls
+// back to a conservative static list (the columns the original "NA"
+// error and its siblings are known to hit) only if the introspection
+// query itself fails for some reason.
+// ======================================================
+
+const NUMERIC_SQL_TYPES = new Set([
+    "decimal", "numeric", "float", "double",
+    "int", "integer", "tinyint", "smallint", "mediumint", "bigint"
+]);
+
+const FALLBACK_NUMERIC_COLUMNS = new Set([
+    "sb_area", "carpet_area", "cam", "mg", "revenue_share", "escalation", "expected_sale"
+]);
+
+async function getNumericColumns(tableName) {
+    try {
+        const rows = await db.query(
+            `SELECT COLUMN_NAME, DATA_TYPE
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+            [tableName]
+        );
+
+        if (!rows || !rows.length) return FALLBACK_NUMERIC_COLUMNS;
+
+        const numeric = new Set();
+        for (const r of rows) {
+            const columnName = r.COLUMN_NAME || r.column_name;
+            const dataType = String(r.DATA_TYPE || r.data_type || "").toLowerCase();
+            if (NUMERIC_SQL_TYPES.has(dataType)) numeric.add(columnName);
+        }
+        return numeric;
+    } catch (error) {
+        console.warn(
+            "Unable to introspect new_store_openings column types — falling back to the known numeric fields:",
+            error.message
+        );
+        return FALLBACK_NUMERIC_COLUMNS;
+    }
+}
+
+// ======================================================
+// SAFE DECIMAL FOR A BULK-UPLOAD NUMERIC COLUMN
+// ======================================================
+//
+// BUG FIX — "Incorrect decimal value: 'NA' for column 'cam' at row 10"
+//
+// New Store Openings bulk upload used to pass a spreadsheet cell
+// straight through into decimal columns (CAM, MG, SB Area, Carpet
+// Area, Rev Share %, Escalation %, Expected Sale) with no sanitizing
+// at all. Real-world exports commonly contain:
+//   - "NA" / "N/A" / "-" / blank                (no data for that field)
+//   - "1,10,000" / "8,00,000"                   (Indian-style comma grouping)
+//   - "15% After 3 years" / "5% (every year)"   (a number plus descriptive text)
+// Any of these sent straight to a DECIMAL column throws exactly the
+// error above and — because the whole file is inserted as one batch
+// (see workflowService.bulkImportWorkflow) — aborts the ENTIRE upload,
+// not just that one row/column.
+//
+// This extracts the leading numeric value (after stripping commas/
+// currency symbols) and returns null for anything with no digits at
+// all, so the column always receives either a clean number or NULL —
+// never text a DECIMAL column can reject. The database can only ever
+// store a number in a decimal column, so a purely descriptive
+// qualifier ("After 3 years") can't be preserved here; the number
+// itself always is.
+// ======================================================
+
+const toDecimalOrNull = (value) => {
+
+    if (value === null || value === undefined) return null;
+
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    let text = String(value).trim();
+    if (!text) return null;
+
+    // Explicit "not applicable" markers -> NULL, not a parse failure.
+    if (/^(n\.?\/?a\.?|nil|none|-{1,2}|na)$/i.test(text)) return null;
+
+    // Strip currency symbols and thousands separators (including the
+    // Indian "1,10,000" grouping, which plain comma-stripping already
+    // handles correctly since it just removes every comma).
+    text = text.replace(/[₹$,]/g, "").trim();
+
+    // Pull out the first number in whatever text remains — handles a
+    // bare number, a trailing "%", a unit suffix ("10KVA"), or a
+    // descriptive qualifier ("15% After 3 years").
+    const match = text.match(/-?\d+(\.\d+)?/);
+    if (!match) return null;
+
+    const num = Number(match[0]);
+    return Number.isFinite(num) ? num : null;
+};
+
+// Only run the numeric coercion above on a column the database has
+// actually told us is numeric (see getNumericColumns) — otherwise a
+// genuinely text/VARCHAR column (a descriptive Escalation clause, an
+// Electricity value like "3530 per KVA") is passed through untouched
+// instead of being trimmed down to just its leading digits.
+const sanitizeImportField = (fieldName, rawValue, numericColumns) => {
+    if (numericColumns.has(fieldName)) {
+        return toDecimalOrNull(rawValue);
+    }
+    return rawValue !== null && rawValue !== undefined && rawValue !== ""
+        ? rawValue
+        : null;
+};
+
 // ======================================================
 // DATE FORMATTER
 // ======================================================
@@ -1128,6 +1255,13 @@ exports.bulkUploadNewStoreOpenings = async (
 
 
         // ==================================================
+        // WHICH COLUMNS ARE NUMERIC? (see getNumericColumns above)
+        // ==================================================
+
+        const numericColumns =
+            await getNumericColumns("new_store_openings");
+
+        // ==================================================
         // NORMALIZE ROWS
         // ==================================================
 
@@ -1194,65 +1328,42 @@ exports.bulkUploadNewStoreOpenings = async (
                         // ----------------------------------
 
                         sb_area:
-                            row.sb_area !== null &&
-                            row.sb_area !== undefined &&
-                            row.sb_area !== ""
-                                ? row.sb_area
-                                : null,
+                            sanitizeImportField("sb_area", row.sb_area, numericColumns),
 
                         carpet_area:
-                            row.carpet_area !== null &&
-                            row.carpet_area !== undefined &&
-                            row.carpet_area !== ""
-                                ? row.carpet_area
-                                : null,
+                            sanitizeImportField("carpet_area", row.carpet_area, numericColumns),
 
 
                         // ----------------------------------
                         // FINANCIAL
+                        //
+                        // Sanitized with sanitizeImportField()/toDecimalOrNull()
+                        // (see above) so a cell like "NA", "1,10,000" or "15%
+                        // After 3 years" can never abort the whole bulk upload
+                        // with an "Incorrect decimal value" SQL error — but
+                        // ONLY when the database actually reports that column
+                        // as numeric, so a genuinely text column (e.g. a
+                        // descriptive Escalation clause) is left exactly as
+                        // written in the spreadsheet.
                         // ----------------------------------
 
                         cam:
-                            row.cam !== null &&
-                            row.cam !== undefined &&
-                            row.cam !== ""
-                                ? row.cam
-                                : null,
+                            sanitizeImportField("cam", row.cam, numericColumns),
 
                         mg:
-                            row.mg !== null &&
-                            row.mg !== undefined &&
-                            row.mg !== ""
-                                ? row.mg
-                                : null,
+                            sanitizeImportField("mg", row.mg, numericColumns),
 
                         electricity_kva:
-                            row.electricity_kva !== null &&
-                            row.electricity_kva !== undefined &&
-                            row.electricity_kva !== ""
-                                ? row.electricity_kva
-                                : null,
+                            sanitizeImportField("electricity_kva", row.electricity_kva, numericColumns),
 
                         revenue_share:
-                            row.revenue_share !== null &&
-                            row.revenue_share !== undefined &&
-                            row.revenue_share !== ""
-                                ? row.revenue_share
-                                : null,
+                            sanitizeImportField("revenue_share", row.revenue_share, numericColumns),
 
                         escalation:
-                            row.escalation !== null &&
-                            row.escalation !== undefined &&
-                            row.escalation !== ""
-                                ? row.escalation
-                                : null,
+                            sanitizeImportField("escalation", row.escalation, numericColumns),
 
                         expected_sale:
-                            row.expected_sale !== null &&
-                            row.expected_sale !== undefined &&
-                            row.expected_sale !== ""
-                                ? row.expected_sale
-                                : null,
+                            sanitizeImportField("expected_sale", row.expected_sale, numericColumns),
 
 
                         // ----------------------------------

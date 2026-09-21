@@ -65,6 +65,8 @@ function ChecklistReports() {
 
     const [loading, setLoading] = useState(true);
 
+    const [loadError, setLoadError] = useState(false);
+
     const [managementExporting, setManagementExporting] = useState(false);
 
     // ======================================================
@@ -254,6 +256,8 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 );
 
+                setLoadError(false);
+
             } else {
 
                 console.error(
@@ -264,7 +268,34 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
                 );
 
-                setReports([]);
+                // BUG FIX ("blank on refresh, data appears on the next
+                // refresh"): this used to silently set the list to []
+                // here with no retry and no visible error, so a transient
+                // failure (e.g. a cold-start hiccup on the server) looked
+                // exactly like "no records" until the user manually
+                // refreshed the page. Retry the reports request once
+                // automatically before giving up.
+                try {
+
+                    const retryRes = await axios.get(`${API}/checklist-reports?limit=10000`);
+
+                    setReports(
+                        (retryRes.data.data || []).map((report) => ({
+                            ...report,
+                            status: "Completed"
+                        }))
+                    );
+
+                    setLoadError(false);
+
+                } catch (retryErr) {
+
+                    console.error("Checklist Reports retry failed:", retryErr);
+
+                    setReports([]);
+                    setLoadError(true);
+
+                }
 
             }
 
@@ -346,6 +377,62 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     };
 
+    // ======================================================
+    // SILENT REFRESH
+    //
+    // Same reports fetch as loadData(), but never flips `loading` to
+    // true — used for the background window-focus refresh so the page
+    // never swaps out to the full "Loading Checklist Reports..." screen
+    // (and never unmounts an open modal) just because the browser
+    // window regained focus. Also retries once on failure, same as
+    // loadData(), instead of silently leaving the list blank.
+    // ======================================================
+
+    const silentRefresh = async () => {
+
+        try {
+
+            const res = await axios.get(`${API}/checklist-reports?limit=10000`);
+
+            setReports(
+                (res.data.data || []).map((report) => ({
+                    ...report,
+                    status: "Completed"
+                }))
+            );
+
+            setLoadError(false);
+
+        } catch (err) {
+
+            console.error("Checklist Reports background refresh failed:", err);
+
+            try {
+
+                const retryRes = await axios.get(`${API}/checklist-reports?limit=10000`);
+
+                setReports(
+                    (retryRes.data.data || []).map((report) => ({
+                        ...report,
+                        status: "Completed"
+                    }))
+                );
+
+                setLoadError(false);
+
+            } catch (retryErr) {
+
+                console.error("Checklist Reports background refresh retry failed:", retryErr);
+                // A quiet background refresh failing twice is not worth
+                // interrupting the user with an alert — leave the
+                // existing (still-valid) list on screen.
+
+            }
+
+        }
+
+    };
+
     useEffect(() => {
 
         if (!canView) {
@@ -362,16 +449,18 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         // BACKGROUND REFRESH ON WINDOW FOCUS
         //
         // Refresh the list when the user comes back to this tab so
-        // changes made elsewhere are picked up — but never while a
-        // modal is open. The native "Browse File" dialog opened by
-        // Bulk Upload blurs/refocuses the browser window while it's
-        // open, and loadData() sets `loading = true`, which — see the
+        // changes made elsewhere are picked up — but do it silently (see
+        // silentRefresh() above) and never while a modal is open. The
+        // native "Browse File" dialog opened by Bulk Upload blurs/
+        // refocuses the browser window while it's open, and loadData()
+        // sets `loading = true`, which — see the
         // "if (loading) return <div>Loading...</div>" below — replaces
         // this entire page (including any open modal) with a bare
-        // "Loading Checklist Reports..." screen. That unmounted the
-        // Bulk Upload modal (and any edit/view/delete dialog) out from
-        // under the user just from picking a file. Same fix already
-        // applied in AttendanceReports.jsx.
+        // "Loading Checklist Reports..." screen. Calling loadData() here
+        // used to unmount the Bulk Upload modal (and any edit/view/
+        // delete dialog) out from under the user just from picking a
+        // file, or flash the whole page blank on any ordinary tab-switch
+        // refresh. Same fix already applied in AttendanceReports.jsx.
         // ==========================================================
 
         const handleFocus = () => {
@@ -386,7 +475,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
                 return;
             }
 
-            loadData();
+            silentRefresh();
         };
         window.addEventListener("focus", handleFocus);
 
@@ -1381,6 +1470,20 @@ const uploadChecklistReport = async (file) => {
                 subtitle="Manage submitted checklist reports."
             />
 
+            {loadError && (
+                <div className="reports-loading" style={{ color: "#b91c1c" }}>
+                    Unable to refresh Checklist Reports right now. Showing what's cached —
+                    <button
+                        type="button"
+                        className="table-link"
+                        style={{ marginLeft: 6, background: "none", border: "none", cursor: "pointer" }}
+                        onClick={() => loadData()}
+                    >
+                        try again
+                    </button>.
+                </div>
+            )}
+
             {/* ======================================================
                 PAGE TOOLBAR
             ====================================================== */}
@@ -1615,7 +1718,11 @@ const uploadChecklistReport = async (file) => {
 
  onSuccess={async () => {
 
-    await loadData();
+    // Silent — a full loadData() flips `loading` to true, which would
+    // swap this page out for the "Loading..." screen and unmount this
+    // very modal while it may still be showing per-row bulk-upload
+    // results the user hasn't dismissed yet.
+    await silentRefresh();
 
 }}
 

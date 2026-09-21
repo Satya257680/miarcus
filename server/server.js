@@ -590,6 +590,34 @@ async function initializeDatabase() {
 
         }
 
+        // ==================================================
+        // CHECKLIST SUBMISSION "EXACT AS EXCEL" OVERRIDE COLUMNS
+        // ==================================================
+
+        try {
+
+            if (
+                typeof ChecklistSubmission.ensureSubmitterOverrideColumns ===
+                "function"
+            ) {
+
+                await ChecklistSubmission.ensureSubmitterOverrideColumns();
+
+                console.log(
+                    "✅ checklist_submissions bulk-upload override columns verified"
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "❌ checklist_submissions override column migration failed:",
+                error.message
+            );
+
+        }
+
         console.log(
             "=============================================="
         );

@@ -148,21 +148,64 @@ async function resolveChecklistTypeId(row) {
 // ======================================================
 // EMPLOYEE / SUBMITTED BY
 // ======================================================
+//
+// Real-world exports (see the Checklist Reports "Employee" column)
+// commonly write the employee as "Rahul (40090)" — Name followed by
+// the Employee ID in parentheses — rather than a bare name or a bare
+// ID. The previous version of this matcher only tried the raw string
+// as-is against employee_id/email/name, which never matches that
+// combined format, so the row's employee could never be resolved and
+// silently fell back to whoever ran the bulk upload (see
+// createFromRow below — that fallback has been removed for exactly
+// this reason).
+//
+// Returns both the resolved user id (when found) AND the raw
+// name/employee-code text that was in the spreadsheet, so the caller
+// can store the raw text as an "exact as Excel" fallback even when no
+// matching Users record exists (see submitted_by_name /
+// submitted_by_employee_code — models/checklistSubmissionModel.js).
+// ======================================================
 
 async function resolveUserId(row) {
     const raw = String(row["Employee"] || row["Assigned To"] || "").trim();
-    if (!raw) return null;
+    if (!raw) {
+        return { userId: null, rawName: null, rawEmployeeCode: null };
+    }
 
-    if (/^\d+$/.test(raw)) return Number(raw);
+    if (/^\d+$/.test(raw)) {
+        return { userId: Number(raw), rawName: null, rawEmployeeCode: null };
+    }
 
-    const user = await queryOne(
-        `SELECT id FROM users
-         WHERE employee_id = ? OR email = ? OR LOWER(name) = LOWER(?)
-         LIMIT 1`,
-        [raw, raw, raw]
-    );
+    // "Name (ID)" / "Name (Employee Code)", e.g. "Rahul (40090)".
+    const parenMatch = raw.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    const namePart = (parenMatch ? parenMatch[1] : raw).trim();
+    const idPart = parenMatch ? parenMatch[2].trim() : null;
 
-    return user?.id || null;
+    // Employee ID (from the parentheses) is the most reliable anchor
+    // when present — try it before falling back to a name match.
+    let user = null;
+
+    if (idPart) {
+        user = await queryOne(
+            `SELECT id FROM users WHERE employee_id = ? LIMIT 1`,
+            [idPart]
+        );
+    }
+
+    if (!user) {
+        user = await queryOne(
+            `SELECT id FROM users
+             WHERE employee_id = ? OR email = ? OR LOWER(name) = LOWER(?)
+             LIMIT 1`,
+            [raw, raw, namePart || raw]
+        );
+    }
+
+    return {
+        userId: user?.id || null,
+        rawName: namePart || raw,
+        rawEmployeeCode: idPart
+    };
 }
 
 // ======================================================
@@ -227,7 +270,13 @@ const indiaToday = () =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
 function parseSubmissionDate(row) {
-    const raw = row["Submission Date"];
+    // "Actual Submission Time" (e.g. "8/31/2026, 12:37:52 PM") is the real
+    // moment the checklist was submitted and is preferred over "Submission
+    // Date"/"Intended Date" (a target/due date, which can differ from when
+    // the row was actually submitted) when both are present.
+    const raw = hasValue(row["Actual Submission Time"])
+        ? row["Actual Submission Time"]
+        : row["Submission Date"];
 
     if (!hasValue(raw)) {
         return indiaToday();
@@ -257,6 +306,34 @@ function parseSubmissionDate(row) {
     }
 
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(asDate);
+}
+
+// ======================================================
+// GEO LOCATION (combined "lat, long" export column)
+// ======================================================
+//
+// The Checklist Reports export writes a single "Geo Location" column
+// as "31.63772454868624, 74.87554918696547" rather than separate
+// Latitude/Longitude columns. Explicit Latitude/Longitude columns
+// (when a file has them) always win; this is only a fallback so the
+// combined format re-imports cleanly too.
+// ======================================================
+
+function parseGeoLocation(row) {
+    const raw = String(row["Geo Location"] || "").trim();
+    if (!raw) return { latitude: null, longitude: null };
+
+    const parts = raw.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) return { latitude: null, longitude: null };
+
+    const latitude = Number(parts[0]);
+    const longitude = Number(parts[1]);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return { latitude: null, longitude: null };
+    }
+
+    return { latitude, longitude };
 }
 
 // ======================================================
@@ -339,7 +416,25 @@ async function createFromRow(row, fallbackUserId, options = {}) {
         }
     }
 
-    const submittedBy = (await resolveUserId(row)) || fallbackUserId || null;
+    // ======================================================
+    // EMPLOYEE — NO SILENT FALLBACK TO THE UPLOADER
+    // ======================================================
+    //
+    // BUG FIX: this used to fall back to `fallbackUserId` (the admin
+    // running the bulk upload) whenever the row's own Employee value
+    // didn't resolve to a Users record — which made every unmatched
+    // row look like it was submitted by whoever clicked "Bulk Upload".
+    // Now: a matched employee is used as-is; an unmatched one leaves
+    // submitted_by NULL and instead preserves the row's own text in
+    // submitted_by_name/submitted_by_employee_code so the report still
+    // shows exactly what the spreadsheet said (see
+    // models/checklistReportModel.js's COALESCE) instead of someone
+    // else's name.
+    // ======================================================
+
+    const employeeMatch = await resolveUserId(row);
+    const submittedBy = employeeMatch.userId || null;
+
     let questionId = await resolveQuestionId(row, checklistTypeId);
     let usedSyntheticQuestion = false;
 
@@ -368,13 +463,21 @@ async function createFromRow(row, fallbackUserId, options = {}) {
         });
     }
 
+    const geo = parseGeoLocation(row);
+    const departmentRaw = String(row["Department"] || row["Departments"] || "").trim();
+
     const submission = {
         checklist_type_id: checklistTypeId,
         store_id: storeId,
         submitted_by: submittedBy,
+        // Only ever displayed when submitted_by has no matching Users
+        // record — see COALESCE in models/checklistReportModel.js.
+        submitted_by_name: submittedBy ? null : employeeMatch.rawName,
+        submitted_by_employee_code: submittedBy ? null : employeeMatch.rawEmployeeCode,
+        department_override: departmentRaw || null,
         submission_date: parseSubmissionDate(row),
-        latitude: hasValue(row["Latitude"]) ? Number(row["Latitude"]) : null,
-        longitude: hasValue(row["Longitude"]) ? Number(row["Longitude"]) : null,
+        latitude: hasValue(row["Latitude"]) ? Number(row["Latitude"]) : geo.latitude,
+        longitude: hasValue(row["Longitude"]) ? Number(row["Longitude"]) : geo.longitude,
         device: row["Device"] || "Bulk Import",
         status: "Submitted"
     };
@@ -400,6 +503,12 @@ async function createFromRow(row, fallbackUserId, options = {}) {
     return {
         submissionId: result.submissionId,
         answerId,
+        // Resolved Users.id for the row's Employee/Assigned To text (or
+        // null when it didn't match anyone) — reused by the Action
+        // Points bulk uploader so `assigned_to` (an INT column) is never
+        // handed the raw "Rahul (40090)" text directly. See
+        // controllers/actionPointController.js.
+        submittedByUserId: submittedBy,
         questionMatched: Boolean(questionId) && !usedSyntheticQuestion,
         usedSyntheticType
     };
