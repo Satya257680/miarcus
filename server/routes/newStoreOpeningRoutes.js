@@ -22,7 +22,8 @@ const {
     deleteNewStoreOpening,
     deleteAllNewStoreOpenings,
     exportNewStoreOpeningsCSV,
-    bulkUploadNewStoreOpenings
+    bulkUploadNewStoreOpenings,
+    downloadNewStoreOpeningsSample
 } = require("../controllers/newStoreOpeningController");
 
 // ======================================================
@@ -51,6 +52,27 @@ router.get(
         "View"
     ),
     exportNewStoreOpeningsCSV
+);
+
+// ======================================================
+// BULK UPLOAD — SAMPLE FILE
+// ======================================================
+//
+// BUG FIX: the "Download Sample File" button in the Bulk Upload
+// modal (client/src/pages/NewStoreOpenings.jsx) has always pointed
+// at this exact path, but the route never existed on the server, so
+// every click 404'd. Registered here — before the "/:id" route below
+// — so "/sample" isn't swallowed as an :id lookup.
+// ======================================================
+
+router.get(
+    "/sample",
+    authMiddleware,
+    permissionMiddleware(
+        "New Store Openings",
+        "View"
+    ),
+    downloadNewStoreOpeningsSample
 );
 
 // ======================================================

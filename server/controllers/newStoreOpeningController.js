@@ -36,6 +36,100 @@ const FALLBACK_NUMERIC_COLUMNS = new Set([
     "sb_area", "carpet_area", "cam", "mg", "revenue_share", "escalation", "expected_sale"
 ]);
 
+// ======================================================
+// BULK UPLOAD — COLUMN HEADER MATCHING
+// ======================================================
+//
+// BUG FIX — spreadsheet columns silently dropped on bulk upload
+//
+// The importer used to turn every header into a key with
+// `header.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"")`
+// and then read that exact key off the row (e.g. row.sb_area). That
+// only matches a header written exactly as "sb_area". A completely
+// normal, human-written header like "SB Area (sqft)" normalizes to
+// "sb_area_sqft" — one character different from what the code reads —
+// so the whole column was silently ignored: every value in it never
+// reached the database, with no error and no warning anywhere.
+//
+// This replaces that with an alias table: each database column lists
+// every header spelling it should accept, including the labels this
+// app's own Add/Edit form and CSV export already use ("Broker
+// Possession Date", "Rev Share (%)") as well as spellings seen in
+// real-world exports ("Broker Date", "Recee by NSO", "Actual
+// Possession Date (confirmed)"). Matching strips ALL punctuation and
+// whitespace and lowercases before comparing, so "SB Area (sqft)",
+// "SB Area (Sqft)" and "sb_area" are all recognised as the same
+// column regardless of spacing or punctuation.
+//
+// A header that still isn't recognised is left out exactly as
+// before — that's expected for the many auto-calculated/reporting
+// columns (Deal Days, Layout by NSO, GST Deadline, History, etc.)
+// that this app always recalculates itself from the possession date
+// (see generateTimeline() in nsoService.js) and was never meant to
+// be a bulk-upload input. Any header that isn't recognised is now
+// also reported back in the API response (see `unrecognizedColumns`
+// below) instead of vanishing without a trace.
+// ======================================================
+
+const NSO_COLUMN_ALIASES = {
+    location: ["location", "store location", "location name"],
+    city: ["city"],
+    sb_area: ["sb area", "sb area sqft", "super built up area", "sba", "built up area"],
+    carpet_area: ["carpet area", "carpet area sqft"],
+    cam: ["cam"],
+    mg: ["mg", "minimum guarantee"],
+    electricity_kva: ["electricity", "electricity kva"],
+    revenue_share: ["revenue share", "revenue share %", "rev share", "rev share %", "rev share (%)"],
+    escalation: ["escalation", "escalation %"],
+    expected_sale: ["expected sale", "expected sale inr"],
+    possession_date_loi: [
+        "possession date loi", "possession date (loi)", "possession date as per loi",
+        "possession date (as per loi)", "loi possession date"
+    ],
+    possession_date_broker: [
+        "possession date broker", "broker possession date", "broker date"
+    ],
+    actual_possession_date: [
+        "actual possession date", "actual possession date confirmed",
+        "actual possession date (confirmed)"
+    ],
+    received_by_nso: [
+        "received by nso", "recee by nso", "recce by nso", "receive by nso", "receipt by nso"
+    ],
+    broker_name: ["broker name", "broker"],
+    operation_head_assigned: ["operation head assigned", "operation head"],
+    asm_assigned: ["asm assigned", "asm"],
+    remarks: ["remarks", "remark"],
+    attachment: ["attachment", "attachments"],
+    approver_name: ["approver name", "approver"],
+    construction_vendor: ["construction vendor", "vendor"],
+    project_taken_by: ["project taken by"]
+};
+
+// Strips everything but letters/digits and lowercases, so "SB Area
+// (sqft)", "sb_area", and "SB AREA - SQFT" all collapse to the same
+// comparison key.
+const normalizeHeaderForMatch = (value) =>
+    String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// Canonical DB field name is always an accepted alias too, so a
+// header that already matches the field name exactly (e.g. from this
+// app's own sample file — see downloadNewStoreOpeningsSample below)
+// always works even if it was never explicitly listed above.
+const NSO_HEADER_LOOKUP = (() => {
+    const lookup = {};
+    for (const [field, aliases] of Object.entries(NSO_COLUMN_ALIASES)) {
+        lookup[normalizeHeaderForMatch(field)] = field;
+        for (const alias of aliases) {
+            lookup[normalizeHeaderForMatch(alias)] = field;
+        }
+    }
+    return lookup;
+})();
+
+const canonicalNsoField = (header) =>
+    NSO_HEADER_LOOKUP[normalizeHeaderForMatch(header)] || null;
+
 async function getNumericColumns(tableName) {
     try {
         const rows = await db.query(
@@ -1232,29 +1326,6 @@ exports.bulkUploadNewStoreOpenings = async (
 
 
         // ==================================================
-        // NORMALIZE COLUMN NAME
-        // ==================================================
-
-        const normalizeKey = (
-            key
-        ) => {
-
-            return String(key)
-                .trim()
-                .toLowerCase()
-                .replace(
-                    /\s+/g,
-                    "_"
-                )
-                .replace(
-                    /[^a-z0-9_]/g,
-                    ""
-                );
-
-        };
-
-
-        // ==================================================
         // WHICH COLUMNS ARE NUMERIC? (see getNumericColumns above)
         // ==================================================
 
@@ -1262,8 +1333,11 @@ exports.bulkUploadNewStoreOpenings = async (
             await getNumericColumns("new_store_openings");
 
         // ==================================================
-        // NORMALIZE ROWS
+        // NORMALIZE ROWS (alias-matched — see NSO_COLUMN_ALIASES
+        // and canonicalNsoField above)
         // ==================================================
+
+        const unrecognizedHeaders = new Set();
 
         const normalizedRows =
             rows.map(
@@ -1281,12 +1355,23 @@ exports.bulkUploadNewStoreOpenings = async (
                             key
                         ) => {
 
-                            row[
-                                normalizeKey(
-                                    key
-                                )
-                            ] =
-                                originalRow[key];
+                            const canonical =
+                                canonicalNsoField(key);
+
+                            if (canonical) {
+
+                                row[canonical] =
+                                    originalRow[key];
+
+                            } else if (
+                                String(key).trim()
+                            ) {
+
+                                unrecognizedHeaders.add(
+                                    String(key).trim()
+                                );
+
+                            }
 
                         }
                     );
@@ -1530,7 +1615,15 @@ exports.bulkUploadNewStoreOpenings = async (
                 result &&
                 result.affectedRows !== undefined
                     ? result.affectedRows
-                    : records.length
+                    : records.length,
+
+            // Columns in the uploaded file that didn't match any known
+            // New Store Opening field (see NSO_COLUMN_ALIASES above) —
+            // every row still imported, but these specific columns were
+            // not recognised and so were not saved. Usually empty; if
+            // not, it's a real heads-up rather than a silent drop.
+            unrecognizedColumns:
+                Array.from(unrecognizedHeaders)
 
         });
 
@@ -1555,6 +1648,152 @@ exports.bulkUploadNewStoreOpenings = async (
             message:
                 error.message ||
                 "Bulk upload failed."
+
+        });
+
+    }
+
+};
+
+// ======================================================
+// DOWNLOAD BULK-UPLOAD SAMPLE FILE
+// ======================================================
+//
+// BUG FIX — "Download Sample File" always failed (404)
+//
+// The New Store Openings page links its "Download Sample File" button
+// to GET /api/new-store-openings/sample (see sampleFile prop on the
+// BulkUploadModal in client/src/pages/NewStoreOpenings.jsx), but no
+// route or handler for that path existed anywhere on the server, so
+// every click just 404'd — admins had no reliable way to know which
+// column headers a bulk upload actually needs.
+//
+// This adds that route's handler. It builds the sample directly from
+// NSO_COLUMN_ALIASES — the exact same table bulkUploadNewStoreOpenings
+// (above) reads headers against — so the sample and the importer can
+// never drift out of sync, and generates a ready-to-edit .xlsx with
+// one filled-in example row plus one blank row underneath.
+// ======================================================
+
+const NSO_SAMPLE_HEADER_LABELS = {
+    location: "Location",
+    city: "City",
+    sb_area: "SB Area (Sqft)",
+    carpet_area: "Carpet Area (Sqft)",
+    cam: "CAM",
+    mg: "MG",
+    electricity_kva: "Electricity (KVA)",
+    revenue_share: "Revenue Share (%)",
+    escalation: "Escalation (%)",
+    expected_sale: "Expected Sale (INR)",
+    possession_date_loi: "Possession Date (LOI)",
+    possession_date_broker: "Broker Possession Date",
+    actual_possession_date: "Actual Possession Date",
+    received_by_nso: "Received By NSO",
+    broker_name: "Broker Name",
+    operation_head_assigned: "Operation Head Assigned",
+    asm_assigned: "ASM Assigned",
+    remarks: "Remarks",
+    attachment: "Attachment",
+    approver_name: "Approver Name",
+    construction_vendor: "Construction Vendor",
+    project_taken_by: "Project Taken By"
+};
+
+const NSO_SAMPLE_ROW = {
+    location: "Example Mall, Sector 21",
+    city: "Gurugram",
+    sb_area: 1200,
+    carpet_area: 800,
+    cam: 45000,
+    mg: 150000,
+    electricity_kva: "10KVA",
+    revenue_share: 12,
+    escalation: 15,
+    expected_sale: 1200000,
+    possession_date_loi: "01/08/2026",
+    possession_date_broker: "03/08/2026",
+    actual_possession_date: "05/08/2026",
+    received_by_nso: "06/08/2026",
+    broker_name: "Broker Name",
+    operation_head_assigned: "Operation Head Name",
+    asm_assigned: "ASM Name",
+    remarks: "Optional notes",
+    attachment: "",
+    approver_name: "Approver Name",
+    construction_vendor: "Construction Vendor Name",
+    project_taken_by: "Person Name"
+};
+
+exports.downloadNewStoreOpeningsSample = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const fields =
+            Object.keys(NSO_COLUMN_ALIASES);
+
+        const headerRow =
+            fields.map(
+                (field) => NSO_SAMPLE_HEADER_LABELS[field] || field
+            );
+
+        const exampleRow =
+            fields.map(
+                (field) => NSO_SAMPLE_ROW[field] ?? ""
+            );
+
+        const blankRow =
+            fields.map(() => "");
+
+        const worksheet =
+            XLSX.utils.aoa_to_sheet(
+                [headerRow, exampleRow, blankRow]
+            );
+
+        const workbook =
+            XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            worksheet,
+            "New Store Openings"
+        );
+
+        const buffer =
+            XLSX.write(
+                workbook,
+                {
+                    type: "buffer",
+                    bookType: "xlsx"
+                }
+            );
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+
+        res.setHeader(
+            "Content-Disposition",
+            "attachment; filename=new-store-openings-sample.xlsx"
+        );
+
+        return res.send(buffer);
+
+    }
+
+    catch (error) {
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Unable to generate sample file."
 
         });
 
