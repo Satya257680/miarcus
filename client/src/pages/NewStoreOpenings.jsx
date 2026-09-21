@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../axiosConfig.js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -554,11 +554,14 @@ function NewStoreOpenings() {
     // LOAD DATA
     // ======================================================
 
-    const fetchNewStoreOpenings = async () => {
+    // `silent` skips the loading flag so a background refresh never
+    // swaps the table out for the "Loading..." state — see the
+    // auto-refresh effect below.
+    const fetchNewStoreOpenings = async ({ silent = false } = {}) => {
 
         try {
 
-            setLoading(true);
+            if (!silent) setLoading(true);
 
             // BUG FIX ("blank on refresh, appears on the next refresh"):
             // retry once automatically (e.g. a transient/cold-start
@@ -612,22 +615,30 @@ function NewStoreOpenings() {
                 err
             );
 
-            alert(
-                err.response?.data?.message ||
-                err.message ||
-                "Unable to load New Store Openings."
-            );
+            // A quiet background refresh should never interrupt the
+            // person with an alert over a transient failure — it just
+            // tries again on the next tick/focus. Only a real,
+            // person-initiated load reports the error.
+            if (!silent) {
 
-            setData([]);
+                alert(
+                    err.response?.data?.message ||
+                    err.message ||
+                    "Unable to load New Store Openings."
+                );
 
-            setTotalPages(1);
+                setData([]);
 
-            setTotalRecords(0);
+                setTotalPages(1);
+
+                setTotalRecords(0);
+
+            }
 
         }
         finally {
 
-            setLoading(false);
+            if (!silent) setLoading(false);
 
         }
 
@@ -655,6 +666,56 @@ function NewStoreOpenings() {
         search,
         canView
     ]);
+
+    // ======================================================
+    // BACKGROUND AUTO-REFRESH
+    //
+    // Total Records / the table itself used to only ever load on
+    // mount or when a filter/page changed — a record added or
+    // changed from another tab/device only showed up after a manual
+    // page reload. This mirrors the same fix already applied to
+    // Action Points / Checklist Reports: a quiet periodic refetch
+    // plus a refetch on window focus, skipped while a modal is open
+    // so an in-progress add/edit is never unmounted out from under
+    // the person using it.
+    // ======================================================
+
+    const modalOpenRef = useRef(false);
+
+    useEffect(() => {
+        modalOpenRef.current =
+            showModal ||
+            showBulkModal ||
+            showDeleteDialog ||
+            showDeleteAllDialog;
+    }, [
+        showModal,
+        showBulkModal,
+        showDeleteDialog,
+        showDeleteAllDialog
+    ]);
+
+    useEffect(() => {
+
+        if (!canView) return;
+
+        const silentTick = () => {
+            if (modalOpenRef.current) return;
+            fetchNewStoreOpenings({ silent: true });
+        };
+
+        const interval = window.setInterval(silentTick, 60 * 1000);
+
+        const handleFocus = () => silentTick();
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener("focus", handleFocus);
+        };
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [canView, currentPage, pageSize, search]);
 
     // ======================================================
     // ADD
@@ -1037,12 +1098,22 @@ function NewStoreOpenings() {
         // ==================================================
 
         {
+            // BUG FIX ("timezone shows in the date, only need date"):
+            // these two are calculated milestone DATES (see the NSO
+            // timeline calculation — Layout by NSO, +2 days from
+            // possession), but were rendered with displayValue(),
+            // which just prints the raw value as-is. A DATETIME value
+            // serializes to JSON as an ISO string ("2026-02-21T18:30:
+            // 00.000Z"), so the raw timezone-stamped string was showing
+            // straight in the table instead of a plain date. Every
+            // other date column here already goes through formatDate()
+            // — these two now do too.
             key: "layout_by_nso",
 
             title: "Layout by NSO",
 
             render: (row) =>
-                displayValue(
+                formatDate(
                     row.layout_by_nso
                 )
         },
@@ -1053,7 +1124,7 @@ function NewStoreOpenings() {
             title: "Revised Layout by NSO",
 
             render: (row) =>
-                displayValue(
+                formatDate(
                     row.revised_layout_by_nso
                 )
         },

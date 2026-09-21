@@ -76,7 +76,8 @@ import {
     deleteAllAttendance,
     getAttendancePhotoAccess,
     downloadAttendancePhoto,
-    getAttendancePhotoDataUrl
+    getAttendancePhotoDataUrl,
+    getAttendancePhotoDetails
 } from "../services/attendanceService.js";
 
 
@@ -623,15 +624,25 @@ function AttendanceReports() {
     // The Check-in/Check-out Photo "View" links in the exported CSV/XLSX
     // point back at this page with a `?viewPhoto=<id>:<type>` query
     // string. When this page loads with that param (and the person is
-    // already logged in, same as any other page here), find the
-    // matching record and open its photo automatically, then clean the
-    // param off the URL so refreshing/sharing the link again doesn't
-    // reopen it.
+    // already logged in, same as any other page here), it should open
+    // straight to that photo.
+    //
+    // BUG FIX ("click View in the export, it just goes to the webpage —
+    // no photo"): this used to wait for the report table's own paginated
+    // `records` list to load, then search THAT list for the matching id.
+    // An export is very often for a different page/filter set than
+    // whatever the report table happens to be showing (page 1, no
+    // filters, freshly opened) — so on any export row that wasn't also
+    // sitting on the currently-loaded page, the search simply failed
+    // and the photo never opened (only an alert, or nothing). The photo
+    // is now fetched directly by id/type — via the same protected
+    // /photo/:id/:type/details + /photo/:id/:type endpoints the normal
+    // "View" button already uses — completely independent of whatever
+    // page or filters the table is currently on.
     // ======================================================
 
     useEffect(() => {
         if (viewPhotoHandledRef.current) return;
-        if (!records.length) return;
 
         const params = new URLSearchParams(window.location.search);
         const viewPhoto = params.get("viewPhoto");
@@ -639,23 +650,47 @@ function AttendanceReports() {
 
         viewPhotoHandledRef.current = true;
 
-        const [idPart, typePart] = viewPhoto.split(":");
-        const targetId = Number(idPart);
-        const targetType = typePart === "check-out" ? "check-out" : "check-in";
-
-        const match = records.find((r) => Number(r.id) === targetId);
-        if (match) {
-            handleViewPhoto(match, targetType);
-        } else {
-            alert("That attendance photo could not be found — it may have been deleted.");
-        }
-
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete("viewPhoto");
         window.history.replaceState({}, "", cleanUrl.toString());
 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [records]);
+        const [idPart, typePart] = viewPhoto.split(":");
+        const targetId = Number(idPart);
+        const targetType = typePart === "check-out" ? "check-out" : "check-in";
+
+        if (!targetId) return;
+
+        (async () => {
+            setPhotoPreview({ loading: true, url: "", type: targetType, record: null });
+
+            try {
+                const details = await getAttendancePhotoDetails(targetId, targetType);
+                const photo = details?.photo || {};
+
+                // Normalize into the same check_in_*/check_out_* shape
+                // the table's own row objects use, so the existing photo
+                // modal caption (date/time/location) renders exactly the
+                // same way it does for a normal in-table "View" click.
+                const isCheckIn = targetType === "check-in";
+                const normalizedRecord = {
+                    id: targetId,
+                    work_date: photo.workDate,
+                    store_name: photo.storeName,
+                    [isCheckIn ? "check_in_at" : "check_out_at"]: photo.timestamp,
+                    [isCheckIn ? "check_in_latitude" : "check_out_latitude"]: photo.latitude,
+                    [isCheckIn ? "check_in_longitude" : "check_out_longitude"]: photo.longitude
+                };
+
+                const url = await getAttendancePhotoAccess(targetId, targetType);
+                setPhotoPreview({ loading: false, url, type: targetType, record: normalizedRecord });
+            } catch (err) {
+                console.error("View-photo deep link error:", err);
+                alert("That attendance photo could not be found — it may have been deleted.");
+                setPhotoPreview({ loading: false, url: "", type: "", record: null });
+            }
+        })();
+
+    }, []);
 
     const handleDownloadPhoto = async (row, type) => {
         try {

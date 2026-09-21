@@ -13,7 +13,16 @@ import {
   FaTimes,
   FaCheck,
   FaTrash,
+  FaEdit,
 } from "react-icons/fa";
+
+// Same full user-edit form the Users page uses (name, email, contact,
+// department, designation, reports-to, stores, permissions, status —
+// everything Password Management's own list does NOT carry, since it
+// only ever loaded the narrow password-vault fields). Reused as-is so
+// "Edit" here edits the whole user record the same way it does on the
+// Users page, rather than duplicating that form.
+import AddUserModal from "../components/AddUserModal";
 
 import "../styles/PasswordManagement.css";
 
@@ -75,6 +84,13 @@ function PasswordManagement() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
+
+  // ==============================================================
+  // EDIT USER (full record — see AddUserModal import above)
+  // ==============================================================
+
+  const [editingUser, setEditingUser] = useState(null);
+  const [editLoadingId, setEditLoadingId] = useState(null);
 
   const [superAdminBusyId, setSuperAdminBusyId] = useState(null);
 
@@ -266,6 +282,47 @@ function PasswordManagement() {
       );
     } finally {
       setSuperAdminBusyId(null);
+    }
+  };
+
+  // ==============================================================
+  // EDIT USER
+  // ==============================================================
+  //
+  // Password Management's own list (GET /api/password-vault) only
+  // ever carries the narrow set of fields this page needs for
+  // passwords — id/name/email/is_admin/is_super_admin. AddUserModal's
+  // edit form needs the FULL user record (department, designation,
+  // reports-to, stores, permissions, status, ...), so this fetches
+  // it fresh from the same GET /api/users the Users page itself uses
+  // right before opening the form, rather than trying to edit from
+  // the row's own (incomplete) data — which would otherwise silently
+  // blank out fields like Department/Stores on save.
+  // ==============================================================
+
+  const openEditUser = async (user) => {
+    setEditLoadingId(user.id);
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/users`);
+      const fullUser = (response.data?.users || []).find(
+        (u) => Number(u.id) === Number(user.id)
+      );
+
+      if (!fullUser) {
+        alert("Unable to load this user's full details for editing.");
+        return;
+      }
+
+      setEditingUser(fullUser);
+    } catch (error) {
+      console.error("Load user for edit error:", error);
+      alert(
+        error.response?.data?.message ||
+          "Unable to load this user's details."
+      );
+    } finally {
+      setEditLoadingId(null);
     }
   };
 
@@ -499,6 +556,17 @@ function PasswordManagement() {
                     <td className="pwd-mgmt-actions-col">
                       <button
                         type="button"
+                        className="pwd-mgmt-edit-btn"
+                        onClick={() => openEditUser(user)}
+                        disabled={editLoadingId === user.id}
+                        title="Edit this user's full details"
+                      >
+                        <FaEdit />
+                        {editLoadingId === user.id ? "Loading..." : "Edit"}
+                      </button>
+
+                      <button
+                        type="button"
                         className="pwd-mgmt-update-btn"
                         onClick={() => openModal(user)}
                       >
@@ -698,6 +766,18 @@ function PasswordManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================================================================
+          EDIT USER MODAL (full record — same form the Users page uses)
+      ================================================================ */}
+
+      {editingUser && (
+        <AddUserModal
+          editingUser={editingUser}
+          onClose={() => setEditingUser(null)}
+          fetchUsers={fetchVault}
+        />
       )}
     </div>
   );
