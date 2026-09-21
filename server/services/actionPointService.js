@@ -5,12 +5,12 @@ const Audit = require("../models/auditModel");
 const Notification = require("./notificationService");
 const checklistEmailService = require("./checklistEmailService");
 const { resolveStoreIdFuzzy } = require("../utils/storeMatcher");
-
+ 
 // ======================================================
 // HELPER
 // Wrap callback-style model calls in Promise
 // ======================================================
-
+ 
 const asPromise = (fn, ...args) =>
     new Promise((resolve, reject) => {
         fn(...args, (err, result) => {
@@ -18,8 +18,8 @@ const asPromise = (fn, ...args) =>
             resolve(result);
         });
     });
-
-
+ 
+ 
 const queryOne = (sql, params = []) =>
     new Promise((resolve, reject) => {
         db.query(sql, params, (err, rows) => {
@@ -27,37 +27,37 @@ const queryOne = (sql, params = []) =>
             resolve(rows?.[0] || null);
         });
     });
-
-
+ 
+ 
 // Resolve references for global/bulk uploads. A bulk file can contain
 // multiple stores, and checklist-based rows do not need to repeat Store ID
 // when Submission ID is supplied because the submission already identifies
 // the store.
 const resolveGlobalReferences = async (data) => {
     const resolved = { ...data };
-
+ 
     const hasValue = (value) =>
         value !== undefined && value !== null && String(value).trim() !== "";
-
+ 
     // 1. Resolve Store ID from a store name/code when the global file
     // provides a human-readable Store/Store Name instead of an ID.
     const numericStoreId = hasValue(resolved.store_id)
         ? Number(resolved.store_id)
         : NaN;
-
+ 
     if ((!Number.isFinite(numericStoreId) || numericStoreId <= 0) && hasValue(resolved.store_name)) {
-
+ 
         // Shared with Checklist Reports (see utils/storeMatcher.js) so a
         // store recognized in one bulk-upload module is recognized the
         // same way everywhere — including composite exported labels like
         // "MRPL - MVN DEHRADUN (589)" that a plain substring match misses.
         const matchedStoreId = await resolveStoreIdFuzzy(resolved.store_name);
-
+ 
         if (matchedStoreId) {
             resolved.store_id = matchedStoreId;
         }
     }
-
+ 
     // 2. Resolve Store ID from the checklist submission. A submission already
     // identifies its store, so Store ID is optional for checklist-based rows.
     if (!hasValue(resolved.store_id) && hasValue(resolved.submission_id)) {
@@ -65,12 +65,12 @@ const resolveGlobalReferences = async (data) => {
             `SELECT store_id FROM checklist_submissions WHERE id = ? LIMIT 1`,
             [Number(resolved.submission_id)]
         );
-
+ 
         if (submission?.store_id) {
             resolved.store_id = submission.store_id;
         }
     }
-
+ 
     // 3. Resolve Question ID from the submission answer when omitted.
     if (!hasValue(resolved.question_id) && hasValue(resolved.submission_answer_id)) {
         const answer = await queryOne(
@@ -79,23 +79,23 @@ const resolveGlobalReferences = async (data) => {
              WHERE id = ? LIMIT 1`,
             [Number(resolved.submission_answer_id)]
         );
-
+ 
         if (answer?.question_id) {
             resolved.question_id = answer.question_id;
         }
-
+ 
         if (!hasValue(resolved.submission_id) && answer?.submission_id) {
             resolved.submission_id = answer.submission_id;
         }
     }
-
+ 
     // 4. Resolve Question ID from Question text when supplied.
     // Question is optional for manual/bulk Action Points. If the uploaded
     // file contains a matching question, use it; otherwise leave question_id
     // NULL and still allow the Action Point to be created.
     if (!hasValue(resolved.question_id) && hasValue(resolved.question)) {
         const questionText = String(resolved.question).trim();
-
+ 
         let question = await queryOne(
             `SELECT id
              FROM questions
@@ -103,19 +103,19 @@ const resolveGlobalReferences = async (data) => {
              LIMIT 1`,
             [questionText]
         );
-
+ 
         if (!question) {
             question = await queryOne(
                 `SELECT id FROM questions WHERE question LIKE ? LIMIT 1`,
                 [`%${questionText}%`]
             );
         }
-
+ 
         if (question?.id) {
             resolved.question_id = question.id;
         }
     }
-
+ 
     // 5. If Department ID is omitted, use the first department configured
     // for the question. This keeps the global upload useful while preserving
     // the existing optional department field.
@@ -128,53 +128,53 @@ const resolveGlobalReferences = async (data) => {
              LIMIT 1`,
             [Number(resolved.question_id)]
         );
-
+ 
         if (department?.department_id) {
             resolved.department_id = department.department_id;
         }
     }
-
+ 
     return resolved;
 };
-
-
+ 
+ 
 // ======================================================
 // GET ALL
 // ======================================================
-
+ 
 const getAll = async (filters) => {
-
+ 
     const rows = await asPromise(
         ActionPoint.getAll,
         filters
     );
-
+ 
     const countResult = await asPromise(
         ActionPoint.count,
         filters
     );
-
+ 
     const total =
         countResult &&
         countResult[0]
             ? Number(countResult[0].total || 0)
             : 0;
-
+ 
     return {
         rows,
-
+ 
         pagination: {
             page:
                 Math.floor(
                     (filters.offset || 0) /
                     (filters.limit || 10)
                 ) + 1,
-
+ 
             limit:
                 filters.limit || 10,
-
+ 
             total,
-
+ 
             totalPages:
                 Math.ceil(
                     total /
@@ -183,90 +183,90 @@ const getAll = async (filters) => {
         }
     };
 };
-
-
+ 
+ 
 // ======================================================
 // GET BY ID
 // ======================================================
-
+ 
 const getById = async (id) => {
-
+ 
     const rows = await asPromise(
         ActionPoint.getById,
         id
     );
-
+ 
     if (!rows || rows.length === 0) {
         return null;
     }
-
+ 
     return rows[0];
 };
-
-
+ 
+ 
 // ======================================================
 // EXPORT CSV
 // ======================================================
-
+ 
 const exportData = (filters) =>
     asPromise(
         ActionPoint.exportData,
         filters
     );
-
-
+ 
+ 
 // ======================================================
 // GET OPEN ACTION POINTS
 // ======================================================
-
+ 
 const getOpen = () =>
     asPromise(
         ActionPoint.getOpenActionPoints
     );
-
-
+ 
+ 
 // ======================================================
 // GET ACTION POINTS BY SUBMISSION
 // ======================================================
-
+ 
 const getBySubmission = (submissionId) =>
     asPromise(
         ActionPoint.getBySubmission,
         submissionId
     );
-
-
+ 
+ 
 // ======================================================
 // DASHBOARD STATS
 // ======================================================
-
+ 
 const getDashboardStats = () =>
     asPromise(
         ActionPoint.getDashboardStats
     );
-
-
+ 
+ 
 // ======================================================
 // TRUTHY FLAG HELPER
 // ======================================================
-
+ 
 const isFlagEnabled = (value) => {
-
+ 
     if (Buffer.isBuffer(value)) {
         return (
             value.length > 0 &&
             value[0] === 1
         );
     }
-
+ 
     if (typeof value === "boolean") {
         return value;
     }
-
+ 
     return Number(value) === 1;
 };
-
-
+ 
+ 
 // ======================================================
 // CREATE ACTION POINTS FROM NSO RULES
 //
@@ -276,26 +276,26 @@ const isFlagEnabled = (value) => {
 // submission_id
 // submission_answer_id
 // ======================================================
-
+ 
 const createFromRules = async (
     submission,
     matchedRules,
     userId
 ) => {
-
+ 
     const created = [];
-
+ 
     if (
         !matchedRules ||
         matchedRules.length === 0
     ) {
         return created;
     }
-
+ 
     for (const item of matchedRules) {
-
+ 
         const rule = item.rule;
-
+ 
         if (
             !isFlagEnabled(
                 rule.create_action_point
@@ -303,22 +303,22 @@ const createFromRules = async (
         ) {
             continue;
         }
-
+ 
         // --------------------------------------------------
         // RULE-BASED ACTION POINTS REQUIRE AN ANSWER
         // --------------------------------------------------
-
+ 
         if (!item.answer_id) {
-
+ 
             throw new Error(
                 `Missing checklist submission answer ID for question ${item.question_id}.`
             );
         }
-
+ 
         // --------------------------------------------------
         // DEPARTMENT IDS
         // --------------------------------------------------
-
+ 
         const departmentIds =
             rule.department_ids
                 ? String(rule.department_ids)
@@ -326,40 +326,40 @@ const createFromRules = async (
                     .map((id) => Number(id))
                     .filter(Boolean)
                 : [];
-
+ 
         // --------------------------------------------------
         // ACTION POINT DATA
         // --------------------------------------------------
-
+ 
         const data = {
-
+ 
             submission_id:
                 submission.id,
-
+ 
             submission_answer_id:
                 item.answer_id,
-
+ 
             rule_id:
                 rule.id || null,
-
+ 
             store_id:
                 submission.store_id,
-
+ 
             department_id:
                 departmentIds[0] || null,
-
+ 
             question_id:
                 item.question_id,
-
+ 
             assigned_to:
                 null,
-
+ 
             priority:
                 rule.priority || "Medium",
-
+ 
             sla_value:
                 Number(rule.sla_days) || 0,
-
+ 
             sla_minutes:
                 Number(rule.sla_minutes) ||
                 (() => {
@@ -370,109 +370,109 @@ const createFromRules = async (
                     if (unit.includes("hour")) return Math.round(value * 60);
                     return Math.round(value * 24 * 60);
                 })(),
-
+ 
             status:
                 "Open",
-
+ 
             remarks:
                 item.remarks || null,
-
+ 
             comment:
                 item.remarks || null,
-
+ 
             attachment:
                 null,
-
+ 
             created_by:
                 userId || null
         };
-
+ 
         // --------------------------------------------------
         // CREATE
         // --------------------------------------------------
-
+ 
         const result =
             await asPromise(
                 ActionPoint.create,
                 data
             );
-
+ 
         const actionPointId =
             result.insertId;
-
+ 
         created.push({
             id: actionPointId,
             ...data
         });
-
+ 
         console.log(
             `[ActionPointService] Action Point #${actionPointId} created for submission #${submission.id}, answer #${item.answer_id}, rule #${rule.id}.`
         );
-
+ 
         // --------------------------------------------------
         // ACTIVITY
         // --------------------------------------------------
-
+ 
         Activity.create(
             {
                 title:
                     "Action Point Created",
-
+ 
                 description:
                     `Action Point #${actionPointId} raised from rule "${rule.name || rule.id}" on submission #${submission.id}.`,
-
+ 
                 module_name:
                     "Action Points",
-
+ 
                 status:
                     "Open",
-
+ 
                 priority:
                     data.priority,
-
+ 
                 created_by:
                     userId,
-
+ 
                 assigned_to:
                     null
             },
-
+ 
             () => {}
         );
-
+ 
         // --------------------------------------------------
         // AUDIT
         // --------------------------------------------------
-
+ 
         Audit.create(
             {
                 module_name:
                     "Action Points",
-
+ 
                 reference_id:
                     actionPointId,
-
+ 
                 action:
                     "CREATE",
-
+ 
                 old_data:
                     null,
-
+ 
                 new_data:
                     data,
-
+ 
                 changed_by:
                     userId
             },
-
+ 
             () => {}
         );
     }
-
+ 
     return created;
 };
-
-
+ 
+ 
 // ======================================================
 // MANUAL CREATE
 //
@@ -486,13 +486,13 @@ const createFromRules = async (
 // 1. Checklist Action Point
 // 2. Manual Action Point
 // ======================================================
-
+ 
 const createManual = async (
     body,
     attachment,
     userId
 ) => {
-
+ 
     const {
         submission_id,
         submission_answer_id,
@@ -524,90 +524,90 @@ const createManual = async (
         history_changed_by,
         history_changed_by_name
     } = body;
-
-
+ 
+ 
     // ==================================================
     // GLOBAL/BULK REFERENCE RESOLUTION
     // ==================================================
-
+ 
     // When a bulk row comes from a checklist submission, Store ID can be
     // omitted safely because it is available on checklist_submissions.
     const resolvedBody = await resolveGlobalReferences({
         ...body,
         store_name
     });
-
+ 
     const resolvedStoreId = resolvedBody.store_id;
-
+ 
     // ==================================================
     // NORMALIZE OPTIONAL VALUES
     // ==================================================
-
+ 
     const normalizedSubmissionId =
         resolvedBody.submission_id === undefined ||
         resolvedBody.submission_id === null ||
         resolvedBody.submission_id === ""
             ? null
             : Number(resolvedBody.submission_id);
-
-
+ 
+ 
     const normalizedSubmissionAnswerId =
         resolvedBody.submission_answer_id === undefined ||
         resolvedBody.submission_answer_id === null ||
         resolvedBody.submission_answer_id === ""
             ? null
             : Number(resolvedBody.submission_answer_id);
-
-
+ 
+ 
     const normalizedRuleId =
         rule_id === undefined ||
         rule_id === null ||
         rule_id === ""
             ? null
             : Number(rule_id);
-
-
+ 
+ 
     const normalizedStoreId =
         resolvedStoreId === undefined ||
         resolvedStoreId === null ||
         resolvedStoreId === ""
             ? null
             : Number(resolvedStoreId);
-
-
+ 
+ 
     const normalizedDepartmentId =
         resolvedBody.department_id === undefined ||
         resolvedBody.department_id === null ||
         resolvedBody.department_id === ""
             ? null
             : Number(resolvedBody.department_id);
-
-
+ 
+ 
     const normalizedQuestionId =
         resolvedBody.question_id === undefined ||
         resolvedBody.question_id === null ||
         resolvedBody.question_id === ""
             ? null
             : Number(resolvedBody.question_id);
-
-
+ 
+ 
     // ==================================================
     // REQUIRED FIELDS FOR MANUAL ACTION POINT
     // ==================================================
-
+ 
     if (!normalizedStoreId) {
-
+ 
         const err =
             new Error(
                 "Store is required."
             );
-
+ 
         err.statusCode = 400;
-
+ 
         throw err;
     }
-
-
+ 
+ 
     // Question is intentionally OPTIONAL.
     //
     // Manual and bulk Action Points may be created without a checklist
@@ -615,8 +615,8 @@ const createManual = async (
     // question_id through createFromRules().
     //
     // Do not reject the row when question_id is missing.
-
-
+ 
+ 
     // ==================================================
     // SLA
     //
@@ -625,9 +625,9 @@ const createManual = async (
     // sla_days
     // sla_value
     // ==================================================
-
+ 
     let finalSlaValue = 0;
-
+ 
     if (
         sla_value !== undefined &&
         sla_value !== null &&
@@ -641,7 +641,7 @@ const createManual = async (
     ) {
         finalSlaValue = Number(sla_days) || 0;
     }
-
+ 
     // Keep an exact countdown duration while retaining sla_value as the
     // legacy/day value used by existing Action Point records.
     //
@@ -658,221 +658,221 @@ const createManual = async (
         (sla_days !== undefined && sla_days !== null && sla_days !== "") ||
         (sla_hours !== undefined && sla_hours !== null && sla_hours !== "") ||
         (sla_minutes !== undefined && sla_minutes !== null && sla_minutes !== "");
-
+ 
     let finalSlaMinutes = 0;
-
+ 
     if (hasSlaParts) {
         finalSlaMinutes =
             (Number(sla_days) || 0) * 24 * 60 +
             (Number(sla_hours) || 0) * 60 +
             (Number(sla_minutes) || 0);
     }
-
+ 
     if (finalSlaMinutes <= 0 && finalSlaValue > 0) {
         finalSlaMinutes = finalSlaValue * 24 * 60;
     }
-
-
+ 
+ 
     // ==================================================
     // BUILD ACTION POINT
     // ==================================================
-
+ 
     const actionPointData = {
-
+ 
         // ----------------------------------------------
         // OPTIONAL CHECKLIST FIELDS
         // ----------------------------------------------
-
+ 
         submission_id:
             normalizedSubmissionId,
-
+ 
         submission_answer_id:
             normalizedSubmissionAnswerId,
-
+ 
         rule_id:
             normalizedRuleId,
-
-
+ 
+ 
         // ----------------------------------------------
         // REQUIRED / MANUAL FIELDS
         // ----------------------------------------------
-
+ 
         store_id:
             normalizedStoreId,
-
+ 
         department_id:
             normalizedDepartmentId,
-
+ 
         question_id:
             normalizedQuestionId,
-
-
+ 
+ 
         // ----------------------------------------------
         // ASSIGNMENT
         // ----------------------------------------------
-
+ 
         assigned_to:
             assigned_to || null,
-
-
+ 
+ 
         // ----------------------------------------------
         // PRIORITY
         // ----------------------------------------------
-
+ 
         priority:
             priority || "Medium",
-
-
+ 
+ 
         // ----------------------------------------------
         // SLA
         // ----------------------------------------------
-
+ 
         sla_value:
             finalSlaValue,
-
+ 
         sla_minutes:
             finalSlaMinutes,
-
-
+ 
+ 
         // ----------------------------------------------
         // STATUS
         // ----------------------------------------------
-
+ 
         status:
             status || "Open",
-
-
+ 
+ 
         // ----------------------------------------------
         // ANSWER
         //
         // Manual answer can be stored in remarks/
         // depending on your existing DB structure.
         // ----------------------------------------------
-
+ 
         answer:
             answer || null,
-
-
+ 
+ 
         // ----------------------------------------------
         // REMARKS
         // ----------------------------------------------
-
+ 
         remarks:
             remarks || "",
-
+ 
         comment:
             comment || "",
-
-
+ 
+ 
         // ----------------------------------------------
         // ATTACHMENT
         // ----------------------------------------------
-
+ 
         attachment:
             attachment || null,
-
-
+ 
+ 
         // ----------------------------------------------
         // CREATED BY
         // ----------------------------------------------
-
+ 
         created_by:
             userId || null,
-
-
+ 
+ 
         // ----------------------------------------------
         // HISTORY ACTOR OVERRIDE (bulk upload only — see above)
         // ----------------------------------------------
-
+ 
         history_changed_by,
         history_changed_by_name
     };
-
-
+ 
+ 
     console.log(
         "[ActionPointService] Manual Action Point data:",
         {
             ...actionPointData
         }
     );
-
-
+ 
+ 
     // ==================================================
     // CREATE IN DATABASE
     // ==================================================
-
+ 
     const result =
         await asPromise(
             ActionPoint.create,
             actionPointData
         );
-
-
+ 
+ 
     const actionPointId =
         result.insertId;
-
-
+ 
+ 
     // ==================================================
     // ACTIVITY
     // ==================================================
-
+ 
     Activity.create(
         {
             title:
                 "Action Point Created",
-
+ 
             description:
                 `Action Point #${actionPointId} created manually.`,
-
+ 
             module_name:
                 "Action Points",
-
+ 
             status:
                 "Open",
-
+ 
             priority:
                 actionPointData.priority,
-
+ 
             created_by:
                 userId,
-
+ 
             assigned_to:
                 actionPointData.assigned_to
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     // ==================================================
     // AUDIT
     // ==================================================
-
+ 
     Audit.create(
         {
             module_name:
                 "Action Points",
-
+ 
             reference_id:
                 actionPointId,
-
+ 
             action:
                 "CREATE",
-
+ 
             old_data:
                 null,
-
+ 
             new_data:
                 actionPointData,
-
+ 
             changed_by:
                 userId
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     // EMAIL: MANUAL ACTION POINT GENERATED
     try {
         await checklistEmailService.sendActionPointEvent(
@@ -882,17 +882,17 @@ const createManual = async (
     } catch (emailError) {
         console.error("MANUAL ACTION POINT EMAIL ERROR:", emailError.message);
     }
-
+ 
     // ==================================================
     // RETURN
     // ==================================================
-
+ 
     return {
         id: actionPointId
     };
 };
-
-
+ 
+ 
 // ======================================================
 // CREATE + IMMEDIATELY CLOSE (bulk import: "no action required")
 // ======================================================
@@ -910,22 +910,22 @@ const createManual = async (
 // Reports right away, with its Priority/SLA intact, instead of
 // sitting in Action Points needlessly.
 // ======================================================
-
+ 
 const createClosedFromImport = async (body, userId) => {
-
+ 
     const result = await createManual(
         { ...body, status: "Closed" },
         null,
         userId
     );
-
+ 
     const actionPointId = result.id;
-
+ 
     await db.query(
         `UPDATE action_points SET completed_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [actionPointId]
     );
-
+ 
     if (body.submission_answer_id) {
         await db.query(
             `UPDATE checklist_submission_answers
@@ -940,7 +940,7 @@ const createClosedFromImport = async (body, userId) => {
             ]
         );
     }
-
+ 
     if (body.submission_id) {
         await db.query(
             `UPDATE checklist_submissions
@@ -949,11 +949,11 @@ const createClosedFromImport = async (body, userId) => {
             [body.submission_id]
         );
     }
-
+ 
     return { id: actionPointId };
 };
-
-
+ 
+ 
 // ======================================================
 // ADD A SINGLE HISTORY ENTRY DIRECTLY
 //
@@ -966,22 +966,22 @@ const createClosedFromImport = async (body, userId) => {
 // original timestamp — instead of that information being discarded
 // on import.
 // ======================================================
-
+ 
 const addHistoryEntry = (data) =>
     asPromise(ActionPoint.createHistory, data);
-
-
+ 
+ 
 // ======================================================
 // UPDATE ACTION POINT
 // ======================================================
-
+ 
 const update = async (
     id,
     body,
     attachment,
     userId
 ) => {
-
+ 
     let {
         assigned_to,
         priority,
@@ -993,176 +993,222 @@ const update = async (
         comment,
         status
     } = body;
-
-
+ 
+ 
     const oldData =
         await getById(id);
-
-
+ 
+ 
     if (!oldData) {
-
+ 
         const err =
             new Error(
                 "Action Point not found."
             );
-
+ 
         err.statusCode = 404;
-
+ 
         throw err;
     }
-
-
+ 
+ 
+    // BUG FIX: "SLA (Days)" (action_points.sla_value, shown in its own
+    // list column) could never actually be saved as 0 — `Number(x) ||
+    // oldData.sla_value` treats a real, explicitly-entered 0 as falsy
+    // and silently falls back to the OLD value instead. That meant
+    // setting an SLA of "0 days, 12 hours" (i.e. no whole-day part) via
+    // the Edit modal — which always submits sla_days as "0" rather than
+    // leaving it blank — left the previously-saved day count stuck in
+    // place. The live SLA Countdown badge itself was never affected
+    // (finalSlaMinutes below is built without this `||` fallback), only
+    // the separate at-a-glance "SLA (Days)" column. Use
+    // Number.isFinite so an explicit 0 is honored like any other value.
     let finalSlaValue =
         oldData.sla_value;
-
+ 
     if (
         sla_value !== undefined &&
         sla_value !== null &&
         sla_value !== ""
     ) {
-        finalSlaValue = Number(sla_value) || oldData.sla_value;
+        const parsed = Number(sla_value);
+        finalSlaValue = Number.isFinite(parsed) ? parsed : oldData.sla_value;
     } else if (
         sla_days !== undefined &&
         sla_days !== null &&
         sla_days !== ""
     ) {
-        finalSlaValue = Number(sla_days) || oldData.sla_value;
+        const parsed = Number(sla_days);
+        finalSlaValue = Number.isFinite(parsed) ? parsed : oldData.sla_value;
     }
-
+ 
     // Keep the existing exact SLA when the caller does not send SLA fields.
     // When SLA fields are supplied (the Edit modal sends all three parts),
     // rebuild the exact duration in minutes.
     let finalSlaMinutes =
         Number(oldData.sla_minutes) ||
         (Number(oldData.sla_value) || 0) * 24 * 60;
-
+ 
     const hasSlaParts =
         sla_days !== undefined ||
         sla_hours !== undefined ||
         sla_minutes !== undefined;
-
+ 
     if (hasSlaParts) {
         const oldTotalMinutes =
             Number(oldData.sla_minutes) ||
             (Number(oldData.sla_value) || 0) * 24 * 60;
-
+ 
         const oldDays = Math.floor(oldTotalMinutes / 1440);
         const oldHours = Math.floor((oldTotalMinutes % 1440) / 60);
         const oldMinutes = oldTotalMinutes % 60;
-
+ 
         const nextDays =
             sla_days !== undefined && sla_days !== ""
                 ? Number(sla_days) || 0
                 : oldDays;
-
+ 
         const nextHours =
             sla_hours !== undefined && sla_hours !== ""
                 ? Number(sla_hours) || 0
                 : oldHours;
-
+ 
         const nextMinutes =
             sla_minutes !== undefined && sla_minutes !== ""
                 ? Number(sla_minutes) || 0
                 : oldMinutes;
-
+ 
         finalSlaMinutes =
             nextDays * 24 * 60 +
             nextHours * 60 +
             nextMinutes;
     }
-
-
+ 
+ 
     const updateData = {
-
+ 
         assigned_to:
             assigned_to || null,
-
+ 
         priority:
             priority ||
             oldData.priority,
-
+ 
         sla_value:
             finalSlaValue,
-
+ 
         sla_minutes:
             finalSlaMinutes,
-
+ 
         remarks:
             remarks !== undefined
                 ? remarks
                 : oldData.remarks,
-
+ 
         comment:
             comment !== undefined
                 ? comment
                 : oldData.comment,
-
+ 
         attachment:
             attachment ||
             oldData.attachment
     };
-
-
+ 
+ 
     await asPromise(
         ActionPoint.update,
         id,
         updateData
     );
-
-
+ 
+ 
     if (
         status &&
         status !== oldData.status
     ) {
-
+ 
         const normalizedStatus =
             status === "Completed" || status === "Close"
                 ? "Closed"
                 : status;
-
+ 
         await asPromise(
             ActionPoint.updateStatus,
             id,
             normalizedStatus
         );
-
+ 
+        // ==============================================================
+        // BUG FIX: "Unable to update Action Point" (500) whenever an
+        // Edit that changes Status is saved on a checklist-linked
+        // Action Point (one created from a checklist rule violation —
+        // i.e. it has a submission_id).
+        //
+        // The Action Point row itself (ActionPoint.update / .updateStatus
+        // above) had already been written successfully by this point,
+        // but this block — secondary bookkeeping that mirrors the
+        // change back onto the parent checklist_submission /
+        // checklist_submission_answers rows — ran completely
+        // unguarded. Any failure in it (a stale/foreign-keyed
+        // submission_answer_id, a schema mismatch on an older
+        // database, a transient query error, ...) rejected this
+        // whole async function, so the controller's catch-all turned
+        // an already-successful Action Point update into a generic
+        // 500 and the UI's "Unable to update Action Point." alert —
+        // exactly like the "EMAIL: STATUS / COMPLETION" side effect
+        // below, which was already (correctly) wrapped the same way.
+        //
+        // A failure syncing the parent checklist submission must
+        // never roll back / fail the Action Point update the admin
+        // is actually trying to save, so this is now best-effort,
+        // logged, and never thrown.
+        // ==============================================================
+ 
         if (oldData.submission_id) {
-            if (normalizedStatus === "Closed" && oldData.submission_answer_id) {
+            try {
+                if (normalizedStatus === "Closed" && oldData.submission_answer_id) {
+                    await db.query(
+                        `UPDATE checklist_submission_answers
+                         SET action_taken = COALESCE(NULLIF(action_taken, ''), 'Completed via Action Point Edit'),
+                             action_remarks = COALESCE(?, action_remarks),
+                             completion_date = CURRENT_TIMESTAMP
+                         WHERE id = ?`,
+                        [remarks || null, oldData.submission_answer_id]
+                    );
+                }
+ 
+                const openRows = await db.query(
+                    `SELECT COUNT(*) AS open_count,
+                            SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count
+                     FROM action_points
+                     WHERE submission_id = ? AND status <> 'Closed'`,
+                    [oldData.submission_id]
+                );
+                const openCount = Number(openRows?.[0]?.open_count || 0);
+                const inProgressCount = Number(openRows?.[0]?.in_progress_count || 0);
                 await db.query(
-                    `UPDATE checklist_submission_answers
-                     SET action_taken = COALESCE(NULLIF(action_taken, ''), 'Completed via Action Point Edit'),
-                         action_remarks = COALESCE(?, action_remarks),
-                         completion_date = CURRENT_TIMESTAMP
+                    `UPDATE checklist_submissions
+                     SET status = ?, updated_at = CURRENT_TIMESTAMP
                      WHERE id = ?`,
-                    [remarks || null, oldData.submission_answer_id]
+                    [openCount === 0 ? "Completed" : inProgressCount > 0 ? "In Progress" : "Submitted", oldData.submission_id]
+                );
+            } catch (syncError) {
+                console.error(
+                    "ACTION POINT -> CHECKLIST SUBMISSION SYNC ERROR (non-fatal):",
+                    syncError.message
                 );
             }
-
-            const openRows = await db.query(
-                `SELECT COUNT(*) AS open_count,
-                        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count
-                 FROM action_points
-                 WHERE submission_id = ? AND status <> 'Closed'`,
-                [oldData.submission_id]
-            );
-            const openCount = Number(openRows?.[0]?.open_count || 0);
-            const inProgressCount = Number(openRows?.[0]?.in_progress_count || 0);
-            await db.query(
-                `UPDATE checklist_submissions
-                 SET status = ?, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?`,
-                [openCount === 0 ? "Completed" : inProgressCount > 0 ? "In Progress" : "Submitted", oldData.submission_id]
-            );
         }
-
+ 
         status = normalizedStatus;
     }
-
-
+ 
+ 
     // ==================================================
     // HISTORY
     // ==================================================
-
+ 
     await asPromise(
         ActionPoint.createHistory,
         {
@@ -1180,57 +1226,57 @@ const update = async (
             changed_by: userId
         }
     );
-
+ 
     // ==================================================
     // ACTIVITY
     // ==================================================
-
+ 
     Activity.create(
         {
             title:
                 "Action Point Updated",
-
+ 
             description:
                 `Action Point #${id} updated.`,
-
+ 
             module_name:
                 "Action Points",
-
+ 
             status:
                 "Open",
-
+ 
             priority:
                 updateData.priority,
-
+ 
             created_by:
                 userId,
-
+ 
             assigned_to:
                 updateData.assigned_to
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     // ==================================================
     // AUDIT
     // ==================================================
-
+ 
     Audit.create(
         {
             module_name:
                 "Action Points",
-
+ 
             reference_id:
                 id,
-
+ 
             action:
                 "UPDATE",
-
+ 
             old_data:
                 oldData,
-
+ 
             new_data:
                 {
                     ...oldData,
@@ -1239,14 +1285,14 @@ const update = async (
                         status ||
                         oldData.status
                 },
-
+ 
             changed_by:
                 userId
         },
-
+ 
         () => {}
     );
-
+ 
     // EMAIL: STATUS / COMPLETION
     if (status && status !== oldData.status) {
         const event = status === "Closed" ? "ACTION_POINT_COMPLETED" : "ACTION_POINT_STATUS";
@@ -1260,33 +1306,33 @@ const update = async (
             console.error("ACTION POINT STATUS EMAIL ERROR:", emailError.message);
         }
     }
-
+ 
     return {
         success: true,
-
+ 
         message:
             "Action Point updated successfully."
     };
 };
-
-
+ 
+ 
 // ======================================================
 // TAKE ACTION / CLOSE ACTION POINT
 // ======================================================
-
+ 
 const takeAction = async (
     id,
     body,
     userId
 ) => {
-
+ 
     const {
         action_taken,
         remarks,
         comment,
         status
     } = body;
-
+ 
     const normalizedStatus =
         status === "Completed" || status === "Close"
             ? "Closed"
@@ -1295,20 +1341,20 @@ const takeAction = async (
                 : status === "Open"
                     ? "Open"
                     : "Closed";
-
+ 
     if (normalizedStatus === "Closed" && !action_taken) {
         const err = new Error("Action Taken is required when closing an Action Point.");
         err.statusCode = 400;
         throw err;
     }
-
+ 
     const oldData = await getById(id);
     if (!oldData) {
         const err = new Error("Action Point not found.");
         err.statusCode = 404;
         throw err;
     }
-
+ 
     await asPromise(
         ActionPoint.takeAction,
         id,
@@ -1319,7 +1365,7 @@ const takeAction = async (
             status: normalizedStatus
         }
     );
-
+ 
     await asPromise(
         ActionPoint.createHistory,
         {
@@ -1338,7 +1384,7 @@ const takeAction = async (
             changed_by: userId
         }
     );
-
+ 
     Activity.create({
         title: normalizedStatus === "Closed" ? "Action Point Completed" : "Action Point Status Updated",
         description: `Action Point #${id} ${normalizedStatus === "Closed" ? "completed" : `moved to ${normalizedStatus}`}.`,
@@ -1348,7 +1394,7 @@ const takeAction = async (
         created_by: userId,
         assigned_to: oldData.assigned_to
     }, () => {});
-
+ 
     Audit.create({
         module_name: "Action Points",
         reference_id: id,
@@ -1362,7 +1408,7 @@ const takeAction = async (
         },
         changed_by: userId
     }, () => {});
-
+ 
     try {
         if (oldData?.submission_id) {
             const recipients = new Set();
@@ -1373,7 +1419,7 @@ const takeAction = async (
             const submitterId = Number(submissionRows?.[0]?.submitted_by || 0);
             if (submitterId > 0) recipients.add(submitterId);
             if (Number(oldData.assigned_to) > 0) recipients.add(Number(oldData.assigned_to));
-
+ 
             if (normalizedStatus === "Closed") {
                 await Notification.createForUsers([...recipients], {
                     title: "Action Point Completed",
@@ -1389,7 +1435,7 @@ const takeAction = async (
     } catch (notificationError) {
         console.error("Action Point notification error:", notificationError.message);
     }
-
+ 
     // EMAIL: STATUS / COMPLETION
     try {
         const event = normalizedStatus === "Closed" ? "ACTION_POINT_COMPLETED" : "ACTION_POINT_STATUS";
@@ -1401,7 +1447,7 @@ const takeAction = async (
     } catch (emailError) {
         console.error("TAKE ACTION EMAIL ERROR:", emailError.message);
     }
-
+ 
     return {
         success: true,
         message: normalizedStatus === "Closed"
@@ -1409,11 +1455,11 @@ const takeAction = async (
             : `Action Point moved to ${normalizedStatus}.`
     };
 };
-
+ 
 // ======================================================
 // CHANGE NEXT ACTION STATUS
 // ======================================================
-
+ 
 const changeStatus = async (id, status, comment, userId) => {
     const allowed = ["Open", "In Progress"];
     if (!allowed.includes(status)) {
@@ -1421,16 +1467,16 @@ const changeStatus = async (id, status, comment, userId) => {
         err.statusCode = 400;
         throw err;
     }
-
+ 
     const oldData = await getById(id);
     if (!oldData) {
         const err = new Error("Action Point not found.");
         err.statusCode = 404;
         throw err;
     }
-
+ 
     await asPromise(ActionPoint.updateStatus, id, status);
-
+ 
     // IMPORTANT:
     // Action Point workflow is independent from Checklist Report status.
     // Changing an Action Point to Open/In Progress must NOT change the
@@ -1446,7 +1492,7 @@ const changeStatus = async (id, status, comment, userId) => {
         new_data: { status, comment: comment || null },
         changed_by: userId
     });
-
+ 
     Activity.create({
         title: "Action Point Status Updated",
         description: `Action Point #${id} moved to ${status}.`,
@@ -1456,7 +1502,7 @@ const changeStatus = async (id, status, comment, userId) => {
         created_by: userId,
         assigned_to: oldData.assigned_to
     }, () => {});
-
+ 
     Audit.create({
         module_name: "Action Points",
         reference_id: id,
@@ -1465,7 +1511,7 @@ const changeStatus = async (id, status, comment, userId) => {
         new_data: { status, comment: comment || null },
         changed_by: userId
     }, () => {});
-
+ 
     try {
         await checklistEmailService.sendActionPointEvent(
             id,
@@ -1475,224 +1521,224 @@ const changeStatus = async (id, status, comment, userId) => {
     } catch (emailError) {
         console.error("CHANGE ACTION POINT STATUS EMAIL ERROR:", emailError.message);
     }
-
+ 
     return { success: true, status, message: `Action Point moved to ${status}.` };
 };
-
+ 
 // ======================================================
 // DELETE ACTION POINT
 // ======================================================
-
+ 
 const deleteActionPoint = async (
     id,
     userId
 ) => {
-
+ 
     const oldData =
         await getById(id);
-
-
+ 
+ 
     if (!oldData) {
-
+ 
         const err =
             new Error(
                 "Action Point not found."
             );
-
+ 
         err.statusCode = 404;
-
+ 
         throw err;
     }
-
-
+ 
+ 
     const result =
         await asPromise(
             ActionPoint.delete,
             id
         );
-
-
+ 
+ 
     if (
         result.affectedRows === 0
     ) {
-
+ 
         const err =
             new Error(
                 "Action Point not found."
             );
-
+ 
         err.statusCode = 404;
-
+ 
         throw err;
     }
-
-
+ 
+ 
     // ==================================================
     // ACTIVITY
     // ==================================================
-
+ 
     Activity.create(
         {
             title:
                 "Action Point Deleted",
-
+ 
             description:
                 `Action Point #${id} deleted.`,
-
+ 
             module_name:
                 "Action Points",
-
+ 
             status:
                 "Closed",
-
+ 
             priority:
                 oldData.priority,
-
+ 
             created_by:
                 userId,
-
+ 
             assigned_to:
                 oldData.assigned_to
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     // ==================================================
     // AUDIT
     // ==================================================
-
+ 
     Audit.create(
         {
             module_name:
                 "Action Points",
-
+ 
             reference_id:
                 id,
-
+ 
             action:
                 "DELETE",
-
+ 
             old_data:
                 oldData,
-
+ 
             new_data:
                 null,
-
+ 
             changed_by:
                 userId
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     return {
         success: true,
-
+ 
         message:
             "Action Point deleted successfully."
     };
 };
-
-
+ 
+ 
 // ======================================================
 // DELETE ALL
 // ======================================================
-
+ 
 const deleteAll = async (
     userId
 ) => {
-
+ 
     const result =
         await asPromise(
             ActionPoint.deleteAll
         );
-
-
+ 
+ 
     // ==================================================
     // ACTIVITY
     // ==================================================
-
+ 
     Activity.create(
         {
             title:
                 "All Action Points Deleted",
-
+ 
             description:
                 "All Action Points removed.",
-
+ 
             module_name:
                 "Action Points",
-
+ 
             status:
                 "Closed",
-
+ 
             priority:
                 "High",
-
+ 
             created_by:
                 userId,
-
+ 
             assigned_to:
                 null
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     // ==================================================
     // AUDIT
     // ==================================================
-
+ 
     Audit.create(
         {
             module_name:
                 "Action Points",
-
+ 
             reference_id:
                 null,
-
+ 
             action:
                 "DELETE_ALL",
-
+ 
             old_data:
                 null,
-
+ 
             new_data:
                 {
                     affectedRows:
                         result.affectedRows
                 },
-
+ 
             changed_by:
                 userId
         },
-
+ 
         () => {}
     );
-
-
+ 
+ 
     return {
         success: true,
-
+ 
         message:
             "All Action Points deleted successfully."
     };
 };
-
-
+ 
+ 
 // ======================================================
 // MODULE EXPORTS
 // ======================================================
-
+ 
 module.exports = {
-
+ 
     // Rule-engine path
     createFromRules,
-
+ 
     // CRUD
     getAll,
     getById,
@@ -1700,29 +1746,29 @@ module.exports = {
     getOpen,
     getBySubmission,
     getDashboardStats,
-
+ 
     // Manual creation
     createManual,
-
+ 
     // Bulk import: already-resolved row -> straight to Checklist Reports
     createClosedFromImport,
-
+ 
     // Bulk import: seed the file's own History column as real entries
     addHistoryEntry,
-
+ 
     // Update
     update,
-
+ 
     // Take action
     takeAction,
     changeStatus,
-
+ 
     // History
     getHistory: (id) => asPromise(ActionPoint.getHistory, id),
-
+ 
     // Delete
     delete: deleteActionPoint,
-
+ 
     // Delete all
     deleteAll
 };

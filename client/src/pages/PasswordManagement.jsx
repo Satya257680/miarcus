@@ -13,14 +13,29 @@ import {
   FaCheck,
   FaTrash,
   FaEdit,
+  FaUnlockAlt,
 } from "react-icons/fa";
 
 // Compact, Password-Management-only edit form: Name, Employee ID,
 // Email and Role (User / Administrator / Super Admin) — the Actions
-// column here only ever shows Edit and Delete, so role management
-// (previously its own "Make/Revoke Super Admin" button) now lives
-// inside this Edit modal instead.
+// column here shows Edit, Set/Reset Password and Delete, so role
+// management (previously its own "Make/Revoke Super Admin" button)
+// lives inside this Edit modal instead.
 import EditVaultUserModal from "../components/EditVaultUserModal";
+
+// BUG FIX: this screen's own header text says an admin can "use this
+// screen to look up any user's current password, or use Edit to
+// update their name, employee ID, email or role" — but nothing in
+// the Actions column ever let an admin actually SET/RESET a user's
+// password (Edit only ever touched name/employee ID/email/role).
+// That left every user whose password shows "— not set —" (and
+// anyone who has simply forgotten theirs, since self-service
+// "Forgot Password" is disabled for everyone except the Super
+// Admin) with no way to get a working password at all. The backend
+// endpoint this needs (PUT /api/password-vault/:id) already existed
+// and is exactly what user creation itself calls — it just had no
+// UI. See SetVaultUserPasswordModal.jsx.
+import SetVaultUserPasswordModal from "../components/SetVaultUserPasswordModal";
 
 import "../styles/PasswordManagement.css";
 
@@ -52,6 +67,12 @@ function PasswordManagement() {
 
   const [editingUser, setEditingUser] = useState(null);
   const [editLoadingId, setEditLoadingId] = useState(null);
+
+  // ==============================================================
+  // SET / RESET PASSWORD
+  // ==============================================================
+
+  const [passwordTargetUser, setPasswordTargetUser] = useState(null);
 
   // ==============================================================
   // DELETE (single user) — confirm modal, not window.confirm()
@@ -281,7 +302,8 @@ function PasswordManagement() {
             Every user&rsquo;s password is created and controlled here.
             Self-service &ldquo;Forgot Password&rdquo; is disabled for
             everyone except the Super Admin account — use this screen to
-            look up any user&rsquo;s current password, or use Edit to
+            look up any user&rsquo;s current password, use Set/Reset
+            Password if they forgot it (or never had one), or use Edit to
             update their name, employee ID, email or role.
           </p>
         </div>
@@ -439,6 +461,20 @@ function PasswordManagement() {
 
                       <button
                         type="button"
+                        className="pwd-mgmt-update-btn"
+                        onClick={() => setPasswordTargetUser(user)}
+                        title={
+                          user.password
+                            ? "Reset this user's password"
+                            : "Set a password for this user"
+                        }
+                      >
+                        <FaUnlockAlt />
+                        {user.password ? "Reset Password" : "Set Password"}
+                      </button>
+
+                      <button
+                        type="button"
                         className="pwd-mgmt-delete-btn"
                         onClick={() => requestDeleteUser(user)}
                         disabled={deleteBusyId === user.id}
@@ -559,6 +595,18 @@ function PasswordManagement() {
           user={editingUser}
           canManageSuperAdmin={canManageSuperAdmin}
           onClose={() => setEditingUser(null)}
+          onSaved={fetchVault}
+        />
+      )}
+
+      {/* ================================================================
+          SET / RESET PASSWORD MODAL
+      ================================================================ */}
+
+      {passwordTargetUser && (
+        <SetVaultUserPasswordModal
+          user={passwordTargetUser}
+          onClose={() => setPasswordTargetUser(null)}
           onSaved={fetchVault}
         />
       )}
