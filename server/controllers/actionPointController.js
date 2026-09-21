@@ -93,14 +93,15 @@ const toSafeInt = (value, fallback = null) => {
 };
 
 // ======================================================
-// DOES THIS ROW ALREADY SAY "NO ACTION REQUIRED"?
+// "NO ACTION REQUIRED" STATUS VALUES
 //
 // A bulk Action Point row that already carries a resolved/closed
-// Status, or already has an Action Taken value filled in, is not a
-// new open task — it is a record of something already handled. Those
-// rows are filed straight into Checklist Reports (already Closed)
-// instead of opening an Action Point that would just need to be
-// closed again by hand.
+// Status, or already has an Action Taken value filled in with no
+// explicit Open/In Progress Status to override it (see
+// isNoActionRequired() below), is not a new open task — it is a
+// record of something already handled. Those rows are filed straight
+// into Checklist Reports (already Closed) instead of opening an
+// Action Point that would just need to be closed again by hand.
 // ======================================================
 
 const NO_ACTION_STATUS_VALUES = new Set([
@@ -110,10 +111,255 @@ const NO_ACTION_STATUS_VALUES = new Set([
     "compliant", "satisfactory"
 ]);
 
+// ======================================================
+// NORMALIZE A BULK ROW'S STATUS TEXT
+//
+// A real-world file spells "In Progress" every possible way —
+// "in progress", "INPROGRESS", "In-Progress", "WIP", "Ongoing" — and
+// the action_points.status column is a strict ENUM('Open','In
+// Progress','Closed'). This maps any recognized spelling to the
+// exact canonical value the column expects, and falls back to the
+// caller-supplied default only when the text isn't recognized at all
+// (rather than silently dropping an unusual-but-valid Open/In
+// Progress spelling to the ENUM default of "Open").
+// ======================================================
+
+const STATUS_TEXT_ALIASES = {
+    "open": "Open",
+    "to do": "Open",
+    "todo": "Open",
+    "pending": "Open",
+    "new": "Open",
+    "not started": "Open",
+    "in progress": "In Progress",
+    "inprogress": "In Progress",
+    "in-progress": "In Progress",
+    "wip": "In Progress",
+    "work in progress": "In Progress",
+    "ongoing": "In Progress",
+    "working": "In Progress",
+    "started": "In Progress",
+    "closed": "Closed",
+    "close": "Closed",
+    "completed": "Closed",
+    "complete": "Closed",
+    "done": "Closed",
+    "resolved": "Closed"
+};
+
+const normalizeActionPointStatus = (value, fallback = "Open") => {
+    const key = String(value || "").trim().toLowerCase();
+    if (!key) return fallback;
+    return STATUS_TEXT_ALIASES[key] || fallback;
+};
+
+// ======================================================
+// DOES THIS ROW ALREADY SAY "NO ACTION REQUIRED"?
+//
+// BUG FIX ("In Progress doesn't stay In Progress"): this used to
+// force ANY row with a non-empty "Action Taken" cell straight to
+// Closed, regardless of what its own Status column said. A row that
+// had already been moved to "In Progress" — with a partial, still-
+// in-flight Action Taken note attached, which is completely normal —
+// silently flipped back to Closed (and vanished from Action Points,
+// since Closed checklist-linked rows leave this list) the next time
+// the same file was bulk-uploaded again. An explicit Open/In Progress
+// Status now always wins and is trusted as-is; the Action Taken text
+// is only used as a heuristic when the Status column is missing or
+// doesn't itself already say the item is done.
+// ======================================================
+
 const isNoActionRequired = (row) => {
+    const normalizedStatus = normalizeActionPointStatus(row["Status"], null);
+
+    if (normalizedStatus === "Open" || normalizedStatus === "In Progress") {
+        return false;
+    }
+
     const statusText = String(row["Status"] || "").trim().toLowerCase();
     const actionTakenText = String(row["Action Taken"] || "").trim();
     return NO_ACTION_STATUS_VALUES.has(statusText) || Boolean(actionTakenText);
+};
+
+// ======================================================
+// SLA — RESOLVE DAYS/HOURS/MINUTES FROM A BULK ROW
+//
+// A bulk file can express its SLA in several different shapes:
+//   - separate "SLA Days"/"SLA Hours"/"SLA Minutes" columns
+//   - a single "SLA Value" number plus an "SLA Unit" column
+//     ("Days"/"Hours"/"Minutes")
+//   - a single "SLA Value"/"SLA Days" number with no unit at all
+//     (kept exactly as before: treated as days)
+//   - only the already-rendered countdown/duration text (e.g. the
+//     Action Points export's own "SLA Countdown" column, or a
+//     hand-typed "5 days"/"4 hours")
+//
+// Returns { days, hours, minutes } (all in whole units), or null when
+// the row genuinely has no SLA information at all — which is the only
+// case "No SLA" should still be shown for.
+// ======================================================
+
+const SLA_HOUR_UNIT_RE = /^(h|hr|hrs|hour|hours)$/i;
+const SLA_MIN_UNIT_RE = /^(m|min|mins|minute|minutes)$/i;
+
+const parseDurationText = (text) => {
+    const str = String(text ?? "").trim();
+    if (!str) return null;
+
+    const dMatch = str.match(/(-?\d+(?:\.\d+)?)\s*d(?:ay)?s?\b/i);
+    const hMatch = str.match(/(-?\d+(?:\.\d+)?)\s*h(?:ou)?r?s?\b/i);
+    const mMatch = str.match(/(-?\d+(?:\.\d+)?)\s*m(?:in(?:ute)?)?s?\b/i);
+
+    if (dMatch || hMatch || mMatch) {
+        return {
+            days: dMatch ? Math.trunc(Number(dMatch[1])) || 0 : 0,
+            hours: hMatch ? Math.trunc(Number(hMatch[1])) || 0 : 0,
+            minutes: mMatch ? Math.trunc(Number(mMatch[1])) || 0 : 0
+        };
+    }
+
+    // A plain number with no recognizable unit at all — same meaning
+    // "SLA Days"/"SLA Value" always had: treated as days.
+    const plainNumber = toSafeInt(str, null);
+    if (plainNumber !== null) return { days: plainNumber, hours: 0, minutes: 0 };
+
+    return null;
+};
+
+const resolveSlaParts = (row) => {
+    const explicitDays = toSafeInt(row["SLA Days"], null);
+    const explicitHours = toSafeInt(row["SLA Hours"], null);
+    const explicitMinutes = toSafeInt(row["SLA Minutes"], null);
+
+    if (explicitDays !== null || explicitHours !== null || explicitMinutes !== null) {
+        return {
+            days: explicitDays || 0,
+            hours: explicitHours || 0,
+            minutes: explicitMinutes || 0
+        };
+    }
+
+    // "SLA Value" + optional "SLA Unit" pair. With no Unit column at all
+    // this behaves exactly like the old code: the number is days.
+    const numericValue = toSafeInt(row["SLA Value"], null);
+    if (numericValue !== null) {
+        const unit = String(row["SLA Unit"] || "").trim();
+
+        if (SLA_HOUR_UNIT_RE.test(unit)) return { days: 0, hours: numericValue, minutes: 0 };
+        if (SLA_MIN_UNIT_RE.test(unit)) return { days: 0, hours: 0, minutes: numericValue };
+        return { days: numericValue, hours: 0, minutes: 0 };
+    }
+
+    // Last resort — a free-text duration/countdown column.
+    const durationText = row["SLA Countdown"] || row["SLA Days"] || row["SLA Value"];
+    return parseDurationText(durationText);
+};
+
+// ======================================================
+// HISTORY — PARSE A BULK ROW'S OWN AUDIT-TRAIL COLUMN
+//
+// The "History" column (the export's audit-trail text, e.g. "No
+// Action Taken by System Auto-generated at 8/31/2026, 10:15:24 PM;
+// Opened by Ajay at 9/1/2026, 2:44:48 PM; Closed by Priya at
+// 9/3/2026, 11:02:10 AM") already records exactly who did what and
+// when. Parsed into individual entries here so every one of them can
+// be re-created as a real action_point_history row (see
+// seedHistoryFromFile below) instead of that information being
+// thrown away on import and replaced with "by <whoever ran the bulk
+// upload>".
+// ======================================================
+
+const HISTORY_ENTRY_PATTERN =
+    /^(.*?)\s+by\s+(.+?)\s+at\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])$/;
+
+const pad2 = (value) => String(value).padStart(2, "0");
+
+const parseHistoryColumn = (historyText) => {
+    const text = String(historyText || "").trim();
+    if (!text) return [];
+
+    return text
+        .split(/;\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => {
+            const match = part.match(HISTORY_ENTRY_PATTERN);
+
+            if (!match) {
+                return { actionText: part, actorName: null, timestamp: null };
+            }
+
+            let [, actionText, actorName, month, day, year, hour, minute, second, meridiem] = match;
+            hour = Number(hour);
+            minute = Number(minute);
+            second = Number(second || 0);
+
+            const isPM = /pm/i.test(meridiem);
+            if (hour === 12) hour = isPM ? 12 : 0;
+            else if (isPM) hour += 12;
+
+            const timestamp =
+                `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;
+
+            return {
+                actionText: actionText.trim(),
+                actorName: actorName.trim(),
+                timestamp
+            };
+        })
+        .filter((entry) => entry.actionText);
+};
+
+const inferHistoryStatus = (actionText) => {
+    const text = String(actionText || "").toLowerCase();
+    if (/(close|complete|resolved|done)/.test(text)) return "Closed";
+    if (/(progress|working|wip)/.test(text)) return "In Progress";
+    if (/(open|no action)/.test(text)) return "Open";
+    return null;
+};
+
+const inferHistoryActionType = (actionText) => {
+    const text = String(actionText || "").toLowerCase();
+    if (/(close|complete|resolved|done)/.test(text)) return "COMPLETED";
+    if (/(progress|open|working)/.test(text)) return "STATUS_CHANGED";
+    return "IMPORTED";
+};
+
+// Resolves a History-entry actor name (e.g. "Ajay", "System") to a real
+// Users row when possible (reusing the same Employee/name matcher already
+// used for the linked Checklist Report row), returning free text only —
+// never the uploading admin — when it doesn't match anyone.
+const resolveHistoryActor = async (actorName) => {
+    const name = String(actorName || "").trim();
+    if (!name) return { userId: null, name: null };
+    if (/^system(\s|$)/i.test(name)) return { userId: null, name };
+
+    try {
+        const match = await checklistReportService.resolveUserId({ "Employee": name });
+        return { userId: match?.userId || null, name: match?.userId ? null : name };
+    } catch (_error) {
+        return { userId: null, name };
+    }
+};
+
+// Re-creates every entry from a bulk row's own History column as a real
+// action_point_history row, with its own real actor and timestamp — this
+// is what makes the History panel show "whatever the file actually said"
+// instead of only the moment the row was imported.
+const seedHistoryFromFile = async (actionPointId, historyEntries) => {
+    for (const entry of historyEntries) {
+        const actor = await resolveHistoryActor(entry.actorName);
+
+        await actionPointService.addHistoryEntry({
+            action_point_id: actionPointId,
+            action_type: inferHistoryActionType(entry.actionText),
+            status: inferHistoryStatus(entry.actionText),
+            comment: entry.actionText,
+            changed_by: actor.userId,
+            changed_by_name: actor.name,
+            created_at: entry.timestamp || null
+        });
+    }
 };
 
 // ======================================================
@@ -145,9 +391,23 @@ const ACTION_POINT_COLUMN_ALIASES = {
     "Answer ID": ["answerid", "submission answer id", "submissionanswerid"],
     "Assigned To": ["assignedto", "assigned to", "employeeid", "employee id", "owner", "assignee"],
     "Priority": ["priority"],
-    "SLA Days": ["sladays", "sla days"],
+    // Broadened so a re-uploaded export — the Action Points export's own
+    // "sla_days" header, the Checklist Reports export's
+    // "action_point_sla_days" header, or a hand-typed "SLA (Days)"/"SLA in
+    // Days" column — is recognized instead of silently landing on nothing
+    // and showing "No SLA" for every row. See resolveSlaParts() below.
+    "SLA Days": [
+        "sladays", "sla days", "sla(days)", "sla in days", "numberofdays",
+        "noofdays", "actionpointsladays", "action point sla days"
+    ],
     "SLA Value": ["slavalue", "sla value", "sla"],
-    "SLA Unit": ["slaunit", "sla unit"],
+    "SLA Hours": ["slahours", "sla hours", "sla(hours)", "sla in hours"],
+    "SLA Minutes": ["slaminutes", "sla minutes", "sla(minutes)", "sla in minutes"],
+    "SLA Unit": ["slaunit", "sla unit", "slatype", "sla type"],
+    // Fallback source when a file only carries the already-rendered
+    // countdown text (e.g. "5d 03h 00m", "Overdue (5 days)") rather than a
+    // clean number — see parseDurationText()/resolveSlaParts() below.
+    "SLA Countdown": ["slacountdown", "sla countdown"],
     "Status": ["status"],
     // BUG FIX: "Remarks" and "Comment" used to share one canonical
     // column ("comment"/"comments" were listed as Remarks aliases), so
@@ -519,30 +779,93 @@ exports.bulkUploadActionPoints = async (req, res) => {
                 // row above instead of re-parsing (or mis-typing) it here.
                 const assignedToUserId = reportResult.submittedByUserId || null;
 
+                // ==================================================
+                // SLA — DAYS / HOURS / MINUTES
+                //
+                // BUG FIX ("SLA Countdown / SLA (Days) / Overdue always
+                // show No SLA / '-' after bulk upload"): the old code only
+                // ever looked at a literal "SLA Days"/"SLA Value" column,
+                // so any file that expressed its SLA differently — split
+                // across Days/Hours/Minutes columns, a value + separate
+                // unit column, or only the already-rendered countdown text
+                // — silently lost that data on import. resolveSlaParts()
+                // (see above) tries every shape the file might use before
+                // giving up. sla_value is kept as a rounded day-equivalent
+                // purely for the "SLA (Days)" display column — the exact
+                // countdown/Overdue state is always computed from the
+                // precise day/hour/minute total below.
+                // ==================================================
+
+                const slaParts = resolveSlaParts(row);
+
+                let slaBody = { sla_days: null, sla_hours: null, sla_minutes: null, sla_value: null };
+
+                if (slaParts) {
+                    const totalMinutes =
+                        (slaParts.days * 24 * 60) +
+                        (slaParts.hours * 60) +
+                        slaParts.minutes;
+
+                    slaBody = {
+                        sla_days: slaParts.days || 0,
+                        sla_hours: slaParts.hours || 0,
+                        sla_minutes: slaParts.minutes || 0,
+                        sla_value: totalMinutes > 0 ? Math.max(1, Math.round(totalMinutes / 1440)) : 0
+                    };
+                }
+
+                // ==================================================
+                // HISTORY — WHO THE FILE SAYS ACTUALLY TOUCHED THIS ROW
+                //
+                // BUG FIX ("History always shows the uploading admin, not
+                // Satyajit Nayak / whoever the file actually names"): the
+                // row's own History column (when present) already records
+                // exactly who did what and when — that is used to
+                // attribute the CREATED entry, and seedHistoryFromFile()
+                // below re-creates every one of its entries as real
+                // history rows after the Action Point exists. Falls back
+                // to the row's own "Assigned To" name when there's no
+                // History column at all, and only ever falls back to the
+                // uploading admin (the default in models/
+                // actionPointModel.js) when the file names no one.
+                // ==================================================
+
+                const historyEntries = parseHistoryColumn(row["History"]);
+                const latestHistoryEntry = historyEntries[historyEntries.length - 1] || null;
+
+                let historyActorId = null;
+                let historyActorName = null;
+
+                if (latestHistoryEntry?.actorName) {
+                    const actor = await resolveHistoryActor(latestHistoryEntry.actorName);
+                    historyActorId = actor.userId;
+                    historyActorName = actor.name;
+                }
+
+                if (!historyActorId && !historyActorName) {
+                    const assignedToRaw = String(row["Assigned To"] || "").trim();
+                    if (assignedToRaw) {
+                        historyActorId = assignedToUserId;
+                        historyActorName = assignedToUserId ? null : assignedToRaw;
+                    }
+                }
+
                 const actionPointBody = {
                     submission_id: reportResult.submissionId,
                     submission_answer_id: reportResult.answerId,
                     department_id: departmentId,
                     assigned_to: assignedToUserId,
                     priority: row["Priority"] || "Medium",
-                    // BUG FIX: this used to default to 0 (a real,
-                    // defined value) instead of null when the file had
-                    // no SLA Days at all. actionPointService.createManual
-                    // treats "any of sla_days/sla_hours/sla_minutes is
-                    // defined" as "SLA data was provided", so a forced 0
-                    // was being read as an intentional 0-day SLA and
-                    // wiped out sla_minutes — which is what made every
-                    // bulk-uploaded row's SLA/Overdue status wrong
-                    // regardless of what the file actually said.
-                    sla_days: toSafeInt(row["SLA Days"], null),
-                    sla_value: toSafeInt(row["SLA Value"], null),
+                    ...slaBody,
                     remarks: row["Remarks"] || "",
                     // BUG FIX: a file's own "Comment" column used to never
                     // reach an open Action Point at all — only the Closed/
                     // "no action required" path below ever set `comment`
                     // (and only to the Action Taken text). Any Comment text
                     // the row actually had was silently dropped.
-                    comment: row["Comment"] || ""
+                    comment: row["Comment"] || "",
+                    history_changed_by: historyActorId,
+                    history_changed_by_name: historyActorName
                 };
 
                 // ==================================================
@@ -568,13 +891,17 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         .filter(Boolean)
                         .join(" | ") || "No action required.";
 
-                    await actionPointService.createClosedFromImport(
+                    const closedResult = await actionPointService.createClosedFromImport(
                         {
                             ...actionPointBody,
                             comment: closedComment
                         },
                         req.user.id
                     );
+
+                    if (historyEntries.length) {
+                        await seedHistoryFromFile(closedResult.id, historyEntries);
+                    }
 
                     return {
                         rowNumber,
@@ -586,11 +913,19 @@ exports.bulkUploadActionPoints = async (req, res) => {
                     const result = await actionPointService.createManual(
                         {
                             ...actionPointBody,
-                            status: row["Status"] || "Open"
+                            // BUG FIX: raw file text like "in progress" or
+                            // "WIP" never matched the strict status ENUM
+                            // and fell back to "Open" — see
+                            // normalizeActionPointStatus() above.
+                            status: normalizeActionPointStatus(row["Status"], "Open")
                         },
                         null,
                         req.user.id
                     );
+
+                    if (historyEntries.length) {
+                        await seedHistoryFromFile(result.id, historyEntries);
+                    }
 
                     return {
                         rowNumber,

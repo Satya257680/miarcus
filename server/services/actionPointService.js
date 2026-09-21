@@ -511,7 +511,18 @@ const createManual = async (
         answer,
         remarks,
         comment,
-        status
+        status,
+        // Optional actor override for the CREATED history entry — set by
+        // the Action Points bulk uploader (controllers/
+        // actionPointController.js) when the uploaded row's own "Assigned
+        // To"/History column identifies who the file says actually touched
+        // this item, so History shows that instead of the admin who ran
+        // the bulk upload. Left undefined by every other caller (manual
+        // "Add Action Point", the rule engine), which keeps attributing to
+        // the real creating user exactly as before. See
+        // models/actionPointModel.js's ActionPoint.create.
+        history_changed_by,
+        history_changed_by_name
     } = body;
 
 
@@ -766,7 +777,15 @@ const createManual = async (
         // ----------------------------------------------
 
         created_by:
-            userId || null
+            userId || null,
+
+
+        // ----------------------------------------------
+        // HISTORY ACTOR OVERRIDE (bulk upload only — see above)
+        // ----------------------------------------------
+
+        history_changed_by,
+        history_changed_by_name
     };
 
 
@@ -933,6 +952,23 @@ const createClosedFromImport = async (body, userId) => {
 
     return { id: actionPointId };
 };
+
+
+// ======================================================
+// ADD A SINGLE HISTORY ENTRY DIRECTLY
+//
+// Used by the Action Points bulk uploader (controllers/
+// actionPointController.js) to reconstruct the FULL historical
+// timeline already recorded in a source file's own History column
+// (e.g. "No Action Taken by System Auto-generated at 8/31/2026,
+// 10:15:24 PM; Opened by Ajay at 9/1/2026, 2:44:48 PM; ...") as real
+// action_point_history rows — each with its own real actor name and
+// original timestamp — instead of that information being discarded
+// on import.
+// ======================================================
+
+const addHistoryEntry = (data) =>
+    asPromise(ActionPoint.createHistory, data);
 
 
 // ======================================================
@@ -1670,6 +1706,9 @@ module.exports = {
 
     // Bulk import: already-resolved row -> straight to Checklist Reports
     createClosedFromImport,
+
+    // Bulk import: seed the file's own History column as real entries
+    addHistoryEntry,
 
     // Update
     update,

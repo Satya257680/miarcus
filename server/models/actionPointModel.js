@@ -88,6 +88,13 @@ ActionPoint.createTables = (callback) => {
                 old_data JSON NULL,
                 new_data JSON NULL,
                 changed_by INT NULL,
+                /* Free-text actor name for history entries that don't map to
+                   a real Users row -- e.g. a name/"System" pulled straight
+                   out of a bulk-uploaded file's own History column. Shown
+                   instead of the uploading admin whenever a real name was
+                   already present in the source file. See
+                   controllers/actionPointController.js. */
+                changed_by_name VARCHAR(255) NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 INDEX idx_action_point_history_ap (action_point_id, created_at),
@@ -346,23 +353,29 @@ ActionPoint.getAll = (
 
             ap.created_at,
 
-            (SELECT u2.name
+            -- Same COALESCE(real user, imported free-text name) as
+            -- getHistory() above, and ordered by created_at (not just id)
+            -- so a bulk-imported row's own historical entries — which can
+            -- carry real timestamps from the source file's History column,
+            -- not necessarily in insert order — still resolve to the
+            -- chronologically most recent entry.
+            (SELECT COALESCE(u2.name, h2.changed_by_name)
              FROM action_point_history h2
              LEFT JOIN users u2 ON u2.id = h2.changed_by
              WHERE h2.action_point_id = ap.id
-             ORDER BY h2.id DESC
+             ORDER BY h2.created_at DESC, h2.id DESC
              LIMIT 1) AS last_history_by,
 
             (SELECT h2.created_at
              FROM action_point_history h2
              WHERE h2.action_point_id = ap.id
-             ORDER BY h2.id DESC
+             ORDER BY h2.created_at DESC, h2.id DESC
              LIMIT 1) AS last_history_at,
 
             (SELECT h2.status
              FROM action_point_history h2
              WHERE h2.action_point_id = ap.id
-             ORDER BY h2.id DESC
+             ORDER BY h2.created_at DESC, h2.id DESC
              LIMIT 1) AS last_history_status,
 
             COALESCE(cs.submission_date, DATE(ap.created_at)) AS date,
@@ -1136,7 +1149,27 @@ ActionPoint.create = (
                 comment: data.comment || null,
                 remarks: data.remarks || null,
                 new_data: data,
-                changed_by: data.created_by || null
+                // BUG FIX: a bulk-uploaded row always showed the uploading
+                // admin's name in History ("by Satyajit Nayak", say), no
+                // matter what the source file actually said. The Action
+                // Points bulk uploader (controllers/actionPointController.js)
+                // now resolves the row's real actor — its own "Assigned
+                // To"/History-column name, matched to a Users row when
+                // possible — and passes it through as history_changed_by /
+                // history_changed_by_name. Those explicitly win here when
+                // present (including an explicit null, meaning "resolved to
+                // free text only, no Users row"); every other creation path
+                // (manual "Add Action Point", the rule engine) never sets
+                // these fields, so this keeps attributing to the actual
+                // creating user exactly as before.
+                changed_by:
+                    data.history_changed_by !== undefined
+                        ? data.history_changed_by
+                        : (data.created_by || null),
+                changed_by_name:
+                    data.history_changed_by_name !== undefined
+                        ? data.history_changed_by_name
+                        : null
             }, (historyErr) => {
                 // History must never prevent the Action Point itself from
                 // being created. The schema is initialized at server start,
@@ -1486,6 +1519,7 @@ ActionPoint.ensureHistoryTable = async () => {
             old_data JSON NULL,
             new_data JSON NULL,
             changed_by INT NULL,
+            changed_by_name VARCHAR(255) NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             INDEX idx_action_point_history_ap (action_point_id, created_at),
@@ -1502,14 +1536,46 @@ ActionPoint.ensureCommentColumn = async () => {
     }
 };
 
-ActionPoint.createHistory = (data, callback) => {
-    const sql = `
-        INSERT INTO action_point_history
-        (action_point_id, action_type, status, comment, remarks, old_data, new_data, changed_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+// ======================================================
+// ENSURE HISTORY ACTOR NAME COLUMN
+//
+// Existing installations created action_point_history before
+// changed_by_name existed. CREATE TABLE IF NOT EXISTS above does not
+// alter an already-existing table, so this migrates it explicitly —
+// same pattern as ensureCommentColumn()/ensureSlaMinutesColumn().
+// Without this column, bulk-imported Action Points have nowhere to
+// keep the real actor name/"System" text already present in a
+// spreadsheet's History column, and history/last-touched-by
+// displays fall back to whichever admin ran the bulk upload.
+// ======================================================
 
-    db.query(sql, [
+ActionPoint.ensureHistoryActorColumn = async () => {
+    const rows = await db.query(
+        `SHOW COLUMNS FROM action_point_history LIKE 'changed_by_name'`
+    );
+
+    if (!rows || rows.length === 0) {
+        await db.query(
+            `ALTER TABLE action_point_history
+             ADD COLUMN changed_by_name VARCHAR(255) NULL AFTER changed_by`
+        );
+        console.log("✅ action_point_history.changed_by_name added");
+    }
+};
+
+// `changed_by_name` is an optional free-text actor name (e.g. pulled from a
+// bulk-uploaded file's own History column, or "System") used whenever the
+// entry has no matching Users row — see getHistory()'s COALESCE below.
+// `created_at` is an optional explicit timestamp override ("YYYY-MM-DD
+// HH:MM:SS") so a history entry reconstructed from a file's own audit trail
+// keeps its real original date/time instead of being stamped with "now".
+ActionPoint.createHistory = (data, callback) => {
+    const columns = [
+        "action_point_id", "action_type", "status", "comment", "remarks",
+        "old_data", "new_data", "changed_by", "changed_by_name"
+    ];
+
+    const values = [
         data.action_point_id,
         data.action_type,
         data.status || null,
@@ -1517,8 +1583,22 @@ ActionPoint.createHistory = (data, callback) => {
         data.remarks || null,
         data.old_data ? JSON.stringify(data.old_data) : null,
         data.new_data ? JSON.stringify(data.new_data) : null,
-        data.changed_by || null
-    ], callback);
+        data.changed_by || null,
+        data.changed_by_name || null
+    ];
+
+    if (data.created_at) {
+        columns.push("created_at");
+        values.push(data.created_at);
+    }
+
+    const sql = `
+        INSERT INTO action_point_history
+        (${columns.join(", ")})
+        VALUES (${columns.map(() => "?").join(", ")})
+    `;
+
+    db.query(sql, values, callback);
 };
 
 ActionPoint.getHistory = (id, callback) => {
@@ -1534,7 +1614,11 @@ ActionPoint.getHistory = (id, callback) => {
             h.new_data,
             h.changed_by,
             h.created_at,
-            u.name AS changed_by_name,
+            /* Prefer the real Users name when changed_by resolves to one;
+               otherwise fall back to the free-text actor name captured on
+               import (see createHistory above) instead of showing nothing
+               or the wrong person. */
+            COALESCE(u.name, h.changed_by_name) AS changed_by_name,
             u.employee_id AS changed_by_employee_id
         FROM action_point_history h
         LEFT JOIN users u ON u.id = h.changed_by

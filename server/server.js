@@ -480,6 +480,9 @@ async function initializeDatabase() {
             if (typeof ActionPoint.ensureHistoryTable === "function") {
                 await ActionPoint.ensureHistoryTable();
             }
+            if (typeof ActionPoint.ensureHistoryActorColumn === "function") {
+                await ActionPoint.ensureHistoryActorColumn();
+            }
             console.log("✅ Action Point comment/history schema verified");
         } catch (error) {
             console.error("❌ Action Point workflow schema initialization failed:", error.message);
