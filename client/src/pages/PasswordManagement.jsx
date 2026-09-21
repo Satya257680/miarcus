@@ -10,19 +10,17 @@ import {
   FaShieldAlt,
   FaUserShield,
   FaSyncAlt,
-  FaTimes,
   FaCheck,
   FaTrash,
   FaEdit,
 } from "react-icons/fa";
 
-// Same full user-edit form the Users page uses (name, email, contact,
-// department, designation, reports-to, stores, permissions, status —
-// everything Password Management's own list does NOT carry, since it
-// only ever loaded the narrow password-vault fields). Reused as-is so
-// "Edit" here edits the whole user record the same way it does on the
-// Users page, rather than duplicating that form.
-import AddUserModal from "../components/AddUserModal";
+// Compact, Password-Management-only edit form: Name, Employee ID,
+// Email and Role (User / Administrator / Super Admin) — the Actions
+// column here only ever shows Edit and Delete, so role management
+// (previously its own "Make/Revoke Super Admin" button) now lives
+// inside this Edit modal instead.
+import EditVaultUserModal from "../components/EditVaultUserModal";
 
 import "../styles/PasswordManagement.css";
 
@@ -40,36 +38,6 @@ import "../styles/PasswordManagement.css";
 // password and it is emailed straight to the user.
 // =================================================================
 
-// Matches the server-side password policy in config/security.js:
-// 8-10 characters, at least one uppercase, one lowercase, one
-// number and one special character.
-function generateStrongPassword() {
-  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const lower = "abcdefghijkmnpqrstuvwxyz";
-  const digits = "23456789";
-  const special = "!@#$%&*";
-
-  const pick = (chars) =>
-    chars[Math.floor(Math.random() * chars.length)];
-
-  const required = [pick(upper), pick(lower), pick(digits), pick(special)];
-
-  const all = upper + lower + digits + special;
-  const targetLength = 9;
-
-  while (required.length < targetLength) {
-    required.push(pick(all));
-  }
-
-  // Shuffle so the required categories aren't always in the same spot.
-  for (let i = required.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [required[i], required[j]] = [required[j], required[i]];
-  }
-
-  return required.join("");
-}
-
 function PasswordManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,22 +46,18 @@ function PasswordManagement() {
   const [revealed, setRevealed] = useState({});
   const [copiedId, setCopiedId] = useState(null);
 
-  const [modalUser, setModalUser] = useState(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [modalError, setModalError] = useState("");
-
   // ==============================================================
-  // EDIT USER (full record — see AddUserModal import above)
+  // EDIT USER (compact form — see EditVaultUserModal import above)
   // ==============================================================
 
   const [editingUser, setEditingUser] = useState(null);
   const [editLoadingId, setEditLoadingId] = useState(null);
 
-  const [superAdminBusyId, setSuperAdminBusyId] = useState(null);
+  // ==============================================================
+  // DELETE (single user) — confirm modal, not window.confirm()
+  // ==============================================================
 
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
@@ -180,124 +144,19 @@ function PasswordManagement() {
   };
 
   // ==============================================================
-  // UPDATE PASSWORD MODAL
-  // ==============================================================
-
-  const openModal = (user) => {
-    setModalUser(user);
-    setNewPassword("");
-    setConfirmPassword("");
-    setShowNewPassword(false);
-    setModalError("");
-  };
-
-  const closeModal = () => {
-    if (saving) return;
-    setModalUser(null);
-  };
-
-  const handleGenerate = () => {
-    const generated = generateStrongPassword();
-    setNewPassword(generated);
-    setConfirmPassword(generated);
-    setShowNewPassword(true);
-  };
-
-  const submitPasswordUpdate = async () => {
-    if (!modalUser) return;
-
-    if (!newPassword.trim()) {
-      setModalError("Please enter a new password.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setModalError("Password and Confirm Password do not match.");
-      return;
-    }
-
-    setSaving(true);
-    setModalError("");
-
-    try {
-      const response = await axios.put(
-        `${API_BASE_URL}/api/password-vault/${modalUser.id}`,
-        {
-          password: newPassword,
-          confirmPassword,
-        }
-      );
-
-      alert(
-        response.data?.message ||
-          "Password updated successfully."
-      );
-
-      setModalUser(null);
-      fetchVault();
-    } catch (error) {
-      console.error("Password update error:", error);
-      setModalError(
-        error.response?.data?.message ||
-          "Unable to update password."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ==============================================================
-  // SUPER ADMIN TOGGLE
-  // ==============================================================
-
-  const toggleSuperAdmin = async (user) => {
-    if (!canManageSuperAdmin) return;
-
-    const action = user.isSuperAdmin ? "revoke" : "grant";
-
-    if (
-      !window.confirm(
-        `Are you sure you want to ${action} Super Admin access ${
-          action === "grant" ? "to" : "from"
-        } ${user.name}? Super Admin is the only account allowed to use self-service "Forgot Password".`
-      )
-    ) {
-      return;
-    }
-
-    setSuperAdminBusyId(user.id);
-
-    try {
-      const response = await axios.put(
-        `${API_BASE_URL}/api/password-vault/${user.id}/super-admin`
-      );
-
-      alert(response.data?.message || "Super Admin access updated.");
-      fetchVault();
-    } catch (error) {
-      console.error("Toggle super admin error:", error);
-      alert(
-        error.response?.data?.message ||
-          "Unable to update Super Admin access."
-      );
-    } finally {
-      setSuperAdminBusyId(null);
-    }
-  };
-
-  // ==============================================================
   // EDIT USER
   // ==============================================================
   //
   // Password Management's own list (GET /api/password-vault) only
-  // ever carries the narrow set of fields this page needs for
-  // passwords — id/name/email/is_admin/is_super_admin. AddUserModal's
-  // edit form needs the FULL user record (department, designation,
-  // reports-to, stores, permissions, status, ...), so this fetches
-  // it fresh from the same GET /api/users the Users page itself uses
-  // right before opening the form, rather than trying to edit from
-  // the row's own (incomplete) data — which would otherwise silently
-  // blank out fields like Department/Stores on save.
+  // ever carries the narrow set of fields this page needs — id/name/
+  // email/is_admin/is_super_admin. EditVaultUserModal's Role field
+  // (User/Administrator/Super Admin) and its save logic need the FULL
+  // user record (department, designation, reports-to, stores,
+  // permissions, status, ...) so that saving the compact form never
+  // blanks out fields it doesn't show — so this fetches it fresh from
+  // the same GET /api/users the Users page itself uses, right before
+  // opening the form, rather than trying to edit from the row's own
+  // (incomplete) data.
   // ==============================================================
 
   const openEditUser = async (user) => {
@@ -331,22 +190,35 @@ function PasswordManagement() {
   // ==============================================================
   //
   // Administrator and Super Admin accounts are never deletable —
-  // enforced both here (the button/row is hidden) and on the
-  // server (DELETE /api/password-vault/:id and /delete-all both
-  // reject/skip them), matching the same rule the Users screen
-  // already applies.
+  // enforced both here (deleting one shows a message instead of
+  // calling the API) and on the server (DELETE /api/password-vault/:id
+  // and /delete-all both reject/skip them), matching the same rule
+  // the Users screen already applies.
+  //
+  // Clicking "Delete" opens a confirm modal (see the render section
+  // below) instead of the browser's native window.confirm() — Cancel
+  // backs out, Delete proceeds.
   // ==============================================================
 
   const isProtectedUser = (user) =>
     Boolean(user) && (Boolean(user.isAdmin) || Boolean(user.isSuperAdmin));
 
-  const deleteUser = async (user) => {
+  const requestDeleteUser = (user) => {
+    setDeleteTarget(user);
+  };
+
+  const cancelDeleteUser = () => {
+    if (deleteBusyId) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteUser = async () => {
+    const user = deleteTarget;
+    if (!user) return;
+
     if (isProtectedUser(user)) {
       alert("Administrator and Super Admin accounts cannot be deleted.");
-      return;
-    }
-
-    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) {
+      setDeleteTarget(null);
       return;
     }
 
@@ -358,6 +230,7 @@ function PasswordManagement() {
       );
 
       alert(response.data?.message || "User deleted successfully.");
+      setDeleteTarget(null);
       fetchVault();
     } catch (error) {
       console.error("Password vault delete user error:", error);
@@ -408,9 +281,8 @@ function PasswordManagement() {
             Every user&rsquo;s password is created and controlled here.
             Self-service &ldquo;Forgot Password&rdquo; is disabled for
             everyone except the Super Admin account — use this screen to
-            look up or reset any user&rsquo;s password instead. Updating a
-            password here emails the new credentials directly to that
-            person.
+            look up any user&rsquo;s current password, or use Edit to
+            update their name, employee ID, email or role.
           </p>
         </div>
       </div>
@@ -559,7 +431,7 @@ function PasswordManagement() {
                         className="pwd-mgmt-edit-btn"
                         onClick={() => openEditUser(user)}
                         disabled={editLoadingId === user.id}
-                        title="Edit this user's full details"
+                        title="Edit name, employee ID, email and role"
                       >
                         <FaEdit />
                         {editLoadingId === user.id ? "Loading..." : "Edit"}
@@ -567,45 +439,13 @@ function PasswordManagement() {
 
                       <button
                         type="button"
-                        className="pwd-mgmt-update-btn"
-                        onClick={() => openModal(user)}
+                        className="pwd-mgmt-delete-btn"
+                        onClick={() => requestDeleteUser(user)}
+                        disabled={deleteBusyId === user.id}
                       >
-                        Update Password
+                        <FaTrash />
+                        {deleteBusyId === user.id ? "Deleting..." : "Delete"}
                       </button>
-
-                      {canManageSuperAdmin && user.isAdmin && (
-                        <button
-                          type="button"
-                          className={`pwd-mgmt-super-btn ${
-                            user.isSuperAdmin ? "revoke" : "grant"
-                          }`}
-                          onClick={() => toggleSuperAdmin(user)}
-                          disabled={superAdminBusyId === user.id}
-                        >
-                          {user.isSuperAdmin
-                            ? "Revoke Super Admin"
-                            : "Make Super Admin"}
-                        </button>
-                      )}
-
-                      {isProtectedUser(user) ? (
-                        <span
-                          className="pwd-mgmt-protected-badge"
-                          title="Administrator and Super Admin accounts cannot be deleted."
-                        >
-                          Protected
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="pwd-mgmt-delete-btn"
-                          onClick={() => deleteUser(user)}
-                          disabled={deleteBusyId === user.id}
-                        >
-                          <FaTrash />
-                          {deleteBusyId === user.id ? "Deleting..." : "Delete"}
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -616,107 +456,49 @@ function PasswordManagement() {
       </div>
 
       {/* ================================================================
-          UPDATE PASSWORD MODAL
+          DELETE USER CONFIRM MODAL
+
+          Same style as the "Delete All" confirm modal below (and the
+          Attendance Reports delete confirm) — a warning with Cancel and
+          Delete, instead of the browser's native window.confirm().
       ================================================================ */}
 
-      {modalUser && (
-        <div className="pwd-mgmt-modal-overlay" onMouseDown={closeModal}>
+      {deleteTarget && (
+        <div
+          className="pwd-mgmt-confirm-overlay"
+          onMouseDown={cancelDeleteUser}
+        >
           <div
-            className="pwd-mgmt-modal"
+            className="pwd-mgmt-confirm-modal"
             role="dialog"
             aria-modal="true"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="pwd-mgmt-modal-header">
-              <div>
-                <h3>Update Password</h3>
-                <p>
-                  {modalUser.name} &middot; {modalUser.email}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="pwd-mgmt-modal-close"
-                onClick={closeModal}
-                disabled={saving}
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            {modalError && (
-              <div className="pwd-mgmt-modal-error">{modalError}</div>
-            )}
-
-            <div className="pwd-mgmt-modal-field">
-              <label>New Password</label>
-              <div className="pwd-mgmt-modal-input-wrap">
-                <input
-                  type={showNewPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="8-10 characters"
-                  disabled={saving}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  disabled={saving}
-                >
-                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            </div>
-
-            <div className="pwd-mgmt-modal-field">
-              <label>Confirm Password</label>
-              <div className="pwd-mgmt-modal-input-wrap">
-                <input
-                  type={showNewPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  disabled={saving}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="pwd-mgmt-generate-btn"
-              onClick={handleGenerate}
-              disabled={saving}
-            >
-              <FaSyncAlt /> Generate Strong Password
-            </button>
-
-            <p className="pwd-mgmt-modal-hint">
-              Must be 8-10 characters with at least one uppercase letter,
-              one lowercase letter, one number and one special character.
-              The new password will be emailed to {modalUser.email}{" "}
-              automatically.
+            <h2>Delete User</h2>
+            <p>
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong>
+              {deleteTarget.email ? ` (${deleteTarget.email})` : ""}? The
+              user&rsquo;s details will be permanently deleted. This cannot
+              be undone.
             </p>
 
-            <div className="pwd-mgmt-modal-footer">
+            <div className="pwd-mgmt-confirm-buttons">
               <button
                 type="button"
-                className="pwd-mgmt-cancel-btn"
-                onClick={closeModal}
-                disabled={saving}
+                className="pwd-mgmt-confirm-cancel-btn"
+                onClick={cancelDeleteUser}
+                disabled={deleteBusyId === deleteTarget.id}
               >
                 Cancel
               </button>
 
               <button
                 type="button"
-                className="pwd-mgmt-save-btn"
-                onClick={submitPasswordUpdate}
-                disabled={saving}
+                className="pwd-mgmt-confirm-delete-btn"
+                onClick={confirmDeleteUser}
+                disabled={deleteBusyId === deleteTarget.id}
               >
-                {saving ? "Saving..." : "Save & Send to User"}
+                {deleteBusyId === deleteTarget.id ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
@@ -769,14 +551,15 @@ function PasswordManagement() {
       )}
 
       {/* ================================================================
-          EDIT USER MODAL (full record — same form the Users page uses)
+          EDIT USER MODAL (compact: name, employee ID, email, role)
       ================================================================ */}
 
       {editingUser && (
-        <AddUserModal
-          editingUser={editingUser}
+        <EditVaultUserModal
+          user={editingUser}
+          canManageSuperAdmin={canManageSuperAdmin}
           onClose={() => setEditingUser(null)}
-          fetchUsers={fetchVault}
+          onSaved={fetchVault}
         />
       )}
     </div>

@@ -42,10 +42,13 @@ import "../styles/ChecklistReports.css";
 //
 // This page builds its own CSV/XLSX/PDF export (instead of the shared
 // utils/exportUtils.js helper used elsewhere) because the export needs
-// two things that helper doesn't support: a clickable "View" hyperlink
-// in the Check-in/Check-out Photo columns (CSV/XLSX) and the actual
-// photo image embedded in the PDF. Using the same libraries directly
-// keeps this change scoped to Attendance Reports only.
+// something that helper doesn't support: the actual Check-in/Check-out
+// Photo embedded directly into the Check-in/Check-out Photo columns
+// for XLSX and PDF, so opening either file shows the real, whole photo
+// immediately — no click, no login. CSV can only ever be plain text,
+// so its Photo columns instead get a clickable "View" hyperlink back
+// into this page. Using the same libraries directly keeps this change
+// scoped to Attendance Reports only.
 
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -198,7 +201,69 @@ function exportAttendanceCSV(records) {
     saveAs(blob, "AttendanceReports.csv");
 }
 
+// Decodes a fetched attendance photo (upload accepts JPG, PNG or WEBP —
+// see the filter in routes/attendanceRoutes.js) through a <canvas> and
+// re-encodes it as PNG, returning the PNG data URL plus its real pixel
+// dimensions. Two reasons this step exists:
+//   1. ExcelJS's embedded-image support only accepts jpeg/png/gif — a
+//      WEBP photo would otherwise fail to embed (or corrupt the file).
+//      Every browser that can display an <img> can decode WEBP, so
+//      drawing it to a canvas and re-exporting as PNG normalizes any
+//      accepted format into one ExcelJS always understands.
+//   2. It gives the photo's true width/height, so it can be scaled
+//      into the sheet proportionally — the whole photo, never
+//      stretched or cropped — instead of guessing a fixed box.
+function loadImageElement(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Unable to decode attendance photo."));
+        img.src = dataUrl;
+    });
+}
+
+async function toEmbeddablePhoto(dataUrl) {
+    const img = await loadImageElement(dataUrl);
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+
+    if (!width || !height) {
+        throw new Error("Attendance photo has no usable dimensions.");
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+    return {
+        pngDataUrl: canvas.toDataURL("image/png"),
+        width,
+        height,
+    };
+}
+
+// The box every embedded photo is scaled to fit *inside* (preserving
+// its aspect ratio) — the full photo is always shown, just scaled
+// down like the in-app photo preview does, never cropped or stretched.
+const XLSX_PHOTO_BOX_WIDTH = 160;
+const XLSX_PHOTO_BOX_HEIGHT = 120;
+
+// Same clickable deep link the CSV export uses, kept here only as a
+// fallback for a photo that couldn't be fetched/decoded for embedding
+// — so there is still some way to see it even if embedding failed.
+function setPhotoLinkFallback(cell, id, type) {
+    cell.value = { text: "View", hyperlink: buildPhotoViewUrl(id, type) };
+    cell.font = { color: { argb: "FF1155CC" }, underline: true };
+}
+
 async function exportAttendanceXLSX(records) {
+    // Unlike the CSV export (plain text — it can only ever link back to
+    // the app), the actual photo is embedded directly into the sheet
+    // below, so opening the file shows the real photo immediately, with
+    // no click and no login required.
+    const photoMap = await fetchAttendancePhotosForExport(records);
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Attendance Reports");
 
@@ -209,29 +274,84 @@ async function exportAttendanceXLSX(records) {
         cell.alignment = { vertical: "middle", horizontal: "left" };
     });
 
-    records.forEach((r) => {
+    const checkInCol = ATTENDANCE_EXPORT_HEADERS.length - 1;
+    const checkOutCol = ATTENDANCE_EXPORT_HEADERS.length;
+
+    for (const r of records) {
         const base = buildAttendanceExportBaseRow(r);
         const row = worksheet.addRow([...base, "-", "-"]);
 
-        const checkInCol = base.length + 1;
-        const checkOutCol = base.length + 2;
+        let tallestPhotoPx = 0;
 
-        if (r.check_in_photo) {
-            const cell = row.getCell(checkInCol);
-            cell.value = { text: "View", hyperlink: buildPhotoViewUrl(r.id, "check-in") };
-            cell.font = { color: { argb: "FF1155CC" }, underline: true };
+        for (const { hasPhoto, type, col } of [
+            { hasPhoto: r.check_in_photo, type: "check-in", col: checkInCol },
+            { hasPhoto: r.check_out_photo, type: "check-out", col: checkOutCol },
+        ]) {
+            const cell = row.getCell(col);
+
+            if (!hasPhoto) {
+                cell.value = "-";
+                continue;
+            }
+
+            const dataUrl = photoMap[`${r.id}:${type}`];
+
+            if (!dataUrl) {
+                setPhotoLinkFallback(cell, r.id, type);
+                continue;
+            }
+
+            try {
+                const { pngDataUrl, width, height } = await toEmbeddablePhoto(dataUrl);
+
+                const scale = Math.min(
+                    XLSX_PHOTO_BOX_WIDTH / width,
+                    XLSX_PHOTO_BOX_HEIGHT / height,
+                    1
+                );
+
+                const dispWidth = Math.max(1, Math.round(width * scale));
+                const dispHeight = Math.max(1, Math.round(height * scale));
+
+                tallestPhotoPx = Math.max(tallestPhotoPx, dispHeight);
+
+                // The image sits on top of the cell — clear any text.
+                cell.value = "";
+
+                const imageId = workbook.addImage({
+                    base64: pngDataUrl,
+                    extension: "png",
+                });
+
+                worksheet.addImage(imageId, {
+                    tl: { col: col - 1, row: row.number - 1 },
+                    ext: { width: dispWidth, height: dispHeight },
+                    editAs: "oneCell",
+                });
+            } catch (err) {
+                console.error("Attendance photo embed error:", err);
+                setPhotoLinkFallback(cell, r.id, type);
+            }
         }
 
-        if (r.check_out_photo) {
-            const cell = row.getCell(checkOutCol);
-            cell.value = { text: "View", hyperlink: buildPhotoViewUrl(r.id, "check-out") };
-            cell.font = { color: { argb: "FF1155CC" }, underline: true };
+        if (tallestPhotoPx > 0) {
+            // px -> points (96dpi screen pixels to Excel's 72dpi points),
+            // plus a little breathing room above/below the photo.
+            row.height = Math.max(row.height || 15, tallestPhotoPx * 0.75 + 8);
         }
-    });
+    }
 
     const columnCount = ATTENDANCE_EXPORT_HEADERS.length;
     for (let i = 1; i <= columnCount; i += 1) {
         const column = worksheet.getColumn(i);
+
+        if (i === checkInCol || i === checkOutCol) {
+            // Wide enough for the photo box itself, regardless of what
+            // the "-"/fallback "View" text would otherwise autosize to.
+            column.width = Math.max(column.width || 0, XLSX_PHOTO_BOX_WIDTH / 7 + 1);
+            continue;
+        }
+
         let maxLength = 10;
         column.eachCell({ includeEmpty: true }, (cell) => {
             const raw =
@@ -253,8 +373,9 @@ async function exportAttendanceXLSX(records) {
 
 // Fetches every photo referenced by `records` as a base64 data URL, a
 // few at a time (kept low so a big export doesn't hammer the server or
-// the browser at once), for embedding into the PDF export. A photo
-// that fails to load is simply omitted rather than aborting the export.
+// the browser at once), for embedding into the XLSX and PDF exports.
+// A photo that fails to load is simply omitted (that row falls back
+// to the "View" link in XLSX) rather than aborting the whole export.
 async function fetchAttendancePhotosForExport(records) {
     const CONCURRENCY = 4;
     const tasks = [];
@@ -761,12 +882,16 @@ function AttendanceReports() {
     // EXPORT (CSV / XLSX / PDF)
     // ======================================================
     //
-    // Check-in/Check-out Photo columns are included: CSV/XLSX get a
-    // clickable "View" link back into this page (which auto-opens the
-    // photo, see the "viewPhoto" deep-link effect above); PDF embeds
-    // the actual photo image, since a PDF export can't do an interactive
-    // login step the way a browser tab can. See the export builder
-    // functions above the component for the actual file building.
+    // Check-in/Check-out Photo columns are included: XLSX and PDF both
+    // embed the actual photo image directly (see toEmbeddablePhoto /
+    // exportAttendancePDF above), so opening either file shows the real
+    // photo immediately — no click, no login. CSV is plain text and
+    // can't embed an image at all, so it still gets a clickable "View"
+    // link back into this page (which auto-opens the photo, see the
+    // "viewPhoto" deep-link effect above) — that's the one export
+    // format where the photo can't travel with the file itself. See
+    // the export builder functions above the component for the actual
+    // file building.
     // ======================================================
 
     const handleExport = async (format = "csv") => {
