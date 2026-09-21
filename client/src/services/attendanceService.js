@@ -230,6 +230,47 @@ export const getAttendancePhotoAccess = async (attendanceId, photoType) => {
     return URL.createObjectURL(response.data);
 };
 
+// ======================================================
+// ATTENDANCE PHOTO AS BASE64 DATA URL
+// ======================================================
+//
+// Same protected endpoint as getAttendancePhotoAccess, but returns a
+// base64 data: URL instead of a blob object URL. A data URL (unlike an
+// object URL) can be embedded directly into a generated file — used by
+// the Attendance Reports PDF export to draw the actual photo into the
+// exported PDF. Returns null instead of throwing so a single missing/
+// failed photo doesn't abort a bulk export.
+//
+export const getAttendancePhotoDataUrl = async (attendanceId, photoType) => {
+    if (!attendanceId || !["check-in", "check-out"].includes(photoType)) {
+        return null;
+    }
+
+    try {
+        const response = await axios.get(
+            `${BASE_URL}/photo/${attendanceId}/${photoType}`,
+            {
+                ...getAuthConfig(),
+                responseType: "blob",
+            }
+        );
+
+        if (!response.data || response.data.size === 0) {
+            return null;
+        }
+
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Unable to read attendance photo."));
+            reader.readAsDataURL(response.data);
+        });
+    } catch (err) {
+        console.error("Attendance photo data URL error:", err);
+        return null;
+    }
+};
+
 export const getAttendancePhotoDetails = (attendanceId, photoType) =>
     axios
         .get(

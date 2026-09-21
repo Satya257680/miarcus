@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 
 // ======================================================
@@ -35,7 +35,22 @@ import {
 // the rest of the app without duplicating a stylesheet.
 
 import "../styles/ChecklistReports.css";
-import { exportTableData } from "../utils/exportUtils.js";
+
+// ======================================================
+// EXPORT LIBRARIES
+// ======================================================
+//
+// This page builds its own CSV/XLSX/PDF export (instead of the shared
+// utils/exportUtils.js helper used elsewhere) because the export needs
+// two things that helper doesn't support: a clickable "View" hyperlink
+// in the Check-in/Check-out Photo columns (CSV/XLSX) and the actual
+// photo image embedded in the PDF. Using the same libraries directly
+// keeps this change scoped to Attendance Reports only.
+
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 
 // ======================================================
@@ -60,8 +75,271 @@ import {
     deleteAttendanceRecord,
     deleteAllAttendance,
     getAttendancePhotoAccess,
-    downloadAttendancePhoto
+    downloadAttendancePhoto,
+    getAttendancePhotoDataUrl
 } from "../services/attendanceService.js";
+
+
+// ======================================================
+// FORMAT HELPERS
+// ======================================================
+//
+// Module-level (not inside the component) so the export builders below
+// can reuse them without needing to be defined inside the component.
+// ======================================================
+
+const formatDateTime = (value) => {
+    if (!value) return "-";
+    // Backend already formats as 'YYYY-MM-DD HH:mm:ss' (Asia/Kolkata) —
+    // treat it as local rather than routing it through `new Date()`
+    // (which would otherwise interpret it as UTC and shift the time).
+    const [datePart, timePart] = String(value).split(" ");
+    if (!datePart) return "-";
+    const [y, m, d] = datePart.split("-");
+    return `${d}/${m}/${y}${timePart ? `, ${timePart}` : ""}`;
+};
+
+const formatDateOnly = (value) => {
+    if (!value) return "-";
+    const [y, m, d] = String(value).split("-");
+    if (!y || !m || !d) return String(value);
+    return `${d}/${m}/${y}`;
+};
+
+const formatTimeOnly = (value) => {
+    if (!value) return "-";
+    const timePart = String(value).split(" ")[1];
+    return timePart || "-";
+};
+
+// Day-of-week name (e.g. "Monday") for a 'YYYY-MM-DD' or
+// 'YYYY-MM-DD HH:mm:ss' value. Uses the plain y/m/d components (not
+// `new Date(value)`, which would parse it as UTC and can shift the
+// weekday by a day near midnight).
+const formatDayName = (value) => {
+    if (!value) return "-";
+    const datePart = String(value).split(" ")[0];
+    const [y, m, d] = datePart.split("-").map(Number);
+    if (!y || !m || !d) return "-";
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", { weekday: "long" });
+};
+
+// A link back into this same report page that auto-opens the photo
+// preview modal for one record (see the "viewPhoto" deep-link effect
+// inside the component). The actual photo is served from an
+// authenticated endpoint, so a direct file URL would not open outside
+// a logged-in session — this link instead reuses the app's own login,
+// exactly like clicking "View" in the table does.
+const buildPhotoViewUrl = (id, type) =>
+    `${window.location.origin}${window.location.pathname}?viewPhoto=${id}:${type}`;
+
+// ======================================================
+// EXPORT: CSV / XLSX / PDF
+// ======================================================
+
+const ATTENDANCE_EXPORT_HEADERS = [
+    "Work Date", "Day", "Status", "Employee", "Employee ID", "Department",
+    "Designation", "Store", "Check-in At", "Check-in Latitude", "Check-in Longitude",
+    "Check-out At", "Check-out Latitude", "Check-out Longitude",
+    "Check-in Remarks", "Check-out Remarks", "Check-in Photo", "Check-out Photo"
+];
+
+const buildAttendanceExportBaseRow = (r) => [
+    formatDateOnly(r.work_date),
+    formatDayName(r.work_date),
+    r.status || "Present",
+    r.name || "-",
+    r.employee_id || "-",
+    r.department || "-",
+    r.designation || "-",
+    r.store_name || "-",
+    formatDateTime(r.check_in_at),
+    r.check_in_latitude ?? "-",
+    r.check_in_longitude ?? "-",
+    formatDateTime(r.check_out_at),
+    r.check_out_latitude ?? "-",
+    r.check_out_longitude ?? "-",
+    r.check_in_remarks || "-",
+    r.check_out_remarks || "-"
+];
+
+function csvEscape(value) {
+    const str = value === null || value === undefined ? "" : String(value);
+    if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
+function exportAttendanceCSV(records) {
+    const lines = [ATTENDANCE_EXPORT_HEADERS.map(csvEscape).join(",")];
+
+    records.forEach((r) => {
+        const base = buildAttendanceExportBaseRow(r);
+
+        // Excel (and most spreadsheet apps) evaluate a cell that starts
+        // with "=" in an opened CSV as a formula, so =HYPERLINK(...)
+        // renders as a clickable "View" link — this is intentional here
+        // since the URL is entirely our own, not user-supplied input.
+        const checkInCell = r.check_in_photo
+            ? `=HYPERLINK("${buildPhotoViewUrl(r.id, "check-in")}","View")`
+            : "-";
+        const checkOutCell = r.check_out_photo
+            ? `=HYPERLINK("${buildPhotoViewUrl(r.id, "check-out")}","View")`
+            : "-";
+
+        lines.push([...base, checkInCell, checkOutCell].map(csvEscape).join(","));
+    });
+
+    const csvContent = lines.join("\r\n");
+    const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "AttendanceReports.csv");
+}
+
+async function exportAttendanceXLSX(records) {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Attendance Reports");
+
+    const headerRow = worksheet.addRow(ATTENDANCE_EXPORT_HEADERS);
+    headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF356D84" } };
+        cell.alignment = { vertical: "middle", horizontal: "left" };
+    });
+
+    records.forEach((r) => {
+        const base = buildAttendanceExportBaseRow(r);
+        const row = worksheet.addRow([...base, "-", "-"]);
+
+        const checkInCol = base.length + 1;
+        const checkOutCol = base.length + 2;
+
+        if (r.check_in_photo) {
+            const cell = row.getCell(checkInCol);
+            cell.value = { text: "View", hyperlink: buildPhotoViewUrl(r.id, "check-in") };
+            cell.font = { color: { argb: "FF1155CC" }, underline: true };
+        }
+
+        if (r.check_out_photo) {
+            const cell = row.getCell(checkOutCol);
+            cell.value = { text: "View", hyperlink: buildPhotoViewUrl(r.id, "check-out") };
+            cell.font = { color: { argb: "FF1155CC" }, underline: true };
+        }
+    });
+
+    const columnCount = ATTENDANCE_EXPORT_HEADERS.length;
+    for (let i = 1; i <= columnCount; i += 1) {
+        const column = worksheet.getColumn(i);
+        let maxLength = 10;
+        column.eachCell({ includeEmpty: true }, (cell) => {
+            const raw =
+                cell.value && typeof cell.value === "object" && "text" in cell.value
+                    ? cell.value.text
+                    : cell.value;
+            const len = raw === null || raw === undefined ? 0 : String(raw).length;
+            if (len > maxLength) maxLength = len;
+        });
+        column.width = Math.min(maxLength + 2, 45);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, "AttendanceReports.xlsx");
+}
+
+// Fetches every photo referenced by `records` as a base64 data URL, a
+// few at a time (kept low so a big export doesn't hammer the server or
+// the browser at once), for embedding into the PDF export. A photo
+// that fails to load is simply omitted rather than aborting the export.
+async function fetchAttendancePhotosForExport(records) {
+    const CONCURRENCY = 4;
+    const tasks = [];
+
+    records.forEach((r) => {
+        if (r.check_in_photo) tasks.push({ id: r.id, type: "check-in" });
+        if (r.check_out_photo) tasks.push({ id: r.id, type: "check-out" });
+    });
+
+    const results = {};
+
+    for (let start = 0; start < tasks.length; start += CONCURRENCY) {
+        const batch = tasks.slice(start, start + CONCURRENCY);
+        const batchResults = await Promise.all(
+            batch.map(async (task) => ({
+                key: `${task.id}:${task.type}`,
+                dataUrl: await getAttendancePhotoDataUrl(task.id, task.type),
+            }))
+        );
+        batchResults.forEach(({ key, dataUrl }) => {
+            if (dataUrl) results[key] = dataUrl;
+        });
+    }
+
+    return results;
+}
+
+async function exportAttendancePDF(records) {
+    const photoMap = await fetchAttendancePhotosForExport(records);
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+    doc.setFontSize(13);
+    doc.setTextColor(30, 30, 30);
+    doc.text("Attendance Reports", 30, 40);
+
+    const headers = ATTENDANCE_EXPORT_HEADERS;
+    const photoColStart = headers.length - 2; // Check-in Photo, Check-out Photo
+    const body = records.map((r) => [...buildAttendanceExportBaseRow(r), "", ""]);
+
+    autoTable(doc, {
+        head: [headers],
+        body,
+        startY: 56,
+        styles: { fontSize: 7, cellPadding: 4, overflow: "linebreak", minCellHeight: 46 },
+        headStyles: { fillColor: [53, 109, 132], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 247, 249] },
+        margin: { left: 24, right: 24 },
+        columnStyles: {
+            [photoColStart]: { cellWidth: 50 },
+            [photoColStart + 1]: { cellWidth: 50 },
+        },
+        didDrawCell: (data) => {
+            if (data.section !== "body") return;
+            if (data.column.index !== photoColStart && data.column.index !== photoColStart + 1) return;
+
+            const record = records[data.row.index];
+            if (!record) return;
+
+            const type = data.column.index === photoColStart ? "check-in" : "check-out";
+            const dataUrl = photoMap[`${record.id}:${type}`];
+            if (!dataUrl) return;
+
+            const formatMatch = /^data:image\/(\w+);base64,/i.exec(dataUrl);
+            const imgFormat = formatMatch ? formatMatch[1].toUpperCase() : "JPEG";
+
+            const padding = 3;
+            const imgSize = Math.min(data.cell.height - padding * 2, data.cell.width - padding * 2);
+
+            try {
+                doc.addImage(
+                    dataUrl,
+                    imgFormat,
+                    data.cell.x + (data.cell.width - imgSize) / 2,
+                    data.cell.y + (data.cell.height - imgSize) / 2,
+                    imgSize,
+                    imgSize
+                );
+            } catch (err) {
+                console.error("Unable to draw attendance photo in PDF:", err);
+            }
+        },
+    });
+
+    doc.save("AttendanceReports.pdf");
+}
 
 
 // ======================================================
@@ -132,7 +410,19 @@ function AttendanceReports() {
 
     const [deleteId, setDeleteId] = useState(null);
 
-    const [photoPreview, setPhotoPreview] = useState({ loading: false, url: "", type: "" });
+    // `record` holds the full attendance row the photo belongs to, so the
+    // photo modal's date/time/day/location caption works whether it was
+    // opened from the table's "View" link, the detail modal, or a
+    // "viewPhoto" deep link from an export — none of which can rely on
+    // `selectedRecord` alone (only the detail modal sets that).
+    const [photoPreview, setPhotoPreview] = useState({ loading: false, url: "", type: "", record: null });
+
+    const [isExporting, setIsExporting] = useState(false);
+
+    // Guards the "viewPhoto" deep-link effect (used by exported
+    // CSV/XLSX "View" links) so it only auto-opens the photo once per
+    // page load, not every time `records` refreshes in the background.
+    const viewPhotoHandledRef = useRef(false);
 
     // ======================================================
     // RBAC
@@ -306,15 +596,15 @@ function AttendanceReports() {
         const hasPhoto = type === "check-in" ? row.check_in_photo : row.check_out_photo;
         if (!hasPhoto) return;
 
-        setPhotoPreview({ loading: true, url: "", type });
+        setPhotoPreview({ loading: true, url: "", type, record: row });
 
         try {
             const url = await getAttendancePhotoAccess(row.id, type);
-            setPhotoPreview({ loading: false, url, type });
+            setPhotoPreview({ loading: false, url, type, record: row });
         } catch (err) {
             console.error(err);
             alert("Unable to load attendance photo.");
-            setPhotoPreview({ loading: false, url: "", type: "" });
+            setPhotoPreview({ loading: false, url: "", type: "", record: null });
         }
 
     };
@@ -323,8 +613,49 @@ function AttendanceReports() {
         if (photoPreview.url) {
             URL.revokeObjectURL(photoPreview.url);
         }
-        setPhotoPreview({ loading: false, url: "", type: "" });
+        setPhotoPreview({ loading: false, url: "", type: "", record: null });
     };
+
+    // ======================================================
+    // "VIEW PHOTO" DEEP LINK
+    // ======================================================
+    //
+    // The Check-in/Check-out Photo "View" links in the exported CSV/XLSX
+    // point back at this page with a `?viewPhoto=<id>:<type>` query
+    // string. When this page loads with that param (and the person is
+    // already logged in, same as any other page here), find the
+    // matching record and open its photo automatically, then clean the
+    // param off the URL so refreshing/sharing the link again doesn't
+    // reopen it.
+    // ======================================================
+
+    useEffect(() => {
+        if (viewPhotoHandledRef.current) return;
+        if (!records.length) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const viewPhoto = params.get("viewPhoto");
+        if (!viewPhoto) return;
+
+        viewPhotoHandledRef.current = true;
+
+        const [idPart, typePart] = viewPhoto.split(":");
+        const targetId = Number(idPart);
+        const targetType = typePart === "check-out" ? "check-out" : "check-in";
+
+        const match = records.find((r) => Number(r.id) === targetId);
+        if (match) {
+            handleViewPhoto(match, targetType);
+        } else {
+            alert("That attendance photo could not be found — it may have been deleted.");
+        }
+
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("viewPhoto");
+        window.history.replaceState({}, "", cleanUrl.toString());
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [records]);
 
     const handleDownloadPhoto = async (row, type) => {
         try {
@@ -392,7 +723,15 @@ function AttendanceReports() {
     };
 
     // ======================================================
-    // EXPORT CSV
+    // EXPORT (CSV / XLSX / PDF)
+    // ======================================================
+    //
+    // Check-in/Check-out Photo columns are included: CSV/XLSX get a
+    // clickable "View" link back into this page (which auto-opens the
+    // photo, see the "viewPhoto" deep-link effect above); PDF embeds
+    // the actual photo image, since a PDF export can't do an interactive
+    // login step the way a browser tab can. See the export builder
+    // functions above the component for the actual file building.
     // ======================================================
 
     const handleExport = async (format = "csv") => {
@@ -402,31 +741,22 @@ function AttendanceReports() {
             return;
         }
 
-        const rows = filteredRecords.map((r) => ({
-            "Work Date": formatDateOnly(r.work_date),
-            Status: r.status,
-            Employee: r.name,
-            "Employee ID": r.employee_id || "-",
-            Department: r.department || "-",
-            Designation: r.designation || "-",
-            Store: r.store_name || "-",
-            "Check-in At": formatDateTime(r.check_in_at),
-            "Check-in Latitude": r.check_in_latitude ?? "-",
-            "Check-in Longitude": r.check_in_longitude ?? "-",
-            "Check-out At": formatDateTime(r.check_out_at),
-            "Check-out Latitude": r.check_out_latitude ?? "-",
-            "Check-out Longitude": r.check_out_longitude ?? "-",
-            "Check-in Remarks": r.check_in_remarks || "-",
-            "Check-out Remarks": r.check_out_remarks || "-"
-        }));
+        setIsExporting(true);
 
-        await exportTableData({
-            headers: Object.keys(rows[0]),
-            rows: rows.map((row) => Object.values(row)),
-            filename: "AttendanceReports",
-            format,
-            title: "Attendance Reports",
-        });
+        try {
+            if (format === "pdf") {
+                await exportAttendancePDF(filteredRecords);
+            } else if (format === "xlsx") {
+                await exportAttendanceXLSX(filteredRecords);
+            } else {
+                exportAttendanceCSV(filteredRecords);
+            }
+        } catch (err) {
+            console.error("Attendance export error:", err);
+            alert("Unable to export attendance report. Please try again.");
+        } finally {
+            setIsExporting(false);
+        }
 
     };
 
@@ -485,28 +815,6 @@ function AttendanceReports() {
         const pages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
         if (currentPage > pages) setCurrentPage(pages);
     }, [filteredRecords.length, pageSize, currentPage]);
-
-    // ======================================================
-    // FORMAT HELPERS
-    // ======================================================
-
-    const formatDateTime = (value) => {
-        if (!value) return "-";
-        // Backend already formats as 'YYYY-MM-DD HH:mm:ss' (Asia/Kolkata) —
-        // treat it as local rather than routing it through `new Date()`
-        // (which would otherwise interpret it as UTC and shift the time).
-        const [datePart, timePart] = String(value).split(" ");
-        if (!datePart) return "-";
-        const [y, m, d] = datePart.split("-");
-        return `${d}/${m}/${y}${timePart ? `, ${timePart}` : ""}`;
-    };
-
-    const formatDateOnly = (value) => {
-        if (!value) return "-";
-        const [y, m, d] = String(value).split("-");
-        if (!y || !m || !d) return String(value);
-        return `${d}/${m}/${y}`;
-    };
 
     // ======================================================
     // ACCESS DENIED
@@ -738,6 +1046,7 @@ function AttendanceReports() {
                 showAdd={false}
                 showExport={canView}
                 onExport={handleExport}
+                exportLoading={isExporting}
                 showBulkUpload={false}
                 showDeleteAll={canDelete}
                 onDeleteAll={handleDeleteAll}
@@ -1021,6 +1330,60 @@ function AttendanceReports() {
                                 <p>Loading photo...</p>
                             ) : (
                                 <>
+                                    {photoPreview.record && (() => {
+                                        const isCheckIn = photoPreview.type === "check-in";
+                                        const lat = isCheckIn
+                                            ? photoPreview.record.check_in_latitude
+                                            : photoPreview.record.check_out_latitude;
+                                        const lng = isCheckIn
+                                            ? photoPreview.record.check_in_longitude
+                                            : photoPreview.record.check_out_longitude;
+                                        const timestamp = isCheckIn
+                                            ? photoPreview.record.check_in_at
+                                            : photoPreview.record.check_out_at;
+
+                                        return (
+                                            <div
+                                                className="photo-meta"
+                                                style={{
+                                                    textAlign: "left",
+                                                    background: "#f5f7f9",
+                                                    borderRadius: "8px",
+                                                    padding: "0.75rem 1rem",
+                                                    marginBottom: "1rem",
+                                                    fontSize: "0.9rem",
+                                                    lineHeight: 1.7
+                                                }}
+                                            >
+                                                <p style={{ margin: 0 }}>
+                                                    <strong>Date:</strong>{" "}
+                                                    {formatDateOnly(photoPreview.record.work_date)}
+                                                    {"  ·  "}
+                                                    <strong>Day:</strong>{" "}
+                                                    {formatDayName(photoPreview.record.work_date)}
+                                                </p>
+                                                <p style={{ margin: 0 }}>
+                                                    <strong>Time:</strong> {formatTimeOnly(timestamp)}
+                                                </p>
+                                                <p style={{ margin: 0 }}>
+                                                    <strong>Location:</strong>{" "}
+                                                    {lat && lng ? (
+                                                        <a
+                                                            href={`https://www.google.com/maps?q=${lat},${lng}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="map-link"
+                                                        >
+                                                            <FaMapMarkerAlt />{" "}
+                                                            {photoPreview.record.store_name || "View on Map"}
+                                                        </a>
+                                                    ) : (
+                                                        photoPreview.record.store_name || "Not Available"
+                                                    )}
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
                                     <img
                                         src={photoPreview.url}
                                         alt="Attendance"
@@ -1031,8 +1394,8 @@ function AttendanceReports() {
                                             type="button"
                                             className="upload-btn"
                                             onClick={() =>
-                                                selectedRecord &&
-                                                handleDownloadPhoto(selectedRecord, photoPreview.type)
+                                                photoPreview.record &&
+                                                handleDownloadPhoto(photoPreview.record, photoPreview.type)
                                             }
                                         >
                                             <FaDownload /> Download

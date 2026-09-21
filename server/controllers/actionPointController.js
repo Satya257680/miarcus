@@ -231,6 +231,42 @@ exports.exportActionPointsCSV = async (req, res) => {
 
         const rows = await actionPointService.exportData(filters);
 
+        // "sla days required, if overdue then wrote as overdue" — the raw
+        // sla_days column alone doesn't say whether a row is actually
+        // overdue right now, so compute the same OVERDUE state the live
+        // Action Points table already shows (client/src/pages/
+        // ActionPoints.jsx's getSlaMeta: deadline = created_at +
+        // sla_minutes, overdue once that deadline has passed and the
+        // row isn't Closed) and write that into the exported SLA Days
+        // column instead of a bare number.
+        const nowMs = Date.now();
+
+        const exportRows = (rows || []).map((row) => {
+            const status = String(row.status || "").toLowerCase();
+            const rawDays = row.sla_days;
+            const hasDays = rawDays !== null && rawDays !== undefined && rawDays !== "";
+
+            let slaDisplay = hasDays ? String(rawDays) : "-";
+
+            if (status !== "closed") {
+                let totalMinutes = Number(row.sla_minutes) || 0;
+                if (!totalMinutes && hasDays) {
+                    totalMinutes = Number(rawDays) * 24 * 60;
+                }
+
+                if (totalMinutes > 0 && row.created_at) {
+                    const createdAt = new Date(row.created_at).getTime();
+                    if (Number.isFinite(createdAt) && createdAt + totalMinutes * 60 * 1000 <= nowMs) {
+                        slaDisplay = hasDays
+                            ? `Overdue (${rawDays} day${Number(rawDays) === 1 ? "" : "s"})`
+                            : "Overdue";
+                    }
+                }
+            }
+
+            return { ...row, sla_days: slaDisplay };
+        });
+
         const parser = new Parser({
             fields: [
                 "id",
@@ -254,7 +290,7 @@ exports.exportActionPointsCSV = async (req, res) => {
             ]
         });
 
-        const csv = parser.parse(rows || []);
+        const csv = parser.parse(exportRows);
 
         const Activity = require("../models/activityModel");
         const Audit = require("../models/auditModel");
@@ -376,10 +412,16 @@ exports.bulkUploadActionPoints = async (req, res) => {
         const errors = [];
         const warnings = [...parseWarnings];
 
-        for (let index = 0; index < rows.length; index += 1) {
+        // Process rows in small concurrent batches instead of one at a
+        // time — a large file (hundreds/thousands of rows) processed
+        // fully sequentially could take long enough to time out or feel
+        // "stuck", which is the same class of bulk-upload reliability
+        // issue already fixed for Checklist Reports. Kept below the
+        // MySQL pool's connectionLimit (10, see config/db.js) so a big
+        // batch never exhausts every pooled connection at once.
+        const BULK_UPLOAD_CONCURRENCY = 5;
 
-            const row = rows[index];
-            const rowNumber = index + 2;
+        const processRow = async (row, rowNumber) => {
 
             try {
 
@@ -406,7 +448,13 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         "Employee": row["Assigned To"],
                         "Department": row["Department"],
                         "Question": row["Question"],
-                        "Answer": row["Answer"] || row["Remarks"],
+                        // BUG FIX: this used to fall back to
+                        // row["Remarks"] whenever Answer was blank, which
+                        // made the Answer column show the same free-text
+                        // Remarks/comment instead of "not filled" — the
+                        // Answer should reflect only what the file's own
+                        // Answer column actually says.
+                        "Answer": row["Answer"],
                         "Remarks": row["Remarks"],
                         "Submission Date": row["Submission Date"],
                         "Actual Submission Time": row["Actual Submission Time"],
@@ -443,7 +491,16 @@ exports.bulkUploadActionPoints = async (req, res) => {
                     department_id: departmentId,
                     assigned_to: assignedToUserId,
                     priority: row["Priority"] || "Medium",
-                    sla_days: toSafeInt(row["SLA Days"], 0),
+                    // BUG FIX: this used to default to 0 (a real,
+                    // defined value) instead of null when the file had
+                    // no SLA Days at all. actionPointService.createManual
+                    // treats "any of sla_days/sla_hours/sla_minutes is
+                    // defined" as "SLA data was provided", so a forced 0
+                    // was being read as an intentional 0-day SLA and
+                    // wiped out sla_minutes — which is what made every
+                    // bulk-uploaded row's SLA/Overdue status wrong
+                    // regardless of what the file actually said.
+                    sla_days: toSafeInt(row["SLA Days"], null),
                     sla_value: toSafeInt(row["SLA Value"], null),
                     remarks: row["Remarks"] || ""
                 };
@@ -469,7 +526,10 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         req.user.id
                     );
 
-                    movedToReports.push({ row: rowNumber, submissionId: reportResult.submissionId });
+                    return {
+                        rowNumber,
+                        movedToReport: { row: rowNumber, submissionId: reportResult.submissionId }
+                    };
 
                 } else {
 
@@ -482,11 +542,34 @@ exports.bulkUploadActionPoints = async (req, res) => {
                         req.user.id
                     );
 
-                    created.push({ row: rowNumber, id: result.id });
+                    return {
+                        rowNumber,
+                        created: { row: rowNumber, id: result.id }
+                    };
                 }
 
             } catch (rowError) {
-                errors.push(`Row ${rowNumber}: ${rowError.message}`);
+                return { rowNumber, error: `Row ${rowNumber}: ${rowError.message}` };
+            }
+        };
+
+        for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
+            const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
+
+            const batchResults = await Promise.all(
+                batch.map((row, offset) => processRow(row, start + offset + 2))
+            );
+
+            // Sort back into original row order before applying — batches
+            // can settle out of order internally, but the reported
+            // created/movedToReports/errors lists should still read top
+            // to bottom the same way the source file did.
+            batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+
+            for (const result of batchResults) {
+                if (result.error) errors.push(result.error);
+                if (result.created) created.push(result.created);
+                if (result.movedToReport) movedToReports.push(result.movedToReport);
             }
         }
 

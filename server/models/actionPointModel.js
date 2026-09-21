@@ -625,11 +625,19 @@ ActionPoint.getAll = (
 
     // ==================================================
     // ORDER
+    //
+    // Tie-breaker (`ap.id DESC`) added so rows sharing the exact same
+    // created_at — an entire bulk-upload batch, for example — still
+    // come back in a stable, deterministic order across pages instead
+    // of the database being free to reorder them differently on every
+    // request (which showed up as records "jumping around" page to
+    // page and pagination numbers appearing out of sequence).
     // ==================================================
 
     sql += `
         ORDER BY
-            ap.created_at DESC
+            ap.created_at DESC,
+            ap.id DESC
     `;
 
 
@@ -1982,7 +1990,8 @@ ActionPoint.exportData = (
 
     sql += `
         ORDER BY
-            ap.created_at DESC
+            ap.created_at DESC,
+            ap.id DESC
     `;
 
 

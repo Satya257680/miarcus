@@ -633,10 +633,20 @@ const createManual = async (
 
     // Keep an exact countdown duration while retaining sla_value as the
     // legacy/day value used by existing Action Point records.
+    //
+    // BUG FIX: this used to treat ANY defined value — including a
+    // forced default of 0 from a caller like the Action Points bulk
+    // upload (see controllers/actionPointController.js) — as "real SLA
+    // data was provided", which then computed finalSlaMinutes = 0 and
+    // skipped the finalSlaValue fallback below. That silently zeroed
+    // out the SLA/Overdue status for every bulk-uploaded row that had
+    // no real SLA Days in its file, no matter what priority/SLA the row
+    // actually implied. null/""/undefined now all count as "not
+    // provided", matching the check already used for finalSlaValue above.
     const hasSlaParts =
-        sla_days !== undefined ||
-        sla_hours !== undefined ||
-        sla_minutes !== undefined;
+        (sla_days !== undefined && sla_days !== null && sla_days !== "") ||
+        (sla_hours !== undefined && sla_hours !== null && sla_hours !== "") ||
+        (sla_minutes !== undefined && sla_minutes !== null && sla_minutes !== "");
 
     let finalSlaMinutes = 0;
 

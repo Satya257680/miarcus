@@ -18,6 +18,16 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// A large bulk-upload file needs more processing time than Express's/
+// Node's default request timeout allows — same fix already applied to
+// the Checklist Reports bulk-upload route (see
+// routes/checklistReportRoutes.js).
+const extendUploadTimeout = (req, res, next) => {
+    req.setTimeout(15 * 60 * 1000);
+    res.setTimeout(15 * 60 * 1000);
+    next();
+};
+
 // ======================================================
 // CONTROLLER
 // ======================================================
@@ -112,6 +122,7 @@ router.get(
 
 router.post(
     "/bulk-upload",
+    extendUploadTimeout,
     authMiddleware,
     permissionMiddleware(
         "Action Points",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
@@ -364,6 +364,7 @@ const fetchActionPointsOnce = () =>
                 store_id: store,
                 department_id: department,
                 checklist_type_id: checklistType,
+                new_store_opening_id: nsoProject,
                 priority,
                 status,
                 start_date: startDate,
@@ -586,6 +587,8 @@ useEffect(() => {
     department,
 
     checklistType,
+
+    nsoProject,
 
     priority,
 
@@ -1020,168 +1023,23 @@ const handleClearFilters = () => {
 
 
 // ======================================================
-// FILTERED DATA
+// TABLE DATA
+// ======================================================
+//
+// BUG FIX (vestigial re-filter): this used to re-apply every filter a
+// second time on the client, on top of `actionPoints`, which the
+// server (see fetchActionPointsOnce above) already fetched pre-
+// filtered and paginated for the exact same criteria — search, store,
+// department, status, priority, checklist type, NSO project, and date
+// range are all sent as server query params. Re-filtering the already-
+// filtered/paginated page client-side did nothing useful and could
+// only ever narrow that one page further (e.g. hiding rows that
+// server-side pagination had already decided belonged on this page),
+// never restore rows the server correctly excluded. `actionPoints` is
+// used directly now, same as Checklist Reports.
 // ======================================================
 
-const filteredActionPoints = useMemo(() => {
-
-    return actionPoints.filter((item) => {
-
-        const searchMatch =
-
-            !search ||
-
-            item.store_name
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.question
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.checklist_name
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.department_name
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.nso_store_name
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.nso_location
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.priority
-                ?.toLowerCase()
-                .includes(search.toLowerCase()) ||
-
-            item.status
-                ?.toLowerCase()
-                .includes(search.toLowerCase());
-
-
-
-        const storeMatch =
-
-            !store ||
-
-            item.store_id == store;
-
-
-
-        const departmentMatch =
-
-            !department ||
-
-            item.department_id == department;
-
-
-
-        const statusMatch =
-
-            !status ||
-
-            item.status === status;
-
-
-
-        const priorityMatch =
-
-            !priority ||
-
-            item.priority === priority;
-
-
-
-        const checklistMatch =
-
-            !checklistType ||
-
-            item.checklist_type_id == checklistType;
-
-
-        const nsoMatch =
-
-            !nsoProject ||
-
-            item.new_store_opening_id == nsoProject;
-
-
-
-        const fromMatch =
-
-            !startDate ||
-
-            new Date(item.submission_date || item.date) >=
-
-            new Date(startDate);
-
-
-
-        const toMatch =
-
-            !endDate ||
-
-            new Date(item.submission_date || item.date) <=
-
-            new Date(endDate + "T23:59:59");
-
-
-
-        return (
-
-            searchMatch &&
-
-            storeMatch &&
-
-            departmentMatch &&
-
-            nsoMatch &&
-
-            statusMatch &&
-
-            priorityMatch &&
-
-            checklistMatch &&
-
-            fromMatch &&
-
-            toMatch
-
-        );
-
-    });
-
-}, [
-
-    actionPoints,
-
-    search,
-
-    store,
-
-    department,
-
-    status,
-
-    priority,
-
-    checklistType,
-
-    startDate,
-
-    endDate
-
-]);
-// ======================================================
-// PAGINATION
-// ======================================================
-
-const currentData = filteredActionPoints;
+const currentData = actionPoints;
 
 useEffect(() => {
 
@@ -1249,6 +1107,63 @@ useEffect(() => {
     return () => window.clearInterval(interval);
 
 }, []);
+
+// ======================================================
+// BACKGROUND AUTO-REFRESH
+// ======================================================
+//
+// Previously only the SLA countdown label re-rendered every minute —
+// the actual Action Points DATA never refetched on its own, so a new
+// bulk upload or submission from another device/tab only showed up
+// after a manual page reload. This mirrors the same fix already
+// applied to Checklist Reports: a quiet periodic refetch plus a
+// refetch on window focus, both skipped while a modal is open so an
+// in-progress edit/create/history view is never unmounted out from
+// under the person using it.
+// ======================================================
+
+const modalOpenRef = useRef(false);
+
+useEffect(() => {
+    modalOpenRef.current =
+        showCreateModal ||
+        showEditModal ||
+        showOpenModal ||
+        showDeleteDialog ||
+        showDeleteAllDialog ||
+        showBulkModal ||
+        showHistoryModal;
+}, [
+    showCreateModal,
+    showEditModal,
+    showOpenModal,
+    showDeleteDialog,
+    showDeleteAllDialog,
+    showBulkModal,
+    showHistoryModal
+]);
+
+useEffect(() => {
+
+    if (!canView) return;
+
+    const silentTick = () => {
+        if (modalOpenRef.current) return;
+        fetchActionPoints({ silent: true });
+    };
+
+    const interval = window.setInterval(silentTick, 60 * 1000);
+
+    const handleFocus = () => silentTick();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+        window.clearInterval(interval);
+        window.removeEventListener("focus", handleFocus);
+    };
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [canView, currentPage, pageSize, search, store, department, checklistType, nsoProject, priority, status, startDate, endDate]);
 
 
 

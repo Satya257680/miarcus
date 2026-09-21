@@ -278,34 +278,54 @@ function parseSubmissionDate(row) {
         ? row["Actual Submission Time"]
         : row["Submission Date"];
 
-    if (!hasValue(raw)) {
-        return indiaToday();
+    if (hasValue(raw)) {
+        // A plain "YYYY-MM-DD" (or "DD/MM/YYYY", "DD-MM-YYYY") date-only
+        // value has no timezone of its own — use it exactly as written
+        // instead of routing it through `new Date(...)`, which would
+        // otherwise treat it as UTC midnight and can shift it by a day
+        // once reformatted.
+        const text = String(raw).trim();
+
+        const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+            return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+        }
+
+        const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+        if (dmyMatch) {
+            const [, day, month, year] = dmyMatch;
+            return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        }
+
+        const asDate = new Date(raw);
+
+        if (!Number.isNaN(asDate.getTime())) {
+            return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(asDate);
+        }
+
+        // Unparseable — fall through to the Remarks/today fallback below
+        // instead of giving up immediately.
     }
 
-    // A plain "YYYY-MM-DD" (or "DD/MM/YYYY", "DD-MM-YYYY") date-only value
-    // has no timezone of its own — use it exactly as written instead of
-    // routing it through `new Date(...)`, which would otherwise treat it
-    // as UTC midnight and can shift it by a day once reformatted.
-    const text = String(raw).trim();
+    // FALLBACK ("date shows today's date instead of the particular date
+    // in the Excel file"): some bulk files — Action Points imports in
+    // particular — have no dedicated Submission Date / Actual Submission
+    // Time column at all. The real timestamp is still there, but
+    // embedded inside the Remarks text instead, e.g.
+    // "[7/26/2026, 9:23:01 PM] Store did not have stock." Extract that
+    // bracketed date/time rather than silently defaulting every such
+    // row to today's date.
+    const remarksText = String(row["Remarks"] || row["Comment"] || "");
+    const bracketMatch = remarksText.match(
+        /\[(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+\d{1,2}:\d{2}(?::\d{2})?\s*[AaPp][Mm]?\]/
+    );
 
-    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoMatch) {
-        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-    }
-
-    const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-    if (dmyMatch) {
-        const [, day, month, year] = dmyMatch;
+    if (bracketMatch) {
+        const [, month, day, year] = bracketMatch;
         return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
 
-    const asDate = new Date(raw);
-
-    if (Number.isNaN(asDate.getTime())) {
-        return indiaToday();
-    }
-
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(asDate);
+    return indiaToday();
 }
 
 // ======================================================
