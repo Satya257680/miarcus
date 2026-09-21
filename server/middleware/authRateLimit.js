@@ -62,9 +62,12 @@ const loginLimiter = createLimiter({
     message: "Too many login attempts. Please try again later.",
 });
 
+// Raised from 40 -> 150: several staff at the same store commonly sign
+// in from behind one shared router/NAT IP around shift-change time, and
+// the old ceiling was being hit by that ordinary traffic, not by abuse.
 const loginIpLimiter = createLimiter({
     windowMs: 15 * 60 * 1000,
-    max: 40,
+    max: 150,
     keyGenerator: (req) => `login-ip:${getClientIp(req)}`,
     message: "Too many login attempts from this network. Please try again later.",
 });
@@ -91,11 +94,17 @@ const otpVerifyLimiter = createLimiter({
 
 // Used by the public "is this email the Super Admin?" check that the
 // Login screen calls (debounced) to decide whether to show the
-// "Forgot password?" link. Keyed by IP only — generous enough for
-// normal typing, but still capped against abuse.
+// "Forgot password?" link. Keyed by IP only, so this is exactly the
+// limiter that was surfacing "Too many requests. Please try again
+// later." on the login screen: everyone at a store shares one router
+// IP, and each of them retyping/correcting their email a few times
+// while signing in adds up fast against a shared bucket. Raised from
+// 60 -> 400 per 15 minutes — this endpoint only ever returns a
+// boolean and carries no real abuse risk, so it can afford to be
+// generous.
 const superAdminCheckLimiter = createLimiter({
     windowMs: 15 * 60 * 1000,
-    max: 60,
+    max: 400,
     keyGenerator: (req) => `super-admin-check:${getClientIp(req)}`,
     message: "Too many requests. Please try again later.",
 });
