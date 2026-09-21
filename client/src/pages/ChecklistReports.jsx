@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 
@@ -65,15 +65,46 @@ function ChecklistReports() {
 
     const [loading, setLoading] = useState(true);
 
+    // Lighter-weight loading flag for page/filter/auto-refresh fetches —
+    // only shown inline over the table (via DataTable's own `loading`
+    // prop), never as the full-page "Loading Checklist Reports..."
+    // screen (`loading` above), so switching pages or an auto-refresh
+    // never unmounts an open modal the way flipping `loading` does.
+    const [tableLoading, setTableLoading] = useState(false);
+
     const [loadError, setLoadError] = useState(false);
 
     const [managementExporting, setManagementExporting] = useState(false);
+
+    // ======================================================
+    // SERVER-SIDE PAGINATION TOTALS
+    //
+    // BUG FIX ("data stops at 10000, no matter how much more exists"):
+    // this page used to fetch the whole report list in one shot with a
+    // hardcoded `?limit=10000` and then do every bit of searching,
+    // filtering AND paging itself against that single in-memory array —
+    // which is exactly why the list could never show more than 10,000
+    // rows even when far more existed. `reports` now holds only the
+    // CURRENT PAGE returned by the server (see fetchReports below), and
+    // `totalRecords`/`totalPages` are taken directly from the server's
+    // own count for the active filters — so there is no upper bound
+    // baked into the frontend at all; it scales to 100,000, 1,000,000+
+    // rows exactly the same way it scales to 10.
+    // ======================================================
+
+    const [totalRecords, setTotalRecords] = useState(0);
+
+    const [totalPages, setTotalPages] = useState(1);
 
     // ======================================================
     // SEARCH
     // ======================================================
 
     const [search, setSearch] = useState("");
+
+    // Debounced copy of `search` actually sent to the server, so every
+    // keystroke doesn't fire its own request.
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
     // ======================================================
     // FILTERS
@@ -203,7 +234,128 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         permission === "Full";
             // ======================================================
-    // LOAD DATA
+    // MODAL-OPEN TRACKING (ref)
+    //
+    // Read from inside the auto-refresh interval / window-focus handler
+    // below without needing to be a dependency of those effects — a
+    // dependency on these booleans would tear the refresh timer down
+    // and rebuild it every time a modal opens/closes, which is both
+    // wasteful and would reset the refresh interval's timing.
+    // ======================================================
+
+    const modalOpenRef = useRef(false);
+
+    useEffect(() => {
+        modalOpenRef.current =
+            showBulkUpload ||
+            showViewModal ||
+            showEditModal ||
+            showDeleteDialog ||
+            showDeleteAllDialog;
+    }, [
+        showBulkUpload,
+        showViewModal,
+        showEditModal,
+        showDeleteDialog,
+        showDeleteAllDialog
+    ]);
+
+    // ======================================================
+    // BUILD REPORT QUERY PARAMS FROM CURRENT FILTERS
+    // ======================================================
+
+    const buildReportParams = useCallback((overrides = {}) => {
+
+        const params = {
+            page: overrides.page ?? currentPage,
+            limit: overrides.limit ?? pageSize,
+        };
+
+        if (overrides.all) params.all = "true";
+
+        const searchValue = overrides.search ?? debouncedSearch;
+        if (searchValue) params.search = searchValue;
+
+        if (selectedStore) params.store_id = selectedStore;
+        if (selectedChecklist) params.checklist_type_id = selectedChecklist;
+        if (selectedEmployee) params.employee_id = selectedEmployee;
+        if (fromDate) params.from_date = fromDate;
+        if (toDate) params.to_date = toDate;
+
+        return params;
+
+    }, [
+        currentPage,
+        pageSize,
+        debouncedSearch,
+        selectedStore,
+        selectedChecklist,
+        selectedEmployee,
+        fromDate,
+        toDate
+    ]);
+
+    // ======================================================
+    // FETCH ONE PAGE OF REPORTS FROM THE SERVER
+    //
+    // BUG FIX ("data stops at 10,000" / "arranged wrong" / "no auto
+    // refresh"): the whole report list used to be pulled into the
+    // browser once (`?limit=10000`) and every bit of searching,
+    // filtering, sorting and paging happened client-side against that
+    // one array — capping the app at 10,000 rows no matter how much
+    // more data existed, and requiring a manual page reload to see
+    // anything created after that fetch. This now asks the server for
+    // exactly the current page (page/limit + active filters), the same
+    // way every other paginated list in this app already works — so
+    // there is no cap, ordering is the server's own
+    // `ORDER BY created_at DESC, id DESC` (newest first, every previous
+    // day's — and every older day's — history still reachable further
+    // back, never reshuffled between requests), and a fresh fetch always
+    // reflects whatever was just bulk-uploaded or submitted, including
+    // by someone else.
+    // ======================================================
+
+    const fetchReportsPage = useCallback(async (overrides = {}) => {
+
+        const params = buildReportParams(overrides);
+
+        const attempt = () => axios.get(`${API}/checklist-reports`, { params });
+
+        try {
+            const res = await attempt();
+            return res.data;
+        } catch (err) {
+            // Retry once — a single transient failure (a cold-start
+            // hiccup, a dropped connection) used to leave the list blank
+            // until the user manually refreshed the whole page.
+            console.error("Checklist Reports fetch failed, retrying once:", err);
+            const retryRes = await attempt();
+            return retryRes.data;
+        }
+
+    }, [buildReportParams]);
+
+    const applyReportsResponse = (data) => {
+
+        setReports(
+            (data?.data || []).map((report) => ({
+                ...report,
+                // Checklist Reports always represent completed submitted
+                // checklist history. Action Point status is displayed
+                // separately in the Action Status column.
+                status: "Completed"
+            }))
+        );
+
+        const pagination = data?.pagination || {};
+        setTotalRecords(Number(pagination.total || 0));
+        setTotalPages(Math.max(Number(pagination.totalPages || 1), 1));
+        setLoadError(false);
+
+    };
+
+    // ======================================================
+    // LOAD DATA — first mount only: reports (page 1) + lookup lists
     // ======================================================
 
     const loadData = async () => {
@@ -214,9 +366,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             const results = await Promise.allSettled([
 
-                // Fetch the complete report set once; the shared Pagination
-                // component then handles page navigation locally.
-                axios.get(`${API}/checklist-reports?limit=10000`),
+                fetchReportsPage({ page: 1 }),
 
                 axios.get(`${API}/stores`),
 
@@ -244,58 +394,14 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             if (reportRes.status === "fulfilled") {
 
-                setReports(
-
-                    (reportRes.value.data.data || []).map((report) => ({
-                        ...report,
-                        // Checklist Reports always represent completed
-                        // submitted checklist history. Action Point status
-                        // is displayed separately in the Action Status column.
-                        status: "Completed"
-                    }))
-
-                );
-
-                setLoadError(false);
+                applyReportsResponse(reportRes.value);
 
             } else {
 
-                console.error(
+                console.error("Checklist Reports Error:", reportRes.reason);
 
-                    "Checklist Reports Error:",
-
-                    reportRes.reason
-
-                );
-
-                // BUG FIX ("blank on refresh, data appears on the next
-                // refresh"): this used to silently set the list to []
-                // here with no retry and no visible error, so a transient
-                // failure (e.g. a cold-start hiccup on the server) looked
-                // exactly like "no records" until the user manually
-                // refreshed the page. Retry the reports request once
-                // automatically before giving up.
-                try {
-
-                    const retryRes = await axios.get(`${API}/checklist-reports?limit=10000`);
-
-                    setReports(
-                        (retryRes.data.data || []).map((report) => ({
-                            ...report,
-                            status: "Completed"
-                        }))
-                    );
-
-                    setLoadError(false);
-
-                } catch (retryErr) {
-
-                    console.error("Checklist Reports retry failed:", retryErr);
-
-                    setReports([]);
-                    setLoadError(true);
-
-                }
+                setReports([]);
+                setLoadError(true);
 
             }
 
@@ -381,57 +487,49 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // SILENT REFRESH
     //
     // Same reports fetch as loadData(), but never flips `loading` to
-    // true — used for the background window-focus refresh so the page
-    // never swaps out to the full "Loading Checklist Reports..." screen
-    // (and never unmounts an open modal) just because the browser
-    // window regained focus. Also retries once on failure, same as
-    // loadData(), instead of silently leaving the list blank.
+    // true — used for page/filter changes, the background window-focus
+    // refresh, the periodic auto-refresh timer below, and right after a
+    // bulk upload / create / edit / delete — so the page never swaps out
+    // to the full "Loading Checklist Reports..." screen (and never
+    // unmounts an open modal) just for a data refresh.
+    //
+    // `quiet: true` (used only by the passive window-focus/interval
+    // auto-refresh — see below) skips the `tableLoading` flag entirely,
+    // so a background poll that finds nothing new never flickers the
+    // table to a "Loading..." placeholder and back every 20 seconds. A
+    // deliberate action (changing page/filters, editing, deleting,
+    // finishing a bulk upload) still shows that brief in-place indicator
+    // so it's clear something happened.
     // ======================================================
 
-    const silentRefresh = async () => {
+    const silentRefresh = async (overrides = {}, { quiet = false } = {}) => {
+
+        if (!quiet) setTableLoading(true);
 
         try {
 
-            const res = await axios.get(`${API}/checklist-reports?limit=10000`);
-
-            setReports(
-                (res.data.data || []).map((report) => ({
-                    ...report,
-                    status: "Completed"
-                }))
-            );
-
-            setLoadError(false);
+            const data = await fetchReportsPage(overrides);
+            applyReportsResponse(data);
 
         } catch (err) {
 
             console.error("Checklist Reports background refresh failed:", err);
+            // A quiet background refresh failing (even after
+            // fetchReportsPage's own built-in retry) is not worth
+            // interrupting the user with an alert — leave the existing
+            // (still-valid) list on screen.
 
-            try {
+        } finally {
 
-                const retryRes = await axios.get(`${API}/checklist-reports?limit=10000`);
-
-                setReports(
-                    (retryRes.data.data || []).map((report) => ({
-                        ...report,
-                        status: "Completed"
-                    }))
-                );
-
-                setLoadError(false);
-
-            } catch (retryErr) {
-
-                console.error("Checklist Reports background refresh retry failed:", retryErr);
-                // A quiet background refresh failing twice is not worth
-                // interrupting the user with an alert — leave the
-                // existing (still-valid) list on screen.
-
-            }
+            setTableLoading(false);
 
         }
 
     };
+
+    // ======================================================
+    // INITIAL LOAD
+    // ======================================================
 
     useEffect(() => {
 
@@ -445,52 +543,93 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         loadData();
 
-        // ==========================================================
-        // BACKGROUND REFRESH ON WINDOW FOCUS
-        //
-        // Refresh the list when the user comes back to this tab so
-        // changes made elsewhere are picked up — but do it silently (see
-        // silentRefresh() above) and never while a modal is open. The
-        // native "Browse File" dialog opened by Bulk Upload blurs/
-        // refocuses the browser window while it's open, and loadData()
-        // sets `loading = true`, which — see the
-        // "if (loading) return <div>Loading...</div>" below — replaces
-        // this entire page (including any open modal) with a bare
-        // "Loading Checklist Reports..." screen. Calling loadData() here
-        // used to unmount the Bulk Upload modal (and any edit/view/
-        // delete dialog) out from under the user just from picking a
-        // file, or flash the whole page blank on any ordinary tab-switch
-        // refresh. Same fix already applied in AttendanceReports.jsx.
-        // ==========================================================
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [canView]);
 
-        const handleFocus = () => {
+    // ======================================================
+    // DEBOUNCE SEARCH
+    // ======================================================
 
-            if (
-                showBulkUpload ||
-                showViewModal ||
-                showEditModal ||
-                showDeleteDialog ||
-                showDeleteAllDialog
-            ) {
-                return;
-            }
+    useEffect(() => {
 
-            silentRefresh();
-        };
-        window.addEventListener("focus", handleFocus);
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCurrentPage(1);
+        }, 400);
 
-        return () => {
-            window.removeEventListener("focus", handleFocus);
-        };
+        return () => clearTimeout(timer);
 
+    }, [search]);
+
+    // ======================================================
+    // RE-FETCH WHENEVER PAGE, PAGE SIZE OR FILTERS CHANGE
+    // (skipped on the very first render — the INITIAL LOAD effect
+    // above already fetches page 1)
+    // ======================================================
+
+    const didMountRef = useRef(false);
+
+    useEffect(() => {
+
+        if (!canView) return;
+
+        if (!didMountRef.current) {
+            didMountRef.current = true;
+            return;
+        }
+
+        silentRefresh();
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         canView,
-        showBulkUpload,
-        showViewModal,
-        showEditModal,
-        showDeleteDialog,
-        showDeleteAllDialog
+        currentPage,
+        pageSize,
+        debouncedSearch,
+        selectedStore,
+        selectedChecklist,
+        selectedEmployee,
+        fromDate,
+        toDate
     ]);
+
+    // ======================================================
+    // BACKGROUND REFRESH — WINDOW FOCUS + PERIODIC AUTO-REFRESH
+    //
+    // Refresh the current page's data (and totals) whenever the user
+    // comes back to this tab, AND on a recurring timer, so new
+    // submissions/bulk uploads — including ones made by someone else,
+    // in another tab, or via bulk upload — show up automatically
+    // instead of requiring a manual page reload. Both skip silently
+    // while a modal is open (see modalOpenRef above): the native
+    // "Browse File" dialog opened by Bulk Upload blurs/refocuses the
+    // browser window while it's open, and a refresh mid-edit could
+    // otherwise overwrite what the user is looking at.
+    // ======================================================
+
+    useEffect(() => {
+
+        if (!canView) return;
+
+        const refreshIfIdle = () => {
+            if (modalOpenRef.current) return;
+            silentRefresh({}, { quiet: true });
+        };
+
+        window.addEventListener("focus", refreshIfIdle);
+
+        // Poll every 20 seconds so newly bulk-uploaded/submitted
+        // Checklist Reports appear on their own — "real time" for an
+        // admin list without hammering the server every second.
+        const intervalId = setInterval(refreshIfIdle, 20 * 1000);
+
+        return () => {
+            window.removeEventListener("focus", refreshIfIdle);
+            clearInterval(intervalId);
+        };
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [canView, currentPage, pageSize, debouncedSearch, selectedStore, selectedChecklist, selectedEmployee, fromDate, toDate]);
 
     // ======================================================
     // VIEW REPORT
@@ -596,7 +735,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             setShowEditModal(false);
 
-            loadData();
+            silentRefresh();
 
         }
         catch (err) {
@@ -641,7 +780,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
             );
 
-            loadData();
+            silentRefresh();
 
         }
         catch (err) {
@@ -675,7 +814,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         if (!canDelete) return;
 
-        if (!filteredReports.length) {
+        if (!totalRecords) {
             alert("No Checklist Reports found.");
             return;
         }
@@ -697,7 +836,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
             );
 
             setCurrentPage(1);
-            await loadData();
+            await silentRefresh({ page: 1 });
 
         }
         catch (err) {
@@ -719,12 +858,39 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     };
 
     // ======================================================
+    // FETCH EVERY REPORT MATCHING THE ACTIVE FILTERS
+    //
+    // The table itself only ever holds one page's worth of rows (see
+    // fetchReportsPage above) — an export, by definition, needs every
+    // matching row instead, however many there now are. `all=true`
+    // tells the server to skip LIMIT/OFFSET entirely (see
+    // models/checklistReportModel.js), so this always returns the
+    // complete filtered set in one request rather than being capped
+    // the way the old `?limit=10000` fetch used to cap the whole page.
+    // ======================================================
+
+    const fetchAllFilteredReports = async () => {
+        const data = await fetchReportsPage({ page: 1, limit: 0, search: debouncedSearch, all: true });
+        return (data?.data || []).map((report) => ({ ...report, status: "Completed" }));
+    };
+
+    // ======================================================
     // EXPORT CSV
     // ======================================================
 
     const handleExport = async (format = "csv") => {
 
-        if (!filteredReports.length) {
+        let exportRows;
+
+        try {
+            exportRows = await fetchAllFilteredReports();
+        } catch (err) {
+            console.error("CHECKLIST REPORT EXPORT FETCH ERROR:", err);
+            alert("Unable to load Checklist Reports for export.");
+            return;
+        }
+
+        if (!exportRows.length) {
 
             alert("No records found.");
 
@@ -732,7 +898,7 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         }
 
-        const rows = filteredReports.map((r) => ({
+        const rows = exportRows.map((r) => ({
 
             "Submitted At": r.submission_date,
 
@@ -796,16 +962,18 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         if (!canView) return;
 
-        if (!filteredReports.length) {
-            alert("No Checklist Reports found for the selected filters.");
-            return;
-        }
-
         try {
             setManagementExporting(true);
 
+            const records = await fetchAllFilteredReports();
+
+            if (!records.length) {
+                alert("No Checklist Reports found for the selected filters.");
+                return;
+            }
+
             await exportManagementHealthCheck({
-                records: filteredReports,
+                records,
                 stores,
                 mode: "checklist",
                 filename: "Store_Health_Check_Report.xlsx",
@@ -820,6 +988,19 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     // ======================================================
 // BULK UPLOAD CHECKLIST REPORT
+//
+// BUG FIX ("bulk upload works sometimes, fails other times"): a
+// transient failure — a dropped connection, a proxy hiccup, the server
+// briefly waking up from an idle/cold-start state — used to just fail
+// the whole upload with a generic "Bulk upload failed." and no way to
+// recover except manually re-selecting the same file and clicking
+// Upload again. This now retries automatically (a couple of times,
+// with a short pause) for exactly the kinds of failures a retry can
+// actually fix — a network error, or a 502/503/504 from a proxy/
+// server that was momentarily unavailable. A 413 (request too large)
+// or a normal 4xx validation error is NOT retried, since trying the
+// same oversized/invalid file again would only fail the same way —
+// those get a clear, specific message instead.
 // ======================================================
 
 const uploadChecklistReport = async (file) => {
@@ -836,51 +1017,78 @@ const uploadChecklistReport = async (file) => {
 
     }
 
-    const formData = new FormData();
-
-    formData.append("file", file);
-
     const token = localStorage.getItem("token");
 
-    try {
+    const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+    const MAX_ATTEMPTS = 3;
 
-        const response = await axios.post(
+    let lastErr = null;
 
-            `${API}/checklist-reports/bulk-upload`,
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
 
-            formData,
+        // A fresh FormData per attempt — a File object's stream can only
+        // be read once, and axios/the browser have already consumed it
+        // by the time a failed attempt returns, so re-using the same
+        // FormData on a retry would silently send an empty body.
+        const formData = new FormData();
+        formData.append("file", file);
 
-            {
+        try {
 
-                headers: {
+            const response = await axios.post(
 
-                    Authorization: `Bearer ${token}`
+                `${API}/checklist-reports/bulk-upload`,
+
+                formData,
+
+                {
+
+                    headers: {
+
+                        Authorization: `Bearer ${token}`
+
+                    }
 
                 }
 
-            }
+            );
 
-        );
+            return response.data;
 
-        return response.data;
+        } catch (err) {
 
-    } catch (err) {
+            lastErr = err;
 
-        console.error(err);
+            const status = err.response?.status;
+            const isNetworkError = !err.response; // request never reached/returned from the server at all
+            const isRetryable = isNetworkError || RETRYABLE_STATUSES.has(status);
 
-        return {
+            if (!isRetryable || attempt === MAX_ATTEMPTS) break;
 
-            success: false,
+            console.warn(`Bulk upload attempt ${attempt} failed, retrying…`, err);
+            await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
 
-            message:
-
-                err.response?.data?.message ||
-
-                "Bulk upload failed."
-
-        };
+        }
 
     }
+
+    console.error(lastErr);
+
+    const status = lastErr?.response?.status;
+
+    const message =
+        status === 413
+            ? "This file is too large for the server to accept right now. Try a smaller export, or ask an admin to raise the upload size limit on the server."
+            : lastErr?.response?.data?.message ||
+              "Bulk upload failed. Please check your connection and try again.";
+
+    return {
+
+        success: false,
+
+        message
+
+    };
 
 };
     // ======================================================
@@ -890,6 +1098,12 @@ const uploadChecklistReport = async (file) => {
     const handleClearFilters = () => {
 
         setSearch("");
+
+        // Bypass the search debounce here so clearing filters re-fetches
+        // once, immediately, instead of firing once now with the old
+        // search term still applied and again ~400ms later once the
+        // debounce catches up.
+        setDebouncedSearch("");
 
         setFromDate("");
 
@@ -905,185 +1119,25 @@ const uploadChecklistReport = async (file) => {
 
     };
         // ======================================================
-    // FILTER REPORTS
+    // CURRENT PAGE
+    //
+    // Searching, filtering AND paging now all happen on the server
+    // (see fetchReportsPage/buildReportParams above) — `reports` is
+    // already exactly the rows for `currentPage`, in the server's own
+    // date order, so there is nothing left to slice client-side.
+    // `totalRecords`/`totalPages` are likewise server-reported state,
+    // not derived from whatever happens to be loaded in the browser.
     // ======================================================
 
-    const filteredReports = useMemo(() => {
+    const currentReports = reports;
 
-        return reports.filter((item) => {
-
-            // ==========================================
-            // SEARCH
-            // ==========================================
-
-            const searchMatch =
-
-                !search ||
-
-                item.store_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.checklist_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.employee_name
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.question
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase()) ||
-
-                item.answer
-                    ?.toLowerCase()
-                    .includes(search.toLowerCase());
-
-            // ==========================================
-            // STORE
-            // ==========================================
-
-            const storeMatch =
-
-                !selectedStore ||
-
-                item.store_id == selectedStore;
-
-            // ==========================================
-            // CHECKLIST
-            // ==========================================
-
-            const checklistMatch =
-
-                !selectedChecklist ||
-
-                item.checklist_type_id == selectedChecklist;
-
-            // ==========================================
-            // EMPLOYEE
-            // ==========================================
-
-            const employeeMatch =
-
-                !selectedEmployee ||
-
-                item.submitted_by == selectedEmployee;
-
-            // ==========================================
-            // DATE FILTER
-            // ==========================================
-
-            const fromMatch =
-
-                !fromDate ||
-
-                new Date(item.submission_date) >=
-
-                new Date(fromDate);
-
-            const toMatch =
-
-                !toDate ||
-
-                new Date(item.submission_date) <=
-
-                new Date(toDate + "T23:59:59");
-
-            return (
-
-                searchMatch &&
-
-                storeMatch &&
-
-                checklistMatch &&
-
-                employeeMatch &&
-
-                fromMatch &&
-
-                toMatch
-
-            );
-
-        });
-
-    }, [
-
-        reports,
-
-        search,
-
-        selectedStore,
-
-        selectedChecklist,
-
-        selectedEmployee,
-
-        fromDate,
-
-        toDate
-
-    ]);
-
-    // ======================================================
-    // PAGINATION
-    // ======================================================
-
-    const totalRecords = filteredReports.length;
-
-    const totalPages = Math.ceil(
-
-        totalRecords / pageSize
-
-    );
-
-    const startIndex =
-
-        (currentPage - 1) * pageSize;
-
-    const endIndex =
-
-        startIndex + pageSize;
-
-    const currentReports =
-
-        filteredReports.slice(
-
-            startIndex,
-
-            endIndex
-
-        );
-
+    // Snap back to the last real page if the active page is now past
+    // the end (e.g. a filter narrowed the result set, or the last row
+    // on the last page was just deleted) — the RE-FETCH effect above
+    // picks this up and reloads automatically.
     useEffect(() => {
-
-        setCurrentPage(1);
-
-    }, [
-
-        pageSize,
-
-        search,
-
-        selectedStore,
-
-        selectedChecklist,
-
-        selectedEmployee,
-
-        fromDate,
-
-        toDate
-
-    ]);
-
-
-
-    useEffect(() => {
-        const pages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
-        if (currentPage > pages) setCurrentPage(pages);
-    }, [filteredReports.length, pageSize, currentPage]);
+        if (currentPage > totalPages) setCurrentPage(totalPages);
+    }, [currentPage, totalPages]);
 
     // ======================================================
     // FORMAT DATE
@@ -1674,7 +1728,7 @@ const uploadChecklistReport = async (file) => {
 
                     data={currentReports}
 
-                    loading={loading}
+                    loading={tableLoading}
 
                     emptyTitle="No Reports Found"
 
@@ -1722,7 +1776,13 @@ const uploadChecklistReport = async (file) => {
     // swap this page out for the "Loading..." screen and unmount this
     // very modal while it may still be showing per-row bulk-upload
     // results the user hasn't dismissed yet.
-    await silentRefresh();
+    //
+    // Newly bulk-uploaded rows sort to the top (server ORDER BY
+    // created_at DESC), so jump back to page 1 to actually show them —
+    // otherwise a user sitting on page 5 would see no visible change
+    // and could easily think the upload silently did nothing.
+    setCurrentPage(1);
+    await silentRefresh({ page: 1 }, { quiet: true });
 
 }}
 

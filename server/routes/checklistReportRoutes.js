@@ -24,6 +24,24 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 const upload = require("../middleware/bulkFileUpload");
 
 // ======================================================
+// LONGER TIMEOUT FOR BULK UPLOAD
+//
+// Node's default HTTP server timeout (2 minutes) — and some reverse
+// proxies' default gateway timeout — can be shorter than a very large
+// file (tens/hundreds of thousands of rows) legitimately needs to
+// upload + parse + import, even with the controller's batched/
+// concurrent row processing. Raise it just for this route so a big
+// file is never cut off mid-request; small/normal files are
+// unaffected since they finish long before the old limit anyway.
+// ======================================================
+
+const extendUploadTimeout = (req, res, next) => {
+    req.setTimeout(15 * 60 * 1000); // 15 minutes
+    res.setTimeout(15 * 60 * 1000);
+    next();
+};
+
+// ======================================================
 // CONTROLLER
 // ======================================================
 
@@ -104,6 +122,8 @@ router.get(
 router.post(
 
     "/bulk-upload",
+
+    extendUploadTimeout,
 
     authMiddleware,
 

@@ -54,17 +54,48 @@ const CHECKLIST_REPORT_COLUMN_ALIASES = {
 // duplicated in Checklist Reports until they are closed.
 // ======================================================
 
-const getFilters = (req) => ({
-    search: req.query.search || "",
-    page: Number(req.query.page) || 1,
-    limit: Number(req.query.limit) || 10,
-    store_id: req.query.store_id || null,
-    checklist_type_id: req.query.checklist_type_id || null,
-    new_store_opening_id: req.query.new_store_opening_id || null,
-    employee_id: req.query.employee_id || null,
-    from_date: req.query.from_date || null,
-    to_date: req.query.to_date || null,
-});
+// ======================================================
+// PAGE-SIZE CEILING
+//
+// BUG FIX: the frontend used to always ask for `?limit=10000` and then
+// do every bit of filtering/searching/paging itself in the browser
+// against that one fetch — which is *why* the report list silently
+// stopped growing past 10,000 rows no matter how much more data
+// existed. The list is now paged for real (see getAllReports below),
+// so ordinary table requests only ever ask for one page (10-100 rows)
+// at a time and there is no longer any reason for the frontend to
+// request a huge `limit`. This ceiling is just a safety net against a
+// stray/malicious `?limit=...` value forcing the report+action-point
+// join (with its per-row GROUP_CONCAT/subqueries) to scan far more
+// rows than any single page of the UI could ever show.
+//
+// `?all=true` (used only by the CSV/XLSX export buttons — see
+// exportReports below and the `all` param handling in
+// models/checklistReportModel.js) intentionally bypasses this ceiling
+// so an export always contains every matching row, however many there
+// now are — 10,000, 100,000, 1,000,000+.
+// ======================================================
+
+const MAX_PAGE_LIMIT = 500;
+
+const getFilters = (req) => {
+    const wantsAll = String(req.query.all || "").toLowerCase() === "true";
+
+    const requestedLimit = Number(req.query.limit) || 10;
+
+    return {
+        search: req.query.search || "",
+        page: Number(req.query.page) || 1,
+        limit: wantsAll ? requestedLimit : Math.min(Math.max(requestedLimit, 1), MAX_PAGE_LIMIT),
+        all: wantsAll,
+        store_id: req.query.store_id || null,
+        checklist_type_id: req.query.checklist_type_id || null,
+        new_store_opening_id: req.query.new_store_opening_id || null,
+        employee_id: req.query.employee_id || null,
+        from_date: req.query.from_date || null,
+        to_date: req.query.to_date || null,
+    };
+};
 
 // ======================================================
 // GET ALL REPORT ROWS
@@ -94,7 +125,13 @@ exports.getAllReports = (req, res) => {
             }
 
             const total = Number(countRows?.[0]?.total || 0);
-            const limit = Math.max(Number(filters.limit) || 10, 1);
+            // `all=true` (export) fetches every matching row in one shot with
+            // no LIMIT/OFFSET — report the "limit" as the true row count so
+            // pagination.totalPages comes out to 1 instead of implying a
+            // second page of results exists that a client could try to fetch.
+            const limit = filters.all
+                ? Math.max(total, 1)
+                : Math.max(Number(filters.limit) || 10, 1);
             const page = Math.max(Number(filters.page) || 1, 1);
 
             return res.status(200).json({
@@ -378,12 +415,62 @@ exports.bulkUploadChecklistReports = async (req, res) => {
         const warnings = [...parseWarnings];
         const errors = [];
 
-        for (let index = 0; index < rows.length; index += 1) {
-            const row = rows[index];
-            const rowNumber = index + 2;
+        // ======================================================
+        // BUG FIX — large files timing out / the upload "sometimes
+        // working, sometimes not":
+        //
+        // This used to `await` each row's Store/Checklist Type/Employee/
+        // Question lookups + insert one at a time, fully sequentially.
+        // Every row is several round trips to the database (see
+        // services/checklistReportService.js), so a real-world file with
+        // several thousand rows could take minutes of wall-clock time —
+        // long enough to run into the server's own request timeout, or a
+        // reverse-proxy/gateway timeout in front of it, well before the
+        // file was actually processed. That is what an "intermittent"
+        // failure that depends only on file size looks like: small files
+        // finish in time, bigger ones don't.
+        //
+        // Rows are independent of each other, so they are now processed
+        // in small concurrent batches instead of one at a time. This cuts
+        // the total wall-clock time roughly by the batch size (a 10,000-
+        // row file that used to take minutes now takes well under a
+        // minute) without overwhelming the database connection pool the
+        // way firing all rows at once would.
+        // ======================================================
 
-            try {
-                const result = await checklistReportService.createFromRow(row, req.user.id);
+        // Kept below the MySQL pool's connectionLimit (10 — see
+        // server/config/db.js) so a big bulk upload speeds itself up
+        // without starving every other request in the app of a
+        // connection for the duration of the import.
+        const BULK_UPLOAD_CONCURRENCY = 5;
+
+        for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
+            const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
+
+            const batchResults = await Promise.all(
+                batch.map(async (row, offset) => {
+                    const rowNumber = start + offset + 2;
+
+                    try {
+                        const result = await checklistReportService.createFromRow(row, req.user.id);
+                        return { rowNumber, row, result };
+                    } catch (rowError) {
+                        return { rowNumber, row, error: rowError };
+                    }
+                })
+            );
+
+            // Batches complete concurrently (out of row order), so sort each
+            // batch's results back into file order before recording them —
+            // keeps the created/errors/warnings lists readable top-to-bottom
+            // the same way a fully sequential run would have produced them.
+            batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+
+            for (const { rowNumber, row, result, error: rowError } of batchResults) {
+                if (rowError) {
+                    errors.push(`Row ${rowNumber}: ${rowError.message}`);
+                    continue;
+                }
 
                 created.push({ row: rowNumber, submissionId: result.submissionId });
 
@@ -392,8 +479,6 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                         `Row ${rowNumber}: submission created, but the Question "${row["Question"]}" wasn't recognized — the answer was not saved. Check spelling or the Checklist Type.`
                     );
                 }
-            } catch (rowError) {
-                errors.push(`Row ${rowNumber}: ${rowError.message}`);
             }
         }
 

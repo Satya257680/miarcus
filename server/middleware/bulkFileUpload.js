@@ -67,12 +67,18 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Photos, PDFs and video run noticeably bigger than a spreadsheet, so the
-// ceiling is well above the old CSV-only 10 MB limit.
+// ceiling is well above the old CSV-only 10 MB limit. Raised again to
+// 500 MB so a genuinely large historical export (tens/hundreds of
+// thousands of Checklist Report rows) is never rejected at the upload
+// layer — see routes/checklistReportRoutes.js for the matching request
+// timeout increase, and server/web.config for the IIS-level request
+// size limit that must be raised to match on the production reverse
+// proxy in front of this app.
 const bulkFileUpload = multer({
     storage,
     fileFilter,
     limits: {
-        fileSize: 100 * 1024 * 1024 // 100 MB
+        fileSize: 500 * 1024 * 1024 // 500 MB
     }
 });
 

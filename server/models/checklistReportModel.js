@@ -381,8 +381,17 @@ ChecklistReport.getAll = (
 
     // ==========================================
     // PAGINATION
+    //
+    // `filters.all === true` (used only by the CSV/XLSX export paths —
+    // see controllers/checklistReportController.js) skips LIMIT/OFFSET
+    // entirely so an export always contains every matching row, no
+    // matter how large the dataset has grown (10,000 / 100,000 /
+    // 1,000,000+). Normal table pagination always sets an explicit
+    // page + limit and is unaffected.
     // ==========================================
 
+
+    const fetchAll = filters.all === true;
 
     const page =
 
@@ -487,19 +496,33 @@ sql += `
 
         cs.created_at DESC,
 
-        q.sequence_no ASC
+        cs.id DESC,
 
-    LIMIT ? OFFSET ?
+        q.sequence_no ASC
 
 `;
 
-values.push(
+// A deterministic ORDER BY (created_at, then the row's own id as a
+// tie-breaker) is required for LIMIT/OFFSET paging to be stable across
+// pages once many submissions share the same created_at timestamp
+// (e.g. an entire bulk-upload batch). Without cs.id DESC as a
+// tie-breaker, MySQL is free to return ties in any order, which used
+// to show up as rows randomly reshuffling / repeating / going missing
+// between pages at scale.
 
-    limit,
+if (!fetchAll) {
 
-    offset
+    sql += ` LIMIT ? OFFSET ? `;
 
-);
+    values.push(
+
+        limit,
+
+        offset
+
+    );
+
+}
 
 db.query(
 
