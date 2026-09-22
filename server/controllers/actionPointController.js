@@ -1302,6 +1302,7 @@ module.exports = {
     getActionPointsByNSO: exports.getActionPointsByNSO,
     getActionPointById: exports.getActionPointById,
     bulkUploadActionPoints: exports.bulkUploadActionPoints,
+    getActionPointBulkUploadStatus: exports.getActionPointBulkUploadStatus,
     createActionPoint: exports.createActionPoint,
     updateActionPoint: exports.updateActionPoint,
     takeAction: exports.takeAction,

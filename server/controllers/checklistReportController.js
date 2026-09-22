@@ -620,5 +620,6 @@ module.exports = {
     deleteReport: exports.deleteReport,
     deleteAllReports: exports.deleteAllReports,
     bulkUploadChecklistReports: exports.bulkUploadChecklistReports,
+    getChecklistBulkUploadStatus: exports.getChecklistBulkUploadStatus,
     exportReports: exports.exportReports,
 };

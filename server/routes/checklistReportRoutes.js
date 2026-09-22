@@ -67,6 +67,8 @@ const {
 
     bulkUploadChecklistReports,
 
+    getChecklistBulkUploadStatus,
+
     exportReports
 
 } = require("../controllers/checklistReportController");
