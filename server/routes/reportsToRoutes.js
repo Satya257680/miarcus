@@ -13,6 +13,8 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
+
 
 
 // ======================================================
@@ -27,13 +29,20 @@ const reportsToController = require("../controllers/reportsToController");
 
 // ======================================================
 // MULTER CONFIGURATION
+//
+// UNLIMITED UPLOAD SIZE
+// Previously raised from 10 MB to 100 MB; now uncapped entirely so a
+// genuinely large bulk-upload spreadsheet is never rejected before
+// the controller ever sees it (`limits.fileSize` left unset = no
+// limit, same fix as Checklist Reports / Users bulk upload — see
+// middleware/bulkFileUpload.js). The IIS reverse-proxy in front of
+// this app (server/web.config) still applies its own ceiling, raised
+// to the maximum IIS supports.
 // ======================================================
 
 const upload = multer({
     dest: "uploads/",
-    // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
-    // not rejected before the controller ever sees them.
-    limits: { fileSize: 100 * 1024 * 1024, files: 1, parts: 20, fields: 20, fieldSize: 1024 * 1024 }
+    limits: { files: 1, parts: 20, fields: 20, fieldSize: 1024 * 1024 }
 });
 
 
@@ -151,6 +160,8 @@ router.post(
 router.post(
 
     "/bulk-upload",
+
+    extendUploadTimeout,
 
     authMiddleware,
 

@@ -12,6 +12,8 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
+
 
 
 // ======================================================
@@ -68,16 +70,22 @@ const storage = multer.diskStorage({
 
 
 
+// UNLIMITED UPLOAD SIZE
+//
+// This used to cap out at 5 MB, which a genuinely large store list
+// CSV (a big historical export) can exceed. `limits.fileSize` is
+// intentionally left unset below — multer treats a missing fileSize
+// limit as "no limit at all", matching the same fix already applied
+// to Checklist Reports / Users bulk upload (see
+// middleware/bulkFileUpload.js). The IIS reverse-proxy in front of
+// this app (server/web.config) still applies its own ceiling, raised
+// to the maximum IIS supports.
 const upload = multer({
 
     storage,
 
 
-    limits:{
-
-        fileSize:5 * 1024 * 1024
-
-    },
+    // No `limits.fileSize` — uploads of any size are accepted here.
 
 
     fileFilter:(req,file,cb)=>{
@@ -157,6 +165,8 @@ router.get(
 router.post(
 
     "/import",
+
+    extendUploadTimeout,
 
     authMiddleware,
 

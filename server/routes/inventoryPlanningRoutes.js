@@ -1,7 +1,7 @@
-const express=require("express");const router=express.Router();const auth=require("../middleware/authMiddleware");const permission=require("../middleware/permissionMiddleware");const upload=require("../middleware/upload");const c=require("../controllers/inventoryPlanningController");const MODULE="Inventory Planning";
+const express=require("express");const router=express.Router();const auth=require("../middleware/authMiddleware");const permission=require("../middleware/permissionMiddleware");const upload=require("../middleware/upload");const extendUploadTimeout=require("../middleware/extendUploadTimeout");const c=require("../controllers/inventoryPlanningController");const MODULE="Inventory Planning";
 router.get("/options",auth,permission(MODULE,"View"),c.getOptions);
 router.get("/erp-data/export",auth,permission(MODULE,"View"),c.exportSales);
-router.post("/erp-data/bulk-upload",auth,permission(MODULE,"Add"),upload.single("file"),c.bulkUploadSales);
+router.post("/erp-data/bulk-upload",extendUploadTimeout,auth,permission(MODULE,"Add"),upload.single("file"),c.bulkUploadSales);
 router.get("/erp-data",auth,permission(MODULE,"View"),c.getSales);
 router.post("/erp-data",auth,permission(MODULE,"Add"),c.createSale);
 router.get("/erp-data/:id",auth,permission(MODULE,"View"),c.getSaleById);

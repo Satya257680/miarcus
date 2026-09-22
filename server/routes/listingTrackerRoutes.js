@@ -6,6 +6,7 @@ const controller = require("../controllers/listingTrackerController");
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const csvUpload = require("../middleware/csvUpload");
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
 const MODULE = "Listing Tracker";
 
@@ -43,6 +44,7 @@ router.post(
 
 router.post(
     "/import",
+    extendUploadTimeout,
     permissionMiddleware(MODULE, "Add"),
     csvUpload.single("file"),
     controller.importCsv

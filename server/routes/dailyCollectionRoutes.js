@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const adminOnly = require("../middleware/adminOnly");
 const upload = require("../middleware/upload");
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 const controller = require("../controllers/dailyCollectionController");
 
 const canViewBilling = permissionMiddleware("Daily Collection", "View");
@@ -20,7 +21,7 @@ router.put("/email-settings", authMiddleware, adminOnly, controller.updateDailyC
 router.post("/blocked", authMiddleware, adminOnly, controller.blockDailyCollection);
 router.post("/blocked/:controlId/unblock", authMiddleware, adminOnly, controller.unblockDailyCollection);
 
-router.post("/bulk-upload", authMiddleware, canAddBilling, upload.single("file"), controller.bulkUploadDailyCollections);
+router.post("/bulk-upload", extendUploadTimeout, authMiddleware, canAddBilling, upload.single("file"), controller.bulkUploadDailyCollections);
 router.delete("/delete-all", authMiddleware, adminOnly, controller.deleteAllDailyCollections);
 
 router.post("/", authMiddleware, canAddBilling, controller.submitDailyCollection);

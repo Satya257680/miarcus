@@ -7,6 +7,7 @@ const C = require("../controllers/collectionTrackingController");
 const collectionUpload = require("../middleware/upload");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
 const MODULE = "Collection Tracking";
 
@@ -16,18 +17,22 @@ const router = express.Router();
    FILE UPLOAD
 ========================================================= */
 
+// UNLIMITED UPLOAD SIZE
+//
+// Previously raised from 10 MB to 100 MB; now uncapped entirely so a
+// genuinely large bulk-upload spreadsheet is never rejected before
+// the controller ever sees it (`limits.fileSize` left unset = no
+// limit, same fix as Checklist Reports / Users bulk upload — see
+// middleware/bulkFileUpload.js). The IIS reverse-proxy in front of
+// this app (server/web.config) still applies its own ceiling, raised
+// to the maximum IIS supports.
 const upload = multer({
   dest: path.resolve(
     __dirname,
     "../uploads"
   ),
 
-  limits: {
-    // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
-    // not rejected before the controller ever sees them.
-    fileSize:
-      100 * 1024 * 1024, // 100 MB
-  },
+  // No `limits.fileSize` — uploads of any size are accepted here.
 
   fileFilter: (
     req,
@@ -124,6 +129,7 @@ router.post(
  */
 router.post(
   "/products/bulk",
+  extendUploadTimeout,
   permissionMiddleware(MODULE, "Add"),
   upload.single("file"),
   C.bulk

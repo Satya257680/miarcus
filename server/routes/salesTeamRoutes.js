@@ -6,6 +6,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const controller = require("../controllers/salesTeamController");
 const syncGalleryAttachment = require("../middleware/galleryAttachmentSync");
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
 const router = express.Router();
 
@@ -13,14 +14,19 @@ const router = express.Router();
    FILE UPLOAD CONFIGURATION
 ===================================================== */
 
+// UNLIMITED UPLOAD SIZE
+//
+// Previously raised from 10 MB to 100 MB; now uncapped entirely so a
+// genuinely large bulk-upload spreadsheet (Visit Plans import, Sales
+// Review import) is never rejected before the controller ever sees
+// it (`limits.fileSize` left unset = no limit, same fix as Checklist
+// Reports / Users bulk upload — see middleware/bulkFileUpload.js).
+// The IIS reverse-proxy in front of this app (server/web.config)
+// still applies its own ceiling, raised to the maximum IIS supports.
 const upload = multer({
   dest: path.resolve(__dirname, "../uploads/"),
 
-  // Raised from 10 MB to 100 MB so larger bulk-upload spreadsheets are
-  // not rejected before the controller ever sees them.
-  limits: {
-    fileSize: 100 * 1024 * 1024,
-  },
+  // No `limits.fileSize` — uploads of any size are accepted here.
 
   fileFilter: (req, file, cb) => {
     const allowedExtensions = /\.(csv|xlsx|xls)$/i;
@@ -108,6 +114,7 @@ router.post(
 */
 router.post(
   "/visit-plans/import",
+  extendUploadTimeout,
   authMiddleware,
   permissionMiddleware("Visit Planner", "Add"),
   upload.single("file"),
@@ -286,6 +293,7 @@ router.get(
 */
 router.post(
   "/sales-review/upload",
+  extendUploadTimeout,
   authMiddleware,
   permissionMiddleware("Sales Review", "Add"),
   upload.single("file"),

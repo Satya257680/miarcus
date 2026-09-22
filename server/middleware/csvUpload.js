@@ -137,6 +137,16 @@ const fileFilter = (req,file,cb)=>{
 
 // ==========================================
 // Multer Config
+//
+// UNLIMITED UPLOAD SIZE
+// This used to cap out at 10 MB, which a genuinely large bulk-import
+// CSV (a big historical export / thousands of rows) can exceed.
+// `limits.fileSize` is intentionally left unset below — multer treats
+// a missing fileSize limit as "no limit at all", matching the same
+// fix already applied to Checklist Reports / Users bulk upload (see
+// middleware/bulkFileUpload.js). The IIS reverse-proxy in front of
+// this app (server/web.config) still applies its own ceiling, raised
+// to the maximum IIS supports.
 // ==========================================
 
 
@@ -146,17 +156,10 @@ const csvUpload = multer({
     storage,
 
 
-    fileFilter,
+    fileFilter
 
 
-    limits:{
-
-
-        fileSize:
-        10 * 1024 * 1024
-
-
-    }
+    // No `limits.fileSize` — uploads of any size are accepted here.
 
 
 });
