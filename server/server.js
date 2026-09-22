@@ -722,6 +722,9 @@ const allowedOrigins = [
     "https://rytual.miarcus.com",
     "https://rytual-peach.vercel.app",
 
+    // Public MIARCUS production domain
+    "https://rytual2.miarcus.com",
+
     // Environment variable
     process.env.FRONTEND_URL
 
