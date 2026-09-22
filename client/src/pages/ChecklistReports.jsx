@@ -1003,7 +1003,21 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 // those get a clear, specific message instead.
 // ======================================================
 
-const uploadChecklistReport = async (file) => {
+// ======================================================
+// assembled (optional second argument)
+//
+// Set by components/common/BulkUploadModal when this page's
+// enableChunkedUpload prop is on and the selected file was larger
+// than the modal's chunkThreshold: the file has ALREADY been fully
+// transferred to the server in pieces (see
+// server/middleware/chunkedUpload.js), and `assembled.assembledFile`
+// is the token that identifies it. In that case this sends a tiny
+// JSON request instead of re-sending the whole file — no FormData,
+// no retry loop, since the token is single-use and a genuine retry
+// would only fail with "already used" instead of the real error.
+// ======================================================
+
+const uploadChecklistReport = async (file, assembled) => {
 
     if (!canAdd) {
 
@@ -1018,6 +1032,43 @@ const uploadChecklistReport = async (file) => {
     }
 
     const token = localStorage.getItem("token");
+
+    if (assembled?.assembledFile) {
+
+        try {
+
+            const response = await axios.post(
+
+                `${API}/checklist-reports/bulk-upload`,
+
+                { assembledFile: assembled.assembledFile },
+
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+
+            );
+
+            return response.data;
+
+        } catch (err) {
+
+            console.error(err);
+
+            return {
+                success: false,
+                message:
+                    err.response?.data?.message ||
+                    "Bulk upload failed after the large file finished uploading. Please try again.",
+                errors: err.response?.data?.errors || [],
+                warnings: err.response?.data?.warnings || []
+            };
+
+        }
+
+    }
 
     const RETRYABLE_STATUSES = new Set([502, 503, 504]);
     const MAX_ATTEMPTS = 3;
@@ -1835,11 +1886,13 @@ const uploadChecklistReport = async (file) => {
 
     sampleFile="/samples/checklist-report-sample.xlsx"
 
-    // UNLIMITED UPLOAD SIZE: no client-side size gate at all — see
-    // server/middleware/bulkFileUpload.js (no multer fileSize limit
-    // either) and server/web.config (the IIS reverse-proxy ceiling,
-    // raised to the maximum IIS itself supports).
-    maxFileSize={Infinity}
+    // Matches the app-wide 100 GB ceiling (server/middleware/
+    // fileSecurity.js). Files bigger than IIS's ~4 GB per-request
+    // limit (server/web.config) automatically use the chunked upload
+    // flow below instead of one giant request.
+    maxFileSize={100 * 1024 * 1024 * 1024}
+
+    enableChunkedUpload
 
 />
 

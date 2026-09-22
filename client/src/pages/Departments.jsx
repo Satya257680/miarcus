@@ -659,7 +659,13 @@ return (
     uploadFunction={handleBulkUpload}
     onSuccess={fetchDepartments}
     acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp"
-    maxFileSize={25 * 1024 * 1024}
+    // Matches the app-wide server-side ceiling (server/middleware/
+    // fileSecurity.js). Note: this page hasn't been wired up for the
+    // chunked upload flow (see enableChunkedUpload on
+    // pages/ChecklistReports.jsx / pages/ActionPoints.jsx), so a
+    // single request here is still limited in practice to whatever
+    // fits under IIS's own ~4 GB per-request ceiling (server/web.config).
+    maxFileSize={100 * 1024 * 1024 * 1024}
     sampleFile="/api/departments/sample"
 />
     {/* =====================================================

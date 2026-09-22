@@ -26,24 +26,28 @@ const upload = require("../middleware/bulkFileUpload");
 // ======================================================
 // LONGER TIMEOUT FOR BULK UPLOAD
 //
-// Node's default HTTP server timeout (2 minutes) — and some reverse
-// proxies' default gateway timeout — can be shorter than a very large
-// file (tens/hundreds of thousands of rows) legitimately needs to
-// upload + parse + import, even with the controller's batched/
-// concurrent row processing. Raise it just for this route so a big
-// file is never cut off mid-request; small/normal files are
-// unaffected since they finish long before the old limit anyway.
-//
-// Raised from 15 to 60 minutes to match the upload size limit itself
-// being removed (see middleware/bulkFileUpload.js) — a much bigger
-// file legitimately needs much longer to transfer + parse + import.
+// Shared middleware — see middleware/extendUploadTimeout.js. Node's
+// default HTTP server timeout (2 minutes), and some reverse proxies'
+// default gateway timeout, can be far shorter than a very large file
+// (tens/hundreds of thousands of rows, or a multi-gigabyte chunk of a
+// 100 GB upload) legitimately needs to upload + parse + import.
 // ======================================================
 
-const extendUploadTimeout = (req, res, next) => {
-    req.setTimeout(60 * 60 * 1000); // 60 minutes
-    res.setTimeout(60 * 60 * 1000);
-    next();
-};
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
+
+// ======================================================
+// RESOLVE A CHUNKED-UPLOAD FILE
+//
+// Mounted directly after `upload.single("file")` below. When the
+// browser used the large-file chunked upload flow instead of a normal
+// single-request multipart upload (see middleware/chunkedUpload.js
+// and client/src/components/common/BulkUploadModal), this turns the
+// small JSON { assembledFile } completion body back into the same
+// req.file shape multer would have produced, so
+// bulkUploadChecklistReports below needs no changes either way.
+// ======================================================
+
+const { resolveAssembledFile } = require("../middleware/chunkedUpload");
 
 // ======================================================
 // CONTROLLER
@@ -140,6 +144,8 @@ router.post(
     ),
 
     upload.single("file"),
+
+    resolveAssembledFile,
 
     bulkUploadChecklistReports
 

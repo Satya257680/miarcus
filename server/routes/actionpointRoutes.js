@@ -19,14 +19,20 @@ const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
 // A large bulk-upload file needs more processing time than Express's/
-// Node's default request timeout allows — same fix already applied to
-// the Checklist Reports bulk-upload route (see
-// routes/checklistReportRoutes.js).
-const extendUploadTimeout = (req, res, next) => {
-    req.setTimeout(15 * 60 * 1000);
-    res.setTimeout(15 * 60 * 1000);
-    next();
-};
+// Node's default request timeout allows — shared middleware, kept in
+// sync with the Checklist Reports bulk-upload route (see
+// middleware/extendUploadTimeout.js). Previously this route used its
+// own, much shorter 15-minute timeout instead of the 60 (now 4 hour)
+// value the Checklist Reports route used — that mismatch could cut a
+// genuinely large Action Points import off mid-request even though
+// the same-size file would have succeeded on the other route.
+const extendUploadTimeout = require("../middleware/extendUploadTimeout");
+
+// See routes/checklistReportRoutes.js for what this does — turns a
+// completed chunked upload's { assembledFile } token back into a
+// normal req.file so bulkUploadActionPoints needs no changes either
+// way.
+const { resolveAssembledFile } = require("../middleware/chunkedUpload");
 
 // ======================================================
 // CONTROLLER
@@ -129,6 +135,7 @@ router.post(
         "Add"
     ),
     bulkFileUpload.single("file"),
+    resolveAssembledFile,
     bulkUploadActionPoints
 );
 

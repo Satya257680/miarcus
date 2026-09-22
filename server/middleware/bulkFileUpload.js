@@ -14,6 +14,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { UPLOAD_DIR } = require("../config/storage");
+const { MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -66,28 +67,32 @@ const fileFilter = (req, file, cb) => {
     );
 };
 
-// UNLIMITED UPLOAD SIZE
+// UPLOAD SIZE — matches the app-wide ceiling (100 GB by default; see
+// MAX_UPLOAD_SIZE in middleware/fileSecurity.js).
 //
-// This used to cap out at 500 MB, which was already generous, but a
-// genuinely large historical export (hundreds of thousands of
-// Checklist Report rows) can still exceed that. `limits.fileSize` is
-// intentionally left unset below — multer treats a missing fileSize
-// limit as "no limit at all", so this middleware itself will never
-// reject a file for being too big.
-//
-// Two other places can still cut a large upload off before it even
-// gets here, and both have been raised to match:
-//   - routes/checklistReportRoutes.js -> request timeout, raised to
-//     60 minutes so a very large file has time to fully upload +
-//     parse + import.
+// A single request this route receives directly (i.e. not sent
+// through the chunked upload flow) still also has to pass through:
+//   - routes/checklistReportRoutes.js / routes/actionpointRoutes.js
+//     -> request timeout, raised to match UPLOAD_TIMEOUT_MS (4 hours
+//     by default — see middleware/extendUploadTimeout.js) so a very
+//     large file has time to fully upload + parse + import.
 //   - web.config -> the IIS reverse-proxy in front of this app (see
-//     that file for why, and how to deploy it) has its own request
-//     size ceiling that lives completely outside this Node process;
-//     it has been raised to the maximum IIS supports.
+//     that file for why, and how to deploy it) has its OWN separate
+//     request size ceiling that lives completely outside this Node
+//     process, hard-capped by IIS itself at ~4 GB no matter what this
+//     number is set to. A file larger than that has to go through the
+//     chunked upload flow instead — see middleware/chunkedUpload.js
+//     and client/src/components/common/BulkUploadModal
+//     (enableChunkedUpload) — which sends the file as many pieces
+//     each safely under that ceiling and reassembles it here on the
+//     server before this middleware/route ever sees it as a single
+//     file again.
 const bulkFileUpload = multer({
     storage,
-    fileFilter
-    // No `limits.fileSize` — uploads of any size are accepted here.
+    fileFilter,
+    limits: {
+        fileSize: MAX_UPLOAD_SIZE
+    }
 });
 
 module.exports = bulkFileUpload;

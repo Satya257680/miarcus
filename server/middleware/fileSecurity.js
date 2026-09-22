@@ -1,11 +1,24 @@
 const fs = require("fs");
 const path = require("path");
 
-// Raised from 25 MB to 100 MB so bulk uploads (large CSV/XLSX exports,
-// PDFs, and photos/video attachments) are not rejected by the shared
-// upload pipeline. See also middleware/bulkFileUpload.js, which uses its
-// own limit for the dedicated "any format" bulk-upload routes.
-const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
+// Application-wide upload ceiling — the single source of truth used
+// by every upload pipeline in the app (general attachments/gallery/
+// announcements here, plus middleware/bulkFileUpload.js and
+// middleware/csvUpload.js for bulk-import routes).
+//
+// Raised from 100 MB to 100 GB. Getting a single HTTP request that
+// large through the IIS reverse proxy in front of this app additionally
+// requires the chunked upload flow (middleware/chunkedUpload.js) —
+// IIS's own request-filtering module has a hard ~4 GB ceiling per
+// request that no amount of raising this number can get around. See
+// server/web.config for the full explanation.
+//
+// Configurable via MAX_UPLOAD_SIZE_BYTES so an operator can lower (or
+// raise, disk space permitting) this without a code change.
+const MAX_UPLOAD_SIZE =
+    Number(process.env.MAX_UPLOAD_SIZE_BYTES) > 0
+        ? Number(process.env.MAX_UPLOAD_SIZE_BYTES)
+        : 100 * 1024 * 1024 * 1024; // 100 GB
 
 function readHeader(filePath, length = 16) {
     const fd = fs.openSync(filePath, "r");

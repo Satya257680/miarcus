@@ -63,11 +63,21 @@ function actorKey(req) {
 // location, dashboard auto-refresh) can easily add up to several
 // hundred GET requests per active user in that window on their own,
 // so 300 was tripping for completely normal usage, not abuse.
+// A single large bulk upload sent through the chunked upload flow
+// (middleware/chunkedUpload.js, mounted at /api/uploads) can
+// legitimately fire hundreds of small POST requests — one per chunk
+// of a 100 GB file — well beyond what any reasonable "normal API
+// traffic" ceiling should allow for. Both limiters below exempt that
+// path; the chunk endpoints are already gated by authMiddleware and
+// each chunk/upload session is scoped to the user who started it, so
+// this isn't an open door for abuse.
+const isChunkedUploadPath = (req) => req.path.startsWith("/uploads/");
+
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 1500,
     keyGenerator: actorKey,
-    skip: (req) => req.path === "/health" || req.path === "/test",
+    skip: (req) => req.path === "/health" || req.path === "/test" || isChunkedUploadPath(req),
     ...standard,
 });
 
@@ -79,7 +89,7 @@ const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 600,
     keyGenerator: actorKey,
-    skip: (req) => ["GET", "HEAD", "OPTIONS"].includes(req.method),
+    skip: (req) => ["GET", "HEAD", "OPTIONS"].includes(req.method) || isChunkedUploadPath(req),
     ...standard,
 });
 

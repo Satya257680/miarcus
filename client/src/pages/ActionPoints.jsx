@@ -839,13 +839,33 @@ const confirmDeleteAll = async () => {
 // ======================================================
 // BULK UPLOAD
 // Uses the shared/global BulkUploadModal used by other master modules.
-// The shared modal passes the selected File directly to this handler.
+// The shared modal passes the selected File directly to this handler,
+// plus an optional second `assembled` argument — see
+// components/common/BulkUploadModal (enableChunkedUpload) and
+// pages/ChecklistReports.jsx for the same pattern. When set, the file
+// has ALREADY been fully transferred to the server in pieces (see
+// server/middleware/chunkedUpload.js), so this sends the small
+// { assembledFile } token instead of re-sending the whole file.
 // ======================================================
 
-const handleBulkUpload = async (file) => {
+const handleBulkUpload = async (file, assembled) => {
     const token =
         localStorage.getItem("token") ||
         localStorage.getItem("accessToken");
+
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
+    if (assembled?.assembledFile) {
+
+        const response = await axios.post(
+            "/api/action-points/bulk-upload",
+            { assembledFile: assembled.assembledFile },
+            { headers: authHeader }
+        );
+
+        return response.data;
+
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -853,13 +873,7 @@ const handleBulkUpload = async (file) => {
     const response = await axios.post(
         "/api/action-points/bulk-upload",
         formData,
-        {
-            headers: {
-                ...(token
-                    ? { Authorization: `Bearer ${token}` }
-                    : {}),
-            }
-        }
+        { headers: authHeader }
     );
 
     return response.data;
@@ -2149,7 +2163,8 @@ return (
     uploadFunction={handleBulkUpload}
     onSuccess={() => fetchActionPoints({ silent: true })}
     acceptedFile=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv,.webm"
-    maxFileSize={100 * 1024 * 1024}
+    maxFileSize={100 * 1024 * 1024 * 1024}
+    enableChunkedUpload
 />
 
 {/* ======================================================

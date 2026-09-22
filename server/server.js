@@ -19,11 +19,18 @@ const SecurityModel = require("./models/securityModel");
 
 // ======================================================
 // UPLOAD CONFIGURATION
+//
+// This value is informational (surfaced by GET /api/upload-test) and
+// no longer what actually gates an upload's size — the real ceiling
+// used by every upload pipeline is MAX_UPLOAD_SIZE in
+// middleware/fileSecurity.js (MAX_UPLOAD_SIZE_BYTES env override),
+// currently 100 GB. Kept in sync here so the health-check endpoint
+// reports the true configured limit instead of the old 25 MB default.
 // ======================================================
 
 process.env.MAX_UPLOAD_SIZE =
     process.env.MAX_UPLOAD_SIZE ||
-    String(25 * 1024 * 1024);
+    String(100 * 1024 * 1024 * 1024);
 
 // ======================================================
 // APP
@@ -1396,6 +1403,24 @@ loadRoute(
 );
 
 // ======================================================
+// LARGE FILE ("CHUNKED") UPLOADS
+//
+// Backs the >~4 GB (up to the configured 100 GB app ceiling) bulk
+// upload path used by Checklist Reports and Action Points — see
+// middleware/chunkedUpload.js for the full explanation.
+// ======================================================
+
+loadRoute(
+
+    "./routes/uploadRoutes",
+
+    "/api/uploads",
+
+    "Large File Upload Routes"
+
+);
+
+// ======================================================
 // STORES
 // ======================================================
 
@@ -2360,7 +2385,37 @@ const httpServer = app.listen(
 
 );
 
-// Reasonable HTTP parser timeouts reduce slow-header/slowloris exposure.
+// ======================================================
+// HTTP PARSER / REQUEST TIMEOUTS
+//
+// httpServer.requestTimeout bounds how long Node will wait to receive
+// an ENTIRE request body before killing the connection — this used to
+// be 120000 (2 minutes), which silently overrode every per-route
+// req.setTimeout()/res.setTimeout() extension (see
+// middleware/extendUploadTimeout.js): no matter how generous a bulk-
+// upload route's own timeout was, this server-wide setting would cut
+// any request that took longer than 2 minutes to fully arrive,
+// regardless of file size. That is almost certainly why moderately
+// sized bulk-upload files (well under any configured size limit)
+// still failed/502'd once row-by-row processing pushed the request
+// past 2 minutes.
+//
+// Raised to match UPLOAD_TIMEOUT_MS (middleware/extendUploadTimeout.js,
+// 4 hours by default) so the two settings can never silently disagree
+// again. This applies to every request, not just uploads, but a
+// generous ceiling here only matters for requests that are already
+// legitimately slow (large bulk imports) — normal API calls finish in
+// milliseconds either way.
+//
+// Keep this in sync with:
+//   - middleware/extendUploadTimeout.js (UPLOAD_TIMEOUT_MS)
+//   - web.config <proxy timeout="..."> (the IIS/ARR reverse-proxy
+//     response wait time in front of this app)
+//   - web.config <httpRuntime executionTimeout="...">
+// ======================================================
+
+const { UPLOAD_TIMEOUT_MS } = require("./middleware/extendUploadTimeout");
+
 httpServer.keepAliveTimeout = 5000;
-httpServer.headersTimeout = 65000;
-httpServer.requestTimeout = 120000;
+httpServer.headersTimeout = 120000;
+httpServer.requestTimeout = UPLOAD_TIMEOUT_MS;

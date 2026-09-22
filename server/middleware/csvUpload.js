@@ -2,6 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { UPLOAD_DIR } = require("../config/storage");
+const { MAX_UPLOAD_SIZE } = require("./fileSecurity");
 
 
 // ==========================================
@@ -138,15 +139,12 @@ const fileFilter = (req,file,cb)=>{
 // ==========================================
 // Multer Config
 //
-// UNLIMITED UPLOAD SIZE
-// This used to cap out at 10 MB, which a genuinely large bulk-import
-// CSV (a big historical export / thousands of rows) can exceed.
-// `limits.fileSize` is intentionally left unset below — multer treats
-// a missing fileSize limit as "no limit at all", matching the same
-// fix already applied to Checklist Reports / Users bulk upload (see
-// middleware/bulkFileUpload.js). The IIS reverse-proxy in front of
-// this app (server/web.config) still applies its own ceiling, raised
-// to the maximum IIS supports.
+// UPLOAD SIZE — matches the app-wide ceiling (100 GB by default; see
+// MAX_UPLOAD_SIZE in middleware/fileSecurity.js), same as
+// middleware/bulkFileUpload.js. The IIS reverse-proxy in front of this
+// app (server/web.config) still applies its own separate ~4 GB hard
+// ceiling on a single request — a file larger than that needs the
+// chunked upload flow (middleware/chunkedUpload.js) instead.
 // ==========================================
 
 
@@ -156,10 +154,11 @@ const csvUpload = multer({
     storage,
 
 
-    fileFilter
+    fileFilter,
 
-
-    // No `limits.fileSize` — uploads of any size are accepted here.
+    limits: {
+        fileSize: MAX_UPLOAD_SIZE
+    }
 
 
 });

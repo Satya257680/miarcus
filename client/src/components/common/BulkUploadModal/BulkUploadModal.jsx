@@ -13,7 +13,115 @@ import {
     FaExclamationTriangle
 } from "react-icons/fa";
 
+import axios from "../../../axiosConfig.js";
 import "../../../styles/common/BulkUploadModal.css";
+
+// ======================================================
+// CHUNKED ("LARGE FILE") UPLOAD
+// ======================================================
+//
+// IIS's own request-size ceiling in front of this app tops out at
+// ~4 GB per request (see server/web.config) — that is a hard limit of
+// IIS itself, not something any client-side change can get around.
+// To support files up to the app's configured 100 GB ceiling, a file
+// bigger than `chunkThreshold` is instead sliced into `chunkSize`
+// pieces and sent to server/routes/uploadRoutes.js
+// (server/middleware/chunkedUpload.js), which reassembles them on the
+// server before handing the result to the exact same bulk-upload
+// controller a normal upload already used.
+//
+// This only activates when a page passes `enableChunkedUpload` — see
+// pages/ChecklistReports.jsx and pages/ActionPoints.jsx for the two
+// pages currently wired up end-to-end (their upload handlers accept
+// an optional second `assembledFile` argument; see those files for
+// the pattern to follow when adding this to another bulk-upload
+// page).
+// ======================================================
+
+const CHUNK_UPLOAD_BASE = "/api/uploads";
+
+function formatFileSize(bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(bytes / 1024).toFixed(2)} KB`;
+}
+
+function authHeaders() {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function uploadFileInChunks(file, chunkSize, onProgress) {
+
+    const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+
+    const initResponse = await axios.post(
+        `${CHUNK_UPLOAD_BASE}/init`,
+        {
+            originalName: file.name,
+            mimetype: file.type || "application/octet-stream",
+            totalSize: file.size,
+            totalChunks
+        },
+        { headers: authHeaders() }
+    );
+
+    const uploadId = initResponse?.data?.uploadId;
+
+    if (!uploadId) {
+        throw new Error("Could not start the large-file upload session.");
+    }
+
+    try {
+
+        for (let index = 0; index < totalChunks; index += 1) {
+
+            const start = index * chunkSize;
+            const end = Math.min(start + chunkSize, file.size);
+            const blob = file.slice(start, end);
+
+            const formData = new FormData();
+            formData.append("chunk", blob, `chunk-${index}`);
+
+            await axios.post(
+                `${CHUNK_UPLOAD_BASE}/${uploadId}/chunk/${index}`,
+                formData,
+                { headers: authHeaders() }
+            );
+
+            if (onProgress) {
+                onProgress(Math.round(((index + 1) / totalChunks) * 100));
+            }
+
+        }
+
+        const completeResponse = await axios.post(
+            `${CHUNK_UPLOAD_BASE}/${uploadId}/complete`,
+            {},
+            { headers: authHeaders() }
+        );
+
+        const assembledFile = completeResponse?.data?.file?.token;
+
+        if (!assembledFile) {
+            throw new Error("The server did not confirm the large file was received.");
+        }
+
+        return assembledFile;
+
+    } catch (error) {
+
+        // Best-effort cleanup of the abandoned session — never let a
+        // cleanup failure hide the real error from the caller.
+        axios
+            .delete(`${CHUNK_UPLOAD_BASE}/${uploadId}`, { headers: authHeaders() })
+            .catch(() => {});
+
+        throw error;
+
+    }
+
+}
 
 function BulkUploadModal({
 
@@ -35,9 +143,23 @@ function BulkUploadModal({
 
     sampleFile = null,
 
-    // Raised from 10 MB to 100 MB to match the server-side limit — see
-    // server/middleware/bulkFileUpload.js and server/middleware/fileSecurity.js.
-    maxFileSize = 100 * 1024 * 1024 // 100 MB
+    // Matches the app-wide server-side ceiling — see MAX_UPLOAD_SIZE in
+    // server/middleware/fileSecurity.js. A single request still can't
+    // exceed IIS's own ~4 GB ceiling (server/web.config) unless
+    // `enableChunkedUpload` is also turned on for this page.
+    maxFileSize = 100 * 1024 * 1024 * 1024, // 100 GB
+
+    // Opt-in: switches a file larger than `chunkThreshold` to the
+    // chunked upload flow (see uploadFileInChunks above) instead of a
+    // single request. Only turn this on for a page whose upload
+    // handler (the `uploadFunction` prop) also knows how to send the
+    // resulting { assembledFile } token — see pages/ChecklistReports.jsx
+    // and pages/ActionPoints.jsx for the pattern.
+    enableChunkedUpload = false,
+
+    // Stay comfortably under IIS's ~4 GB per-request ceiling.
+    chunkThreshold = 1.5 * 1024 * 1024 * 1024, // 1.5 GB
+    chunkSize = 500 * 1024 * 1024 // 500 MB per chunk
 
 }) {
 
@@ -50,6 +172,10 @@ function BulkUploadModal({
     const [loading, setLoading] = useState(false);
 
     const [dragging, setDragging] = useState(false);
+
+    // Only used while the chunked upload flow is actively transferring
+    // a large file — see enableChunkedUpload above.
+    const [uploadProgress, setUploadProgress] = useState(null);
 
     // Holds the last upload response so partial results (some rows
     // created, some skipped with a reason) can be shown inline instead of
@@ -73,6 +199,8 @@ function BulkUploadModal({
             setDragging(false);
 
             setResult(null);
+
+            setUploadProgress(null);
 
         }
 
@@ -126,9 +254,15 @@ function BulkUploadModal({
 
         if (selectedFile.size > maxFileSize) {
 
+            const isGigabyteScale = maxFileSize >= 1024 * 1024 * 1024;
+
+            const readableLimit = isGigabyteScale
+                ? `${(maxFileSize / (1024 * 1024 * 1024)).toFixed(1)} GB`
+                : `${Math.round(maxFileSize / (1024 * 1024))} MB`;
+
             alert(
 
-                `Maximum file size is ${Math.round(maxFileSize / (1024 * 1024))} MB.`
+                `Maximum file size is ${readableLimit}.`
 
             );
 
@@ -211,10 +345,34 @@ function BulkUploadModal({
 
             setLoading(true);
 
-            // Pass File only.
-            // Each page creates its own FormData.
+            let response;
 
-            const response = await uploadFunction(file);
+            // Large-file path: slice the file into pieces, upload each
+            // one, then hand the caller's uploadFunction the resulting
+            // server-side token instead of the (already fully
+            // transferred) File itself. See uploadFileInChunks above.
+            if (enableChunkedUpload && file.size > chunkThreshold) {
+
+                setUploadProgress(0);
+
+                const assembledFile = await uploadFileInChunks(
+                    file,
+                    chunkSize,
+                    (percent) => setUploadProgress(percent)
+                );
+
+                setUploadProgress(null);
+
+                response = await uploadFunction(file, { assembledFile });
+
+            } else {
+
+                // Pass File only.
+                // Each page creates its own FormData.
+
+                response = await uploadFunction(file);
+
+            }
 
             // Collect the row-by-row detail wherever the caller's API put
             // it, so "why didn't this row import?" is always answerable
@@ -274,6 +432,8 @@ function BulkUploadModal({
 
             setLoading(false);
 
+            setUploadProgress(null);
+
         }
 
     };
@@ -324,11 +484,16 @@ function BulkUploadModal({
 
                         <div className="bulk-processing-spinner" />
 
-                        <strong>Processing your file…</strong>
+                        <strong>
+                            {uploadProgress !== null
+                                ? `Uploading large file… ${uploadProgress}%`
+                                : "Processing your file…"}
+                        </strong>
 
                         <span>
-                            This can take a moment for large files.
-                            Please don't close this window.
+                            {uploadProgress !== null
+                                ? "Sending this file in pieces so it isn't rejected by a request-size limit. Please don't close this window."
+                                : "This can take a moment for large files. Please don't close this window."}
                         </span>
 
                     </div>
@@ -466,7 +631,7 @@ function BulkUploadModal({
 
                                     <span>
 
-                                        {(file.size / 1024).toFixed(2)} KB
+                                        {formatFileSize(file.size)}
 
                                     </span>
 
