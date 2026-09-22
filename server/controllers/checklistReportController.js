@@ -411,7 +411,18 @@ exports.bulkUploadChecklistReports = async (req, res) => {
                     uploadedPath,
                     req.file.originalname,
                     req.file.mimetype,
-                    CHECKLIST_REPORT_COLUMN_ALIASES
+                    CHECKLIST_REPORT_COLUMN_ALIASES,
+                    // Called every ~1000 rows while the file is being read
+                    // (see utils/bulkFileParser.js). Reading a very large
+                    // file is no longer a single blocking call, so the
+                    // status the browser is polling can now actually move
+                    // during this step instead of sitting on "Reading your
+                    // file and preparing the records…" the whole time.
+                    (rowsReadSoFar) => {
+                        updateJob(job.id, {
+                            message: `Reading your file… ${rowsReadSoFar.toLocaleString()} row(s) read so far`
+                        });
+                    }
                 );
             } catch (parseError) {
                 finishJob(job.id, {

@@ -7,8 +7,12 @@
 // every upload the same way regardless of what the admin
 // actually attached:
 //
-//   .csv / .xlsx / .xls   -> read as a spreadsheet (header row
-//                            auto-detected — see below)
+//   .csv                  -> streamed row-by-row (see the CSV
+//                            section below — this is the path that
+//                            was blocking the event loop on large
+//                            files; see CHANGES.md)
+//   .xlsx / .xls           -> read as a spreadsheet (header row
+//                            auto-detected — see below) via SheetJS
 //   .pdf                  -> text/table extraction (pdf-parse)
 //   .jpg / .jpeg / .png /
 //   .webp                 -> auto-resized, then OCR'd (sharp + tesseract.js)
@@ -32,7 +36,9 @@
 // titles) and anything after the data that doesn't look like a
 // real row (blank, or a trailing "Note: ..." line with nothing in
 // the other columns) are simply not part of the table and are
-// dropped on their own, without needing special-case code.
+// dropped on their own, without needing special-case code. For the
+// streamed CSV path this scan happens against the first 15 rows as
+// they arrive, before anything is committed to memory as "data".
 //
 // PDF and photo sources are inherently less reliable than a real
 // spreadsheet (extracted text can be noisy, OCR can misread
@@ -59,11 +65,25 @@
 //       "Employee ID": ["employeeid", "empid", "employee id"]
 //   };
 //   const { rows } = await parseBulkFile(path, name, mimetype, DEPARTMENT_COLUMN_ALIASES);
+//
+//   // Optional 5th argument: called every ~1000 rows while the file is
+//   // being read (CSV: rows streamed so far; XLSX/XLS: rows converted so
+//   // far), so a caller running this inside a background job (see
+//   // controllers/checklistReportController.js) can surface live
+//   // progress instead of a silent "Reading your file…" the whole time.
+//   const { rows } = await parseBulkFile(path, name, mimetype, aliases, (n) => {
+//       updateJob(job.id, { message: `Reading your file… ${n} row(s) read so far` });
+//   });
 // ==========================================================
 
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
+
+// Already a dependency of this project (see controllers/questionController.js,
+// storeController.js, checklistTypeController.js, listingTrackerController.js
+// for other places it's used) — no new package needed for the fix below.
+const csvParser = require("csv-parser");
 
 // These three are optional at require-time so that a server
 // that hasn't run `npm install` yet for the new deps still
@@ -127,8 +147,27 @@ function canonicalHeaderFor(rawHeader, aliasLookup) {
 }
 
 // ==========================================================
-// SPREADSHEET SOURCES (csv / xlsx / xls)
+// SHARED SMALL HELPERS
 // ==========================================================
+
+// How often the CSV/XLSX readers below hand control back to the event
+// loop while working through a large file. See CHANGES.md for the full
+// story; in short, without this a big enough file can keep the whole
+// server from answering ANY other request (including the bulk-upload
+// job's own status-poll request) for as long as the file takes to read,
+// which is what was surfacing as a 502 on
+// /api/checklist-reports/bulk-upload/status/:jobId.
+const YIELD_EVERY_N_ROWS = 1000;
+
+function yieldToEventLoop() {
+    return new Promise((resolve) => setImmediate(resolve));
+}
+
+function isBlankRow(cells) {
+    return cells.every(
+        (cell) => cell === undefined || cell === null || String(cell).trim() === ""
+    );
+}
 
 // Scores each of the first `maxScanRows` rows by how many cells
 // resolve to a known column via aliasLookup, and returns the
@@ -154,35 +193,188 @@ function findHeaderRowIndex(rowsAoA, aliasLookup, maxScanRows = 15) {
 }
 
 // ==========================================================
-// BUG FIX — GARBLED CHARACTERS ON CSV IMPORT
-// ("â€\"", boxes, etc. in place of a dash/quote/arrow that was
-// in the original Excel/CSV file, e.g. a Question or Remarks
-// cell containing an en dash or a curly quote)
+// CSV — STREAMED, NON-BLOCKING
+// ==========================================================
 //
-// XLSX.readFile() opens a .csv purely as bytes and, without an
-// explicit codepage, does not reliably treat it as UTF-8 — any
-// multi-byte character in the file (a "–", "’", "→", ...) comes
-// out re-interpreted as if each byte were its own Latin-1/cp1252
-// character, which is exactly the "â€" + box-glyph pattern bulk
-// -uploaded rows were showing. .xlsx/.xls are unaffected (their
-// text lives inside UTF-8 XML already), so only the CSV path
-// needs to be read as an explicit UTF-8 string first.
+// WHY THIS CHANGED (see CHANGES.md for the full write-up)
+// ----------------------------------------------------------
+// The previous version read the entire CSV into memory with
+// fs.readFileSync() and handed the whole string to XLSX.read() in one
+// synchronous call. For a large bulk-upload file (tens/hundreds of MB,
+// hundreds of thousands of rows) that single call could block Node's
+// one and only event-loop thread for a long stretch. While blocked, the
+// server can't answer ANY other request — including the bulk-upload
+// job's own status-poll request — which is what was surfacing to the
+// browser as a 502 from the reverse proxy partway through a large
+// import, even though the upload itself had already completed fine and
+// the timeouts (extendUploadTimeout.js, web.config, server.js) were
+// already generously configured.
+//
+// This version streams the file with `csv-parser` (already a project
+// dependency — see the requires above) and periodically pauses to yield
+// back to the event loop (yieldToEventLoop(), above), so a huge CSV
+// import never keeps the server from answering other requests for more
+// than a moment at a time. It also never holds the raw file text and a
+// second fully-parsed copy in memory at the same time the way
+// fs.readFileSync() + XLSX.read() did.
+//
+// HEADER-ROW DETECTION works the same way it always has (see the note
+// at the top of this file) — it just happens against a small rolling
+// buffer of the first 15 *non-blank* rows as they stream in, instead of
+// against an already-fully-parsed array.
 // ==========================================================
 
-function readWorkbook(filePath) {
-    if (path.extname(filePath).toLowerCase() === ".csv") {
-        let text = fs.readFileSync(filePath, "utf8");
-        // Strip a UTF-8 BOM if present so the first header cell
-        // doesn't end up with an invisible character glued to it.
-        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-        return XLSX.read(text, { type: "string", raw: true });
-    }
-
-    return XLSX.readFile(filePath);
+// csv-parser (headers:false) emits each row as an object keyed by
+// column index ("0", "1", "2", ...) rather than a real array — this
+// turns it back into a plain, ordered array the rest of this file
+// already knows how to work with.
+function rawCsvRowToArray(rawRow) {
+    return Object.keys(rawRow)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((key) => rawRow[key]);
 }
 
-function parseSpreadsheet(filePath, aliasLookup) {
-    const workbook = readWorkbook(filePath);
+function parseCsvStream(filePath, aliasLookup, onProgress) {
+    return new Promise((resolve, reject) => {
+        const headerBuffer = [];
+        let headerIndex = -1;
+        let canonicalHeaders = null;
+        const rows = [];
+        let rawRowCount = 0;
+        let sawFirstRow = false;
+        let settled = false;
+
+        const source = fs.createReadStream(filePath);
+        const parser = csvParser({ headers: false });
+
+        const fail = (err) => {
+            if (settled) return;
+            settled = true;
+            source.destroy();
+            parser.destroy();
+            reject(err);
+        };
+
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve({ rows, warnings: [] });
+        };
+
+        function pushDataRow(cells) {
+            const row = {};
+            canonicalHeaders.forEach((canonical, idx) => {
+                const value = cells[idx];
+                if (canonical && value !== "" && value !== undefined && value !== null) {
+                    row[canonical] = value;
+                }
+            });
+
+            if (Object.keys(row).length) rows.push(row);
+        }
+
+        function finalizeHeader() {
+            let idx = findHeaderRowIndex(headerBuffer, aliasLookup);
+            if (idx === -1) idx = 0; // nothing recognised — fall back to "row 1 is the header"
+
+            headerIndex = idx;
+            canonicalHeaders = headerBuffer[idx].map((cell) => canonicalHeaderFor(cell, aliasLookup));
+
+            for (let i = idx + 1; i < headerBuffer.length; i++) {
+                pushDataRow(headerBuffer[i]);
+            }
+            headerBuffer.length = 0; // free the buffer now that it's been flushed
+        }
+
+        parser.on("data", (rawRow) => {
+            const cells = rawCsvRowToArray(rawRow);
+
+            // A UTF-8 BOM (if the file has one) lands on the very first
+            // cell of the very first row — strip it the same way
+            // controllers/questionController.js's normalizeHeader()
+            // already does elsewhere in this codebase, or the first
+            // header cell ends up with an invisible character glued to
+            // it and never matches any alias.
+            if (!sawFirstRow) {
+                sawFirstRow = true;
+                if (typeof cells[0] === "string") {
+                    cells[0] = cells[0].replace(/^﻿/, "");
+                }
+            }
+
+            if (isBlankRow(cells)) return; // never counts toward the header scan or the row total
+
+            rawRowCount += 1;
+
+            if (headerIndex === -1) {
+                headerBuffer.push(cells);
+                if (headerBuffer.length >= 15) finalizeHeader();
+            } else {
+                pushDataRow(cells);
+            }
+
+            if (rawRowCount % YIELD_EVERY_N_ROWS === 0) {
+                if (onProgress) onProgress(rawRowCount);
+
+                parser.pause();
+                yieldToEventLoop().then(() => {
+                    if (!settled) parser.resume();
+                });
+            }
+        });
+
+        parser.on("end", () => {
+            if (headerIndex === -1 && headerBuffer.length) finalizeHeader();
+            if (onProgress) onProgress(rawRowCount);
+            finish();
+        });
+
+        parser.on("error", fail);
+        source.on("error", fail);
+
+        source.pipe(parser);
+    });
+}
+
+// ==========================================================
+// XLSX / XLS (SheetJS)
+// ==========================================================
+//
+// This path intentionally still uses the `xlsx` package's synchronous
+// XLSX.readFile(). Swapping it for a true streaming reader would also
+// change the shape individual cell values come back in (SheetJS hands
+// back plain strings/numbers; a streaming XLSX reader hands back richer
+// objects for formulas, rich text, hyperlinks and dates), which is a
+// real behaviour change worth doing carefully on its own rather than
+// folding into this fix. Two things keep this an acceptable trade-off
+// for now:
+//
+//   - .xls (the legacy binary format) is hard-capped at 65,536 rows by
+//     the file format itself, so it can never reach the file sizes that
+//     caused the CSV 502 in the first place.
+//   - .xlsx has no such cap, so a very large .xlsx can in principle
+//     still block the event loop the way the CSV did — the size check
+//     in parseBulkFile() below adds a warning for that case so it's
+//     surfaced to the uploader rather than silently causing the same
+//     failure. (If very large .xlsx uploads turn out to matter in
+//     practice, `exceljs` — already a dependency — has a genuine
+//     streaming XLSX reader that could replace this the same way
+//     csv-parser replaced the old CSV path.)
+//
+// What IS fixed here: the (pure JS, no library involved) loop that
+// turns parsed rows into the row objects this module returns now yields
+// back to the event loop periodically too, so it doesn't add its own
+// extra blocking stretch on top of the read.
+// ==========================================================
+
+async function parseSpreadsheetYielding(filePath, aliasLookup, onProgress) {
+    // Give any response already queued (e.g. the controller's
+    // "processing" job-status update, written just before this is
+    // called) a chance to actually go out on the wire before the
+    // blocking XLSX.readFile() call below starts.
+    await yieldToEventLoop();
+
+    const workbook = XLSX.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
     // Read as an array-of-arrays first (rather than letting XLSX
@@ -221,10 +413,22 @@ function parseSpreadsheet(filePath, aliasLookup) {
         // no matching header) contributes nothing — skip it rather
         // than passing an empty object down to the controller.
         if (Object.keys(row).length) rows.push(row);
+
+        if ((i - headerIndex) % YIELD_EVERY_N_ROWS === 0) {
+            if (onProgress) onProgress(rows.length);
+            await yieldToEventLoop();
+        }
     }
+
+    if (onProgress) onProgress(rows.length);
 
     return rows;
 }
+
+// A very large .xlsx can't be streamed the way CSV now is (see the note
+// above) — flag it so the uploader knows why a big Excel import is slow
+// and that CSV is the faster, safer option for very large files.
+const LARGE_XLSX_WARNING_BYTES = 20 * 1024 * 1024; // 20 MB
 
 // ==========================================================
 // TEXT -> ROWS (shared by PDF and OCR sources)
@@ -469,7 +673,7 @@ function detectSourceType(originalName, mimetype) {
 // PUBLIC ENTRY POINT
 // ==========================================================
 
-async function parseBulkFile(filePath, originalName, mimetype, columnAliases = DEFAULT_COLUMN_ALIASES) {
+async function parseBulkFile(filePath, originalName, mimetype, columnAliases = DEFAULT_COLUMN_ALIASES, onProgress) {
     const sourceType = detectSourceType(originalName, mimetype);
 
     if (!sourceType) {
@@ -497,7 +701,34 @@ async function parseBulkFile(filePath, originalName, mimetype, columnAliases = D
     const aliasLookup = buildAliasLookup(columnAliases);
 
     if (sourceType === "spreadsheet") {
-        return { rows: parseSpreadsheet(filePath, aliasLookup), sourceType, warnings: [] };
+        // Match on the extension of the file actually saved to disk (the
+        // multer storage filename mirrors the upload's original
+        // extension — see middleware/bulkFileUpload.js), the same way the
+        // old readWorkbook() picked its parsing path.
+        const ext = path.extname(filePath).toLowerCase();
+
+        if (ext === ".csv") {
+            const { rows, warnings } = await parseCsvStream(filePath, aliasLookup, onProgress);
+            return { rows, sourceType, warnings };
+        }
+
+        const rows = await parseSpreadsheetYielding(filePath, aliasLookup, onProgress);
+        const warnings = [];
+
+        if (ext === ".xlsx") {
+            try {
+                const { size } = fs.statSync(filePath);
+                if (size > LARGE_XLSX_WARNING_BYTES) {
+                    warnings.push(
+                        `This Excel file is ${(size / (1024 * 1024)).toFixed(1)} MB. Very large .xlsx files take longer to import than the equivalent CSV and can't be read as incrementally — for the fastest, most reliable import of a very large file, save it as CSV and upload that instead.`
+                    );
+                }
+            } catch {
+                // best-effort only — never fail the import over a stat() call
+            }
+        }
+
+        return { rows, sourceType, warnings };
     }
 
     if (sourceType === "pdf") {
