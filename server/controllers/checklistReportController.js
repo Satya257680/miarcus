@@ -377,163 +377,240 @@ exports.exportReports = (req, res) => {
 exports.bulkUploadChecklistReports = async (req, res) => {
     const uploadedPath = req.file?.path;
 
-    try {
-        if (!uploadedPath) {
-            return res.status(400).json({
-                success: false,
-                message: "Please upload a CSV, Excel, PDF, or photo file.",
-            });
-        }
+    if (!uploadedPath) {
+        return res.status(400).json({
+            success: false,
+            message: "Please upload a CSV, Excel, PDF, or photo file."
+        });
+    }
 
-        let parsed;
+    // IMPORTANT: do not parse/import inside this HTTP request.
+    // A 407k-row CSV can legitimately take longer than IIS/ARR is
+    // willing to keep a gateway request open. The job starts immediately
+    // after the file is received; the browser polls the status endpoint.
+    const { createJob, updateJob, getJob, publicJob, finishJob } =
+        require("../utils/bulkImportJobManager");
+
+    const job = createJob(
+        "checklist-reports",
+        req.user.id,
+        req.file
+    );
+
+    const runImport = async () => {
         try {
-            parsed = await parseBulkFile(
-                uploadedPath,
-                req.file.originalname,
-                req.file.mimetype,
-                CHECKLIST_REPORT_COLUMN_ALIASES
-            );
-        } catch (parseError) {
-            return res.status(parseError.status || 400).json({
-                success: false,
-                message: parseError.message,
+            updateJob(job.id, {
+                status: "processing",
+                startedAt: new Date().toISOString(),
+                message: "Reading your file and preparing the records…"
             });
-        }
 
-        const { rows, warnings: parseWarnings } = parsed;
+            let parsed;
+            try {
+                parsed = await parseBulkFile(
+                    uploadedPath,
+                    req.file.originalname,
+                    req.file.mimetype,
+                    CHECKLIST_REPORT_COLUMN_ALIASES
+                );
+            } catch (parseError) {
+                finishJob(job.id, {
+                    success: false,
+                    message: parseError.message || "Unable to read the uploaded file.",
+                    errors: [parseError.message || "Unable to read the uploaded file."]
+                });
+                return;
+            }
 
-        if (!rows.length) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "No recognizable rows were found in this file. Make sure it has a Store and Checklist Type column (any reasonable header wording is fine) and try again.",
-                warnings: parseWarnings,
+            const { rows, warnings: parseWarnings } = parsed;
+
+            updateJob(job.id, {
+                total: rows.length,
+                warnings: Array.isArray(parseWarnings) ? parseWarnings : [],
+                message: `Found ${rows.length.toLocaleString()} rows. Starting the import…`
             });
-        }
 
-        const created = [];
-        const warnings = [...parseWarnings];
-        const errors = [];
+            if (!rows.length) {
+                finishJob(job.id, {
+                    success: false,
+                    message: "No recognizable rows were found in this file. Make sure it has a Store and Checklist Type column."
+                });
+                return;
+            }
 
-        // ======================================================
-        // BUG FIX — large files timing out / the upload "sometimes
-        // working, sometimes not":
-        //
-        // This used to `await` each row's Store/Checklist Type/Employee/
-        // Question lookups + insert one at a time, fully sequentially.
-        // Every row is several round trips to the database (see
-        // services/checklistReportService.js), so a real-world file with
-        // several thousand rows could take minutes of wall-clock time —
-        // long enough to run into the server's own request timeout, or a
-        // reverse-proxy/gateway timeout in front of it, well before the
-        // file was actually processed. That is what an "intermittent"
-        // failure that depends only on file size looks like: small files
-        // finish in time, bigger ones don't.
-        //
-        // Rows are independent of each other, so they are now processed
-        // in small concurrent batches instead of one at a time. This cuts
-        // the total wall-clock time roughly by the batch size (a 10,000-
-        // row file that used to take minutes now takes well under a
-        // minute) without overwhelming the database connection pool the
-        // way firing all rows at once would.
-        // ======================================================
+            let createdCount = 0;
+            const errors = [];
+            const warnings = Array.isArray(parseWarnings) ? [...parseWarnings] : [];
 
-        // Kept below the MySQL pool's connectionLimit (10 — see
-        // server/config/db.js) so a big bulk upload speeds itself up
-        // without starving every other request in the app of a
-        // connection for the duration of the import.
-        const BULK_UPLOAD_CONCURRENCY = 5;
+            // Keep this below the MySQL pool size. Each row has its own
+            // transaction and several lookup queries.
+            const BULK_UPLOAD_CONCURRENCY = 8;
 
-        for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
-            const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
+            for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
+                const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
 
-            const batchResults = await Promise.all(
-                batch.map(async (row, offset) => {
-                    const rowNumber = start + offset + 2;
+                const batchResults = await Promise.all(
+                    batch.map(async (row, offset) => {
+                        const rowNumber = start + offset + 2;
 
-                    try {
-                        const result = await checklistReportService.createFromRow(row, req.user.id);
-                        return { rowNumber, row, result };
-                    } catch (rowError) {
-                        return { rowNumber, row, error: rowError };
+                        // Retry transient DB failures. These are especially
+                        // important on very large imports where connection
+                        // queueing/deadlocks can otherwise create a few
+                        // seemingly random skipped rows.
+                        let lastError = null;
+
+                        for (let attempt = 1; attempt <= 3; attempt += 1) {
+                            try {
+                                const result = await checklistReportService.createFromRow(
+                                    row,
+                                    req.user.id
+                                );
+                                return { rowNumber, row, result };
+                            } catch (rowError) {
+                                lastError = rowError;
+                                const text = String(rowError?.message || "").toLowerCase();
+                                const transient =
+                                    /deadlock|lock wait timeout|connection|econnreset|econnrefused|pool|too many connections|timeout/.test(text);
+
+                                if (!transient || attempt === 3) break;
+
+                                await new Promise(resolve =>
+                                    setTimeout(resolve, 150 * attempt)
+                                );
+                            }
+                        }
+
+                        return { rowNumber, row, error: lastError };
+                    })
+                );
+
+                batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+
+                for (const item of batchResults) {
+                    if (item.error) {
+                        errors.push(
+                            `Row ${item.rowNumber}: ${item.error.message || "Import failed."}`
+                        );
+                        continue;
                     }
-                })
-            );
 
-            // Batches complete concurrently (out of row order), so sort each
-            // batch's results back into file order before recording them —
-            // keeps the created/errors/warnings lists readable top-to-bottom
-            // the same way a fully sequential run would have produced them.
-            batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+                    createdCount += 1;
 
-            for (const { rowNumber, row, result, error: rowError } of batchResults) {
-                if (rowError) {
-                    errors.push(`Row ${rowNumber}: ${rowError.message}`);
-                    continue;
+                    if (!item.result.questionMatched && item.row["Question"]) {
+                        warnings.push(
+                            `Row ${item.rowNumber}: Question "${item.row["Question"]}" was not recognized; the submission was still imported.`
+                        );
+                    }
                 }
 
-                created.push({ row: rowNumber, submissionId: result.submissionId });
+                updateJob(job.id, {
+                    processed: Math.min(start + batch.length, rows.length),
+                    created: createdCount,
+                    skipped: errors.length,
+                    errors,
+                    warnings,
+                    message: `Importing records… ${Math.min(start + batch.length, rows.length).toLocaleString()} of ${rows.length.toLocaleString()} processed`
+                });
+            }
 
-                if (!result.questionMatched && row["Question"]) {
-                    warnings.push(
-                        `Row ${rowNumber}: submission created, but the Question "${row["Question"]}" wasn't recognized — the answer was not saved. Check spelling or the Checklist Type.`
+            if (!createdCount) {
+                finishJob(job.id, {
+                    success: false,
+                    processed: rows.length,
+                    created: 0,
+                    skipped: errors.length,
+                    errors,
+                    warnings,
+                    message: "No Checklist Reports were created. See the row-by-row problems below."
+                });
+                return;
+            }
+
+            Activity.create({
+                title: "Checklist Reports Bulk Uploaded",
+                description: `${createdCount} Checklist Report(s) created via bulk upload.`,
+                module_name: "Checklist Reports",
+                status: "Closed",
+                priority: "Low",
+                created_by: req.user.id,
+                assigned_to: null
+            }, () => {});
+
+            Audit.create({
+                module_name: "Checklist Reports",
+                reference_id: null,
+                action: "BULK_UPLOAD",
+                old_data: null,
+                new_data: {
+                    created: createdCount,
+                    errors: errors.length
+                },
+                changed_by: req.user.id
+            }, () => {});
+
+            finishJob(job.id, {
+                success: true,
+                processed: rows.length,
+                created: createdCount,
+                skipped: errors.length,
+                errors,
+                warnings,
+                message: `Bulk upload completed. ${createdCount.toLocaleString()} Checklist Report(s) created${errors.length ? `, ${errors.length.toLocaleString()} row(s) need review` : ""}.`
+            });
+
+        } catch (error) {
+            console.error("BULK CHECKLIST REPORT ERROR:", error);
+
+            finishJob(job.id, {
+                success: false,
+                message: "Checklist Report bulk upload failed.",
+                errors: [error.message || "Unknown import error."]
+            });
+        } finally {
+            if (uploadedPath) {
+                try {
+                    if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+                } catch (cleanupError) {
+                    console.warn(
+                        "Unable to remove Checklist Report bulk-upload file:",
+                        cleanupError.message
                     );
                 }
             }
         }
+    };
 
-        if (!created.length) {
-            return res.status(400).json({
-                success: false,
-                message: "No Checklist Reports were created. See the row-by-row problems below.",
-                warnings,
-                errors,
-            });
-        }
-
-        Activity.create({
-            title: "Checklist Reports Bulk Uploaded",
-            description: `${created.length} Checklist Report(s) created via bulk upload.`,
-            module_name: "Checklist Reports",
-            status: "Closed",
-            priority: "Low",
-            created_by: req.user.id,
-            assigned_to: null,
-        }, () => {});
-
-        Audit.create({
-            module_name: "Checklist Reports",
-            reference_id: null,
-            action: "BULK_UPLOAD",
-            old_data: null,
-            new_data: { created: created.length, errors: errors.length },
-            changed_by: req.user.id,
-        }, () => {});
-
-        return res.status(201).json({
-            success: true,
-            message: `Bulk upload completed. ${created.length} Checklist Report(s) created${errors.length ? `, ${errors.length} row(s) skipped` : ""}.`,
-            data: { created, errors, warnings },
+    // Start after the HTTP response has been returned.
+    setImmediate(() => {
+        runImport().catch((error) => {
+            console.error("CHECKLIST BULK JOB UNHANDLED ERROR:", error);
         });
-    } catch (error) {
-        console.error("BULK CHECKLIST REPORT ERROR:", error);
-        return res.status(500).json({
+    });
+
+    return res.status(202).json({
+        success: true,
+        processing: true,
+        jobId: job.id,
+        statusUrl: `/api/checklist-reports/bulk-upload/status/${job.id}`,
+        message: "File received successfully. Import is now running in the background."
+    });
+};
+
+exports.getChecklistBulkUploadStatus = (req, res) => {
+    const { getJob, publicJob } = require("../utils/bulkImportJobManager");
+    const job = getJob(req.params.jobId, req.user.id);
+
+    if (!job) {
+        return res.status(404).json({
             success: false,
-            message: "Checklist Report bulk upload failed.",
-            error: error.message,
+            message: "Bulk upload job was not found or has expired."
         });
-    } finally {
-        // The bulk-upload middleware stores the temporary import file on
-        // disk. Remove it after processing so repeated uploads do not
-        // accumulate files.
-        if (uploadedPath) {
-            try {
-                if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-            } catch (cleanupError) {
-                console.warn("Unable to remove Checklist Report bulk-upload file:", cleanupError.message);
-            }
-        }
     }
+
+    return res.json({
+        success: true,
+        job: publicJob(job)
+    });
 };
 
 module.exports = {

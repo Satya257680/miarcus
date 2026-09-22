@@ -44,6 +44,7 @@ const {
     getActionPointsByNSO,
     exportActionPointsCSV,
     bulkUploadActionPoints,
+    getActionPointBulkUploadStatus,
     createActionPoint,
     updateActionPoint,
     takeAction,
@@ -117,6 +118,21 @@ router.get(
     getActionPointsByNSO
 );
 
+
+// ======================================================
+// BULK UPLOAD ACTION POINT STATUS
+// GET /api/action-points/bulk-upload/status/:jobId
+// ======================================================
+
+router.get(
+    "/bulk-upload/status/:jobId",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "Add"
+    ),
+    getActionPointBulkUploadStatus
+);
 
 // ======================================================
 // BULK UPLOAD ACTION POINTS

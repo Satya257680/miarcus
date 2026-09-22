@@ -449,13 +449,11 @@ ActionPoint.getAll = (
 
         WHERE 1 = 1
 
-        -- Checklist-generated Action Points are workflow items.
-        -- Once they are Closed, they must leave Action Points and become
-        -- visible in Checklist Reports. Manual Action Points remain visible.
-        AND (
-            ap.submission_answer_id IS NULL
-            OR LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
-        )
+        -- Bulk imports must remain fully visible in Action Points so the
+        -- source CSV is auditable row-for-row. Closed/no-action imported
+        -- records are also present in Checklist Reports, but are not hidden
+        -- from this table anymore. Normal workflow status filtering below
+        -- still works when the user explicitly chooses a Status.
     `;
 
 

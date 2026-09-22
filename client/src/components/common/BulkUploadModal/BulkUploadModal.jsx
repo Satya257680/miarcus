@@ -123,6 +123,53 @@ async function uploadFileInChunks(file, chunkSize, onProgress) {
 
 }
 
+
+async function waitForBulkJob(jobResponse, onProgress) {
+    if (!jobResponse?.processing || !jobResponse?.statusUrl) {
+        return jobResponse;
+    }
+
+    const statusUrl = jobResponse.statusUrl;
+    const started = Date.now();
+    const MAX_WAIT_MS = 24 * 60 * 60 * 1000; // large imports may legitimately take hours
+
+    while (Date.now() - started < MAX_WAIT_MS) {
+        const response = await axios.get(statusUrl, {
+            headers: authHeaders(),
+            params: { _: Date.now() }
+        });
+
+        const job = response?.data?.job;
+
+        if (!job) {
+            throw new Error("The server returned an invalid bulk-upload status.");
+        }
+
+        if (onProgress) {
+            onProgress(job);
+        }
+
+        if (job.status === "completed" || job.status === "failed") {
+            return {
+                success: Boolean(job.success),
+                message: job.message,
+                errors: job.errors || [],
+                warnings: job.warnings || [],
+                data: {
+                    created: job.created || 0,
+                    movedToReports: job.movedToReports || 0,
+                    errors: job.errors || [],
+                    warnings: job.warnings || []
+                }
+            };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    throw new Error("The import is taking longer than expected. Please keep the MI ARCUS window open and check the upload status again.");
+}
+
 function BulkUploadModal({
 
     isOpen,
@@ -180,6 +227,8 @@ function BulkUploadModal({
     // a large file — see enableChunkedUpload above.
     const [uploadProgress, setUploadProgress] = useState(null);
 
+    const [jobProgress, setJobProgress] = useState(null);
+
     // Holds the last upload response so partial results (some rows
     // created, some skipped with a reason) can be shown inline instead of
     // a single opaque alert() that hides the per-row detail.
@@ -204,6 +253,8 @@ function BulkUploadModal({
             setResult(null);
 
             setUploadProgress(null);
+
+            setJobProgress(null);
 
         }
 
@@ -368,6 +419,11 @@ function BulkUploadModal({
 
                 response = await uploadFunction(file, { assembledFile });
 
+                response = await waitForBulkJob(
+                    response,
+                    (job) => setJobProgress(job)
+                );
+
             } else {
 
                 // Pass File only.
@@ -375,11 +431,18 @@ function BulkUploadModal({
 
                 response = await uploadFunction(file);
 
+                response = await waitForBulkJob(
+                    response,
+                    (job) => setJobProgress(job)
+                );
+
             }
 
             // Collect the row-by-row detail wherever the caller's API put
             // it, so "why didn't this row import?" is always answerable
             // from the modal instead of a vague popup.
+            setJobProgress(null);
+
             const errors = response?.errors || response?.data?.errors || [];
             const warnings = response?.warnings || response?.data?.warnings || [];
             const hasDetail = errors.length > 0 || warnings.length > 0;
@@ -485,19 +548,57 @@ function BulkUploadModal({
 
                     <div className="bulk-processing-overlay">
 
-                        <div className="bulk-processing-spinner" />
+                        <div className="bulk-processing-orbit" aria-hidden="true">
+                            <div className="bulk-processing-spinner" />
+                            <div className="bulk-processing-spinner-core">
+                                <FaCloudUploadAlt />
+                            </div>
+                        </div>
+
+                        <div className="bulk-processing-eyebrow">
+                            {uploadProgress !== null ? "SECURE TRANSFER" : "MI ARCUS IMPORT ENGINE"}
+                        </div>
 
                         <strong>
                             {uploadProgress !== null
                                 ? `Uploading large file… ${uploadProgress}%`
-                                : "Processing your file…"}
+                                : jobProgress
+                                    ? `${jobProgress.percent || 0}% — ${jobProgress.processed?.toLocaleString?.() || 0} of ${jobProgress.total?.toLocaleString?.() || 0} rows`
+                                    : "Preparing your import…"}
                         </strong>
+
+                        <div className="bulk-progress-track">
+                            <div
+                                className="bulk-progress-fill"
+                                style={{
+                                    width: `${uploadProgress !== null
+                                        ? uploadProgress
+                                        : Math.max(3, Number(jobProgress?.percent || 0))}%`
+                                }}
+                            />
+                        </div>
 
                         <span>
                             {uploadProgress !== null
-                                ? "Sending this file in pieces so it isn't rejected by a request-size limit. Please don't close this window."
-                                : "This can take a moment for large files. Please don't close this window."}
+                                ? "Your file is being transferred in protected 10 MB pieces."
+                                : jobProgress?.message || "Validating, matching and saving your records safely."}
                         </span>
+
+                        <div className="bulk-processing-tip">
+                            <span className="bulk-tip-dot" />
+                            <span>
+                                {jobProgress
+                                    ? "You can relax — the import continues in the background while this screen shows live progress."
+                                    : "Large imports can take time. Please keep this window open while MI ARCUS works."}
+                            </span>
+                        </div>
+
+                        {jobProgress && (
+                            <div className="bulk-processing-stats">
+                                <span><b>{Number(jobProgress.created || 0).toLocaleString()}</b> saved</span>
+                                <span><b>{Number(jobProgress.skipped || 0).toLocaleString()}</b> needs review</span>
+                            </div>
+                        )}
 
                     </div>
 

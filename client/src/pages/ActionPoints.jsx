@@ -1426,7 +1426,11 @@ if (loading) {
         row.attachment ? (
 
             <a
-                href={`${API}/${row.attachment.replace(/\\/g, "/")}`}
+                href={
+                    /^https?:\/\//i.test(String(row.attachment))
+                        ? row.attachment
+                        : `${API}/${String(row.attachment).replace(/\\/g, "/")}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="table-link"

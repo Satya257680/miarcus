@@ -122,6 +122,16 @@ router.get(
 
 );
 
+router.get(
+    "/bulk-upload/status/:jobId",
+    authMiddleware,
+    permissionMiddleware(
+        "Checklist Reports",
+        "Add"
+    ),
+    getChecklistBulkUploadStatus
+);
+
 // ======================================================
 // BULK UPLOAD REPORTS
 // POST /api/checklist-reports/bulk-upload

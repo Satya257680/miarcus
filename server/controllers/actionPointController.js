@@ -427,6 +427,7 @@ const ACTION_POINT_COLUMN_ALIASES = {
     // — see checklistReportService.parseSubmissionDate's History
     // fallback.
     "History": ["history", "audittrail", "audit trail"],
+    "Attachment": ["attachment", "attachments", "attachmenturl", "attachment url", "file", "fileurl", "file url"],
     "Action Taken": ["actiontaken", "action taken", "actiontakennotes", "resolution"],
     "Submission Date": ["submissiondate", "submission date", "date", "reportdate", "intendeddate", "intended date"],
     "Actual Submission Time": ["actualsubmissiontime", "actual submission time", "submissiontime", "submission time", "submittedtime", "submitted time"],
@@ -650,62 +651,74 @@ exports.getActionPointsByNSO = async (req, res) => {
 // ======================================================
 
 exports.bulkUploadActionPoints = async (req, res) => {
-
     const uploadedPath = req.file?.path;
 
-    try {
+    if (!uploadedPath) {
+        return res.status(400).json({
+            success: false,
+            message: "Please upload a CSV, Excel, PDF, or photo file."
+        });
+    }
 
-        if (!uploadedPath) {
-            return res.status(400).json({
-                success: false,
-                message: "Please upload a CSV, Excel, PDF, or photo file."
-            });
-        }
+    const { createJob, updateJob, getJob, publicJob, finishJob } =
+        require("../utils/bulkImportJobManager");
 
-        // Accepts CSV/XLSX/XLS/PDF/photo, auto-detects the real header row
-        // even when it isn't row 1, and matches columns by alias rather
-        // than an exact string — a mismatched/reordered/renamed column
-        // layout no longer fails the whole file. See utils/bulkFileParser.js.
-        let parsed;
+    const job = createJob(
+        "action-points",
+        req.user.id,
+        req.file
+    );
+
+    const runImport = async () => {
         try {
-            parsed = await parseBulkFile(
-                uploadedPath,
-                req.file.originalname,
-                req.file.mimetype,
-                ACTION_POINT_COLUMN_ALIASES
-            );
-        } catch (parseError) {
-            return res.status(parseError.status || 400).json({
-                success: false,
-                message: parseError.message
+            updateJob(job.id, {
+                status: "processing",
+                startedAt: new Date().toISOString(),
+                message: "Reading your Action Points file and preparing the records…"
             });
-        }
 
-        const { rows, warnings: parseWarnings } = parsed;
+            let parsed;
+            try {
+                parsed = await parseBulkFile(
+                    uploadedPath,
+                    req.file.originalname,
+                    req.file.mimetype,
+                    ACTION_POINT_COLUMN_ALIASES
+                );
+            } catch (parseError) {
+                finishJob(job.id, {
+                    success: false,
+                    message: parseError.message || "Unable to read the uploaded file.",
+                    errors: [parseError.message || "Unable to read the uploaded file."]
+                });
+                return;
+            }
 
-        if (!rows.length) {
-            return res.status(400).json({
-                success: false,
-                message: "No recognizable rows were found in this file. Make sure it has at least a Store column (any reasonable header wording is fine) and try again.",
-                warnings: parseWarnings
+            const { rows, warnings: parseWarnings } = parsed;
+
+            updateJob(job.id, {
+                total: rows.length,
+                warnings: Array.isArray(parseWarnings) ? parseWarnings : [],
+                message: `Found ${rows.length.toLocaleString()} rows. Starting the import…`
             });
-        }
 
-        const created = [];
-        const movedToReports = [];
-        const errors = [];
-        const warnings = [...parseWarnings];
+            if (!rows.length) {
+                finishJob(job.id, {
+                    success: false,
+                    message: "No recognizable rows were found in this file. Make sure it has a Store column."
+                });
+                return;
+            }
 
-        // Process rows in small concurrent batches instead of one at a
-        // time — a large file (hundreds/thousands of rows) processed
-        // fully sequentially could take long enough to time out or feel
-        // "stuck", which is the same class of bulk-upload reliability
-        // issue already fixed for Checklist Reports. Kept below the
-        // MySQL pool's connectionLimit (10, see config/db.js) so a big
-        // batch never exhausts every pooled connection at once.
-        const BULK_UPLOAD_CONCURRENCY = 5;
+            const created = [];
+            const movedToReports = [];
+            const errors = [];
+            const warnings = Array.isArray(parseWarnings) ? [...parseWarnings] : [];
 
-        const processRow = async (row, rowNumber) => {
+            // Keep below the MySQL pool's connectionLimit (10).
+            const BULK_UPLOAD_CONCURRENCY = 8;
+
+            const processRow = async (row, rowNumber) => {
 
             try {
 
@@ -919,7 +932,7 @@ exports.bulkUploadActionPoints = async (req, res) => {
                             // normalizeActionPointStatus() above.
                             status: normalizeActionPointStatus(row["Status"], "Open")
                         },
-                        null,
+                        row["Attachment"] || null,
                         req.user.id
                     );
 
@@ -938,76 +951,121 @@ exports.bulkUploadActionPoints = async (req, res) => {
             }
         };
 
-        for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
-            const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
 
-            const batchResults = await Promise.all(
-                batch.map((row, offset) => processRow(row, start + offset + 2))
-            );
+            for (let start = 0; start < rows.length; start += BULK_UPLOAD_CONCURRENCY) {
+                const batch = rows.slice(start, start + BULK_UPLOAD_CONCURRENCY);
 
-            // Sort back into original row order before applying — batches
-            // can settle out of order internally, but the reported
-            // created/movedToReports/errors lists should still read top
-            // to bottom the same way the source file did.
-            batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+                const batchResults = await Promise.all(
+                    batch.map((row, offset) => processRow(row, start + offset + 2))
+                );
 
-            for (const result of batchResults) {
-                if (result.error) errors.push(result.error);
-                if (result.created) created.push(result.created);
-                if (result.movedToReport) movedToReports.push(result.movedToReport);
+                batchResults.sort((a, b) => a.rowNumber - b.rowNumber);
+
+                for (const result of batchResults) {
+                    if (result.error) errors.push(result.error);
+                    if (result.created) created.push(result.created);
+                    if (result.movedToReport) movedToReports.push(result.movedToReport);
+                }
+
+                updateJob(job.id, {
+                    processed: Math.min(start + batch.length, rows.length),
+                    created: created.length,
+                    movedToReports: movedToReports.length,
+                    skipped: errors.length,
+                    errors,
+                    warnings,
+                    message: `Importing Action Points… ${Math.min(start + batch.length, rows.length).toLocaleString()} of ${rows.length.toLocaleString()} processed`
+                });
             }
-        }
 
-        if (!created.length && !movedToReports.length) {
-            return res.status(400).json({
-                success: false,
-                message: "No Action Points were created and no rows could be filed as Checklist Reports. See the row-by-row problems below.",
-                warnings,
-                errors
-            });
-        }
+            if (!created.length && !movedToReports.length) {
+                finishJob(job.id, {
+                    success: false,
+                    processed: rows.length,
+                    created: 0,
+                    movedToReports: 0,
+                    skipped: errors.length,
+                    errors,
+                    warnings,
+                    message: "No Action Points were created and no rows could be filed as Checklist Reports."
+                });
+                return;
+            }
 
-        const messageParts = [];
-        if (created.length) messageParts.push(`${created.length} Action Point(s) created`);
-        if (movedToReports.length) messageParts.push(`${movedToReports.length} row(s) had no action to take and were filed as Checklist Reports instead`);
-        if (errors.length) messageParts.push(`${errors.length} row(s) skipped`);
+            const messageParts = [];
+            if (created.length) messageParts.push(`${created.length.toLocaleString()} Action Point(s) created`);
+            if (movedToReports.length) {
+                messageParts.push(
+                    `${movedToReports.length.toLocaleString()} row(s) filed as Checklist Reports`
+                );
+            }
+            if (errors.length) {
+                messageParts.push(`${errors.length.toLocaleString()} row(s) need review`);
+            }
 
-        return res.status(201).json({
-            success: true,
-            message: `Bulk upload completed. ${messageParts.join(", ")}.`,
-            data: {
-                created,
-                movedToReports,
+            finishJob(job.id, {
+                success: true,
+                processed: rows.length,
+                created: created.length,
+                movedToReports: movedToReports.length,
+                skipped: errors.length,
                 errors,
-                warnings
-            }
-        });
+                warnings,
+                message: `Bulk upload completed. ${messageParts.join(", ")}.`
+            });
 
-    } catch (error) {
+        } catch (error) {
+            console.error("BULK ACTION POINT UPLOAD ERROR:", error);
 
-        console.error(
-            "BULK ACTION POINT UPLOAD ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            success: false,
-            message: "Unable to bulk upload Action Points.",
-            error: error.message
-        });
-
-    } finally {
-        // The upload middleware stores the temporary import file on disk.
-        // Remove it after processing so repeated uploads do not accumulate files.
-        if (uploadedPath) {
-            try {
-                if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-            } catch (cleanupError) {
-                console.warn("Unable to remove Action Point bulk-upload file:", cleanupError.message);
+            finishJob(job.id, {
+                success: false,
+                message: "Unable to bulk upload Action Points.",
+                errors: [error.message || "Unknown import error."]
+            });
+        } finally {
+            if (uploadedPath) {
+                try {
+                    if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+                } catch (cleanupError) {
+                    console.warn(
+                        "Unable to remove Action Point bulk-upload file:",
+                        cleanupError.message
+                    );
+                }
             }
         }
+    };
+
+    setImmediate(() => {
+        runImport().catch((error) => {
+            console.error("ACTION POINT BULK JOB UNHANDLED ERROR:", error);
+        });
+    });
+
+    return res.status(202).json({
+        success: true,
+        processing: true,
+        jobId: job.id,
+        statusUrl: `/api/action-points/bulk-upload/status/${job.id}`,
+        message: "File received successfully. Import is now running in the background."
+    });
+};
+
+exports.getActionPointBulkUploadStatus = (req, res) => {
+    const { getJob, publicJob } = require("../utils/bulkImportJobManager");
+    const job = getJob(req.params.jobId, req.user.id);
+
+    if (!job) {
+        return res.status(404).json({
+            success: false,
+            message: "Bulk upload job was not found or has expired."
+        });
     }
 
+    return res.json({
+        success: true,
+        job: publicJob(job)
+    });
 };
 
 // ======================================================
