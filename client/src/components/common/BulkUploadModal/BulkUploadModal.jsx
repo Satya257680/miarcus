@@ -157,9 +157,12 @@ function BulkUploadModal({
     // and pages/ActionPoints.jsx for the pattern.
     enableChunkedUpload = false,
 
-    // Stay comfortably under IIS's ~4 GB per-request ceiling.
-    chunkThreshold = 1.5 * 1024 * 1024 * 1024, // 1.5 GB
-    chunkSize = 500 * 1024 * 1024 // 500 MB per chunk
+    // Use chunked upload for files above 20 MB. This keeps large
+    // Action Point / Checklist Report uploads well below the IIS
+    // single-request limit and avoids 502s caused by large multipart
+    // requests. Each chunk is 10 MB.
+    chunkThreshold = 20 * 1024 * 1024, // 20 MB
+    chunkSize = 10 * 1024 * 1024 // 10 MB per chunk
 
 }) {
 
