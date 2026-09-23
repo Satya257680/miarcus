@@ -440,7 +440,8 @@ function Sidebar({ collapsed }) {
                 collapsed ? "collapsed" : ""
             }`}
         >
-            <nav>
+            <div className="sidebar-nav-scroll">
+                <nav>
 
                 {/* ==================================================
                     DASHBOARD
@@ -1517,7 +1518,20 @@ function Sidebar({ collapsed }) {
 
                 </div>
 
-            </nav>
+                </nav>
+            </div>
+
+            <div className="sidebar-branding">
+                <img
+                    src="/miarcus-logo.png"
+                    alt="MIARCUS"
+                    className="sidebar-branding-logo"
+                />
+                <div className="sidebar-branding-copy">
+                    <strong>MIARCUS</strong>
+                    <span>Retail operations, all in one place</span>
+                </div>
+            </div>
         </aside>
     );
 }

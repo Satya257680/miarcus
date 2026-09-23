@@ -245,7 +245,7 @@ function Topbar({ toggleSidebar }) {
 
       <div className="topbar-center">
         <img
-          src="/miarcus-brand-theme.png?v=20260923-premium"
+          src="/miarcus-topbar-logo.svg?v=20260923-premium"
           alt="MIARCUS"
           className="topbar-logo"
         />

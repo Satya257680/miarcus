@@ -426,3 +426,23 @@ button.primary,
         transition: none;
     }
 }
+
+/* =========================================================
+   MIARCUS ORIGINAL — PREMIUM PURPLE TOKENS
+   Scoped so Professional/Dark/etc. themes continue to work.
+========================================================= */
+:root:not([data-miarcus-theme]),
+:root[data-miarcus-theme="miarcus-original"] {
+    --mi-accent: #6d57c8;
+    --mi-accent-soft: rgba(109, 87, 200, .13);
+    --mi-bg: #f2effa;
+    --mi-surface: #ffffff;
+    --mi-surface-2: #f8f5fc;
+    --mi-text: #2f2942;
+    --mi-text-strong: #1c2850;
+    --mi-muted: #626b83;
+    --mi-border: rgba(91, 72, 126, .16);
+    --mi-sidebar: linear-gradient(180deg, #8e81ba 0%, #7866a4 52%, #6d5e8f 100%);
+    --mi-sidebar-text: #f8f5ff;
+    --mi-navbar: linear-gradient(90deg, #8e81ba 0%, #9a8bc5 50%, #8b78b5 100%);
+}

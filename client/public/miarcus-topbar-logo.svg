@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="40" viewBox="0 0 180 40" role="img" aria-labelledby="title desc">
+  <title id="title">MIARCUS</title>
+  <desc id="desc">mi arcus wordmark with rainbow</desc>
+  <rect width="180" height="40" fill="none"/>
+  <text x="0" y="28" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="27" font-weight="700" letter-spacing="-1.1" fill="#ffffff">mi arcus</text>
+  <path d="M126 29 A21 21 0 0 1 168 29" fill="none" stroke="#f7c6d9" stroke-width="7" stroke-linecap="round"/>
+  <path d="M130 29 A17 17 0 0 1 164 29" fill="none" stroke="#ffbe55" stroke-width="6" stroke-linecap="round"/>
+  <path d="M134 29 A13 13 0 0 1 160 29" fill="none" stroke="#5fd1c4" stroke-width="6" stroke-linecap="round"/>
+  <path d="M138 29 A9 9 0 0 1 156 29" fill="none" stroke="#62a7ff" stroke-width="5" stroke-linecap="round"/>
+</svg>
