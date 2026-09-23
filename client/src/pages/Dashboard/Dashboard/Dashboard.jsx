@@ -369,12 +369,30 @@ function Dashboard() {
 
           </div>
 
-          <div
-            className="dashboard-welcome-right analytics-icon"
-            onClick={() => navigate("/dashboard-analytics")}
-            title="Dashboard Analytics"
-          >
-            <FaChartLine />
+          <div className="dashboard-welcome-visual">
+
+            <img
+              src="/miarcus-storefront.png"
+              alt="Mi Arcus storefront"
+              className="dashboard-welcome-image"
+            />
+
+          </div>
+
+          <div className="dashboard-welcome-analytics-wrap">
+
+            <button
+              type="button"
+              className="dashboard-welcome-analytics"
+              onClick={() => navigate("/dashboard-analytics")}
+              title="Dashboard Analytics"
+              aria-label="Dashboard Analytics"
+            >
+              <FaChartLine />
+            </button>
+
+            <span className="dashboard-analytics-label">Analytics</span>
+
           </div>
 
         </div>

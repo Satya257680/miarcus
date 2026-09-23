@@ -6,8 +6,8 @@
     width: 221px;
     height: 100%;
 
-    background: #9CBFC4;
-    border-right: 1px solid #8FB3B9;
+    background: linear-gradient(180deg, #f4dff2 0%, #e8d9f2 52%, #d8d0f0 100%);
+    border-right: 1px solid rgba(91, 71, 125, .18);
 
     display: flex;
     flex-direction: column;
@@ -55,12 +55,12 @@
 }
 
 .sidebar nav::-webkit-scrollbar-thumb {
-    background: #84AEB5;
+    background: rgba(91, 74, 120, .35);
     border-radius: 41px;
 }
 
 .sidebar nav::-webkit-scrollbar-thumb:hover {
-    background: #6F9DA5;
+    background: rgba(91, 74, 120, .55);
 }
 
 
@@ -81,7 +81,7 @@
 
     gap: 11px;
 
-    color: #2F4E58;
+    color: #47395F;
 
     background: transparent;
 
@@ -116,7 +116,7 @@
 
     font-size: 15px;
 
-    color: #385661;
+    color: #5b4a78;
 }
 
 
@@ -138,13 +138,13 @@
 ========================================================= */
 
 .menu-item:hover {
-    background: rgba(255, 255, 255, 0.30);
+    background: rgba(255, 255, 255, 0.42);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 .menu-item:hover > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -153,17 +153,17 @@
 ========================================================= */
 
 .menu-item.active {
-    background: #F9FCFD;
+    background: rgba(255, 255, 255, 0.72);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 
     font-weight: 600;
 
-    border-left-color: #6D57C8;
+    border-left-color: #6d57c8;
 }
 
 .menu-item.active > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -221,7 +221,7 @@
 
     background: transparent;
 
-    color: #2F4E58;
+    color: #47395F;
 
     font-family: inherit;
 
@@ -280,7 +280,7 @@
 
     font-size: 15px;
 
-    color: #385661;
+    color: #5b4a78;
 }
 
 
@@ -306,14 +306,14 @@
 ========================================================= */
 
 .sidebar-group-toggle:hover {
-    background: rgba(255, 255, 255, 0.30);
+    background: rgba(255, 255, 255, 0.42);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 .sidebar-group-toggle:hover
 .sidebar-group-content > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -322,18 +322,18 @@
 ========================================================= */
 
 .sidebar-group-toggle.active {
-    background: #F9FCFD;
+    background: rgba(255, 255, 255, 0.72);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 
     font-weight: 600;
 
-    border-left-color: #6D57C8;
+    border-left-color: #6d57c8;
 }
 
 .sidebar-group-toggle.active
 .sidebar-group-content > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -448,7 +448,7 @@
 
     gap: 11px;
 
-    color: #2F4E58;
+    color: #47395F;
 
     background: transparent;
 
@@ -481,7 +481,7 @@
 
     font-size: 14px;
 
-    color: #385661;
+    color: #5b4a78;
 }
 
 
@@ -503,13 +503,13 @@
 ========================================================= */
 
 .submenu-item:hover {
-    background: rgba(255, 255, 255, 0.30);
+    background: rgba(255, 255, 255, 0.42);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 .submenu-item:hover > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -518,17 +518,17 @@
 ========================================================= */
 
 .submenu-item.active {
-    background: #F9FCFD;
+    background: rgba(255, 255, 255, 0.72);
 
-    color: #0F4C5C;
+    color: #5c3e8f;
 
     font-weight: 600;
 
-    border-left-color: #6D57C8;
+    border-left-color: #6d57c8;
 }
 
 .submenu-item.active > svg {
-    color: #0F4C5C;
+    color: #5c3e8f;
 }
 
 
@@ -554,7 +554,7 @@
 
     box-sizing: border-box;
 
-    background: #9CBFC4;
+    background: linear-gradient(180deg, #f4dff2 0%, #e8d9f2 52%, #d8d0f0 100%);
 
     border-top: 1px solid #8FB3B9;
 }
@@ -685,9 +685,9 @@
 
 .sidebar.collapsed
 .sidebar-group-toggle.active {
-    background: #F9FCFD;
+    background: rgba(255, 255, 255, 0.72);
 
-    border-left-color: #6D57C8;
+    border-left-color: #6d57c8;
 }
 
 
@@ -813,14 +813,14 @@
 }
 
 .sidebar-group.open > .sidebar-group-toggle:hover {
-    background: rgba(255, 255, 255, 0.30);
+    background: rgba(255, 255, 255, 0.42);
 }
 
 /* Keep the active route visually stronger than merely-open groups. */
 .sidebar-group > .sidebar-group-toggle.active {
-    background: #F9FCFD;
-    color: #0F4C5C;
-    border-left-color: #6D57C8;
+    background: rgba(255, 255, 255, 0.72);
+    color: #5c3e8f;
+    border-left-color: #6d57c8;
 }
 
 /* Collection Tracking uses the same safe group behaviour as all
@@ -889,4 +889,83 @@
     .sidebar-group-toggle {
         min-height: 38px;
     }
+}
+
+/* =========================================================
+   MIARCUS PREMIUM PURPLE SIDEBAR
+========================================================= */
+.sidebar {
+    width: 248px;
+    background: linear-gradient(180deg, #8d79bd 0%, #7562a2 55%, #69558f 100%) !important;
+    border-right: 1px solid rgba(56,40,82,.24) !important;
+    box-shadow: 4px 0 18px rgba(57,41,83,.10);
+}
+
+.sidebar nav {
+    padding: 14px 0;
+}
+
+.menu-item,
+.sidebar-group-toggle {
+    min-height: 40px;
+    color: #f8f5ff !important;
+    border-left-color: transparent !important;
+    font-weight: 500;
+}
+
+.menu-item > svg,
+.sidebar-group-content > svg,
+.submenu-chevron {
+    color: #f4efff !important;
+}
+
+.menu-item:hover,
+.sidebar-group-toggle:hover {
+    background: rgba(255,255,255,.12) !important;
+    color: #ffffff !important;
+}
+
+.menu-item.active,
+.sidebar-group-toggle.active {
+    background: rgba(255,255,255,.92) !important;
+    color: #5939bd !important;
+    border-left-color: #d9c6ff !important;
+    font-weight: 700;
+}
+
+.menu-item.active > svg,
+.sidebar-group-toggle.active .sidebar-group-content > svg {
+    color: #5939bd !important;
+}
+
+.sidebar-submenu {
+    background: rgba(46,33,72,.16) !important;
+}
+
+.submenu-item {
+    color: #eee8ff !important;
+}
+
+.submenu-item:hover {
+    background: rgba(255,255,255,.10) !important;
+    color: #ffffff !important;
+}
+
+.submenu-item.active {
+    background: rgba(255,255,255,.18) !important;
+    color: #ffffff !important;
+    border-left-color: #eadcff !important;
+}
+
+.sidebar-group + .sidebar-group {
+    border-top-color: rgba(255,255,255,.08);
+}
+
+.sidebar-footer {
+    background: linear-gradient(180deg, #7562a2 0%, #66528c 100%) !important;
+    border-top-color: rgba(255,255,255,.12) !important;
+}
+
+.sidebar.collapsed {
+    width: 70px;
 }

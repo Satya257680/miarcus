@@ -13,7 +13,7 @@ body,
 
 body{
     font-family:"Segoe UI",sans-serif;
-    background:#edf3f5;
+    background:#a092c7;
     overflow:hidden;
 }
 
@@ -36,5 +36,16 @@ body{
     overflow-y:auto;
     overflow-x:hidden;
     padding:20px 25px;
-    background:#edf3f5;
+    background:#a092c7;
+}
+/* Premium MIARCUS application background */
+body,
+.layout,
+.layout-body,
+.page-content {
+    background: #f2effa !important;
+}
+
+.page-content {
+    padding: 0;
 }
