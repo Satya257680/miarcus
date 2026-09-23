@@ -9,7 +9,6 @@ import "../../styles/theme.css";
 import ThemeProvider from "../../context/ThemeProvider";
 import LocationTrackingGate from "../LocationTrackingGate";
 import "../../styles/LocationTrackingGate.css";
-import "../../styles/miarcus-reference.css";
 
 function Layout() {
 
