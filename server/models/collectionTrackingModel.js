@@ -222,10 +222,21 @@ const createRequest=async({id,fromStage,toStage,userId,note})=>
  (await db.query("INSERT INTO collection_requests(product_id,from_stage,to_stage,requested_by,note) VALUES(?,?,?,?,?)",
   [id,fromStage,toStage,userId||null,note||null])).insertId;
 
-const listRequests=async({status="Pending"}={})=>db.query(
- `SELECT r.*,p.product_code,p.product_name,u.name requester_name FROM collection_requests r
-  JOIN collection_products p ON p.id=r.product_id LEFT JOIN users u ON u.id=r.requested_by
-  WHERE (?='' OR r.status=?) ORDER BY r.id DESC`,[status,status]);
+const listRequests=async({status="Pending",userId=null,isAdmin=false}={})=>db.query(
+ `SELECT r.*,p.product_code,p.product_name,u.name requester_name,
+         from_perm.department_id AS from_department_id,
+         to_perm.department_id AS to_department_id
+  FROM collection_requests r
+  JOIN collection_products p ON p.id=r.product_id
+  LEFT JOIN users u ON u.id=r.requested_by
+  LEFT JOIN collection_permissions from_perm ON from_perm.stage_name=r.from_stage
+  LEFT JOIN collection_permissions to_perm ON to_perm.stage_name=r.to_stage
+  WHERE (?='' OR r.status=?)
+    AND (?=1 OR to_perm.department_id IS NULL OR EXISTS (
+      SELECT 1 FROM users viewer WHERE viewer.id=? AND viewer.status='Active'
+        AND viewer.department_id=to_perm.department_id
+    ))
+  ORDER BY r.id DESC`,[status,status,isAdmin?1:0,userId]);
 
 const reviewRequest=async({id,status,userId})=>
  db.query("UPDATE collection_requests SET status=?,reviewed_by=?,reviewed_at=NOW() WHERE id=?",[status,userId,id]);
@@ -273,6 +284,21 @@ const getPreviousRecipients=async(productId,currentStage,excludeUserId)=>{
  return rows.filter(x=>Number(x.id)!==Number(excludeUserId));
 };
 
+// Resolve the team responsible for a workflow stage from Collection Permissions.
+// The configured department receives the workflow request/notification instead
+// of broadcasting a stage update to unrelated users. Admins remain visible.
+const getStageRecipients=async(stage,excludeUserId=null)=>{
+ const rows=await db.query(`
+   SELECT DISTINCT u.id,u.name,u.email
+   FROM users u
+   LEFT JOIN collection_permissions cp ON cp.stage_name=? AND cp.department_id=u.department_id
+   WHERE u.status='Active'
+     AND (cp.department_id IS NOT NULL OR u.is_admin=1 OR u.is_super_admin=1)
+   ORDER BY u.name
+ `,[stage]);
+ return rows.filter(x=>Number(x.id)!==Number(excludeUserId));
+};
+
 const getPermissions=async()=>{
  const [departments,permissions]=await Promise.all([
   db.query("SELECT id,department_name FROM departments ORDER BY department_name"),
@@ -298,4 +324,4 @@ const savePermissions=async(items)=>{
 
 module.exports={STAGES,ensureTables,getConfigs,saveConfigs,createProduct,listProducts,getProduct,getHistory,getComments,
  updateStage,addComment,createRequest,listRequests,reviewRequest,deleteProduct,deleteAll,exportProducts,getInsight,
- getPreviousRecipients,getPermissions,savePermissions};
+ getPreviousRecipients,getStageRecipients,getPermissions,savePermissions};

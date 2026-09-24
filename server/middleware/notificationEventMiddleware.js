@@ -28,6 +28,9 @@ const ignoredPrefixes = [
     "/api/profile",
     "/api/activity",
     "/api/dashboard",
+    // Collection Tracking has stage-aware, department-targeted notifications.
+    // Do not duplicate them with the generic all-users bridge.
+    "/api/collection-tracking",
     "/api/upload-test",
     "/api/test"
 ];

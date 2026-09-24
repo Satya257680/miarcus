@@ -13,6 +13,16 @@ import {
   FaSave,
   FaTrash,
   FaPaperPlane,
+  FaChevronDown,
+  FaTimes,
+  FaSearch,
+  FaCheckCircle,
+  FaClock,
+  FaUsers,
+  FaBoxOpen,
+  FaChartPie,
+  FaFilter,
+  FaEdit,
 } from "react-icons/fa";
 
 import {
@@ -276,256 +286,197 @@ function StageNavigator({ currentStage, workflowStage, onStageChange }) {
    FIELD
 ========================================================= */
 
-function Field({
-  field,
-  value,
-  onChange,
-  readonly = false,
-}) {
-  const type = inputType(
-    field.display_type
+function MultiSelectField({ field, value, onChange, readonly = false }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = React.useRef(null);
+  const options = Array.isArray(field.options) ? field.options : [];
+  const selected = Array.isArray(value) ? value : value ? [value] : [];
+  const filtered = options.filter((option) =>
+    String(option).toLowerCase().includes(search.toLowerCase())
   );
 
-  const options =
-    Array.isArray(field.options)
-      ? field.options
-      : [];
+  useEffect(() => {
+    const close = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
-  const isAttachment =
-    isAttachmentType(
-      field.display_type
+  const toggle = (option) => {
+    if (readonly) return;
+    onChange(
+      selected.includes(option)
+        ? selected.filter((item) => item !== option)
+        : [...selected, option]
     );
+  };
 
-  const attachmentValues =
-    Array.isArray(value)
-      ? value
-      : value
-        ? [value]
-        : [];
+  const selectAll = () => {
+    if (readonly) return;
+    onChange([...new Set([...selected, ...options])]);
+  };
+
+  const clearAll = () => {
+    if (readonly) return;
+    onChange([]);
+  };
 
   return (
-    <div
-      className={`ct-field ${
-        type === "textarea"
-          ? "full"
-          : ""
-      }`}
-    >
-      <label>
-        {field.field_name}
+    <div className="ct-multi" ref={ref}>
+      <button
+        type="button"
+        className={`ct-multi-trigger ${readonly ? "ct-readonly" : ""}`}
+        disabled={readonly}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <div className="ct-multi-values">
+          {selected.length ? selected.map((item) => (
+            <span className="ct-value-chip" key={item}>
+              {item}
+              {!readonly && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${item}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggle(item);
+                  }}
+                >
+                  <FaTimes />
+                </button>
+              )}
+            </span>
+          )) : (
+            <span className="ct-placeholder">Select multiple...</span>
+          )}
+        </div>
+        <span className="ct-multi-meta">
+          {selected.length > 0 && <b>{selected.length} selected</b>}
+          <FaChevronDown className={open ? "is-open" : ""} />
+        </span>
+      </button>
 
-        {field.is_mandatory && (
-          <span className="req">
-            *
-          </span>
-        )}
+      {open && !readonly && (
+        <div className="ct-multi-menu">
+          <div className="ct-multi-search">
+            <FaSearch />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search ${field.field_name.toLowerCase()}...`}
+              autoFocus
+            />
+          </div>
+
+          <div className="ct-multi-options">
+            {filtered.map((option) => {
+              const checked = selected.includes(option);
+              return (
+                <label className={`ct-multi-option ${checked ? "checked" : ""}`} key={option}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(option)}
+                  />
+                  <span className="ct-checkbox"><FaCheckCircle /></span>
+                  <span>{option}</span>
+                </label>
+              );
+            })}
+            {!filtered.length && <div className="ct-multi-empty">No options found.</div>}
+          </div>
+
+          <div className="ct-multi-footer">
+            <span>{selected.length} selected</span>
+            <div>
+              <button type="button" onClick={selectAll}>Select all</button>
+              <button type="button" onClick={clearAll}>Clear all</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ field, value, onChange, readonly = false }) {
+  const type = inputType(field.display_type);
+  const options = Array.isArray(field.options) ? field.options : [];
+  const isAttachment = isAttachmentType(field.display_type);
+  const attachmentValues = Array.isArray(value) ? value : value ? [value] : [];
+
+  return (
+    <div className={`ct-field ${type === "textarea" ? "full" : ""}`}>
+      <label>
+        <span>{field.field_name}</span>
+        {field.is_mandatory && <span className="req">*</span>}
       </label>
 
       {type === "textarea" ? (
         <textarea
-          className={`ct-textarea ${
-            readonly
-              ? "ct-readonly"
-              : ""
-          }`}
+          className={`ct-textarea ${readonly ? "ct-readonly" : ""}`}
           disabled={readonly}
-          value={
-            value || ""
-          }
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
+          value={value || ""}
+          onChange={(event) => onChange(event.target.value)}
         />
       ) : type === "select" ? (
-        <select
-          className={`ct-select ${
-            readonly
-              ? "ct-readonly"
-              : ""
-          }`}
-          disabled={readonly}
-          value={
-            value || ""
-          }
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-        >
-          <option value="">
-            Select...
-          </option>
-
-          {options.map(
-            (option) => (
-              <option
-                key={option}
-                value={option}
-              >
-                {option}
-              </option>
-            )
-          )}
-        </select>
+        <div className="ct-select-wrap">
+          <select
+            className={`ct-select ${readonly ? "ct-readonly" : ""}`}
+            disabled={readonly}
+            value={value || ""}
+            onChange={(event) => onChange(event.target.value)}
+          >
+            <option value="">Select...</option>
+            {options.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </div>
       ) : type === "multiselect" ? (
-        <select
-          className={`ct-select ct-multiselect ${
-            readonly
-              ? "ct-readonly"
-              : ""
-          }`}
-          disabled={readonly}
-          multiple
-          value={
-            Array.isArray(value)
-              ? value
-              : value
-                ? [value]
-                : []
-          }
-          onChange={(event) =>
-            onChange(
-              Array.from(
-                event.target
-                  .selectedOptions
-              ).map(
-                (option) =>
-                  option.value
-              )
-            )
-          }
-        >
-          {options.map(
-            (option) => (
-              <option
-                key={option}
-                value={option}
-              >
-                {option}
-              </option>
-            )
-          )}
-        </select>
+        <MultiSelectField field={field} value={value} onChange={onChange} readonly={readonly} />
       ) : type === "date" ? (
         <input
-          className={`ct-input ${
-            readonly
-              ? "ct-readonly"
-              : ""
-          }`}
+          className={`ct-input ${readonly ? "ct-readonly" : ""}`}
           type="date"
           disabled={readonly}
-          value={
-            value || ""
-          }
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
+          value={value || ""}
+          onChange={(event) => onChange(event.target.value)}
         />
       ) : isAttachment ? (
         <div className="ct-attachment-field">
           <input
             className="ct-input"
             type="file"
-            multiple={
-              field.display_type.includes(
-                "multiple"
-              )
-            }
+            multiple={field.display_type.includes("multiple")}
             disabled={readonly}
             onChange={(event) => {
-              const selected =
-                Array.from(
-                  event.target
-                    .files || []
-                );
-
-              if (!selected.length) {
-                return;
-              }
-
-              const existing =
-                attachmentValues.filter(
-                  (item) =>
-                    !(
-                      item instanceof
-                      File
-                    )
-                );
-
-              onChange([
-                ...existing,
-                ...selected,
-              ]);
+              const selectedFiles = Array.from(event.target.files || []);
+              if (!selectedFiles.length) return;
+              const existing = attachmentValues.filter((item) => !(item instanceof File));
+              onChange([...existing, ...selectedFiles]);
             }}
           />
-
           {attachmentValues.length > 0 && (
             <div className="ct-attachment-list">
-              {attachmentValues.map(
-                (item, index) => {
-                  const name =
-                    item?.originalname ||
-                    item?.name ||
-                    String(
-                      item || ""
-                    );
-
-                  const url =
-                    item?.url
-                      ? item.url.startsWith(
-                          "http"
-                        )
-                        ? item.url
-                        : `${API_ORIGIN}${item.url}`
-                      : null;
-
-                  return (
-                    <div
-                      className="ct-attachment-item"
-                      key={`${name}-${index}`}
-                    >
-                      {url ? (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {name}
-                        </a>
-                      ) : (
-                        <span>
-                          {name}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-              )}
+              {attachmentValues.map((item, index) => {
+                const name = item?.originalname || item?.name || String(item || "");
+                const url = item?.url ? (item.url.startsWith("http") ? item.url : `${API_ORIGIN}${item.url}`) : null;
+                return (
+                  <div className="ct-attachment-item" key={`${name}-${index}`}>
+                    {url ? <a href={url} target="_blank" rel="noreferrer">{name}</a> : <span>{name}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       ) : (
         <input
-          className={`ct-input ${
-            readonly
-              ? "ct-readonly"
-              : ""
-          }`}
+          className={`ct-input ${readonly ? "ct-readonly" : ""}`}
           disabled={readonly}
-          value={
-            value || ""
-          }
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
+          value={value || ""}
+          onChange={(event) => onChange(event.target.value)}
         />
       )}
     </div>
@@ -692,13 +643,22 @@ function ProductList() {
   return (
     <div className="ct-shell">
       <Hero
-        title="Collection Tracking"
-        subtitle="Move one product through Designer → Buyer → Tech Team → Quality → E-Com → Warehouse."
+        title="SKU Details"
+        subtitle="Manage and track product SKUs across the complete Collection Tracking workflow."
       >
         <div className="ct-toolbar">
           <button
             type="button"
-            className="ct-btn light"
+            className="ct-btn primary ct-btn-glow"
+            onClick={() => navigate("/collection-tracking/add-products")}
+          >
+            <FaPlus />
+            Add Details
+          </button>
+
+          <button
+            type="button"
+            className="ct-btn light ct-btn-soft"
             onClick={() => setBulkOpen(true)}
           >
             <FaFileUpload />
@@ -707,7 +667,7 @@ function ProductList() {
 
           <button
             type="button"
-            className="ct-btn primary"
+            className="ct-btn primary ct-btn-glow"
             onClick={() =>
               navigate(
                 "/collection-tracking/add-products"
@@ -730,6 +690,13 @@ function ProductList() {
           </button>
         </div>
       </Hero>
+
+      <div className="ct-mini-stats">
+        <div><span><FaBoxOpen /></span><small>Total SKUs</small><strong>{total.toLocaleString()}</strong></div>
+        <div><span><FaClock /></span><small>Current View</small><strong>{rows.length}</strong></div>
+        <div><span><FaUsers /></span><small>Workflow Stages</small><strong>{STAGES.length}</strong></div>
+        <div><span><FaChartPie /></span><small>Live Status</small><strong>{loading ? "…" : "Live"}</strong></div>
+      </div>
 
       <div className="ct-card">
         <div className="ct-toolbar">
@@ -856,6 +823,17 @@ function ProductList() {
                         >
                           <FaEye />
                           View
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ct-btn teal"
+                          onClick={() =>
+                            navigate(`/collection-tracking/sku-details/${row.id}`)
+                          }
+                        >
+                          <FaEdit />
+                          Edit
                         </button>
 
                         <button
@@ -2348,135 +2326,79 @@ function MasterData() {
 ========================================================= */
 
 function Insight() {
-  const [data, setData] =
-    useState(null);
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const response =
-          await getInsight();
-
+        const response = await getInsight();
         setData(response?.data);
       } catch (error) {
         console.error(error);
-
-        alert(
-          "Unable to load Collection Tracking insight."
-        );
+        alert("Unable to load Collection Tracking insight.");
       }
     };
-
     load();
   }, []);
 
-  const total =
-    data?.summary?.total || 0;
+  const total = Number(data?.summary?.total || 0);
+  const stageRows = (data?.stages || []).map((item) => ({ ...item, count: Number(item.count || 0) }));
+  const maxStage = Math.max(...stageRows.map((item) => item.count), 1);
+  const stageColors = ["#6b3ff0", "#3f8cff", "#22b8d6", "#ff9f43", "#f15b9a", "#25c58a"];
+  const completed = stageRows.find((item) => item.stage === "Warehouse")?.count || 0;
+  const progress = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+
+  let cumulative = 0;
+  const donutSegments = stageRows.map((item, index) => {
+    const start = cumulative;
+    const size = total ? (item.count / total) * 100 : 0;
+    cumulative += size;
+    return `${stageColors[index % stageColors.length]} ${start}% ${cumulative}%`;
+  }).join(", ");
 
   return (
     <div className="ct-shell">
-      <Hero
-        title="Insight"
-        subtitle="Live numbers from Collection Tracking."
-      />
+      <Hero title="Insight" subtitle="Live numbers and workflow progress across every Collection Tracking stage." />
 
-      <div className="ct-grid">
-        <div className="ct-stat">
-          <small>
-            Total Products
-          </small>
-
-          <strong>
-            {total}
-          </strong>
-        </div>
-
-        <div className="ct-stat">
-          <small>
-            Unique Product Names
-          </small>
-
-          <strong>
-            {data?.summary?.products ||
-              0}
-          </strong>
-        </div>
-
-        {STAGES.slice(0, 2).map(
-          (item) => (
-            <div
-              className="ct-stat"
-              key={item}
-            >
-              <small>
-                {item}
-              </small>
-
-              <strong>
-                {data?.stages?.find(
-                  (stageItem) =>
-                    stageItem.stage ===
-                    item
-                )?.count || 0}
-              </strong>
-            </div>
-          )
-        )}
+      <div className="ct-grid ct-insight-stats">
+        <div className="ct-stat"><span className="ct-stat-icon purple"><FaBoxOpen /></span><small>Total Products</small><strong>{total.toLocaleString()}</strong><em>Live workflow volume</em></div>
+        <div className="ct-stat"><span className="ct-stat-icon blue"><FaUsers /></span><small>Unique Product Names</small><strong>{Number(data?.summary?.products || 0).toLocaleString()}</strong><em>Distinct products</em></div>
+        <div className="ct-stat"><span className="ct-stat-icon cyan"><FaChartPie /></span><small>Active Stages</small><strong>{stageRows.length}</strong><em>Configured workflow</em></div>
+        <div className="ct-stat"><span className="ct-stat-icon green"><FaCheckCircle /></span><small>Workflow Progress</small><strong>{progress}%</strong><em>Reached Warehouse</em></div>
       </div>
 
-      <div className="ct-card">
-        <h3>
-          Stage Distribution
-        </h3>
+      <div className="ct-insight-grid">
+        <div className="ct-card ct-chart-card">
+          <div className="ct-section-title"><div><h3>Overall Workflow Progress</h3><span>Product distribution across the complete workflow.</span></div><span className="ct-live-dot">LIVE</span></div>
+          <div className="ct-donut-row">
+            <div className="ct-donut" style={{ background: `conic-gradient(${donutSegments || "#ececf5 0 100%"})` }}><div><strong>{total.toLocaleString()}</strong><span>Products</span></div></div>
+            <div className="ct-legend">
+              {stageRows.map((item, index) => <div key={item.stage}><i style={{ background: stageColors[index % stageColors.length] }} /><span>{item.stage}</span><b>{item.count}</b><small>{total ? Math.round(item.count / total * 100) : 0}%</small></div>)}
+            </div>
+          </div>
+        </div>
 
-        {(data?.stages || []).map(
-          (item) => {
-            const percentage =
-              total > 0
-                ? Math.min(
-                    100,
-                    (item.count /
-                      total) *
-                      100
-                  )
-                : 0;
+        <div className="ct-card ct-chart-card">
+          <div className="ct-section-title"><div><h3>Stage-wise Distribution</h3><span>Current product volume by team.</span></div><span className="ct-chart-label">STAGES</span></div>
+          <div className="ct-bars">
+            {stageRows.map((item, index) => <div className="ct-bar-item" key={item.stage}><div className="ct-bar-value">{item.count}</div><div className="ct-bar-track"><span style={{ height: `${Math.max(7, item.count / maxStage * 100)}%`, background: stageColors[index % stageColors.length] }} /></div><small>{item.stage}</small></div>)}
+          </div>
+        </div>
+      </div>
 
-            return (
-              <div
-                key={item.stage}
-                style={{
-                  margin:
-                    "13px 0",
-                }}
-              >
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    justifyContent:
-                      "space-between",
-                  }}
-                >
-                  <b>
-                    {item.stage}
-                  </b>
-
-                  <span>
-                    {item.count}
-                  </span>
-                </div>
-
-                <div className="ct-progress">
-                  <span
-                    style={{
-                      width: `${percentage}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          }
-        )}
+      <div className="ct-card ct-workflow-card">
+        <div className="ct-section-title"><div><h3>Team Workflow Progress</h3><span>See how products move from Designer to Warehouse.</span></div></div>
+        <div className="ct-flow-grid">
+          {STAGES.map((stage, index) => {
+            const item = stageRows.find((row) => row.stage === stage);
+            const count = item?.count || 0;
+            const pct = total ? Math.round(count / total * 100) : 0;
+            return <React.Fragment key={stage}>
+              <div className="ct-flow-stage"><div className="ct-flow-circle" style={{ background: `conic-gradient(${stageColors[index % stageColors.length]} ${pct}%, #ececf5 0)` }}><div><FaBoxOpen /></div></div><b>{stage}</b><span>{count.toLocaleString()} / {total.toLocaleString()}</span><small>{pct}%</small><div className="ct-flow-line"><span style={{ width: `${pct}%`, background: stageColors[index % stageColors.length] }} /></div></div>
+              {index < STAGES.length - 1 && <div className="ct-flow-arrow">›</div>}
+            </React.Fragment>;
+          })}
+        </div>
       </div>
     </div>
   );
@@ -2487,51 +2409,32 @@ function Insight() {
 ========================================================= */
 
 function Requests() {
-  const [rows, setRows] =
-    useState([]);
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState("Pending");
+  const [loading, setLoading] = useState(false);
 
   const load = async () => {
     try {
-      const response =
-        await getRequests(
-          "Pending"
-        );
-
-      setRows(
-        response?.data?.requests ||
-          []
-      );
+      setLoading(true);
+      const response = await getRequests(status);
+      setRows(response?.data?.requests || []);
     } catch (error) {
       console.error(error);
-
-      alert(
-        "Unable to load requests."
-      );
+      alert(error?.response?.data?.message || "Unable to load requests.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, [status]);
 
-  const review = async (
-    id,
-    status
-  ) => {
+  const review = async (id, nextStatus) => {
     try {
-      await reviewRequest(
-        id,
-        status
-      );
-
+      await reviewRequest(id, nextStatus);
       await load();
     } catch (error) {
       console.error(error);
-
-      alert(
-        error?.response?.data?.message ||
-          "Unable to update request."
-      );
+      alert(error?.response?.data?.message || "Unable to update request.");
     }
   };
 
@@ -2539,77 +2442,57 @@ function Requests() {
     <div className="ct-shell">
       <Hero
         title="Requests"
-        subtitle="Requests from one team to another appear here for review."
-      />
+        subtitle="Workflow requests sent from one team to the next are collected here for review."
+      >
+        <div className="ct-request-hero-badge"><FaPaperPlane /> Next-team workflow</div>
+      </Hero>
 
-      <div className="ct-card">
-        {rows.length ? (
-          rows.map((request) => (
-            <div
-              className="ct-request"
-              key={request.id}
-            >
-              <div>
-                <b>
-                  {request.product_code}
-                </b>
+      <div className="ct-card ct-request-card">
+        <div className="ct-request-tabs">
+          {["Pending", "Approved", "Rejected"].map((item) => (
+            <button key={item} type="button" className={status === item ? "active" : ""} onClick={() => setStatus(item)}>
+              {item === "Pending" ? <FaClock /> : item === "Approved" ? <FaCheckCircle /> : <FaTimes />}
+              {item}
+            </button>
+          ))}
+        </div>
 
-                {" — "}
+        <div className="ct-toolbar ct-request-toolbar">
+          <div className="ct-search-box"><FaSearch /><span>Requests generated automatically when a team completes its stage.</span></div>
+          <button type="button" className="ct-btn light" onClick={load} disabled={loading}><FaFilter /> Refresh</button>
+        </div>
 
-                {request.product_name ||
-                  "Unnamed"}
-
-                <div className="ct-muted">
-                  {request.from_stage}
-                  {" → "}
-                  {request.to_stage}
-                  {" · requested by "}
-                  {request.requester_name ||
-                    "User"}
-                </div>
-
-                {request.note && (
-                  <p>
-                    {request.note}
-                  </p>
-                )}
-              </div>
-
-              <div className="ct-row-actions">
-                <button
-                  type="button"
-                  className="ct-btn primary"
-                  onClick={() =>
-                    review(
-                      request.id,
-                      "Approved"
-                    )
-                  }
-                >
-                  <FaCheck />
-                  Approve
-                </button>
-
-                <button
-                  type="button"
-                  className="ct-btn danger"
-                  onClick={() =>
-                    review(
-                      request.id,
-                      "Rejected"
-                    )
-                  }
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="ct-empty">
-            No pending requests.
-          </div>
-        )}
+        <div className="ct-table-wrapper">
+          <table className="ct-table ct-request-table">
+            <thead><tr>
+              <th>#</th><th>Request ID</th><th>Product / Details</th><th>From Team</th><th>To Team</th><th>Current Stage</th><th>Status</th><th>Submitted On</th><th className="ct-action-head">Action</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((request, index) => (
+                <tr key={request.id}>
+                  <td>{index + 1}</td>
+                  <td><b>REQ-{String(request.id).padStart(6, "0")}</b></td>
+                  <td><div className="ct-product-cell"><span className="ct-product-icon"><FaBoxOpen /></span><div><b>{request.product_name || "Unnamed product"}</b><small>{request.product_code}</small></div></div></td>
+                  <td><span className="ct-team-pill">{request.from_stage}</span></td>
+                  <td><span className="ct-team-pill next">{request.to_stage}</span></td>
+                  <td><div className="ct-flow-pill"><span>{request.from_stage}</span><b>→</b><span>{request.to_stage}</span></div></td>
+                  <td><span className={`ct-status-pill ${String(request.status || "").toLowerCase()}`}>{request.status}</span></td>
+                  <td><div className="ct-date-cell">{request.created_at ? new Date(request.created_at).toLocaleDateString("en-IN") : "—"}<small>by {request.requester_name || "User"}</small></div></td>
+                  <td className="ct-action-cell">
+                    <div className="ct-row-actions ct-centered-actions">
+                      {status === "Pending" && <>
+                        <button type="button" className="ct-btn primary" onClick={() => review(request.id, "Approved")}><FaCheck /> Approve</button>
+                        <button type="button" className="ct-btn danger" onClick={() => review(request.id, "Rejected")}><FaTimes /> Reject</button>
+                      </>}
+                      {status !== "Pending" && <span className="ct-muted">Reviewed</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!rows.length && <tr><td colSpan="9"><div className="ct-empty">{loading ? "Loading requests..." : `No ${status.toLowerCase()} requests.`}</div></td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

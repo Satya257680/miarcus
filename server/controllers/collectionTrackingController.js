@@ -519,11 +519,38 @@ exports.create = async (
         data,
       });
 
+    // The Designer completes the first stage at product creation.
+    // Create the next-team request immediately so Buyer receives both
+    // an in-app notification and an email with a direct request link.
+    let workflowNotification = { notified: 0, emailed: 0 };
+    if (STAGES.length > 1) {
+      const nextStage = STAGES[1];
+      const requestId = await Model.createRequest({
+        id: product.id,
+        fromStage: STAGES[0],
+        toStage: nextStage,
+        userId,
+        note: "Designer stage completed. Please review and continue the workflow.",
+      });
+      const recipients = await Model.getStageRecipients(nextStage, userId);
+      const actor = await getActor(userId);
+      workflowNotification = await notifyAndEmail(recipients, {
+        title: `New Collection Request · ${product.product_code}`,
+        message: `${actor.name} completed the Designer stage for ${product.product_code}. Please review the request and continue with ${nextStage}.`,
+        product,
+        link: `/collection-tracking/requests`,
+        actionName: "Workflow Request",
+      });
+      product.workflow_request_id = requestId;
+    }
+
     return res.status(201).json({
       success: true,
       product,
+      notified: workflowNotification.notified,
+      emailed: workflowNotification.emailed,
       message:
-        "Product created successfully.",
+        "Product created successfully and the next team has been notified.",
     });
   } catch (error) {
     console.error(
@@ -735,34 +762,40 @@ exports.updateStage = async (
         nextStage,
       });
 
-    const recipients =
-      await Model.getPreviousRecipients(
-        product.id,
-        stage,
-        userId
-      );
-
     const actor =
       await getActor(userId);
 
-    const message = nextStage
-      ? `${actor.name} submitted an update for ${stage} and moved ${product.product_code} to ${nextStage}.`
-      : `${actor.name} updated ${product.product_code} in ${stage}.`;
+    let notificationResult = { notified: 0, emailed: 0 };
 
-    const notificationResult =
-      await notifyAndEmail(
-        recipients,
-        {
-          title: `Collection update: ${product.product_code}`,
-          message,
-          product,
-          link: `/collection-tracking/sku-details/${product.id}`,
-          actionName:
-            nextStage
-              ? "Stage Update"
-              : "Update",
-        }
-      );
+    if (nextStage) {
+      const requestId = await Model.createRequest({
+        id: product.id,
+        fromStage: stage,
+        toStage: nextStage,
+        userId,
+        note: `${stage} stage completed. Please review and continue the workflow.`,
+      });
+
+      const recipients = await Model.getStageRecipients(nextStage, userId);
+      notificationResult = await notifyAndEmail(recipients, {
+        title: `New Collection Request · ${product.product_code}`,
+        message: `${actor.name} completed ${stage} for ${product.product_code}. Please review the request and continue with ${nextStage}.`,
+        product,
+        link: `/collection-tracking/requests`,
+        actionName: "Workflow Request",
+      });
+
+      updated.workflow_request_id = requestId;
+    } else {
+      const recipients = await Model.getPreviousRecipients(product.id, stage, userId);
+      notificationResult = await notifyAndEmail(recipients, {
+        title: `Collection update · ${product.product_code}`,
+        message: `${actor.name} updated ${product.product_code} in ${stage}.`,
+        product,
+        link: `/collection-tracking/sku-details/${product.id}`,
+        actionName: "Update",
+      });
+    }
 
     return res.json({
       success: true,
@@ -1067,9 +1100,13 @@ exports.requests = async (
       });
     }
 
+    const reviewer = req.user || {};
+    const isAdmin = reviewer.is_admin === true || reviewer.is_admin === 1 || reviewer.is_super_admin === true || reviewer.is_super_admin === 1;
     const requests =
       await Model.listRequests({
         status,
+        userId: reviewer.id,
+        isAdmin,
       });
 
     return res.json({
