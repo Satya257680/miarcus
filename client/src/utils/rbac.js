@@ -61,6 +61,35 @@ export const getStoredPermissions = () => {
 export const getStoredPageAccess = () => readJson("pageAccess");
 
 // -----------------------------------------------------------------
+// LEGACY KEY ALIASES
+// -----------------------------------------------------------------
+// A few older pages read permissions under old names
+// (e.g. ChecklistSubmission.jsx reads "Checklist Submit", NSOTracking
+// reads "NSO Tracking") while the server stores the current module
+// names. Writing both keys into localStorage keeps every page working.
+// -----------------------------------------------------------------
+
+const LEGACY_KEYS = {
+  "Checklist Submit": "Checklist Submission",
+  "NSO Tracking": "New Store Openings",
+  Stores: "Store Management",
+  Expense: "Expenses",
+  Hierarchy: "Reports To",
+};
+
+export const withLegacyAliases = (permissions = {}) => {
+  const next = { ...(permissions || {}) };
+
+  Object.entries(LEGACY_KEYS).forEach(([legacy, current]) => {
+    if (next[current] !== undefined) {
+      next[legacy] = next[current];
+    }
+  });
+
+  return next;
+};
+
+// -----------------------------------------------------------------
 // ADMINISTRATOR
 // -----------------------------------------------------------------
 
@@ -204,7 +233,10 @@ export const refreshAccess = async () => {
         "user",
         JSON.stringify({ ...user, administrator: Boolean(data.administrator) })
       );
-      localStorage.setItem("permissions", JSON.stringify(data.permissions || {}));
+      localStorage.setItem(
+        "permissions",
+        JSON.stringify(withLegacyAliases(data.permissions || {}))
+      );
       localStorage.setItem("pageAccess", JSON.stringify(data.pageAccess || {}));
 
       const after = JSON.stringify(getRbacSession());
@@ -226,7 +258,10 @@ export const refreshAccess = async () => {
 };
 
 export const saveLoginAccess = (responseData = {}) => {
-  localStorage.setItem("permissions", JSON.stringify(responseData.permissions || {}));
+  localStorage.setItem(
+    "permissions",
+    JSON.stringify(withLegacyAliases(responseData.permissions || {}))
+  );
   localStorage.setItem("pageAccess", JSON.stringify(responseData.pageAccess || {}));
   window.dispatchEvent(new CustomEvent(RBAC_EVENT));
 };

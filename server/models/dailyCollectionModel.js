@@ -214,9 +214,15 @@ DailyCollection.getStoreScopeForUser = async (userId) => {
 };
 
 DailyCollection.getEntryStoresForUser = async (userId) => {
-    // Daily Entry is intentionally restricted to stores where this user is
-    // the explicitly assigned store manager. This keeps the entry screen
-    // separate from the broader user_stores/report visibility scope.
+    // Daily Entry stores for a non-admin user = every active store that is
+    //   1) assigned to the user in Settings → Users → Stores (user_stores), or
+    //   2) linked to the user as store manager (chat_store_managers).
+    //
+    // Previously only (2) was used, so a store manager who had Daily
+    // Collection "Add" access and the store assigned on their user profile
+    // still saw "No store is assigned to your Daily Collection manager
+    // account". Module access itself is checked by permissionMiddleware
+    // (Daily Collection ≥ View to see, ≥ Add to submit).
     return db.query(`
         SELECT
             s.id,
@@ -224,15 +230,23 @@ DailyCollection.getEntryStoresForUser = async (userId) => {
             s.store_code,
             s.email,
             s.manager_name,
-            m.user_id AS manager_id
-        FROM chat_store_managers m
-        INNER JOIN stores s ON s.id = m.store_id
-        INNER JOIN users u ON u.id = m.user_id
-        WHERE m.user_id = ?
+            ? AS manager_id
+        FROM stores s
+        INNER JOIN users u ON u.id = ?
+        WHERE s.status = 'Active'
           AND u.status = 'Active'
-          AND s.status = 'Active'
+          AND (
+                EXISTS (
+                    SELECT 1 FROM user_stores us
+                    WHERE us.store_id = s.id AND us.user_id = ?
+                )
+             OR EXISTS (
+                    SELECT 1 FROM chat_store_managers m
+                    WHERE m.store_id = s.id AND m.user_id = ?
+                )
+          )
         ORDER BY s.store_name ASC
-    `, [userId]);
+    `, [userId, userId, userId, userId]);
 };
 
 DailyCollection.getActiveStore = async (storeId) => {
@@ -291,13 +305,18 @@ DailyCollection.getReport = async ({ userId, isAdmin, storeId, date, entryOnly =
             ? ` AND s.id IN (
                 SELECT csm.store_id
                 FROM chat_store_managers csm
-                INNER JOIN users mu ON mu.id = csm.user_id
-                WHERE csm.user_id = ? AND mu.status = 'Active' AND mu.is_admin = 0
+                WHERE csm.user_id = ?
+                UNION
+                SELECT us.store_id
+                FROM user_stores us
+                WHERE us.user_id = ?
             )`
             : ` AND s.id IN (
                 SELECT us.store_id FROM user_stores us WHERE us.user_id = ?
             )`;
         params.push(userId);
+        // The entry scope uses the user id twice (manager link + user_stores).
+        if (entryOnly) params.push(userId);
     }
 
     if (storeId) {

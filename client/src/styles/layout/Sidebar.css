@@ -85,3 +85,17 @@
 @media (max-width: 768px) { .sidebar { width: 210px; flex-basis: 210px; } .menu-item, .sidebar-group-toggle { min-height: 44px; font-size: 13px; } }
 @media (max-width: 480px) { .sidebar { width: 195px; flex-basis: 195px; } .menu-item, .sidebar-group-toggle { min-height: 42px; font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { .sidebar, .menu-item, .sidebar-group-toggle, .submenu-item, .submenu-chevron { transition: none; } }
+
+/* ---------------------------------------------------------------
+   GROUP HEADERS (Petty Cash, Billing, Quiz, …)
+   Opening a group no longer turns its header into a white card —
+   only the page you are on is highlighted. The group that contains
+   the current page gets a soft tint + bold label instead.
+--------------------------------------------------------------- */
+.sidebar-group-toggle.has-active {
+    background: rgba(255,255,255,.14);
+    color: #fff;
+    font-weight: 700;
+}
+.sidebar-group-toggle.has-active .sidebar-group-content > svg { color: #fff; }
+.sidebar-group-toggle.is-open .submenu-chevron { opacity: .9; }

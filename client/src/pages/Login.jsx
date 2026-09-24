@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import InstallAppButton from "../components/InstallAppButton";
+import { withLegacyAliases } from "../utils/rbac";
 import "./login.css";
 
 // =================================================================
@@ -184,7 +185,7 @@ function Login() {
 
       localStorage.setItem(
         "permissions",
-        JSON.stringify(response.data.permissions || {})
+        JSON.stringify(withLegacyAliases(response.data.permissions || {}))
       );
 
       // Page-level (sub-module) access — missing keys mean "allowed".

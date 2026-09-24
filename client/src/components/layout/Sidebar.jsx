@@ -406,7 +406,7 @@ function Sidebar({ collapsed }) {
                     <div className={`sidebar-group ${assetMasterOpen ? "open" : ""}`}>
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${assetMasterOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${assetMasterOpenByPath ? "has-active" : ""} ${assetMasterOpen ? "is-open" : ""}`}
                             onClick={() => setAssetMasterOpen((previous) => !previous)}
                             aria-expanded={assetMasterOpen}
                         >
@@ -651,7 +651,7 @@ function Sidebar({ collapsed }) {
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${expenseOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${expenseOpenByPath ? "has-active" : ""} ${expenseOpen ? "is-open" : ""}`}
                             onClick={() =>
                                 setExpenseOpen(
                                     (previous) =>
@@ -760,7 +760,7 @@ function Sidebar({ collapsed }) {
                     <div className={`sidebar-group ${pettyCashOpen ? "open" : ""}`}>
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${pettyCashOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${pettyCashOpenByPath ? "has-active" : ""} ${pettyCashOpen ? "is-open" : ""}`}
                             onClick={() => setPettyCashOpen((previous) => !previous)}
                             aria-expanded={pettyCashOpen}
                         >
@@ -802,7 +802,7 @@ function Sidebar({ collapsed }) {
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${billingOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${billingOpenByPath ? "has-active" : ""} ${billingOpen ? "is-open" : ""}`}
                             onClick={() => setBillingOpen(previous => !previous)}
                             aria-expanded={billingOpen}
                         >
@@ -853,7 +853,7 @@ function Sidebar({ collapsed }) {
                     <div className={`sidebar-group ${dailyCollectionOpen ? "open" : ""}`}>
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${dailyCollectionOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${dailyCollectionOpenByPath ? "has-active" : ""} ${dailyCollectionOpen ? "is-open" : ""}`}
                             onClick={() => setDailyCollectionOpen((previous) => !previous)}
                             aria-expanded={dailyCollectionOpen}
                         >
@@ -901,7 +901,7 @@ function Sidebar({ collapsed }) {
                     >
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${quizOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${quizOpenByPath ? "has-active" : ""} ${quizOpen ? "is-open" : ""}`}
                             onClick={() =>
                                 setQuizOpen(
                                     (previous) =>
@@ -1036,7 +1036,7 @@ function Sidebar({ collapsed }) {
 
                 {canAccessSalesTeam && (
                     <div className={`sidebar-group ${salesTeamOpen ? "open" : ""}`}>
-                        <button type="button" className={`sidebar-group-toggle ${salesTeamOpen ? "active" : ""}`} onClick={() => setSalesTeamOpen((previous) => !previous)} aria-expanded={salesTeamOpen}>
+                        <button type="button" className={`sidebar-group-toggle ${salesTeamOpenByPath ? "has-active" : ""} ${salesTeamOpen ? "is-open" : ""}`} onClick={() => setSalesTeamOpen((previous) => !previous)} aria-expanded={salesTeamOpen}>
                             <span className="sidebar-group-content"><FaUsers />{!collapsed && <span>Sales Team</span>}</span>
                             {!collapsed && <FaChevronDown className={`submenu-chevron ${salesTeamOpen ? "rotated" : ""}`} />}
                         </button>
@@ -1076,7 +1076,7 @@ function Sidebar({ collapsed }) {
 
                 {canAccessInventoryPlanning && (
                     <div className={`sidebar-group ${inventoryPlanningOpen ? "open" : ""}`}>
-                        <button type="button" className={`sidebar-group-toggle ${inventoryPlanningOpen ? "active" : ""}`} onClick={() => setInventoryPlanningOpen(v => !v)} aria-expanded={inventoryPlanningOpen}>
+                        <button type="button" className={`sidebar-group-toggle ${inventoryPlanningOpenByPath ? "has-active" : ""} ${inventoryPlanningOpen ? "is-open" : ""}`} onClick={() => setInventoryPlanningOpen(v => !v)} aria-expanded={inventoryPlanningOpen}>
                             <span className="sidebar-group-content"><FaBoxes />{!collapsed && <span>Inventory Planning</span>}</span>
                             {!collapsed && <FaChevronDown className={`submenu-chevron ${inventoryPlanningOpen ? "rotated" : ""}`} />}
                         </button>
@@ -1102,9 +1102,9 @@ function Sidebar({ collapsed }) {
                             type="button"
                             className={`sidebar-group-toggle ${
                                 collectionTrackingOpenByPath
-                                    ? "active"
+                                    ? "has-active"
                                     : ""
-                            }`}
+                            } ${collectionTrackingOpen ? "is-open" : ""}`}
                             onClick={() =>
                                 setCollectionTrackingOpen(
                                     (previous) => !previous
@@ -1248,7 +1248,7 @@ function Sidebar({ collapsed }) {
 
                         <button
                             type="button"
-                            className={`sidebar-group-toggle ${settingsOpen ? "active" : ""}`}
+                            className={`sidebar-group-toggle ${settingsOpenByPath ? "has-active" : ""} ${settingsOpen ? "is-open" : ""}`}
                             onClick={() =>
                                 setSettingsOpen(
                                     (previous) =>

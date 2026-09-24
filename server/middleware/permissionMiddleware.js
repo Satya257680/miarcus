@@ -1,5 +1,17 @@
 const db = require("../config/db");
 
+// Some routes use a name that is not a stored RBAC module. Those
+// fall back to the module that owns them in the access screen, so
+// e.g. "NSO Tracking" follows the "New Store Openings" level.
+const MODULE_FALLBACKS = {
+    "NSO Tracking": ["New Store Openings"],
+    "Checklist Submit": ["Checklist Submission"],
+    "Stores": ["Store Management"],
+    "Expense": ["Expenses"],
+};
+
+const LEVEL_RANK = { None: 0, View: 1, Add: 2, Edit: 3, Full: 4 };
+
 // ======================================================
 // ROLE BASED ACCESS CONTROL
 // ======================================================
@@ -57,11 +69,10 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
             SELECT permission
             FROM user_permissions
             WHERE user_id = ?
-            AND module_name = ?
-            LIMIT 1
+            AND module_name IN (?)
             `,
 
-            [userId, moduleName],
+            [userId, [moduleName, ...(MODULE_FALLBACKS[moduleName] || [])]],
 
             (err, result) => {
 
@@ -102,7 +113,10 @@ const permissionMiddleware = (moduleName, requiredPermission) => {
 
                 }
 
-                const permission = result[0].permission;
+                // Highest level wins when a fallback module also matches.
+                const permission = result
+                    .map((row) => row.permission)
+                    .sort((a, b) => (LEVEL_RANK[b] || 0) - (LEVEL_RANK[a] || 0))[0];
 
                 // ======================================================
                 // FULL ACCESS

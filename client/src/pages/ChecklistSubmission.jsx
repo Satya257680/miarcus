@@ -48,11 +48,17 @@ function ChecklistSubmission() {
 
   const isAdmin =
     user.administrator === true ||
-    user.administrator === 1;
+    user.administrator === 1 ||
+    user.is_admin === true ||
+    user.is_admin === 1;
 
+  // The server stores this module as "Checklist Submission";
+  // "Checklist Submit" is the old name kept for older sessions.
   const modulePermission = isAdmin
     ? "Full"
-    : permissions["Checklist Submit"] || "None";
+    : permissions["Checklist Submission"] ||
+      permissions["Checklist Submit"] ||
+      "None";
 
   const canView = [
     "View",
