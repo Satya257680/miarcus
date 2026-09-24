@@ -10,8 +10,6 @@ import {
 // ======================================================
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import ExpensePermissionRoute from "./components/layout/ExpensePermissionRoute";
-import PettyCashPermissionRoute from "./components/layout/PettyCashPermissionRoute";
 import ModulePermissionRoute from "./components/layout/ModulePermissionRoute";
 import PettyCashEmailSettings from "./pages/PettyCash/PettyCashEmailSettings";
 
@@ -227,12 +225,20 @@ function App() {
 
                     <Route
                         path="/dashboard"
-                        element={<Dashboard />}
+                        element={
+                            <ModulePermissionRoute page="dashboard.home">
+                                <Dashboard />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/dashboard-analytics"
-                        element={<DashboardAnalytics />}
+                        element={
+                            <ModulePermissionRoute page="dashboard.analytics">
+                                <DashboardAnalytics />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -242,7 +248,7 @@ function App() {
                     <Route
                         path="/chat"
                         element={
-                            <ModulePermissionRoute moduleName="Chat">
+                            <ModulePermissionRoute page="chat.messages">
                                 <Chat />
                             </ModulePermissionRoute>
                         }
@@ -264,12 +270,20 @@ function App() {
 
                     <Route
                         path="/activity-center"
-                        element={<ActivityCenter />}
+                        element={
+                            <ModulePermissionRoute page="activity.center">
+                                <ActivityCenter />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/activity-center/:id"
-                        element={<ActivityDetails />}
+                        element={
+                            <ModulePermissionRoute page="activity.center">
+                                <ActivityDetails />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -278,17 +292,29 @@ function App() {
 
                     <Route
                         path="/checklist-submit"
-                        element={<ChecklistSubmission />}
+                        element={
+                            <ModulePermissionRoute page="checklist.submit">
+                                <ChecklistSubmission />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/checklist-reports"
-                        element={<ChecklistReports />}
+                        element={
+                            <ModulePermissionRoute page="checklist.reports">
+                                <ChecklistReports />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/action-points"
-                        element={<ActionPoints />}
+                        element={
+                            <ModulePermissionRoute page="actionpoints.list">
+                                <ActionPoints />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -298,7 +324,7 @@ function App() {
                     <Route
                         path="/asset-management"
                         element={
-                            <ModulePermissionRoute moduleName="Asset Master">
+                            <ModulePermissionRoute page="assets.marketing">
                                 <AssetManagement type="marketing" />
                             </ModulePermissionRoute>
                         }
@@ -314,7 +340,7 @@ function App() {
                     <Route
                         path="/legal-assets"
                         element={
-                            <ModulePermissionRoute moduleName="Asset Master">
+                            <ModulePermissionRoute page="assets.legal">
                                 <AssetManagement type="legal" />
                             </ModulePermissionRoute>
                         }
@@ -326,7 +352,11 @@ function App() {
 
                     <Route
                         path="/announcements"
-                        element={<Announcements />}
+                        element={
+                            <ModulePermissionRoute page="announcements.list">
+                                <Announcements />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -335,7 +365,11 @@ function App() {
 
                     <Route
                         path="/gallery"
-                        element={<Gallery />}
+                        element={
+                            <ModulePermissionRoute page="gallery.library">
+                                <Gallery />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -344,16 +378,17 @@ function App() {
 
                     <Route
                         path="/attendance"
-                        element={<Attendance />}
+                        element={
+                            <ModulePermissionRoute page="attendance.mark">
+                                <Attendance />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/attendance-reports"
                         element={
-                            <ModulePermissionRoute
-                                moduleName="Attendance"
-                                requiredPermission="Full"
-                            >
+                            <ModulePermissionRoute page="attendance.reports">
                                 <AttendanceReports />
                             </ModulePermissionRoute>
                         }
@@ -366,10 +401,7 @@ function App() {
                     <Route
                         path="/employee-location"
                         element={
-                            <ModulePermissionRoute
-                                moduleName="Employee Location"
-                                adminOnly
-                            >
+                            <ModulePermissionRoute page="location.live">
                                 <EmployeeLocation />
                             </ModulePermissionRoute>
                         }
@@ -410,7 +442,11 @@ function App() {
                     {/* USERS */}
                     <Route
                         path="/settings/users"
-                        element={<Users />}
+                        element={
+                            <ModulePermissionRoute page="settings.users">
+                                <Users />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* PASSWORD MANAGEMENT */}
@@ -426,42 +462,70 @@ function App() {
                     {/* DEPARTMENTS */}
                     <Route
                         path="/settings/departments"
-                        element={<Departments />}
+                        element={
+                            <ModulePermissionRoute page="settings.departments">
+                                <Departments />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* DESIGNATIONS */}
                     <Route
                         path="/settings/designations"
-                        element={<Designations />}
+                        element={
+                            <ModulePermissionRoute page="settings.designations">
+                                <Designations />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* STORES */}
                     <Route
                         path="/settings/stores"
-                        element={<StoreManagement />}
+                        element={
+                            <ModulePermissionRoute page="settings.stores">
+                                <StoreManagement />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* QUESTIONS */}
                     <Route
                         path="/settings/questions"
-                        element={<Questions />}
+                        element={
+                            <ModulePermissionRoute page="settings.questions">
+                                <Questions />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* CHECKLIST TYPES */}
                     <Route
                         path="/settings/checklist-types"
-                        element={<ChecklistTypes />}
+                        element={
+                            <ModulePermissionRoute page="settings.checklisttypes">
+                                <ChecklistTypes />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* REPORTS TO */}
                     <Route
                         path="/settings/hierarchy"
-                        element={<ReportsTo />}
+                        element={
+                            <ModulePermissionRoute page="settings.hierarchy">
+                                <ReportsTo />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/settings/reports-to"
-                        element={<ReportsTo />}
+                        element={
+                            <ModulePermissionRoute page="settings.hierarchy">
+                                <ReportsTo />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -470,37 +534,65 @@ function App() {
 
                     <Route
                         path="/users"
-                        element={<Users />}
+                        element={
+                            <ModulePermissionRoute page="settings.users">
+                                <Users />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/departments"
-                        element={<Departments />}
+                        element={
+                            <ModulePermissionRoute page="settings.departments">
+                                <Departments />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/designations"
-                        element={<Designations />}
+                        element={
+                            <ModulePermissionRoute page="settings.designations">
+                                <Designations />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/stores"
-                        element={<StoreManagement />}
+                        element={
+                            <ModulePermissionRoute page="settings.stores">
+                                <StoreManagement />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/questions"
-                        element={<Questions />}
+                        element={
+                            <ModulePermissionRoute page="settings.questions">
+                                <Questions />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/checklist-types"
-                        element={<ChecklistTypes />}
+                        element={
+                            <ModulePermissionRoute page="settings.checklisttypes">
+                                <ChecklistTypes />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/reports-to"
-                        element={<ReportsTo />}
+                        element={
+                            <ModulePermissionRoute page="settings.hierarchy">
+                                <ReportsTo />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -509,17 +601,29 @@ function App() {
 
                     <Route
                         path="/new-store-openings"
-                        element={<NewStoreOpenings />}
+                        element={
+                            <ModulePermissionRoute page="nso.openings">
+                                <NewStoreOpenings />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/nso-rules"
-                        element={<NSORules />}
+                        element={
+                            <ModulePermissionRoute page="nso.rules">
+                                <NSORules />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/nso-tracking"
-                        element={<NSOTracking />}
+                        element={
+                            <ModulePermissionRoute page="nso.tracking">
+                                <NSOTracking />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -528,22 +632,38 @@ function App() {
 
                     <Route
                         path="/quiz/take"
-                        element={<TakeQuiz />}
+                        element={
+                            <ModulePermissionRoute page="quiz.take">
+                                <TakeQuiz />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/quiz/setup"
-                        element={<QuizSetup />}
+                        element={
+                            <ModulePermissionRoute page="quiz.setup">
+                                <QuizSetup />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/quiz/report"
-                        element={<TrainingReport />}
+                        element={
+                            <ModulePermissionRoute page="quiz.report">
+                                <TrainingReport />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/quiz/email"
-                        element={<EmailSettings />}
+                        element={
+                            <ModulePermissionRoute page="quiz.email">
+                                <EmailSettings />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     {/* ==================================================
@@ -553,23 +673,27 @@ function App() {
                     <Route
                         path="/expenses/entry"
                         element={
-                            <ExpensePermissionRoute required="Add">
+                            <ModulePermissionRoute page="expenses.entry">
                                 <ExpenseEntry />
-                            </ExpensePermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
                     <Route
                         path="/expenses/track"
-                        element={<TrackExpenses />}
+                        element={
+                            <ModulePermissionRoute page="expenses.track">
+                                <TrackExpenses />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/expenses/approve"
                         element={
-                            <ExpensePermissionRoute required="Edit">
+                            <ModulePermissionRoute page="expenses.approve">
                                 <ApproveExpenses />
-                            </ExpensePermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
@@ -580,23 +704,27 @@ function App() {
                     <Route
                         path="/expense-entry"
                         element={
-                            <ExpensePermissionRoute required="Add">
+                            <ModulePermissionRoute page="expenses.entry">
                                 <ExpenseEntry />
-                            </ExpensePermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
                     <Route
                         path="/track-expenses"
-                        element={<TrackExpenses />}
+                        element={
+                            <ModulePermissionRoute page="expenses.track">
+                                <TrackExpenses />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/approve-expenses"
                         element={
-                            <ExpensePermissionRoute required="Edit">
+                            <ModulePermissionRoute page="expenses.approve">
                                 <ApproveExpenses />
-                            </ExpensePermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
@@ -604,7 +732,7 @@ function App() {
                         path="/expenses"
                         element={
                             <Navigate
-                                to="/expenses/entry"
+                                to="/expenses/track"
                                 replace
                             />
                         }
@@ -617,27 +745,27 @@ function App() {
                     <Route
                         path="/petty-cash"
                         element={
-                            <PettyCashPermissionRoute required="View">
+                            <ModulePermissionRoute page="pettycash.dashboard">
                                 <PettyCash />
-                            </PettyCashPermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
                     <Route
                         path="/petty-cash/:id"
                         element={
-                            <PettyCashPermissionRoute required="View">
+                            <ModulePermissionRoute page="pettycash.dashboard">
                                 <PettyCash />
-                            </PettyCashPermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
                     <Route
                         path="/petty-cash/email-settings"
                         element={
-                            <PettyCashPermissionRoute required="View">
+                            <ModulePermissionRoute page="pettycash.email">
                                 <PettyCashEmailSettings />
-                            </PettyCashPermissionRoute>
+                            </ModulePermissionRoute>
                         }
                     />
 
@@ -647,28 +775,44 @@ function App() {
 
                     <Route
                         path="/billing/entry"
-                        element={<BillingEntry />}
+                        element={
+                            <ModulePermissionRoute page="billing.entry">
+                                <BillingEntry />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/billing/bills"
-                        element={<Bills />}
+                        element={
+                            <ModulePermissionRoute page="billing.bills">
+                                <Bills />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/billing/bills/:id"
-                        element={<BillingAudit />}
+                        element={
+                            <ModulePermissionRoute page="billing.bills">
+                                <BillingAudit />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/billing/daily-report"
-                        element={<DailyBillingReport />}
+                        element={
+                            <ModulePermissionRoute page="billing.daily">
+                                <DailyBillingReport />
+                            </ModulePermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/daily-collection"
                         element={
-                            <ModulePermissionRoute moduleName="Daily Collection">
+                            <ModulePermissionRoute page="dailycollection.entry">
                                 <DailyCollection />
                             </ModulePermissionRoute>
                         }
@@ -677,10 +821,7 @@ function App() {
                     <Route
                         path="/daily-collection/report"
                         element={
-                            <ModulePermissionRoute
-                                moduleName="Daily Collection"
-                                requiredPermission="View"
-                            >
+                            <ModulePermissionRoute page="dailycollection.data">
                                 <DailyCollectionReport />
                             </ModulePermissionRoute>
                         }
@@ -689,10 +830,7 @@ function App() {
                     <Route
                         path="/daily-collection/reports"
                         element={
-                            <ModulePermissionRoute
-                                moduleName="Daily Collection"
-                                requiredPermission="View"
-                            >
+                            <ModulePermissionRoute page="dailycollection.reports">
                                 <CollectionReports />
                             </ModulePermissionRoute>
                         }
@@ -715,7 +853,7 @@ function App() {
                     <Route
                         path="/visit-planner"
                         element={
-                            <ModulePermissionRoute moduleName="Visit Planner">
+                            <ModulePermissionRoute page="sales.visit">
                                 <VisitPlanner />
                             </ModulePermissionRoute>
                         }
@@ -724,7 +862,7 @@ function App() {
                     <Route
                         path="/travel-plan"
                         element={
-                            <ModulePermissionRoute moduleName="Travel Plan">
+                            <ModulePermissionRoute page="sales.travel">
                                 <TravelPlan />
                             </ModulePermissionRoute>
                         }
@@ -733,7 +871,7 @@ function App() {
                     <Route
                         path="/travel-plan-approval"
                         element={
-                            <ModulePermissionRoute moduleName="Travel Plan Approvals">
+                            <ModulePermissionRoute page="sales.approvals">
                                 <TravelPlanApprovals />
                             </ModulePermissionRoute>
                         }
@@ -742,7 +880,7 @@ function App() {
                     <Route
                         path="/sales-review"
                         element={
-                            <ModulePermissionRoute moduleName="Sales Review">
+                            <ModulePermissionRoute page="sales.review">
                                 <SalesReview />
                             </ModulePermissionRoute>
                         }
@@ -751,7 +889,7 @@ function App() {
                     <Route
                         path="/listing-tracker"
                         element={
-                            <ModulePermissionRoute moduleName="Listing Tracker">
+                            <ModulePermissionRoute page="listing.tracker">
                                 <ListingTracker />
                             </ModulePermissionRoute>
                         }
@@ -760,7 +898,7 @@ function App() {
                     <Route
                         path="/inventory-planning/erp-upload"
                         element={
-                            <ModulePermissionRoute moduleName="Inventory Planning">
+                            <ModulePermissionRoute page="inventory.erp">
                                 <ERPDataUpload />
                             </ModulePermissionRoute>
                         }
@@ -769,7 +907,7 @@ function App() {
                     <Route
                         path="/inventory-planning"
                         element={
-                            <ModulePermissionRoute moduleName="Inventory Planning">
+                            <ModulePermissionRoute page="inventory.planning">
                                 <InventoryPlanning />
                             </ModulePermissionRoute>
                         }
@@ -779,7 +917,7 @@ function App() {
                     <Route
                         path="/collection-tracking"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.sku">
                                 <CollectionTracking />
                             </ModulePermissionRoute>
                         }
@@ -788,7 +926,7 @@ function App() {
                     <Route
                         path="/collection-tracking/add-products"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.add">
                                 <CollectionAddProduct />
                             </ModulePermissionRoute>
                         }
@@ -797,7 +935,7 @@ function App() {
                     <Route
                         path="/collection-tracking/sku-details/:id"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.sku">
                                 <CollectionDetails />
                             </ModulePermissionRoute>
                         }
@@ -806,7 +944,7 @@ function App() {
                     <Route
                         path="/collection-tracking/insight"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.insight">
                                 <CollectionInsight />
                             </ModulePermissionRoute>
                         }
@@ -815,7 +953,7 @@ function App() {
                     <Route
                         path="/collection-tracking/requests"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.requests">
                                 <CollectionRequests />
                             </ModulePermissionRoute>
                         }
@@ -824,7 +962,7 @@ function App() {
                     <Route
                         path="/collection-tracking/permissions"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.permissions">
                                 <CollectionPermissions />
                             </ModulePermissionRoute>
                         }
@@ -833,7 +971,7 @@ function App() {
                     <Route
                         path="/collection-tracking/master-data"
                         element={
-                            <ModulePermissionRoute moduleName="Collection Tracking">
+                            <ModulePermissionRoute page="collection.master">
                                 <CollectionMasterData />
                             </ModulePermissionRoute>
                         }

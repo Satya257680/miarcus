@@ -65,6 +65,14 @@ const {
     "../controllers/userController"
 );
 
+const {
+
+    getMyAccess
+
+} = require(
+    "../controllers/accessController"
+);
+
 
 // ======================================================
 // USERS RBAC PERMISSION HELPER
@@ -130,6 +138,29 @@ const usersPermission = (
         );
     };
 };
+
+
+// ======================================================
+// MY ACCESS
+// GET /api/users/me/access
+// ======================================================
+//
+// Any signed-in user. Returns their own live module levels
+// and page access so the app can refresh the sidebar and
+// route guards without a logout.
+//
+// IMPORTANT: declared before any "/:id" style route.
+// ======================================================
+
+router.get(
+
+    "/me/access",
+
+    authMiddleware,
+
+    getMyAccess
+
+);
 
 
 // ======================================================

@@ -1,0 +1,112 @@
+/* =================================================================
+   MIARCUS — RBAC (action guard + access denied screen)
+   ================================================================= */
+
+/* Buttons the current user's level does not allow */
+.rbac-locked {
+  display: none !important;
+}
+
+/* -----------------------------------------------------------------
+   ACCESS DENIED
+----------------------------------------------------------------- */
+
+.rbac-denied {
+  min-height: calc(100vh - 160px);
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.rbac-denied-card {
+  width: min(520px, 100%);
+  padding: 36px 32px 30px;
+  border-radius: 22px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(124, 58, 237, 0.12), transparent 55%),
+    #ffffff;
+  border: 1px solid #e7e2f3;
+  box-shadow: 0 24px 60px rgba(39, 32, 76, 0.12);
+}
+
+.rbac-denied-icon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed, #246bea);
+  color: #ffffff;
+  font-size: 30px;
+  box-shadow: 0 14px 30px rgba(91, 33, 182, 0.3);
+}
+
+.rbac-denied-eyebrow {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.rbac-denied-card h2 {
+  margin: 12px 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e1b3a;
+}
+
+.rbac-denied-card p {
+  margin: 0 auto;
+  max-width: 400px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #5c5378;
+}
+
+.rbac-denied-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.rbac-denied-primary,
+.rbac-denied-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rbac-denied-primary {
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7c3aed, #246bea);
+  box-shadow: 0 12px 26px rgba(91, 33, 182, 0.28);
+}
+
+.rbac-denied-secondary {
+  border: 1px solid #e3def0;
+  background: #ffffff;
+  color: #3b3561;
+}
+
+.rbac-denied-primary:hover,
+.rbac-denied-secondary:hover {
+  transform: translateY(-1px);
+}

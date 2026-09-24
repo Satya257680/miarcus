@@ -44,6 +44,8 @@ import {
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
+import { useRbacVersion } from "../../hooks/usePermission";
+import { canAccessPage, isAdministratorUser } from "../../utils/rbac";
 
 import "../../styles/layout/Sidebar.css";
 
@@ -208,224 +210,120 @@ function Sidebar({ collapsed }) {
     // ======================================================
     // RBAC
     // ======================================================
-
-    let user = {};
-    let permissions = {};
-
-    try {
-        user = JSON.parse(
-            localStorage.getItem("user") || "{}"
-        );
-    } catch {
-        user = {};
-    }
-
-    try {
-        permissions = JSON.parse(
-            localStorage.getItem("permissions") || "{}"
-        );
-    } catch {
-        permissions = {};
-    }
-
-    const isAdministrator =
-        user?.administrator === true ||
-        user?.administrator === 1 ||
-        user?.administrator === "1" ||
-        user?.is_admin === true ||
-        user?.is_admin === 1 ||
-        user?.is_admin === "1";
-
-    // ======================================================
-    // PERMISSION HELPERS
+    //
+    // Every menu item is tied to a PAGE key from
+    // config/rbacCatalog.js. A page is shown only when:
+    //   • the module level is at least View (or the page's
+    //     minimum, e.g. Expense Entry needs Add), and
+    //   • the page has not been switched off for this user.
+    // Module = None  →  the whole group disappears.
+    // Administrator  →  everything is visible.
+    //
+    // useRbacVersion() re-renders the sidebar as soon as the
+    // server reports new permissions (no logout needed).
     // ======================================================
 
-    const hasPermission = (moduleName) => {
-        if (isAdministrator) {
-            return true;
-        }
+    useRbacVersion();
 
-        const permission =
-            permissions?.[moduleName];
+    const isAdministrator = isAdministratorUser();
 
-        return [
-            "View",
-            "Add",
-            "Edit",
-            "Full"
-        ].includes(permission);
-    };
+    const can = (pageKey) => canAccessPage(pageKey);
 
-    const hasFullAttendanceAccess =
-        isAdministrator || permissions?.["Attendance"] === "Full";
+    const canAny = (...pageKeys) => pageKeys.some((key) => can(key));
 
-    const hasAnyPermission = (moduleNames) => {
-        if (isAdministrator) {
-            return true;
-        }
+    // Overview
+    const canDashboard = can("dashboard.home");
+    const canAnnouncements = can("announcements.list");
+    const canGallery = can("gallery.library");
+    const canAccessChat = can("chat.messages");
 
-        return moduleNames.some(
-            (moduleName) =>
-                [
-                    "View",
-                    "Add",
-                    "Edit",
-                    "Full"
-                ].includes(
-                    permissions?.[moduleName]
-                )
-        );
-    };
+    // Asset Master
+    const canMarketingAssets = can("assets.marketing");
+    const canLegalAssets = can("assets.legal");
+    const canAccessAssetMaster = canMarketingAssets || canLegalAssets;
 
-    // ======================================================
-    // EXPENSE PERMISSIONS
-    // ======================================================
+    // Attendance
+    const canAttendance = can("attendance.mark");
+    const hasFullAttendanceAccess = can("attendance.reports");
+    const canAccessAttendance = canAttendance || hasFullAttendanceAccess;
 
-    const expensePermission =
-        permissions?.Expenses;
+    // Operations
+    const canEmployeeLocation = can("location.live");
+    const canActionPoints = can("actionpoints.list");
+    const canChecklistReports = can("checklist.reports");
+    const canChecklistSubmit = can("checklist.submit");
+    const canNewStoreOpenings = can("nso.openings");
+    const canNsoRules = can("nso.rules");
 
-    const canEnterExpense =
-        isAdministrator ||
-        [
-            "Add",
-            "Edit",
-            "Full"
-        ].includes(
-            expensePermission
-        );
+    // Expenses
+    const canEnterExpense = can("expenses.entry");
+    const canTrackExpenses = can("expenses.track");
+    const canApproveExpenses = can("expenses.approve");
+    const canAccessExpenses = canEnterExpense || canTrackExpenses || canApproveExpenses;
 
-    const canTrackExpenses =
-        isAdministrator ||
-        [
-            "View",
-            "Add",
-            "Edit",
-            "Full"
-        ].includes(
-            expensePermission
-        );
+    // Petty Cash
+    const canPettyCashDashboard = can("pettycash.dashboard");
+    const canPettyCashEmail = can("pettycash.email");
+    const canAccessPettyCash = canPettyCashDashboard || canPettyCashEmail;
 
-    const canApproveExpenses =
-        isAdministrator ||
-        [
-            "Edit",
-            "Full"
-        ].includes(
-            expensePermission
-        );
+    // Billing
+    const canAddBilling = can("billing.entry");
+    const canBills = can("billing.bills");
+    const canBillingDaily = can("billing.daily");
+    const canAccessBilling = canAddBilling || canBills || canBillingDaily;
 
-    // ======================================================
-    // PETTY CASH PERMISSION
-    // ======================================================
+    // Daily Collection
+    const canDailyEntry = can("dailycollection.entry");
+    const canDailyData = can("dailycollection.data");
+    const canDailyReports = can("dailycollection.reports");
+    const canAccessDailyCollection = canDailyEntry || canDailyData || canDailyReports;
 
-    const pettyCashPermission =
-        permissions?.["Petty Cash"] ||
-        permissions?.Expenses;
+    // Quiz
+    const canTakeQuiz = can("quiz.take");
+    const canQuizSetup = can("quiz.setup");
+    const canQuizReport = can("quiz.report");
+    const canQuizEmail = can("quiz.email");
+    const canAccessQuiz = canTakeQuiz || canQuizSetup || canQuizReport || canQuizEmail;
 
-    const canAccessPettyCash =
-        isAdministrator ||
-        ["View", "Add", "Edit", "Full"].includes(pettyCashPermission);
-
-
-    // ======================================================
-    // QUIZ PERMISSION
-    // ======================================================
-
-    const canAccessQuiz =
-        isAdministrator ||
-        hasPermission("Quiz");
-
-    const canAccessBilling =
-        isAdministrator ||
-        hasPermission("Billing");
-
-    const canAddBilling =
-        isAdministrator ||
-        ["Add", "Edit", "Full"].includes(permissions?.Billing);
-
-    const canAccessDailyCollection =
-        isAdministrator ||
-        hasPermission("Daily Collection");
-
-    // ======================================================
-    // SALES TEAM PERMISSIONS
-    // ======================================================
-
-    const canSalesVisitPlanner = isAdministrator || hasPermission("Visit Planner");
-    const canSalesTravelPlan = isAdministrator || hasPermission("Travel Plan");
-    const canSalesApprovals = isAdministrator || hasPermission("Travel Plan Approvals");
-    const canSalesReview = isAdministrator || hasPermission("Sales Review");
+    // Sales Team
+    const canSalesVisitPlanner = can("sales.visit");
+    const canSalesTravelPlan = can("sales.travel");
+    const canSalesApprovals = can("sales.approvals");
+    const canSalesReview = can("sales.review");
     const canAccessSalesTeam = canSalesVisitPlanner || canSalesTravelPlan || canSalesApprovals || canSalesReview;
 
-    // ======================================================
-    // LISTING TRACKER
-    // ======================================================
+    // Merchandising & Inventory
+    const canAccessListingTracker = can("listing.tracker");
+    const canErpUpload = can("inventory.erp");
+    const canInventoryPlanning = can("inventory.planning");
+    const canAccessInventoryPlanning = canErpUpload || canInventoryPlanning;
 
-    const canAccessListingTracker =
-        isAdministrator ||
-        hasPermission("Listing Tracker");
+    const canCollectionAdd = can("collection.add");
+    const canCollectionSku = can("collection.sku");
+    const canCollectionInsight = can("collection.insight");
+    const canCollectionRequests = can("collection.requests");
+    const canCollectionPermissions = can("collection.permissions");
+    const canCollectionMaster = can("collection.master");
+    const canAccessCollectionTracking = canAny(
+        "collection.add",
+        "collection.sku",
+        "collection.insight",
+        "collection.requests",
+        "collection.permissions",
+        "collection.master"
+    );
 
-    const canAccessInventoryPlanning =
-        isAdministrator ||
-        hasPermission("Inventory Planning");
-
-    const canAccessCollectionTracking =
-        isAdministrator ||
-        hasPermission("Collection Tracking");
-
-    // ==================================================
-    // TEAM CHAT
-    // ==================================================
-
-    const canAccessChat =
-        isAdministrator ||
-        hasPermission("Chat");
-
-    // ======================================================
-    // SETTINGS PERMISSIONS
-    // ======================================================
-
+    // Settings
+    const canUsers = can("settings.users");
+    const canDepartments = can("settings.departments");
+    const canDesignations = can("settings.designations");
+    const canStores = can("settings.stores");
+    const canQuestions = can("settings.questions");
+    const canChecklistTypes = can("settings.checklisttypes");
+    const canReportsTo = can("settings.hierarchy");
     const canAccessSettings =
-        isAdministrator ||
-        hasAnyPermission([
-            "Users",
-            "Departments",
-            "Designations",
-            "Store Management",
-            "Stores",
-            "Questions",
-            "Checklist Types",
-            "Reports To"
-        ]);
-
-    const canUsers =
-        isAdministrator ||
-        hasPermission("Users");
-
-    const canDepartments =
-        isAdministrator ||
-        hasPermission("Departments");
-
-    const canDesignations =
-        isAdministrator ||
-        hasPermission("Designations");
-
-    const canStores =
-        isAdministrator ||
-        hasPermission("Store Management") ||
-        hasPermission("Stores");
-
-    const canQuestions =
-        isAdministrator ||
-        hasPermission("Questions");
-
-    const canChecklistTypes =
-        isAdministrator ||
-        hasPermission("Checklist Types");
-
-    const canReportsTo =
-        isAdministrator ||
-        hasPermission("Reports To");
+        canUsers || canDepartments || canDesignations || canStores ||
+        canQuestions || canChecklistTypes || canReportsTo;
 
     // ======================================================
     // COMMON NAVLINK CLASS
@@ -447,7 +345,7 @@ function Sidebar({ collapsed }) {
                     DASHBOARD
                 ================================================== */}
 
-                {hasPermission("Dashboard") && (
+                {canDashboard && (
                     <NavLink
                         to="/dashboard"
                         className={getMenuClass}
@@ -466,7 +364,7 @@ function Sidebar({ collapsed }) {
                     ANNOUNCEMENTS
                 ================================================== */}
 
-                {hasPermission("Announcements") && (
+                {canAnnouncements && (
                     <NavLink
                         to="/announcements"
                         className={getMenuClass}
@@ -485,7 +383,7 @@ function Sidebar({ collapsed }) {
                     GALLERY
                 ================================================== */}
 
-                {hasPermission("Gallery") && (
+                {canGallery && (
                     <NavLink
                         to="/gallery"
                         className={getMenuClass}
@@ -504,7 +402,7 @@ function Sidebar({ collapsed }) {
                     ASSET MASTER
                 ================================================== */}
 
-                {hasPermission("Asset Master") && (
+                {canAccessAssetMaster && (
                     <div className={`sidebar-group ${assetMasterOpen ? "open" : ""}`}>
                         <button
                             type="button"
@@ -523,14 +421,18 @@ function Sidebar({ collapsed }) {
 
                         {!collapsed && assetMasterOpen && (
                             <div className="sidebar-submenu">
-                                <NavLink to="/asset-management" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaImages />
-                                    <span>Marketing Assets</span>
-                                </NavLink>
-                                <NavLink to="/legal-assets" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaBalanceScale />
-                                    <span>Legal Assets</span>
-                                </NavLink>
+                                {canMarketingAssets && (
+                                    <NavLink to="/asset-management" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaImages />
+                                        <span>Marketing Assets</span>
+                                    </NavLink>
+                                )}
+                                {canLegalAssets && (
+                                    <NavLink to="/legal-assets" className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaBalanceScale />
+                                        <span>Legal Assets</span>
+                                    </NavLink>
+                                )}
                             </div>
                         )}
                     </div>
@@ -540,11 +442,12 @@ function Sidebar({ collapsed }) {
                     ATTENDANCE
                 ================================================== */}
 
+                {canAccessAttendance && (
                 <div className={`sidebar-group ${
                     location.pathname === "/attendance" || location.pathname === "/attendance-reports" ? "open" : ""
                 }`}>
                     <NavLink
-                        to="/attendance"
+                        to={canAttendance ? "/attendance" : "/attendance-reports"}
                         className={getMenuClass}
                     >
                         <FaCalendarCheck />
@@ -561,12 +464,13 @@ function Sidebar({ collapsed }) {
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* ==================================================
                     EMPLOYEE LOCATION
                 ================================================== */}
 
-                {isAdministrator && hasPermission("Employee Location") && (
+                {canEmployeeLocation && (
                     <NavLink
                         to="/employee-location"
                         className={getMenuClass}
@@ -641,7 +545,7 @@ function Sidebar({ collapsed }) {
                     ACTION POINTS
                 ================================================== */}
 
-                {hasPermission("Action Points") && (
+                {canActionPoints && (
                     <NavLink
                         to="/action-points"
                         className={getMenuClass}
@@ -660,7 +564,7 @@ function Sidebar({ collapsed }) {
                     CHECKLIST REPORTS
                 ================================================== */}
 
-                {hasPermission("Checklist Reports") && (
+                {canChecklistReports && (
                     <NavLink
                         to="/checklist-reports"
                         className={getMenuClass}
@@ -679,7 +583,7 @@ function Sidebar({ collapsed }) {
                     CHECKLIST SUBMIT
                 ================================================== */}
 
-                {hasPermission("Checklist Submission") && (
+                {canChecklistSubmit && (
                     <NavLink
                         to="/checklist-submit"
                         className={getMenuClass}
@@ -698,7 +602,7 @@ function Sidebar({ collapsed }) {
                     NEW STORE OPENINGS
                 ================================================== */}
 
-                {hasPermission("New Store Openings") && (
+                {canNewStoreOpenings && (
                     <NavLink
                         to="/new-store-openings"
                         className={getMenuClass}
@@ -717,7 +621,7 @@ function Sidebar({ collapsed }) {
                     NSO RULES
                 ================================================== */}
 
-                {hasPermission("NSO Rules") && (
+                {canNsoRules && (
                     <NavLink
                         to="/nso-rules"
                         className={getMenuClass}
@@ -736,12 +640,7 @@ function Sidebar({ collapsed }) {
                     EXPENSES
                 ================================================== */}
 
-                {hasAnyPermission([
-                    "Expenses",
-                    "Expense Entry",
-                    "Track Expenses",
-                    "Approve Expenses"
-                ]) && (
+                {canAccessExpenses && (
                     <div
                         className={`sidebar-group ${
                             expenseOpenByPath ||
@@ -876,14 +775,18 @@ function Sidebar({ collapsed }) {
 
                         {!collapsed && pettyCashOpen && (
                             <div className="sidebar-submenu">
-                                <NavLink to="/petty-cash" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
-                                    <FaMoneyBillWave />
-                                    <span>Petty Cash Dashboard</span>
-                                </NavLink>
-                                <NavLink to="/petty-cash/email-settings" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaEnvelope />
-                                    <span>Email Notifications</span>
-                                </NavLink>
+                                {canPettyCashDashboard && (
+                                    <NavLink to="/petty-cash" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
+                                        <FaMoneyBillWave />
+                                        <span>Petty Cash Dashboard</span>
+                                    </NavLink>
+                                )}
+                                {canPettyCashEmail && (
+                                    <NavLink to="/petty-cash/email-settings" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaEnvelope />
+                                        <span>Email Notifications</span>
+                                    </NavLink>
+                                )}
                             </div>
                         )}
                     </div>
@@ -923,15 +826,19 @@ function Sidebar({ collapsed }) {
                                     </NavLink>
                                 )}
 
-                                <NavLink to="/billing/bills" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaReceipt />
-                                    <span>Bills</span>
-                                </NavLink>
+                                {canBills && (
+                                    <NavLink to="/billing/bills" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaReceipt />
+                                        <span>Bills</span>
+                                    </NavLink>
+                                )}
 
-                                <NavLink to="/billing/daily-report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaChartBar />
-                                    <span>Daily Report</span>
-                                </NavLink>
+                                {canBillingDaily && (
+                                    <NavLink to="/billing/daily-report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaChartBar />
+                                        <span>Daily Report</span>
+                                    </NavLink>
+                                )}
 
                             </div>
                         )}
@@ -961,18 +868,24 @@ function Sidebar({ collapsed }) {
 
                         {!collapsed && dailyCollectionOpen && (
                             <div className="sidebar-submenu">
-                                <NavLink to="/daily-collection" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/daily-collection" ? "active" : ""}`}>
-                                    <FaMoneyCheckAlt />
-                                    <span>Daily Entry</span>
-                                </NavLink>
-                                <NavLink to="/daily-collection/report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaChartBar />
-                                    <span>Daily Data Report</span>
-                                </NavLink>
-                                <NavLink to="/daily-collection/reports" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
-                                    <FaChartLine />
-                                    <span>Collection Reports</span>
-                                </NavLink>
+                                {canDailyEntry && (
+                                    <NavLink to="/daily-collection" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/daily-collection" ? "active" : ""}`}>
+                                        <FaMoneyCheckAlt />
+                                        <span>Daily Entry</span>
+                                    </NavLink>
+                                )}
+                                {canDailyData && (
+                                    <NavLink to="/daily-collection/report" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaChartBar />
+                                        <span>Daily Data Report</span>
+                                    </NavLink>
+                                )}
+                                {canDailyReports && (
+                                    <NavLink to="/daily-collection/reports" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaChartLine />
+                                        <span>Collection Reports</span>
+                                    </NavLink>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1022,79 +935,95 @@ function Sidebar({ collapsed }) {
 
                                     {/* TAKE QUIZ */}
 
-                                    <NavLink
-                                        to="/quiz/take"
-                                        className={({ isActive }) =>
-                                            `submenu-item ${
-                                                isActive
-                                                    ? "active"
-                                                    : ""
-                                            }`
-                                        }
-                                    >
-                                        <FaClipboardCheck />
+                                    {canTakeQuiz && (
+    
+                                        <NavLink
+                                            to="/quiz/take"
+                                            className={({ isActive }) =>
+                                                `submenu-item ${
+                                                    isActive
+                                                        ? "active"
+                                                        : ""
+                                                }`
+                                            }
+                                        >
+                                            <FaClipboardCheck />
+    
+                                            <span>
+                                                Take Quiz
+                                            </span>
+                                        </NavLink>
 
-                                        <span>
-                                            Take Quiz
-                                        </span>
-                                    </NavLink>
+                                    )}
 
                                     {/* QUIZ SETUP */}
 
-                                    <NavLink
-                                        to="/quiz/setup"
-                                        className={({ isActive }) =>
-                                            `submenu-item ${
-                                                isActive
-                                                    ? "active"
-                                                    : ""
-                                            }`
-                                        }
-                                    >
-                                        <FaCog />
+                                    {canQuizSetup && (
+    
+                                        <NavLink
+                                            to="/quiz/setup"
+                                            className={({ isActive }) =>
+                                                `submenu-item ${
+                                                    isActive
+                                                        ? "active"
+                                                        : ""
+                                                }`
+                                            }
+                                        >
+                                            <FaCog />
+    
+                                            <span>
+                                                Quiz Setup
+                                            </span>
+                                        </NavLink>
 
-                                        <span>
-                                            Quiz Setup
-                                        </span>
-                                    </NavLink>
+                                    )}
 
                                     {/* TRAINING REPORT */}
 
-                                    <NavLink
-                                        to="/quiz/report"
-                                        className={({ isActive }) =>
-                                            `submenu-item ${
-                                                isActive
-                                                    ? "active"
-                                                    : ""
-                                            }`
-                                        }
-                                    >
-                                        <FaChartBar />
+                                    {canQuizReport && (
+    
+                                        <NavLink
+                                            to="/quiz/report"
+                                            className={({ isActive }) =>
+                                                `submenu-item ${
+                                                    isActive
+                                                        ? "active"
+                                                        : ""
+                                                }`
+                                            }
+                                        >
+                                            <FaChartBar />
+    
+                                            <span>
+                                                Training Report
+                                            </span>
+                                        </NavLink>
 
-                                        <span>
-                                            Training Report
-                                        </span>
-                                    </NavLink>
+                                    )}
 
                                     {/* EMAIL SETTING */}
 
-                                    <NavLink
-                                        to="/quiz/email"
-                                        className={({ isActive }) =>
-                                            `submenu-item ${
-                                                isActive
-                                                    ? "active"
-                                                    : ""
-                                            }`
-                                        }
-                                    >
-                                        <FaEnvelope />
+                                    {canQuizEmail && (
+    
+                                        <NavLink
+                                            to="/quiz/email"
+                                            className={({ isActive }) =>
+                                                `submenu-item ${
+                                                    isActive
+                                                        ? "active"
+                                                        : ""
+                                                }`
+                                            }
+                                        >
+                                            <FaEnvelope />
+    
+                                            <span>
+                                                Email Setting
+                                            </span>
+                                        </NavLink>
 
-                                        <span>
-                                            Email Setting
-                                        </span>
-                                    </NavLink>
+                                    )}
 
                                 </div>
                             )}
@@ -1153,8 +1082,8 @@ function Sidebar({ collapsed }) {
                         </button>
                         {!collapsed && inventoryPlanningOpen && (
                             <div className="sidebar-submenu">
-                                <NavLink to="/inventory-planning/erp-upload" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCloudUploadAlt /><span>ERP Data Upload</span></NavLink>
-                                <NavLink to="/inventory-planning" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Inventory Planning</span></NavLink>
+                                {canErpUpload && <NavLink to="/inventory-planning/erp-upload" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCloudUploadAlt /><span>ERP Data Upload</span></NavLink>}
+                                {canInventoryPlanning && <NavLink to="/inventory-planning" end className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Inventory Planning</span></NavLink>}
                             </div>
                         )}
                     </div>
@@ -1207,78 +1136,100 @@ function Sidebar({ collapsed }) {
                                 id="collection-tracking-submenu"
                                 className="sidebar-submenu"
                             >
-                                <NavLink
-                                    to="/collection-tracking/add-products"
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaPlus />
-                                    <span>Add Products</span>
-                                </NavLink>
+                                {canCollectionAdd && (
+                                    <NavLink
+                                        to="/collection-tracking/add-products"
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaPlus />
+                                        <span>Add Products</span>
+                                    </NavLink>
+                                )}
 
-                                <NavLink
-                                    to="/collection-tracking"
-                                    end
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaBoxes />
-                                    <span>SKU Details</span>
-                                </NavLink>
+                                {canCollectionSku && (
+    
+                                    <NavLink
+                                        to="/collection-tracking"
+                                        end
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaBoxes />
+                                        <span>SKU Details</span>
+                                    </NavLink>
 
-                                <NavLink
-                                    to="/collection-tracking/insight"
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaChartBar />
-                                    <span>Insight</span>
-                                </NavLink>
+                                )}
 
-                                <NavLink
-                                    to="/collection-tracking/requests"
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaEnvelope />
-                                    <span>Requests</span>
-                                </NavLink>
+                                {canCollectionInsight && (
+    
+                                    <NavLink
+                                        to="/collection-tracking/insight"
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaChartBar />
+                                        <span>Insight</span>
+                                    </NavLink>
 
-                                <NavLink
-                                    to="/collection-tracking/permissions"
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaCheckDouble />
-                                    <span>Collection Permissions</span>
-                                </NavLink>
+                                )}
 
-                                <NavLink
-                                    to="/collection-tracking/master-data"
-                                    className={({ isActive }) =>
-                                        `submenu-item ${
-                                            isActive ? "active" : ""
-                                        }`
-                                    }
-                                >
-                                    <FaClipboard />
-                                    <span>Master Data</span>
-                                </NavLink>
+                                {canCollectionRequests && (
+    
+                                    <NavLink
+                                        to="/collection-tracking/requests"
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaEnvelope />
+                                        <span>Requests</span>
+                                    </NavLink>
+
+                                )}
+
+                                {canCollectionPermissions && (
+    
+                                    <NavLink
+                                        to="/collection-tracking/permissions"
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaCheckDouble />
+                                        <span>Collection Permissions</span>
+                                    </NavLink>
+
+                                )}
+
+                                {canCollectionMaster && (
+    
+                                    <NavLink
+                                        to="/collection-tracking/master-data"
+                                        className={({ isActive }) =>
+                                            `submenu-item ${
+                                                isActive ? "active" : ""
+                                            }`
+                                        }
+                                    >
+                                        <FaClipboard />
+                                        <span>Master Data</span>
+                                    </NavLink>
+
+                                )}
                             </div>
                         )}
                     </div>

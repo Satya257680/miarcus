@@ -168,6 +168,7 @@ function Login() {
       // Clear the previous session.
       localStorage.removeItem("token");
       localStorage.removeItem("permissions");
+      localStorage.removeItem("pageAccess");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
       localStorage.removeItem("userName");
@@ -184,6 +185,12 @@ function Login() {
       localStorage.setItem(
         "permissions",
         JSON.stringify(response.data.permissions || {})
+      );
+
+      // Page-level (sub-module) access — missing keys mean "allowed".
+      localStorage.setItem(
+        "pageAccess",
+        JSON.stringify(response.data.pageAccess || {})
       );
 
       localStorage.setItem("user", JSON.stringify(user));

@@ -1,3 +1,4 @@
+const PagePermission = require("../models/pagePermissionModel");
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -155,7 +156,7 @@ const permissionSql = `
     WHERE user_id = ?
 `;
 
-db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
+db.query(permissionSql, [user.id], async (permissionErr, permissionRows) => {
 
     if (permissionErr) {
 
@@ -177,6 +178,17 @@ db.query(permissionSql, [user.id], (permissionErr, permissionRows) => {
         permissions[row.module_name] = row.permission;
 
     });
+
+    // Page-level (sub-module) access. Missing keys = allowed.
+    let pageAccess = {};
+
+    if (Number(user.is_admin) !== 1) {
+        try {
+            pageAccess = await PagePermission.getForUser(user.id);
+        } catch (pageError) {
+            console.error("Page access lookup failed:", pageError.message);
+        }
+    }
 
     // ======================================================
 // GENERATE JWT TOKEN
@@ -234,7 +246,9 @@ const token = jwt.sign(
 
     },
 
-    permissions
+    permissions,
+
+    pageAccess
 
 });
 });

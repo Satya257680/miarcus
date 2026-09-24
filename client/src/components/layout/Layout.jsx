@@ -9,6 +9,9 @@ import "../../styles/theme.css";
 import ThemeProvider from "../../context/ThemeProvider";
 import LocationTrackingGate from "../LocationTrackingGate";
 import "../../styles/LocationTrackingGate.css";
+import RbacActionGuard from "./RbacActionGuard";
+import { refreshAccess } from "../../utils/rbac";
+import "../../styles/rbac.css";
 
 function Layout() {
 
@@ -43,6 +46,35 @@ function Layout() {
 
   }, [navigate]);
 
+  // ==========================================
+  // Keep RBAC in sync with the server
+  // ==========================================
+  // Permissions are re-read on load, whenever the tab regains focus
+  // and every 3 minutes — so when an admin changes someone's access
+  // the sidebar / pages update without a logout.
+
+  useEffect(() => {
+
+    refreshAccess();
+
+    const onFocus = () => refreshAccess();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshAccess();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
+    const timer = window.setInterval(refreshAccess, 3 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
+
+  }, []);
+
   return (
 
     <ThemeProvider>
@@ -74,6 +106,9 @@ function Layout() {
           >
             <Outlet />
           </main>
+
+          {/* View / Add / Edit / Full enforcement for page buttons */}
+          <RbacActionGuard />
 
         </div>
 

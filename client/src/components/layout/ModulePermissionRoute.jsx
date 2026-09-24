@@ -1,177 +1,78 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+
+import AccessDenied from "./AccessDenied";
+import { useRbacVersion } from "../../hooks/usePermission";
+import {
+  canAccessModule,
+  canAccessPage,
+  getFirstAllowedPath,
+  hasModuleLevel,
+  isAdministratorUser,
+} from "../../utils/rbac";
 
 // ======================================================
 // MODULE PERMISSION ROUTE
 // ======================================================
 //
-// Protects frontend routes using:
-// - Login state
-// - Administrator status
-// - Module permission
-// - Required permission level
+// <ModulePermissionRoute page="quiz.setup">          ← preferred
+// <ModulePermissionRoute moduleName="Chat">          ← module-level
+// <ModulePermissionRoute moduleName="Attendance" requiredPermission="Full">
+// <ModulePermissionRoute adminOnly>
 //
-// Permission hierarchy:
-//
-// None  = 0
-// View  = 1
-// Add   = 2
-// Edit  = 3
-// Full  = 4
-//
-// Administrator always has access.
+// • Administrator always passes.
+// • `page`      → module level ≥ page minimum AND page switched on.
+// • `moduleName`→ module level ≥ requiredPermission (default View).
+// • Denied      → premium "No access" screen instead of a silent
+//                 redirect (the old redirect to /dashboard looped
+//                 forever when Dashboard itself was not granted).
+// • When the Dashboard is not granted, the user is sent to the
+//   first page they DO have access to.
 // ======================================================
 
 const ModulePermissionRoute = ({
-    moduleName,
-    children,
-    adminOnly = false,
-    requiredPermission = null,
+  moduleName,
+  page,
+  children,
+  adminOnly = false,
+  requiredPermission = null,
 }) => {
+  useRbacVersion();
+  const location = useLocation();
 
-    // ==================================================
-    // LOGIN CHECK
-    // ==================================================
+  if (!localStorage.getItem("userId")) {
+    return <Navigate to="/login" replace />;
+  }
 
-    const userId =
-        localStorage.getItem("userId");
-
-    if (!userId) {
-        return (
-            <Navigate
-                to="/"
-                replace
-            />
-        );
-    }
-
-    // ==================================================
-    // LOAD USER
-    // ==================================================
-
-    let user = {};
-
-    try {
-        user = JSON.parse(
-            localStorage.getItem("user") ||
-            "{}"
-        );
-    } catch {
-        user = {};
-    }
-
-    // ==================================================
-    // LOAD PERMISSIONS
-    // ==================================================
-
-    let permissions = {};
-
-    try {
-        permissions = JSON.parse(
-            localStorage.getItem("permissions") ||
-            "{}"
-        );
-    } catch {
-        permissions = {};
-    }
-
-    // ==================================================
-    // ADMINISTRATOR DETECTION
-    // ==================================================
-
-    const isAdministrator =
-        user?.administrator === true ||
-        user?.administrator === 1 ||
-        user?.administrator === "1" ||
-        user?.is_admin === true ||
-        user?.is_admin === 1 ||
-        user?.is_admin === "1";
-
-    // ==================================================
-    // PERMISSION RANK
-    // ==================================================
-
-    const permissionRank = {
-        None: 0,
-        View: 1,
-        Add: 2,
-        Edit: 3,
-        Full: 4,
-    };
-
-    // ==================================================
-    // CURRENT MODULE PERMISSION
-    // ==================================================
-
-    const currentPermission =
-        permissions?.[moduleName] ||
-        "None";
-
-    // ==================================================
-    // REQUIRED PERMISSION CHECK
-    // ==================================================
-
-    const currentRank =
-        permissionRank[
-            currentPermission
-        ] ?? 0;
-
-    const requiredRank =
-        requiredPermission
-            ? (
-                permissionRank[
-                    requiredPermission
-                ] ?? 0
-            )
-            : 1;
-
-    const allowed =
-        currentRank >= requiredRank;
-
-    // ==================================================
-    // ADMIN-ONLY ROUTE
-    // ==================================================
-
-    if (
-        adminOnly &&
-        !isAdministrator
-    ) {
-        return (
-            <Navigate
-                to="/dashboard"
-                replace
-            />
-        );
-    }
-
-    // ==================================================
-    // ADMINISTRATOR BYPASS
-    // ==================================================
-    //
-    // Administrator has unrestricted module access.
-    // ==================================================
-
-    if (isAdministrator) {
-        return children;
-    }
-
-    // ==================================================
-    // PERMISSION DENIED
-    // ==================================================
-
-    if (!allowed) {
-        return (
-            <Navigate
-                to="/dashboard"
-                replace
-            />
-        );
-    }
-
-    // ==================================================
-    // ACCESS GRANTED
-    // ==================================================
-
+  if (isAdministratorUser()) {
     return children;
+  }
+
+  let allowed = true;
+
+  if (adminOnly) {
+    allowed = false;
+  } else if (page) {
+    allowed = canAccessPage(page);
+  } else if (moduleName) {
+    allowed = requiredPermission
+      ? hasModuleLevel(moduleName, requiredPermission)
+      : canAccessModule(moduleName);
+  }
+
+  if (allowed) {
+    return children;
+  }
+
+  // Dashboard not granted → go straight to something useful.
+  if (page === "dashboard.home" || location.pathname === "/dashboard") {
+    const fallback = getFirstAllowedPath();
+
+    if (fallback && fallback !== location.pathname) {
+      return <Navigate to={fallback} replace />;
+    }
+  }
+
+  return <AccessDenied />;
 };
 
 export default ModulePermissionRoute;

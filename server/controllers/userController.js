@@ -6,6 +6,7 @@ const { encryptPassword } = require("../config/passwordVault");
 const PasswordVault = require("../models/passwordVaultModel");
 
 const User = require("../models/userModel");
+const PagePermission = require("../models/pagePermissionModel");
 const { logActivity } = require("../utils/activityLogger");
 
 const {
@@ -267,14 +268,27 @@ const getUsers = (
                 });
             }
 
-            return res.json({
+            // Attach page-level (sub-module) access so the Edit
+            // User screen can show which pages are switched on.
+            PagePermission.getForAllUsers()
+                .then((pageMap) => {
+                    (result || []).forEach((row) => {
+                        row.page_access = pageMap[row.id] || {};
+                    });
+                })
+                .catch((pageError) => {
+                    console.error("Page access lookup failed:", pageError.message);
+                })
+                .finally(() => {
+                    res.json({
 
-                success: true,
+                        success: true,
 
-                users:
-                    result
+                        users:
+                            result
 
-            });
+                    });
+                });
         }
     );
 };
@@ -453,6 +467,21 @@ const createUser = (
 
                             const userId =
                                 addResult.insertId;
+
+
+                            // --------------------------------------------------
+                            // Save page-level (sub-module) access
+                            // --------------------------------------------------
+
+                            try {
+                                await PagePermission.saveForUser(
+                                    userId,
+                                    req.body?.pageAccess,
+                                    user.administrator
+                                );
+                            } catch (pageError) {
+                                console.error("Saving page access failed:", pageError.message);
+                            }
 
 
                             // --------------------------------------------------
@@ -1470,6 +1499,21 @@ const updateUser = (
                         "Update Failed"
 
                 });
+            }
+
+
+            // --------------------------------------------------
+            // Save page-level (sub-module) access
+            // --------------------------------------------------
+
+            try {
+                await PagePermission.saveForUser(
+                    req.params.id,
+                    req.body?.pageAccess,
+                    user.administrator
+                );
+            } catch (pageError) {
+                console.error("Saving page access failed:", pageError.message);
             }
 
 

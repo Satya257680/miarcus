@@ -6,7 +6,6 @@ import {
   LuBuilding2,
   LuStore,
   LuLockKeyhole,
-  LuSettings2,
   LuX,
   LuCheck,
   LuSearch,
@@ -25,6 +24,16 @@ import {
 } from "react-icons/lu";
 
 import axios, { API_BASE_URL } from "../axiosConfig.js";
+import PermissionMatrix from "./rbac/PermissionMatrix";
+import {
+  ALWAYS_ON_MODULES,
+  LEVEL_RANK,
+  MODULE_ALIASES,
+  MODULE_BY_NAME,
+  MODULE_NAMES,
+  PAGES,
+  clampLevel,
+} from "../config/rbacCatalog";
 
 function AddUserModal({
   onClose,
@@ -171,42 +180,10 @@ function AddUserModal({
   // MODULE ACCESS
   // =====================================================
 
-  const modules = [
-    "Dashboard",
-    "Activity Center",
-    "Action Points",
-    "Quiz",
-    "Checklist Reports",
-    "Checklist Submission",
-    "Checklist Types",
-    "Questions",
-    "Departments",
-    "Designations",
-    "Store Management",
-    "Users",
-    "Reports To",
-    "NSO Rules",
-    "New Store Openings",
-    "Announcements",
-    "Gallery",
-    "Asset Master",
-    "Employee Location",
-    "Attendance",
-    "Expenses",
-    "Petty Cash",
-    "Billing",
-    "Daily Collection",
-    "Visit Planner",
-    "Travel Plan",
-    "Travel Plan Approvals",
-    "Sales Review",
-    "Listing Tracker",
-    "Inventory Planning",
-    "Collection Tracking",
-    "Chat",
-    "Profile",
-    "Settings",
-  ];
+  // Every module that can be granted — defined once in
+  // config/rbacCatalog.js (grouped, with pages / sub-modules).
+  const modules = MODULE_NAMES;
+
   const permissionTypes = [
     "None",
     "View",
@@ -223,6 +200,10 @@ function AddUserModal({
 
   const [modulePermissions, setModulePermissions] =
     useState(createDefaultPermissions());
+
+  // Page (sub-module) access: { "quiz.setup": false, ... }
+  // Missing key = page allowed.
+  const [pageAccess, setPageAccess] = useState({});
 
   // Prevent the edit-user data loader from overwriting changes when the
   // parent re-renders and passes a new editingUser object with the same ID.
@@ -279,11 +260,24 @@ function AddUserModal({
 
   const selectedPermissionCount = isAdmin
     ? modules.length
-    : Object.values(
-        modulePermissions
-      ).filter(
-        (permission) => permission !== "None"
+    : modules.filter(
+        (module) =>
+          (modulePermissions[module] || "None") !== "None"
       ).length;
+
+  // Pages the user will actually be able to open.
+  const enabledPageCount = isAdmin
+    ? PAGES.length
+    : PAGES.filter((page) => {
+        const level = modulePermissions[page.module] || "None";
+        const module = MODULE_BY_NAME[page.module];
+
+        return (
+          !module?.adminOnly &&
+          LEVEL_RANK[level] >= LEVEL_RANK[page.min || "View"] &&
+          pageAccess[page.key] !== false
+        );
+      }).length;
 
   const completionPercentage = Math.round(
     (currentStep / steps.length) * 100
@@ -393,22 +387,20 @@ function AddUserModal({
 
           if (moduleName) {
             const uiModule =
-              moduleName === "Expense"
-                ? "Expenses"
-                : moduleName === "Checklist Submit"
-                ? "Checklist Submission"
-                : moduleName;
+              MODULE_ALIASES[moduleName] || moduleName;
 
             if (modules.includes(uiModule)) {
               const normalizedPermission =
                 String(permission).trim();
 
-              normalized[uiModule] =
+              normalized[uiModule] = clampLevel(
+                uiModule,
                 permissionTypes.includes(
                   normalizedPermission
                 )
                   ? normalizedPermission
-                  : "None";
+                  : "None"
+              );
             }
           }
         });
@@ -423,22 +415,20 @@ function AddUserModal({
         Object.entries(rawPermissions).forEach(
           ([moduleName, permission]) => {
             const uiModule =
-              moduleName === "Expense"
-                ? "Expenses"
-                : moduleName === "Checklist Submit"
-                ? "Checklist Submission"
-                : moduleName;
+              MODULE_ALIASES[moduleName] || moduleName;
 
             if (modules.includes(uiModule)) {
               const normalizedPermission =
                 String(permission).trim();
 
-              normalized[uiModule] =
+              normalized[uiModule] = clampLevel(
+                uiModule,
                 permissionTypes.includes(
                   normalizedPermission
                 )
                   ? normalizedPermission
-                  : "None";
+                  : "None"
+              );
             }
           }
         );
@@ -465,6 +455,14 @@ function AddUserModal({
       String(adminValue).toLowerCase() === "yes";
 
     setIsAdmin(administrator);
+
+    // Page-level access saved for this user (missing = allowed).
+    setPageAccess(
+      editingUser.page_access &&
+        typeof editingUser.page_access === "object"
+        ? { ...editingUser.page_access }
+        : {}
+    );
 
     // Administrator ALWAYS starts with Full access for EVERY module.
     // The backend intentionally normalizes administrator permissions to Full,
@@ -517,6 +515,7 @@ function AddUserModal({
     setModulePermissions(
       createDefaultPermissions()
     );
+    setPageAccess({});
 
     setIsActive(true);
     setIsAdmin(false);
@@ -654,29 +653,6 @@ function AddUserModal({
       restoredPermissions
     );
     setIsAdmin(false);
-  };
-
-  // =====================================================
-  // PERMISSION CHANGE
-  // =====================================================
-
-  const handlePermissionChange = (
-    module,
-    permission
-  ) => {
-    // Administrator already has Full access to every module.
-    // Turn Admin OFF first if individual permissions need to be changed.
-    if (isAdmin) return;
-
-    const safePermission =
-      module === "Daily Collection" && permission === "Full"
-        ? "Edit"
-        : permission;
-
-    setModulePermissions((previous) => ({
-      ...previous,
-      [module]: safePermission,
-    }));
   };
 
   // =====================================================
@@ -892,16 +868,21 @@ function AddUserModal({
         return true;
       }
 
-      const hasPermission = Object.values(
-        modulePermissions
-      ).some(
-        (permission) =>
-          permission !== "None"
+      const hasPermission = modules.some(
+        (module) =>
+          (modulePermissions[module] || "None") !== "None"
       );
 
       if (!hasPermission) {
         alert(
           "Please assign access to at least one module."
+        );
+        return false;
+      }
+
+      if (enabledPageCount === 0) {
+        alert(
+          "Please enable at least one page for this user."
         );
         return false;
       }
@@ -1014,20 +995,29 @@ function AddUserModal({
 
         // Always send every module explicitly.
         // Administrator is authoritative: every module is Full.
-        permissions: modules.reduce((acc, module) => {
-          acc[module] = isAdmin
-            ? "Full"
-            : (
-                modulePermissions[module] ||
-                modulePermissions[
-                  module === "Expenses"
-                    ? "Expense"
-                    : module
-                ] ||
-                "None"
+        permissions: [...modules, ...ALWAYS_ON_MODULES].reduce(
+          (acc, module) => {
+            if (isAdmin || ALWAYS_ON_MODULES.includes(module)) {
+              acc[module] = "Full";
+            } else {
+              acc[module] = clampLevel(
+                module,
+                modulePermissions[module] || "None"
               );
-          return acc;
-        }, {}),
+            }
+            return acc;
+          },
+          {}
+        ),
+
+        // Page (sub-module) access — explicit on/off for every page.
+        // Administrators get everything, so nothing is stored.
+        pageAccess: isAdmin
+          ? {}
+          : PAGES.reduce((acc, page) => {
+              acc[page.key] = pageAccess[page.key] !== false;
+              return acc;
+            }, {}),
 
         active:
           isActive,
@@ -1725,7 +1715,7 @@ function AddUserModal({
   // =====================================================
 
   const renderAccessStep = () => (
-    <section className="user-page-card">
+    <section className="user-page-card access-card">
       <div className="user-page-heading">
         <div className="user-page-heading-icon">
           <LuLockKeyhole />
@@ -1735,9 +1725,8 @@ function AddUserModal({
           <h3>Access & Account Settings</h3>
 
           <p>
-            Configure module permissions,
-            account activation and administrator
-            access.
+            Choose what this user can see and do — per module and
+            per page. Administrator unlocks everything instantly.
           </p>
         </div>
       </div>
@@ -1746,222 +1735,86 @@ function AddUserModal({
 
       {/* ACCOUNT SETTINGS */}
 
-      <div className="settings-section">
-        <div className="settings-section-title">
-          <LuSettings2 />
-
-          <div>
-            <h4>Account Settings</h4>
-
-            <p>
-              Control the user's account status
-              and administrative privileges.
-            </p>
+      <div className="access-settings-grid">
+        <div
+          className={`access-setting is-status ${
+            isActive ? "is-on" : ""
+          }`}
+        >
+          <div className="access-setting-icon">
+            <LuPower />
           </div>
+
+          <div className="access-setting-text">
+            <strong>Account Status</strong>
+            <span>
+              {isAdmin
+                ? "Administrators always stay active"
+                : isActive
+                ? "Active — the user can sign in"
+                : "Inactive — sign-in is blocked"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className={`toggle ${isActive ? "on" : ""}`}
+            onClick={() => setIsActive(!isActive)}
+            disabled={isAdmin}
+            aria-label="Toggle account status"
+          >
+            <span />
+          </button>
         </div>
 
-        <div className="settings-grid">
-          <div
-            className={`setting-card ${
-              isActive
-                ? "active"
-                : ""
-            }`}
-          >
-            <div className="setting-icon">
-              <LuPower />
-            </div>
-
-            <div className="setting-content">
-              <strong>
-                Account Status
-              </strong>
-
-              <span>
-                {isActive
-                  ? "User account is active"
-                  : "User account is inactive"}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className={`toggle ${
-                isActive
-                  ? "on"
-                  : ""
-              }`}
-              onClick={() =>
-                setIsActive(
-                  !isActive
-                )
-              }
-              disabled={isAdmin}
-              aria-label="Toggle account status"
-            >
-              <span />
-            </button>
-          </div>
-
-          <div
-            className={`setting-card ${
-              isAdmin
-                ? "admin"
-                : ""
-            }`}
-          >
-            <div className="setting-icon">
-              <LuShieldCheck />
-            </div>
-
-            <div className="setting-content">
-              <strong>
-                Administrator
-              </strong>
-
-              <span>
-                {isAdmin
-                  ? "Full system access enabled"
-                  : "Standard user account"}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className={`toggle ${
-                isAdmin
-                  ? "on"
-                  : ""
-              }`}
-              onClick={(e) =>
-                handleAdminChange(
-                  !isAdmin
-                )
-              }
-              aria-label="Toggle administrator"
-            >
-              <span />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ADMIN NOTICE */}
-
-      {isAdmin && (
-        <div className="admin-banner">
-          <div className="admin-banner-icon">
+        <div
+          className={`access-setting is-admin ${
+            isAdmin ? "is-on" : ""
+          }`}
+        >
+          <div className="access-setting-icon">
             <LuShieldCheck />
           </div>
 
-          <div>
-            <strong>
-              Administrator Access Enabled
-            </strong>
-
-            <p>
-              Administrator access is enabled. Every module is automatically
-              set to Full access, including Expenses. Turn Administrator OFF
-              to configure individual module permissions.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* PERMISSIONS */}
-
-      <div className="permission-section">
-        <div className="permission-section-header">
-          <div>
-            <h4>Module Permissions</h4>
-
-            <p>
-              Select the access level for each
-              module.
-            </p>
+          <div className="access-setting-text">
+            <strong>Administrator</strong>
+            <span>
+              {isAdmin
+                ? "Full access to every module and page"
+                : "Off — access is set module by module below"}
+            </span>
           </div>
 
-          <div className="permission-count">
-            <strong>
-              {selectedPermissionCount}
-            </strong>
-
-            <span>modules configured</span>
-          </div>
-        </div>
-
-        <div className="permission-table-wrap">
-          <div className="permission-table">
-            <div className="permission-header-row">
-              <div>
-                Module
-              </div>
-
-              {permissionTypes.map(
-                (type) => (
-                  <div key={type}>
-                    {type}
-                  </div>
-                )
-              )}
-            </div>
-
-            {modules.map(
-              (module) => (
-                <div
-                  className="permission-row"
-                  key={module}
-                >
-                  <div className="permission-module">
-                    {module}
-                  </div>
-
-                  {permissionTypes.map(
-                    (type) => {
-                      const checked =
-                        modulePermissions[
-                          module
-                        ] === type;
-
-                      return (
-                        <label
-                          key={type}
-                          className={
-                            checked
-                              ? "permission-option checked"
-                              : "permission-option"
-                          }
-                        >
-                          <input
-                            type="radio"
-                            name={`permission-${module}`}
-                            checked={
-                              checked
-                            }
-                            disabled={isAdmin}
-                            onChange={() =>
-                              handlePermissionChange(
-                                module,
-                                type
-                              )
-                            }
-                          />
-
-                          <span className="permission-radio">
-                            {checked && (
-                              <span />
-                            )}
-                          </span>
-                        </label>
-                      );
-                    }
-                  )}
-                </div>
-              )
-            )}
-          </div>
+          <button
+            type="button"
+            className={`toggle ${isAdmin ? "on" : ""}`}
+            onClick={() => handleAdminChange(!isAdmin)}
+            aria-label="Toggle administrator"
+          >
+            <span />
+          </button>
         </div>
       </div>
+
+      {/* MODULE + PAGE PERMISSIONS */}
+
+      <div className="access-section-title">
+        <div>
+          <h4>Module & Page Permissions</h4>
+          <p>
+            Pick a level for each module, then open it to tick the
+            exact pages this user should see.
+          </p>
+        </div>
+      </div>
+
+      <PermissionMatrix
+        permissions={modulePermissions}
+        pageAccess={pageAccess}
+        isAdmin={isAdmin}
+        onPermissionsChange={setModulePermissions}
+        onPageAccessChange={setPageAccess}
+      />
     </section>
   );
 
@@ -2199,9 +2052,47 @@ function AddUserModal({
               <span>Module Access</span>
 
               <strong>
-                {`${selectedPermissionCount} configured`}
+                {`${selectedPermissionCount} modules · ${enabledPageCount} pages`}
               </strong>
             </div>
+          </div>
+
+          <div className="review-access-chips">
+            {isAdmin ? (
+              <span className="review-access-chip level-full">
+                Administrator · Full access to everything
+              </span>
+            ) : (
+              modules
+                .filter(
+                  (module) =>
+                    (modulePermissions[module] || "None") !== "None"
+                )
+                .map((module) => {
+                  const level = modulePermissions[module];
+                  const pages = MODULE_BY_NAME[module]?.pages || [];
+                  const onPages = pages.filter(
+                    (page) =>
+                      LEVEL_RANK[level] >= LEVEL_RANK[page.min || "View"] &&
+                      pageAccess[page.key] !== false
+                  ).length;
+
+                  return (
+                    <span
+                      key={module}
+                      className={`review-access-chip level-${level.toLowerCase()}`}
+                    >
+                      <strong>{module}</strong>
+                      <em>{level}</em>
+                      {pages.length > 1 && (
+                        <small>
+                          {onPages}/{pages.length} pages
+                        </small>
+                      )}
+                    </span>
+                  );
+                })
+            )}
           </div>
         </div>
 
@@ -2341,8 +2232,8 @@ function AddUserModal({
 
             <strong>
               {isAdmin
-                ? `Administrator · ${selectedPermissionCount} modules`
-                : `${selectedPermissionCount} modules`}
+                ? `Administrator · all ${selectedPermissionCount} modules`
+                : `${selectedPermissionCount} modules · ${enabledPageCount} pages`}
             </strong>
           </div>
         </div>
@@ -2385,7 +2276,7 @@ function AddUserModal({
 
   return (
     <div
-      className="user-modal-overlay"
+      className="user-modal-overlay user-modal-overlay-full"
       onMouseDown={(e) => {
         if (
           e.target === e.currentTarget &&
@@ -2396,15 +2287,9 @@ function AddUserModal({
       }}
     >
       <div
-        className="user-modal user-modal-wide"
+        className="user-modal user-modal-wide user-modal-fullscreen"
         role="dialog"
         aria-modal="true"
-        style={{
-          width: "min(1400px, 94vw)",
-          maxWidth: "1400px",
-          height: "min(900px, 92vh)",
-          maxHeight: "92vh",
-        }}
       >
         {/* =================================================
             HEADER
@@ -2556,7 +2441,11 @@ function AddUserModal({
             MAIN CONTENT
         ================================================= */}
 
-        <div className="user-modal-content">
+        <div
+          className={`user-modal-content ${
+            currentStep === 4 ? "is-access-step" : ""
+          }`}
+        >
           <main className="user-main-content">
             {renderCurrentStep()}
           </main>
