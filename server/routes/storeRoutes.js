@@ -12,6 +12,11 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// Master data (create / edit / delete / import / export) is
+// Administrator-only. Read access stays permission-based because
+// other modules (Action Points, Expenses, Reports...) read it.
+const adminOnly = require("../middleware/adminOnly");
+
 const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
 
@@ -170,13 +175,7 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Store Management",
-
-        "Add"
-
-    ),
+    adminOnly,
 
     upload.single("file"),
 
@@ -203,13 +202,7 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Store Management",
-
-        "Add"
-
-    ),
+    adminOnly,
 
     createStore
 
@@ -265,13 +258,7 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Store Management",
-
-        "Edit"
-
-    ),
+    adminOnly,
 
     updateStore
 
@@ -296,13 +283,7 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Store Management",
-
-        "Full"
-
-    ),
+    adminOnly,
 
     deleteAllStores
 
@@ -327,13 +308,7 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Store Management",
-
-        "Full"
-
-    ),
+    adminOnly,
 
     deleteStore
 

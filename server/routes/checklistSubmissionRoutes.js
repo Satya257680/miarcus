@@ -130,6 +130,110 @@ router.get(
 );
 
 // ======================================================
+// SUBMISSION FORM OPTIONS
+// ------------------------------------------------------
+// The Checklist Submission form needs Checklist Types,
+// Stores and Questions to build itself. Those are master
+// data (Settings → Administrator only), so the form reads
+// them through these endpoints, which are guarded by the
+// user's "Checklist Submission" permission instead of the
+// Settings permissions. Read-only — nothing here can change
+// master data.
+//
+// GET /api/checklist-submissions/form-options/checklist-types
+// GET /api/checklist-submissions/form-options/stores
+// GET /api/checklist-submissions/form-options/questions?checklist_type_id=ID
+// Permission : Checklist Submission → View
+// IMPORTANT: KEEP BEFORE /:id
+// ======================================================
+
+const checklistTypeController = require(
+    "../controllers/checklistTypeController"
+);
+
+const questionController = require(
+    "../controllers/questionController"
+);
+
+const { getStores } = require(
+    "../controllers/storeController"
+);
+
+router.get(
+
+    "/form-options/checklist-types",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    checklistTypeController.getChecklistTypes
+
+);
+
+router.get(
+
+    "/form-options/stores",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    getStores
+
+);
+
+router.get(
+
+    "/form-options/questions",
+
+    authMiddleware,
+
+    permissionMiddleware(
+
+        "Checklist Submission",
+
+        "View"
+
+    ),
+
+    (req, res, next) => {
+
+        // Only the questions of one checklist type are exposed
+        // here — never the full question bank.
+        if (!req.query.checklist_type_id) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "checklist_type_id is required"
+
+            });
+
+        }
+
+        return next();
+
+    },
+
+    questionController.getQuestions
+
+);
+
+// ======================================================
 // GET SUBMISSIONS FOR NEW STORE OPENING
 // GET /api/checklist-submissions/by-nso/:newStoreOpeningId
 // Permission : View

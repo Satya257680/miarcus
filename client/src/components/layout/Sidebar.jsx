@@ -317,9 +317,10 @@ function Sidebar({ collapsed }) {
     const canUsers = can("settings.users");
     const canDepartments = can("settings.departments");
     const canDesignations = can("settings.designations");
-    const canStores = can("settings.stores");
-    const canQuestions = can("settings.questions");
-    const canChecklistTypes = can("settings.checklisttypes");
+    // Master data (Stores, Questions, Checklist Types) is Administrator-only.
+    const canStores = isAdministrator;
+    const canQuestions = isAdministrator;
+    const canChecklistTypes = isAdministrator;
     const canReportsTo = can("settings.hierarchy");
     const canAccessSettings =
         canUsers || canDepartments || canDesignations || canStores ||

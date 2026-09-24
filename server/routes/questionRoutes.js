@@ -6,6 +6,11 @@ const multer = require("multer");
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// Master data (create / edit / delete / import / export) is
+// Administrator-only. Read access stays permission-based because
+// other modules (Action Points, Expenses, Reports...) read it.
+const adminOnly = require("../middleware/adminOnly");
+
 const questionController = require("../controllers/questionController");
 
 // ======================================================
@@ -48,7 +53,7 @@ router.get(
 router.post(
     "/",
     authMiddleware,
-    permissionMiddleware("Questions", "Add"),
+    adminOnly,
     questionController.createQuestion
 );
 
@@ -60,7 +65,7 @@ router.post(
 router.post(
     "/bulk-upload",
     authMiddleware,
-    permissionMiddleware("Questions", "Add"),
+    adminOnly,
     upload.single("file"),
     questionController.bulkUploadQuestions
 );
@@ -73,7 +78,7 @@ router.post(
 router.put(
     "/:id",
     authMiddleware,
-    permissionMiddleware("Questions", "Edit"),
+    adminOnly,
     questionController.updateQuestion
 );
 
@@ -85,7 +90,7 @@ router.put(
 router.delete(
     "/delete-all",
     authMiddleware,
-    permissionMiddleware("Questions", "Full"),
+    adminOnly,
     questionController.deleteAllQuestions
 );
 
@@ -97,7 +102,7 @@ router.delete(
 router.delete(
     "/:id",
     authMiddleware,
-    permissionMiddleware("Questions", "Full"),
+    adminOnly,
     questionController.deleteQuestion
 );
 

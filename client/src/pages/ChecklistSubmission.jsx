@@ -100,7 +100,7 @@ function ChecklistSubmission() {
   const fetchChecklistTypes = async () => {
     try {
       const response = await axios.get(
-        `${API}/api/checklist-types`
+        `${API}/api/checklist-submissions/form-options/checklist-types`
       );
 
       const data = Array.isArray(response.data)
@@ -123,7 +123,7 @@ function ChecklistSubmission() {
   const fetchStores = async () => {
     try {
       const response = await axios.get(
-        `${API}/api/stores`
+        `${API}/api/checklist-submissions/form-options/stores`
       );
 
       const data = Array.isArray(response.data)
@@ -180,7 +180,7 @@ function ChecklistSubmission() {
       setErrorMessage("");
 
       const response = await axios.get(
-        `${API}/api/questions?checklist_type_id=${checklistTypeId}`
+        `${API}/api/checklist-submissions/form-options/questions?checklist_type_id=${encodeURIComponent(checklistTypeId)}`
       );
 
       const allQuestions = Array.isArray(response.data)

@@ -12,6 +12,11 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 
+// Master data (create / edit / delete / import / export) is
+// Administrator-only. Read access stays permission-based because
+// other modules (Action Points, Expenses, Reports...) read it.
+const adminOnly = require("../middleware/adminOnly");
+
 const extendUploadTimeout = require("../middleware/extendUploadTimeout");
 
 // ======================================================
@@ -79,13 +84,7 @@ router.get(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "View"
-
-    ),
+    adminOnly,
 
     checklistTypeController.exportChecklistTypes
 
@@ -103,13 +102,7 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Add"
-
-    ),
+    adminOnly,
 
     checklistTypeController.createChecklistType
 
@@ -130,13 +123,7 @@ router.post(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Add"
-
-    ),
+    adminOnly,
 
     upload.single("file"),
 
@@ -156,13 +143,7 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Full"
-
-    ),
+    adminOnly,
 
     checklistTypeController.deleteAllChecklistTypes
 
@@ -204,13 +185,7 @@ router.put(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Edit"
-
-    ),
+    adminOnly,
 
     checklistTypeController.updateChecklistType
 
@@ -228,13 +203,7 @@ router.delete(
 
     authMiddleware,
 
-    permissionMiddleware(
-
-        "Checklist Types",
-
-        "Full"
-
-    ),
+    adminOnly,
 
     checklistTypeController.deleteChecklistType
 

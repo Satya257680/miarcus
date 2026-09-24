@@ -483,7 +483,7 @@ function App() {
                     <Route
                         path="/settings/stores"
                         element={
-                            <ModulePermissionRoute page="settings.stores">
+                            <ModulePermissionRoute adminOnly>
                                 <StoreManagement />
                             </ModulePermissionRoute>
                         }
@@ -493,7 +493,7 @@ function App() {
                     <Route
                         path="/settings/questions"
                         element={
-                            <ModulePermissionRoute page="settings.questions">
+                            <ModulePermissionRoute adminOnly>
                                 <Questions />
                             </ModulePermissionRoute>
                         }
@@ -503,7 +503,7 @@ function App() {
                     <Route
                         path="/settings/checklist-types"
                         element={
-                            <ModulePermissionRoute page="settings.checklisttypes">
+                            <ModulePermissionRoute adminOnly>
                                 <ChecklistTypes />
                             </ModulePermissionRoute>
                         }
@@ -562,7 +562,7 @@ function App() {
                     <Route
                         path="/stores"
                         element={
-                            <ModulePermissionRoute page="settings.stores">
+                            <ModulePermissionRoute adminOnly>
                                 <StoreManagement />
                             </ModulePermissionRoute>
                         }
@@ -571,7 +571,7 @@ function App() {
                     <Route
                         path="/questions"
                         element={
-                            <ModulePermissionRoute page="settings.questions">
+                            <ModulePermissionRoute adminOnly>
                                 <Questions />
                             </ModulePermissionRoute>
                         }
@@ -580,7 +580,7 @@ function App() {
                     <Route
                         path="/checklist-types"
                         element={
-                            <ModulePermissionRoute page="settings.checklisttypes">
+                            <ModulePermissionRoute adminOnly>
                                 <ChecklistTypes />
                             </ModulePermissionRoute>
                         }

@@ -88,7 +88,8 @@ function Settings() {
             title: "Store Management",
             description: "Manage store information.",
             icon: FaStore,
-            path: "/stores"
+            path: "/stores",
+            adminOnly: true
         },
 
         {
@@ -117,7 +118,8 @@ function Settings() {
             title: "Questions",
             description: "Manage checklist questions.",
             icon: FaQuestionCircle,
-            path: "/questions"
+            path: "/questions",
+            adminOnly: true
         },
 
         {
@@ -126,7 +128,8 @@ function Settings() {
             title: "Checklist Types",
             description: "Manage checklist types.",
             icon: FaClipboardList,
-            path: "/checklist-types"
+            path: "/checklist-types",
+            adminOnly: true
         },
 
         {
