@@ -231,7 +231,12 @@ function SearchableSelect({
               top: pos.top,
               bottom: pos.bottom,
             }}
-            onMouseDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => {
+              // keep focus in the input, and stop this event bubbling (through the
+              // React portal) up to the control's own onMouseDown toggle handler
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <div className="ss-popover-head">
               <FaSearch />
@@ -318,6 +323,8 @@ function SearchableSelect({
       }`}
       onMouseDown={(e) => {
         if (disabled) return;
+        // Ignore events coming from the dropdown list (rendered in a portal)
+        if (!e.currentTarget.contains(e.target)) return;
         if (e.target !== inputRef.current) {
           e.preventDefault();
           inputRef.current?.focus();
