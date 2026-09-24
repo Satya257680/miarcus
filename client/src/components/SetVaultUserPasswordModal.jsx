@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
-import { FaTimes, FaEye, FaEyeSlash, FaSyncAlt } from "react-icons/fa";
+import { FaTimes, FaEye, FaEyeSlash, FaSyncAlt, FaUnlockAlt } from "react-icons/fa";
 
 import "../styles/PasswordManagement.css";
 
@@ -144,11 +144,16 @@ function SetVaultUserPasswordModal({ user, onClose, onSaved }) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="pwd-mgmt-modal-header">
-          <div>
-            <h3>{hasExistingPassword ? "Reset Password" : "Set Password"}</h3>
-            <p>
-              {user?.name} — {user?.email}
-            </p>
+          <div className="pwd-mgmt-modal-title-wrap">
+            <div className="pwd-mgmt-modal-icon pwd-mgmt-modal-icon-reset">
+              <FaUnlockAlt />
+            </div>
+            <div>
+              <h3>{hasExistingPassword ? "Reset Password" : "Set Password"}</h3>
+              <p>
+                {user?.name} — {user?.email}
+              </p>
+            </div>
           </div>
 
           <button

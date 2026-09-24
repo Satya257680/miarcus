@@ -9,6 +9,7 @@ import {
   FaSyncAlt,
   FaTrash,
   FaEdit,
+  FaEye,
   FaUnlockAlt,
   FaUsers,
   FaUserCheck,
@@ -18,6 +19,7 @@ import {
 
 import EditVaultUserModal from "../components/EditVaultUserModal";
 import SetVaultUserPasswordModal from "../components/SetVaultUserPasswordModal";
+import ViewVaultUserPasswordModal from "../components/ViewVaultUserPasswordModal";
 import "../styles/PasswordManagement.css";
 
 function PasswordManagement() {
@@ -33,6 +35,7 @@ function PasswordManagement() {
   const [editingUser, setEditingUser] = useState(null);
   const [editLoadingId, setEditLoadingId] = useState(null);
   const [passwordTargetUser, setPasswordTargetUser] = useState(null);
+  const [viewPasswordUser, setViewPasswordUser] = useState(null);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
@@ -376,6 +379,16 @@ function PasswordManagement() {
                         <td className="pwd-mgmt-actions-cell">
                           <button
                             type="button"
+                            className="pwd-mgmt-view-btn"
+                            onClick={() => setViewPasswordUser(user)}
+                            title="View current password"
+                          >
+                            <FaEye />
+                            View
+                          </button>
+
+                          <button
+                            type="button"
                             className="pwd-mgmt-edit-btn"
                             onClick={() => openEditUser(user)}
                             disabled={editLoadingId === user.id}
@@ -504,6 +517,13 @@ function PasswordManagement() {
           user={passwordTargetUser}
           onClose={() => setPasswordTargetUser(null)}
           onSaved={fetchVault}
+        />
+      )}
+
+      {viewPasswordUser && (
+        <ViewVaultUserPasswordModal
+          user={viewPasswordUser}
+          onClose={() => setViewPasswordUser(null)}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaEdit } from "react-icons/fa";
 
 import "../styles/PasswordManagement.css";
 
@@ -143,9 +143,14 @@ function EditVaultUserModal({ user, canManageSuperAdmin, onClose, onSaved }) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="pwd-mgmt-modal-header">
-          <div>
-            <h3>Edit User</h3>
-            <p>{user?.email}</p>
+          <div className="pwd-mgmt-modal-title-wrap">
+            <div className="pwd-mgmt-modal-icon pwd-mgmt-modal-icon-edit">
+              <FaEdit />
+            </div>
+            <div>
+              <h3>Edit User</h3>
+              <p>{user?.email}</p>
+            </div>
           </div>
 
           <button
