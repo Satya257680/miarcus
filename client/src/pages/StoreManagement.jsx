@@ -1,13 +1,22 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   FaSearch,
   FaPlus,
   FaEdit,
   FaTrash,
   FaFileImport,
+  FaStore,
+  FaCheckCircle,
+  FaPauseCircle,
+  FaGlobeAsia,
+  FaMapMarkerAlt,
+  FaChevronLeft,
+  FaChevronRight,
+  FaTimes,
 } from "react-icons/fa";
 
 import "../styles/StoreManagement.css";
+import "../styles/StoreManagementPremium.css";
 import AddStoreModal from "../components/AddStoreModal";
 import ExportButton from "../components/common/ExportButton";
 import { exportTableData } from "../utils/exportUtils.js";
@@ -32,6 +41,7 @@ function StoreManagement() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const [showModal, setShowModal] = useState(false);
 
@@ -138,22 +148,22 @@ const canDelete =
 
   useEffect(() => {
 
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
 
     const filtered = stores.filter((store) => {
 
+      if (statusFilter !== "All" && store.status !== statusFilter) {
+        return false;
+      }
+
+      if (!keyword) return true;
+
       return (
-
-        store.store_name?.toLowerCase().includes(keyword) ||
-
-        store.store_code?.toLowerCase().includes(keyword) ||
-
-        store.country?.toLowerCase().includes(keyword) ||
-
-        store.state?.toLowerCase().includes(keyword) ||
-
-        store.city?.toLowerCase().includes(keyword)
-
+        String(store.store_name ?? "").toLowerCase().includes(keyword) ||
+        String(store.store_code ?? "").toLowerCase().includes(keyword) ||
+        String(store.country ?? "").toLowerCase().includes(keyword) ||
+        String(store.state ?? "").toLowerCase().includes(keyword) ||
+        String(store.city ?? "").toLowerCase().includes(keyword)
       );
 
     });
@@ -162,7 +172,7 @@ const canDelete =
 
     setCurrentPage(1);
 
-  }, [search, stores]);
+  }, [search, statusFilter, stores]);
 
   // ==========================
   // Add Store
@@ -382,6 +392,45 @@ const handleSave = async (data) => {
     filteredStores.length / rowsPerPage
   );
 
+  // ==========================
+  // Stats
+  // ==========================
+
+  const stats = useMemo(() => {
+    const active = stores.filter((s) => s.status === "Active").length;
+    const countries = new Set(
+      stores.map((s) => String(s.country ?? "").trim().toLowerCase()).filter(Boolean)
+    ).size;
+    const cities = new Set(
+      stores.map((s) => String(s.city ?? "").trim().toLowerCase()).filter(Boolean)
+    ).size;
+    return {
+      total: stores.length,
+      active,
+      inactive: stores.length - active,
+      countries,
+      cities,
+    };
+  }, [stores]);
+
+  const pageNumbers = useMemo(() => {
+    const total = totalPages || 1;
+    const pages = [];
+    const start = Math.max(1, Math.min(currentPage - 2, total - 4));
+    const end = Math.min(total, start + 4);
+    for (let p = start; p <= end; p++) pages.push(p);
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const initials = (name) =>
+    String(name ?? "")
+      .replace(/[^A-Za-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join("") || "S";
+
 
  // ==========================
 // Export CSV
@@ -515,276 +564,336 @@ const handleFileChange = async (e) => {
 
 };
 
- return (
-  <div className="store-page">
 
-    {/* Hidden File Input for CSV Import */}
-    <input
-      type="file"
-      accept=".csv"
-      ref={fileInputRef}
-      style={{ display: "none" }}
-      onChange={handleFileChange}
-    />
+  const statCards = [
+    { key: "total", label: "Total Stores", value: stats.total, icon: <FaStore />, tone: "teal" },
+    { key: "active", label: "Active", value: stats.active, icon: <FaCheckCircle />, tone: "green" },
+    { key: "inactive", label: "Inactive", value: stats.inactive, icon: <FaPauseCircle />, tone: "rose" },
+    {
+      key: "reach",
+      label: "Cities Covered",
+      value: stats.cities,
+      sub: `${stats.countries} ${stats.countries === 1 ? "country" : "countries"}`,
+      icon: <FaGlobeAsia />,
+      tone: "amber",
+    },
+  ];
 
-    {/* ==========================
-        Header
-    ========================== */}
+  return (
+    <div className="sm-page">
 
-    <div className="store-header">
-
-      <h2>Store Management</h2>
-
-      <div className="store-actions">
-
-        {canView && (
-          <ExportButton onExport={handleExport} />
-        )}
-
-        {canAdd && (
-          <button
-            className="import-btn"
-            onClick={handleImport}
-          >
-            <FaFileImport />
-            Import
-          </button>
-        )}
-
-        {canDelete && (
-          <button
-            className="delete-all-btn"
-            onClick={handleDeleteAll}
-          >
-            <FaTrash />
-            Delete All
-          </button>
-        )}
-
-        {canAdd && (
-          <button
-            className="add-store-btn"
-            onClick={handleAddStore}
-          >
-            <FaPlus />
-            Add Store
-          </button>
-        )}
-
-      </div>
-
-    </div>
-
-    {/* ==========================
-        Search
-    ========================== */}
-
-    <div className="store-search">
-
-      <FaSearch />
-
+      {/* Hidden File Input for CSV Import */}
       <input
-        type="text"
-        placeholder="Search Store..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        type="file"
+        accept=".csv"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={handleFileChange}
       />
 
-    </div>
+      {/* ==========================
+          Hero Header
+      ========================== */}
 
-    {/* ==========================
-        Table
-    ========================== */}
+      <header className="sm-hero">
+        <div className="sm-hero-text">
+          <span className="sm-crumbs">Settings <span>/</span> Stores</span>
+          <h2>Store Management</h2>
+          <p>Manage every outlet, its location and contact details in one place.</p>
+        </div>
 
-    <div className="store-table-container">
+        <div className="sm-actions">
+          {canView && <ExportButton onExport={handleExport} />}
 
-      <table className="store-table">
-
-        <thead>
-
-          <tr>
-
-            <th>#</th>
-
-            <th>Store Code</th>
-
-            <th>Store Name</th>
-
-            <th>Country</th>
-
-            <th>State</th>
-
-            <th>City</th>
-
-            <th>Status</th>
-
-            <th>Actions</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {loading ? (
-
-            <tr>
-              <td colSpan="8" className="text-center">
-                Loading...
-              </td>
-            </tr>
-
-          ) : currentStores.length === 0 ? (
-
-            <tr>
-              <td colSpan="8" className="text-center">
-                No Stores Found
-              </td>
-            </tr>
-
-          ) : (
-
-            currentStores.map((store, index) => (
-
-              <tr key={store.id}>
-
-                <td>{indexOfFirstRow + index + 1}</td>
-
-                <td>{store.store_code}</td>
-
-                <td>{store.store_name}</td>
-
-                <td>{store.country}</td>
-
-                <td>{store.state}</td>
-
-                <td>{store.city}</td>
-
-                <td>
-
-                  <span
-                    className={
-                      store.status === "Active"
-                        ? "status active"
-                        : "status inactive"
-                    }
-                  >
-                    {store.status}
-                  </span>
-
-                </td>
-
-                <td>
-
-                  <div className="store-action-buttons">
-
-                    {canEdit && (
-                      <button
-                        className="edit-btn"
-                        onClick={() => handleEdit(store)}
-                      >
-                        <FaEdit />
-                      </button>
-                    )}
-
-                    {canDelete && (
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(store.id)}
-                      >
-                        <FaTrash />
-                      </button>
-                    )}
-
-                  </div>
-
-                </td>
-
-              </tr>
-
-            ))
-
+          {canAdd && (
+            <button className="sm-btn sm-btn-ghost" onClick={handleImport}>
+              <FaFileImport />
+              Import
+            </button>
           )}
 
-        </tbody>
+          {canDelete && (
+            <button className="sm-btn sm-btn-danger" onClick={handleDeleteAll}>
+              <FaTrash />
+              Delete All
+            </button>
+          )}
 
-      </table>
+          {canAdd && (
+            <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
+              <FaPlus />
+              Add Store
+            </button>
+          )}
+        </div>
+      </header>
 
-    </div>
+      {/* ==========================
+          Stat Cards
+      ========================== */}
 
-    {/* ==========================
-        Pagination
-    ========================== */}
+      <section className="sm-stats">
+        {statCards.map((c) => (
+          <div key={c.key} className={`sm-stat sm-tone-${c.tone}`}>
+            <div className="sm-stat-icon">{c.icon}</div>
+            <div className="sm-stat-body">
+              <span className="sm-stat-label">{c.label}</span>
+              <strong className="sm-stat-value">
+                {loading ? <span className="sm-skel sm-skel-num" /> : c.value.toLocaleString()}
+              </strong>
+              {c.sub && !loading && <span className="sm-stat-sub">{c.sub}</span>}
+            </div>
+          </div>
+        ))}
+      </section>
 
-    <div className="pagination">
+      {/* ==========================
+          Toolbar
+      ========================== */}
 
-      <div className="rows-per-page">
+      <div className="sm-toolbar">
+        <div className="sm-search">
+          <FaSearch />
+          <input
+            type="text"
+            placeholder="Search by name, code, country, state or city…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="sm-search-clear" onClick={() => setSearch("")} aria-label="Clear search">
+              <FaTimes />
+            </button>
+          )}
+        </div>
 
-        <span>Rows Per Page:</span>
+        <div className="sm-filter" role="tablist" aria-label="Filter by status">
+          {[
+            ["All", stats.total],
+            ["Active", stats.active],
+            ["Inactive", stats.inactive],
+          ].map(([label, count]) => (
+            <button
+              key={label}
+              role="tab"
+              aria-selected={statusFilter === label}
+              className={`sm-filter-btn ${statusFilter === label ? "is-on" : ""}`}
+              onClick={() => setStatusFilter(label)}
+            >
+              {label}
+              <span className="sm-filter-count">{count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-        <select
-          value={rowsPerPage}
-          onChange={(e) => {
-            setRowsPerPage(Number(e.target.value));
-            setCurrentPage(1);
+      {/* ==========================
+          Table
+      ========================== */}
+
+      <div className="sm-card">
+        <div className="sm-table-wrap">
+          <table className="sm-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Store Code</th>
+                <th>Store Name</th>
+                <th>Country</th>
+                <th>State</th>
+                <th>City</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="sm-skel-row">
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <td key={j}>
+                        <span className="sm-skel" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : currentStores.length === 0 ? (
+                <tr>
+                  <td colSpan="8">
+                    <div className="sm-empty">
+                      <div className="sm-empty-icon">
+                        <FaStore />
+                      </div>
+                      <h4>No stores found</h4>
+                      <p>
+                        {search || statusFilter !== "All"
+                          ? "Try a different search or filter."
+                          : "Add your first store to get started."}
+                      </p>
+                      {canAdd && !search && statusFilter === "All" && (
+                        <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
+                          <FaPlus /> Add Store
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                currentStores.map((store, index) => (
+                  <tr key={store.id}>
+                    <td className="sm-idx">{indexOfFirstRow + index + 1}</td>
+
+                    <td>
+                      <span className="sm-code">{store.store_code}</span>
+                    </td>
+
+                    <td>
+                      <div className="sm-name">
+                        <span className="sm-avatar">{initials(store.store_name)}</span>
+                        <span className="sm-name-text" title={store.store_name}>
+                          {store.store_name}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>{store.country || <span className="sm-dash">—</span>}</td>
+
+                    <td>{store.state || <span className="sm-dash">—</span>}</td>
+
+                    <td>
+                      {store.city ? (
+                        <span className="sm-city">
+                          <FaMapMarkerAlt />
+                          {store.city}
+                        </span>
+                      ) : (
+                        <span className="sm-dash">—</span>
+                      )}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`sm-status ${
+                          store.status === "Active" ? "is-active" : "is-inactive"
+                        }`}
+                      >
+                        <span className="dot" />
+                        {store.status}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="sm-row-actions">
+                        {canEdit && (
+                          <button
+                            className="sm-icon-btn sm-edit"
+                            onClick={() => handleEdit(store)}
+                            title="Edit store"
+                            aria-label="Edit store"
+                          >
+                            <FaEdit />
+                          </button>
+                        )}
+
+                        {canDelete && (
+                          <button
+                            className="sm-icon-btn sm-delete"
+                            onClick={() => handleDelete(store.id)}
+                            title="Delete store"
+                            aria-label="Delete store"
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ==========================
+            Pagination
+        ========================== */}
+
+        <div className="sm-pagination">
+          <div className="sm-rows">
+            <span>
+              Showing{" "}
+              <strong>
+                {filteredStores.length === 0 ? 0 : indexOfFirstRow + 1}–
+                {Math.min(indexOfLastRow, filteredStores.length)}
+              </strong>{" "}
+              of <strong>{filteredStores.length}</strong>
+            </span>
+
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              aria-label="Rows per page"
+            >
+              <option value={5}>5 / page</option>
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
+          </div>
+
+          <div className="sm-pages">
+            <button
+              className="sm-page-btn"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => prev - 1)}
+              aria-label="Previous page"
+            >
+              <FaChevronLeft />
+            </button>
+
+            {pageNumbers.map((p) => (
+              <button
+                key={p}
+                className={`sm-page-btn ${p === currentPage ? "is-on" : ""}`}
+                onClick={() => setCurrentPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+
+            <button
+              className="sm-page-btn"
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              aria-label="Next page"
+            >
+              <FaChevronRight />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ==========================
+          Add / Edit Modal
+      ========================== */}
+
+      {showModal && (
+        <AddStoreModal
+          store={editingStore}
+          onSave={handleSave}
+          onClose={() => {
+            setShowModal(false);
+            setEditingStore(null);
           }}
-        >
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={25}>25</option>
-          <option value={50}>50</option>
-        </select>
-
-      </div>
-
-      <div className="page-buttons">
-
-        <button
-          disabled={currentPage === 1}
-          onClick={() =>
-            setCurrentPage((prev) => prev - 1)
-          }
-        >
-          Previous
-        </button>
-
-        <span>
-          Page {currentPage} of {totalPages || 1}
-        </span>
-
-        <button
-          disabled={
-            currentPage === totalPages ||
-            totalPages === 0
-          }
-          onClick={() =>
-            setCurrentPage((prev) => prev + 1)
-          }
-        >
-          Next
-        </button>
-
-      </div>
+        />
+      )}
 
     </div>
-
-    {/* ==========================
-        Add / Edit Modal
-    ========================== */}
-
-    {showModal && (
-      <AddStoreModal
-        store={editingStore}
-        onSave={handleSave}
-        onClose={() => {
-          setShowModal(false);
-          setEditingStore(null);
-        }}
-      />
-    )}
-
-  </div>
-);
+  );
 }
 
 export default StoreManagement;
