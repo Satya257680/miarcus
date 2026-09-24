@@ -23,6 +23,18 @@ import {
   FaChartPie,
   FaFilter,
   FaEdit,
+  FaEnvelopeOpenText,
+  FaUserTie,
+  FaShoppingCart,
+  FaCogs,
+  FaMedal,
+  FaTruck,
+  FaWarehouse,
+  FaShieldAlt,
+  FaDatabase,
+  FaListAlt,
+  FaSlidersH,
+  FaPaperclip,
 } from "react-icons/fa";
 
 import {
@@ -154,20 +166,39 @@ const buildStageSubmission = (
    COMMON HERO
 ========================================================= */
 
-function Hero({ title, subtitle, children }) {
+function Hero({ title, subtitle, children, art, icon: HeroIcon = FaBoxOpen }) {
   return (
-    <div className="ct-hero">
-      <div>
+    <div className={`ct-hero ${art ? "has-art" : ""}`}>
+      <div className="ct-hero-copy">
         <div className="ct-kicker">
           Collection Tracking · Product Workflow
         </div>
 
-        <h1>{title}</h1>
-
-        <p>{subtitle}</p>
+        <div className="ct-hero-title-row">
+          <span className="ct-hero-icon"><HeroIcon /></span>
+          <div>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+        </div>
       </div>
 
-      {children && <div>{children}</div>}
+      <div className="ct-hero-visual">
+        {art && (
+          <img
+            className="ct-hero-art"
+            src={art}
+            alt=""
+            aria-hidden="true"
+          />
+        )}
+
+        {children && (
+          <div className="ct-hero-actions">
+            {children}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -483,6 +514,61 @@ function Field({ field, value, onChange, readonly = false }) {
   );
 }
 
+const DEFAULT_PRODUCT_IMAGE =
+  "/collection-tracking/blue-bear-tshirt.png";
+
+const STAGE_META = {
+  Designer: { icon: FaUserTie, tone: "designer" },
+  Buyer: { icon: FaShoppingCart, tone: "buyer" },
+  "Tech Team": { icon: FaCogs, tone: "tech" },
+  Quality: { icon: FaMedal, tone: "quality" },
+  "E-Com": { icon: FaTruck, tone: "ecom" },
+  Warehouse: { icon: FaWarehouse, tone: "warehouse" },
+};
+
+const getStageMeta = (stage) =>
+  STAGE_META[stage] || {
+    icon: FaBoxOpen,
+    tone: "default",
+  };
+
+const getProductImage = (row) => {
+  const source =
+    typeof row?.data === "string"
+      ? (() => {
+          try {
+            return JSON.parse(row.data);
+          } catch {
+            return {};
+          }
+        })()
+      : row?.data || {};
+
+  const candidates = [
+    row?.image_url,
+    row?.image,
+    row?.thumbnail,
+    source?.image_url,
+    source?.image,
+    Array.isArray(source?.images) ? source.images[0] : source?.images,
+    Array.isArray(source?.attachments)
+      ? source.attachments[0]?.url || source.attachments[0]
+      : source?.attachments,
+  ];
+
+  const value = candidates.find(
+    (item) =>
+      typeof item === "string" &&
+      item.trim()
+  );
+
+  if (!value) return DEFAULT_PRODUCT_IMAGE;
+
+  return value.startsWith("http")
+    ? value
+    : `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
 /* =========================================================
    PRODUCT LIST
 ========================================================= */
@@ -645,6 +731,8 @@ function ProductList() {
       <Hero
         title="SKU Details"
         subtitle="Manage and track product SKUs across the complete Collection Tracking workflow."
+        art="/collection-tracking/sku-details-hero.png"
+        icon={FaBoxOpen}
       >
         <div className="ct-toolbar">
           <button
@@ -745,118 +833,152 @@ function ProductList() {
           </select>
         </div>
 
-        <div className="ct-table-wrapper">
+        <div className="ct-table-wrapper ct-premium-table">
           <table className="ct-table">
             <thead>
               <tr>
-                <th>Product</th>
+                <th>#</th>
+                <th>Product Details</th>
                 <th>Current Stage</th>
                 <th>Status</th>
                 <th>Created By</th>
                 <th>Updated</th>
-                <th>Actions</th>
+                <th className="ct-action-head">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="ct-empty"
-                  >
-                    Loading collection products...
+                  <td colSpan="7">
+                    <div className="ct-empty ct-empty-loading">
+                      <span className="ct-empty-icon"><FaBoxOpen /></span>
+                      <b>Loading your collection...</b>
+                      <small>Fetching the latest workflow products.</small>
+                    </div>
                   </td>
                 </tr>
               ) : rows.length ? (
-                rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <b>{row.product_code}</b>
+                rows.map((row, index) => {
+                  const stageMeta = getStageMeta(row.current_stage);
+                  const StageIcon = stageMeta.icon;
 
-                      <div className="ct-muted">
-                        {row.product_name ||
-                          "Unnamed product"}
-                      </div>
-                    </td>
+                  return (
+                    <tr key={row.id}>
+                      <td className="ct-index-cell">
+                        <span>{(page - 1) * pageSize + index + 1}</span>
+                      </td>
 
-                    <td>
-                      <span className="ct-chip">
-                        {row.current_stage}
-                      </span>
-                    </td>
+                      <td>
+                        <div className="ct-product-cell ct-product-cell-large">
+                          <img
+                            src={getProductImage(row)}
+                            alt={row.product_name || "Product"}
+                            className="ct-product-thumb"
+                            onError={(event) => {
+                              event.currentTarget.src =
+                                DEFAULT_PRODUCT_IMAGE;
+                            }}
+                          />
+                          <div>
+                            <b>{row.product_name || "Blue Bear T-Shirt"}</b>
+                            <small>SKU: {row.product_code || "—"}</small>
+                          </div>
+                        </div>
+                      </td>
 
-                    <td>
-                      <span
-                        className={`ct-badge ${
-                          row.status === "Completed"
-                            ? "done"
-                            : "progress"
-                        }`}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
+                      <td>
+                        <span className={`ct-stage-pill ${stageMeta.tone}`}>
+                          <StageIcon />
+                          {row.current_stage || "Designer"}
+                        </span>
+                      </td>
 
-                    <td>
-                      {row.creator_name || "—"}
-                    </td>
-
-                    <td>
-                      {row.updated_at
-                        ? new Date(
-                            row.updated_at
-                          ).toLocaleString()
-                        : "—"}
-                    </td>
-
-                    <td>
-                      <div className="ct-row-actions">
-                        <button
-                          type="button"
-                          className="ct-btn light"
-                          onClick={() =>
-                            navigate(
-                              `/collection-tracking/sku-details/${row.id}`
-                            )
-                          }
+                      <td>
+                        <span
+                          className={`ct-badge ${
+                            row.status === "Completed"
+                              ? "done"
+                              : "progress"
+                          }`}
                         >
-                          <FaEye />
-                          View
-                        </button>
+                          <span className="ct-status-dot" />
+                          {row.status || "In Progress"}
+                        </span>
+                      </td>
 
-                        <button
-                          type="button"
-                          className="ct-btn teal"
-                          onClick={() =>
-                            navigate(`/collection-tracking/sku-details/${row.id}`)
-                          }
-                        >
-                          <FaEdit />
-                          Edit
-                        </button>
+                      <td>
+                        <div className="ct-person-cell">
+                          <span className="ct-avatar">{String(row.creator_name || "U").charAt(0).toUpperCase()}</span>
+                          <span>{row.creator_name || "—"}</span>
+                        </div>
+                      </td>
 
-                        <button
-                          type="button"
-                          className="ct-btn danger"
-                          onClick={() =>
-                            handleDelete(row.id)
-                          }
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      <td>
+                        <span className="ct-date-text">
+                          {row.updated_at
+                            ? new Date(row.updated_at).toLocaleString("en-IN")
+                            : "—"}
+                        </span>
+                      </td>
+
+                      <td className="ct-action-cell">
+                        <div className="ct-row-actions ct-centered-actions">
+                          <button
+                            type="button"
+                            className="ct-btn light"
+                            onClick={() =>
+                              navigate(`/collection-tracking/sku-details/${row.id}`)
+                            }
+                          >
+                            <FaEye />
+                            View
+                          </button>
+
+                          <button
+                            type="button"
+                            className="ct-btn teal"
+                            onClick={() =>
+                              navigate(`/collection-tracking/sku-details/${row.id}`)
+                            }
+                          >
+                            <FaEdit />
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="ct-btn danger ct-icon-btn"
+                            onClick={() => handleDelete(row.id)}
+                            aria-label="Delete product"
+                            title="Delete product"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="ct-empty"
-                  >
-                    No collection products match your
-                    filters.
+                  <td colSpan="7">
+                    <div className="ct-empty ct-empty-state">
+                      <span className="ct-empty-icon"><FaEnvelopeOpenText /></span>
+                      <b>No products yet</b>
+                      <small>
+                        Nothing is available for the selected filters.
+                        Add a product or upload your collection to get started.
+                      </small>
+                      <button
+                        type="button"
+                        className="ct-btn primary"
+                        onClick={() => navigate("/collection-tracking/add-products")}
+                      >
+                        <FaPlus />
+                        Add Product
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -1103,6 +1225,8 @@ function AddProduct() {
       <Hero
         title="Add Product"
         subtitle="Create the product once. Later teams receive previous information automatically."
+        art="/collection-tracking/add-product-hero.png"
+        icon={FaBoxOpen}
       />
 
       <div className="ct-card">
@@ -1989,29 +2113,18 @@ function Details() {
 ========================================================= */
 
 function MasterData() {
-  const [stage, setStage] =
-    useState("Designer");
-
-  const [fields, setFields] =
-    useState([]);
-
-  const [saving, setSaving] =
-    useState(false);
+  const [stage, setStage] = useState("Designer");
+  const [fields, setFields] = useState([]);
+  const [masterSearch, setMasterSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
-      const response =
-        await getConfigs(stage);
-
-      setFields(
-        response?.data?.configs || []
-      );
+      const response = await getConfigs(stage);
+      setFields(response?.data?.configs || []);
     } catch (error) {
       console.error(error);
-
-      alert(
-        "Unable to load Master Data."
-      );
+      alert("Unable to load Master Data.");
     }
   };
 
@@ -2019,20 +2132,12 @@ function MasterData() {
     load();
   }, [stage]);
 
-  const updateField = (
-    index,
-    key,
-    value
-  ) => {
+  const updateField = (index, key, value) => {
     setFields((current) =>
-      current.map(
-        (field, fieldIndex) =>
-          fieldIndex === index
-            ? {
-                ...field,
-                [key]: value,
-              }
-            : field
+      current.map((field, fieldIndex) =>
+        fieldIndex === index
+          ? { ...field, [key]: value }
+          : field
       )
     );
   };
@@ -2045,6 +2150,7 @@ function MasterData() {
         field_name: "New Field",
         display_type: "text",
         is_mandatory: false,
+        is_active: true,
         options: [],
       },
     ]);
@@ -2052,21 +2158,11 @@ function MasterData() {
 
   const save = async () => {
     setSaving(true);
-
     try {
-      await updateConfigs(
-        stage,
-        fields
-      );
-
-      alert(
-        "Master Data saved successfully."
-      );
-
+      await updateConfigs(stage, fields);
       await load();
     } catch (error) {
       console.error(error);
-
       alert(
         error?.response?.data?.message ||
           "Unable to save Master Data."
@@ -2076,245 +2172,220 @@ function MasterData() {
     }
   };
 
+  const StageIcon = getStageMeta(stage).icon;
+  const visibleFields = fields
+    .map((field, index) => ({ field, index }))
+    .filter(({ field }) =>
+      String(field.field_name || "")
+        .toLowerCase()
+        .includes(masterSearch.trim().toLowerCase())
+    );
+
   return (
     <div className="ct-shell">
       <Hero
         title="Master Data"
-        subtitle="Control the fields used by every Collection Tracking stage."
+        subtitle="Control and manage the fields used at every stage of Collection Tracking."
+        art="/collection-tracking/master-data-hero.png"
+        icon={FaDatabase}
       >
         <button
           type="button"
-          className="ct-btn primary"
+          className="ct-btn primary ct-btn-glow"
           onClick={save}
           disabled={saving}
         >
           <FaSave />
-          {saving
-            ? "Saving..."
-            : "Save Master Data"}
+          {saving ? "Saving..." : "Save Master Data"}
         </button>
       </Hero>
 
-      <div className="ct-card">
-        <div className="ct-tabs">
-          {STAGES.map((item) => (
+      <div className="ct-stage-tabs">
+        {STAGES.map((item) => {
+          const MetaIcon = getStageMeta(item).icon;
+          return (
             <button
               type="button"
-              className={`ct-tab ${
-                item === stage
-                  ? "active"
-                  : ""
-              }`}
+              className={`ct-stage-tab ${item === stage ? "active" : ""}`}
               key={item}
-              onClick={() =>
-                setStage(item)
-              }
+              onClick={() => setStage(item)}
             >
-              {item}
+              <MetaIcon />
+              <span>{item}</span>
             </button>
-          ))}
+          );
+        })}
+      </div>
+
+      <div className="ct-card ct-master-card">
+        <div className="ct-section-title">
+          <div>
+            <h3><StageIcon /> Fields Configuration</h3>
+            <span>Define and manage the fields required for the {stage} stage.</span>
+          </div>
+
+          <div className="ct-master-tools">
+            <div className="ct-search-box">
+              <FaSearch />
+              <input
+                placeholder="Search fields..."
+                value={masterSearch}
+                onChange={(event) => setMasterSearch(event.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="ct-select stage-selector"
+              onClick={() => setStage(stage)}
+            >
+              <StageIcon /> {stage} <FaChevronDown />
+            </button>
+            <button
+              type="button"
+              className="ct-btn primary"
+              onClick={addField}
+            >
+              <FaPlus />
+              Add Field
+            </button>
+          </div>
         </div>
 
-        <div className="ct-table-wrapper">
-          <table className="ct-table">
+        <div className="ct-table-wrapper ct-premium-table">
+          <table className="ct-table ct-master-table">
             <thead>
               <tr>
-                <th>
-                  Requirement
-                </th>
-
-                <th>
-                  Field
-                </th>
-
-                <th>
-                  Display Type
-                </th>
-
-                <th>
-                  Dropdown Options
-                </th>
-
-                <th>
-                  Action
-                </th>
+                <th>#</th>
+                <th>Requirement</th>
+                <th>Field Name</th>
+                <th>Display Type</th>
+                <th>Dropdown Options / Default Value</th>
+                <th>Status</th>
+                <th className="ct-action-head">Action</th>
               </tr>
             </thead>
-
             <tbody>
-              {fields.map(
-                (field, index) => (
-                  <tr
-                    key={
-                      field.id ||
-                      index
-                    }
-                  >
-                    <td>
-                      <button
-                        type="button"
-                        className={`ct-tab ${
-                          field.is_mandatory
-                            ? "active"
-                            : ""
-                        }`}
-                        onClick={() =>
-                          updateField(
-                            index,
-                            "is_mandatory",
-                            !field.is_mandatory
-                          )
-                        }
-                      >
-                        {field.is_mandatory
-                          ? "Mandatory"
-                          : "Optional"}
-                      </button>
-                    </td>
-
-                    <td>
+              {visibleFields.length ? visibleFields.map(({ field, index }) => (
+                <tr key={field.id || index}>
+                  <td className="ct-index-cell">{index + 1}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className={`ct-requirement ${field.is_mandatory ? "mandatory" : "optional"}`}
+                      onClick={() =>
+                        updateField(index, "is_mandatory", !field.is_mandatory)
+                      }
+                    >
+                      {field.is_mandatory ? "★ Mandatory" : "◌ Optional"}
+                    </button>
+                  </td>
+                  <td>
+                    <div className="ct-field-name-cell">
+                      <span className="ct-field-icon"><FaListAlt /></span>
                       <input
                         className="ct-input"
-                        value={
-                          field.field_name ||
-                          ""
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateField(
-                            index,
-                            "field_name",
-                            event.target
-                              .value
-                          )
+                        value={field.field_name || ""}
+                        onChange={(event) =>
+                          updateField(index, "field_name", event.target.value)
                         }
                       />
-                    </td>
-
-                    <td>
-                      <select
-                        className="ct-select"
-                        value={
-                          field.display_type ||
-                          "text"
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateField(
-                            index,
-                            "display_type",
-                            event.target
-                              .value
-                          )
-                        }
-                      >
-                        {[
-                          "text",
-                          "textarea",
-                          "select",
-                          "multiselect",
-                          "date",
-                          "attachment-single",
-                          "attachment-multiple",
-                          "readonly",
-                        ].map(
-                          (type) => (
-                            <option
-                              key={type}
-                              value={type}
-                            >
-                              {type}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </td>
-
-                    <td>
+                    </div>
+                  </td>
+                  <td>
+                    <select
+                      className="ct-select"
+                      value={field.display_type || "text"}
+                      onChange={(event) =>
+                        updateField(index, "display_type", event.target.value)
+                      }
+                    >
                       {[
+                        "text",
+                        "textarea",
                         "select",
                         "multiselect",
-                      ].includes(
-                        field.display_type
-                      ) ? (
-                        <textarea
-                          className="ct-textarea"
-                          value={(
-                            field.options ||
-                            []
-                          ).join(", ")}
-                          onChange={(
-                            event
-                          ) =>
-                            updateField(
-                              index,
-                              "options",
-                              event.target.value
-                                .split(
-                                  ","
-                                )
-                                .map(
-                                  (
-                                    item
-                                  ) =>
-                                    item.trim()
-                                )
-                                .filter(
-                                  Boolean
-                                )
-                            )
-                          }
-                          placeholder="Option A, Option B, Option C"
-                        />
-                      ) : (
-                        <span className="ct-muted">
-                          {field.display_type ===
-                          "readonly"
-                            ? "Read-only / copied from previous stage"
-                            : "No option list required"}
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      <button
-                        type="button"
-                        className="ct-btn danger"
-                        onClick={() =>
-                          setFields(
-                            (current) =>
-                              current.filter(
-                                (
-                                  _,
-                                  fieldIndex
-                                ) =>
-                                  fieldIndex !==
-                                  index
-                              )
+                        "date",
+                        "attachment-single",
+                        "attachment-multiple",
+                        "readonly",
+                      ].map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    {["select", "multiselect"].includes(field.display_type) ? (
+                      <textarea
+                        className="ct-textarea ct-options-input"
+                        value={(field.options || []).join(", ")}
+                        onChange={(event) =>
+                          updateField(
+                            index,
+                            "options",
+                            event.target.value
+                              .split(",")
+                              .map((item) => item.trim())
+                              .filter(Boolean)
                           )
                         }
-                      >
-                        <FaTrash />
+                        placeholder="Option A, Option B, Option C"
+                      />
+                    ) : (
+                      <span className="ct-muted">
+                        {field.display_type === "readonly"
+                          ? "Read-only / copied from previous stage"
+                          : "No option list required"}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className={`ct-status-toggle ${field.is_active === false ? "off" : ""}`}
+                      onClick={() =>
+                        updateField(
+                          index,
+                          "is_active",
+                          field.is_active !== false
+                        )
+                      }
+                    >
+                      <span />
+                      {field.is_active === false ? "Inactive" : "Active"}
+                    </button>
+                  </td>
+                  <td className="ct-action-cell">
+                    <button
+                      type="button"
+                      className="ct-btn danger ct-icon-btn"
+                      onClick={() =>
+                        setFields((current) =>
+                          current.filter((_, fieldIndex) => fieldIndex !== index)
+                        )
+                      }
+                      title="Remove field"
+                      aria-label="Remove field"
+                    >
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="7">
+                    <div className="ct-empty ct-empty-state">
+                      <span className="ct-empty-icon"><FaDatabase /></span>
+                      <b>No fields configured</b>
+                      <small>Add the first field for the {stage} stage.</small>
+                      <button type="button" className="ct-btn primary" onClick={addField}>
+                        <FaPlus /> Add Field
                       </button>
-                    </td>
-                  </tr>
-                )
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="ct-actions">
-          <button
-            type="button"
-            className="ct-btn light"
-            onClick={addField}
-          >
-            <FaPlus />
-            Add Field
-          </button>
         </div>
       </div>
     </div>
@@ -2358,7 +2429,12 @@ function Insight() {
 
   return (
     <div className="ct-shell">
-      <Hero title="Insight" subtitle="Live numbers and workflow progress across every Collection Tracking stage." />
+      <Hero
+        title="Insight"
+        subtitle="Live numbers and workflow progress across every Collection Tracking stage."
+        art="/collection-tracking/insight-hero.png"
+        icon={FaChartPie}
+      />
 
       <div className="ct-grid ct-insight-stats">
         <div className="ct-stat"><span className="ct-stat-icon purple"><FaBoxOpen /></span><small>Total Products</small><strong>{total.toLocaleString()}</strong><em>Live workflow volume</em></div>
@@ -2410,23 +2486,29 @@ function Insight() {
 
 function Requests() {
   const [rows, setRows] = useState([]);
-  const [status, setStatus] = useState("Pending");
+  const [status, setStatus] = useState("All");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
-      const response = await getRequests(status);
+      const response = await getRequests(status === "All" ? "" : status);
       setRows(response?.data?.requests || []);
     } catch (error) {
       console.error(error);
-      alert(error?.response?.data?.message || "Unable to load requests.");
+      alert(
+        error?.response?.data?.message ||
+          "Unable to load requests."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [status]);
+  useEffect(() => {
+    load();
+  }, [status]);
 
   const review = async (id, nextStatus) => {
     try {
@@ -2434,62 +2516,243 @@ function Requests() {
       await load();
     } catch (error) {
       console.error(error);
-      alert(error?.response?.data?.message || "Unable to update request.");
+      alert(
+        error?.response?.data?.message ||
+          "Unable to update request."
+      );
     }
   };
+
+  const filteredRows = rows.filter((request) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+
+    return [
+      request.id,
+      request.product_code,
+      request.product_name,
+      request.from_stage,
+      request.to_stage,
+      request.requester_name,
+      request.status,
+    ]
+      .filter(Boolean)
+      .some((value) =>
+        String(value).toLowerCase().includes(term)
+      );
+  });
 
   return (
     <div className="ct-shell">
       <Hero
         title="Requests"
-        subtitle="Workflow requests sent from one team to the next are collected here for review."
+        subtitle="Requests from one team to another appear here for review."
+        art="/collection-tracking/requests-hero.png"
+        icon={FaEnvelopeOpenText}
       >
-        <div className="ct-request-hero-badge"><FaPaperPlane /> Next-team workflow</div>
+        <div className="ct-request-hero-badge">
+          <FaPaperPlane />
+          Next-team workflow
+        </div>
       </Hero>
 
       <div className="ct-card ct-request-card">
         <div className="ct-request-tabs">
-          {["Pending", "Approved", "Rejected"].map((item) => (
-            <button key={item} type="button" className={status === item ? "active" : ""} onClick={() => setStatus(item)}>
-              {item === "Pending" ? <FaClock /> : item === "Approved" ? <FaCheckCircle /> : <FaTimes />}
-              {item}
+          {[
+            ["All", "All Requests", <FaEnvelopeOpenText />],
+            ["Pending", "Pending", <FaClock />],
+            ["Approved", "Approved", <FaCheckCircle />],
+            ["Rejected", "Rejected", <FaTimes />],
+          ].map(([value, label, icon]) => (
+            <button
+              key={value}
+              type="button"
+              className={status === value ? "active" : ""}
+              onClick={() => setStatus(value)}
+            >
+              {icon}
+              {label}
             </button>
           ))}
         </div>
 
         <div className="ct-toolbar ct-request-toolbar">
-          <div className="ct-search-box"><FaSearch /><span>Requests generated automatically when a team completes its stage.</span></div>
-          <button type="button" className="ct-btn light" onClick={load} disabled={loading}><FaFilter /> Refresh</button>
+          <div className="ct-search-box ct-request-search">
+            <FaSearch />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by request ID, product, or submitted by..."
+            />
+          </div>
+
+          <select
+            className="ct-select ct-filter-select"
+            value=""
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Quick filter"
+          >
+            <option value="">All stages</option>
+            {STAGES.map((stage) => (
+              <option key={stage} value={stage}>{stage}</option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            className="ct-btn light"
+            onClick={load}
+            disabled={loading}
+          >
+            <FaFilter />
+            Refresh
+          </button>
         </div>
 
-        <div className="ct-table-wrapper">
+        <div className="ct-table-wrapper ct-premium-table">
           <table className="ct-table ct-request-table">
-            <thead><tr>
-              <th>#</th><th>Request ID</th><th>Product / Details</th><th>From Team</th><th>To Team</th><th>Current Stage</th><th>Status</th><th>Submitted On</th><th className="ct-action-head">Action</th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Request ID</th>
+                <th>Product / Details</th>
+                <th>From Team</th>
+                <th>To Team</th>
+                <th>Current Stage</th>
+                <th>Status</th>
+                <th>Submitted On</th>
+                <th className="ct-action-head">Action</th>
+              </tr>
+            </thead>
+
             <tbody>
-              {rows.map((request, index) => (
-                <tr key={request.id}>
-                  <td>{index + 1}</td>
-                  <td><b>REQ-{String(request.id).padStart(6, "0")}</b></td>
-                  <td><div className="ct-product-cell"><span className="ct-product-icon"><FaBoxOpen /></span><div><b>{request.product_name || "Unnamed product"}</b><small>{request.product_code}</small></div></div></td>
-                  <td><span className="ct-team-pill">{request.from_stage}</span></td>
-                  <td><span className="ct-team-pill next">{request.to_stage}</span></td>
-                  <td><div className="ct-flow-pill"><span>{request.from_stage}</span><b>→</b><span>{request.to_stage}</span></div></td>
-                  <td><span className={`ct-status-pill ${String(request.status || "").toLowerCase()}`}>{request.status}</span></td>
-                  <td><div className="ct-date-cell">{request.created_at ? new Date(request.created_at).toLocaleDateString("en-IN") : "—"}<small>by {request.requester_name || "User"}</small></div></td>
-                  <td className="ct-action-cell">
-                    <div className="ct-row-actions ct-centered-actions">
-                      {status === "Pending" && <>
-                        <button type="button" className="ct-btn primary" onClick={() => review(request.id, "Approved")}><FaCheck /> Approve</button>
-                        <button type="button" className="ct-btn danger" onClick={() => review(request.id, "Rejected")}><FaTimes /> Reject</button>
-                      </>}
-                      {status !== "Pending" && <span className="ct-muted">Reviewed</span>}
+              {filteredRows.map((request, index) => {
+                const fromMeta = getStageMeta(request.from_stage);
+                const toMeta = getStageMeta(request.to_stage);
+                const FromIcon = fromMeta.icon;
+                const ToIcon = toMeta.icon;
+
+                return (
+                  <tr key={request.id}>
+                    <td className="ct-index-cell">{index + 1}</td>
+
+                    <td>
+                      <b className="ct-request-id">
+                        REQ-{String(request.id).padStart(6, "0")}
+                      </b>
+                    </td>
+
+                    <td>
+                      <div className="ct-product-cell ct-product-cell-large">
+                        <img
+                          src={getProductImage(request)}
+                          alt={request.product_name || "Product"}
+                          className="ct-product-thumb"
+                          onError={(event) => {
+                            event.currentTarget.src =
+                              DEFAULT_PRODUCT_IMAGE;
+                          }}
+                        />
+                        <div>
+                          <b>{request.product_name || "Blue Bear T-Shirt"}</b>
+                          <small>
+                            {request.product_code || "SKU not assigned"}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className="ct-team-pill">
+                        <FromIcon />
+                        {request.from_stage || "—"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="ct-team-pill next">
+                        <ToIcon />
+                        {request.to_stage || "—"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="ct-flow-pill">
+                        <span>{request.from_stage || "—"}</span>
+                        <b>→</b>
+                        <span>{request.to_stage || "—"}</span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className={`ct-status-pill ${String(request.status || "").toLowerCase()}`}>
+                        {request.status || "Pending"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="ct-date-cell">
+                        {request.created_at
+                          ? new Date(request.created_at).toLocaleDateString("en-IN")
+                          : "—"}
+                        <small>
+                          {request.requester_name
+                            ? `by ${request.requester_name}`
+                            : "Workflow request"}
+                        </small>
+                      </div>
+                    </td>
+
+                    <td className="ct-action-cell">
+                      <div className="ct-row-actions ct-centered-actions">
+                        {status === "Pending" || status === "All" ? (
+                          <>
+                            <button
+                              type="button"
+                              className="ct-btn primary"
+                              onClick={() => review(request.id, "Approved")}
+                            >
+                              <FaCheck /> Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="ct-btn danger"
+                              onClick={() => review(request.id, "Rejected")}
+                            >
+                              <FaTimes /> Reject
+                            </button>
+                          </>
+                        ) : (
+                          <span className="ct-reviewed">
+                            <FaCheckCircle /> Reviewed
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!filteredRows.length && (
+                <tr>
+                  <td colSpan="9">
+                    <div className="ct-empty ct-email-empty">
+                      <span className="ct-empty-icon"><FaEnvelopeOpenText /></span>
+                      <b>{loading ? "Loading requests..." : "Nothing here yet"}</b>
+                      <small>
+                        {loading
+                          ? "We're checking the workflow queue."
+                          : `No ${status === "All" ? "" : status.toLowerCase() + " "}requests are available right now.`}
+                      </small>
+                      {!loading && (
+                        <button type="button" className="ct-btn light" onClick={load}>
+                          <FaFilter /> Refresh
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
-              {!rows.length && <tr><td colSpan="9"><div className="ct-empty">{loading ? "Loading requests..." : `No ${status.toLowerCase()} requests.`}</div></td></tr>}
+              )}
             </tbody>
           </table>
         </div>
@@ -2498,60 +2761,31 @@ function Requests() {
   );
 }
 
-/* =========================================================
-   PERMISSIONS
-========================================================= */
-
 function Permissions() {
-  const [departments, setDepartments] =
-    useState([]);
-
-  const [mapping, setMapping] =
-    useState({});
-
-  const [crossDepartment, setCrossDepartment] =
-    useState({});
+  const [departments, setDepartments] = useState([]);
+  const [mapping, setMapping] = useState({});
+  const [crossDepartment, setCrossDepartment] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
-      const response =
-        await getPermissions();
+      const response = await getPermissions();
 
-      setDepartments(
-        response?.data?.departments ||
-          []
-      );
+      setDepartments(response?.data?.departments || []);
 
       const departmentMap = {};
       const crossMap = {};
 
-      (
-        response?.data
-          ?.permissions || []
-      ).forEach((item) => {
-        departmentMap[
-          item.stage_name
-        ] = item.department_id;
-
-        crossMap[
-          item.stage_name
-        ] =
-          item.cross_department;
+      (response?.data?.permissions || []).forEach((item) => {
+        departmentMap[item.stage_name] = item.department_id;
+        crossMap[item.stage_name] = item.cross_department;
       });
 
-      setMapping(
-        departmentMap
-      );
-
-      setCrossDepartment(
-        crossMap
-      );
+      setMapping(departmentMap);
+      setCrossDepartment(crossMap);
     } catch (error) {
       console.error(error);
-
-      alert(
-        "Unable to load Collection Permissions."
-      );
+      alert("Unable to load Collection Permissions.");
     }
   };
 
@@ -2560,37 +2794,24 @@ function Permissions() {
   }, []);
 
   const save = async () => {
+    setSaving(true);
+
     try {
-      const items = STAGES.map(
-        (stage) => ({
-          stage_name: stage,
-          department_id:
-            mapping[stage] ||
-            null,
-          cross_department:
-            !!crossDepartment[
-              stage
-            ],
-        })
-      ).filter(
-        (item) =>
-          item.department_id
-      );
+      const items = STAGES.map((stage) => ({
+        stage_name: stage,
+        department_id: mapping[stage] || null,
+        cross_department: !!crossDepartment[stage],
+      })).filter((item) => item.department_id);
 
-      await updatePermissions(
-        items
-      );
-
-      alert(
-        "Collection permissions saved successfully."
-      );
+      await updatePermissions(items);
     } catch (error) {
       console.error(error);
-
       alert(
         error?.response?.data?.message ||
           "Unable to save permissions."
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -2599,120 +2820,105 @@ function Permissions() {
       <Hero
         title="Collection Permissions"
         subtitle="Connect each workflow stage to the department responsible for it."
+        art="/collection-tracking/permissions-hero.png"
+        icon={FaShieldAlt}
       >
         <button
           type="button"
-          className="ct-btn primary"
+          className="ct-btn primary ct-btn-glow"
           onClick={save}
+          disabled={saving}
         >
           <FaSave />
-          Save
+          {saving ? "Saving..." : "Save Permissions"}
         </button>
       </Hero>
 
-      <div className="ct-card">
-        <div className="ct-alert">
-          Each stage has one main department.
-          Cross-department view can be enabled
-          when another team needs to see the stage.
+      <div className="ct-card ct-permissions-card">
+        <div className="ct-alert ct-permission-alert">
+          <FaShieldAlt />
+          <div>
+            <b>Stage access control</b>
+            <span>
+              Each stage has one main department. Enable cross-department view
+              when another team needs visibility.
+            </span>
+          </div>
         </div>
 
-        {STAGES.map(
-          (stage, index) => (
-            <div
-              className="ct-stage"
-              key={stage}
-            >
-              <div className="ct-stage-head">
-                <div>
-                  <h3>
-                    {stage}
-                  </h3>
+        <div className="ct-permission-list">
+          {STAGES.map((stage, index) => {
+            const MetaIcon = getStageMeta(stage).icon;
+            const tone = getStageMeta(stage).tone;
 
-                  <div className="ct-muted">
-                    Stage {index + 1}
+            return (
+              <div className={`ct-permission-row ${tone}`} key={stage}>
+                <div className="ct-permission-stage">
+                  <span className="ct-permission-number">{index + 1}</span>
+                  <span className="ct-permission-icon"><MetaIcon /></span>
+                  <div>
+                    <b>{stage}</b>
+                    <small>Stage {index + 1}</small>
                   </div>
                 </div>
 
-                <span className="ct-chip">
-                  Access control
-                </span>
-              </div>
-
-              <div className="ct-stage-body">
-                <select
-                  className="ct-select"
-                  value={
-                    mapping[stage] ||
-                    ""
-                  }
-                  onChange={(event) =>
-                    setMapping(
-                      (current) => ({
+                <div className="ct-permission-select">
+                  <label>Responsible department</label>
+                  <select
+                    className="ct-select"
+                    value={mapping[stage] || ""}
+                    onChange={(event) =>
+                      setMapping((current) => ({
                         ...current,
-                        [stage]:
-                          event.target
-                            .value,
-                      })
-                    )
-                  }
-                >
-                  <option value="">
-                    Select department
-                  </option>
-
-                  {departments.map(
-                    (department) => (
-                      <option
-                        key={
-                          department.id
-                        }
-                        value={
-                          department.id
-                        }
-                      >
-                        {
-                          department.department_name
-                        }
+                        [stage]: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Select department</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.department_name}
                       </option>
-                    )
-                  )}
-                </select>
+                    ))}
+                  </select>
+                </div>
 
-                <label
-                  style={{
-                    display:
-                      "block",
-                    marginTop: 10,
-                  }}
-                >
+                <label className="ct-cross-toggle">
                   <input
                     type="checkbox"
-                    checked={
-                      !!crossDepartment[
-                        stage
-                      ]
-                    }
+                    checked={!!crossDepartment[stage]}
                     onChange={(event) =>
-                      setCrossDepartment(
-                        (current) => ({
-                          ...current,
-                          [stage]:
-                            event.target
-                              .checked,
-                        })
-                      )
+                      setCrossDepartment((current) => ({
+                        ...current,
+                        [stage]: event.target.checked,
+                      }))
                     }
                   />
-
-                  {" "}
-                  Allow cross-department
-                  view
+                  <span className="ct-checkbox-ui" />
+                  <span>
+                    <b>Allow cross-department view</b>
+                    <small>Let other teams see this stage</small>
+                  </span>
                 </label>
+
+                <button
+                  type="button"
+                  className="ct-access-btn"
+                  onClick={() =>
+                    document
+                      .querySelector(
+                        `.ct-permission-row.${tone} select`
+                      )
+                      ?.focus()
+                  }
+                >
+                  <FaShieldAlt />
+                  Access control
+                </button>
               </div>
-            </div>
-          )
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
