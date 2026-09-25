@@ -253,12 +253,13 @@ const EmployeeLocation = {
             LEFT JOIN (
                 SELECT r.* FROM location_records r
                 INNER JOIN (
-                    SELECT employee_id, MAX(captured_at) AS max_captured_at
+                    -- one latest row per employee (MAX(id) avoids duplicate
+                    -- rows when two updates share the same captured_at)
+                    SELECT employee_id, MAX(id) AS max_id
                     FROM location_records
                     WHERE source IN ('website', 'mobile-network')
                     GROUP BY employee_id
-                ) latest ON latest.employee_id = r.employee_id
-                       AND latest.max_captured_at = r.captured_at
+                ) latest ON latest.max_id = r.id
             ) lr ON lr.employee_id = u.id
             WHERE u.status = 'Active'
               AND (
@@ -273,7 +274,15 @@ const EmployeeLocation = {
             params.push(like, like, like);
         }
         sql += ` ORDER BY u.name ASC`;
-        const rows = await db.query(sql, params);
+        const rawRows = await db.query(sql, params);
+        // Safety net: never list the same employee twice.
+        const seen = new Set();
+        const rows = rawRows.filter((row) => {
+            const key = Number(row.employee_id);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
         const now = Date.now();
         return rows.filter((row) => {
             const captured = row.captured_at ? new Date(row.captured_at) : null;

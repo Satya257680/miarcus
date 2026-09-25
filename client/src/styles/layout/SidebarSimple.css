@@ -1,0 +1,104 @@
+/* =========================================================
+   MIARCUS — SIMPLE SIDEBAR (no highlight cards)
+   Loaded after theme.css so it wins over every theme.
+   Active page / open group look exactly like normal rows:
+   same text colour, no white card, no orange accent.
+========================================================= */
+
+aside.sidebar .menu-item,
+aside.sidebar .sidebar-group-toggle,
+aside.sidebar .menu-item.active,
+aside.sidebar .sidebar-group-toggle.active,
+aside.sidebar .sidebar-group-toggle.has-active,
+aside.sidebar .sidebar-group-toggle.is-open {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--mi-sidebar-text, #f8f5ff) !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    border-left: 0 !important;
+}
+
+aside.sidebar .menu-item > svg,
+aside.sidebar .menu-item.active > svg,
+aside.sidebar .sidebar-group-content > svg,
+aside.sidebar .sidebar-group-toggle.active .sidebar-group-content > svg,
+aside.sidebar .sidebar-group-toggle.has-active .sidebar-group-content > svg,
+aside.sidebar .submenu-chevron {
+    color: var(--mi-sidebar-text, #f8f5ff) !important;
+}
+
+/* Sub-menu rows */
+aside.sidebar .sidebar-submenu {
+    background: rgba(0, 0, 0, .06) !important;
+}
+
+aside.sidebar .submenu-item,
+aside.sidebar .submenu-item.active {
+    background: transparent !important;
+    color: var(--mi-sidebar-text, #eee8ff) !important;
+    font-weight: 500 !important;
+    border-left: 0 !important;
+    box-shadow: none !important;
+}
+
+aside.sidebar .submenu-item > svg,
+aside.sidebar .submenu-item.active > svg {
+    color: var(--mi-sidebar-text, #eee8ff) !important;
+}
+
+/* Hover only: a very soft tint, text stays the same colour */
+aside.sidebar .menu-item:hover,
+aside.sidebar .sidebar-group-toggle:hover,
+aside.sidebar .submenu-item:hover {
+    background: rgba(255, 255, 255, .08) !important;
+    color: var(--mi-sidebar-text, #fff) !important;
+}
+
+aside.sidebar .menu-item:hover > svg,
+aside.sidebar .submenu-item:hover > svg,
+aside.sidebar .sidebar-group-toggle:hover svg {
+    color: var(--mi-sidebar-text, #fff) !important;
+}
+
+aside.sidebar.collapsed .menu-item,
+aside.sidebar.collapsed .menu-item.active,
+aside.sidebar.collapsed .sidebar-group-toggle,
+aside.sidebar.collapsed .sidebar-group-toggle.active {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* =========================================================
+   FOOTER BRANDING — same logo tile as the topbar
+========================================================= */
+aside.sidebar .sidebar-branding {
+    gap: 12px !important;
+    background: rgba(0, 0, 0, .08) !important;
+    border-top: 1px solid rgba(255, 255, 255, .12) !important;
+}
+
+aside.sidebar .sidebar-branding-logo {
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    object-fit: contain;
+    border-radius: 11px;
+    box-shadow: 0 2px 7px rgba(0, 0, 0, .12), 0 0 0 1px rgba(255, 255, 255, .24);
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+aside.sidebar .sidebar-branding-copy strong {
+    font-size: 13px !important;
+    letter-spacing: 1px;
+    color: var(--mi-sidebar-text, #fff);
+}
+
+aside.sidebar .sidebar-branding-copy span {
+    font-size: 10px !important;
+    color: var(--mi-sidebar-text, #fff);
+    opacity: .82;
+}

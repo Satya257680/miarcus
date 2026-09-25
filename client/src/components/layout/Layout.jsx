@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 
 import "../../styles/layout/Layout.css";
 import "../../styles/theme.css";
+import "../../styles/layout/SidebarSimple.css";
 import ThemeProvider from "../../context/ThemeProvider";
 import LocationTrackingGate from "../LocationTrackingGate";
 import "../../styles/LocationTrackingGate.css";

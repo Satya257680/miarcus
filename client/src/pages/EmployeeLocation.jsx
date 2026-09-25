@@ -198,7 +198,7 @@ const EmployeeLocation = () => {
                                     <strong>{employee.name}</strong>
                                     <span>{employee.employee_code} · {employee.department}</span>
                                     <small className={employee.status === "online" ? "online" : "offline"}>
-                                        <i /> {employee.status === "online" ? "Online" : `Last seen ${employee.last_update}`}
+                                        <i /> {employee.status === "online" ? "Online" : (employee.last_update ? `Last seen ${new Date(employee.last_update).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : "Not tracked yet")}
                                     </small>
                                 </div>
                                 <FaMapMarkerAlt className={employee.status === "online" ? "row-pin active" : "row-pin"} />
@@ -248,7 +248,7 @@ const EmployeeLocation = () => {
                                 <div><span>Location points today</span><strong>{history.length}</strong></div>
                                 <div><span>Tracking window</span><strong>09:00 – 21:00</strong></div>
                                 <div><span>Current status</span><strong>{selected.status === "online" ? "Live" : "Offline"}</strong></div>
-                                <div><span>Last update</span><strong>{selected.last_update}</strong></div>
+                                <div><span>Last update</span><strong>{selected.last_update ? new Date(selected.last_update).toLocaleString() : "—"}</strong></div>
                             </div>
                             <button className="history-button" onClick={() => loadHistory(selected)}><FaHistory /> View Full History</button>
                         </>

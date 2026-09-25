@@ -1475,7 +1475,7 @@ function Sidebar({ collapsed }) {
 
             <div className="sidebar-branding">
                 <img
-                    src="/miarcus-logo.png"
+                    src="/miarcus-topbar-icon.png?v=20260923-premium"
                     alt="MIARCUS"
                     className="sidebar-branding-logo"
                 />

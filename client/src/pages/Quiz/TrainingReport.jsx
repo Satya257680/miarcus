@@ -80,6 +80,10 @@ function TrainingReport() {
     const [deletingId, setDeletingId] =
         useState(null);
 
+    // "all" for Admin / Super Admin, "limited" for everyone else
+    const [reportScope, setReportScope] =
+        useState("all");
+
 
     // ============================================================
     // LOAD REPORT
@@ -140,6 +144,11 @@ function TrainingReport() {
                 quizResponse?.data?.data ||
                 [];
 
+
+            setReportScope(
+                reportResponse?.data?.scope ||
+                "all"
+            );
 
             setRows(
                 Array.isArray(reportData)
@@ -1285,7 +1294,7 @@ body {
 
         <div class="certificate-photo-row">
             ${participantPhotoUrl
-                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="Participant verification photo" decoding="async" />`
+                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" /><div class="certificate-photo certificate-photo-placeholder" style="display:none">Photo<br/>unavailable</div>`
                 : `<div class="certificate-photo certificate-photo-placeholder">Participant<br/>photo</div>`}
             <div class="verification-copy">
                 <strong>Participant verification</strong>
@@ -1497,9 +1506,9 @@ window.onload = function () {
                     </h1>
 
                     <p>
-                        Monitor assessment attempts,
-                        performance, results and
-                        certificates.
+                        {reportScope === "limited"
+                            ? "Your training attempts, results and certificates (store managers also see their store team)."
+                            : "Monitor assessment attempts, performance, results and certificates."}
                     </p>
 
                 </div>

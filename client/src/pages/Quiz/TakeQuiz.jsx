@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
+import "../../styles/pages/TakeQuizPremium.css";
 
 
 function TakeQuiz() {
@@ -325,84 +326,82 @@ function TakeQuiz() {
     // RENDER
     // ============================================================
 
+    const totalQuestions = filtered.reduce(
+        (sum, quiz) =>
+            sum +
+            (Number(
+                quiz?.question_count ??
+                quiz?.questions?.length ??
+                0
+            ) || 0),
+        0
+    );
+
     return (
 
-        <div className="quiz-page">
+        <div className="quiz-page tq-premium">
 
+            {/* ================= HERO ================= */}
 
-            {/* ====================================================
-                PAGE HEADER
-            ==================================================== */}
+            <section className="tq-hero">
 
-            <div className="quiz-page-header">
+                <div className="tq-hero-copy">
 
-                <div>
+                    <span className="tq-eyebrow">
+                        Employee Assessments
+                    </span>
 
-                    <div className="quiz-eyebrow">
-                        EMPLOYEE ASSESSMENTS
-                    </div>
-
-                    <h1>
-                        Take Quiz
-                    </h1>
+                    <h1>Take Quiz</h1>
 
                     <p>
-                        Select an active training
-                        assessment or share its
-                        reusable public link.
+                        Pick an active training assessment to start it now,
+                        or share its reusable link with your team.
                     </p>
 
                 </div>
 
+                <div className="tq-hero-stats">
 
-                <div
-                    className="quiz-security-pill"
-                >
+                    <div className="tq-hero-stat">
+                        <strong>{filtered.length}</strong>
+                        <span>Active {filtered.length === 1 ? "quiz" : "quizzes"}</span>
+                    </div>
 
-                    <FaShieldAlt />
+                    <div className="tq-hero-stat">
+                        <strong>{totalQuestions}</strong>
+                        <span>Questions</span>
+                    </div>
 
-                    Secure Assessment Flow
+                    <div className="tq-hero-pill">
+                        <FaShieldAlt />
+                        Secure assessment flow
+                    </div>
 
                 </div>
 
-            </div>
+            </section>
 
-
-            {/* ====================================================
-                MESSAGE
-            ==================================================== */}
+            {/* ================= MESSAGE ================= */}
 
             {message && (
 
-                <div className="quiz-toast">
+                <div className="quiz-toast tq-toast">
 
-                    <span>
-                        {message}
-                    </span>
+                    <span>{message}</span>
 
-                    <button
-                        type="button"
-                        onClick={
-                            clearMessage
-                        }
-                    >
-
+                    <button type="button" onClick={clearMessage} aria-label="Dismiss">
                         <FaTimes />
-
                     </button>
 
                 </div>
 
             )}
 
+            {/* ================= TOOLBAR ================= */}
 
-            {/* ====================================================
-                SEARCH / TOOLBAR
-            ==================================================== */}
+            <div className="tq-toolbar">
 
-            <div className="quiz-toolbar">
-
-                <div className="quiz-search">
+                <label className="tq-search">
 
                     <FaSearch />
 
@@ -410,441 +409,214 @@ function TakeQuiz() {
                         type="text"
                         placeholder="Search active quizzes..."
                         value={search}
-                        onChange={e =>
-                            setSearch(
-                                e.target.value
-                            )
-                        }
+                        onChange={e => setSearch(e.target.value)}
                     />
 
-                </div>
+                </label>
 
-
-                <div
-                    style={{
-                        display:
-                            "flex",
-                        alignItems:
-                            "center",
-                        gap: "8px",
-                        fontSize:
-                            "13px",
-                        color:
-                            "#64748b",
-                        whiteSpace:
-                            "nowrap",
-                    }}
-                >
-
+                <span className="tq-count">
                     <FaQuestionCircle />
-
-                    {filtered.length} active
-                    assessment
-                    {filtered.length === 1
-                        ? ""
-                        : "s"}
-
-                </div>
+                    {filtered.length} active assessment{filtered.length === 1 ? "" : "s"}
+                </span>
 
             </div>
 
-
-            {/* ====================================================
-                LOADING
-            ==================================================== */}
+            {/* ================= LOADING ================= */}
 
             {loading && (
 
-                <div className="quiz-card-grid">
-
-                    <div
-                        className="quiz-empty large"
-                        style={{
-                            gridColumn:
-                                "1 / -1",
-                        }}
-                    >
-
-                        <div
-                            className="loading-ring"
-                        />
-
-                        <strong>
-                            Loading assessments...
-                        </strong>
-
-                        <span>
-                            Please wait while
-                            active quizzes are
-                            loaded.
-                        </span>
-
-                    </div>
-
+                <div className="tq-empty">
+                    <div className="loading-ring" />
+                    <strong>Loading assessments...</strong>
+                    <span>Please wait while active quizzes are loaded.</span>
                 </div>
 
             )}
 
+            {/* ================= EMPTY ================= */}
 
-            {/* ====================================================
-                EMPTY STATE
-            ==================================================== */}
+            {!loading && !filtered.length && (
 
-            {!loading &&
-                !filtered.length && (
+                <div className="tq-empty">
+                    <FaQuestionCircle className="tq-empty-icon" />
+                    <strong>No active quizzes found</strong>
+                    <span>
+                        {search
+                            ? "Try another search term."
+                            : "There are currently no active training assessments."}
+                    </span>
+                </div>
 
-                    <div className="quiz-empty large">
+            )}
 
-                        <FaQuestionCircle />
+            {/* ================= CARDS ================= */}
 
-                        <h2>
-                            No active quizzes found
-                        </h2>
+            {!loading && filtered.length > 0 && (
 
-                        <p>
-                            {search
-                                ? "Try another search term."
-                                : "There are currently no active training assessments."}
-                        </p>
+                <div className="tq-grid">
 
-                    </div>
+                    {filtered.map(quiz => {
 
-                )}
+                        const publicLink = getQuizLink(quiz);
 
+                        const questionCount =
+                            Number(
+                                quiz?.question_count ??
+                                quiz?.questions?.length ??
+                                0
+                            ) || 0;
 
-            {/* ====================================================
-                QUIZ CARDS
-            ==================================================== */}
+                        const passScore =
+                            Number(quiz?.passing_score ?? 70) || 0;
 
-            {!loading &&
-                filtered.length > 0 && (
+                        const attemptsLabel =
+                            Number(quiz.attempts_allowed) === 0
+                                ? "Unlimited"
+                                : `${quiz.attempts_allowed} attempt${Number(quiz.attempts_allowed) === 1 ? "" : "s"}`;
 
-                    <div className="quiz-card-grid">
+                        const hasChecks =
+                            quiz.require_camera ||
+                            quiz.require_location ||
+                            quiz.require_email_consent;
 
-                        {filtered.map(
-                            quiz => {
+                        return (
 
-                                const publicLink =
-                                    getQuizLink(quiz);
+                            <article className="tq-card" key={quiz.id}>
 
+                                <header className="tq-card-head">
 
-                                return (
+                                    <div className="tq-card-icon">
+                                        <FaCheckCircle />
+                                    </div>
 
-                                    <article
-                                        className="quiz-launch-card"
-                                        key={
-                                            quiz.id
-                                        }
-                                    >
-
-
-                                        {/* =========================
-                                            CARD HEADER
-                                        ========================= */}
-
-                                        <div className="quiz-launch-top">
-
-                                            <span className="quiz-status active">
-
-                                                <span
-                                                    style={{
-                                                        width:
-                                                            "6px",
-                                                        height:
-                                                            "6px",
-                                                        borderRadius:
-                                                            "50%",
-                                                        background:
-                                                            "currentColor",
-                                                        display:
-                                                            "inline-block",
-                                                    }}
-                                                />
-
-                                                Active
-
-                                            </span>
-
-
-                                            <span>
-
-                                                <FaQuestionCircle />
-
-                                                {
-                                                    Number(
-                                                        quiz?.question_count ??
-                                                        quiz?.questions?.length ??
-                                                        0
-                                                    ) || 0
-                                                }{" "}
-                                                questions
-
-                                            </span>
-
-                                        </div>
-
-
-                                        {/* =========================
-                                            TITLE
-                                        ========================= */}
-
-                                        <h3>
-                                            {
-                                                quiz.name
-                                            }
-                                        </h3>
-
-
+                                    <div className="tq-card-title">
+                                        <span className="tq-status">
+                                            <i /> Active
+                                        </span>
+                                        <h3>{quiz.name}</h3>
                                         <p>
-                                            {
-                                                quiz.description ||
-                                                "Complete this training assessment to demonstrate your knowledge."
-                                            }
+                                            {quiz.description ||
+                                                "Complete this training assessment to demonstrate your knowledge."}
                                         </p>
+                                    </div>
 
+                                    <span className="tq-qcount">
+                                        <FaQuestionCircle />
+                                        {questionCount} question{questionCount === 1 ? "" : "s"}
+                                    </span>
 
-                                        {/* =========================
-                                            META
-                                        ========================= */}
+                                </header>
 
-                                        <div className="quiz-launch-meta">
+                                <div className="tq-meta">
 
-                                            <span>
+                                    <div className="tq-meta-item">
+                                        <span>Pass mark</span>
+                                        <strong>{passScore}%</strong>
+                                    </div>
 
-                                                <strong>
-                                                    Pass
-                                                </strong>
+                                    <div className="tq-meta-item">
+                                        <span><FaClock /> Time limit</span>
+                                        <strong>
+                                            {quiz.time_limit_minutes
+                                                ? `${quiz.time_limit_minutes} min`
+                                                : "No limit"}
+                                        </strong>
+                                    </div>
 
-                                                {" "}
+                                    <div className="tq-meta-item">
+                                        <span><FaUsers /> Attempts</span>
+                                        <strong>{attemptsLabel}</strong>
+                                    </div>
 
-                                                {
-                                                    Number(
-                                                        quiz?.passing_score ??
-                                                        70
-                                                    ) || 0
-                                                }%
+                                </div>
 
+                                {hasChecks && (
+
+                                    <div className="tq-checks">
+
+                                        <span className="tq-checks-label">Verification</span>
+
+                                        {quiz.require_camera && (
+                                            <span className="tq-chip" title="Camera verification required">
+                                                <FaCamera /> Camera
                                             </span>
+                                        )}
 
-
-                                            <span>
-
-                                                <FaClock />
-
-                                                {quiz.time_limit_minutes
-                                                    ? `${quiz.time_limit_minutes} min`
-                                                    : "No time limit"}
-
+                                        {quiz.require_location && (
+                                            <span className="tq-chip" title="Location verification required">
+                                                <FaMapMarkerAlt /> Location
                                             </span>
+                                        )}
 
-
-                                            <span>
-
-                                                <FaUsers />
-
-                                                {Number(
-                                                    quiz.attempts_allowed
-                                                ) === 0
-                                                    ? "Unlimited attempts"
-                                                    : `${quiz.attempts_allowed} attempt${Number(
-                                                        quiz.attempts_allowed
-                                                    ) === 1
-                                                        ? ""
-                                                        : "s"}`}
-
+                                        {quiz.require_email_consent && (
+                                            <span className="tq-chip" title="Email consent required">
+                                                <FaEnvelope /> Email
                                             </span>
+                                        )}
 
-                                        </div>
+                                    </div>
 
+                                )}
 
-                                        {/* =========================
-                                            SECURITY REQUIREMENTS
-                                        ========================= */}
+                                <div className="tq-actions">
 
-                                        <div
-                                            className="quiz-launch-security"
-                                        >
+                                    <button
+                                        type="button"
+                                        className="tq-btn tq-btn-primary"
+                                        onClick={() => openQuiz(quiz)}
+                                    >
+                                        <FaExternalLinkAlt />
+                                        Open Quiz
+                                    </button>
 
-                                            {quiz.require_camera && (
+                                    <button
+                                        type="button"
+                                        className="tq-btn tq-btn-ghost"
+                                        onClick={() => copyLink(quiz)}
+                                    >
+                                        <FaCopy />
+                                        Copy Link
+                                    </button>
 
-                                                <span
-                                                    title="Camera verification required"
-                                                >
+                                    <button
+                                        type="button"
+                                        className="tq-btn tq-btn-ghost"
+                                        onClick={() => sendByEmail(quiz)}
+                                    >
+                                        <FaPaperPlane />
+                                        Send by Email
+                                    </button>
 
-                                                    <FaCamera />
+                                </div>
 
-                                                    Camera
+                                <footer className="tq-link">
 
-                                                </span>
+                                    <div className="tq-link-url">
+                                        <FaLink />
+                                        <span>{publicLink || "Public link unavailable"}</span>
+                                    </div>
 
-                                            )}
+                                    <p>
+                                        <FaShieldAlt />
+                                        This link is reusable. Each participant gets a separate quiz session.
+                                    </p>
 
+                                </footer>
 
-                                            {quiz.require_location && (
+                            </article>
 
-                                                <span
-                                                    title="Location verification required"
-                                                >
+                        );
 
-                                                    <FaMapMarkerAlt />
+                    })}
 
-                                                    Location
+                </div>
 
-                                                </span>
-
-                                            )}
-
-
-                                            {quiz.require_email_consent && (
-
-                                                <span
-                                                    title="Email consent required"
-                                                >
-
-                                                    <FaEnvelope />
-
-                                                    Email
-
-                                                </span>
-
-                                            )}
-
-                                        </div>
-
-
-                                        {/* =========================
-                                            ACTIONS
-                                        ========================= */}
-
-                                        <div className="quiz-launch-actions">
-
-
-                                            <button
-                                                type="button"
-                                                className="quiz-primary small"
-                                                onClick={() =>
-                                                    openQuiz(
-                                                        quiz
-                                                    )
-                                                }
-                                            >
-
-                                                <FaExternalLinkAlt />
-
-                                                Open Quiz
-
-                                            </button>
-
-
-                                            <button
-                                                type="button"
-                                                className="quiz-secondary small"
-                                                onClick={() =>
-                                                    copyLink(
-                                                        quiz
-                                                    )
-                                                }
-                                            >
-
-                                                <FaCopy />
-
-                                                Copy Link
-
-                                            </button>
-
-
-                                            <button
-                                                type="button"
-                                                className="quiz-secondary small"
-                                                onClick={() =>
-                                                    sendByEmail(
-                                                        quiz
-                                                    )
-                                                }
-                                            >
-
-                                                <FaPaperPlane />
-
-                                                Send by Email
-
-                                            </button>
-
-                                        </div>
-
-
-                                        {/* =========================
-                                            REUSABLE LINK
-                                        ========================= */}
-
-                                        <div className="quiz-launch-link">
-
-                                            <FaLink />
-
-                                            <span>
-                                                {publicLink ||
-                                                    "Public link unavailable"}
-                                            </span>
-
-                                        </div>
-
-
-                                        {/* =========================
-                                            LINK DESCRIPTION
-                                        ========================= */}
-
-                                        <div
-                                            style={{
-                                                marginTop:
-                                                    "10px",
-                                                padding:
-                                                    "10px 12px",
-                                                borderRadius:
-                                                    "8px",
-                                                background:
-                                                    "#f8fafc",
-                                                border:
-                                                    "1px solid #e2e8f0",
-                                                fontSize:
-                                                    "11px",
-                                                lineHeight:
-                                                    "1.5",
-                                                color:
-                                                    "#64748b",
-                                            }}
-                                        >
-
-                                            <FaShieldAlt
-                                                style={{
-                                                    marginRight:
-                                                        "6px",
-                                                }}
-                                            />
-
-                                            This link is
-                                            reusable. Each
-                                            participant
-                                            receives a
-                                            separate quiz
-                                            session.
-
-                                        </div>
-
-                                    </article>
-
-                                );
-
-                            }
-                        )}
-
-                    </div>
-
-                )}
+            )}
 
         </div>
 
     );
 
 }
-
 
 export default TakeQuiz;

@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
+import "../../styles/pages/PublicQuizPremium.css";
 
 const QUIZ_API_URL = (
     import.meta.env.VITE_QUIZ_API_URL?.trim() ||
@@ -1849,10 +1850,14 @@ function PublicQuiz() {
 
     if (loading) {
         return (
-            <div className="public-quiz-shell">
+            <div className="public-quiz-shell pq-premium">
                 <header className="public-header">
-                    <div className="brand-mark">
-                        <img src="/miarcus.png" alt="Mi Arcus" />
+                    <div className="pq-header-side pq-header-left">
+                        <span className="pq-header-label">Mi Arcus Training</span>
+                    </div>
+
+                    <div className="brand-mark pq-brand">
+                        <img src="/miarcus-topbar-icon.png?v=20260923-premium" alt="Mi Arcus" />
                     </div>
 
                     <div className="public-secure">
@@ -1885,10 +1890,14 @@ function PublicQuiz() {
 
     if (error && !quiz) {
         return (
-            <div className="public-quiz-shell">
+            <div className="public-quiz-shell pq-premium">
                 <header className="public-header">
-                    <div className="brand-mark">
-                        <img src="/miarcus.png" alt="Mi Arcus" />
+                    <div className="pq-header-side pq-header-left">
+                        <span className="pq-header-label">Mi Arcus Training</span>
+                    </div>
+
+                    <div className="brand-mark pq-brand">
+                        <img src="/miarcus-topbar-icon.png?v=20260923-premium" alt="Mi Arcus" />
                     </div>
 
                     <div className="public-secure">
@@ -1926,11 +1935,17 @@ function PublicQuiz() {
         quiz.questions.length === 0
     ) {
         return (
-            <div className="public-quiz-shell">
+            <div className="public-quiz-shell pq-premium">
                 <header className="public-header">
-                    <div className="brand-mark">
-                        <img src="/miarcus.png" alt="Mi Arcus" />
+                    <div className="pq-header-side pq-header-left">
+                        <span className="pq-header-label">Mi Arcus Training</span>
                     </div>
+
+                    <div className="brand-mark pq-brand">
+                        <img src="/miarcus-topbar-icon.png?v=20260923-premium" alt="Mi Arcus" />
+                    </div>
+
+                    <div className="pq-header-side" />
                 </header>
 
                 <main className="public-main">
@@ -1974,14 +1989,18 @@ function PublicQuiz() {
     // ============================================================
 
     return (
-        <div className="public-quiz-shell">
+        <div className="public-quiz-shell pq-premium">
             {/* ==================================================
                 HEADER
             ================================================== */}
 
             <header className="public-header">
-                <div className="brand-mark">
-                    <img src="/miarcus.png" alt="Mi Arcus" />
+                <div className="pq-header-side pq-header-left">
+                    <span className="pq-header-label">Mi Arcus Training</span>
+                </div>
+
+                <div className="brand-mark pq-brand">
+                    <img src="/miarcus-topbar-icon.png?v=20260923-premium" alt="Mi Arcus" />
                 </div>
 
                 <div className="public-secure">
@@ -2575,8 +2594,14 @@ function PublicQuiz() {
 
                                 <div className="question-body">
                                     <div className="question-label">
-                                        {currentQuestion.question_type ||
-                                            "Question"}
+                                        <em className="pq-qtype">
+                                            {String(
+                                                currentQuestion.question_type ||
+                                                "Question"
+                                            )
+                                                .replace(/_/g, " ")
+                                                .replace(/\b\w/g, (c) => c.toUpperCase())}
+                                        </em>
 
                                         {isQuestionRequired(
                                             currentQuestion

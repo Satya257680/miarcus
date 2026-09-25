@@ -1540,6 +1540,21 @@ const createTables = (callback) => {
         ALTER TABLE quiz_submissions
         ADD COLUMN photo_captured_at DATETIME NULL
         AFTER photo_path
+        `,
+
+        // Verification photo is now stored inside the database so
+        // certificates keep their photo after server restarts /
+        // redeploys (files in /uploads are not permanent).
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN photo_data LONGTEXT NULL
+        AFTER photo_captured_at
+        `,
+
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN photo_mime VARCHAR(40) NULL
+        AFTER photo_data
         `
 
     ];
@@ -1616,6 +1631,17 @@ const createTables = (callback) => {
                             "Quiz scoring repair:",
                             repairResult
                         );
+
+                        backfillSubmissionPhotos()
+                            .then((photoResult) => {
+                                if (photoResult.copied) {
+                                    console.log(
+                                        "Quiz photos saved to database:",
+                                        photoResult.copied
+                                    );
+                                }
+                            })
+                            .catch(() => {});
 
                         callback(null);
 
@@ -3074,6 +3100,78 @@ const getRecipients = async ({
 };
 
 
+
+// ======================================================
+// BACKFILL VERIFICATION PHOTOS INTO THE DATABASE
+// ------------------------------------------------------
+// Copies every photo that still exists on disk into
+// quiz_submissions.photo_data, so it survives future
+// restarts / redeploys. Safe to run repeatedly.
+// ======================================================
+
+const backfillSubmissionPhotos = async () => {
+
+    let copied = 0;
+
+    try {
+
+        const rows = await db.query(
+            `
+            SELECT id, photo_path
+            FROM quiz_submissions
+            WHERE photo_path IS NOT NULL
+              AND photo_path <> ''
+              AND photo_data IS NULL
+            `
+        );
+
+        for (const row of rows) {
+
+            const fullPhotoPath = path.join(
+                __dirname,
+                "..",
+                String(row.photo_path).replace(/^[/\\]+/, "")
+            );
+
+            if (!fs.existsSync(fullPhotoPath)) {
+                continue;
+            }
+
+            const extension = path.extname(fullPhotoPath).toLowerCase();
+
+            const mimeType =
+                extension === ".png"
+                    ? "image/png"
+                    : extension === ".webp"
+                        ? "image/webp"
+                        : "image/jpeg";
+
+            await db.query(
+                `
+                UPDATE quiz_submissions
+                SET photo_data = ?, photo_mime = ?
+                WHERE id = ?
+                `,
+                [
+                    fs.readFileSync(fullPhotoPath).toString("base64"),
+                    mimeType,
+                    row.id
+                ]
+            );
+
+            copied += 1;
+        }
+
+    } catch (error) {
+        console.warn(
+            "Quiz photo backfill error:",
+            error?.message || error
+        );
+    }
+
+    return { copied };
+};
+
 // ======================================================
 // GET SUBMISSIONS / TRAINING REPORT
 // ======================================================
@@ -3135,6 +3233,24 @@ const getSubmissions = async (
         );
     }
 
+    // Role scope (set by the controller, never by the query string)
+    if (filters.scope_all !== true) {
+
+        const scopeEmails = Array.isArray(filters.scope_emails)
+            ? filters.scope_emails.filter(Boolean)
+            : [];
+
+        if (!scopeEmails.length) {
+            return [];
+        }
+
+        sql += `
+            AND LOWER(TRIM(s.participant_email)) IN (${scopeEmails.map(() => "?").join(",")})
+        `;
+
+        params.push(...scopeEmails);
+    }
+
     if (filters.result) {
 
         sql += `
@@ -3163,10 +3279,20 @@ const getSubmissions = async (
             s.id DESC
     `;
 
-    return db.query(
+    const rows = await db.query(
         sql,
         params
     );
+
+    // Keep the list light: the photo itself is only sent with a
+    // single submission (certificate / detail view).
+    return rows.map((row) => {
+        const { photo_data, ...rest } = row;
+        return {
+            ...rest,
+            has_photo: Boolean(photo_data || row.photo_path)
+        };
+    });
 };
 
 
@@ -3217,9 +3343,17 @@ const getSubmission = async (
     // when it opens in a new browser window.
     let photo_data_url = null;
 
+    const storedPhotoData = rows[0]?.photo_data;
+
+    if (storedPhotoData) {
+        photo_data_url = String(storedPhotoData).startsWith("data:")
+            ? String(storedPhotoData)
+            : `data:${rows[0]?.photo_mime || "image/jpeg"};base64,${storedPhotoData}`;
+    }
+
     const storedPhotoPath = rows[0]?.photo_path;
 
-    if (storedPhotoPath) {
+    if (!photo_data_url && storedPhotoPath) {
         try {
             const normalizedPath = String(storedPhotoPath)
                 .replace(/^[/\\]+/, "");
@@ -3248,6 +3382,24 @@ const getSubmission = async (
 
                 photo_data_url =
                     `data:${mimeType};base64,${base64}`;
+
+                // Backfill: copy the file into the database once so
+                // this certificate never loses its photo again.
+                try {
+                    await db.query(
+                        `
+                        UPDATE quiz_submissions
+                        SET photo_data = ?, photo_mime = ?
+                        WHERE id = ? AND photo_data IS NULL
+                        `,
+                        [base64, mimeType, submissionId]
+                    );
+                } catch (backfillError) {
+                    console.warn(
+                        "Quiz photo backfill skipped:",
+                        backfillError?.message || backfillError
+                    );
+                }
             }
         } catch (photoError) {
             console.warn(
@@ -3281,8 +3433,10 @@ const getSubmission = async (
             [submissionId]
         );
 
+    const { photo_data: _rawPhoto, ...submissionRow } = rows[0];
+
     return {
-        ...rows[0],
+        ...submissionRow,
 
         photo_data_url,
 
@@ -3815,6 +3969,7 @@ module.exports = {
     // Submissions
     getSubmissions,
     getSubmission,
+    backfillSubmissionPhotos,
     getParticipantAttemptCount,
     getActiveParticipantSession,
 

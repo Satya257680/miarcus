@@ -111,7 +111,6 @@ const LocationTrackingGate = () => {
   const [registered, setRegistered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [adminBypass, setAdminBypass] = useState(false);
 
   const trackingRef = useRef(false);
   const timerRef = useRef(null);
@@ -152,18 +151,13 @@ const LocationTrackingGate = () => {
     try {
       const response = await axios.get(`${API}/api/location/my-status`, authConfig());
       const data = response.data || {};
-      const isAdmin = Boolean(data.isAdmin);
       const isRegistered = Boolean(data.registered);
 
-      setAdminBypass(isAdmin);
       setRegistered(isRegistered);
 
-      // Administrators use the location console and are never prompted.
-      if (isAdmin) {
-        setShowConsent(false);
-        return;
-      }
-
+      // Everyone signed in is tracked — employees AND administrators /
+      // super admins. Admins give the same one-time consent and then
+      // appear on the Employee Location map like every other user.
       const consentGiven = isRegistered || localStorage.getItem(getConsentKey()) === "1";
 
       if (consentGiven) {
@@ -232,7 +226,7 @@ const LocationTrackingGate = () => {
     };
   }, [loadStatus, startTracking]);
 
-  if (adminBypass || (!showConsent && registered)) return null;
+  if (!showConsent && registered) return null;
   if (!showConsent) return null;
 
   return (

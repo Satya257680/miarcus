@@ -2424,6 +2424,135 @@ exports.getEmailStats = async (
 
 
 // ======================================================
+// TRAINING REPORT VISIBILITY SCOPE
+// ------------------------------------------------------
+// • Admin / Super Admin  -> every submission
+// • Store Manager        -> own submissions + employees of
+//                           the store(s) they manage
+// • Everyone else        -> only their own submissions
+// Submissions come from the public quiz link, so they are
+// matched to users by participant email.
+// ======================================================
+
+const resolveReportScope = async (req) => {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return { all: false, emails: [] };
+    }
+
+    const users = await db.query(
+        `
+        SELECT
+            u.id,
+            u.email,
+            u.is_admin,
+            COALESCE(u.is_super_admin, 0) AS is_super_admin,
+            dg.designation_name AS designation
+        FROM users u
+        LEFT JOIN designations dg
+            ON dg.id = u.designation_id
+        WHERE u.id = ?
+        LIMIT 1
+        `,
+        [userId]
+    );
+
+    const me = users[0];
+
+    if (!me) {
+        return { all: false, emails: [] };
+    }
+
+    if (
+        req.user?.is_admin === true ||
+        Number(me.is_admin) === 1 ||
+        Number(me.is_super_admin) === 1
+    ) {
+        return { all: true, emails: [] };
+    }
+
+    const emails = new Set();
+
+    if (me.email) {
+        emails.add(String(me.email).trim().toLowerCase());
+    }
+
+    const isStoreManagerByDesignation =
+        /store\s*manager/i.test(String(me.designation || ""));
+
+    let managedStores = [];
+
+    try {
+        managedStores = await db.query(
+            `
+            SELECT store_id FROM chat_store_managers WHERE user_id = ?
+            `,
+            [userId]
+        );
+    } catch {
+        managedStores = [];
+    }
+
+    if (isStoreManagerByDesignation) {
+        const assigned = await db.query(
+            `
+            SELECT store_id FROM user_stores WHERE user_id = ?
+            `,
+            [userId]
+        );
+        managedStores = managedStores.concat(assigned);
+    }
+
+    const storeIds = [
+        ...new Set(
+            managedStores
+                .map((row) => Number(row.store_id))
+                .filter((id) => Number.isInteger(id) && id > 0)
+        )
+    ];
+
+    if (storeIds.length) {
+        const placeholders = storeIds.map(() => "?").join(",");
+
+        const staff = await db.query(
+            `
+            SELECT DISTINCT u.email
+            FROM users u
+            INNER JOIN user_stores us
+                ON us.user_id = u.id
+            WHERE us.store_id IN (${placeholders})
+              AND u.email IS NOT NULL
+            `,
+            storeIds
+        );
+
+        staff.forEach((row) => {
+            if (row.email) {
+                emails.add(String(row.email).trim().toLowerCase());
+            }
+        });
+    }
+
+    return { all: false, emails: [...emails] };
+};
+
+const submissionInScope = (scope, submission) => {
+
+    if (scope.all) {
+        return true;
+    }
+
+    const email = String(submission?.participant_email || "")
+        .trim()
+        .toLowerCase();
+
+    return Boolean(email) && scope.emails.includes(email);
+};
+
+
+// ======================================================
 // TRAINING REPORTS
 // ======================================================
 
@@ -2434,17 +2563,25 @@ exports.getReports = async (
 
     try {
 
+        const scope =
+            await resolveReportScope(req);
+
         const data =
-            await Quiz.getSubmissions(
-                req.query
-            );
+            await Quiz.getSubmissions({
+                ...req.query,
+                scope_all: scope.all,
+                scope_emails: scope.emails
+            });
 
 
         return res.json({
 
             success: true,
 
-            data
+            data,
+
+            scope:
+                scope.all ? "all" : "limited"
 
         });
 
@@ -2521,6 +2658,23 @@ exports.getReport = async (
         }
 
 
+        const scope =
+            await resolveReportScope(req);
+
+        if (!submissionInScope(scope, data)) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "You can only view your own training records"
+
+            });
+
+        }
+
+
         return res.json({
 
             success: true,
@@ -2578,6 +2732,36 @@ exports.deleteReport = async (
                     "Invalid submission ID"
 
             });
+
+        }
+
+
+        const scope =
+            await resolveReportScope(req);
+
+        if (!scope.all) {
+
+            const existing =
+                await db.query(
+                    `SELECT participant_email FROM quiz_submissions WHERE id = ? LIMIT 1`,
+                    [id]
+                );
+
+            if (
+                existing.length &&
+                !submissionInScope(scope, existing[0])
+            ) {
+
+                return res.status(403).json({
+
+                    success: false,
+
+                    message:
+                        "You cannot delete this training record"
+
+                });
+
+            }
 
         }
 
@@ -2974,6 +3158,10 @@ exports.startPublicQuiz = async (
 
         let photoPath = null;
 
+        let photoData = null;
+
+        let photoMime = null;
+
         let photoCapturedAt = null;
 
         if (
@@ -3065,6 +3253,27 @@ exports.startPublicQuiz = async (
             photoPath =
                 `/uploads/quiz/${fileName}`;
 
+
+            // Permanent copy inside the database (certificate photo
+            // must not disappear when the uploads folder is reset).
+            let photoBuffer = req.file.buffer || null;
+
+            if (
+                !photoBuffer &&
+                req.file.path &&
+                fs.existsSync(req.file.path)
+            ) {
+                photoBuffer = fs.readFileSync(req.file.path);
+            }
+
+            if (photoBuffer) {
+                photoData = photoBuffer.toString("base64");
+                photoMime =
+                    ext === ".png"
+                        ? "image/png"
+                        : String(req.file.mimetype || "image/jpeg");
+            }
+
         }
 
 
@@ -3100,6 +3309,8 @@ exports.startPublicQuiz = async (
                     session_token,
                     photo_path,
                     photo_captured_at,
+                    photo_data,
+                    photo_mime,
                     latitude,
                     longitude,
                     location_accuracy,
@@ -3111,7 +3322,7 @@ exports.startPublicQuiz = async (
                 )
 
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
 
@@ -3128,6 +3339,10 @@ exports.startPublicQuiz = async (
                     photoPath,
 
                     photoCapturedAt,
+
+                    photoData,
+
+                    photoMime,
 
                     req.body.latitude ||
                         null,
