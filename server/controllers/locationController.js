@@ -88,24 +88,23 @@ const getLive = async (req, res) => {
 
 const getMyStatus = async (req, res) => {
     try {
-        const target = await Location.getMobileTarget(req.user.id);
+        const device = await Location.getActiveDeviceForEmployee(req.user.id);
         const userRows = await dbQuery(
             `SELECT call_contact, is_admin FROM users WHERE id = ? LIMIT 1`,
             [req.user.id]
         );
-        const registeredPhone = target?.phone_number || userRows[0]?.call_contact || null;
         const isAdmin = Number(userRows[0]?.is_admin) === 1 || Boolean(req.user?.is_admin);
         const schedule = await getWorkingSchedule();
         res.json({
             success: true,
-            registered: Boolean(target),
+            // Consent is complete once this employee has an active website
+            // (browser) registration. The prompt is not shown again after that.
+            registered: Boolean(device),
             isAdmin,
             trackingActive: await isWithinWorkingHours(),
             workHours: schedule ? `${schedule.start} - ${schedule.end}` : "OFF",
             timezone: schedule?.timezone || "Asia/Kolkata",
-            provider: provider.providerName,
-            phoneNumber: registeredPhone,
-            simIccid: target?.sim_iccid || null
+            provider: "website"
         });
     } catch (error) {
         console.error("Location status error:", error);
@@ -175,10 +174,37 @@ const registerMobileNumber = async (req, res) => {
 };
 
 const submitLocation = async (req, res) => {
-    return res.status(410).json({
-        success: false,
-        message: "Browser GPS tracking is disabled. Employee Location uses the configured mobile-network/carrier provider."
-    });
+    try {
+        const latitude = Number(req.body?.latitude);
+        const longitude = Number(req.body?.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return res.status(400).json({ success: false, message: "Valid latitude and longitude are required." });
+        }
+
+        const accuracy = Number.isFinite(Number(req.body?.accuracy)) ? Number(req.body.accuracy) : null;
+        const deviceIdentifier = String(req.body?.deviceIdentifier || "").trim();
+
+        let deviceId = null;
+        if (deviceIdentifier) {
+            const device = await Location.getDeviceForEmployee(req.user.id, deviceIdentifier);
+            deviceId = device?.id || null;
+        }
+
+        await Location.saveRecord({
+            employee_id: req.user.id,
+            device_id: deviceId,
+            latitude,
+            longitude,
+            accuracy,
+            source: "website",
+            captured_at: new Date()
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Website location update error:", error);
+        res.status(500).json({ success: false, message: "Unable to record location." });
+    }
 };
 
 const providerUpdate = async (req, res) => {

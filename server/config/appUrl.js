@@ -14,16 +14,26 @@
 // ==========================================================
 
 const DEFAULT_PUBLIC_APP_URL =
-    "https://rytual-peach.vercel.app";
+    "https://rytual2.miarcus.com";
+
+// Old production URLs that must never be used in emails again.
+// If any of these is still present in the environment, it is
+// ignored so account/invitation emails always open the current
+// Mi Arcus application.
+const LEGACY_APP_URLS = [
+    "https://rytual-peach.vercel.app",
+    "https://rytual.miarcus.com",
+    "https://miarcus.vercel.app"
+];
+
+const normalize = (value) => String(value || "").trim().replace(/\/+$/, "");
 
 const getAppUrl = () => {
 
-    const configuredUrl = String(
-        process.env.PUBLIC_APP_URL || ""
-    ).trim();
+    const configuredUrl = normalize(process.env.PUBLIC_APP_URL);
 
-    if (configuredUrl) {
-        return configuredUrl.replace(/\/+$/, "");
+    if (configuredUrl && !LEGACY_APP_URLS.includes(configuredUrl)) {
+        return configuredUrl;
     }
 
     return DEFAULT_PUBLIC_APP_URL;

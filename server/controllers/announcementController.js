@@ -8,6 +8,7 @@ const { sendGenericEmail } = require("../services/emailService");
 const announcementEmail = require("../utils/emailTemplates/announcementEmail");
 const Notification = require("../services/notificationService");
 const { UPLOAD_DIR } = require("../config/storage");
+const { getAppUrl } = require("../config/appUrl");
 const {
     JWT_SECRET,
     JWT_ALGORITHM,
@@ -45,10 +46,7 @@ const getAnnouncementEmailAttachment = (announcementId) =>
     });
 
 const sendAnnouncementEmail = async (recipient, attachment = null) => {
-    const appUrl = String(
-        process.env.PUBLIC_APP_URL ||
-        "https://rytual-peach.vercel.app"
-    ).trim().replace(/\/+$/, "");
+    const appUrl = getAppUrl();
 
     const announcementId = Number(recipient.announcement_id || recipient.id || 0);
     const announcementUrl = `${appUrl}/announcements`;

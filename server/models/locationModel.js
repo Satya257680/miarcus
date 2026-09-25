@@ -248,17 +248,24 @@ const EmployeeLocation = {
             LEFT JOIN designations dg ON dg.id = u.designation_id
             LEFT JOIN mobile_location_targets t ON t.employee_id = u.id AND t.status = 'active'
             LEFT JOIN (
+                SELECT DISTINCT employee_id FROM location_devices WHERE status = 'active'
+            ) dev ON dev.employee_id = u.id
+            LEFT JOIN (
                 SELECT r.* FROM location_records r
                 INNER JOIN (
                     SELECT employee_id, MAX(captured_at) AS max_captured_at
                     FROM location_records
-                    WHERE source = 'mobile-network'
+                    WHERE source IN ('website', 'mobile-network')
                     GROUP BY employee_id
                 ) latest ON latest.employee_id = r.employee_id
                        AND latest.max_captured_at = r.captured_at
             ) lr ON lr.employee_id = u.id
             WHERE u.status = 'Active'
-              AND TRIM(COALESCE(t.phone_number, u.call_contact, '') COLLATE utf8mb4_unicode_ci) <> ''
+              AND (
+                    dev.employee_id IS NOT NULL
+                 OR lr.employee_id IS NOT NULL
+                 OR TRIM(COALESCE(t.phone_number, u.call_contact, '') COLLATE utf8mb4_unicode_ci) <> ''
+              )
         `;
         if (query) {
             sql += ` AND (LOWER(u.name) LIKE ? OR LOWER(u.employee_id) LIKE ? OR LOWER(COALESCE(u.call_contact,'')) LIKE ?)`;
@@ -284,14 +291,14 @@ const EmployeeLocation = {
                 status: online ? 'online' : 'offline',
                 last_update: captured ? captured.toISOString() : null,
                 address: row.latitude != null ? `${Number(row.latitude).toFixed(6)}, ${Number(row.longitude).toFixed(6)}` : 'No location received',
-                provider: row.source || 'mobile-network'
+                provider: row.source || 'website'
             };
         });
     },
 
     async getHistory(employeeId, date) {
         return db.query(`SELECT id, employee_id, latitude, longitude, accuracy, source, captured_at
-                         FROM location_records WHERE employee_id = ? AND DATE(captured_at) = ? AND source = 'mobile-network'
+                         FROM location_records WHERE employee_id = ? AND DATE(captured_at) = ? AND source IN ('website', 'mobile-network')
                          ORDER BY captured_at ASC`, [employeeId, date]);
     },
 
