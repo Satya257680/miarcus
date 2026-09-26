@@ -28,7 +28,7 @@ exports.getAllActivities = (req, res) => {
 
     req.user,
 
-    (err, results) => {
+    (err, results, meta = {}) => {
 
         if (err) {
 
@@ -44,11 +44,24 @@ exports.getAllActivities = (req, res) => {
 
         }
 
+        const total = Number(meta.total || 0);
+        const limit = Number(meta.limit || filters.limit || 10);
+
         res.json({
 
             success: true,
 
-            data: results
+            data: results,
+
+            total,
+
+            page: Number(meta.page || filters.page || 1),
+
+            limit,
+
+            total_pages: Math.max(Math.ceil(total / limit), 1),
+
+            summary: meta.summary || { total, today: 0, high_priority: 0, open: 0 }
 
         });
 

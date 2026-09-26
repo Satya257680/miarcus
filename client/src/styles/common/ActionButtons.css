@@ -40,6 +40,13 @@
     transition: all 0.2s ease;
 }
 
+.action-buttons button span {
+    /* Button labels always follow the button's own text colour
+       (a global ".action-buttons span" rule used to turn them green). */
+    color: inherit !important;
+    font-weight: 600;
+}
+
 .action-buttons button svg {
     width: 10px;
     height: 10px;

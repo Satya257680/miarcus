@@ -9,7 +9,12 @@ const API = API_BASE_URL + '/api/dashboard';
 const authConfig = () => ({
     headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
     },
+    // Cache-buster so the dashboard always shows live numbers
+    // (never a stale browser / proxy cached response).
+    params: { _ts: Date.now() },
 });
 
 // ==============================

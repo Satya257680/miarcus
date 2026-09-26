@@ -59,15 +59,14 @@ Dashboard.getStats = (callback) => {
 
         (
 
+            -- Pending = every Action Point that is not closed yet
+            -- (Open + In Progress). Same rule as the Action Points
+            -- page summary, so both screens always show one number.
             SELECT COUNT(*)
 
-            FROM checklist_submission_answers
+            FROM action_points
 
-            WHERE 
-
-                answer IS NULL
-
-                OR answer = ''
+            WHERE LOWER(COALESCE(status, 'Open')) NOT IN ('closed', 'completed')
 
         ) AS pendingActionPoints,
 
@@ -131,7 +130,7 @@ Dashboard.getStats = (callback) => {
         (
             SELECT COUNT(*)
             FROM action_points
-            WHERE status IN ('Open', 'Pending', 'In Progress')
+            WHERE LOWER(COALESCE(status, 'Open')) NOT IN ('closed', 'completed')
         ) AS openActionPoints,
 
         (

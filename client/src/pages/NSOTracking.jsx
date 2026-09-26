@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
     FaSearch,
     FaSyncAlt,
-    FaEye,
-    FaEdit,
     FaTrash,
     FaStore,
     FaCheck,
@@ -23,6 +21,7 @@ import {
 } from "../services/newStoreOpeningService";
 import PremiumLoader from "../components/premium/PremiumLoader";
 import ConfirmDialog from "../components/common/ConfirmDialog";
+import ActionButtons from "../components/common/ActionButtons";
 import ExportButton from "../components/common/ExportButton";
 import { exportTableData } from "../utils/exportUtils.js";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
@@ -420,7 +419,7 @@ export default function NSOTracking() {
                                         <th className="nst-check-col">
                                             <input type="checkbox" checked={allOnPageSelected} onChange={togglePage} aria-label="Select page" />
                                         </th>
-                                        <th>#</th>
+                                        <th className="nst-sl-col">Sl No</th>
                                         <th>Store Code</th>
                                         <th>Store Name</th>
                                         <th>City</th>
@@ -438,7 +437,7 @@ export default function NSOTracking() {
                                             <td className="nst-check-col">
                                                 <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleRow(row.id)} aria-label={`Select ${row.name}`} />
                                             </td>
-                                            <td>{(safePage - 1) * pageSize + index + 1}</td>
+                                            <td className="nst-sl-col">{(safePage - 1) * pageSize + index + 1}</td>
                                             <td className="nst-code">{row.code}</td>
                                             <td className="nst-name">{row.name}</td>
                                             <td>{row.city}</td>
@@ -457,21 +456,14 @@ export default function NSOTracking() {
                                                 </div>
                                             </td>
                                             <td className="nst-actions-col">
-                                                <div className="nst-actions">
-                                                    <button type="button" className="nst-act nst-act-view" onClick={() => navigate(`/nso-tracking/${row.id}`)}>
-                                                        <FaEye /> View
-                                                    </button>
-                                                    {permissions.canEdit && (
-                                                        <button type="button" className="nst-act nst-act-edit" onClick={() => navigate(`/nso-tracking/${row.id}/edit`)}>
-                                                            <FaEdit /> Edit
-                                                        </button>
-                                                    )}
-                                                    {permissions.canDelete && (
-                                                        <button type="button" className="nst-act nst-act-delete" onClick={() => setDeleteTarget(row)} aria-label={`Delete ${row.name}`}>
-                                                            <FaTrash />
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                <ActionButtons
+                                                    showView
+                                                    onView={() => navigate(`/nso-tracking/${row.id}`)}
+                                                    showEdit={permissions.canEdit}
+                                                    onEdit={() => navigate(`/nso-tracking/${row.id}/edit`)}
+                                                    showDelete={permissions.canDelete}
+                                                    onDelete={() => setDeleteTarget(row)}
+                                                />
                                             </td>
                                         </tr>
                                     ))}

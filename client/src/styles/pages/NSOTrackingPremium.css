@@ -1291,3 +1291,96 @@
         flex: 1;
     }
 }
+
+/* ======================================================
+   TABLE — DEPARTMENT-STYLE GRID (bordered cells,
+   solid header, centred Actions column that stays
+   visible on the right while the table scrolls)
+   ====================================================== */
+
+.nst-table-wrap {
+    border: 1px solid #dfe7eb;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .05);
+    scrollbar-width: thin;
+    scrollbar-color: #9eb4be #f3f5f7;
+}
+
+.nst-table {
+    min-width: 1100px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.nst-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #356d84;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 12px 13px;
+    border-right: 1px solid rgba(255, 255, 255, .15);
+    border-bottom: 1px solid #2d5d70;
+}
+
+.nst-table thead th:last-child { border-right: none; }
+
+.nst-table tbody td {
+    background: #fff;
+    border-top: none;
+    border-bottom: 1px solid #edf2f5;
+    border-right: 1px solid #edf2f5;
+    padding: 12px 13px;
+}
+
+.nst-table tbody td:last-child { border-right: none; }
+.nst-table tbody tr:nth-child(even) td { background: #fafcfd; }
+.nst-table tbody tr:hover td,
+.nst-table tbody tr.is-selected td { background: #eef8fb; }
+.nst-table tbody tr:last-child td { border-bottom: none; }
+
+.nst-table .nst-check-col input { accent-color: #356d84; }
+
+.nst-sl-col {
+    width: 64px;
+    text-align: center !important;
+    font-weight: 700;
+    color: #356d84 !important;
+}
+
+/* Actions: header + buttons centred, scrolls like other columns */
+.nst-table th.nst-actions-col,
+.nst-table td.nst-actions-col {
+    text-align: center !important;
+    width: 250px;
+    min-width: 250px;
+    /* scrolls together with the other columns (not pinned) */
+    position: static;
+}
+
+
+.nst-table td.nst-actions-col .action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+}
+
+.nst-table td.nst-actions-col .action-buttons button {
+    min-width: 66px;
+    height: 30px;
+    border-radius: 6px;
+}
+
+.nst-table-wrap::-webkit-scrollbar { height: 8px; }
+.nst-table-wrap::-webkit-scrollbar-track { background: #f3f5f7; }
+.nst-table-wrap::-webkit-scrollbar-thumb { background: #9eb4be; border-radius: 16px; }
+
+@media (max-width: 768px) {
+    .nst-table th.nst-actions-col,
+    .nst-table td.nst-actions-col { width: 120px; min-width: 120px; }
+}

@@ -1,6 +1,6 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
 import {
     FaUser,
@@ -40,6 +40,7 @@ const API = API_BASE_URL + '/api';
 function ActivityDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [activity, setActivity] = useState(null);
     const [timeline, setTimeline] = useState([]);
@@ -255,7 +256,7 @@ function ActivityDetails() {
             <div className="details-page-heading">
                 <div>
                     <h2>Activity Details</h2>
-                    <p>{activity.module_name || "System"} • #{activity.id}</p>
+                    <p>{activity.module_name || "System"}{location.state?.slNo ? ` • Sl No ${location.state.slNo}` : ""}</p>
                 </div>
                 <button className="details-back-btn" onClick={() => navigate("/activity-center")}>Back to Activity Center</button>
             </div>

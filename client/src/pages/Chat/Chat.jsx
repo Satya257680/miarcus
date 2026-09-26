@@ -1,5 +1,5 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     FaComments,
@@ -31,6 +31,8 @@ import {
     FaImage,
     FaStar,
     FaArrowLeft,
+    FaLock,
+    FaCommentMedical,
 } from "react-icons/fa";
 
 import {
@@ -101,6 +103,21 @@ function initials(name = "") {
         .map(part => part[0])
         .join("")
         .toUpperCase() || "?";
+}
+
+function dayLabel(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const today = new Date();
+    const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diffDays = Math.round((startOf(today) - startOf(date)) / 86400000);
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays > 1 && diffDays < 7) {
+        return date.toLocaleDateString("en-IN", { weekday: "long" });
+    }
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 function formatTime(value) {
@@ -308,6 +325,35 @@ function Chat() {
             return haystack.includes(term);
         });
     }, [conversations, search, currentUser.id]);
+
+    // WhatsApp-style list chips: All / Unread / Groups / Direct
+    const [listFilter, setListFilter] = useState("all");
+
+    const unreadConversationCount = useMemo(
+        () => conversations.filter(conv => Number(conv.unread_count || 0) > 0).length,
+        [conversations]
+    );
+
+    const displayedConversations = useMemo(() => {
+        if (listFilter === "unread") {
+            return filteredConversations.filter(conv => Number(conv.unread_count || 0) > 0);
+        }
+        if (listFilter === "groups") {
+            return filteredConversations.filter(conv => conv.conversation_type === "group");
+        }
+        if (listFilter === "direct") {
+            return filteredConversations.filter(conv => conv.conversation_type === "direct");
+        }
+        return filteredConversations;
+    }, [filteredConversations, listFilter]);
+
+    const closeConversation = () => {
+        setSelectedConversation(null);
+        setMessages([]);
+        setShowChatMenu(false);
+        setShowChatDetails(false);
+        setSearchParams(selectedStoreId ? { store: String(selectedStoreId) } : {});
+    };
 
     const filteredContacts = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -1434,81 +1480,7 @@ function Chat() {
     }
 
     return (
-        <div className="chat-page">
-            <div className="chat-header">
-                <div>
-                    <div className="chat-kicker">
-                        MIARCUS • TEAM COMMUNICATION
-                    </div>
-                    <h1>
-                        <FaComments />
-                        Chat
-                    </h1>
-                    <p>
-                        Talk, share files, and call the people you work with.
-                    </p>
-                </div>
-
-                <div className="chat-header-actions">
-                    {canAdd && (
-                        <button
-                            className="chat-start-conversation-button"
-                            onClick={() => setShowContacts(true)}
-                        >
-                            <FaUserPlus />
-                            Start a conversation
-                        </button>
-                    )}
-
-                    <div className="chat-header-action-row">
-                        {admin && (
-                            <button
-                                className="chat-header-button"
-                                onClick={loadAdminPanel}
-                                title="Store managers"
-                            >
-                                <FaUserShield />
-                                Store managers
-                            </button>
-                        )}
-
-                        {canAdd && (
-                            <button
-                                className="chat-header-button"
-                                onClick={() => setShowContacts(true)}
-                                title="New chat"
-                            >
-                                <FaUserPlus />
-                                New chat
-                            </button>
-                        )}
-
-                        {canAdd && (
-                            <button
-                                className="chat-header-button primary"
-                                onClick={() => setShowGroup(true)}
-                                disabled={!selectedStoreId}
-                                title="New group"
-                            >
-                                <FaUsers />
-                                New group
-                            </button>
-                        )}
-
-                        {chatRank >= 1 && (
-                            <button
-                                className="chat-header-button"
-                                onClick={loadCallHistory}
-                                title="Call history"
-                            >
-                                <FaHistory />
-                                Call history
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-
+        <div className="chat-page wa-theme">
             {error && (
                 <div className="chat-alert">
                     <span>{error}</span>
@@ -1518,12 +1490,83 @@ function Chat() {
                 </div>
             )}
 
-            <div className={`chat-workspace ${showChatDetails && selectedConversation ? "with-details" : ""}`}>
+            <div className={`chat-workspace ${showChatDetails && selectedConversation ? "with-details" : ""} ${selectedConversation ? "has-conversation" : ""}`}>
                 <aside className="chat-sidebar">
-                    <div className="chat-sidebar-top">
+                    <div className="wa-sidebar-header">
+                        <div className="wa-me">
+                            <div className="chat-avatar wa-me-avatar" title={currentUser?.name || "You"}>
+                                {currentUser?.profile_photo ? (
+                                    <img src={currentUser.profile_photo} alt="" />
+                                ) : (
+                                    initials(currentUser?.name || "You")
+                                )}
+                            </div>
+                            <h2>Chats</h2>
+                        </div>
+
+                        <div className="wa-sidebar-icons">
+                            {admin && (
+                                <button onClick={loadAdminPanel} title="Store managers">
+                                    <FaUserShield />
+                                </button>
+                            )}
+                            {chatRank >= 1 && (
+                                <button onClick={loadCallHistory} title="Call history">
+                                    <FaHistory />
+                                </button>
+                            )}
+                            {canAdd && (
+                                <button
+                                    onClick={() => setShowGroup(true)}
+                                    disabled={!selectedStoreId}
+                                    title="New group"
+                                >
+                                    <FaUsers />
+                                </button>
+                            )}
+                            {canAdd && (
+                                <button onClick={() => setShowContacts(true)} title="New chat">
+                                    <FaCommentMedical />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="chat-search">
+                        <FaSearch />
+                        <input
+                            value={search}
+                            onChange={event => setSearch(event.target.value)}
+                            placeholder="Search or start a new chat"
+                        />
+                        {search && (
+                            <button className="wa-search-clear" onClick={() => setSearch("")} title="Clear">
+                                <FaTimes />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="wa-chips">
+                        {[
+                            { key: "all", label: "All" },
+                            { key: "unread", label: unreadConversationCount ? `Unread ${unreadConversationCount}` : "Unread" },
+                            { key: "groups", label: "Groups" },
+                            { key: "direct", label: "Direct" }
+                        ].map(chip => (
+                            <button
+                                key={chip.key}
+                                className={listFilter === chip.key ? "active" : ""}
+                                onClick={() => setListFilter(chip.key)}
+                            >
+                                {chip.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="chat-sidebar-top wa-store-row">
                         <label>
                             <FaStore />
-                            Your store
+                            Store
                         </label>
 
                         <select
@@ -1554,23 +1597,14 @@ function Chat() {
                         </select>
                     </div>
 
-                    <div className="chat-search">
-                        <FaSearch />
-                        <input
-                            value={search}
-                            onChange={event => setSearch(event.target.value)}
-                            placeholder="Search people or chats…"
-                        />
-                    </div>
-
                     <div className="chat-list-heading">
                         <span>Recent chats</span>
-                        <strong>{filteredConversations.length}</strong>
+                        <strong>{displayedConversations.length}</strong>
                     </div>
 
                     <div className="chat-conversation-list">
-                        {filteredConversations.length ? (
-                            filteredConversations.map(conversation => {
+                        {displayedConversations.length ? (
+                            displayedConversations.map(conversation => {
                                 const other =
                                     conversation.conversation_type === "direct"
                                         ? conversation.members?.find(
@@ -1658,10 +1692,18 @@ function Chat() {
                         ) : (
                             <div className="chat-empty-list">
                                 <FaComments />
-                                <p>No conversations yet.</p>
-                                <button onClick={() => setShowContacts(true)}>
-                                    Start a chat
-                                </button>
+                                <p>
+                                    {listFilter === "unread"
+                                        ? "No unread chats."
+                                        : listFilter === "groups"
+                                            ? "No group chats yet."
+                                            : "No conversations yet."}
+                                </p>
+                                {canAdd && (
+                                    <button onClick={() => setShowContacts(true)}>
+                                        Start a chat
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1669,11 +1711,33 @@ function Chat() {
 
                 <main className="chat-main">
                     {!selectedConversation ? (
-                        <div className="chat-empty-main" aria-hidden="true" />
+                        <div className="chat-empty-main wa-welcome">
+                            <div className="wa-welcome-card">
+                                <div className="wa-welcome-art">
+                                    <FaComments />
+                                </div>
+                                <h2>MiArcus Chat</h2>
+                                <p>
+                                    Send and receive messages, share photos and documents,
+                                    and call the people in your stores — all in one place.
+                                </p>
+                                {canAdd && (
+                                    <button className="wa-welcome-btn" onClick={() => setShowContacts(true)}>
+                                        <FaCommentMedical /> Start a new chat
+                                    </button>
+                                )}
+                            </div>
+                            <div className="wa-welcome-foot">
+                                <FaLock /> Your messages are private to your team
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <header className="chat-conversation-header">
                                 <div className="chat-person">
+                                    <button className="wa-back" onClick={closeConversation} title="Back to chats">
+                                        <FaArrowLeft />
+                                    </button>
                                     <div className="chat-avatar large">
                                         {selectedOtherMember?.profile_photo ? (
                                             <img
@@ -1765,12 +1829,23 @@ function Chat() {
                                 {messagesLoading ? (
                                     <div className="chat-message-loading"><PremiumLoader compact title="Loading messages" /></div>
                                 ) : visibleMessages.length ? (
-                                    visibleMessages.map(item => {
+                                    visibleMessages.map((item, index) => {
                                         const mine =
                                             Number(item.sender_id) ===
                                             Number(currentUser.id);
+                                        const label = dayLabel(item.created_at);
+                                        const previousLabel = index > 0
+                                            ? dayLabel(visibleMessages[index - 1]?.created_at)
+                                            : "";
+                                        const showDay = label && label !== previousLabel;
 
                                         return (
+                                            <Fragment key={item.id}>
+                                            {showDay && (
+                                                <div className="wa-day-separator">
+                                                    <span>{label}</span>
+                                                </div>
+                                            )}
                                             <div
                                                 key={item.id}
                                                 data-message-id={item.id}
@@ -1930,6 +2005,7 @@ function Chat() {
                                                     )}
                                                 </div>
                                             </div>
+                                            </Fragment>
                                         );
                                     })
                                 ) : (
@@ -2075,7 +2151,7 @@ function Chat() {
                                         placeholder={
                                             editing
                                                 ? "Edit your message…"
-                                                : "Write a message…"
+                                                : "Type a message"
                                         }
                                         rows={1}
                                     />

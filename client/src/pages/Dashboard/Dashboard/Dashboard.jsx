@@ -82,10 +82,42 @@ function Dashboard() {
 
   };
 
+  // ======================================================
+  // Real-time refresh
+  // - loads immediately
+  // - re-polls every 30 seconds
+  // - re-loads instantly when the tab / window regains focus
+  //   (e.g. after closing Action Points in another tab)
+  // ======================================================
+
+  const [lastUpdated, setLastUpdated] = useState(null);
+
   useEffect(() => {
 
-    loadDashboardStats();
+    let cancelled = false;
 
+    const refresh = async () => {
+      if (cancelled || document.visibilityState === "hidden") return;
+      await loadDashboardStats();
+      if (!cancelled) setLastUpdated(new Date());
+    };
+
+    refresh();
+
+    const poll = setInterval(refresh, 30000);
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -483,7 +515,7 @@ function Dashboard() {
 
               <h3>Checklist Submissions</h3>
 
-              <h2>{dashboardStats.totalChecklists}</h2>
+              <h2>{Number(dashboardStats.totalChecklists || 0).toLocaleString("en-IN")}</h2>
 
               <p>Total Submissions</p>
 
@@ -505,9 +537,22 @@ function Dashboard() {
 
               <h3>Pending Action Points</h3>
 
-              <h2>{dashboardStats.pendingActionPoints}</h2>
+              <h2
+                style={{ cursor: "pointer" }}
+                title="Open Action Points"
+                onClick={() => navigate("/action-points")}
+              >
+                {Number(dashboardStats.pendingActionPoints || 0).toLocaleString("en-IN")}
+              </h2>
 
-              <p>Need Attention</p>
+              <p>
+                Open + In Progress
+                {lastUpdated && (
+                  <span style={{ display: "block", fontSize: 11, color: "#16a34a", fontWeight: 600, marginTop: 2 }}>
+                    ● Live · {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                )}
+              </p>
 
             </div>
 

@@ -581,7 +581,7 @@ table td:last-child{
    COMPLETED LABEL
 ========================================================== */
 
-.action-buttons span{
+.action-buttons > span{
 
     color:#16a34a;
 

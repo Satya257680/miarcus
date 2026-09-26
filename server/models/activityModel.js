@@ -148,17 +148,34 @@ Activity.getAll = (filters, user, callback) => {
     // ORDER
     // ======================================================
 
+    // ======================================================
+    // TOTAL COUNT (used by the UI to build a clean Sl. No.
+    // that always restarts from 1 after "Delete All")
+    // ======================================================
+
+    const whereIndex = sql.indexOf("WHERE 1 = 1");
+    const countSql = `
+        SELECT
+            COUNT(*) AS total,
+            COALESCE(SUM(DATE(a.created_at) = CURDATE()), 0) AS today,
+            COALESCE(SUM(a.priority IN ('High', 'Critical')), 0) AS high_priority,
+            COALESCE(SUM(a.status IN ('Open', 'In Progress')), 0) AS open_count
+        FROM activities a
+        ${sql.slice(whereIndex)}
+    `;
+    const countParams = [...params];
+
     sql += `
-        ORDER BY a.created_at DESC
+        ORDER BY a.created_at DESC, a.id DESC
     `;
 
     // ======================================================
     // PAGINATION
     // ======================================================
 
-    const page = Number(filters.page) || 1;
+    const page = Math.max(Number(filters.page) || 1, 1);
 
-    const limit = Number(filters.limit) || 10;
+    const limit = Math.min(Math.max(Number(filters.limit) || 10, 1), 200);
 
     const offset = (page - 1) * limit;
 
@@ -168,7 +185,34 @@ Activity.getAll = (filters, user, callback) => {
 
     params.push(limit, offset);
 
-    db.query(sql, params, callback);
+    db.query(sql, params, (err, rows) => {
+        if (err) return callback(err);
+
+        db.query(countSql, countParams, (countErr, countRows) => {
+            // A failed count must never break the list itself.
+            const total = countErr
+                ? offset + (rows || []).length
+                : Number(countRows?.[0]?.total || 0);
+
+            // Sl. No. = position counted from the OLDEST matching record,
+            // so the first activity logged after a Delete All is #1,
+            // the next one is #2, and so on.
+            const data = (rows || []).map((row, index) => ({
+                ...row,
+                sl_no: Math.max(total - offset - index, 1)
+            }));
+
+            const c = countErr ? {} : (countRows?.[0] || {});
+            const summary = {
+                total,
+                today: Number(c.today || 0),
+                high_priority: Number(c.high_priority || 0),
+                open: Number(c.open_count || 0)
+            };
+
+            callback(null, data, { total, page, limit, summary });
+        });
+    });
 
 };
 
@@ -855,7 +899,26 @@ Activity.deleteAll = (filters, user, callback) => {
         ];
 
         const run = (index) => {
-            if (index >= children.length) return callback(null, { deleted: ids.length });
+            if (index >= children.length) {
+                // Reset the counter so fresh records start from 1 again.
+                // MySQL automatically clamps this to MAX(id) + 1, so it is
+                // always safe even when some rows remain.
+                const resetSql = [
+                    "activities",
+                    "activity_messages",
+                    "activity_comments",
+                    "activity_files",
+                    "activity_mentions",
+                    "activity_notifications",
+                    "activity_timeline",
+                ].map((table) => `ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+
+                const reset = (i) => {
+                    if (i >= resetSql.length) return callback(null, { deleted: ids.length });
+                    db.query(resetSql[i], [], () => reset(i + 1));
+                };
+                return reset(0);
+            }
             db.query(children[index], ids, (err) => {
                 if (err) return callback(err);
                 run(index + 1);
