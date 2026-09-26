@@ -103,6 +103,16 @@ function Settings() {
         },
 
         {
+            category: "Operations",
+            permission: "Daily Collection Email Routing",
+            title: "Daily Collection Email Routing",
+            description: "Choose who receives the one daily summary and the store-manager pending, blocked and ready emails.",
+            icon: FaEnvelope,
+            path: "/settings/daily-collection-email",
+            adminOnly: true
+        },
+
+        {
             category: "Checklist & Controls",
             permission: "Checklist Email Routing",
             title: "Checklist Email Routing",

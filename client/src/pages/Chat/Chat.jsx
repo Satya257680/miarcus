@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -1427,11 +1428,7 @@ function Chat() {
     if (loading) {
         return (
             <div className="chat-page chat-loading">
-                <div className="chat-loading-card">
-                    <FaComments />
-                    <h2>Loading Chat</h2>
-                    <p>Preparing your store conversations…</p>
-                </div>
+                <PremiumLoader title="Loading Chat" message="Preparing your store conversations…" />
             </div>
         );
     }
@@ -1766,9 +1763,7 @@ function Chat() {
 
                             <div className="chat-message-area">
                                 {messagesLoading ? (
-                                    <div className="chat-message-loading">
-                                        Loading messages…
-                                    </div>
+                                    <div className="chat-message-loading"><PremiumLoader compact title="Loading messages" /></div>
                                 ) : visibleMessages.length ? (
                                     visibleMessages.map(item => {
                                         const mine =
@@ -2230,7 +2225,7 @@ function Chat() {
                         </header>
                         <div className="chat-media-grid">
                             {mediaLoading ? (
-                                <div className="chat-modal-empty">Loading shared media…</div>
+                                <div className="chat-modal-empty"><PremiumLoader compact title="Loading shared media" /></div>
                             ) : mediaMessages.length ? (
                                 mediaMessages.map(item => (
                                     <a
@@ -2272,7 +2267,7 @@ function Chat() {
                         </header>
                         <div className="chat-starred-list">
                             {starredLoading ? (
-                                <div className="chat-modal-empty">Loading starred messages…</div>
+                                <div className="chat-modal-empty"><PremiumLoader compact title="Loading starred messages" /></div>
                             ) : starredMessages.length ? (
                                 starredMessages.map(item => (
                                     <button
@@ -2554,7 +2549,7 @@ function Chat() {
 
                         <div className="chat-call-history-list">
                             {callHistoryLoading ? (
-                                <div className="chat-modal-empty">Loading call history…</div>
+                                <div className="chat-modal-empty"><PremiumLoader compact title="Loading call history" /></div>
                             ) : callHistory.length ? (
                                 callHistory.map(call => {
                                     const mine = Number(call.caller_id) === Number(currentUser.id);

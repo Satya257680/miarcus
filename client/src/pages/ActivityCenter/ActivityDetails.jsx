@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios, { API_BASE_URL } from "../../axiosConfig.js";
@@ -246,7 +247,7 @@ function ActivityDetails() {
         }
     };
 
-    if (loading) return <div className="activity-details-page">Loading activity details...</div>;
+    if (loading) return <div className="activity-details-page"><PremiumLoader compact title="Loading activity details" /></div>;
     if (!activity) return <div className="activity-details-page">Activity Not Found</div>;
 
     return (
@@ -384,7 +385,7 @@ function ActivityDetails() {
                         </div>
                         <div className="chat-context">{activity.title} • {activity.module_name}</div>
                         <div className="chat-messages">
-                            {loadingMessages && messages.length === 0 ? <div className="chat-empty">Loading messages...</div> : messages.length === 0 ? <div className="chat-empty"><FaComments /><p>No messages yet.</p><span>Start the conversation below.</span></div> : messages.map((message) => {
+                            {loadingMessages && messages.length === 0 ? <div className="chat-empty"><PremiumLoader compact title="Loading messages" /></div> : messages.length === 0 ? <div className="chat-empty"><FaComments /><p>No messages yet.</p><span>Start the conversation below.</span></div> : messages.map((message) => {
                                 const mine = Number(message.sender_id) === currentUserId;
                                 return <div className={`chat-row ${mine ? "mine" : "theirs"}`} key={message.id}><div className="chat-bubble"><div>{message.message}</div><small>{mine ? (currentUser?.name || "You") : (message.sender_name || recipientName)} • {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div></div>;
                             })}

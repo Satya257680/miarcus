@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     FaArrowRight, FaBookOpen, FaChevronDown, FaClock, FaComments,
@@ -281,7 +282,7 @@ function HelpCenter({ publicMode = false }) {
         </div>
         <div className="hc-tabs"><button className={tab==="home"?'active':''} onClick={()=>setTab("home")}><FaBookOpen/> Help Center</button><button className={tab==="zarvis"?'active':''} onClick={()=>setTab("zarvis")}><FaRobot/> Ask Zarvis</button>{!publicMode&&<button className={tab==="support"?'active':''} onClick={()=>setTab("support")}><FaHeadset/> My Support</button>}{isAdmin&&!publicMode&&<button className={tab==="admin"?'active':''} onClick={()=>setTab("admin")}><FaShieldAlt/> Admin Console</button>}</div>
         {toast && <div className="hc-toast" onClick={()=>setToast("")}>{toast}<FaTimes/></div>}
-        {loading ? <div className="hc-loading"><FaCircleNotch className="hc-spin-icon"/> Loading your Help Center…</div> : <>
+        {loading ? <div className="hc-loading"><PremiumLoader compact title="Loading your Help Center" /></div> : <>
             {tab==="home" && <>
                 <div className="hc-search-wrap"><FaSearch/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search guides, policies, how-to answers…"/><span>{filtered.length} guides</span></div>
                 <div className="hc-category-row">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>

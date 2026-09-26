@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios from "./expenseApi";
 import {
@@ -151,7 +152,7 @@ function ExpenseDetails({ id, onClose, onDeleted }) {
                 </div>
 
                 {loading ? (
-                    <div className="expense-empty">Loading verification report...</div>
+                    <div className="expense-empty"><PremiumLoader compact title="Loading verification report" /></div>
                 ) : !expense ? (
                     <div className="expense-empty">Unable to load this expense.</div>
                 ) : (

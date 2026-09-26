@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { API_BASE_URL } from "../../axiosConfig.js";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import React, { useEffect, useMemo, useState } from "react";
@@ -586,6 +587,7 @@ function ProductList() {
   const [total, setTotal] = useState(0);
 
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -708,6 +710,7 @@ function ProductList() {
     }
 
     try {
+      setBulkUploading(true);
       const formData = new FormData();
 
       formData.append("file", file);
@@ -729,11 +732,21 @@ function ProductList() {
         error?.response?.data?.message ||
           "Bulk upload failed."
       );
+    } finally {
+      setBulkUploading(false);
     }
   };
 
   return (
     <div className="ct-shell">
+      {bulkUploading && (
+        <PremiumLoader
+          overlay
+          title="Importing Your Data..."
+          message="Your SKU file is being validated and saved to Collection Tracking."
+          caption="Importing products... please do not close this page."
+        />
+      )}
       <Hero
         title="SKU Details"
         subtitle="Manage and track product SKUs across the complete Collection Tracking workflow."
@@ -857,11 +870,7 @@ function ProductList() {
               {loading ? (
                 <tr>
                   <td colSpan="7">
-                    <div className="ct-empty ct-empty-loading">
-                      <span className="ct-empty-icon"><FaBoxOpen /></span>
-                      <b>Loading your collection...</b>
-                      <small>Fetching the latest workflow products.</small>
-                    </div>
+                    <PremiumLoader compact title="Loading your collection" />
                   </td>
                 </tr>
               ) : rows.length ? (
@@ -1678,9 +1687,7 @@ function Details() {
   if (!result) {
     return (
       <div className="ct-shell">
-        <div className="ct-card ct-empty">
-          Loading product...
-        </div>
+        <div className="ct-card ct-empty"><PremiumLoader compact title="Loading product" /></div>
       </div>
     );
   }

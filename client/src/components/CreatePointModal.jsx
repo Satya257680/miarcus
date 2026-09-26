@@ -1,3 +1,4 @@
+import PremiumLoader from "./premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/CreatePointModal.css";
@@ -597,11 +598,7 @@ function CreatePointModal({
 
             <div className="action-point-loading">
 
-              <div className="loading-spinner"></div>
-
-              <span>
-                Loading form data...
-              </span>
+              <PremiumLoader compact title="Loading form data" />
 
             </div>
 

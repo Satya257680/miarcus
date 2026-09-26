@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { FaChartBar, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
@@ -245,7 +246,7 @@ export default function DailyCollectionReport() {
             </section>
 
             <section className="daily-report-table-wrap">
-                {loading ? <div className="collection-empty">Loading daily report...</div> : !filteredReports.length ? <div className="collection-empty">No Daily Collection data for this date.</div> : (
+                {loading ? <div className="collection-empty"><PremiumLoader compact title="Loading daily report" /></div> : !filteredReports.length ? <div className="collection-empty">No Daily Collection data for this date.</div> : (
                     <div className="daily-report-table-scroll">
                         <table className="daily-report-table">
                             <thead><tr><th>Store</th><th>Status</th><th>Bills</th><th>System Total</th><th>UPI</th><th>Cash</th><th>Bank</th><th>Card</th><th>Collected</th><th>Variance</th><th>Submitted By</th><th>Actions</th></tr></thead>

@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import axios from "./expenseApi";
@@ -945,9 +946,7 @@ This action cannot be undone.`
                                     <td
                                         colSpan="10"
                                         className="expense-table-empty"
-                                    >
-                                        Loading expenses...
-                                    </td>
+                                    ><PremiumLoader compact title="Loading expenses" /></td>
 
                                 </tr>
 

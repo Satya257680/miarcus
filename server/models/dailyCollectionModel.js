@@ -83,6 +83,56 @@ DailyCollection.ensureTables = async () => {
         ON DUPLICATE KEY UPDATE id = id
     `);
 
+    // --------------------------------------------------
+    // EMAIL ROUTING (Settings → Daily Collection Email Routing)
+    // summary_mode:
+    //   'all'      – every enabled recipient (all administrators by default)
+    //   'specific' – only recipients ticked for "Summary"
+    // --------------------------------------------------
+    for (const [column, definition] of [
+        ["summary_mode", "VARCHAR(20) NOT NULL DEFAULT 'all'"],
+        ["manager_reminder_enabled", "TINYINT(1) NOT NULL DEFAULT 1"],
+        ["blocked_email_enabled", "TINYINT(1) NOT NULL DEFAULT 1"],
+        ["ready_email_enabled", "TINYINT(1) NOT NULL DEFAULT 1"]
+    ]) {
+        try {
+            await db.query(`ALTER TABLE daily_collection_email_settings ADD COLUMN ${column} ${definition}`);
+        } catch (error) {
+            if (error?.code !== "ER_DUP_FIELDNAME") {
+                console.error(`Daily Collection email settings migration (${column}) skipped:`, error.message || error);
+            }
+        }
+    }
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS daily_collection_email_recipients (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            recipient_key VARCHAR(80) NOT NULL,
+            user_id INT NULL,
+            role_label VARCHAR(120) NOT NULL DEFAULT 'Administrator',
+            contact_name VARCHAR(160) NULL,
+            email VARCHAR(255) NULL,
+            enabled TINYINT(1) NOT NULL DEFAULT 1,
+            receive_summary TINYINT(1) NOT NULL DEFAULT 1,
+            is_custom TINYINT(1) NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_dc_email_recipient_key (recipient_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // One admin summary per report date (claim + sent markers make it
+    // safe when several server instances run the scheduler).
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS daily_collection_summary_log (
+            report_date DATE NOT NULL,
+            claimed_at DATETIME NULL,
+            sent_at DATETIME NULL,
+            recipients INT NOT NULL DEFAULT 0,
+            PRIMARY KEY (report_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     await db.query(`
         CREATE TABLE IF NOT EXISTS daily_collection_access_controls (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -108,7 +158,7 @@ DailyCollection.getStoreManagers = async (storeId) => {
     const rows = await db.query(`
         SELECT DISTINCT
             u.id, u.name, u.email, u.call_contact,
-            s.store_name,
+            s.store_name, s.store_code, s.city,
             u.name AS manager_name,
             s.email AS store_email
         FROM chat_store_managers csm
@@ -135,18 +185,230 @@ DailyCollection.getAdminRecipients = async () => {
 };
 
 DailyCollection.getEmailSettings = async () => {
-    const rows = await db.query(`
-        SELECT email_enabled, updated_by, updated_at
-        FROM daily_collection_email_settings
-        WHERE id = 1
-        LIMIT 1
-    `);
+    let rows;
+    try {
+        rows = await db.query(`
+            SELECT email_enabled, summary_mode, manager_reminder_enabled,
+                   blocked_email_enabled, ready_email_enabled, updated_by, updated_at
+            FROM daily_collection_email_settings
+            WHERE id = 1
+            LIMIT 1
+        `);
+    } catch (error) {
+        // Older schema (before the routing columns were added).
+        rows = await db.query(`
+            SELECT email_enabled, updated_by, updated_at
+            FROM daily_collection_email_settings
+            WHERE id = 1
+            LIMIT 1
+        `);
+    }
     const row = rows[0] || {};
+    const flag = (value) => Boolean(Number(value ?? 1));
     return {
-        email_enabled: Boolean(row.email_enabled ?? 1),
+        email_enabled: flag(row.email_enabled),
+        summary_mode: row.summary_mode === "specific" ? "specific" : "all",
+        manager_reminder_enabled: flag(row.manager_reminder_enabled),
+        blocked_email_enabled: flag(row.blocked_email_enabled),
+        ready_email_enabled: flag(row.ready_email_enabled),
         updated_by: row.updated_by || null,
         updated_at: row.updated_at || null
     };
+};
+
+// ------------------------------------------------------
+// EMAIL ROUTING
+// Every active administrator is listed automatically (can be
+// switched off). Extra custom emails can be added by admins.
+// ------------------------------------------------------
+DailyCollection.syncAdminRecipients = async () => {
+    const admins = await DailyCollection.getAdminRecipients();
+    for (const admin of admins) {
+        await db.query(`
+            INSERT INTO daily_collection_email_recipients
+                (recipient_key, user_id, role_label, contact_name, email, enabled, receive_summary, is_custom)
+            VALUES (?, ?, 'Administrator', ?, ?, 1, 1, 0)
+            ON DUPLICATE KEY UPDATE
+                user_id = VALUES(user_id),
+                contact_name = VALUES(contact_name),
+                email = VALUES(email)
+        `, [`user_${admin.id}`, admin.id, admin.name || null, String(admin.email || "").trim().toLowerCase() || null]);
+    }
+};
+
+DailyCollection.getRoutingSettings = async () => {
+    await DailyCollection.syncAdminRecipients();
+    const settings = await DailyCollection.getEmailSettings();
+    const recipients = await db.query(`
+        SELECT r.id, r.recipient_key, r.user_id, r.role_label, r.contact_name, r.email,
+               r.enabled, r.receive_summary, r.is_custom
+        FROM daily_collection_email_recipients r
+        LEFT JOIN users u ON u.id = r.user_id
+        WHERE r.is_custom = 1
+           OR (u.id IS NOT NULL AND u.is_admin = 1 AND u.status = 'Active')
+        ORDER BY r.is_custom ASC, r.contact_name ASC, r.id ASC
+    `);
+    return { ...settings, recipients };
+};
+
+DailyCollection.saveRoutingSettings = async (payload = {}, adminId = null) => {
+    const bool = (value, fallback = true) =>
+        value === undefined || value === null ? (fallback ? 1 : 0) : (value === true || value === 1 || value === "1" || value === "true" ? 1 : 0);
+
+    await db.query(`
+        UPDATE daily_collection_email_settings
+        SET email_enabled = ?,
+            summary_mode = ?,
+            manager_reminder_enabled = ?,
+            blocked_email_enabled = ?,
+            ready_email_enabled = ?,
+            updated_by = ?
+        WHERE id = 1
+    `, [
+        bool(payload.email_enabled),
+        payload.summary_mode === "specific" ? "specific" : "all",
+        bool(payload.manager_reminder_enabled),
+        bool(payload.blocked_email_enabled),
+        bool(payload.ready_email_enabled),
+        adminId
+    ]);
+
+    const list = Array.isArray(payload.recipients) ? payload.recipients : [];
+    const keep = [];
+    for (const item of list) {
+        const key = String(item?.recipient_key || "").trim().slice(0, 80);
+        if (!key) continue;
+        const isCustom = key.startsWith("custom_") ? 1 : 0;
+        const email = String(item.email || "").trim().toLowerCase().slice(0, 255);
+        if (isCustom && !email) continue;
+        keep.push(key);
+        await db.query(`
+            INSERT INTO daily_collection_email_recipients
+                (recipient_key, user_id, role_label, contact_name, email, enabled, receive_summary, is_custom)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                role_label = VALUES(role_label),
+                contact_name = VALUES(contact_name),
+                email = IF(is_custom = 1, VALUES(email), email),
+                enabled = VALUES(enabled),
+                receive_summary = VALUES(receive_summary)
+        `, [
+            key,
+            isCustom ? null : (Number(item.user_id) || null),
+            String(item.role_label || (isCustom ? "Recipient" : "Administrator")).trim().slice(0, 120),
+            String(item.contact_name || "").trim().slice(0, 160) || null,
+            email || null,
+            bool(item.enabled),
+            bool(item.receive_summary),
+            isCustom
+        ]);
+    }
+
+    // Custom rows removed on the page are deleted.
+    if (keep.length) {
+        await db.query(
+            `DELETE FROM daily_collection_email_recipients
+             WHERE is_custom = 1 AND recipient_key NOT IN (${keep.map(() => "?").join(",")})`,
+            keep
+        );
+    } else {
+        await db.query(`DELETE FROM daily_collection_email_recipients WHERE is_custom = 1`);
+    }
+
+    return DailyCollection.getRoutingSettings();
+};
+
+// Recipients of the ONE daily administrator summary email.
+DailyCollection.getSummaryRecipients = async () => {
+    const settings = await DailyCollection.getRoutingSettings();
+    const valid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+    return settings.recipients.filter((row) =>
+        Number(row.enabled) === 1 &&
+        valid(row.email) &&
+        (settings.summary_mode === "all" || Number(row.receive_summary) === 1)
+    );
+};
+
+// ------------------------------------------------------
+// ADMIN SUMMARY (one per report date)
+// ------------------------------------------------------
+DailyCollection.claimSummary = async (reportDate) => {
+    await db.query(`
+        INSERT INTO daily_collection_summary_log (report_date)
+        VALUES (?)
+        ON DUPLICATE KEY UPDATE report_date = report_date
+    `, [reportDate]);
+    const result = await db.query(`
+        UPDATE daily_collection_summary_log
+        SET claimed_at = NOW()
+        WHERE report_date = ?
+          AND sent_at IS NULL
+          AND (claimed_at IS NULL OR claimed_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+    `, [reportDate]);
+    return Number(result.affectedRows || 0) > 0;
+};
+
+DailyCollection.markSummarySent = async (reportDate, recipients) => {
+    await db.query(`
+        UPDATE daily_collection_summary_log
+        SET sent_at = NOW(), recipients = ?
+        WHERE report_date = ?
+    `, [Number(recipients || 0), reportDate]);
+};
+
+DailyCollection.releaseSummaryClaim = async (reportDate) => {
+    await db.query(`
+        UPDATE daily_collection_summary_log
+        SET claimed_at = NULL
+        WHERE report_date = ? AND sent_at IS NULL
+    `, [reportDate]);
+};
+
+DailyCollection.getSummaryStats = async (reportDate) => {
+    const rows = await db.query(`
+        SELECT
+            COUNT(*) AS total,
+            SUM(r.status = 'submitted') AS submitted,
+            SUM(r.status = 'missing') AS pending,
+            SUM(r.status = 'locked') AS blocked
+        FROM daily_collection_reports r
+        INNER JOIN stores s ON s.id = r.store_id
+        WHERE r.report_date = ?
+          AND s.status = 'Active'
+    `, [reportDate]);
+    const row = rows[0] || {};
+    const pendingStores = await db.query(`
+        SELECT r.id, r.status, s.store_name, s.store_code,
+               GROUP_CONCAT(DISTINCT mu.name ORDER BY mu.name SEPARATOR ', ') AS manager_name
+        FROM daily_collection_reports r
+        INNER JOIN stores s ON s.id = r.store_id
+        LEFT JOIN chat_store_managers csm ON csm.store_id = s.id
+        LEFT JOIN users mu ON mu.id = csm.user_id AND mu.status = 'Active' AND mu.is_admin = 0
+        WHERE r.report_date = ?
+          AND s.status = 'Active'
+          AND r.status IN ('missing', 'locked')
+        GROUP BY r.id, r.status, s.store_name, s.store_code
+        ORDER BY s.store_name ASC
+    `, [reportDate]);
+    return {
+        stats: {
+            total: Number(row.total || 0),
+            submitted: Number(row.submitted || 0),
+            pending: Number(row.pending || 0),
+            blocked: Number(row.blocked || 0)
+        },
+        pendingStores
+    };
+};
+
+DailyCollection.getStoreInfo = async (storeId) => {
+    const rows = await db.query(`
+        SELECT id, store_name, store_code, city
+        FROM stores
+        WHERE id = ?
+        LIMIT 1
+    `, [storeId]);
+    return rows[0] || null;
 };
 
 DailyCollection.updateEmailSettings = async (enabled, adminId) => {
@@ -615,6 +877,71 @@ DailyCollection.getBlockedReports = async () => {
         GROUP BY c.store_id, c.report_date, s.store_name
         ORDER BY MAX(c.blocked_at) DESC
     `);
+};
+
+// Blocked stores page: one row per blocked store/date with the manager
+// contact details so the administrator can call / email them.
+DailyCollection.getBlockedStores = async () => {
+    return db.query(`
+        SELECT
+            MIN(c.id) AS control_id,
+            c.store_id,
+            DATE_FORMAT(c.report_date, '%Y-%m-%d') AS report_date,
+            MAX(c.blocked_at) AS blocked_at,
+            MAX(c.blocked_by) AS blocked_by,
+            MAX(c.reason) AS reason,
+            s.store_name,
+            s.store_code,
+            s.city,
+            COUNT(DISTINCT c.user_id) AS blocked_user_count,
+            GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ') AS manager_names,
+            GROUP_CONCAT(DISTINCT u.email ORDER BY u.name SEPARATOR ', ') AS manager_emails,
+            GROUP_CONCAT(DISTINCT u.call_contact ORDER BY u.name SEPARATOR ', ') AS manager_phones,
+            MAX(ba.name) AS blocked_by_name,
+            MAX(r.status) AS report_status
+        FROM daily_collection_access_controls c
+        INNER JOIN users u ON u.id = c.user_id
+        INNER JOIN stores s ON s.id = c.store_id
+        LEFT JOIN users ba ON ba.id = c.blocked_by
+        LEFT JOIN daily_collection_reports r ON r.store_id = c.store_id AND r.report_date = c.report_date
+        WHERE c.unblocked_at IS NULL
+          AND COALESCE(u.is_admin, 0) = 0
+          AND u.status = 'Active'
+        GROUP BY c.store_id, c.report_date, s.store_name, s.store_code, s.city
+        ORDER BY MAX(c.blocked_at) DESC
+    `);
+};
+
+DailyCollection.getUnblockHistory = async (limit = 100) => {
+    return db.query(`
+        SELECT
+            c.store_id,
+            DATE_FORMAT(c.report_date, '%Y-%m-%d') AS report_date,
+            MAX(c.blocked_at) AS blocked_at,
+            MAX(c.unblocked_at) AS unblocked_at,
+            MAX(ub.name) AS unblocked_by_name,
+            s.store_name,
+            s.store_code,
+            GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ') AS manager_names
+        FROM daily_collection_access_controls c
+        INNER JOIN users u ON u.id = c.user_id
+        INNER JOIN stores s ON s.id = c.store_id
+        LEFT JOIN users ub ON ub.id = c.unblocked_by
+        WHERE c.unblocked_at IS NOT NULL
+        GROUP BY c.store_id, c.report_date, s.store_name, s.store_code
+        ORDER BY MAX(c.unblocked_at) DESC
+        LIMIT ?
+    `, [Number(limit) || 100]);
+};
+
+DailyCollection.getControl = async (controlId) => {
+    const rows = await db.query(`
+        SELECT c.id, c.store_id, DATE_FORMAT(c.report_date, '%Y-%m-%d') AS report_date, c.unblocked_at
+        FROM daily_collection_access_controls c
+        WHERE c.id = ?
+        LIMIT 1
+    `, [Number(controlId)]);
+    return rows[0] || null;
 };
 
 DailyCollection.getReportById = async ({ id, userId, isAdmin }) => {

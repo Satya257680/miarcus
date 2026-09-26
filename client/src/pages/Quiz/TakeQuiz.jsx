@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../axiosConfig";
@@ -426,9 +427,7 @@ function TakeQuiz() {
             {loading && (
 
                 <div className="tq-empty">
-                    <div className="loading-ring" />
-                    <strong>Loading assessments...</strong>
-                    <span>Please wait while active quizzes are loaded.</span>
+                    <PremiumLoader compact title="Loading assessments" />
                 </div>
 
             )}

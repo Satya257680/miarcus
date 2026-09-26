@@ -1,0 +1,575 @@
+/* ======================================================
+   CHECKLIST SUBMISSION — PREMIUM
+   ====================================================== */
+
+.checklist-submission-page.cs-premium {
+    --cs-navy: #14123f;
+    --cs-text: #4b4f72;
+    --cs-muted: #8a8fb0;
+    --cs-violet: #6d3df2;
+    min-height: calc(100vh - 60px);
+    padding: 22px 24px 40px;
+    background: linear-gradient(180deg, #f7f5ff 0%, #f3f2fb 45%, #f4f5fa 100%);
+    font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--cs-navy);
+}
+
+.cs-premium *,
+.cs-premium *::before,
+.cs-premium *::after {
+    box-sizing: border-box;
+}
+
+/* ---------- hero ---------- */
+
+.cs-hero {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 330px;
+    align-items: center;
+    gap: 18px;
+    min-height: 200px;
+    padding: 26px 28px;
+    border-radius: 22px;
+    border: 1px solid #e6defd;
+    background:
+        radial-gradient(circle at 62% 10%, rgba(255, 255, 255, 0.8), transparent 35%),
+        linear-gradient(110deg, #f6f2ff 0%, #ede5ff 45%, #e6dcff 75%, #efe7ff 100%);
+    box-shadow: 0 16px 36px rgba(84, 60, 190, 0.08);
+}
+
+.cs-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #6d28d9;
+}
+
+.cs-title-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 10px 0 12px;
+}
+
+.cs-title-row h1 {
+    margin: 0;
+    font-size: 44px;
+    line-height: 1.05;
+    font-weight: 900;
+    letter-spacing: -0.8px;
+    color: var(--cs-navy);
+}
+
+.cs-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cs-live i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+    animation: cs-pulse 1.8s ease-out infinite;
+}
+
+@keyframes cs-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+    70% { box-shadow: 0 0 0 9px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.cs-hero-text p {
+    margin: 0;
+    font-size: 17px;
+    color: #2f3160;
+}
+
+.cs-hero-art {
+    height: 210px;
+    width: auto;
+    margin: -28px 0 -30px;
+    object-fit: contain;
+}
+
+.cs-quote {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 22px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 14px 30px rgba(84, 60, 190, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.cs-quote img {
+    width: 54px;
+    height: auto;
+    flex: 0 0 auto;
+}
+
+.cs-quote p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #5b21b6;
+}
+
+/* ---------- stepper card ---------- */
+
+.cs-stepper-card {
+    margin-top: 18px;
+    padding: 26px 22px 22px;
+    border-radius: 22px;
+    background: #ffffff;
+    border: 1px solid #ebe8f6;
+    box-shadow: 0 14px 34px rgba(35, 25, 110, 0.06);
+}
+
+.cs-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 22px;
+}
+
+.cs-step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 8px;
+}
+
+.cs-step-line {
+    position: absolute;
+    top: 28px;
+    right: calc(50% + 34px);
+    width: calc(100% - 68px);
+    height: 3px;
+    border-radius: 3px;
+    background: #dcdff0;
+    overflow: hidden;
+}
+
+.cs-step-line i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #6d3df2, #8b5cf6);
+    transition: width 0.5s ease;
+}
+
+.cs-step-icon {
+    position: relative;
+    z-index: 1;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+    color: #3f3a78;
+    background: #e5e6f2;
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cs-step.is-active .cs-step-icon,
+.cs-step.is-done .cs-step-icon {
+    color: #ffffff;
+    background: linear-gradient(135deg, #6d3df2, #8b5cf6);
+    box-shadow: 0 0 0 7px rgba(109, 61, 242, 0.14), 0 12px 24px rgba(109, 61, 242, 0.3);
+}
+
+.cs-step.is-done .cs-step-icon {
+    box-shadow: 0 10px 20px rgba(109, 61, 242, 0.22);
+}
+
+.cs-step b {
+    margin-top: 14px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--cs-navy);
+}
+
+.cs-step small {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--cs-text);
+}
+
+.cs-step.is-todo b {
+    color: #2f3160;
+}
+
+/* ---------- details card ---------- */
+
+.cs-premium .checklist-form {
+    margin: 0;
+}
+
+.cs-premium .cs-details-card {
+    padding: 22px 24px 20px;
+    border-radius: 18px;
+    background: #fdfcff;
+    border: 1px solid #ece9f7;
+    box-shadow: none;
+}
+
+.cs-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.cs-section-number {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    background: linear-gradient(135deg, #6d3df2, #7c3aed);
+    box-shadow: 0 10px 20px rgba(109, 61, 242, 0.28);
+    flex: 0 0 auto;
+}
+
+.cs-section-heading h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--cs-navy);
+}
+
+.cs-section-heading p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--cs-text);
+}
+
+.cs-premium .selection-grid.cs-fields {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    padding: 16px 0;
+    border-radius: 16px;
+    border: 1px solid #ebe8f6;
+    background: #faf9ff;
+}
+
+.cs-premium .checklist-field.cs-field {
+    display: flex;
+    gap: 12px;
+    padding: 4px 16px;
+    min-width: 0;
+    border-right: 1px solid #ebe8f6;
+    margin: 0;
+}
+
+.cs-premium .checklist-field.cs-field:last-child {
+    border-right: 0;
+}
+
+.cs-field-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    color: #6d28d9;
+    background: #efe9ff;
+    flex: 0 0 auto;
+}
+
+.cs-field-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cs-premium .cs-field label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--cs-navy);
+}
+
+.cs-premium .cs-field label > span:not(.optional-label) {
+    color: #e11d48;
+}
+
+.cs-premium .cs-field .optional-label {
+    padding: 2px 9px;
+    border-radius: 7px;
+    background: #eceaf5;
+    color: #5b5f86;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cs-premium .cs-field select,
+.cs-premium .cs-field input[type="date"] {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid #e0ddf0;
+    background: #ffffff;
+    font-size: 14px;
+    color: var(--cs-navy);
+    outline: none;
+    box-shadow: 0 2px 6px rgba(35, 25, 110, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cs-premium .cs-field select:focus,
+.cs-premium .cs-field input[type="date"]:focus {
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.cs-premium .cs-field small {
+    font-size: 12.5px;
+    color: var(--cs-text);
+    text-align: center;
+}
+
+.cs-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 46px;
+    padding: 0 12px 0 0;
+    border-radius: 12px;
+    border: 1px solid #e0ddf0;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.cs-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.cs-file-btn {
+    display: inline-flex !important;
+    align-items: center;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 18px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #6d3df2, #7c3aed);
+    color: #ffffff !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cs-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13.5px;
+    color: var(--cs-text);
+}
+
+.cs-premium .cs-hint {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #e3e6fb;
+    background: #f5f6ff;
+    font-size: 14.5px;
+    color: #2f3160;
+}
+
+.cs-hint-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #4f46e5;
+    border: 2px solid #c7cbf6;
+    flex: 0 0 auto;
+}
+
+.cs-premium .cs-hint-ok {
+    background: #effbf3;
+    border-color: #cdeed9;
+}
+
+.cs-hint-ok .cs-hint-icon {
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+
+.cs-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.cs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 50px;
+    padding: 0 26px;
+    border-radius: 13px;
+    border: 1px solid transparent;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.cs-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.cs-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.cs-btn-ghost {
+    color: var(--cs-navy);
+    background: #ffffff;
+    border-color: #e0ddf0;
+}
+
+.cs-btn-primary {
+    min-width: 136px;
+    color: #ffffff;
+    background: linear-gradient(90deg, #6d3df2, #7c4dff);
+    box-shadow: 0 12px 24px rgba(109, 61, 242, 0.3);
+}
+
+.cs-premium .questions-section,
+.cs-premium .questions-loading,
+.cs-premium .checklist-error,
+.cs-premium .empty-questions {
+    margin-top: 18px;
+}
+
+.cs-premium .section-icon {
+    background: linear-gradient(135deg, #6d3df2, #7c3aed);
+    color: #ffffff;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 1400px) {
+    .cs-hero {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .cs-quote {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 1150px) {
+    .cs-premium .selection-grid.cs-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 14px;
+    }
+
+    .cs-premium .checklist-field.cs-field:nth-child(2) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 820px) {
+    .checklist-submission-page.cs-premium {
+        padding: 16px 12px 30px;
+    }
+
+    .cs-hero {
+        grid-template-columns: 1fr;
+        padding: 22px 18px;
+    }
+
+    .cs-hero-art {
+        display: none;
+    }
+
+    .cs-title-row h1 {
+        font-size: 32px;
+    }
+
+    .cs-stepper {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 18px;
+    }
+
+    .cs-step-line {
+        display: none;
+    }
+
+    .cs-premium .selection-grid.cs-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .cs-premium .checklist-field.cs-field {
+        border-right: 0;
+    }
+
+    .cs-actions {
+        flex-direction: column-reverse;
+    }
+
+    .cs-btn {
+        width: 100%;
+    }
+}
+
+/* full-width layout inside the premium card */
+.cs-premium .checklist-form,
+.cs-premium .cs-details-card,
+.cs-premium .questions-section {
+    width: 100%;
+    max-width: none;
+}
+
+.cs-premium .cs-file-btn {
+    padding: 0 14px;
+    font-size: 13.5px !important;
+}

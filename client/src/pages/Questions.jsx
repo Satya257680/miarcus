@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -713,11 +714,7 @@ const uploadQuestions = async (file) => {
 
         return (
 
-            <div className="questions-loading">
-
-                Loading Questions...
-
-            </div>
+            <div className="questions-loading"><PremiumLoader title="Loading Questions" /></div>
 
         );
 

@@ -1,3 +1,4 @@
+import PremiumLoader from "./premium/PremiumLoader";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -648,13 +649,7 @@ function AddRuleModal({
 
               <div className="nso-rule-loading">
 
-                <LuLoaderCircle
-                  className="nso-rule-spinner-large"
-                />
-
-                <span>
-                  Loading rule information...
-                </span>
+                <PremiumLoader compact title="Loading rule information" />
 
               </div>
 

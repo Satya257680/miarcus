@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -228,7 +229,7 @@ function ActivityCenter() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="8" className="table-message">Loading activities...</td></tr>
+                            <tr><td colSpan="8" className="table-message"><PremiumLoader compact title="Loading activities" /></td></tr>
                         ) : activities.length === 0 ? (
                             <tr><td colSpan="8" className="table-message">No activities found.</td></tr>
                         ) : activities.map((activity) => (

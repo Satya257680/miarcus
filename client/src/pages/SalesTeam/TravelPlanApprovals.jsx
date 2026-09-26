@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -316,11 +317,7 @@ function TravelPlanApprovals() {
 
         {loading ? (
           <div className="sales-loading-state">
-            <FaSyncAlt className="sales-spin" />
-
-            <span>
-              Loading pending approvals...
-            </span>
+            <PremiumLoader compact title="Loading pending approvals" />
           </div>
         ) : items.length === 0 ? (
           /* ===============================================

@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
@@ -719,15 +720,7 @@ const handleFileChange = async (e) => {
 
             <tbody>
               {loading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={`sk-${i}`} className="sm-skel-row">
-                    {Array.from({ length: 8 }).map((__, j) => (
-                      <td key={j}>
-                        <span className="sm-skel" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                <tr><td colSpan="8"><PremiumLoader compact title="Loading Stores" /></td></tr>
               ) : currentStores.length === 0 ? (
                 <tr>
                   <td colSpan="8">

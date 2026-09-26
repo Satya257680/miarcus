@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -1317,11 +1318,7 @@ const uploadChecklistReport = async (file, assembled) => {
 
         return (
 
-            <div className="reports-loading">
-
-                Loading Checklist Reports...
-
-            </div>
+            <div className="reports-loading"><PremiumLoader title="Loading Checklist Reports" /></div>
 
         );
 

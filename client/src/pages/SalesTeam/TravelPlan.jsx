@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import {
   useCallback,
   useEffect,
@@ -1321,10 +1322,7 @@ function TravelPlan() {
             =========================================== */}
 
             {loadingHistory ? (
-              <div className="sales-loading-state">
-                <FaSyncAlt className="sales-spin" />
-                Loading travel history...
-              </div>
+              <div className="sales-loading-state"><PremiumLoader compact title="Loading travel history" /></div>
             ) : history.length >
               0 ? (
               <div className="history-list">

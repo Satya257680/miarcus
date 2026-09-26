@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import {
     useEffect,
     useMemo,
@@ -1176,16 +1177,7 @@ function EmailSettings() {
 
                 <div className="quiz-loading-state">
 
-                    <FaSpinner className="quiz-spin" />
-
-                    <strong>
-                        Loading Email Settings
-                    </strong>
-
-                    <span>
-                        Preparing quizzes and
-                        recipients...
-                    </span>
+                    <PremiumLoader compact title="Loading Email Settings" />
 
                 </div>
 
@@ -2348,11 +2340,7 @@ third@example.com`
 
                         <div className="quiz-empty">
 
-                            <FaSpinner className="quiz-spin" />
-
-                            <span>
-                                Loading email history...
-                            </span>
+                            <PremiumLoader compact title="Loading email history" />
 
                         </div>
 

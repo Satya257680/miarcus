@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, {
   useCallback,
   useEffect,
@@ -1181,27 +1182,7 @@ export default function DailyBillingReport() {
       ================================================== */}
 
       {loading ? (
-
-        <div
-          className="billing-card billing-loading-card"
-        >
-
-          <div
-            className="billing-loader"
-          />
-
-          <h3>
-            Loading daily report...
-          </h3>
-
-          <p>
-            Fetching billing
-            transactions and
-            payment summary.
-          </p>
-
-        </div>
-
+        <PremiumLoader compact title="Loading daily report" />
       ) : (
 
         <>

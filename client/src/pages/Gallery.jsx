@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import axios from "axios";
@@ -799,6 +800,14 @@ export default function Gallery() {
 
     return (
         <div className="gallery-page">
+            {(bulkUploading || uploading) && (
+                <PremiumLoader
+                    overlay
+                    title={bulkUploading ? "Uploading Your Files..." : "Uploading Your File..."}
+                    message="Your files are being uploaded and added to the Gallery. This may take a few moments."
+                    caption="Uploading... please do not close this page."
+                />
+            )}
             <div className="gallery-header">
                 <div className="gallery-title-row">
                     <div className="gallery-title-icon">
@@ -974,16 +983,7 @@ export default function Gallery() {
             )}
 
             {loading ? (
-                <div className="gallery-grid">
-                    {Array.from({ length: 8 }).map(
-                        (_, index) => (
-                            <div
-                                className="gallery-skeleton"
-                                key={index}
-                            />
-                        )
-                    )}
-                </div>
+                <PremiumLoader compact title="Loading Gallery" />
             ) : photos.length === 0 ? (
                 <div className="gallery-empty">
                     <FaImages />

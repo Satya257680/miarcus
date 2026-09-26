@@ -1,3 +1,4 @@
+import PremiumLoader from "../premium/PremiumLoader";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "../../axiosConfig";
 import { FaBell, FaCheck, FaExternalLinkAlt, FaSyncAlt, FaTrash } from "react-icons/fa";
@@ -242,7 +243,7 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
                     </div>
 
                     <div className="notification-center-list">
-                        {loading && <div className="notification-center-empty">Loading notifications...</div>}
+                        {loading && <div className="notification-center-empty"><PremiumLoader compact title="Loading notifications" /></div>}
                         {!loading && !visible.length && (
                             <div className="notification-center-empty">
                                 <FaBell />

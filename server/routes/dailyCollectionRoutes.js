@@ -16,6 +16,10 @@ router.get("/stores", authMiddleware, canViewBilling, controller.getDailyCollect
 router.get("/reports", authMiddleware, canViewBilling, controller.getCollectionReports);
 
 router.get("/blocked", authMiddleware, adminOnly, controller.getBlockedDailyCollections);
+router.get("/blocked-stores", authMiddleware, adminOnly, controller.getBlockedStores);
+router.get("/email-routing", authMiddleware, adminOnly, controller.getEmailRouting);
+router.put("/email-routing", authMiddleware, adminOnly, controller.saveEmailRouting);
+router.post("/email-routing/test", authMiddleware, adminOnly, controller.sendTestEmails);
 router.get("/email-settings", authMiddleware, adminOnly, controller.getDailyCollectionEmailSettings);
 router.put("/email-settings", authMiddleware, adminOnly, controller.updateDailyCollectionEmailSettings);
 router.post("/blocked", authMiddleware, adminOnly, controller.blockDailyCollection);

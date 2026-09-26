@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
@@ -1011,9 +1012,7 @@ function AttendanceReports() {
 
     if (loading) {
         return (
-            <div className="reports-loading">
-                Loading Attendance Reports...
-            </div>
+            <div className="reports-loading"><PremiumLoader title="Loading Attendance Reports" /></div>
         );
     }
 
@@ -1501,7 +1500,7 @@ function AttendanceReports() {
 
                         <div className="modal-body" style={{ textAlign: "center" }}>
                             {photoPreview.loading ? (
-                                <p>Loading photo...</p>
+                                <PremiumLoader compact title="Loading photo" />
                             ) : (
                                 <>
                                     {photoPreview.record && (() => {

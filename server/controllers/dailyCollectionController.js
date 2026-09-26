@@ -1,6 +1,7 @@
 const { readDeleteScope, eachId, sendFilteredResult } = require("../utils/deleteScope");
 const DailyCollection = require("../models/dailyCollectionModel");
 const emailService = require("../services/emailService");
+const DailyCollectionEmail = require("../utils/emailTemplates/dailyCollectionEmail");
 const XLSX = require("xlsx");
 const fs = require("fs");
 
@@ -562,59 +563,202 @@ const unblockDailyCollection = async (req, res) => {
         const controlId = Number(req.params.controlId);
         if (!controlId) return res.status(400).json({ success: false, message: "Invalid control ID." });
 
+        const control = await DailyCollection.getControl(controlId);
         const updated = await DailyCollection.unblock(controlId, actorId(req));
         if (!updated) return res.status(404).json({ success: false, message: "Block is already cleared or was not found." });
 
-        res.json({ success: true, message: "Daily Collection access restored." });
+        // "Your module is now ready for submission" email to the manager(s).
+        let emailed = false;
+        if (control) {
+            try {
+                const result = await sendReadyEmail(control.store_id, control.report_date);
+                emailed = Boolean(result?.sent);
+            } catch (mailError) {
+                console.error("Daily collection ready email failed:", mailError.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            emailed,
+            message: emailed
+                ? "Daily Collection access restored. The store manager has been emailed."
+                : "Daily Collection access restored."
+        });
     } catch (error) {
         console.error("Daily collection unblock error:", error);
         res.status(500).json({ success: false, message: "Unable to restore daily collection access." });
     }
 };
 
-const sendMissingReminder = async (report) => {
-    const settings = await DailyCollection.getEmailSettings();
-    if (!settings.email_enabled) return { skipped: true, reason: "email_disabled" };
+const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 
-    const admins = await DailyCollection.getAdminRecipients();
-    const managers = await DailyCollection.getStoreManagers(report.store_id);
-    const recipients = [...new Set([
-        ...admins.map((u) => u.email),
-        ...managers.map((u) => u.email)
-    ].filter(Boolean))];
-    if (!recipients.length) return { skipped: true, reason: "no_recipients" };
-
-    const subject = `Action required: Daily Collection missing — ${report.store_name} (${report.report_date})`;
-    const html = `
-        <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto">
-            <h2>Daily Collection Report Missing</h2>
-            <p>The daily collection report for <b>${esc(report.store_name)}</b> for <b>${esc(report.report_date)}</b> was not submitted before the 12:00 AM deadline.</p>
-            <p>Please review the store report in Miarcus. The manager must enter the UPI, cash, bank transfer and card collection amounts and reconcile the total with the bills recorded for the store.</p>
-            <p><b>12-hour escalation:</b> If it remains missing until 12:00 PM, Daily Collection access for the linked store manager will be blocked.</p>
-        </div>`;
-    await emailService.sendGenericEmail({ to: recipients.join(","), subject, html });
-    return { sent: true };
+// Sends the same template once per manager so every email is personal
+// ("Hello Rohit Singh"). Returns { sent: true } when at least one went out.
+const sendToManagers = async (managers, build) => {
+    const list = (managers || []).filter((m) => validEmail(m.email));
+    if (!list.length) return { skipped: true, reason: "no_manager_email" };
+    let sent = 0;
+    for (const manager of list) {
+        const mail = build(manager);
+        await emailService.sendGenericEmail({
+            to: String(manager.email).trim(),
+            subject: mail.subject,
+            html: mail.html,
+            attachments: mail.attachments
+        });
+        sent += 1;
+    }
+    return { sent: sent > 0, count: sent };
 };
 
-const sendEscalation = async (report, managers) => {
+// ------------------------------------------------------
+// 1. ONE administrator summary per report date
+// ------------------------------------------------------
+const sendAdminSummary = async (reportDate) => {
     const settings = await DailyCollection.getEmailSettings();
     if (!settings.email_enabled) return { skipped: true, reason: "email_disabled" };
 
-    const admins = await DailyCollection.getAdminRecipients();
-    const recipients = [...new Set(admins.map((u) => u.email).filter(Boolean))];
-    if (!recipients.length) return { skipped: true, reason: "no_admin_recipients" };
+    const recipients = await DailyCollection.getSummaryRecipients();
+    const emails = [...new Set(recipients.map((r) => String(r.email).trim().toLowerCase()))];
+    if (!emails.length) return { skipped: true, reason: "no_recipients" };
 
-    const managerNames = managers.length ? managers.map((u) => u.name).join(", ") : "No linked store manager user";
-    const subject = `URGENT: Daily Collection access blocked — ${report.store_name} (${report.report_date})`;
-    const html = `
-        <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto">
-            <h2>Daily Collection Escalation</h2>
-            <p>The collection report for <b>${esc(report.store_name)}</b> dated <b>${esc(report.report_date)}</b> is still missing 12 hours after the midnight deadline.</p>
-            <p><b>Manager:</b> ${esc(managerNames)}</p>
-            <p>Daily Collection access has been blocked for the linked manager account(s). Use the administrator control in Miarcus to restore access after the required report is reviewed.</p>
-        </div>`;
-    await emailService.sendGenericEmail({ to: recipients.join(","), subject, html });
-    return { sent: true };
+    const { stats, pendingStores } = await DailyCollection.getSummaryStats(reportDate);
+    const mail = DailyCollectionEmail.buildAdminSummaryEmail({ reportDate, stats, pendingStores });
+
+    // A single email: the first recipient in "to", the rest in BCC-free "to"
+    // list so every selected administrator receives exactly one copy.
+    await emailService.sendGenericEmail({
+        to: emails.join(","),
+        subject: mail.subject,
+        html: mail.html,
+        attachments: mail.attachments
+    });
+    return { sent: true, recipients: emails.length };
+};
+
+// ------------------------------------------------------
+// 2. Pending reminder → store manager(s) only
+// ------------------------------------------------------
+const sendMissingReminder = async (report) => {
+    const settings = await DailyCollection.getEmailSettings();
+    if (!settings.email_enabled || !settings.manager_reminder_enabled) {
+        return { skipped: true, reason: "email_disabled" };
+    }
+
+    const managers = await DailyCollection.getStoreManagers(report.store_id);
+    const store = await DailyCollection.getStoreInfo(report.store_id);
+    return sendToManagers(managers, (manager) => DailyCollectionEmail.buildPendingEmail({
+        managerName: manager.name,
+        storeName: store?.store_name || report.store_name,
+        storeCode: store?.store_code || report.store_code,
+        city: store?.city,
+        reportDate: report.report_date
+    }));
+};
+
+// ------------------------------------------------------
+// 3. Module blocked → store manager(s)
+// ------------------------------------------------------
+const sendEscalation = async (report, managers) => {
+    const settings = await DailyCollection.getEmailSettings();
+    if (!settings.email_enabled || !settings.blocked_email_enabled) {
+        return { skipped: true, reason: "email_disabled" };
+    }
+
+    const list = managers && managers.length ? managers : await DailyCollection.getStoreManagers(report.store_id);
+    const store = await DailyCollection.getStoreInfo(report.store_id);
+    return sendToManagers(list, (manager) => DailyCollectionEmail.buildBlockedEmail({
+        managerName: manager.name,
+        storeName: store?.store_name || report.store_name,
+        storeCode: store?.store_code || report.store_code,
+        city: store?.city,
+        reportDate: report.report_date,
+        blockedAt: report.blocked_at ? new Date(report.blocked_at) : new Date()
+    }));
+};
+
+// ------------------------------------------------------
+// 4. Access restored → store manager(s)
+// ------------------------------------------------------
+const sendReadyEmail = async (storeId, reportDate) => {
+    const settings = await DailyCollection.getEmailSettings();
+    if (!settings.email_enabled || !settings.ready_email_enabled) {
+        return { skipped: true, reason: "email_disabled" };
+    }
+    const managers = await DailyCollection.getStoreManagers(storeId);
+    const store = await DailyCollection.getStoreInfo(storeId);
+    return sendToManagers(managers, (manager) => DailyCollectionEmail.buildReadyEmail({
+        managerName: manager.name,
+        storeName: store?.store_name,
+        storeCode: store?.store_code,
+        city: store?.city,
+        reportDate
+    }));
+};
+
+// ------------------------------------------------------
+// BLOCKED STORES PAGE
+// ------------------------------------------------------
+const getBlockedStores = async (req, res) => {
+    try {
+        const [blocked, history] = await Promise.all([
+            DailyCollection.getBlockedStores(),
+            DailyCollection.getUnblockHistory(100)
+        ]);
+        res.json({ success: true, blocked, history });
+    } catch (error) {
+        console.error("Daily collection blocked stores error:", error);
+        res.status(500).json({ success: false, message: "Unable to load blocked stores." });
+    }
+};
+
+// ------------------------------------------------------
+// EMAIL ROUTING SETTINGS
+// ------------------------------------------------------
+const getEmailRouting = async (req, res) => {
+    try {
+        res.json({ success: true, data: await DailyCollection.getRoutingSettings() });
+    } catch (error) {
+        console.error("Daily collection email routing load error:", error);
+        res.status(500).json({ success: false, message: "Unable to load Daily Collection email routing." });
+    }
+};
+
+const saveEmailRouting = async (req, res) => {
+    try {
+        const data = await DailyCollection.saveRoutingSettings(req.body || {}, actorId(req));
+        res.json({ success: true, message: "Daily Collection email routing saved successfully.", data });
+    } catch (error) {
+        console.error("Daily collection email routing save error:", error);
+        res.status(500).json({ success: false, message: "Unable to save Daily Collection email routing." });
+    }
+};
+
+// Sends a sample of every email to the logged-in administrator.
+const sendTestEmails = async (req, res) => {
+    try {
+        const db = require("../config/db");
+        const me = (await db.query("SELECT name, email FROM users WHERE id = ? LIMIT 1", [actorId(req)]))[0] || {};
+        const to = String(req.body?.email || me.email || req.user?.email || "").trim();
+        if (!validEmail(to)) return res.status(400).json({ success: false, message: "Your account has no valid email address." });
+        const reportDate = indiaToday();
+        const sample = { managerName: me.name || "Store Manager", storeName: "City Centre", storeCode: "S043", city: "Lucknow", reportDate };
+        const { stats, pendingStores } = await DailyCollection.getSummaryStats(reportDate);
+        const mails = [
+            DailyCollectionEmail.buildAdminSummaryEmail({ reportDate, stats, pendingStores }),
+            DailyCollectionEmail.buildPendingEmail(sample),
+            DailyCollectionEmail.buildBlockedEmail(sample),
+            DailyCollectionEmail.buildReadyEmail(sample)
+        ];
+        for (const mail of mails) {
+            await emailService.sendGenericEmail({ to, subject: `[TEST] ${mail.subject}`, html: mail.html, attachments: mail.attachments });
+        }
+        res.json({ success: true, message: `4 test emails sent to ${to}.` });
+    } catch (error) {
+        console.error("Daily collection test email error:", error);
+        res.status(500).json({ success: false, message: error.message || "Unable to send test emails." });
+    }
 };
 
 const getDailyCollectionEmailSettings = async (req, res) => {
@@ -656,5 +800,11 @@ module.exports = {
     getDailyCollectionEmailSettings,
     updateDailyCollectionEmailSettings,
     sendMissingReminder,
-    sendEscalation
+    sendEscalation,
+    sendAdminSummary,
+    sendReadyEmail,
+    getBlockedStores,
+    getEmailRouting,
+    saveEmailRouting,
+    sendTestEmails
 };

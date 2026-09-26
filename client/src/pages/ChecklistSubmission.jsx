@@ -1,8 +1,30 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/ChecklistSubmission.css";
+import "../styles/pages/ChecklistSubmissionPremium.css";
+import {
+  FaFileAlt,
+  FaStore,
+  FaCalendarAlt,
+  FaPaperclip,
+  FaListUl,
+  FaCheck,
+  FaInfoCircle,
+  FaRedoAlt,
+  FaArrowRight,
+} from "react-icons/fa";
+import checklistHeroArt from "../assets/premium/checklist-hero.webp";
+import checklistBulb from "../assets/premium/checklist-bulb.png";
 
 const API = API_BASE_URL;
+
+const CHECKLIST_STEPS = [
+  { title: "Select Details", text: "Choose checklist, store and date", icon: FaFileAlt },
+  { title: "Provide Information", text: "Fill the checklist answers", icon: FaListUl },
+  { title: "Attach Evidence", text: "Upload images or files (optional)", icon: FaPaperclip },
+  { title: "Review & Submit", text: "Verify and submit checklist", icon: FaCheck },
+];
 
 function ChecklistSubmission() {
   // =========================================================
@@ -852,48 +874,104 @@ function ChecklistSubmission() {
   }
 
   // =========================================================
+  // PREMIUM STEPPER STATE
+  // =========================================================
+
+  const questionKey = (question) => question.id || question.question_id;
+  const isAnswered = (question) => {
+    const value = answers[questionKey(question)];
+    return value !== undefined && value !== null && value !== "";
+  };
+  const isRequired = (question) =>
+    question.required === true ||
+    question.required === 1 ||
+    question.is_required === true ||
+    question.is_required === 1;
+
+  const answeredCount = questions.filter(isAnswered).length;
+  const requiredLeft = questions.filter((question) => isRequired(question) && !isAnswered(question)).length;
+  const allAnswered = questions.length > 0 && requiredLeft === 0 && answeredCount > 0;
+
+  // Attach Evidence is optional, so once every required answer is filled
+  // the flow moves straight to Review & Submit.
+  const currentStep = !basicDetailsComplete || !questions.length
+    ? 0
+    : !allAnswered
+      ? 1
+      : 3;
+
+  const goToQuestions = () => {
+    const target = document.getElementById("cs-questions");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const resetSubmission = () => {
+    setChecklistTypeId("");
+    setStoreId("");
+    setSubmissionDate(new Date().toISOString().split("T")[0]);
+    setQuestions([]);
+    setAnswers({});
+    setRemarks({});
+    setAttachmentFile(null);
+    setErrorMessage("");
+    const fileInput = document.getElementById("checklist-attachment");
+    if (fileInput) fileInput.value = "";
+  };
+
+  // =========================================================
   // UI
   // =========================================================
 
   return (
-    <div className="checklist-submission-page">
+    <div className="checklist-submission-page cs-premium">
 
       {/* ====================================================
-          HEADER
+          PREMIUM HERO
       ==================================================== */}
 
-      <div className="checklist-page-header">
-
-        <div>
-          <div className="page-title-row">
-            <h2>
-              Checklist Submission
-            </h2>
-
-            <span className="live-status">
-              ● Live
-            </span>
-          </div>
-
-          <p>
-            Complete the required details
-            and submit your store checklist.
-          </p>
-        </div>
-
-        <div className="submission-progress">
-
-          <span>
-            {questions.length > 0
-              ? "Checklist ready"
-              : basicDetailsComplete
-              ? "Loading checklist"
-              : "Complete required fields"}
+      <section className="cs-hero">
+        <div className="cs-hero-text">
+          <span className="cs-eyebrow">
+            <FaListUl /> CHECKLIST MODULE
           </span>
-
+          <div className="cs-title-row">
+            <h1>Checklist Submission</h1>
+            <span className="cs-live"><i /> Live</span>
+          </div>
+          <p>Complete the required details and submit your store checklist.</p>
         </div>
+        <img className="cs-hero-art" src={checklistHeroArt} alt="" draggable="false" />
+        <div className="cs-quote">
+          <img src={checklistBulb} alt="" draggable="false" />
+          <p>“Accurate checklists help maintain quality and drive better operations.”</p>
+        </div>
+      </section>
 
-      </div>
+      {/* ====================================================
+          STEPPER
+      ==================================================== */}
+
+      <section className="cs-stepper-card">
+        <div className="cs-stepper">
+          {CHECKLIST_STEPS.map((step, index) => {
+            const state = index < currentStep ? "done" : index === currentStep ? "active" : "todo";
+            const Icon = step.icon;
+            return (
+              <div key={step.title} className={`cs-step is-${state}`}>
+                {index > 0 && (
+                  <span className="cs-step-line">
+                    <i style={{ width: index <= currentStep ? "100%" : index === currentStep + 1 ? "40%" : "0%" }} />
+                  </span>
+                )}
+                <span className="cs-step-icon">
+                  {state === "done" ? <FaCheck /> : <Icon />}
+                </span>
+                <b>{index + 1}. {step.title}</b>
+                <small>{step.text}</small>
+              </div>
+            );
+          })}
+        </div>
 
       {/* ====================================================
           FORM
@@ -908,10 +986,10 @@ function ChecklistSubmission() {
             BASIC INFORMATION
         ================================================== */}
 
-        <div className="checklist-selection-card">
+        <div className="checklist-selection-card cs-details-card">
 
-          <div className="section-heading">
-            <div className="section-icon">
+          <div className="cs-section-heading">
+            <div className="cs-section-number">
               1
             </div>
 
@@ -921,17 +999,20 @@ function ChecklistSubmission() {
               </h3>
 
               <p>
-                Select the checklist and store
-                you want to inspect.
+                Select the checklist type, store and date you want to inspect.
               </p>
             </div>
           </div>
 
-          <div className="selection-grid">
+          <div className="selection-grid cs-fields">
 
             {/* CHECKLIST TYPE */}
 
-            <div className="checklist-field">
+            <div className="checklist-field cs-field">
+
+              <span className="cs-field-icon"><FaFileAlt /></span>
+
+              <div className="cs-field-body">
 
               <label>
                 Checklist Type
@@ -975,11 +1056,17 @@ function ChecklistSubmission() {
                 to complete.
               </small>
 
+              </div>
+
             </div>
 
             {/* STORE */}
 
-            <div className="checklist-field">
+            <div className="checklist-field cs-field">
+
+              <span className="cs-field-icon"><FaStore /></span>
+
+              <div className="cs-field-body">
 
               <label>
                 Store
@@ -1019,11 +1106,17 @@ function ChecklistSubmission() {
                 Select the store being inspected.
               </small>
 
+              </div>
+
             </div>
 
             {/* DATE */}
 
-            <div className="checklist-field">
+            <div className="checklist-field cs-field">
+
+              <span className="cs-field-icon"><FaCalendarAlt /></span>
+
+              <div className="cs-field-body">
 
               <label>
                 Submission Date
@@ -1044,11 +1137,17 @@ function ChecklistSubmission() {
                 Date of the checklist inspection.
               </small>
 
+              </div>
+
             </div>
 
             {/* ATTACHMENT */}
 
-            <div className="checklist-field">
+            <div className="checklist-field cs-field">
+
+              <span className="cs-field-icon"><FaPaperclip /></span>
+
+              <div className="cs-field-body">
 
               <label>
                 Attachment
@@ -1057,22 +1156,24 @@ function ChecklistSubmission() {
                 </span>
               </label>
 
-              <div className="file-upload-wrapper">
+              <div className="file-upload-wrapper cs-file">
 
                 <input
                   id="checklist-attachment"
                   type="file"
+                  className="cs-file-input"
                   onChange={
                     handleAttachmentChange
                   }
                 />
 
-                {attachmentFile && (
-                  <div className="selected-file">
-                    📎{" "}
-                    {attachmentFile.name}
-                  </div>
-                )}
+                <label htmlFor="checklist-attachment" className="cs-file-btn">
+                  Choose File
+                </label>
+
+                <span className="cs-file-name" title={attachmentFile?.name || ""}>
+                  {attachmentFile ? attachmentFile.name : "No file chosen"}
+                </span>
 
               </div>
 
@@ -1080,17 +1181,19 @@ function ChecklistSubmission() {
                 Add supporting evidence if required.
               </small>
 
+              </div>
+
             </div>
 
           </div>
 
           {/* BASIC FIELD STATUS */}
 
-          {!basicDetailsComplete && (
-            <div className="form-hint">
+          {!basicDetailsComplete ? (
+            <div className="form-hint cs-hint">
 
-              <span className="hint-icon">
-                i
+              <span className="cs-hint-icon">
+                <FaInfoCircle />
               </span>
 
               <span>
@@ -1101,7 +1204,30 @@ function ChecklistSubmission() {
               </span>
 
             </div>
+          ) : questions.length > 0 && (
+            <div className="form-hint cs-hint cs-hint-ok">
+              <span className="cs-hint-icon"><FaCheck /></span>
+              <span>
+                <strong>{questions.length}</strong> questions loaded ·{" "}
+                <strong>{answeredCount}</strong> answered
+                {requiredLeft > 0 ? <> · <strong>{requiredLeft}</strong> required remaining</> : " · all required questions answered"}
+              </span>
+            </div>
           )}
+
+          <div className="cs-actions">
+            <button type="button" className="cs-btn cs-btn-ghost" onClick={resetSubmission} disabled={submitting}>
+              <FaRedoAlt /> Reset
+            </button>
+            <button
+              type="button"
+              className="cs-btn cs-btn-primary"
+              onClick={goToQuestions}
+              disabled={!basicDetailsComplete || loadingQuestions}
+            >
+              Next <FaArrowRight />
+            </button>
+          </div>
 
         </div>
 
@@ -1112,18 +1238,7 @@ function ChecklistSubmission() {
         {loadingQuestions && (
           <div className="questions-loading">
 
-            <div className="loading-spinner"></div>
-
-            <div>
-              <strong>
-                Loading checklist questions...
-              </strong>
-
-              <span>
-                Preparing questions for the
-                selected checklist.
-              </span>
-            </div>
+            <PremiumLoader compact title="Loading checklist questions" />
 
           </div>
         )}
@@ -1146,7 +1261,7 @@ function ChecklistSubmission() {
           basicDetailsComplete &&
           questions.length > 0 && (
 
-            <div className="questions-section">
+            <div className="questions-section" id="cs-questions">
 
               <div className="questions-heading">
 
@@ -1364,6 +1479,8 @@ function ChecklistSubmission() {
           )}
 
       </form>
+
+      </section>
 
     </div>
   );

@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import { getDepartments } from "../services/departmentService.js";
@@ -632,11 +633,7 @@ function ReportsTo() {
 
         return (
 
-            <div className="reports-loading">
-
-                Loading Managers...
-
-            </div>
+            <div className="reports-loading"><PremiumLoader title="Loading Managers" /></div>
 
         );
 

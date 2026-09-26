@@ -1,59 +1,36 @@
-import React from "react";
+import PremiumLoader from "../../premium/PremiumLoader";
 
-import "../../../styles/common/Loading.css";
+// ======================================================
+// LOADING
+// Every loading state in the portal uses the MIARCUS premium
+// loader (see components/premium/PremiumLoader.jsx).
+//   <Loading />                    → compact loader in place
+//   <Loading fullScreen />         → full-screen overlay
+//   <Loading text="Loading data" /> → custom title
+// ======================================================
 
 function Loading({
-
-    type = "spinner",
-
     text = "Loading...",
-
     fullScreen = false,
-
     size = "medium",
-
     className = "",
-
+    progress,
+    processed,
+    total,
 }) {
+    const title = String(text || "Processing Your Data...").replace(/…/g, "").replace(/\.+$/, "");
 
-    const loadingContent = (
-
-        <div
-            className={`loading loading-${type} loading-${size} ${className}`}
-        >
-
-            <div className="loading-spinner"></div>
-
-            {text && (
-
-                <p className="loading-text">
-
-                    {text}
-
-                </p>
-
-            )}
-
-        </div>
-
+    return (
+        <PremiumLoader
+            title={title || "Processing Your Data"}
+            compact={!fullScreen && size !== "large"}
+            overlay={fullScreen}
+            className={className}
+            progress={progress}
+            processed={processed}
+            total={total}
+        />
     );
-
-    if (fullScreen) {
-
-        return (
-
-            <div className="loading-overlay">
-
-                {loadingContent}
-
-            </div>
-
-        );
-
-    }
-
-    return loadingContent;
-
 }
 
 export default Loading;

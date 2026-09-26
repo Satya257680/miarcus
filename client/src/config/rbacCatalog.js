@@ -193,7 +193,7 @@ export const RBAC_GROUPS = [
         description: "NSO projects and tracking",
         pages: [
           { key: "nso.openings", label: "New Store Openings", paths: ["/new-store-openings"] },
-          { key: "nso.tracking", label: "NSO Tracking", paths: ["/nso-tracking"] },
+          { key: "nso.tracking", label: "NSO Tracking", paths: ["/nso-tracking", "/nso-tracking/:id", "/nso-tracking/:id/edit"] },
         ],
       },
       {

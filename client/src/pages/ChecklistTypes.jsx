@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -709,11 +710,7 @@ const handleSave = async (data) => {
 
         return (
 
-            <div className="questions-loading">
-
-                Loading Checklist Types...
-
-            </div>
+            <div className="questions-loading"><PremiumLoader title="Loading Checklist Types" /></div>
 
         );
 

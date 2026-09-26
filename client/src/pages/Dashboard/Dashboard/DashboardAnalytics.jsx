@@ -1,3 +1,4 @@
+import PremiumLoader from "../../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
@@ -557,9 +558,7 @@ function DashboardAnalytics() {
 
             {loading && !modules.length ? (
                 <div className="analytics-loading-card">
-                    <div className="analytics-loader" />
-                    <strong>Loading business analytics…</strong>
-                    <span>Reading module data from the MIARCUS database.</span>
+                    <PremiumLoader compact title="Loading business analytics" />
                 </div>
             ) : (
                 <>

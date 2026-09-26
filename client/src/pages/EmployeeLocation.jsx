@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
@@ -186,7 +187,7 @@ const EmployeeLocation = () => {
                     </div>
                     <div className="employee-list">
                         {loading && !employees.length ? (
-                            <div className="location-empty">Loading employees...</div>
+                            <div className="location-empty"><PremiumLoader compact title="Loading employees" /></div>
                         ) : employees.length ? employees.map((employee) => (
                             <button
                                 key={employee.employee_id}
@@ -258,7 +259,7 @@ const EmployeeLocation = () => {
 
             <section className="timeline-section">
                 <div className="section-title"><div><h2>Today's Location Flow</h2><span>Website location updates received today</span></div><FaRoute /></div>
-                {historyLoading ? <div className="location-empty">Loading timeline...</div> : (
+                {historyLoading ? <div className="location-empty"><PremiumLoader compact title="Loading timeline" /></div> : (
                     <div className="timeline-row">
                         {history.map((point, index) => (
                             <div className="timeline-item" key={point.id}>

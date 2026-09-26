@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -82,7 +83,7 @@ export default function PettyCashEmailSettings() {
                 </div>
 
                 {loading ? (
-                    <div className="petty-loading">Loading settings...</div>
+                    <div className="petty-loading"><PremiumLoader compact title="Loading settings" /></div>
                 ) : (
                     <>
                         <div className="petty-email-section-title">What should send an email?</div>

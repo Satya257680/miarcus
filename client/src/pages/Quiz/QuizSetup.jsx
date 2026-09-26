@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -2948,9 +2949,7 @@ const QuizSetup = () => {
 
                         {loading ? (
 
-                            <div className="quiz-list-loading">
-                                Loading...
-                            </div>
+                            <div className="quiz-list-loading"><PremiumLoader compact title="Loading" /></div>
 
                         ) : filteredQuizzes.length ? (
 

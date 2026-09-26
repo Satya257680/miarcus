@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, {
   useCallback,
   useEffect,
@@ -1196,26 +1197,7 @@ export default function BillingAudit() {
       ================================================== */}
 
       {loading ? (
-
-        <div
-          className="billing-card billing-loading-card"
-        >
-
-          <div
-            className="billing-loader"
-          />
-
-          <h3>
-            Loading audit history...
-          </h3>
-
-          <p>
-            Fetching the latest activity
-            records for this bill.
-          </p>
-
-        </div>
-
+        <PremiumLoader compact title="Loading audit history" />
       ) : filteredLogs.length ===
         0 ? (
 

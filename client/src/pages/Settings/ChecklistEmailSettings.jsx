@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -198,7 +199,7 @@ export default function ChecklistEmailSettings() {
             {error && <div className="checklist-email-alert error"><FaExclamationTriangle /> {error}</div>}
 
             {loading ? (
-                <div className="checklist-email-card loading">Loading email routing...</div>
+                <div className="checklist-email-card loading"><PremiumLoader compact title="Loading email routing" /></div>
             ) : (
                 <>
                     {/* ================= STORE-LEVEL RECIPIENTS ================= */}

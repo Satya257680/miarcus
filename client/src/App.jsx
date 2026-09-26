@@ -70,6 +70,10 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings/Settings";
 import Appearance from "./pages/Settings/Appearance";
 import NSOEmailSettings from "./pages/Settings/NSOEmailSettings";
+import DailyCollectionEmailSettings from "./pages/Settings/DailyCollectionEmailSettings";
+import BlockedStores from "./pages/DailyCollection/BlockedStores";
+import NSOTrackingDetails from "./pages/NSOTrackingDetails";
+import NSOTrackingEdit from "./pages/NSOTrackingEdit";
 import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
 
 // ======================================================
@@ -422,6 +426,15 @@ function App() {
                     />
 
                     <Route
+                        path="/settings/daily-collection-email"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <DailyCollectionEmailSettings />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
                         path="/settings/new-store-openings-email"
                         element={
                             <ModulePermissionRoute adminOnly>
@@ -622,6 +635,24 @@ function App() {
                         element={
                             <ModulePermissionRoute page="nso.tracking">
                                 <NSOTracking />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/nso-tracking/:id"
+                        element={
+                            <ModulePermissionRoute page="nso.tracking">
+                                <NSOTrackingDetails />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/nso-tracking/:id/edit"
+                        element={
+                            <ModulePermissionRoute page="nso.tracking">
+                                <NSOTrackingEdit />
                             </ModulePermissionRoute>
                         }
                     />
@@ -832,6 +863,15 @@ function App() {
                         element={
                             <ModulePermissionRoute page="dailycollection.reports">
                                 <CollectionReports />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/daily-collection/blocked"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <BlockedStores />
                             </ModulePermissionRoute>
                         }
                     />

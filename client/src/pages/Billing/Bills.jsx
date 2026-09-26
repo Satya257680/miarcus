@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, {
   useCallback,
   useEffect,
@@ -922,23 +923,8 @@ export default function Bills() {
         ================================================== */}
 
         {loading ? (
-
-          <div className="billing-loading-card">
-
-            <div className="billing-loader" />
-
-            <h3>
-              Loading bills...
-            </h3>
-
-            <p>
-              Fetching the latest
-              billing transactions.
-            </p>
-
-          </div>
-
-        ) : paginatedData.length ===
+        <PremiumLoader compact title="Loading bills" />
+      ) : paginatedData.length ===
           0 ? (
 
           /* ==================================================

@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios from "./expenseApi";
 
@@ -750,9 +751,7 @@ function ApproveExpenses() {
                                     <td
                                         colSpan="9"
                                         className="expense-table-empty"
-                                    >
-                                        Loading review queue...
-                                    </td>
+                                    ><PremiumLoader compact title="Loading review queue" /></td>
 
                                 </tr>
 

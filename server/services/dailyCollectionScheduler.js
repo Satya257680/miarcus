@@ -52,6 +52,28 @@ const runDailyCollectionDeadlineCheck = async () => {
         // only when yesterday's report is still missing. The claim fields make
         // this safe when more than one server instance is running.
         const afterMidnightReminderWindow = now.hour > 0 || (now.hour === 0 && now.minute >= 1);
+
+        // ONE summary email to the selected administrators (Settings →
+        // Daily Collection Email Routing): total / submitted / pending /
+        // blocked stores. Never one email per store to the admins.
+        if (afterMidnightReminderWindow && emailSettings.email_enabled) {
+            const claimed = await DailyCollection.claimSummary(reportDate);
+            if (claimed) {
+                try {
+                    const result = await controller.sendAdminSummary(reportDate);
+                    if (result?.sent || result?.reason === "no_recipients") {
+                        await DailyCollection.markSummarySent(reportDate, result?.recipients || 0);
+                    } else {
+                        await DailyCollection.releaseSummaryClaim(reportDate);
+                    }
+                } catch (error) {
+                    await DailyCollection.releaseSummaryClaim(reportDate);
+                    console.error("Daily collection admin summary failed:", error.message);
+                }
+            }
+        }
+
+        // Personal reminder to the store manager of every pending store.
         if (afterMidnightReminderWindow && emailSettings.email_enabled) {
             const missing = await DailyCollection.getMissingReports(reportDate);
             for (const report of missing) {
@@ -60,7 +82,7 @@ const runDailyCollectionDeadlineCheck = async () => {
                 if (!claimed) continue;
                 try {
                     const result = await controller.sendMissingReminder(report);
-                    if (result?.sent) {
+                    if (result?.sent || result?.reason === "no_manager_email") {
                         await DailyCollection.markReminderSent(report.id);
                     } else {
                         await DailyCollection.releaseReminderClaim(report.id);
@@ -96,7 +118,7 @@ const runDailyCollectionDeadlineCheck = async () => {
                     if (!claimed) continue;
                     try {
                         const result = await controller.sendEscalation(report, managers);
-                        if (result?.sent) {
+                        if (result?.sent || result?.reason === "no_manager_email") {
                             await DailyCollection.lockReport(report.id, true);
                         } else {
                             await DailyCollection.releaseEscalationClaim(report.id);
@@ -118,7 +140,7 @@ const runDailyCollectionDeadlineCheck = async () => {
                     if (!claimed) continue;
                     try {
                         const result = await controller.sendEscalation(report, managers);
-                        if (result?.sent) {
+                        if (result?.sent || result?.reason === "no_manager_email") {
                             await DailyCollection.lockReport(report.id, true);
                         } else {
                             await DailyCollection.releaseEscalationClaim(report.id);

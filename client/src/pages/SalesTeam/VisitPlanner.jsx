@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -1687,11 +1688,7 @@ function VisitPlanner() {
                   <div className="sales-store-picker">
                     {lookupLoading ? (
                       <div className="sales-picker-loading">
-                        <FaSyncAlt className="sales-spin" />
-
-                        <span>
-                          Loading stores from Store Management...
-                        </span>
+                        <PremiumLoader compact title="Loading stores from Store Management" />
                       </div>
                     ) : filteredStores.length ? (
                       filteredStores.map(

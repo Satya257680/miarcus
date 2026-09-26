@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import React, { useEffect, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
@@ -876,11 +877,7 @@ function Announcements() {
 
             {loading ? (
 
-                <div className="announcement-empty">
-
-                    Loading announcements...
-
-                </div>
+                <div className="announcement-empty"><PremiumLoader compact title="Loading announcements" /></div>
 
             ) : announcements.length === 0 ? (
 

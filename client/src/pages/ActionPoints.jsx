@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -1311,11 +1312,7 @@ if (loading) {
 
     return (
 
-        <div className="action-loading">
-
-            Loading Action Points...
-
-        </div>
+        <div className="action-loading"><PremiumLoader title="Loading Action Points" /></div>
 
     );
 
@@ -2854,7 +2851,7 @@ return (
 
             <div className="workflow-modal-body history-body">
                 {historyLoading ? (
-                    <div className="history-loading"><FaClock /> Loading history…</div>
+                    <div className="history-loading"><PremiumLoader compact title="Loading history" /></div>
                 ) : history.length === 0 ? (
                     <div className="history-empty"><FaHistory /><strong>No history found</strong><span>New changes will appear here automatically.</span></div>
                 ) : (

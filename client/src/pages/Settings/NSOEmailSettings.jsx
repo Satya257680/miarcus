@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -71,7 +72,7 @@ export default function NSOEmailSettings() {
         </div>
         {message && <div className="nso-email-alert success"><FaCheckCircle /> {message}</div>}
         {error && <div className="nso-email-alert error">{error}</div>}
-        {loading ? <div className="nso-email-card loading">Loading email routing...</div> : <>
+        {loading ? <div className="nso-email-card loading"><PremiumLoader compact title="Loading email routing" /></div> : <>
             <div className="nso-email-card">
                 <div className="nso-email-card-head"><FaEnvelope /><div><h2>Recipient Mode</h2><p>Select All sends to every enabled contact. Specific uses the individual Create/Update selections below.</p></div></div>
                 <div className="nso-mode-grid">

@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import {
@@ -451,6 +452,14 @@ export default function ListingTracker() {
 
     return (
         <div className="listing-page">
+            {importing && (
+                <PremiumLoader
+                    overlay
+                    title="Importing Your Data..."
+                    message="Your CSV is being validated and saved to the product register."
+                    caption="Importing products... please do not close this page."
+                />
+            )}
             <div className="listing-shell">
                 <div className="listing-hero">
                     <div>
@@ -774,7 +783,7 @@ export default function ListingTracker() {
 
                     <div className="listing-table-wrap">
                         {loading ? (
-                            <div className="listing-loading">Loading product register…</div>
+                            <div className="listing-loading"><PremiumLoader compact title="Loading product register" /></div>
                         ) : rows.length === 0 ? (
                             <div className="listing-empty">
                                 No products match the current filters.

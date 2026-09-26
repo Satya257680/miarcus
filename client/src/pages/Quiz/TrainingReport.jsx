@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios from "../../axiosConfig";
 
@@ -1795,12 +1796,7 @@ window.onload = function () {
 
                     {loading ? (
 
-                        <div className="table-empty">
-
-                            Loading training
-                            submissions...
-
-                        </div>
+                        <div className="table-empty"><PremiumLoader compact title="Loading training submissions" /></div>
 
                     ) : (
 
@@ -2452,11 +2448,7 @@ window.onload = function () {
 
                 <div className="quiz-loading-overlay">
 
-                    <div>
-
-                        Loading submission...
-
-                    </div>
+                    <div><PremiumLoader compact title="Loading submission" /></div>
 
                 </div>
 

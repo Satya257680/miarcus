@@ -40,7 +40,9 @@ import {
     FaPlus,
     FaComments,
     FaLifeRing,
-    FaKey
+    FaKey,
+    FaRoute,
+    FaUserLock
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -254,6 +256,7 @@ function Sidebar({ collapsed }) {
     const canChecklistSubmit = can("checklist.submit");
     const canNewStoreOpenings = can("nso.openings");
     const canNsoRules = can("nso.rules");
+    const canNsoTracking = can("nso.tracking");
 
     // Expenses
     const canEnterExpense = can("expenses.entry");
@@ -619,6 +622,25 @@ function Sidebar({ collapsed }) {
                 )}
 
                 {/* ==================================================
+                    NSO TRACKING
+                ================================================== */}
+
+                {canNsoTracking && (
+                    <NavLink
+                        to="/nso-tracking"
+                        className={getMenuClass}
+                    >
+                        <FaRoute />
+
+                        {!collapsed && (
+                            <span>
+                                NSO Tracking
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
                     NSO RULES
                 ================================================== */}
 
@@ -885,6 +907,12 @@ function Sidebar({ collapsed }) {
                                     <NavLink to="/daily-collection/reports" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
                                         <FaChartLine />
                                         <span>Collection Reports</span>
+                                    </NavLink>
+                                )}
+                                {isAdministrator && (
+                                    <NavLink to="/daily-collection/blocked" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                        <FaUserLock />
+                                        <span>Blocked Stores</span>
                                     </NavLink>
                                 )}
                             </div>

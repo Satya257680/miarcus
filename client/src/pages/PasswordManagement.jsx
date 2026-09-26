@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel } from "../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -319,7 +320,7 @@ function PasswordManagement() {
 
       <section className="pwd-mgmt-card">
         {loading ? (
-          <div className="pwd-mgmt-state">Loading password vault...</div>
+          <div className="pwd-mgmt-state"><PremiumLoader compact title="Loading password vault" /></div>
         ) : loadError ? (
           <div className="pwd-mgmt-state pwd-mgmt-state-error">{loadError}</div>
         ) : filteredUsers.length === 0 ? (

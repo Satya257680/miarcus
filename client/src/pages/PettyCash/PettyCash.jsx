@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import { collectIds, hasActiveFilters, deleteAllLabel } from "../../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -440,7 +441,7 @@ function PettyCash() {
 
     if (id) {
         if (loading && !detail) {
-            return <div className="petty-page"><div className="petty-loading">Loading advance...</div></div>;
+            return <div className="petty-page"><div className="petty-loading"><PremiumLoader title="Loading advance" /></div></div>;
         }
 
         if (!detail) {
@@ -739,7 +740,7 @@ function PettyCash() {
                     <table className="petty-table advances-table">
                         <thead><tr><th>Advance No.</th><th>Date</th><th>Store</th><th>Received By</th><th>Advance (₹)</th><th>Expense (₹)</th><th>Deposit (₹)</th><th>Balance (₹)</th><th>Status</th><th className="petty-action-column">Action</th></tr></thead>
                         <tbody>
-                            {loading ? <tr><td colSpan="10" className="empty-cell">Loading petty cash...</td></tr> :
+                            {loading ? <tr><td colSpan="10" className="empty-cell"><PremiumLoader compact title="Loading petty cash" /></td></tr> :
                                 visibleAdvances.length ? visibleAdvances.map((a) => (
                                     <tr key={a.id}>
                                         <td><strong>{a.advance_no}</strong></td><td>{a.advance_date}</td><td>{a.store_name || "-"}</td><td>{a.received_by_name || "-"}</td>

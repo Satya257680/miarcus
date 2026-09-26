@@ -1,3 +1,4 @@
+import PremiumLoader from "../../../components/premium/PremiumLoader";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -150,11 +151,7 @@ function RecentActivity() {
 
             {loading ? (
 
-                <div className="activity-loading">
-
-                    Loading...
-
-                </div>
+                <div className="activity-loading"><PremiumLoader compact title="Loading" /></div>
 
             ) : activities.length === 0 ? (
 

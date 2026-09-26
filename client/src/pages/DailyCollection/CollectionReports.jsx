@@ -1,3 +1,4 @@
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import { FaChartLine, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
 import { getCollectionReports, getDailyCollectionStores } from "../../services/billingService";
@@ -148,7 +149,7 @@ export default function CollectionReports() {
             </section>}
 
             <section className="collection-report-table-wrap">
-                {!selectedStore ? <div className="collection-reports-empty">Select a specific store or choose All stores to display Collection Reports.</div> : loading ? <div className="collection-reports-empty">Loading Collection Reports...</div> : !filteredReports.length ? <div className="collection-reports-empty">No Collection data is available for the selected period.</div> : (
+                {!selectedStore ? <div className="collection-reports-empty">Select a specific store or choose All stores to display Collection Reports.</div> : loading ? <div className="collection-reports-empty"><PremiumLoader compact title="Loading Collection Reports" /></div> : !filteredReports.length ? <div className="collection-reports-empty">No Collection data is available for the selected period.</div> : (
                     <div className="collection-report-scroll">
                         <table className="collection-report-table">
                             <thead><tr><th>Store</th><th>Period</th><th>Days</th><th>Submitted</th><th>Missing</th><th>Locked</th><th>Bills</th><th>System Billed</th><th>UPI</th><th>Cash</th><th>Bank</th><th>Card</th><th>Collected</th><th>Variance</th></tr></thead>

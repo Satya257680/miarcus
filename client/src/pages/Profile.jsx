@@ -1,3 +1,4 @@
+import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/Profile.css";
@@ -466,9 +467,7 @@ function Profile() {
         return (
             <div className="profile-page">
                 <h1 className="profile-heading">User Profile</h1>
-                <div className="profile-card profile-loading">
-                    Loading your profile...
-                </div>
+                <div className="profile-card profile-loading"><PremiumLoader compact title="Loading your profile" /></div>
             </div>
         );
     }

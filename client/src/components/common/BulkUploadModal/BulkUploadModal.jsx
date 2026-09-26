@@ -1,3 +1,4 @@
+import PremiumLoader from "../../premium/PremiumLoader";
 import { useState, useEffect, useRef } from "react";
 import {
     FaCloudUploadAlt,
@@ -546,61 +547,32 @@ function BulkUploadModal({
 
                 {loading && (
 
-                    <div className="bulk-processing-overlay">
-
-                        <div className="bulk-processing-orbit" aria-hidden="true">
-                            <div className="bulk-processing-spinner" />
-                            <div className="bulk-processing-spinner-core">
-                                <FaCloudUploadAlt />
-                            </div>
-                        </div>
-
-                        <div className="bulk-processing-eyebrow">
-                            {uploadProgress !== null ? "SECURE TRANSFER" : "MI ARCUS IMPORT ENGINE"}
-                        </div>
-
-                        <strong>
-                            {uploadProgress !== null
-                                ? `Uploading large file… ${uploadProgress}%`
-                                : jobProgress
-                                    ? `${jobProgress.percent || 0}% — ${jobProgress.processed?.toLocaleString?.() || 0} of ${jobProgress.total?.toLocaleString?.() || 0} rows`
-                                    : "Preparing your import…"}
-                        </strong>
-
-                        <div className="bulk-progress-track">
-                            <div
-                                className="bulk-progress-fill"
-                                style={{
-                                    width: `${uploadProgress !== null
-                                        ? uploadProgress
-                                        : Math.max(3, Number(jobProgress?.percent || 0))}%`
-                                }}
-                            />
-                        </div>
-
-                        <span>
-                            {uploadProgress !== null
-                                ? "Your file is being transferred in protected 10 MB pieces."
-                                : jobProgress?.message || "Validating, matching and saving your records safely."}
-                        </span>
-
-                        <div className="bulk-processing-tip">
-                            <span className="bulk-tip-dot" />
-                            <span>
-                                {jobProgress
-                                    ? "You can relax — the import continues in the background while this screen shows live progress."
-                                    : "Large imports can take time. Please keep this window open while MI ARCUS works."}
-                            </span>
-                        </div>
-
-                        {jobProgress && (
-                            <div className="bulk-processing-stats">
-                                <span><b>{Number(jobProgress.created || 0).toLocaleString()}</b> saved</span>
-                                <span><b>{Number(jobProgress.skipped || 0).toLocaleString()}</b> needs review</span>
-                            </div>
-                        )}
-
-                    </div>
+                    <PremiumLoader
+                        overlay
+                        title={uploadProgress !== null
+                            ? "Uploading Your File..."
+                            : jobProgress
+                                ? "Importing Your Data..."
+                                : "Preparing Your Import..."}
+                        message={uploadProgress !== null
+                            ? "Your file is being transferred in protected 10 MB pieces."
+                            : jobProgress?.message || "Validating, matching and saving your records safely. This may take a few moments."}
+                        progress={uploadProgress !== null
+                            ? uploadProgress
+                            : jobProgress
+                                ? Number(jobProgress.percent || 0)
+                                : undefined}
+                        processed={jobProgress ? jobProgress.processed : undefined}
+                        total={jobProgress ? jobProgress.total : undefined}
+                        unit="rows"
+                        caption={jobProgress
+                            ? `Importing records... ${Number(jobProgress.created || 0).toLocaleString()} saved · ${Number(jobProgress.skipped || 0).toLocaleString()} need review — please do not close this page.`
+                            : undefined}
+                        tipTitle={jobProgress ? "You can relax!" : "Almost there!"}
+                        tip={jobProgress
+                            ? "The import continues in the background while this screen shows live progress."
+                            : "Large imports can take time. Please keep this window open while MIARCUS works."}
+                    />
 
                 )}
 

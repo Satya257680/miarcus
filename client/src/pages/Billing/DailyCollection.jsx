@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import {
@@ -456,13 +458,13 @@ export default function DailyCollection() {
             )}
 
             {loadingStores ? (
-                <div className="collection-empty">Loading store assignment...</div>
+                <div className="collection-empty"><PremiumLoader compact title="Loading store assignment" /></div>
             ) : !selectedStore && admin ? (
                 <div className="collection-empty">Select a store to view or submit its Daily Collection.</div>
             ) : !selectedStore && !admin ? (
                 <div className="collection-empty">No Daily Collection store is assigned to your manager account.</div>
             ) : loading ? (
-                <div className="collection-empty">Loading Daily Collection...</div>
+                <div className="collection-empty"><PremiumLoader compact title="Loading Daily Collection" /></div>
             ) : !filteredReports.length ? (
                 <div className="collection-empty">No Daily Collection report is available for this store and date.</div>
             ) : (
@@ -600,7 +602,14 @@ export default function DailyCollection() {
                             <span>Administrator Control</span>
                             <h2>Daily Collection Controls</h2>
                         </div>
-                        <FaLock />
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <Link to="/daily-collection/blocked" className="dc-admin-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#fdecee", color: "#be123c", fontWeight: 700, fontSize: 12, textDecoration: "none" }}>
+                                <FaLock /> Blocked Stores
+                            </Link>
+                            <Link to="/settings/daily-collection-email" className="dc-admin-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#eef2ff", color: "#4338ca", fontWeight: 700, fontSize: 12, textDecoration: "none" }}>
+                                <FaEnvelope /> Email Routing
+                            </Link>
+                        </div>
                     </div>
 
                     <div className="daily-email-control">
