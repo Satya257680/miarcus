@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -312,15 +313,26 @@ const handleDeleteAll = async () => {
 
     if (!canDelete) return;
 
-    if (!window.confirm("Delete all questions?")) return;
+    // Search / checklist type / department filter applied -> only the
+    // questions in the filtered list are deleted.
+    const filtered = hasActiveFilters({ search, typeFilter, departmentFilter });
+    const ids = collectIds(filteredQuestions);
+
+    if (filtered && !ids.length) {
+        alert("No questions match the selected filters.");
+        return;
+    }
+
+    if (!window.confirm(deleteAllMessage(filtered, ids.length, "questions"))) return;
 
     try {
 
-        await axios.delete(
-            `${API}/questions/delete-all`
+        const response = await axios.delete(
+            `${API}/questions/delete-all`,
+            filtered ? { data: { scope: "filtered", ids } } : undefined
         );
 
-        alert("All Questions deleted successfully.");
+        alert(response.data?.message || "Questions deleted successfully.");
 
         loadQuestions();
 
@@ -934,6 +946,8 @@ const uploadQuestions = async (file) => {
     onBulkUpload={() => setShowBulkUpload(true)}
 
     showDeleteAll={canDelete}
+
+    deleteAllText={deleteAllLabel(hasActiveFilters({ search, typeFilter, departmentFilter }), filteredQuestions.length)}
 
     onDeleteAll={handleDeleteAll}
 

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../axiosConfig.js";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useRef, useState } from "react";
 
 // ======================================================
@@ -880,12 +881,26 @@ function NewStoreOpenings() {
     // CONFIRM DELETE ALL
     // ======================================================
 
+    const isFilteredDelete = hasActiveFilters({ search });
+
     const confirmDeleteAll = async () => {
 
         try {
 
+            let ids;
+
+            if (isFilteredDelete) {
+                // Resolve every project matching the search (all pages).
+                const all = await getNewStoreOpenings({ page: 1, limit: 100000, search });
+                ids = collectIds(all?.data?.data || []);
+                if (!ids.length) {
+                    alert("No New Store Openings match the current search.");
+                    return;
+                }
+            }
+
             const res =
-                await deleteAllNewStoreOpenings();
+                await deleteAllNewStoreOpenings(ids);
 
             if (
                 res?.success ||
@@ -894,6 +909,7 @@ function NewStoreOpenings() {
             ) {
 
                 alert(
+                    res?.data?.message ||
                     "All records deleted successfully."
                 );
 
@@ -1744,6 +1760,7 @@ function NewStoreOpenings() {
 
                 showDeleteAll={canDelete}
 
+                deleteAllText={deleteAllLabel(isFilteredDelete, totalRecords)}
                 onDeleteAll={handleDeleteAll}
 
             />
@@ -1900,13 +1917,13 @@ function NewStoreOpenings() {
 
                 open={showDeleteAllDialog}
 
-                title="Delete All New Store Openings"
+                title={isFilteredDelete ? "Delete Filtered New Store Openings" : "Delete All New Store Openings"}
 
                 message={
-                    "Are you sure you want to delete ALL New Store Openings? This action cannot be undone."
+                    `${deleteAllMessage(isFilteredDelete, totalRecords, "New Store Openings")} This action cannot be undone.`
                 }
 
-                confirmText="Delete All"
+                confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
 
                 cancelText="Cancel"
 

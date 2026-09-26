@@ -121,13 +121,16 @@ export const deleteNewStoreOpening = (id) => {
 // DELETE ALL
 // ======================================================
 
-export const deleteAllNewStoreOpenings = () => {
+// ids (optional): when the list is searched/filtered only these projects are deleted.
+export const deleteAllNewStoreOpenings = (ids) => {
 
     return axios.delete(
 
         `${BASE_URL}/new-store-openings/delete-all`,
 
-        authConfig()
+        Array.isArray(ids)
+            ? { ...authConfig(), data: { scope: "filtered", ids } }
+            : authConfig()
 
     );
 

@@ -318,7 +318,15 @@ const remove = async (type, id) => {
     return result.affectedRows > 0;
 };
 
-const removeAll = async (type) => {
+// filters (optional): same filters as the list view. When supplied only
+// the matching assets are removed; otherwise every asset of the type.
+const removeAll = async (type, filters = null) => {
+    if (filters && Object.keys(filters).length) {
+        const { where, params } = buildWhere(type, filters);
+        if (!where) return 0; // never widen a filtered delete to "all"
+        const scoped = await db.query(`DELETE FROM ${TABLES[type]} ${where}`, params);
+        return Number(scoped.affectedRows || 0);
+    }
     const result = await db.query(`DELETE FROM ${TABLES[type]}`);
     return Number(result.affectedRows || 0);
 };

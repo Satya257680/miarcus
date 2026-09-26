@@ -411,7 +411,15 @@ const remove = async (id) => {
     return result.affectedRows > 0;
 };
 
-const removeAll = async () => {
+// filters (optional): same filters as the list. When supplied only the
+// matching products are removed; otherwise every product.
+const removeAll = async (filters = null) => {
+    if (filters && Object.keys(filters).length) {
+        const { where, params } = buildWhere(filters);
+        if (!where) return 0; // never widen a filtered delete to "all"
+        const scoped = await db.query(`DELETE FROM ${TABLE} ${where}`, params);
+        return Number(scoped.affectedRows || 0);
+    }
     const result = await db.query(`DELETE FROM ${TABLE}`);
     return Number(result.affectedRows || 0);
 };

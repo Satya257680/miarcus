@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const XLSX = require("xlsx");
 const fs = require("fs/promises");
 const { Parser } = require("json2csv");
@@ -1298,6 +1299,24 @@ exports.deleteAll = async (
   res
 ) => {
   try {
+    // Search / stage / status applied on the page -> delete only matches.
+    const scope = readDeleteScope(req);
+    if (scope.filtered) {
+      const filters = {};
+      ["search", "stage", "status"].forEach((key) => {
+        if (scope.filters[key] !== undefined) filters[key] = scope.filters[key];
+      });
+      if (!Object.keys(filters).length) {
+        return res.status(400).json({ success: false, message: "No valid filter was supplied. Nothing was deleted." });
+      }
+      const deleted = await Model.deleteAll(filters);
+      return res.json({
+        success: true,
+        deleted,
+        message: `${deleted} filtered Collection Tracking product(s) deleted successfully.`,
+      });
+    }
+
     await Model.deleteAll();
 
     return res.json({

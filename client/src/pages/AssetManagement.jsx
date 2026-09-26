@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import {
     FaPaperclip,
     FaMapMarkerAlt,
@@ -460,11 +461,13 @@ export default function AssetManagement({ type = "marketing" }) {
         } finally { setExporting(false); }
     };
 
+    const isFilteredDelete = hasActiveFilters({ search });
+
     const confirmDeleteAll = async () => {
         if (!permissions.canDelete) return;
         setDeletingAll(true);
         try {
-            const result = await deleteAllAssets(type);
+            const result = await deleteAllAssets(type, isFilteredDelete ? activeFilters({ search }) : null);
             if (!result?.success) throw new Error(result?.message || "Delete all failed.");
             setShowDeleteAllDialog(false);
             setPage(1);
@@ -544,6 +547,7 @@ export default function AssetManagement({ type = "marketing" }) {
                 showBulk
                 onBulk={() => setShowBulkModal(true)}
                 showDeleteAll={permissions.canDelete && total > 0}
+                deleteAllText={deleteAllLabel(isFilteredDelete, total)}
                 onDeleteAll={() => setShowDeleteAllDialog(true)}
             />
 
@@ -588,9 +592,9 @@ export default function AssetManagement({ type = "marketing" }) {
 
             <ConfirmDialog
                 open={showDeleteAllDialog}
-                title={`Delete All ${title}`}
-                message={`Are you sure you want to permanently delete all ${total} records? This action cannot be undone.`}
-                confirmText={deletingAll ? "Deleting..." : "Delete All"}
+                title={isFilteredDelete ? `Delete Filtered ${title}` : `Delete All ${title}`}
+                message={`${deleteAllMessage(isFilteredDelete, total, "records")} This action cannot be undone.`}
+                confirmText={deletingAll ? "Deleting..." : (isFilteredDelete ? "Delete Filtered" : "Delete All")}
                 cancelText="Cancel"
                 confirmVariant="danger"
                 onConfirm={confirmDeleteAll}

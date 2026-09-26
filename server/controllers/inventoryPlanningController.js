@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const XLSX=require("xlsx");const fs=require("fs");const Inventory=require("../models/inventoryPlanningModel");const {logActivity}=require("../utils/activityLogger");
 const norm=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const aliases={store_name:["storename","store","outlet","shop"],store_id:["storeid"],sale_year:["year","saleyear","fiscalyear"],sale_month:["month","salemonth","period"],category:["category","categoryname","productcategory"],sales_amount:["sales","salesamount","revenue","netsales"],units_sold:["units","unitssold","quantity","qty","salesunits"],discount_percent:["discount","discountpercent","discountpercentage"]};
@@ -6,7 +7,16 @@ exports.getSales=async(req,res)=>{try{const d=await Inventory.listSales(req.quer
 exports.getSaleById=async(req,res)=>{try{const d=await Inventory.getSalesById(req.params.id);if(!d)return res.status(404).json({success:false,message:"ERP sales record not found."});res.json({success:true,data:d});}catch(e){res.status(500).json({success:false,message:"Unable to load ERP sales record."});}};
 exports.createSale=async(req,res)=>{try{const b=req.body||{};if(!b.store_name?.trim()||!b.category?.trim()||!b.sale_year||!b.sale_month)return res.status(400).json({success:false,message:"Store, year, month and category are required."});const id=await Inventory.createSale({...b,created_by:req.user.id});logActivity({activity_type:"Inventory Planning",reference_id:id,title:"ERP Sales Record Added",description:`${b.store_name} ${b.category} sales record was added`,module_name:"Inventory Planning",status:"Open",priority:"Medium",created_by:req.user.id,assigned_to:null});res.status(201).json({success:true,id,message:"ERP sales record added successfully."});}catch(e){console.error(e);res.status(500).json({success:false,message:"Unable to create ERP sales record."});}};
 exports.deleteSale=async(req,res)=>{try{await Inventory.deleteSale(req.params.id);res.json({success:true,message:"ERP sales record deleted successfully."});}catch(e){res.status(500).json({success:false,message:"Unable to delete ERP sales record."});}};
-exports.deleteAllSales=async(req,res)=>{try{await Inventory.deleteAllSales();res.json({success:true,message:"All ERP historical sales data deleted successfully."});}catch(e){res.status(500).json({success:false,message:"Unable to delete ERP historical sales data."});}};
+exports.deleteAllSales=async(req,res)=>{try{
+  // Search / store / year / category applied on the page -> only matching rows.
+  const scope=readDeleteScope(req);
+  if(scope.filtered){
+    const filters={};["search","store","year","category"].forEach(k=>{if(scope.filters[k]!==undefined)filters[k]=scope.filters[k];});
+    if(!Object.keys(filters).length)return res.status(400).json({success:false,message:"No valid filter was supplied. Nothing was deleted."});
+    const r=await Inventory.deleteAllSales(filters);const n=Number(r?.affectedRows||0);
+    return res.json({success:true,deleted:n,message:`${n} filtered ERP historical sales record(s) deleted successfully.`});
+  }
+  await Inventory.deleteAllSales();res.json({success:true,message:"All ERP historical sales data deleted successfully."});}catch(e){res.status(500).json({success:false,message:"Unable to delete ERP historical sales data."});}};
 exports.exportSales=async(req,res)=>{try{res.json({success:true,data:await Inventory.exportSales()});}catch(e){res.status(500).json({success:false,message:"Unable to export ERP sales data."});}};
 exports.bulkUploadSales=async(req,res)=>{if(!req.file)return res.status(400).json({success:false,message:"Please select a CSV or Excel file."});try{const rows=parseFile(req.file.path);const inserted=await Inventory.bulkInsertSales(rows,req.user.id);res.status(201).json({success:true,inserted,message:`${inserted} historical sales records imported successfully.`});}catch(e){console.error(e);res.status(400).json({success:false,message:e.message||"Bulk upload failed."});}finally{fs.unlink(req.file.path,()=>{});}};
 exports.getOptions=async(req,res)=>{try{res.json({success:true,data:await Inventory.getOptions()});}catch(e){res.status(500).json({success:false,message:"Unable to load inventory planning options."});}};

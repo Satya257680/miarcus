@@ -999,7 +999,69 @@ ChecklistReport.delete = async (
 // removed. Active/open Action Points are deliberately preserved.
 // ======================================================
 
-ChecklistReport.deleteAll = async (callback) => {
+// Filter conditions shared with the list/count queries. Used by the
+// filter-aware Delete All so it removes exactly what the page shows.
+const buildReportFilterSql = (filters = {}) => {
+    let sql = "";
+    const values = [];
+
+    if (filters.store_id) {
+        sql += " AND cs.store_id = ? ";
+        values.push(filters.store_id);
+    }
+    if (filters.checklist_type_id) {
+        sql += " AND cs.checklist_type_id = ? ";
+        values.push(filters.checklist_type_id);
+    }
+    if (filters.new_store_opening_id) {
+        sql += " AND cs.new_store_opening_id = ? ";
+        values.push(filters.new_store_opening_id);
+    }
+    if (filters.employee_id) {
+        sql += " AND u.employee_id = ? ";
+        values.push(filters.employee_id);
+    }
+    if (filters.from_date) {
+        sql += " AND DATE(cs.submission_date) >= ? ";
+        values.push(filters.from_date);
+    }
+    if (filters.to_date) {
+        sql += " AND DATE(cs.submission_date) <= ? ";
+        values.push(filters.to_date);
+    }
+    if (filters.search) {
+        sql += `
+            AND (
+                s.store_name LIKE ?
+                OR ct.checklist_name LIKE ?
+                OR u.name LIKE ?
+                OR u.employee_id LIKE ?
+                OR d.department_name LIKE ?
+                OR q.question LIKE ?
+                OR csa.answer LIKE ?
+                OR csa.remarks LIKE ?
+            )
+        `;
+        const keyword = `%${filters.search}%`;
+        values.push(keyword, keyword, keyword, keyword, keyword, keyword, keyword, keyword);
+    }
+
+    return { sql, values };
+};
+
+// ------------------------------------------------------
+// deleteAll(callback)                 -> every visible report
+// deleteAll({ filters }, callback)   -> only reports matching the
+//                                       filters applied on the page
+// ------------------------------------------------------
+ChecklistReport.deleteAll = async (options, callback) => {
+
+    if (typeof options === "function") {
+        callback = options;
+        options = {};
+    }
+
+    const filters = (options && options.filters) || {};
 
     let connection;
 
@@ -1008,59 +1070,69 @@ ChecklistReport.deleteAll = async (callback) => {
         connection = await db.getConnection();
         await connection.beginTransaction();
 
+        const filterSql = buildReportFilterSql(filters);
+
         // Select submissions represented by the current Checklist Reports
-        // view: at least one answer is visible (no AP or closed AP), and
-        // there are no open Action Points for the submission.
+        // view: at least one answer is visible (no AP or closed AP), there
+        // are no open Action Points for the submission, and (when filters
+        // are applied) the answer matches the active filters.
         const [rows] = await connection.query(`
             SELECT DISTINCT cs.id
             FROM checklist_submissions cs
-            LEFT JOIN checklist_submission_answers csa
+            LEFT JOIN checklist_types ct
+                ON ct.id = cs.checklist_type_id
+            LEFT JOIN stores s
+                ON s.id = cs.store_id
+            LEFT JOIN users u
+                ON u.id = cs.submitted_by
+            INNER JOIN checklist_submission_answers csa
                 ON csa.submission_id = cs.id
-            LEFT JOIN (
-                SELECT ap1.*
-                FROM action_points ap1
-                LEFT JOIN action_points ap2
-                    ON ap2.submission_answer_id = ap1.submission_answer_id
-                   AND ap2.id > ap1.id
-                WHERE ap2.id IS NULL
-            ) ap
-                ON ap.submission_answer_id = csa.id
-            WHERE (
-                ap.id IS NULL
-                OR ap.status = 'Closed'
+            LEFT JOIN questions q
+                ON q.id = csa.question_id
+            LEFT JOIN question_departments qd
+                ON qd.question_id = q.id
+            LEFT JOIN departments d
+                ON d.id = qd.department_id
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM action_points open_ap
+                WHERE open_ap.submission_answer_id = csa.id
+                  AND LOWER(COALESCE(open_ap.status, 'Open')) <> 'closed'
             )
             AND NOT EXISTS (
                 SELECT 1
-                FROM action_points open_ap
-                WHERE open_ap.submission_id = cs.id
-                  AND open_ap.status <> 'Closed'
+                FROM action_points open_ap2
+                WHERE open_ap2.submission_id = cs.id
+                  AND LOWER(COALESCE(open_ap2.status, 'Open')) <> 'closed'
             )
-        `);
+            ${filterSql.sql}
+        `, filterSql.values);
 
         const ids = rows.map(row => row.id);
 
-        if (ids.length) {
+        for (let i = 0; i < ids.length; i += 1000) {
 
-            const placeholders = ids.map(() => '?').join(',');
+            const batch = ids.slice(i, i + 1000);
+            const placeholders = batch.map(() => '?').join(',');
 
             // Remove Action Points belonging to the reports first so
             // submission-answer references cannot be left orphaned.
             await connection.query(
                 `DELETE FROM action_points
                  WHERE submission_id IN (${placeholders})`,
-                ids
+                batch
             );
 
             await connection.query(
                 `DELETE FROM checklist_submission_answers
                  WHERE submission_id IN (${placeholders})`,
-                ids
+                batch
             );
 
             await connection.query(
                 `DELETE FROM checklist_submissions
                  WHERE id IN (${placeholders})`,
-                ids
+                batch
             );
         }
 

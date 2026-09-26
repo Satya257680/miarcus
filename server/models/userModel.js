@@ -1638,9 +1638,33 @@ const deleteUser = (
 // DELETE ALL USERS EXCEPT ADMIN
 // ==========================================================
 
+// ids (optional): when an array is passed only those users are removed
+// (filter-aware Delete All). Administrators / Super Admins are always kept.
 const deleteAllUsers = (
+    ids,
     callback
 ) => {
+
+    if (typeof ids === "function" || ids === undefined) {
+        callback = typeof ids === "function" ? ids : callback;
+        ids = null;
+    }
+
+    const scoped = Array.isArray(ids);
+
+    if (scoped && !ids.length) {
+        const empty = Promise.resolve({ affectedRows: 0 });
+        if (typeof callback === "function") {
+            empty.then((result) => callback(null, result));
+            return undefined;
+        }
+        return empty;
+    }
+
+    const idClause = scoped
+        ? ` AND id IN (${ids.map(() => "?").join(", ")})`
+        : "";
+    const idParams = scoped ? ids : [];
 
     const operation = (async () => {
 
@@ -1659,8 +1683,10 @@ const deleteAllUsers = (
                         FROM users
                         WHERE is_admin = 0
                           AND is_super_admin = 0
+                          ${idClause}
                         ORDER BY id ASC
-                    `
+                    `,
+                    idParams
                 );
 
                 for (const user of (users || [])) {
@@ -1697,7 +1723,9 @@ const deleteAllUsers = (
                         FROM users
                         WHERE is_admin = 0
                           AND is_super_admin = 0
-                    `
+                          ${idClause}
+                    `,
+                    idParams
                 );
 
                 await connection.commit();

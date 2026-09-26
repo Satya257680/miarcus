@@ -50,6 +50,7 @@ import "../styles/ActionPoints.css";
 import "../styles/premium/ChecklistPremium.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportFromCSV } from "../utils/exportUtils.js";
+import { activeFilters, hasActiveFilters, collectIds, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 // ======================================================
 // API
@@ -834,10 +835,49 @@ const confirmDelete = async () => {
 // DELETE ALL
 // ======================================================
 
+// Filters applied on the page. With any filter set, Delete All only
+// removes the Action Points matching those filters.
+const deleteFilters = activeFilters({
+    search,
+    store_id: store,
+    department_id: department,
+    checklist_type_id: checklistType,
+    new_store_opening_id: nsoProject,
+    priority,
+    status,
+    start_date: startDate,
+    end_date: endDate
+});
+const isFilteredDelete = hasActiveFilters(deleteFilters);
+
 const confirmDeleteAll = async () => {
     if (!canDelete) return;
 
     try {
+        if (isFilteredDelete) {
+            // Resolve every Action Point matching the filters (all pages).
+            const res = await axios.get("/api/action-points", {
+                params: { ...deleteFilters, page: 1, limit: 100000 }
+            });
+            const ids = collectIds(res.data?.data || []);
+
+            if (!ids.length) {
+                alert("No Action Points match the selected filters.");
+                setShowDeleteAllDialog(false);
+                return;
+            }
+
+            const response = await axios.delete("/api/action-points", {
+                data: { scope: "filtered", ids }
+            });
+
+            alert(response.data?.message || `${ids.length} filtered Action Point(s) deleted successfully.`);
+            setShowDeleteAllDialog(false);
+            setCurrentPage(1);
+            await fetchActionPoints();
+            return;
+        }
+
         await axios.delete(
             "/api/action-points"
         );
@@ -1878,7 +1918,7 @@ return (
                         onClick={() => setShowDeleteAllDialog(true)}
                     >
                         <FaTrash />
-                        Delete All
+                        {deleteAllLabel(isFilteredDelete, isFilteredDelete ? totalRecords : undefined)}
                     </button>
                 )}
             </div>
@@ -2246,9 +2286,9 @@ return (
 
 <ConfirmDialog
     open={showDeleteAllDialog}
-    title="Delete All Action Points"
-    message="This will permanently delete all Action Points. Are you sure?"
-    confirmText="Delete All"
+    title={isFilteredDelete ? "Delete Filtered Action Points" : "Delete All Action Points"}
+    message={deleteAllMessage(isFilteredDelete, isFilteredDelete ? totalRecords : null, "Action Points")}
+    confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
     cancelText="Cancel"
     confirmVariant="danger"
     onConfirm={confirmDeleteAll}

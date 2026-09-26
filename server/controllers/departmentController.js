@@ -1,3 +1,4 @@
+const { readDeleteScope, sendFilteredResult } = require("../utils/deleteScope");
 const Department = require("../models/departmentModel");
 
 const { logActivity } = require("../utils/activityLogger");
@@ -1326,6 +1327,61 @@ Department.getUserByEmployeeId(
 exports.deleteAllDepartments = (req, res) => {
 
     const db = require("../config/db");
+
+    // ======================================
+    // FILTERED DELETE
+    // Search / filters applied on the page -> the client sends the ids of
+    // the matching departments. The same clean-up as Delete All runs, but
+    // only for those departments.
+    // ======================================
+
+    const scope = readDeleteScope(req);
+
+    if (scope.filtered) {
+        const ids = scope.ids || [];
+        if (!ids.length) {
+            return sendFilteredResult(res, { deleted: 0, failed: [] }, "department(s)");
+        }
+        const marks = ids.map(() => "?").join(", ");
+        (async () => {
+            try {
+                await db.query(`DELETE FROM department_users WHERE department_id IN (${marks})`, ids);
+                await db.query(`DELETE FROM question_departments WHERE department_id IN (${marks})`, ids);
+                await db.query(`DELETE FROM checklist_type_departments WHERE department_id IN (${marks})`, ids);
+                await db.query(`DELETE FROM nso_rule_departments WHERE department_id IN (${marks})`, ids);
+                await db.query(
+                    `UPDATE users SET department_id = NULL, designation_id = NULL
+                     WHERE department_id IN (${marks})
+                        OR designation_id IN (SELECT id FROM (SELECT id FROM designations WHERE department_id IN (${marks})) d)`,
+                    [...ids, ...ids]
+                );
+                await db.query(`DELETE FROM designations WHERE department_id IN (${marks})`, ids);
+                const result = await db.query(`DELETE FROM departments WHERE id IN (${marks})`, ids);
+                const deleted = Number(result?.affectedRows || 0);
+
+                logActivity({
+                    activity_type: "Department",
+                    reference_id: 0,
+                    title: "Delete Filtered Departments",
+                    description: `${deleted} filtered department(s) deleted.`,
+                    module_name: "Departments",
+                    status: "Closed",
+                    priority: "High",
+                    created_by: req.user.id,
+                    assigned_to: null
+                });
+
+                return sendFilteredResult(res, { deleted, failed: [] }, "department(s)");
+            } catch (error) {
+                console.error(error);
+                return res.status(500).json({
+                    success: false,
+                    message: "Unable to delete the filtered departments."
+                });
+            }
+        })();
+        return;
+    }
 
     // ======================================
     // REMOVE DEPENDENT RECORDS

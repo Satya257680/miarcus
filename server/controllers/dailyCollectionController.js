@@ -1,3 +1,4 @@
+const { readDeleteScope, eachId, sendFilteredResult } = require("../utils/deleteScope");
 const DailyCollection = require("../models/dailyCollectionModel");
 const emailService = require("../services/emailService");
 const XLSX = require("xlsx");
@@ -435,6 +436,18 @@ const deleteDailyCollection = async (req, res) => {
 
 const deleteAllDailyCollections = async (req, res) => {
     try {
+        // Date / store / search applied on the page -> the client sends the
+        // ids of the records it shows and only those are deleted (each one
+        // also clears its linked access block, same as a single delete).
+        const scope = readDeleteScope(req);
+        if (scope.filtered) {
+            const result = await eachId(scope.ids || [], async (id) => {
+                const ok = await DailyCollection.deleteReport(id);
+                if (!ok) throw new Error("Record not found.");
+            });
+            return sendFilteredResult(res, result, "Daily Collection record(s)");
+        }
+
         const deleted = await DailyCollection.deleteAllReports();
         res.json({ success: true, deleted, message: "All Daily Collection records deleted successfully." });
     } catch (error) {

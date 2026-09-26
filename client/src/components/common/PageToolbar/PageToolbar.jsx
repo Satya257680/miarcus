@@ -53,6 +53,7 @@ function PageToolbar({
 
   showDeleteAll = false,
   onDeleteAll,
+  deleteAllText = "Delete All",
 
   // ==========================================
   // Extra Buttons
@@ -136,7 +137,7 @@ function PageToolbar({
             onClick={onDeleteAll}
           >
             <FaTrash />
-            Delete All
+            {deleteAllText}
           </button>
 
         )}

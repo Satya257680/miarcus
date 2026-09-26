@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import React, {
     useCallback,
     useEffect,
@@ -407,9 +408,12 @@ function NSOTracking() {
         }
 
 
+        const filtered =
+            hasActiveFilters({ search });
+
         const confirmed =
             window.confirm(
-                "Delete all NSO Tracking records?"
+                deleteAllMessage(filtered, null, "NSO Tracking records")
             );
 
 
@@ -424,8 +428,19 @@ function NSOTracking() {
 
             setLoading(true);
 
+            let ids;
 
-            await deleteAllNSOTracking();
+            if (filtered) {
+                // Resolve every row matching the search (all pages).
+                const all = await getNSOTracking({ search, page: 1, limit: 100000 });
+                ids = collectIds(all?.data?.data || []);
+                if (!ids.length) {
+                    alert("No NSO Tracking records match the current search.");
+                    return;
+                }
+            }
+
+            await deleteAllNSOTracking(ids);
 
 
             setPage(1);
@@ -692,7 +707,7 @@ function NSOTracking() {
                                 tracking.length === 0
                             }
                         >
-                            Delete All
+                            {deleteAllLabel(hasActiveFilters({ search }))}
                         </button>
 
                     )}

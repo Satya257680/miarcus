@@ -82,8 +82,12 @@ const remove = async (id) => {
     return response.data;
 };
 
-const deleteAll = async () => {
-    const response = await axios.delete(`${API}/delete-all`);
+// ids (optional): only these announcements are deleted (filtered delete).
+const deleteAll = async (ids) => {
+    const response = await axios.delete(
+        `${API}/delete-all`,
+        Array.isArray(ids) ? { data: { scope: "filtered", ids } } : undefined
+    );
     return response.data;
 };
 

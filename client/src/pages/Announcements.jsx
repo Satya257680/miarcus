@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 import {
     FaBullhorn,
@@ -601,9 +602,12 @@ function Announcements() {
             return;
         }
 
+        const filtered =
+            hasActiveFilters({ search, startDate, endDate });
+
         const confirmed =
             window.confirm(
-                "Are you sure you want to delete ALL announcements? This cannot be undone."
+                `${deleteAllMessage(filtered, filtered ? announcements.length : null, "announcements")} This cannot be undone.`
             );
 
         if (!confirmed) {
@@ -612,7 +616,9 @@ function Announcements() {
 
         try {
 
-            await announcementService.deleteAll();
+            await announcementService.deleteAll(
+                filtered ? collectIds(announcements) : undefined
+            );
 
             setSelected(null);
 
@@ -621,7 +627,9 @@ function Announcements() {
             await load();
 
             alert(
-                "All announcements deleted successfully."
+                filtered
+                    ? "Filtered announcements deleted successfully."
+                    : "All announcements deleted successfully."
             );
 
         } catch (error) {
@@ -775,6 +783,11 @@ function Announcements() {
                 }
 
                 showDeleteAll={canDelete}
+
+                deleteAllText={deleteAllLabel(
+                    hasActiveFilters({ search, startDate, endDate }),
+                    announcements.length
+                )}
 
                 onDeleteAll={
                     handleDeleteAll

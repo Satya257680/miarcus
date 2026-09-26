@@ -1,3 +1,4 @@
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { getDepartments } from "../../services/departmentService.js";
 import {
   useCallback,
@@ -996,10 +997,27 @@ function SalesReview() {
      DELETE ALL
   ======================================================= */
 
+  // Filters that narrow the list on the server ("day" only changes the
+  // dropdown, not the rows, so it is not counted).
+  const reviewDeleteFilters = activeFilters({
+    years: filters.years,
+    months: filters.months,
+    weeks: filters.weeks,
+    reports_to: filters.reports_to,
+    asm: filters.asm,
+    store: filters.store,
+    search: filters.search,
+  });
+  const isFilteredDelete = hasActiveFilters(reviewDeleteFilters);
+
   const confirmDeleteAll =
     async () => {
       try {
-        await deleteAllSalesReview();
+        const response = await deleteAllSalesReview(
+          isFilteredDelete ? reviewDeleteFilters : null
+        );
+
+        if (response?.data?.message) alert(response.data.message);
 
         setPage(1);
 
@@ -1515,6 +1533,8 @@ function SalesReview() {
             permission
           )
         }
+
+        deleteAllText={deleteAllLabel(isFilteredDelete, total)}
 
         onDeleteAll={() =>
           setShowDeleteAllDialog(
@@ -2628,11 +2648,11 @@ function SalesReview() {
           showDeleteAllDialog
         }
 
-        title="Delete All Sales Review Data"
+        title={isFilteredDelete ? "Delete Filtered Sales Review Data" : "Delete All Sales Review Data"}
 
-        message="Are you sure you want to delete all Sales Review records? This action cannot be undone."
+        message={`${deleteAllMessage(isFilteredDelete, total, "Sales Review records")} This action cannot be undone.`}
 
-        confirmText="Delete All"
+        confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
 
         cancelText="Cancel"
 

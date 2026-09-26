@@ -923,7 +923,57 @@ const deleteRecord = async (id) => {
 // DELETE ALL ATTENDANCE
 // ======================================================
 
-const deleteAllRecords = async () => {
+// filters (optional): same filters as the Attendance Report
+// (search / userId / storeId / from / to / status). When supplied only
+// the matching attendance records are removed.
+const deleteAllRecords = async (filters = null) => {
+    if (filters && Object.keys(filters).length) {
+        const where = [];
+        const params = [];
+
+        if (filters.search) {
+            where.push(`(
+                u.name LIKE ?
+                OR u.employee_id LIKE ?
+                OR u.email LIKE ?
+                OR s.store_name LIKE ?
+                OR s.store_code LIKE ?
+            )`);
+            const q = `%${filters.search}%`;
+            params.push(q, q, q, q, q);
+        }
+        if (filters.userId) { where.push("a.employee_id = ?"); params.push(filters.userId); }
+        if (filters.storeId) { where.push("a.store_id = ?"); params.push(filters.storeId); }
+        if (filters.from) { where.push("a.work_date >= ?"); params.push(filters.from); }
+        if (filters.to) { where.push("a.work_date <= ?"); params.push(filters.to); }
+        if (filters.status) { where.push("a.status = ?"); params.push(filters.status); }
+
+        // Never widen a filtered delete into "delete everything".
+        if (!where.length) return [];
+
+        const matches = await query(
+            `
+                SELECT a.id, a.check_in_photo, a.check_out_photo
+                FROM attendance_records a
+                INNER JOIN users u ON u.id = a.employee_id
+                LEFT JOIN stores s ON s.id = a.store_id
+                WHERE ${where.join(" AND ")}
+            `,
+            params
+        );
+
+        const ids = matches.map((row) => Number(row.id)).filter(Boolean);
+        for (let i = 0; i < ids.length; i += 1000) {
+            const part = ids.slice(i, i + 1000);
+            await query(
+                `DELETE FROM attendance_records WHERE id IN (${part.map(() => "?").join(",")})`,
+                part
+            );
+        }
+
+        return matches;
+    }
+
     const photos = await query(`
         SELECT
             check_in_photo,

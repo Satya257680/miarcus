@@ -45,8 +45,11 @@ export const deleteAsset = async (type, id) => {
     return response.data;
 };
 
-export const deleteAllAssets = async (type) => {
-    const response = await axios.delete(`${API}/${type}/delete-all`, authConfig());
+// filters (optional): when any filter is active only matching assets are deleted.
+export const deleteAllAssets = async (type, filters = null) => {
+    const config = authConfig();
+    if (filters && Object.keys(filters).length) config.data = { scope: "filtered", filters };
+    const response = await axios.delete(`${API}/${type}/delete-all`, config);
     return response.data;
 };
 

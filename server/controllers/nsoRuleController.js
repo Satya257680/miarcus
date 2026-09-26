@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const NSORule = require("../models/nsoRuleModel");
 
 const XLSX = require("xlsx");
@@ -1038,9 +1039,18 @@ exports.deleteRule = (req,res)=>{
 
 exports.deleteAllRules = (req,res)=>{
 
+    // Search applied on the page -> only the matching rules are deleted.
+    const scope = readDeleteScope(req);
+    const filtered = scope.filtered;
+    const ruleFilters = filtered && scope.filters.search ? { search: scope.filters.search } : {};
+
+    if (filtered && !scope.ids && !ruleFilters.search) {
+        return res.status(400).json({ success:false, message:"No valid filter was supplied. Nothing was deleted." });
+    }
+
     NSORule.getAllRules(
 
-        {},
+        ruleFilters,
 
         (fetchErr, oldRules)=>{
 
@@ -1060,7 +1070,18 @@ exports.deleteAllRules = (req,res)=>{
             }
 
 
+            // Filtered: delete only the rules that matched (optionally
+            // narrowed further to explicit ids sent by the client).
+            let targetIds = null;
+            if (filtered) {
+                const matched = new Set((oldRules || []).map((rule) => Number(rule.id)));
+                targetIds = scope.ids ? scope.ids.filter((id) => matched.has(id)) : [...matched];
+                oldRules = (oldRules || []).filter((rule) => targetIds.includes(Number(rule.id)));
+            }
+
             NSORule.deleteAllRules(
+
+                targetIds,
 
                 (err)=>{
 
@@ -1084,7 +1105,7 @@ exports.deleteAllRules = (req,res)=>{
                     Activity.create({
 
                         title:
-                        "All NSO Rules Deleted",
+                        filtered ? "Filtered NSO Rules Deleted" : "All NSO Rules Deleted",
 
                         description:
                         `${oldRules.length} NSO rules deleted`,
@@ -1119,7 +1140,7 @@ exports.deleteAllRules = (req,res)=>{
                         null,
 
                         action:
-                        "DELETE_ALL",
+                        filtered ? "DELETE_FILTERED" : "DELETE_ALL",
 
                         old_data:
                         oldRules,
@@ -1140,8 +1161,13 @@ exports.deleteAllRules = (req,res)=>{
 
                         success:true,
 
+                        deleted:
+                        oldRules.length,
+
                         message:
-                        "All rules deleted successfully."
+                        filtered
+                            ? `${oldRules.length} filtered rule(s) deleted successfully.`
+                            : "All rules deleted successfully."
 
                     });
 

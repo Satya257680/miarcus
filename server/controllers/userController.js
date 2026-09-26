@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
@@ -2052,9 +2053,16 @@ const deleteAllUsers = (
     res
 ) => {
 
+    // Search / department / reports-to filter applied on the page -> the
+    // client sends the ids of the listed users and only those are deleted.
+    const scope = readDeleteScope(req);
+    const ids = scope.filtered ? (scope.ids || []) : null;
+
     User.deleteAllUsers(
 
-        (err) => {
+        ids,
+
+        (err, result) => {
 
             if (err) {
 
@@ -2084,10 +2092,12 @@ const deleteAllUsers = (
                     0,
 
                 title:
-                    "All Users Deleted",
+                    ids ? "Filtered Users Deleted" : "All Users Deleted",
 
                 description:
-                    "All users were deleted",
+                    ids
+                        ? `${Number(result?.affectedRows || 0)} filtered user(s) were deleted`
+                        : "All users were deleted",
 
                 module_name:
                     "Users",
@@ -2112,7 +2122,9 @@ const deleteAllUsers = (
                 success: true,
 
                 message:
-                    "All Users Deleted Successfully"
+                    ids
+                        ? `${Number(result?.affectedRows || 0)} filtered user(s) deleted successfully`
+                        : "All Users Deleted Successfully"
 
             });
         }

@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
@@ -2054,7 +2055,10 @@ async function deleteExpense(req, res) {
 
 async function deleteAllExpenses(req, res) {
     try {
-        const result = await Expense.deleteAll();
+        // Filters applied on the page -> the client sends the ids of the
+        // expenses it shows and only those are deleted.
+        const scope = readDeleteScope(req);
+        const result = await Expense.deleteAll(scope.filtered ? (scope.ids || []) : null);
         const uploadFolder = path.join(process.cwd(), "uploads");
 
         for (const attachment of result.attachments) {
@@ -2070,7 +2074,7 @@ async function deleteAllExpenses(req, res) {
         return res.json({
             success: true,
             deleted: result.count,
-            message: `${result.count} expense record(s) deleted successfully.`
+            message: `${result.count} ${scope.filtered ? "filtered " : ""}expense record(s) deleted successfully.`
         });
     } catch (error) {
         console.error("Delete all expenses error:", error);

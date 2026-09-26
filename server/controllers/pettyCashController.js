@@ -206,9 +206,18 @@ exports.bulkCancel = async (req,res)=>{
         }
 
         const allowed=new Map((rows||[]).map(r=>[Number(r.id),r]));
-        const ids=deleteAll
+        // Filter-aware Delete All: the page sends the ids it lists plus the
+        // filters it applied; only ids that still match those filters are
+        // deleted. Non-administrators silently keep records they did not give.
+        const filteredDelete = !deleteAll && String(req.body?.scope||"").toLowerCase()==="filtered";
+
+        let ids=deleteAll
             ? Array.from(allowed.keys())
             : requestedIds.filter(id=>allowed.has(id));
+
+        if (filteredDelete && !isAdmin(req)) {
+            ids=ids.filter(id=>Number(allowed.get(id)?.paid_by)===userId);
+        }
 
         if (!isAdmin(req)) {
             const own=ids.map(id=>allowed.get(id)).filter(Boolean);
@@ -242,7 +251,7 @@ exports.bulkCancel = async (req,res)=>{
 
         res.json({
             success:true,
-            message:`${result.affectedRows||0} petty cash record(s) permanently deleted.`,
+            message:`${result.affectedRows||0} ${filteredDelete?"filtered ":""}petty cash record(s) permanently deleted.`,
             data:{affectedRows:result.affectedRows||0}
         });
     } catch(error){

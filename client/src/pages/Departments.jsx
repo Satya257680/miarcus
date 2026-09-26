@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
@@ -439,17 +440,26 @@ const handleDeleteAll = () => {
 
 };
 
+const isFilteredDelete = hasActiveFilters({ search });
+
 const confirmDeleteAll = async () => {
 
   try {
 
-    const res = await deleteAllDepartments();
+    const ids = collectIds(filteredDepartments);
+
+    if (isFilteredDelete && !ids.length) {
+      alert("No departments match the current search.");
+      return;
+    }
+
+    const res = await deleteAllDepartments(isFilteredDelete ? ids : undefined);
 
     if (res.success) {
 
       fetchDepartments();
 
-      alert("All departments deleted successfully.");
+      alert(res.message || "All departments deleted successfully.");
 
     } else {
 
@@ -591,6 +601,7 @@ return (
       showBulk
       onBulk={() => setShowBulkModal(true)}
       showDeleteAll={canDelete}
+      deleteAllText={deleteAllLabel(isFilteredDelete, filteredDepartments.length)}
       onDeleteAll={handleDeleteAll}
     />
 
@@ -687,9 +698,9 @@ return (
     />
     <ConfirmDialog
   open={showDeleteAllDialog}
-  title="Delete All Departments"
-  message="Are you sure you want to delete ALL departments? This action cannot be undone."
-  confirmText="Delete All"
+  title={isFilteredDelete ? "Delete Filtered Departments" : "Delete All Departments"}
+  message={`${deleteAllMessage(isFilteredDelete, filteredDepartments.length, "departments")} This action cannot be undone.`}
+  confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
   cancelText="Cancel"
   confirmVariant="danger"
   onConfirm={confirmDeleteAll}

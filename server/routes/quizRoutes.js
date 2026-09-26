@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -1044,6 +1045,50 @@ router.delete(
     ) => {
 
         try {
+
+            // --------------------------------------------------
+            // FILTERED DELETE
+            // Search applied on the page -> the client sends the ids of
+            // the matching quizzes; only they (and their data) go.
+            // --------------------------------------------------
+
+            const scope = readDeleteScope(req);
+
+            if (scope.filtered) {
+
+                const ids = scope.ids || [];
+
+                if (!ids.length) {
+                    return res.json({ success: true, message: "No quizzes matched the filters.", deleted_count: 0 });
+                }
+
+                const marks = ids.map(() => "?").join(", ");
+
+                await db.query(
+                    `DELETE FROM quiz_submission_answers
+                     WHERE submission_id IN (SELECT id FROM quiz_submissions WHERE quiz_id IN (${marks}))`,
+                    ids
+                );
+
+                await db.query(`DELETE FROM quiz_submissions WHERE quiz_id IN (${marks})`, ids);
+
+                try {
+                    await db.query(`DELETE FROM quiz_email_logs WHERE quiz_id IN (${marks})`, ids);
+                } catch (emailError) {
+                    console.warn("quiz_email_logs cleanup skipped:", emailError.message);
+                }
+
+                await db.query(`DELETE FROM quiz_questions WHERE quiz_id IN (${marks})`, ids);
+
+                const scopedResult = await db.query(`DELETE FROM quizzes WHERE id IN (${marks})`, ids);
+                const count = Number(scopedResult?.affectedRows || 0);
+
+                return res.json({
+                    success: true,
+                    message: `${count} filtered quiz(zes) deleted successfully`,
+                    deleted_count: count
+                });
+            }
 
             await db.query(
                 `DELETE FROM quiz_submission_answers`
@@ -2573,6 +2618,31 @@ router.delete(
 
             }
 
+
+            // Search applied on the page -> only the listed question ids
+            // (belonging to this quiz) are deleted.
+            const scope = readDeleteScope(req);
+
+            if (scope.filtered) {
+
+                const ids = scope.ids || [];
+
+                if (!ids.length) {
+                    return res.json({ success: true, message: "No questions matched the filters.", deleted_count: 0 });
+                }
+
+                const scopedResult = await db.query(
+                    `DELETE FROM quiz_questions WHERE quiz_id = ? AND id IN (${ids.map(() => "?").join(", ")})`,
+                    [quizId, ...ids]
+                );
+                const count = Number(scopedResult?.affectedRows || 0);
+
+                return res.json({
+                    success: true,
+                    message: `${count} filtered question(s) deleted successfully.`,
+                    deleted_count: count
+                });
+            }
 
             const result =
                 await db.query(

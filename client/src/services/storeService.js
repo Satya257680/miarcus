@@ -61,10 +61,13 @@ export const deleteStore = async (id) => {
 // Delete All Stores
 // ==============================
 
-export const deleteAllStores = async () => {
+// ids (optional): when the list is filtered only these stores are deleted.
+export const deleteAllStores = async (ids) => {
   const res = await axios.delete(
     `${API}/delete-all`,
-    authConfig()
+    Array.isArray(ids)
+      ? { ...authConfig(), data: { scope: "filtered", ids } }
+      : authConfig()
   );
 
   return res.data;

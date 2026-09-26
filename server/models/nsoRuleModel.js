@@ -931,11 +931,20 @@ const deleteRule = async (
 // DELETE ALL RULES
 // ======================================================
 
+// ids (optional): when an array is passed only those rules are removed
+// (filter-aware Delete All). Otherwise every rule.
 const deleteAllRules = async (
+
+    ids,
 
     callback
 
 ) => {
+
+    if (typeof ids === "function") {
+        callback = ids;
+        ids = null;
+    }
 
     let connection;
 
@@ -944,6 +953,19 @@ const deleteAllRules = async (
         connection = await db.getConnection();
 
         await connection.beginTransaction();
+
+        if (Array.isArray(ids)) {
+            let affectedRows = 0;
+            for (let i = 0; i < ids.length; i += 1000) {
+                const part = ids.slice(i, i + 1000);
+                const marks = part.map(() => "?").join(", ");
+                await connection.query(`DELETE FROM nso_rule_departments WHERE rule_id IN (${marks})`, part);
+                const [partResult] = await connection.query(`DELETE FROM nso_rules WHERE id IN (${marks})`, part);
+                affectedRows += Number(partResult?.affectedRows || 0);
+            }
+            await connection.commit();
+            return callback(null, { affectedRows });
+        }
 
         await connection.query(
 

@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel } from "../utils/deleteScope";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
@@ -233,13 +234,25 @@ const handleBulkUpload = async (file) => {
 
 const deleteAllUsers = async () => {
 
+  // Search / department / reports-to filter applied -> only the listed
+  // users are deleted (Administrators / Super Admins are always kept).
+  const filtered = hasActiveFilters({ search, departmentFilter, reportsFilter });
+  const ids = collectIds(filteredUsers);
+
+  if (filtered && !ids.length) {
+    alert("No users match the selected filters.");
+    setShowDeleteModal(false);
+    return;
+  }
+
   try {
 
-    await axios.delete(
-      API_BASE_URL + '/api/users/delete-all'
+    const res = await axios.delete(
+      API_BASE_URL + '/api/users/delete-all',
+      filtered ? { data: { scope: "filtered", ids } } : undefined
     );
 
-    alert("Users Deleted Successfully");
+    alert(res.data?.message || "Users Deleted Successfully");
 
     fetchUsers();
 
@@ -563,7 +576,7 @@ return (
       onClick={() => setShowDeleteModal(true)}
     >
       <FaTrash />
-      Delete All
+      {deleteAllLabel(hasActiveFilters({ search, departmentFilter, reportsFilter }), filteredUsers.length)}
     </button>
 
   )}
@@ -1059,11 +1072,12 @@ return (
 
   <div className="users-confirm-modal">
 
-    <h2>Delete All Users</h2>
+    <h2>{hasActiveFilters({ search, departmentFilter, reportsFilter }) ? "Delete Filtered Users" : "Delete All Users"}</h2>
 
     <p>
-      This permanently deletes every user except Administrator and
-      Super Admin accounts, which are always kept. This cannot be undone.
+      {hasActiveFilters({ search, departmentFilter, reportsFilter })
+        ? `Filters are applied. Only the ${filteredUsers.length} user(s) matching the current filters will be deleted; users outside the filters are NOT touched. Administrator and Super Admin accounts are always kept. This cannot be undone.`
+        : "No filter is applied. This permanently deletes every user except Administrator and Super Admin accounts, which are always kept. This cannot be undone."}
     </p>
 
     <div className="users-confirm-buttons">

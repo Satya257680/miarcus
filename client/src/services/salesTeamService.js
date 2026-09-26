@@ -77,9 +77,14 @@ export const deleteVisitPlan = (
     `${api}/visit-plans/${id}`
   );
 
-export const deleteAllVisitPlans = () =>
+// filters (optional): when any Visit Planner filter is set only the
+// matching plans are deleted.
+export const deleteAllVisitPlans = (filters = null) =>
   axios.delete(
-    `${api}/visit-plans`
+    `${api}/visit-plans`,
+    filters && Object.keys(filters).length
+      ? { data: { scope: "filtered", filters } }
+      : undefined
   );
 
 /* ======================================================
@@ -304,10 +309,15 @@ export const uploadSalesReview = (
    DELETE ALL SALES REVIEW
 ====================================================== */
 
+// filters (optional): when any Sales Review filter is set only the
+// matching rows are deleted.
 export const deleteAllSalesReview =
-  () =>
+  (filters = null) =>
     axios.delete(
-      `${api}/sales-review`
+      `${api}/sales-review`,
+      filters && Object.keys(filters).length
+        ? { data: { scope: "filtered", filters } }
+        : undefined
     );
 
 /* ======================================================

@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 const XLSX = require("xlsx");
@@ -871,9 +872,25 @@ exports.deleteAllVisitPlans = (
   req,
   res
 ) => {
+  // Filters applied on the Visit Planner -> only the matching plans are
+  // deleted. No filters -> every plan the user may delete.
+  const scope = readDeleteScope(req);
+  const filters = {};
+  ["search", "from", "to", "name", "department", "store"].forEach((key) => {
+    if (scope.filters[key] !== undefined) filters[key] = scope.filters[key];
+  });
+
+  if (scope.filtered && !Object.keys(filters).length) {
+    return res.status(400).json({
+      success: false,
+      message: "No valid filter was supplied. Nothing was deleted.",
+    });
+  }
+
   SalesTeam.deleteAllVisitPlans(
     req.user,
-    (err) => {
+    scope.filtered ? filters : null,
+    (err, result) => {
       if (err) {
         return res.status(500).json({
           success: false,
@@ -882,8 +899,14 @@ exports.deleteAllVisitPlans = (
         });
       }
 
+      const deleted = Number(result?.affectedRows || 0);
+
       return res.json({
         success: true,
+        deleted,
+        message: scope.filtered
+          ? `${deleted} filtered visit plan(s) deleted successfully.`
+          : "All visit plans deleted successfully.",
       });
     }
   );
@@ -1626,8 +1649,23 @@ exports.deleteAllSalesReview = (
   req,
   res
 ) => {
+  // Filters applied on Sales Review -> only the matching rows are deleted.
+  const scope = readDeleteScope(req);
+  const filters = {};
+  ["years", "months", "weeks", "reports_to", "asm", "store", "search"].forEach((key) => {
+    if (scope.filters[key] !== undefined) filters[key] = scope.filters[key];
+  });
+
+  if (scope.filtered && !Object.keys(filters).length) {
+    return res.status(400).json({
+      success: false,
+      message: "No valid filter was supplied. Nothing was deleted.",
+    });
+  }
+
   SalesTeam.clearReview(
-    (err) => {
+    scope.filtered ? filters : null,
+    (err, result) => {
       if (err) {
         return res.status(500).json({
           success: false,
@@ -1636,8 +1674,14 @@ exports.deleteAllSalesReview = (
         });
       }
 
+      const deleted = Number(result?.affectedRows || 0);
+
       return res.json({
         success: true,
+        deleted,
+        message: scope.filtered
+          ? `${deleted} filtered Sales Review record(s) deleted successfully.`
+          : "All Sales Review records deleted successfully.",
       });
     }
   );

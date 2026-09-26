@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel } from "../../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -309,6 +310,9 @@ function PettyCash() {
     const [status, setStatus] = useState("");
     const [store, setStore] = useState("");
     const [viewMode, setViewMode] = useState("ALL");
+    // Filters that were actually applied to the list currently on screen
+    // (filters here are applied with the "Apply" button, not while typing).
+    const [appliedFilters, setAppliedFilters] = useState({ search: "", store: "", status: "", viewMode: "ALL" });
     const [modal, setModal] = useState("");
     const [deleting, setDeleting] = useState(false);
     const [audit, setAudit] = useState([]);
@@ -332,6 +336,12 @@ function PettyCash() {
                 axios.get("/api/petty-cash/options")
             ]);
             setAdvances(listResponse.data?.data || []);
+            setAppliedFilters({
+                search: filters.search || "",
+                store: filters.store || "",
+                status: filters.status || "",
+                viewMode: filters.viewMode || "ALL"
+            });
             setSummary(summaryResponse.data?.data?.summary || {});
             setOptions(optionsResponse.data?.data || { stores: [], users: [] });
         } catch (err) {
@@ -366,6 +376,14 @@ function PettyCash() {
     }, [id]);
 
     const visibleAdvances = useMemo(() => advances, [advances]);
+
+    // Any applied filter -> Delete All removes only the listed records.
+    const isFilteredDelete = hasActiveFilters({
+        search: appliedFilters.search,
+        store: appliedFilters.store,
+        status: appliedFilters.status,
+        viewMode: appliedFilters.viewMode === "ALL" ? "" : appliedFilters.viewMode
+    });
 
     const refreshDetail = async () => {
         await loadDetail(id);
@@ -682,11 +700,27 @@ function PettyCash() {
             <div className="petty-action-toolbar">
                 <ExportButton onExport={exportPettyCash} />
                 {access.canEdit && <button className="petty-btn danger" disabled={deleting || !visibleAdvances.length} onClick={async () => {
-                    const scope = access.admin ? "ALL petty cash records in the system" : "ALL petty cash records given by you";
+                    const filteredIds = collectIds(visibleAdvances);
+                    const scope = isFilteredDelete
+                        ? `the ${filteredIds.length} petty cash record(s) matching the applied filters (records outside the filters are NOT touched)`
+                        : (access.admin ? "ALL petty cash records in the system" : "ALL petty cash records given by you");
                     if (!window.confirm(`PERMANENT DELETE\n\nThis will permanently delete ${scope}, including their expenses, deposits and settlement records.\n\nThis cannot be undone. Continue?`)) return;
                     try {
                         setDeleting(true);
-                        const response = await axios.post("/api/petty-cash/bulk-delete", { deleteAll: true });
+                        const response = await axios.post(
+                            "/api/petty-cash/bulk-delete",
+                            isFilteredDelete
+                                ? {
+                                    scope: "filtered",
+                                    ids: filteredIds,
+                                    search: appliedFilters.search || "",
+                                    store_id: appliedFilters.store || "",
+                                    status: appliedFilters.status || "",
+                                    paid_by: appliedFilters.viewMode === "GIVEN_BY_ME" ? access.userId : "",
+                                    received_by: appliedFilters.viewMode === "RECEIVED_BY_ME" ? access.userId : ""
+                                }
+                                : { deleteAll: true }
+                        );
                         if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete records.");
                         setError("");
                         setSearch("");
@@ -695,7 +729,7 @@ function PettyCash() {
                         setViewMode("ALL");
                         await loadDashboard({ search: "", store: "", status: "", viewMode: "ALL" });
                     } catch (err) { setError(err.response?.data?.message || err.message || "Unable to delete records."); } finally { setDeleting(false); }
-                }}><FaTrash /> {deleting ? "Deleting..." : "Delete All"}</button>}
+                }}><FaTrash /> {deleting ? "Deleting..." : deleteAllLabel(isFilteredDelete, visibleAdvances.length)}</button>}
                 <Link className="petty-btn secondary" to="/petty-cash/email-settings"><FaEnvelope /> Email Settings</Link>
             </div>
 

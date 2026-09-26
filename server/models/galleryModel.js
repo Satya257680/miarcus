@@ -258,7 +258,53 @@ const Gallery = {
         });
     },
 
-    async deleteAll() {
+    // filters (optional): { search, category, locationType, storeId, from, to }
+    // — same as the Gallery list. When supplied only the matching items
+    // are removed; otherwise every active item.
+    async deleteAll(filters = null) {
+        if (filters && Object.keys(filters).length) {
+            const params = [];
+            const where = [`g.status = 'active'`];
+            if (filters.search) {
+                where.push(`(
+                    g.file_name LIKE ? OR
+                    g.description LIKE ? OR
+                    g.category LIKE ? OR
+                    u.name LIKE ? OR
+                    u.employee_id LIKE ? OR
+                    COALESCE(s.store_name, 'Head Office') LIKE ?
+                )`);
+                const value = `%${filters.search}%`;
+                params.push(value, value, value, value, value, value);
+            }
+            if (filters.category) { where.push(`g.category = ?`); params.push(filters.category); }
+            if (filters.locationType) { where.push(`g.location_type = ?`); params.push(filters.locationType); }
+            if (filters.storeId) { where.push(`g.store_id = ?`); params.push(filters.storeId); }
+            if (filters.from) { where.push(`DATE(g.uploaded_at) >= ?`); params.push(filters.from); }
+            if (filters.to) { where.push(`DATE(g.uploaded_at) <= ?`); params.push(filters.to); }
+
+            // Never widen a filtered delete into "delete everything".
+            if (where.length === 1) return [];
+
+            const matches = await db.query(`
+                SELECT g.id, g.file_path, g.source_module
+                FROM gallery_photos g
+                INNER JOIN users u ON u.id = g.uploaded_by
+                LEFT JOIN stores s ON s.id = g.store_id
+                WHERE ${where.join(" AND ")}
+            `, params);
+
+            const ids = matches.map((row) => Number(row.id)).filter(Boolean);
+            for (let i = 0; i < ids.length; i += 1000) {
+                const part = ids.slice(i, i + 1000);
+                await db.query(
+                    `UPDATE gallery_photos SET status = 'deleted' WHERE id IN (${part.map(() => "?").join(",")})`,
+                    part
+                );
+            }
+            return matches;
+        }
+
         const rows = await db.query(`
             SELECT id, file_path, source_module
             FROM gallery_photos

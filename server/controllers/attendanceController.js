@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs/promises");
 const path = require("path");
 
@@ -1169,8 +1170,23 @@ const deleteAll = async (
     }
 
     try {
+        // Filters applied on the report -> only matching records go.
+        const scope = readDeleteScope(req);
+        const allowed = ["search", "userId", "storeId", "from", "to", "status"];
+        const filters = {};
+        allowed.forEach((key) => {
+            if (scope.filters[key] !== undefined) filters[key] = scope.filters[key];
+        });
+
+        if (scope.filtered && !Object.keys(filters).length) {
+            return res.status(400).json({
+                success: false,
+                message: "No valid filter was supplied. Nothing was deleted."
+            });
+        }
+
         const deletedPhotos =
-            await Attendance.deleteAllRecords();
+            await Attendance.deleteAllRecords(scope.filtered ? filters : null);
 
         await Promise.all(
             deletedPhotos.flatMap(
@@ -1188,8 +1204,10 @@ const deleteAll = async (
 
         return res.json({
             success: true,
-            message:
-                "All attendance records were deleted successfully."
+            deleted: deletedPhotos.length,
+            message: scope.filtered
+                ? `${deletedPhotos.length} filtered attendance record(s) deleted successfully.`
+                : "All attendance records were deleted successfully."
         });
 
     } catch (error) {

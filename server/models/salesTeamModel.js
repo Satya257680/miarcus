@@ -1310,13 +1310,25 @@ const deleteVisitPlan = (
    DELETE ALL VISIT PLANS
 ========================================================= */
 
+// filters (optional): same filters as the Visit Planner list
+// (search / from / to / name / department / store). When supplied only the
+// matching plans are removed; otherwise every plan the user may delete.
 const deleteAllVisitPlans = (
   user,
+  filters,
   callback
 ) => {
+  if (typeof filters === "function") {
+    callback = filters;
+    filters = null;
+  }
+
   const admin = isAdmin(user);
 
-  const planQuery = admin
+  const scoped =
+    filters && Object.keys(filters).length > 0;
+
+  let planQuery = admin
     ? `
       SELECT id
       FROM sales_visit_plans
@@ -1327,9 +1339,23 @@ const deleteAllVisitPlans = (
       WHERE employee_id = ?
     `;
 
-  const planParams = admin
+  let planParams = admin
     ? []
     : [user.id];
+
+  if (scoped) {
+    planParams = [];
+    const where = buildVisitWhere(filters, user, planParams);
+    planQuery = `
+      SELECT DISTINCT v.id
+      FROM sales_visit_plans v
+      JOIN users u
+        ON u.id = v.employee_id
+      LEFT JOIN departments d
+        ON d.id = u.department_id
+      WHERE ${where}
+    `;
+  }
 
   query(
     planQuery,
@@ -2416,9 +2442,56 @@ const getReview = (
    CLEAR SALES REVIEW
 ========================================================= */
 
+// Same filter conditions as getReview (years / months / weeks /
+// reports_to / asm / store / search). Used by the filter-aware Delete All.
+const buildReviewWhere = (filters = {}, params = []) => {
+  const conditions = [];
+  const add = (sql, value) => {
+    if (value !== undefined && value !== null && value !== "") {
+      conditions.push(sql);
+      params.push(value);
+    }
+  };
+
+  add("year = ?", filters.years ? Number(String(filters.years).split(",")[0]) : "");
+  add("month LIKE ?", filters.months ? `%${filters.months}%` : "");
+  add("week LIKE ?", filters.weeks ? `%${filters.weeks}%` : "");
+  add("reports_to LIKE ?", filters.reports_to ? `%${filters.reports_to}%` : "");
+  add("asm LIKE ?", filters.asm ? `%${filters.asm}%` : "");
+  add("store_name LIKE ?", filters.store ? `%${filters.store}%` : "");
+
+  if (filters.search) {
+    conditions.push("(store_name LIKE ? OR remarks LIKE ?)");
+    params.push(`%${filters.search}%`, `%${filters.search}%`);
+  }
+
+  return conditions;
+};
+
+// filters (optional): when supplied only the matching Sales Review rows
+// are removed; otherwise every row.
 const clearReview = (
+  filters,
   callback
 ) => {
+  if (typeof filters === "function") {
+    callback = filters;
+    filters = null;
+  }
+
+  if (filters && Object.keys(filters).length) {
+    const params = [];
+    const conditions = buildReviewWhere(filters, params);
+    if (!conditions.length) {
+      return callback(null, { affectedRows: 0 }); // never widen to "all"
+    }
+    return query(
+      `DELETE FROM sales_review_records WHERE ${conditions.join(" AND ")}`,
+      params,
+      callback
+    );
+  }
+
   query(
     `
     DELETE FROM sales_review_records

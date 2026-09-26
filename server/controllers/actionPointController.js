@@ -3,6 +3,7 @@ const { Parser } = require("json2csv");
 
 const actionPointService = require("../services/actionPointService");
 const { parseBulkFile } = require("../utils/bulkFileParser");
+const { readDeleteScope } = require("../utils/deleteScope");
 const checklistReportService = require("../services/checklistReportService");
 const { getDepartmentIdByName } = require("../models/userModel");
 
@@ -1278,7 +1279,13 @@ exports.deleteAllActionPoints = async (req, res) => {
 
     try {
 
-        const result = await actionPointService.deleteAll(req.user.id);
+        // Filters applied on the page -> the client sends the matching ids
+        // and only those Action Points are deleted. No filters -> all.
+        const scope = readDeleteScope(req);
+        const result = await actionPointService.deleteAll(
+            req.user.id,
+            scope.filtered ? (scope.ids || []) : null
+        );
         return res.status(200).json(result);
 
     }

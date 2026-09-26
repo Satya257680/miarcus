@@ -253,11 +253,15 @@ export const deleteProduct = async (
     authConfig()
   );
 
+// filters (optional): { search, stage, status } — when any is set only
+// the matching products are deleted.
 export const deleteAllProducts =
-  async () =>
+  async (filters = null) =>
     axios.delete(
       `${API}/products`,
-      authConfig()
+      filters && Object.keys(filters).length
+        ? { ...authConfig(), data: { scope: "filtered", filters } }
+        : authConfig()
     );
 
 /* =========================================================

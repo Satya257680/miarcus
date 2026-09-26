@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const Asset = require("../models/assetModel");
 const XLSX = require("xlsx");
@@ -259,8 +260,13 @@ const removeAll = async (req, res) => {
     const { type } = req.params;
     if (!validateType(type)) return res.status(400).json({ success: false, message: "Invalid asset type." });
     try {
-        const deleted = await Asset.removeAll(type);
-        return res.json({ success: true, message: `${deleted} asset record(s) deleted successfully.`, deleted });
+        // Search / filters applied on the page -> delete only the matches.
+        const scope = readDeleteScope(req);
+        if (scope.filtered && !Object.keys(scope.filters).length) {
+            return res.status(400).json({ success: false, message: "No valid filter was supplied. Nothing was deleted." });
+        }
+        const deleted = await Asset.removeAll(type, scope.filtered ? scope.filters : null);
+        return res.json({ success: true, message: `${deleted} ${scope.filtered ? "filtered " : ""}asset record(s) deleted successfully.`, deleted });
     } catch (error) {
         console.error("Asset delete all error:", error);
         return res.status(500).json({ success: false, message: "Unable to delete all assets." });

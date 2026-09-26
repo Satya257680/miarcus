@@ -53,7 +53,20 @@ const listSales = async ({page=1,pageSize=10,search="",store="",year="",category
 const getSalesById=async id=>(await db.query(`SELECT * FROM ${SALES_TABLE} WHERE id=? LIMIT 1`,[id]))[0]||null;
 const createSale=async d=>(await db.query(`INSERT INTO ${SALES_TABLE}(store_id,store_name,sale_year,sale_month,category,sales_amount,units_sold,discount_percent,created_by) VALUES(?,?,?,?,?,?,?,?,?)`,[d.store_id||null,d.store_name,Number(d.sale_year),normalizeMonth(d.sale_month),d.category,normalizeNumber(d.sales_amount),normalizeNumber(d.units_sold),normalizeNumber(d.discount_percent),d.created_by||null])).insertId;
 const deleteSale=id=>db.query(`DELETE FROM ${SALES_TABLE} WHERE id=?`,[id]);
-const deleteAllSales=()=>db.query(`DELETE FROM ${SALES_TABLE}`);
+// filters (optional): { search, store, year, category } — same as the ERP
+// list. When supplied only the matching rows are deleted; otherwise all.
+const deleteAllSales=(filters=null)=>{
+  if(filters&&Object.keys(filters).length){
+    const c=[],params=[];const q=String(filters.search||"").trim();
+    if(q){const like=`%${q}%`;c.push("(store_name LIKE ? OR category LIKE ? OR sale_month LIKE ?)");params.push(like,like,like);}
+    if(String(filters.store||"").trim()){c.push("store_name = ?");params.push(String(filters.store).trim());}
+    if(filters.year){c.push("sale_year = ?");params.push(Number(filters.year));}
+    if(String(filters.category||"").trim()){c.push("category = ?");params.push(String(filters.category).trim());}
+    if(!c.length)return Promise.resolve({affectedRows:0}); // never widen to "all"
+    return db.query(`DELETE FROM ${SALES_TABLE} WHERE ${c.join(" AND ")}`,params);
+  }
+  return db.query(`DELETE FROM ${SALES_TABLE}`);
+};
 const exportSales=()=>db.query(`SELECT * FROM ${SALES_TABLE} ORDER BY sale_year DESC,id DESC`);
 const getOptions=async()=>{const [stores,categories,years]=await Promise.all([db.query(`SELECT id,store_name,store_code FROM stores ORDER BY store_name`),db.query(`SELECT DISTINCT category FROM ${SALES_TABLE} WHERE category<>'' ORDER BY category`),db.query(`SELECT DISTINCT sale_year year FROM ${SALES_TABLE} ORDER BY sale_year DESC`)]);return {stores,categories:categories.map(x=>x.category),years:years.map(x=>x.year)};};
 const resolveStores=async ids=>{const clean=(ids||[]).map(Number).filter(Number.isFinite);if(!clean.length)return [];return db.query(`SELECT id,store_name FROM stores WHERE id IN (${clean.map(()=>"?").join(",")}) ORDER BY store_name`,clean);};

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 // ======================================================
 // COMMON COMPONENTS
@@ -323,11 +324,17 @@ useEffect(() => {
 
     };
 
+    const isFilteredDelete = hasActiveFilters({ search });
+
     const confirmDeleteAll = async () => {
 
         try {
 
-            await deleteAllRules();
+            const result = await deleteAllRules(
+                isFilteredDelete ? activeFilters({ search }) : null
+            );
+
+            if (result?.message) alert(result.message);
 
             setShowDeleteAllDialog(false);
 
@@ -629,6 +636,8 @@ const columns = [
 
                 showDeleteAll={canDelete}
 
+                deleteAllText={deleteAllLabel(isFilteredDelete, totalRecords)}
+
                 onDeleteAll={handleDeleteAll}
 
             />
@@ -752,11 +761,11 @@ const columns = [
 
                 open={showDeleteAllDialog}
 
-                title="Delete All NSO Rules"
+                title={isFilteredDelete ? "Delete Filtered NSO Rules" : "Delete All NSO Rules"}
 
-                message="Are you sure you want to delete all NSO Rules? This action cannot be undone."
+                message={`${deleteAllMessage(isFilteredDelete, totalRecords, "NSO Rules")} This action cannot be undone.`}
 
-                confirmText="Delete All"
+                confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
 
                 cancelText="Cancel"
 

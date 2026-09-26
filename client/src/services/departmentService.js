@@ -128,13 +128,16 @@ export const deleteDepartment = async (id) => {
 // DELETE ALL DEPARTMENTS
 // ======================================================
 
-export const deleteAllDepartments = async () => {
+// ids (optional): when the list is filtered only these departments are deleted.
+export const deleteAllDepartments = async (ids) => {
 
     const response = await axios.delete(
 
         `${API}/delete-all`,
 
-        authConfig()
+        Array.isArray(ids)
+            ? { ...authConfig(), data: { scope: "filtered", ids } }
+            : authConfig()
 
     );
 

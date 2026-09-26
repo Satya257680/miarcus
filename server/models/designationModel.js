@@ -504,7 +504,34 @@ const exportDesignations = (callback) => {
 // DELETE ALL DESIGNATIONS
 // ==========================================================
 
-const deleteAllDesignations = (callback) => {
+// ids (optional): when an array is passed only those designations are
+// removed (filter-aware Delete All). Otherwise every designation.
+const deleteAllDesignations = (ids, callback) => {
+
+    if (typeof ids === "function") {
+        callback = ids;
+        ids = null;
+    }
+
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, { affectedRows: 0 });
+        const marks = ids.map(() => "?").join(", ");
+        return db.query(
+            `UPDATE users SET designation_id = NULL WHERE designation_id IN (${marks})`,
+            ids,
+            (err) => {
+                if (err) return callback(err);
+                db.query(
+                    `DELETE FROM designation_users WHERE designation_id IN (${marks})`,
+                    ids,
+                    (err2) => {
+                        if (err2) return callback(err2);
+                        db.query(`DELETE FROM designations WHERE id IN (${marks})`, ids, callback);
+                    }
+                );
+            }
+        );
+    }
 
     db.query(
 

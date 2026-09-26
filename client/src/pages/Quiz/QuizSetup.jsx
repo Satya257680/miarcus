@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../axiosConfig";
@@ -1162,9 +1163,23 @@ const QuizSetup = () => {
                 return;
             }
 
+            // Category / global search applied -> only the listed
+            // quizzes are deleted.
+            const filtered =
+                hasActiveFilters({ categorySearch, globalSearch });
+            const ids =
+                collectIds(filteredQuizzes);
+
+            if (filtered && !ids.length) {
+                flash("No quizzes match the current search.");
+                return;
+            }
+
             if (
                 !window.confirm(
-                    `Delete all ${quizzes.length} quizzes and their data?`
+                    filtered
+                        ? `${deleteAllMessage(true, ids.length, "quizzes")} Their data is removed too.`
+                        : `No filter is applied. Delete all ${quizzes.length} quizzes and their data?`
                 )
             ) {
 
@@ -1178,7 +1193,10 @@ const QuizSetup = () => {
             try {
 
                 await axios.delete(
-                    "/api/quiz/bulk/all"
+                    "/api/quiz/bulk/all",
+                    filtered
+                        ? { data: { scope: "filtered", ids } }
+                        : undefined
                 );
 
                 setSelected(
@@ -1190,7 +1208,9 @@ const QuizSetup = () => {
                 );
 
                 flash(
-                    "All quizzes deleted successfully."
+                    filtered
+                        ? "Filtered quizzes deleted successfully."
+                        : "All quizzes deleted successfully."
                 );
 
             } catch (error) {
@@ -2322,9 +2342,23 @@ const QuizSetup = () => {
                 return;
             }
 
+            // Question / global search applied -> only the listed
+            // questions of this category are deleted.
+            const filtered =
+                hasActiveFilters({ questionSearch, globalSearch });
+            const ids =
+                collectIds(filteredQuestions);
+
+            if (filtered && !ids.length) {
+                flash("No questions match the current search.");
+                return;
+            }
+
             if (
                 !window.confirm(
-                    `Delete all ${selected.questions.length} questions from this category?`
+                    filtered
+                        ? deleteAllMessage(true, ids.length, "questions of this category")
+                        : `No filter is applied. Delete all ${selected.questions.length} questions from this category?`
                 )
             ) {
 
@@ -2338,7 +2372,10 @@ const QuizSetup = () => {
             try {
 
                 await axios.delete(
-                    `/api/quiz/${selected.id}/questions/bulk/all`
+                    `/api/quiz/${selected.id}/questions/bulk/all`,
+                    filtered
+                        ? { data: { scope: "filtered", ids } }
+                        : undefined
                 );
 
                 const detail =
@@ -2353,7 +2390,9 @@ const QuizSetup = () => {
                 );
 
                 flash(
-                    "All questions deleted successfully."
+                    filtered
+                        ? "Filtered questions deleted successfully."
+                        : "All questions deleted successfully."
                 );
 
             } catch (error) {
@@ -2870,7 +2909,7 @@ const QuizSetup = () => {
                                     saving
                                 }
                             >
-                                Delete All
+                                {deleteAllLabel(hasActiveFilters({ categorySearch, globalSearch }), filteredQuizzes.length)}
                             </button>
 
                             <button
@@ -3109,7 +3148,9 @@ const QuizSetup = () => {
                                             saving
                                         }
                                     >
-                                        Delete All Questions
+                                        {hasActiveFilters({ questionSearch, globalSearch })
+                                            ? `Delete Filtered Questions (${filteredQuestions.length})`
+                                            : "Delete All Questions"}
                                     </button>
 
                                     <button

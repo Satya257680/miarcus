@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
 // ======================================================
@@ -287,15 +288,26 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
         if (!canDelete) return;
 
-        if (!window.confirm("Delete all Checklist Types?")) return;
+        // Search / status / department filter applied -> only the
+        // Checklist Types shown in the filtered list are deleted.
+        const filtered = hasActiveFilters({ search, statusFilter, departmentFilter });
+        const ids = collectIds(filteredChecklists);
+
+        if (filtered && !ids.length) {
+            alert("No Checklist Types match the selected filters.");
+            return;
+        }
+
+        if (!window.confirm(deleteAllMessage(filtered, ids.length, "Checklist Types"))) return;
 
         try {
 
-            await axios.delete(
-                `${API}/checklist-types/delete-all`
+            const response = await axios.delete(
+                `${API}/checklist-types/delete-all`,
+                filtered ? { data: { scope: "filtered", ids } } : undefined
             );
 
-            alert("All Checklist Types deleted successfully.");
+            alert(response.data?.message || "Checklist Types deleted successfully.");
 
             loadChecklistTypes();
 
@@ -892,6 +904,7 @@ const handleSave = async (data) => {
 
     showDeleteAll={canDelete}
 
+    deleteAllText={deleteAllLabel(hasActiveFilters({ search, statusFilter, departmentFilter }), filteredChecklists.length)}
     onDeleteAll={handleDeleteAll}
 
 />

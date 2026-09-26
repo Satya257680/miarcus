@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../axiosConfig.js";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -671,16 +672,21 @@ function ProductList() {
       return;
     }
 
+    const filters = activeFilters({ search: query, stage, status });
+    const filtered = hasActiveFilters(filters);
+
     if (
       !window.confirm(
-        "Delete ALL collection products? This action cannot be undone."
+        `${deleteAllMessage(filtered, total, "collection products")} This action cannot be undone.`
       )
     ) {
       return;
     }
 
     try {
-      await deleteAllProducts();
+      const response = await deleteAllProducts(filtered ? filters : null);
+
+      if (response?.data?.message) alert(response.data.message);
 
       setPage(1);
 
@@ -774,7 +780,7 @@ function ProductList() {
             onClick={handleDeleteAll}
           >
             <FaTrash />
-            Delete All
+            {deleteAllLabel(hasActiveFilters({ query, stage, status }), total)}
           </button>
         </div>
       </Hero>

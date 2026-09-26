@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import axios from "axios";
 import {
     FaCamera,
@@ -720,19 +721,36 @@ export default function Gallery() {
         }
     };
 
+    // Filters applied on the Gallery. With any set, Delete All removes
+    // only the matching items.
+    const galleryDeleteFilters = activeFilters({
+        search,
+        category,
+        locationType: locationFilter && locationFilter.startsWith("store:") ? "store" : locationFilter,
+        storeId: locationFilter && locationFilter.startsWith("store:") ? locationFilter.replace("store:", "") : "",
+        from,
+        to
+    });
+    const isFilteredDelete = hasActiveFilters(galleryDeleteFilters);
+
     const deleteAll = async () => {
         if (!canDeleteAll) return;
 
         const confirmed = window.confirm(
-            "Delete all Gallery items?\n\nPhotos uploaded by other modules will remain in their original module. Only Gallery-owned files will be physically removed."
+            `${deleteAllMessage(isFilteredDelete, isFilteredDelete ? pagination?.total : null, "Gallery items")}\n\nPhotos uploaded by other modules will remain in their original module. Only Gallery-owned files will be physically removed.`
         );
 
         if (!confirmed) return;
 
         try {
-            await axios.delete(
-                "/api/gallery/delete-all"
+            const response = await axios.delete(
+                "/api/gallery/delete-all",
+                isFilteredDelete
+                    ? { data: { scope: "filtered", filters: galleryDeleteFilters } }
+                    : undefined
             );
+
+            if (response?.data?.message) window.alert(response.data.message);
 
             setSelected(null);
 
@@ -834,7 +852,7 @@ export default function Gallery() {
                             onClick={deleteAll}
                         >
                             <FaTrash />
-                            Delete All
+                            {deleteAllLabel(isFilteredDelete, isFilteredDelete ? pagination?.total : undefined)}
                         </button>
                     )}
                 </div>

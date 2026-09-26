@@ -6,6 +6,7 @@ const Activity = require("../models/activityModel");
 const Audit = require("../models/auditModel");
 const { parseBulkFile } = require("../utils/bulkFileParser");
 const checklistReportService = require("../services/checklistReportService");
+const { readDeleteScope } = require("../utils/deleteScope");
 
 // ======================================================
 // BULK UPLOAD — COLUMN ALIASES
@@ -258,7 +259,24 @@ exports.deleteReport = (req, res) => {
 // Active Action Points are preserved.
 // ======================================================
 exports.deleteAllReports = (req, res) => {
-    ChecklistReport.deleteAll((err, result) => {
+    // No filters  -> every visible report is removed (previous behaviour).
+    // Filters     -> only reports matching store / checklist type /
+    //                employee / date range / search are removed.
+    const scope = readDeleteScope(req);
+    const allowed = ["store_id", "checklist_type_id", "employee_id", "new_store_opening_id", "from_date", "to_date", "search"];
+    const filters = {};
+    allowed.forEach((key) => {
+        if (scope.filters[key] !== undefined) filters[key] = scope.filters[key];
+    });
+
+    if (scope.filtered && !Object.keys(filters).length) {
+        return res.status(400).json({
+            success: false,
+            message: "No valid filter was supplied. Nothing was deleted.",
+        });
+    }
+
+    ChecklistReport.deleteAll({ filters }, (err, result) => {
         if (err) {
             console.error("DELETE ALL CHECKLIST REPORTS ERROR:", err);
             return res.status(500).json({
@@ -270,7 +288,7 @@ exports.deleteAllReports = (req, res) => {
 
         Activity.create({
             title: "Checklist Reports Deleted",
-            description: `${Number(result?.affectedSubmissions || 0)} checklist submission(s) deleted from reports.`,
+            description: `${Number(result?.affectedSubmissions || 0)} checklist submission(s) deleted from reports${scope.filtered ? " (filtered delete)" : ""}.`,
             module_name: "Checklist Reports",
             status: "Closed",
             priority: "Medium",
@@ -281,8 +299,8 @@ exports.deleteAllReports = (req, res) => {
         Audit.create({
             module_name: "Checklist Reports",
             reference_id: null,
-            action: "DELETE_ALL",
-            old_data: null,
+            action: scope.filtered ? "DELETE_FILTERED" : "DELETE_ALL",
+            old_data: scope.filtered ? { filters } : null,
             new_data: result,
             changed_by: req.user.id,
         }, () => {});

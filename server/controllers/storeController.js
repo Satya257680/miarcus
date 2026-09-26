@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const Store = require("../models/storeModel");
 
 const { logActivity } = require("../utils/activityLogger");
@@ -605,9 +606,16 @@ exports.deleteStore = (req, res) => {
 
 exports.deleteAllStores = (req, res) => {
 
+    // Search / status filter applied on the page -> only the matching
+    // store ids sent by the client are deleted.
+    const scope = readDeleteScope(req);
+    const ids = scope.filtered ? (scope.ids || []) : null;
+
     Store.deleteAllStores(
 
-        (err) => {
+        ids,
+
+        (err, result) => {
 
             if (err) {
 
@@ -633,9 +641,11 @@ exports.deleteAllStores = (req, res) => {
 
                 reference_id: 0,
 
-                title: "All Stores Deleted",
+                title: ids ? "Filtered Stores Deleted" : "All Stores Deleted",
 
-                description: "All stores were deleted",
+                description: ids
+                    ? `${Number(result?.affectedRows || 0)} filtered store(s) were deleted`
+                    : "All stores were deleted",
 
                 module_name: "Stores",
 
@@ -655,7 +665,9 @@ exports.deleteAllStores = (req, res) => {
 
                 success: true,
 
-                message: "All stores deleted successfully."
+                message: ids
+                    ? `${Number(result?.affectedRows || 0)} filtered store(s) deleted successfully.`
+                    : "All stores deleted successfully."
 
             });
 

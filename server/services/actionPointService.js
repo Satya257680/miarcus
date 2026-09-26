@@ -1651,13 +1651,22 @@ const deleteActionPoint = async (
 // ======================================================
  
 const deleteAll = async (
-    userId
+    userId,
+    ids = null
 ) => {
  
-    const result =
-        await asPromise(
-            ActionPoint.deleteAll
-        );
+    // ids === null -> delete every Action Point
+    // ids array    -> delete only the filtered Action Points
+    const filtered = Array.isArray(ids);
+    let result = { affectedRows: 0 };
+    if (filtered) {
+        for (let i = 0; i < ids.length; i += 1000) {
+            const part = await asPromise(ActionPoint.deleteAll, ids.slice(i, i + 1000));
+            result.affectedRows += Number(part?.affectedRows || 0);
+        }
+    } else {
+        result = await asPromise(ActionPoint.deleteAll);
+    }
  
  
     // ==================================================
@@ -1667,10 +1676,12 @@ const deleteAll = async (
     Activity.create(
         {
             title:
-                "All Action Points Deleted",
+                filtered ? "Filtered Action Points Deleted" : "All Action Points Deleted",
  
             description:
-                "All Action Points removed.",
+                filtered
+                    ? `${result.affectedRows} filtered Action Point(s) removed.`
+                    : "All Action Points removed.",
  
             module_name:
                 "Action Points",
@@ -1705,7 +1716,7 @@ const deleteAll = async (
                 null,
  
             action:
-                "DELETE_ALL",
+                filtered ? "DELETE_FILTERED" : "DELETE_ALL",
  
             old_data:
                 null,
@@ -1727,8 +1738,11 @@ const deleteAll = async (
     return {
         success: true,
  
-        message:
-            "All Action Points deleted successfully."
+        deleted: result.affectedRows,
+ 
+        message: filtered
+            ? `${result.affectedRows} filtered Action Point(s) deleted successfully.`
+            : "All Action Points deleted successfully."
     };
 };
  

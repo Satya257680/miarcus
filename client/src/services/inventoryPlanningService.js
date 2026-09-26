@@ -6,7 +6,8 @@ export const getErpSales=async(params={})=> (await axios.get(`${API}/erp-data`,{
 export const getErpSaleById=async(id)=> (await axios.get(`${API}/erp-data/${id}`,auth())).data;
 export const createErpSale=async(data)=> (await axios.post(`${API}/erp-data`,data,auth())).data;
 export const deleteErpSale=async(id)=> (await axios.delete(`${API}/erp-data/${id}`,auth())).data;
-export const deleteAllErpSales=async()=> (await axios.delete(`${API}/erp-data/delete-all`,auth())).data;
+// filters (optional): { search, store, year, category } — when any is set only matching rows are deleted.
+export const deleteAllErpSales=async(filters=null)=> (await axios.delete(`${API}/erp-data/delete-all`,filters&&Object.keys(filters).length?{...auth(),data:{scope:"filtered",filters}}:auth())).data;
 export const exportErpSales=async()=> (await axios.get(`${API}/erp-data/export`,auth())).data;
 export const bulkUploadErpSales=async(file)=>{const f=new FormData();f.append("file",file);return (await axios.post(`${API}/erp-data/bulk-upload`,f,{headers:{Authorization:`Bearer ${localStorage.getItem("token")}`,"Content-Type":"multipart/form-data"}})).data;};
 export const analyzeInventoryPlan=async(data)=> (await axios.post(`${API}/analyze`,data,auth())).data;

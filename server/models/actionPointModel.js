@@ -1667,8 +1667,29 @@ ActionPoint.delete = (
 // ======================================================
 
 ActionPoint.deleteAll = (
+    ids,
     callback
 ) => {
+
+    // deleteAll(callback)       -> every Action Point
+    // deleteAll([ids], callback) -> only the given (filtered) Action Points
+    if (typeof ids === "function") {
+        callback = ids;
+        ids = null;
+    }
+
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, { affectedRows: 0 });
+        const marks = ids.map(() => "?").join(", ");
+        return db.query(
+            `DELETE FROM action_point_history WHERE action_point_id IN (${marks})`,
+            ids,
+            (historyErr) => {
+                if (historyErr) return callback(historyErr);
+                db.query(`DELETE FROM action_points WHERE id IN (${marks})`, ids, callback);
+            }
+        );
+    }
 
     const sql = `
         DELETE FROM action_points

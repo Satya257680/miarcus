@@ -463,11 +463,29 @@ const deleteStore = (
 // DELETE ALL STORES
 // ==========================================================
 
+// ids (optional): when an array is passed only those stores are removed
+// (filter-aware Delete All). Otherwise every store.
 const deleteAllStores = (
+
+    ids,
 
     callback
 
 ) => {
+
+    if (typeof ids === "function") {
+        callback = ids;
+        ids = null;
+    }
+
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, { affectedRows: 0 });
+        return db.query(
+            `DELETE FROM stores WHERE id IN (${ids.map(() => "?").join(", ")})`,
+            ids,
+            callback
+        );
+    }
 
     const sql = `
 

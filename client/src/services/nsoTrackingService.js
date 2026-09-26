@@ -148,11 +148,14 @@ export const deleteNSOTracking = (id) => {
 // DELETE ALL NSO TRACKING
 // ======================================================
 
-export const deleteAllNSOTracking = () => {
+// ids (optional): when the list is searched only these rows are deleted.
+export const deleteAllNSOTracking = (ids) => {
 
     return axios.delete(
         `${BASE_URL}/nso-tracking/delete-all`,
-        authConfig()
+        Array.isArray(ids)
+            ? { ...authConfig(), data: { scope: "filtered", ids } }
+            : authConfig()
     );
 
 };

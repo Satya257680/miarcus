@@ -1,3 +1,4 @@
+const { readDeleteScope, eachId, cbToPromise, sendFilteredResult } = require("../utils/deleteScope");
 const ChecklistType = require("../models/checklistTypeModel");
 const ExcelJS = require("exceljs");
 const db = require("../config/db");
@@ -713,7 +714,38 @@ exports.deleteChecklistType = (req, res) => {
 // DELETE ALL CHECKLIST TYPES
 // ======================================================
 
-exports.deleteAllChecklistTypes = (req, res) => {
+exports.deleteAllChecklistTypes = async (req, res) => {
+
+    // Filters applied on the page -> the client sends the ids of the
+    // matching Checklist Types and only those are deleted.
+    const scope = readDeleteScope(req);
+
+    if (scope.filtered) {
+        try {
+            const result = await eachId(scope.ids || [], async (id) => {
+                await cbToPromise(ChecklistType.deleteDepartments, id);
+                await cbToPromise(ChecklistType.deleteUsers, id);
+                await cbToPromise(ChecklistType.deleteChecklistType, id);
+            });
+
+            logActivity({
+                activity_type: "Checklist Type",
+                reference_id: 0,
+                title: "Filtered Checklist Types Deleted",
+                description: `${result.deleted} filtered Checklist Type(s) deleted from the Checklist Types module`,
+                module_name: "Checklist Types",
+                status: "Closed",
+                priority: "High",
+                created_by: req.user.id,
+                assigned_to: null
+            });
+
+            return sendFilteredResult(res, result, "Checklist Type(s)");
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
 
     ChecklistType.deleteAllChecklistTypes(
 

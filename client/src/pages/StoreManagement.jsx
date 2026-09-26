@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   FaSearch,
@@ -263,10 +264,19 @@ const handleDeleteAll = async () => {
     return;
   }
 
+  // Search / status filter applied -> only the listed stores are deleted.
+  const filtered = hasActiveFilters({ search, status: statusFilter });
+  const ids = collectIds(filteredStores);
+
+  if (filtered && !ids.length) {
+    alert("No stores match the selected filters.");
+    return;
+  }
+
   // Confirmation
   if (
     !window.confirm(
-      "Delete all stores?"
+      deleteAllMessage(filtered, ids.length, "stores")
     )
   ) {
     return;
@@ -274,11 +284,11 @@ const handleDeleteAll = async () => {
 
   try {
 
-    const res = await deleteAllStores();
+    const res = await deleteAllStores(filtered ? ids : undefined);
 
     if (res.success) {
 
-      alert("All stores deleted successfully.");
+      alert(res.message || "All stores deleted successfully.");
 
       fetchStores();
 
@@ -615,7 +625,7 @@ const handleFileChange = async (e) => {
           {canDelete && (
             <button className="sm-btn sm-btn-danger" onClick={handleDeleteAll}>
               <FaTrash />
-              Delete All
+              {deleteAllLabel(hasActiveFilters({ search, status: statusFilter }), filteredStores.length)}
             </button>
           )}
 

@@ -391,7 +391,25 @@ const Expense = {
         return { deleted: true, attachment_path: rows[0].attachment_path || null };
     },
 
-    async deleteAll() {
+    // ids (optional): when an array is passed only those expenses (and
+    // their checks / items / files) are removed — filter-aware Delete All.
+    async deleteAll(ids = null) {
+        if (Array.isArray(ids)) {
+            if (!ids.length) return { count: 0, attachments: [] };
+            let count = 0;
+            const attachments = [];
+            for (let i = 0; i < ids.length; i += 1000) {
+                const part = ids.slice(i, i + 1000);
+                const marks = part.map(() => "?").join(", ");
+                const found = await db.query(`SELECT attachment_path FROM expenses WHERE id IN (${marks})`, part);
+                (found || []).forEach((row) => { if (row.attachment_path) attachments.push(row.attachment_path); });
+                await db.query(`DELETE FROM expense_checks WHERE expense_id IN (${marks})`, part);
+                await db.query(`DELETE FROM expense_items WHERE expense_id IN (${marks})`, part);
+                const result = await db.query(`DELETE FROM expenses WHERE id IN (${marks})`, part);
+                count += Number(result?.affectedRows || 0);
+            }
+            return { count, attachments };
+        }
         const rows = await db.query(`SELECT attachment_path FROM expenses`);
         await db.query(`DELETE FROM expense_checks`);
         await db.query(`DELETE FROM expense_items`);

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const XLSX = require("xlsx");
 const { Parser } = require("json2csv");
 const Announcement = require("../models/announcementModel");
+const { readDeleteScope } = require("../utils/deleteScope");
 const { sendGenericEmail } = require("../services/emailService");
 const announcementEmail = require("../utils/emailTemplates/announcementEmail");
 const Notification = require("../services/notificationService");
@@ -950,12 +951,16 @@ const exportAnnouncements = (req, res) => {
 };
 
 const deleteAllAnnouncements = (req, res) => {
-    Announcement.getAttachmentPaths((pathErr, rows) => {
+    // Filters applied on the page -> only the matching ids are deleted.
+    const scope = readDeleteScope(req);
+    const ids = scope.filtered ? (scope.ids || []) : null;
+
+    Announcement.getAttachmentPaths(ids, (pathErr, rows) => {
         if (pathErr) {
             return res.status(500).json({ success: false, message: "Unable to prepare announcements for deletion" });
         }
 
-        Announcement.deleteAllAnnouncements(err => {
+        Announcement.deleteAllAnnouncements(ids, (err, result) => {
             if (err) {
                 console.error("Delete all announcements:", err);
                 return res.status(500).json({ success: false, message: "Unable to delete all announcements" });
@@ -966,6 +971,10 @@ const deleteAllAnnouncements = (req, res) => {
                 fs.unlink(path.join(UPLOAD_DIR, path.basename(row.attachment_path)), () => {});
             }
 
+            if (ids) {
+                const count = Number(result?.affectedRows || 0);
+                return res.json({ success: true, deleted: count, message: `${count} filtered announcement(s) deleted successfully` });
+            }
             return res.json({ success: true, message: "All announcements deleted successfully" });
         });
     });

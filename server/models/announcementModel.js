@@ -489,11 +489,27 @@ const getAllForExport = (callback) => {
     `, callback);
 };
 
-const getAttachmentPaths = (callback) => {
+// ids (optional): when an array is passed only those announcements are
+// considered — used by the filter-aware Delete All.
+const getAttachmentPaths = (ids, callback) => {
+    if (typeof ids === "function") { callback = ids; ids = null; }
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, []);
+        return db.query(
+            `SELECT attachment_path FROM announcements WHERE attachment_path IS NOT NULL AND attachment_path <> '' AND id IN (${ids.map(() => "?").join(",")})`,
+            ids,
+            callback
+        );
+    }
     db.query(`SELECT attachment_path FROM announcements WHERE attachment_path IS NOT NULL AND attachment_path <> ''`, callback);
 };
 
-const deleteAllAnnouncements = (callback) => {
+const deleteAllAnnouncements = (ids, callback) => {
+    if (typeof ids === "function") { callback = ids; ids = null; }
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, { affectedRows: 0 });
+        return db.query(`DELETE FROM announcements WHERE id IN (${ids.map(() => "?").join(",")})`, ids, callback);
+    }
     db.query(`DELETE FROM announcements`, callback);
 };
 

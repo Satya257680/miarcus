@@ -1,3 +1,4 @@
+const { readDeleteScope, eachId, sendFilteredResult } = require("../utils/deleteScope");
 const { Parser } = require("json2csv");
 
 const XLSX = require("xlsx");
@@ -701,6 +702,19 @@ exports.deleteAllNewStoreOpenings = async (
 ) => {
 
     try {
+
+        // Filters applied on the page -> the client sends the ids of the
+        // matching projects; each goes through the normal single-project
+        // delete workflow (history etc.). No filters -> delete all.
+        const scope = readDeleteScope(req);
+
+        if (scope.filtered) {
+            const filteredResult = await eachId(
+                scope.ids || [],
+                (id) => workflowService.deleteWorkflow(id, req.user.id)
+            );
+            return sendFilteredResult(res, filteredResult, "New Store Opening project(s)");
+        }
 
         const result =
 

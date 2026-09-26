@@ -415,7 +415,23 @@ NSOTracking.delete = (id, callback) => {
 // DELETE ALL TRACKING
 // ======================================================
 
-NSOTracking.deleteAll = (callback) => {
+// ids (optional): when an array is passed only those tracking rows are
+// removed (filter-aware Delete All). Otherwise every row.
+NSOTracking.deleteAll = (ids, callback) => {
+
+    if (typeof ids === "function") {
+        callback = ids;
+        ids = null;
+    }
+
+    if (Array.isArray(ids)) {
+        if (!ids.length) return callback(null, { affectedRows: 0 });
+        return db.query(
+            `DELETE FROM nso_tracking WHERE id IN (${ids.map(() => "?").join(", ")})`,
+            ids,
+            callback
+        );
+    }
 
     const sql = `
         DELETE FROM nso_tracking

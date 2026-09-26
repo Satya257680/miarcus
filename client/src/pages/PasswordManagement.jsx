@@ -1,3 +1,4 @@
+import { collectIds, hasActiveFilters, deleteAllLabel } from "../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -200,12 +201,28 @@ function PasswordManagement() {
     }
   };
 
+  // Search / role / status filter applied -> only the listed users are
+  // deleted (Administrators and Super Admins are always kept).
+  const isFilteredDelete = hasActiveFilters({ search, roleFilter, statusFilter });
+  const filteredDeleteIds = collectIds(
+    filteredUsers.filter((user) => !user.isAdmin && !user.isSuperAdmin)
+  );
+
   const deleteAllUsers = async () => {
+    if (isFilteredDelete && !filteredDeleteIds.length) {
+      alert("No deletable users match the selected filters.");
+      setShowDeleteAllModal(false);
+      return;
+    }
+
     setDeletingAll(true);
 
     try {
       const response = await axios.delete(
-        `${API_BASE_URL}/api/password-vault/delete-all`
+        `${API_BASE_URL}/api/password-vault/delete-all`,
+        isFilteredDelete
+          ? { data: { scope: "filtered", ids: filteredDeleteIds } }
+          : undefined
       );
       alert(
         response.data?.message ||
@@ -296,7 +313,7 @@ function PasswordManagement() {
           disabled={loading}
         >
           <FaTrash />
-          Delete All
+          {deleteAllLabel(isFilteredDelete, filteredDeleteIds.length)}
         </button>
       </section>
 
@@ -488,10 +505,11 @@ function PasswordManagement() {
       {showDeleteAllModal && (
         <div className="pwd-mgmt-confirm-overlay" onMouseDown={() => !deletingAll && setShowDeleteAllModal(false)}>
           <div className="pwd-mgmt-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
-            <h2>Delete All Users</h2>
+            <h2>{isFilteredDelete ? "Delete Filtered Users" : "Delete All Users"}</h2>
             <p>
-              This permanently deletes every user except Administrator and Super Admin accounts,
-              which are always kept. This cannot be undone.
+              {isFilteredDelete
+                ? `Filters are applied. Only the ${filteredDeleteIds.length} user(s) matching the current filters will be deleted; users outside the filters are NOT touched. Administrator and Super Admin accounts are always kept. This cannot be undone.`
+                : "No filter is applied. This permanently deletes every user except Administrator and Super Admin accounts, which are always kept. This cannot be undone."}
             </p>
             <div className="pwd-mgmt-confirm-buttons">
               <button type="button" className="pwd-mgmt-confirm-cancel-btn" onClick={() => setShowDeleteAllModal(false)} disabled={deletingAll}>Cancel</button>

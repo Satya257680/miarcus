@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import axios from "./expenseApi";
 import {
     FaSearch,
@@ -454,8 +455,20 @@ This action cannot be undone.`
             return;
         }
 
+        // Status / type / risk / search applied -> only the listed
+        // expenses are deleted; otherwise every expense.
+        const filtered = hasActiveFilters({ status, type, risk, search });
+        const ids = collectIds(visible);
+
+        if (filtered && !ids.length) {
+            alert("No expenses match the selected filters.");
+            return;
+        }
+
         const confirmed = window.confirm(
-            `Delete ALL ${expenses.length} expense record(s)? This will also remove their checks, items and uploaded bill files. This action cannot be undone.`
+            filtered
+                ? `${deleteAllMessage(true, ids.length, "expense record(s)")} Their checks, items and uploaded bill files are removed too. This action cannot be undone.`
+                : `No filter is applied. Delete ALL ${expenses.length} expense record(s)? This will also remove their checks, items and uploaded bill files. This action cannot be undone.`
         );
 
         if (!confirmed) {
@@ -467,7 +480,8 @@ This action cannot be undone.`
             setError("");
 
             await axios.delete(
-                "/api/expenses/delete-all"
+                "/api/expenses/delete-all",
+                filtered ? { data: { scope: "filtered", ids } } : undefined
             );
 
             setDetailsId(null);
@@ -858,7 +872,7 @@ This action cannot be undone.`
 
                                 {deletingAll
                                     ? "Deleting..."
-                                    : "Delete All"}
+                                    : deleteAllLabel(hasActiveFilters({ status, type, risk, search }), visible.length)}
                             </button>
                         )}
 

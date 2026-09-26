@@ -1,3 +1,4 @@
+const { readDeleteScope, eachId, cbToPromise, sendFilteredResult } = require("../utils/deleteScope");
 const Question = require("../models/questionModel");
 const { logActivity } = require("../utils/activityLogger");
 const db = require("../config/db");
@@ -621,7 +622,42 @@ exports.deleteQuestion = (req, res) => {
 // DELETE ALL QUESTIONS
 // ======================================================
 
-exports.deleteAllQuestions = (req, res) => {
+exports.deleteAllQuestions = async (req, res) => {
+
+    // Filters applied on the page -> the client sends the ids of the
+    // matching questions; each is removed with its department mapping,
+    // exactly like a single delete. No filters -> delete all.
+    const scope = readDeleteScope(req);
+
+    if (scope.filtered) {
+        try {
+            const result = await eachId(scope.ids || [], async (id) => {
+                await cbToPromise(Question.deleteDepartments, id);
+                await cbToPromise(Question.deleteQuestion, id);
+            });
+
+            try {
+                logActivity({
+                    activity_type: "Question",
+                    reference_id: 0,
+                    title: "Filtered Questions Deleted",
+                    description: `${result.deleted} filtered question(s) were deleted from the Questions module`,
+                    module_name: "Questions",
+                    status: "Closed",
+                    priority: "High",
+                    created_by: req.user?.id || null,
+                    assigned_to: null
+                });
+            } catch (logError) {
+                console.error("Activity log error:", logError);
+            }
+
+            return sendFilteredResult(res, result, "question(s)");
+        } catch (error) {
+            console.error("deleteAllQuestions (filtered) error:", error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
 
     Question.deleteAllQuestions(
         (err) => {

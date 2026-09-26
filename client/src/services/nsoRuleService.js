@@ -143,13 +143,16 @@ export const deleteRule = async (id) => {
 // DELETE ALL RULES
 // ======================================================
 
-export const deleteAllRules = async () => {
+// filters (optional): { search } — when set only the matching rules are deleted.
+export const deleteAllRules = async (filters = null) => {
 
     const { data } = await axios.delete(
 
         `${API}/delete-all`,
 
-        authConfig()
+        filters && Object.keys(filters).length
+            ? { ...authConfig(), data: { scope: "filtered", filters } }
+            : authConfig()
 
     );
 

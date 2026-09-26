@@ -205,10 +205,13 @@ export const deleteDailyCollection = (id) =>
     requestConfig()
   );
 
-export const deleteAllDailyCollections = () =>
+// ids (optional): when filters are applied only these records are deleted.
+export const deleteAllDailyCollections = (ids) =>
   axios.delete(
     `${DAILY_COLLECTION_API}/delete-all`,
-    requestConfig()
+    Array.isArray(ids)
+      ? { ...requestConfig(), data: { scope: "filtered", ids } }
+      : requestConfig()
   );
 
 export const submitDailyCollection = (data) =>

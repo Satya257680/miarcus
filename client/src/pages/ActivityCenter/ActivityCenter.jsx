@@ -16,6 +16,7 @@ import {
 } from "../../services/activityService";
 
 import "../../styles/pages/ActivityCenter.css";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 
 function ActivityCenter() {
     const navigate = useNavigate();
@@ -106,11 +107,13 @@ function ActivityCenter() {
         const filters = buildFilters();
         delete filters.page;
         delete filters.limit;
+        const applied = activeFilters(filters);
+        const filtered = hasActiveFilters(applied);
 
-        if (!window.confirm("Delete all activities matching the current filters? This cannot be undone.")) return;
+        if (!window.confirm(`${deleteAllMessage(filtered, null, "activities")} This cannot be undone.`)) return;
 
         try {
-            const response = await deleteAllActivities(filters);
+            const response = await deleteAllActivities(filtered ? { ...applied, scope: "filtered" } : {});
             alert(response.data?.message || "Activities deleted successfully.");
             setPage(1);
             await loadActivities(1);
@@ -133,7 +136,7 @@ function ActivityCenter() {
                         <FaSyncAlt /> {loading ? "Refreshing..." : "Refresh"}
                     </button>
                     <button className="delete-all-btn" onClick={handleDeleteAll}>
-                        <FaTrashAlt /> Delete All
+                        <FaTrashAlt /> {deleteAllLabel(hasActiveFilters({ search, status, priority, moduleName, activityType, action, dateFrom, dateTo, newStoreOpeningId }))}
                     </button>
                 </div>
             </div>

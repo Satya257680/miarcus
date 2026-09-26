@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
@@ -648,11 +649,20 @@ function Designations() {
 
   };
 
+  const isFilteredDelete = hasActiveFilters({ search });
+
   const confirmDeleteAll = async () => {
 
     try {
 
-      const res = await deleteAllDesignations();
+      const ids = collectIds(filteredDesignations);
+
+      if (isFilteredDelete && !ids.length) {
+        alert("No designations match the current search.");
+        return;
+      }
+
+      const res = await deleteAllDesignations(isFilteredDelete ? ids : undefined);
 
       if (res.success) {
 
@@ -660,7 +670,7 @@ function Designations() {
 
         alert(
 
-          "All designations deleted successfully."
+          res.message || "All designations deleted successfully."
 
         );
 
@@ -844,6 +854,8 @@ const columns = [
 
   showDeleteAll={canDelete}
 
+  deleteAllText={deleteAllLabel(isFilteredDelete, filteredDesignations.length)}
+
   onDeleteAll={handleDeleteAll}
 
 />
@@ -1010,11 +1022,11 @@ const columns = [
 
         isOpen={showDeleteAllDialog}
 
-        title="Delete All Designations"
+        title={isFilteredDelete ? "Delete Filtered Designations" : "Delete All Designations"}
 
-        message="This will permanently delete every designation. This action cannot be undone."
+        message={`${deleteAllMessage(isFilteredDelete, filteredDesignations.length, "designations")} This action cannot be undone.`}
 
-        confirmText="Delete All"
+        confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
 
         cancelText="Cancel"
 

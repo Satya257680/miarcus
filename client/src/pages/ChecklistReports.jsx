@@ -34,6 +34,7 @@ import {
 } from "react-icons/fa";
 
 import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 
 // ======================================================
@@ -843,12 +844,27 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
         setShowDeleteAllDialog(true);
     };
 
+    // Filters currently applied on the page. When any is set, Delete All
+    // removes ONLY the matching reports; otherwise it removes everything.
+    const deleteFilters = activeFilters({
+        search: debouncedSearch,
+        store_id: selectedStore,
+        checklist_type_id: selectedChecklist,
+        employee_id: selectedEmployee,
+        from_date: fromDate,
+        to_date: toDate,
+    });
+    const isFilteredDelete = hasActiveFilters(deleteFilters);
+
     const confirmDeleteAll = async () => {
 
         try {
 
             const response = await axios.delete(
-                `${API}/checklist-reports/all`
+                `${API}/checklist-reports/all`,
+                isFilteredDelete
+                    ? { data: { scope: "filtered", filters: deleteFilters } }
+                    : undefined
             );
 
             alert(
@@ -1728,6 +1744,8 @@ const uploadChecklistReport = async (file, assembled) => {
 
     showDeleteAll={canDelete}
 
+    deleteAllText={deleteAllLabel(isFilteredDelete)}
+
     onDeleteAll={handleDeleteAll}
 
 >
@@ -1991,9 +2009,9 @@ const uploadChecklistReport = async (file, assembled) => {
 
             <ConfirmDialog
                 open={showDeleteAllDialog}
-                title="Delete All Checklist Reports"
-                message="Are you sure you want to delete all available Checklist Reports? Active Action Points will be preserved."
-                confirmText="Delete All"
+                title={isFilteredDelete ? "Delete Filtered Checklist Reports" : "Delete All Checklist Reports"}
+                message={deleteAllMessage(isFilteredDelete, null, "Checklist Report submissions", "Active Action Points will be preserved.")}
+                confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
                 cancelText="Cancel"
                 confirmVariant="danger"
                 onConfirm={confirmDeleteAll}

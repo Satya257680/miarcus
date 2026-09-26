@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
@@ -327,9 +328,19 @@ const bulkUploadPhotos = async (req, res) => {
     }
 };
 
-const deleteAllPhotos = async (_req, res) => {
+const deleteAllPhotos = async (req, res) => {
     try {
-        const rows = await Gallery.deleteAll();
+        // Search / category / location / date applied on the page ->
+        // only the matching Gallery items are removed.
+        const scope = readDeleteScope(req);
+        const filters = {};
+        ["search", "category", "locationType", "storeId", "from", "to"].forEach((key) => {
+            if (scope.filters[key] !== undefined) filters[key] = String(scope.filters[key]).trim();
+        });
+        if (scope.filtered && !Object.keys(filters).length) {
+            return res.status(400).json({ success: false, message: "No valid filter was supplied. Nothing was deleted." });
+        }
+        const rows = await Gallery.deleteAll(scope.filtered ? filters : null);
         let removedFiles = 0;
 
         for (const row of rows) {
@@ -350,7 +361,10 @@ const deleteAllPhotos = async (_req, res) => {
         return res.json({
             success: true,
             deleted: rows.length,
-            removedFiles
+            removedFiles,
+            message: scope.filtered
+                ? `${rows.length} filtered Gallery item(s) deleted successfully.`
+                : `${rows.length} Gallery item(s) deleted successfully.`
         });
     } catch (error) {
         console.error("Gallery delete-all error:", error);

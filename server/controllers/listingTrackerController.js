@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const fs = require("fs");
 const csvParser = require("csv-parser");
 const ListingTracker = require("../models/listingTrackerModel");
@@ -234,11 +235,17 @@ const remove = async (req, res) => {
 
 const removeAll = async (req, res) => {
     try {
-        const deleted = await ListingTracker.removeAll();
+        // Search / collection / category / photoshoot / listed applied on
+        // the page -> only the matching products are deleted.
+        const scope = readDeleteScope(req);
+        if (scope.filtered && !Object.keys(scope.filters).length) {
+            return res.status(400).json({ success: false, message: "No valid filter was supplied. Nothing was deleted." });
+        }
+        const deleted = await ListingTracker.removeAll(scope.filtered ? scope.filters : null);
 
         return res.json({
             success: true,
-            message: `${deleted} product(s) deleted successfully.`,
+            message: `${deleted} ${scope.filtered ? "filtered " : ""}product(s) deleted successfully.`,
             data: { deleted },
         });
     } catch (error) {

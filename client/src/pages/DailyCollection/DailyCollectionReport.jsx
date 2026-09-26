@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { FaChartBar, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
 import PageToolbar from "../../components/common/PageToolbar";
 import ActionButtons from "../../components/common/ActionButtons";
@@ -157,9 +158,25 @@ export default function DailyCollectionReport() {
         }
     };
 
+    // The page always shows one date. Changing the date from today,
+    // picking a specific store or typing a search counts as a filter, and
+    // Delete All then removes only the records listed for that selection.
+    const isFilteredDelete = hasActiveFilters({
+        date: date !== today() ? date : "",
+        store: selectedStore && selectedStore !== "all" ? selectedStore : "",
+        search
+    });
+
     const handleDeleteAll = async () => {
         try {
-            const response = await deleteAllDailyCollections();
+            if (isFilteredDelete && !collectIds(filteredReports).length) {
+                setError("No Daily Collection records match the selected filters.");
+                setDeleteAllOpen(false);
+                return;
+            }
+            const response = await deleteAllDailyCollections(
+                isFilteredDelete ? collectIds(filteredReports) : undefined
+            );
             setSuccess(response.data?.message || "All Daily Collection records deleted successfully.");
             setDeleteAllOpen(false);
             await load();
@@ -191,6 +208,7 @@ export default function DailyCollectionReport() {
                 showBulk={canAdd}
                 onBulk={() => setBulkOpen(true)}
                 showDeleteAll={canDelete}
+                deleteAllText={deleteAllLabel(isFilteredDelete, collectIds(filteredReports).length)}
                 onDeleteAll={() => setDeleteAllOpen(true)}
             />
 
@@ -284,9 +302,11 @@ export default function DailyCollectionReport() {
 
             <ConfirmDialog
                 open={deleteAllOpen}
-                title="Delete All Daily Collection Records"
-                message="Every Daily Collection report and active Daily Collection access block will be permanently deleted. This action cannot be undone."
-                confirmText="Delete All"
+                title={isFilteredDelete ? "Delete Filtered Daily Collection Records" : "Delete All Daily Collection Records"}
+                message={isFilteredDelete
+                    ? `${deleteAllMessage(true, collectIds(filteredReports).length, "Daily Collection records")} Linked access blocks for those records are also cleared.`
+                    : "No filter is applied. Every Daily Collection report and active Daily Collection access block will be permanently deleted. This action cannot be undone."}
+                confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
                 cancelText="Cancel"
                 confirmVariant="danger"
                 onConfirm={handleDeleteAll}

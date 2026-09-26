@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const NSOTracking = require("../models/nsoTrackingModel");
 
 const Audit = require("../models/auditModel");
@@ -1449,7 +1450,14 @@ exports.deleteAllNSOTracking = (
         // DELETE ALL
         // ==================================================
 
+        // Search applied on the page -> the client sends the ids of the
+        // matching rows and only those are deleted.
+        const scope = readDeleteScope(req);
+        const filteredIds = scope.filtered ? (scope.ids || []) : null;
+
         NSOTracking.deleteAll(
+
+            filteredIds,
 
             async (
                 err,
@@ -1492,10 +1500,12 @@ exports.deleteAllNSOTracking = (
                                 "DELETE ALL",
 
                             title:
-                                "All NSO Tracking Deleted",
+                                filteredIds ? "Filtered NSO Tracking Deleted" : "All NSO Tracking Deleted",
 
                             description:
-                                "Deleted all NSO Tracking records",
+                                filteredIds
+                                    ? `Deleted ${result?.affectedRows || 0} filtered NSO Tracking record(s)`
+                                    : "Deleted all NSO Tracking records",
 
                             module_name:
                                 "NSO Tracking",
@@ -1552,7 +1562,9 @@ exports.deleteAllNSOTracking = (
                         success: true,
 
                         message:
-                            "All Tracking Deleted",
+                            filteredIds
+                                ? `${result?.affectedRows || 0} filtered Tracking record(s) deleted`
+                                : "All Tracking Deleted",
 
                         deletedRows:
                             result?.affectedRows || 0

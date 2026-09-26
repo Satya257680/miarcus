@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 import {
     FaPlus,
     FaSearch,
@@ -338,14 +339,19 @@ export default function ListingTracker() {
     const handleDeleteAll = async () => {
         if (!total) return;
 
+        const filters = activeFilters({ search, collection, category, photoshoot, listed });
+        const filtered = hasActiveFilters(filters);
+
         const confirmed = window.confirm(
-            `This will permanently delete ${formatNumber(total)} products. Continue?`
+            filtered
+                ? `${deleteAllMessage(true, total, "products")} Continue?`
+                : `No filter is applied. This will permanently delete ALL ${formatNumber(total)} products. Continue?`
         );
 
         if (!confirmed) return;
 
         try {
-            await deleteAllListings();
+            await deleteAllListings(filtered ? filters : null);
             setPage(1);
             await loadData({ silent: true });
         } catch (err) {
@@ -569,7 +575,7 @@ export default function ListingTracker() {
                             onClick={handleDeleteAll}
                             disabled={!total}
                         >
-                            <FaTrash /> Delete All
+                            <FaTrash /> {deleteAllLabel(hasActiveFilters({ search, collection, category, photoshoot, listed }), total)}
                         </button>
                     )}
                 </div>

@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 // ==========================================================
 // MIARCUS — PASSWORD VAULT CONTROLLER
 // ==========================================================
@@ -360,11 +361,19 @@ const deleteAllVaultUsers = async (req, res) => {
 
     try {
 
-        await User.deleteAllUsers();
+        // Search applied on the page -> only the listed users are deleted
+        // (administrators are always kept, see User.deleteAllUsers).
+        const scope = readDeleteScope(req);
+        const ids = scope.filtered ? (scope.ids || []) : null;
+
+        const result = await User.deleteAllUsers(ids);
 
         return res.status(200).json({
             success: true,
-            message: "All non-administrator users deleted successfully."
+            deleted: Number(result?.affectedRows || 0),
+            message: ids
+                ? `${Number(result?.affectedRows || 0)} filtered non-administrator user(s) deleted successfully.`
+                : "All non-administrator users deleted successfully."
         });
 
     } catch (error) {

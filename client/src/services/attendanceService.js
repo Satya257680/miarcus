@@ -191,11 +191,15 @@ export const deleteAttendanceRecord = (
 // DELETE ALL ATTENDANCE
 // ======================================================
 
-export const deleteAllAttendance = () =>
+// filters (optional): when any report filter is applied only the
+// matching attendance records are deleted.
+export const deleteAllAttendance = (filters = null) =>
     axios
         .delete(
             `${BASE_URL}/delete-all`,
-            getAuthConfig()
+            filters && Object.keys(filters).length
+                ? { ...getAuthConfig(), data: { scope: "filtered", filters } }
+                : getAuthConfig()
         )
         .then(
             (response) =>

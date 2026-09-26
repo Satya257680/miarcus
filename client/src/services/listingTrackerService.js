@@ -17,8 +17,14 @@ export const updateListing = (id, payload) =>
 export const deleteListing = (id) =>
     axios.delete(`${BASE}/${id}`);
 
-export const deleteAllListings = () =>
-    axios.delete(BASE);
+// filters (optional): when any list filter is set only matching products are deleted.
+export const deleteAllListings = (filters = null) =>
+    axios.delete(
+        BASE,
+        filters && Object.keys(filters).length
+            ? { data: { scope: "filtered", filters } }
+            : undefined
+    );
 
 export const importListings = (file) => {
     const formData = new FormData();

@@ -1,3 +1,4 @@
+const { readDeleteScope } = require("../utils/deleteScope");
 const designationModel = require("../models/designationModel");
 
 const { logActivity } = require("../utils/activityLogger");
@@ -751,9 +752,15 @@ designationModel.exportDesignations(
 
 exports.deleteAllDesignations = (req, res) => {
 
+    // Search applied on the page -> only the matching ids are deleted.
+    const scope = readDeleteScope(req);
+    const ids = scope.filtered ? (scope.ids || []) : null;
+
     designationModel.deleteAllDesignations(
 
-        (err) => {
+        ids,
+
+        (err, result) => {
 
             if (err) {
 
@@ -777,9 +784,11 @@ exports.deleteAllDesignations = (req, res) => {
 
                 reference_id: 0,
 
-                title: "Delete All Designations",
+                title: ids ? "Delete Filtered Designations" : "Delete All Designations",
 
-                description: "All designations were deleted.",
+                description: ids
+                    ? `${Number(result?.affectedRows || 0)} filtered designation(s) were deleted.`
+                    : "All designations were deleted.",
 
                 module_name: "Designations",
 
@@ -797,7 +806,9 @@ exports.deleteAllDesignations = (req, res) => {
 
                 success: true,
 
-                message: "All designations deleted successfully."
+                message: ids
+                    ? `${Number(result?.affectedRows || 0)} filtered designation(s) deleted successfully.`
+                    : "All designations deleted successfully."
 
             });
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
 
 // ======================================================
@@ -861,9 +862,21 @@ function AttendanceReports() {
         setShowDeleteAllDialog(true);
     };
 
+    // Filters applied on the report. With any set, Delete All removes
+    // only the matching attendance records.
+    const deleteFilters = activeFilters({
+        search,
+        userId: selectedEmployee,
+        storeId: selectedStore,
+        from: fromDate,
+        to: toDate,
+        status: selectedStatus
+    });
+    const isFilteredDelete = hasActiveFilters(deleteFilters);
+
     const confirmDeleteAll = async () => {
         try {
-            const response = await deleteAllAttendance();
+            const response = await deleteAllAttendance(isFilteredDelete ? deleteFilters : null);
             alert(response?.message || "All attendance records were deleted successfully.");
             setCurrentPage(1);
             await loadReports();
@@ -1209,6 +1222,7 @@ function AttendanceReports() {
                 exportLoading={isExporting}
                 showBulkUpload={false}
                 showDeleteAll={canDelete}
+                deleteAllText={deleteAllLabel(isFilteredDelete, filteredRecords.length)}
                 onDeleteAll={handleDeleteAll}
             />
 
@@ -1322,9 +1336,9 @@ function AttendanceReports() {
 
             <ConfirmDialog
                 open={showDeleteAllDialog}
-                title="Delete All Attendance Records"
-                message="Are you sure you want to delete all available Attendance Records? This cannot be undone."
-                confirmText="Delete All"
+                title={isFilteredDelete ? "Delete Filtered Attendance Records" : "Delete All Attendance Records"}
+                message={`${deleteAllMessage(isFilteredDelete, isFilteredDelete ? filteredRecords.length : null, "Attendance Records")} This cannot be undone.`}
+                confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
                 cancelText="Cancel"
                 confirmVariant="danger"
                 onConfirm={confirmDeleteAll}

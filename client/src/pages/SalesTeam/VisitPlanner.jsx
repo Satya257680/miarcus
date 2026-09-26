@@ -1,3 +1,4 @@
+import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaDownload,
@@ -751,9 +752,25 @@ function VisitPlanner() {
      DELETE ALL
   ========================================================= */
 
+  // Filters applied on the list. With any set, Delete All removes only
+  // the matching visit plans.
+  const visitDeleteFilters = activeFilters({
+    search,
+    from,
+    to,
+    name: nameFilter,
+    department: departmentFilter,
+    store: storeFilter,
+  });
+  const isFilteredDelete = hasActiveFilters(visitDeleteFilters);
+
   const confirmDeleteAll = async () => {
     try {
-      await deleteAllVisitPlans();
+      const response = await deleteAllVisitPlans(
+        isFilteredDelete ? visitDeleteFilters : null
+      );
+
+      if (response?.data?.message) alert(response.data.message);
 
       setPage(1);
 
@@ -1072,6 +1089,7 @@ function VisitPlanner() {
         showDeleteAll={canDelete(
           permission
         )}
+        deleteAllText={deleteAllLabel(isFilteredDelete, total)}
         onDeleteAll={() =>
           setShowDeleteAllDialog(true)
         }
@@ -1973,9 +1991,11 @@ function VisitPlanner() {
         open={
           showDeleteAllDialog
         }
-        title="Delete All Visit Plans"
-        message="This will delete all visit plans available to your account. This action cannot be undone."
-        confirmText="Delete All"
+        title={isFilteredDelete ? "Delete Filtered Visit Plans" : "Delete All Visit Plans"}
+        message={isFilteredDelete
+          ? `${deleteAllMessage(true, total, "visit plans")} This action cannot be undone.`
+          : "No filter is applied. This will delete all visit plans available to your account. This action cannot be undone."}
+        confirmText={isFilteredDelete ? "Delete Filtered" : "Delete All"}
         cancelText="Cancel"
         confirmVariant="danger"
         onConfirm={

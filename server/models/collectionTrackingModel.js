@@ -248,7 +248,20 @@ const deleteProduct=async id=>{
   await c.query("DELETE FROM collection_products WHERE id=?",[id]); await c.commit();
  }catch(e){await c.rollback();throw e;}finally{c.release();}
 };
-const deleteAll=async()=>{
+// filters (optional): { search, stage, status } — same as the product
+// list. When supplied only the matching products are deleted.
+const deleteAll=async(filters=null)=>{
+ if(filters&&Object.keys(filters).length){
+  const cond=[],params=[];
+  if(filters.search){const q=`%${filters.search}%`;cond.push("(p.product_code LIKE ? OR p.product_name LIKE ?)");params.push(q,q);}
+  if(filters.stage){cond.push("p.current_stage=?");params.push(filters.stage);}
+  if(filters.status){cond.push("p.status=?");params.push(filters.status);}
+  if(!cond.length) return 0; // never widen a filtered delete to "all"
+  const rows=await db.query(`SELECT p.id FROM collection_products p WHERE ${cond.join(" AND ")}`,params);
+  const ids=rows.map(r=>Number(r.id)).filter(Boolean);
+  for(const id of ids) await deleteProduct(id);
+  return ids.length;
+ }
  const c=await db.getConnection();
  try{await c.beginTransaction();
   for(const t of ["collection_stage_data","collection_stage_history","collection_comments","collection_requests"]) await c.query(`DELETE FROM ${t}`);
