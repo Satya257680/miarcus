@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { FaCheck } from "react-icons/fa";
 
-import leftArt from "../../assets/premium/loader-left.webp";
-import rightArt from "../../assets/premium/loader-right.webp";
-import logoTile from "../../assets/premium/loader-logo.webp";
+import leftArt from "../../assets/premium/loader-left.png";
+import rightArt from "../../assets/premium/loader-right.png";
+import logoTile from "../../assets/premium/loader-logo.png";
 import step1 from "../../assets/premium/loader-step-1.png";
 import step2 from "../../assets/premium/loader-step-2.png";
 import step3 from "../../assets/premium/loader-step-3.png";

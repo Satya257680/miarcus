@@ -14,7 +14,7 @@ import {
   FaRedoAlt,
   FaArrowRight,
 } from "react-icons/fa";
-import checklistHeroArt from "../assets/premium/checklist-hero.webp";
+import checklistHeroArt from "../assets/premium/checklist-hero.png";
 import checklistBulb from "../assets/premium/checklist-bulb.png";
 
 const API = API_BASE_URL;

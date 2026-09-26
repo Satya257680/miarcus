@@ -42,7 +42,7 @@ import {
     unwrapList,
 } from "../utils/nsoTracking";
 
-import heroArt from "../assets/premium/nso-hero.webp";
+import heroArt from "../assets/premium/nso-hero.png";
 import bulbArt from "../assets/premium/nso-bulb.png";
 import "../styles/pages/NSOTrackingPremium.css";
 
