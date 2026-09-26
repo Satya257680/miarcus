@@ -23,3 +23,39 @@
 .checklist-flow-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.checklist-flow-grid>div{border:1px solid #e1e8f0;border-radius:10px;padding:12px;background:#fbfdff}.checklist-flow-grid b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:9px;margin-bottom:9px}.checklist-flow-grid strong{display:block;font-size:11px}.checklist-flow-grid span{display:block;color:#64748b;font-size:9px;line-height:1.5;margin-top:4px}.checklist-email-note{margin-top:12px;padding:10px 11px;border-radius:7px;background:#f8fafc;color:#64748b;font-size:10px;line-height:1.5}
 @media(max-width:950px){.checklist-flow-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.checklist-recipient-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.checklist-email-settings-page{padding:16px 12px}.checklist-email-settings-header{align-items:flex-start;flex-direction:column}.checklist-email-save{width:100%;justify-content:center}.checklist-flow-grid{grid-template-columns:1fr}.checklist-event-row{align-items:flex-start}}
+
+/* ==========================================================
+   CONTACT LIST (added – NSO-style routing)
+========================================================== */
+.checklist-email-settings-page{background:linear-gradient(180deg,#f4f1fd 0,#eef4f7 260px)}
+.checklist-email-card{border-radius:16px;border-color:#e7e3f4;box-shadow:0 8px 24px rgba(76,29,149,.06)}
+.checklist-email-card-head h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.checklist-count-pill{font-style:normal;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#ede9fe;color:#6d28d9}
+.checklist-bulk-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:12px}
+.checklist-bulk-actions>button,.checklist-bulk-group button{border:1px solid #dfe3ee;background:#f8fafc;border-radius:8px;padding:7px 10px;cursor:pointer;color:#334155;font-weight:700;font-size:11px;display:inline-flex;align-items:center;gap:5px;transition:.15s}
+.checklist-bulk-actions>button:hover,.checklist-bulk-group button:hover{border-color:#a78bfa;color:#6d28d9;background:#faf8ff}
+.checklist-bulk-actions>button.checklist-add-btn{background:linear-gradient(135deg,#16a34a,#15803d);border-color:#15803d;color:#fff;box-shadow:0 4px 12px rgba(22,163,74,.22)}
+.checklist-bulk-group{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 9px;border:1px dashed #d9d3ee;border-radius:10px;background:#fff}
+.checklist-bulk-group b{font-size:10px;color:#6d28d9;letter-spacing:.03em;margin-right:2px}
+.checklist-bulk-group button{padding:4px 8px}
+.checklist-contact-table-wrap{overflow:auto;border:1px solid #ebe8f5;border-radius:12px}
+.checklist-contact-table{width:100%;border-collapse:collapse;min-width:900px}
+.checklist-contact-table th{background:#f7f5fd;color:#4c1d95;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;text-align:left;padding:10px 9px;border-bottom:1px solid #ebe8f5;white-space:nowrap}
+.checklist-contact-table th:nth-child(n+4),.checklist-contact-table td:nth-child(n+4){text-align:center}
+.checklist-contact-table td{border-top:1px solid #f0edf7;padding:8px 9px;font-size:12px;vertical-align:middle}
+.checklist-contact-table tbody tr:hover td{background:#fcfbff}
+.checklist-contact-table tr.is-disabled td{opacity:.55}
+.checklist-contact-table tr.is-disabled td:nth-child(4),.checklist-contact-table tr.is-disabled td:last-child{opacity:1}
+.checklist-contact-table input:not([type=checkbox]){width:100%;min-width:120px;box-sizing:border-box;border:1px solid #e1ddee;border-radius:8px;padding:8px 9px;font-size:12px;background:#fff;transition:.15s}
+.checklist-contact-table input:not([type=checkbox]):focus{outline:none;border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+.checklist-contact-table input.invalid{border-color:#ef4444;background:#fff5f5}
+.checklist-check{width:16px;height:16px;accent-color:#6d28d9;cursor:pointer}
+.checklist-check:disabled{cursor:not-allowed}
+.checklist-remove-btn{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid #fecaca;background:#fff;color:#dc2626;border-radius:8px;cursor:pointer;transition:.15s}
+.checklist-remove-btn:hover{background:#dc2626;color:#fff}
+.checklist-contact-empty{text-align:center!important;color:#64748b;padding:22px!important}
+.checklist-switch.small{width:32px;height:18px}
+.checklist-switch.small span:before{width:13px;height:13px}
+.checklist-switch.small input:checked+span:before{transform:translateX(14px)}
+.checklist-email-save{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 16px rgba(109,40,217,.25);border-radius:10px}
+.checklist-email-title-wrap>div>span{color:#6d28d9}

@@ -181,6 +181,26 @@ router.delete(
 
 
 // ======================================================
+// SUMMARY (KPI cards) — keep before /:id
+// GET /api/checklist-reports/summary
+// ======================================================
+
+const {
+    getChecklistReportSummary
+} = require("../controllers/checklistReportInsightsController");
+
+router.get(
+    "/summary",
+    authMiddleware,
+    permissionMiddleware(
+        "Checklist Reports",
+        "View"
+    ),
+    getChecklistReportSummary
+);
+
+
+// ======================================================
 // GET REPORT BY ID
 // GET /api/checklist-reports/:id
 // ======================================================

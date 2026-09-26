@@ -31,13 +31,23 @@ import {
     FaHistory,
     FaClock,
     FaFileExcel,
+    FaMagic,
+    FaListUl,
+    FaFolderOpen,
+    FaHourglassHalf,
+    FaCheckCircle,
+    FaExclamationTriangle,
 } from "react-icons/fa";
+
+import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
+import ReclassifyModal from "../components/premium/ReclassifyModal";
 
 // ======================================================
 // STYLE
 // ======================================================
 
 import "../styles/ActionPoints.css";
+import "../styles/premium/ChecklistPremium.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
@@ -305,6 +315,14 @@ function ActionPoints() {
     const [remarks, setRemarks] = useState("");
     const [actionComment, setActionComment] = useState("");
     const [actionStatus, setActionStatus] = useState("Closed");
+    const [showReclassify, setShowReclassify] = useState(false);
+
+    // KPI tiles – refreshed every time the list reloads.
+    const { data: apSummary, loading: apSummaryLoading } = useInsightSummary(
+        "/api/action-points/summary",
+        { store_id: store || undefined },
+        actionPoints
+    );
 
     // ======================================================
     // RBAC
@@ -1342,7 +1360,9 @@ if (loading) {
             minWidth: "180px",
             render: (row) => (
                 <div className="answer-cell">
-                    {fixMojibake(row.answer) || "-"}
+                    {row.answer
+                        ? <span className="answer-chip issue">{fixMojibake(row.answer)}</span>
+                        : "-"}
                 </div>
             )
         },
@@ -1723,15 +1743,70 @@ if (loading) {
 
 return (
 
-    <div className="action-points-page">
+    <div className="action-points-page ap-premium">
 
         {/* ======================================================
             PAGE HEADER
         ====================================================== */}
 
         <PageHeader
+            className="premium-hero"
             title="Action Points"
-            subtitle="Manage and track Action Points."
+            subtitle="Only checklist answers that report a problem land here. Once closed, they move to Checklist Reports."
+        />
+
+        <InsightStrip
+            loading={apSummaryLoading}
+            items={[
+                {
+                    key: "total",
+                    label: "Total",
+                    value: apSummary?.total,
+                    hint: "All Action Points",
+                    tone: "violet",
+                    icon: FaListUl,
+                    active: !status,
+                    onClick: () => { setStatus(""); setCurrentPage(1); }
+                },
+                {
+                    key: "open",
+                    label: "Open",
+                    value: apSummary?.open,
+                    hint: "Waiting for action",
+                    tone: "blue",
+                    icon: FaFolderOpen,
+                    active: status === "Open",
+                    onClick: () => { setStatus("Open"); setCurrentPage(1); }
+                },
+                {
+                    key: "progress",
+                    label: "In Progress",
+                    value: apSummary?.in_progress,
+                    hint: "Being worked on",
+                    tone: "amber",
+                    icon: FaHourglassHalf,
+                    active: status === "In Progress",
+                    onClick: () => { setStatus("In Progress"); setCurrentPage(1); }
+                },
+                {
+                    key: "closed",
+                    label: "Completed",
+                    value: apSummary?.closed,
+                    hint: "Moved to Checklist Reports",
+                    tone: "green",
+                    icon: FaCheckCircle,
+                    active: status === "Closed",
+                    onClick: () => { setStatus("Closed"); setCurrentPage(1); }
+                },
+                {
+                    key: "overdue",
+                    label: "Overdue",
+                    value: apSummary?.overdue,
+                    hint: `${apSummary?.high_priority ?? 0} high / critical open`,
+                    tone: "red",
+                    icon: FaExclamationTriangle
+                }
+            ]}
         />
 
         {/* ======================================================
@@ -1781,6 +1856,18 @@ return (
                     >
                         <FaUpload />
                         Bulk Upload
+                    </button>
+                )}
+
+                {canDelete && (
+                    <button
+                        type="button"
+                        className="recheck-answers-btn"
+                        onClick={() => setShowReclassify(true)}
+                        title="Re-check existing checklist answers and fix wrongly raised / missed Action Points"
+                    >
+                        <FaMagic />
+                        Re-check Answers
                     </button>
                 )}
 
@@ -2056,7 +2143,11 @@ return (
     CARD
 ====================================================== */}
 
-<Card title="Action Point List">
+<Card
+    className="premium-table-card"
+    title="Action Point List"
+    subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"}${status ? ` · ${status}` : ""}`}
+>
 
     <DataTable
 
@@ -2089,6 +2180,14 @@ return (
     />
 
 </Card>
+{canDelete && (
+    <ReclassifyModal
+        isOpen={showReclassify}
+        onClose={() => setShowReclassify(false)}
+        onApplied={() => fetchActionPoints({ silent: true })}
+    />
+)}
+
                 {/* ======================================================
     CREATE ACTION POINT MODAL
 ====================================================== */}

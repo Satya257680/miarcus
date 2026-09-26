@@ -18,6 +18,9 @@ exports.updateSettings = async (req, res) => {
         });
     } catch (error) {
         console.error("UPDATE CHECKLIST EMAIL SETTINGS ERROR:", error);
+        if (error.statusCode === 400) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
         return res.status(500).json({ success: false, message: "Unable to save Checklist email settings.", error: error.message });
     }
 };

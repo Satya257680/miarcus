@@ -157,6 +157,37 @@ router.post(
 
 
 // ======================================================
+// SUMMARY (KPI cards) + RE-CHECK CLASSIFICATION
+// Keep these before /:id.
+// ======================================================
+
+const {
+    getActionPointSummary,
+    reclassifyActionPoints
+} = require("../controllers/actionPointInsightsController");
+
+router.get(
+    "/summary",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "View"
+    ),
+    getActionPointSummary
+);
+
+router.post(
+    "/reclassify",
+    authMiddleware,
+    permissionMiddleware(
+        "Action Points",
+        "Full"
+    ),
+    reclassifyActionPoints
+);
+
+
+// ======================================================
 // GET ACTION POINT BY ID
 // GET /api/action-points/:id
 //

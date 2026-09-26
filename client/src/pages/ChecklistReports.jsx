@@ -25,8 +25,15 @@ import {
     FaEdit,
     FaTrash,
     FaMapMarkerAlt,
-    FaFileExcel
+    FaFileExcel,
+    FaClipboardCheck,
+    FaListUl,
+    FaCheckDouble,
+    FaHourglassHalf,
+    FaCheckCircle
 } from "react-icons/fa";
+
+import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
 
 
 // ======================================================
@@ -34,6 +41,7 @@ import {
 // ======================================================
 
 import "../styles/ChecklistReports.css";
+import "../styles/premium/ChecklistPremium.css";
 import { exportManagementHealthCheck } from "../utils/managementHealthCheckExport.js";
 import { exportTableData } from "../utils/exportUtils.js";
 
@@ -233,6 +241,19 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     const canDelete =
 
         permission === "Full";
+
+    // KPI tiles – follow the same filters as the table and refresh
+    // whenever the table reloads.
+    const { data: crSummary, loading: crSummaryLoading } = useInsightSummary(
+        "/api/checklist-reports/summary",
+        {
+            store_id: selectedStore || undefined,
+            checklist_type_id: selectedChecklist || undefined,
+            start_date: fromDate || undefined,
+            end_date: toDate || undefined
+        },
+        reports
+    );
             // ======================================================
     // MODAL-OPEN TRACKING (ref)
     //
@@ -1368,7 +1389,9 @@ const uploadChecklistReport = async (file, assembled) => {
         {
             key: "answer",
             title: "Answer",
-            render: (row) => row.answer || "-"
+            render: (row) => row.answer
+                ? <span className={`answer-chip ${row.action_point_id ? "resolved" : "ok"}`}>{row.answer}</span>
+                : "-"
         },
 
         {
@@ -1390,10 +1413,13 @@ const uploadChecklistReport = async (file, assembled) => {
             title: "Action Status",
             render: (row) => {
                 if (!row.action_point_id) {
-                    return <span className="status-badge">Not Required</span>;
+                    return <span className="report-state-badge ok">No Action Needed</span>;
                 }
 
                 const status = row.action_point_status || "Open";
+                if (String(status).toLowerCase() === "closed") {
+                    return <span className="report-state-badge done">Action Completed</span>;
+                }
                 return (
                     <span
                         className={`status-badge ${String(status)
@@ -1605,15 +1631,62 @@ const uploadChecklistReport = async (file, assembled) => {
     ];
         return (
 
-        <div className="checklist-reports-page">
+        <div className="checklist-reports-page cr-premium">
 
             {/* ======================================================
                 PAGE HEADER
             ====================================================== */}
 
             <PageHeader
+                className="premium-hero"
                 title="Checklist Reports"
-                subtitle="Manage submitted checklist reports."
+                subtitle="Answers where everything is fine, plus answers whose Action Point has been completed."
+            />
+
+            <InsightStrip
+                loading={crSummaryLoading}
+                items={[
+                    {
+                        key: "submissions",
+                        label: "Submissions",
+                        value: crSummary?.submissions,
+                        hint: crSummary?.average_score != null ? `Avg. score ${crSummary.average_score}%` : "Checklists submitted",
+                        tone: "violet",
+                        icon: FaClipboardCheck
+                    },
+                    {
+                        key: "reported",
+                        label: "In Report",
+                        value: crSummary?.reported_answers,
+                        hint: "Answers shown below",
+                        tone: "blue",
+                        icon: FaListUl
+                    },
+                    {
+                        key: "no-action",
+                        label: "No Action Needed",
+                        value: crSummary?.no_action_needed,
+                        hint: "All OK / N/A answers",
+                        tone: "green",
+                        icon: FaCheckCircle
+                    },
+                    {
+                        key: "completed",
+                        label: "Action Completed",
+                        value: crSummary?.action_completed,
+                        hint: "Closed Action Points",
+                        tone: "slate",
+                        icon: FaCheckDouble
+                    },
+                    {
+                        key: "pending",
+                        label: "Pending Action",
+                        value: crSummary?.pending_action,
+                        hint: "Open in Action Points",
+                        tone: "amber",
+                        icon: FaHourglassHalf
+                    }
+                ]}
             />
 
             {loadError && (
@@ -1811,7 +1884,9 @@ const uploadChecklistReport = async (file, assembled) => {
             ====================================================== */}
 
             <Card
+                className="premium-table-card"
                 title="Checklist Report List"
+                subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"}`}
             >
 
                 <DataTable

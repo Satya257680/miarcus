@@ -18,6 +18,11 @@ const {
 
 const checklistEmailService = require("./checklistEmailService");
 
+const {
+    classifyAnswer,
+    decideIssue
+} = require("../utils/answerClassifier");
+
 
 // ======================================================
 // GET SUBMISSION
@@ -265,6 +270,7 @@ const calculateScore = (
 ) => {
 
     if (
+        !answers ||
         answers.length === 0
     ) {
 
@@ -272,40 +278,36 @@ const calculateScore = (
 
     }
 
-    let score = 0;
+    // Score = answers that are OK / answers that could be judged.
+    // "No" to "Are there any paint issues?" is a GOOD answer, so the
+    // score uses the same polarity-aware classifier as the Action
+    // Point engine. Blank and N/A answers are not counted.
+    let judged = 0;
 
-    answers.forEach(
+    let good = 0;
 
-        (answer) => {
+    answers.forEach((answer) => {
 
-            if (
-                String(
-                    answer.answer || ""
-                ).trim().toLowerCase()
-                ===
-                "yes"
-            ) {
+        const result = classifyAnswer(answer);
 
-                score++;
-
-            }
-
+        if (result.kind === "blank" || result.kind === "na") {
+            return;
         }
 
-    );
+        judged++;
+
+        if (!result.issue) {
+            good++;
+        }
+
+    });
+
+    if (judged === 0) {
+        return 100;
+    }
 
     return Number(
-
-        (
-
-            score /
-
-            answers.length *
-
-            100
-
-        ).toFixed(2)
-
+        (good / judged * 100).toFixed(2)
     );
 
 };
@@ -384,6 +386,21 @@ const normalizeText = (
 // ======================================================
 // EVALUATE MANUAL NSO RULES
 // ======================================================
+//
+// For every answer that has an NSO rule, decide whether the answer is
+// really a problem. The decision is made by utils/answerClassifier.js,
+// which understands question polarity:
+//
+//   "Are there any paint issues?"  → "No"  = OK  (Checklist Reports)
+//   "Are there any tile issues?"   → "Yes" = issue (Action Point)
+//   "Is ... in good condition?"    → "No"  = issue (Action Point)
+//   N/A or blank                   → never an Action Point
+//
+// Legacy auto-generated rules that expected "Yes" for a problem-seeking
+// question are detected, ignored for the decision and repaired.
+// ======================================================
+
+const legacyRulesToRepair = new Map();
 
 const evaluateRules = (
 
@@ -395,119 +412,99 @@ const evaluateRules = (
 
     const matchedRules = [];
 
+    answers.forEach((answer) => {
 
-    answers.forEach(
+        const questionText = normalizeText(answer.question);
 
-        (answer) => {
-
-            const questionText =
-                normalizeText(
-                    answer.question
-                );
-
-
-            if (!questionText) {
-
-                return;
-
-            }
-
-
-            const rule =
-                rules.find(
-
-                    (item) => {
-
-                        const triggerColumn =
-                            normalizeText(
-                                item.trigger_column
-                            );
-
-                        return (
-                            triggerColumn ===
-                            questionText
-                        );
-
-                    }
-
-                );
-
-
-            if (!rule) {
-
-                return;
-
-            }
-
-
-            const submittedAnswer =
-                String(
-                    answer.answer ?? ""
-                ).trim();
-
-            // Blank answers are not failures and must not create Action Points.
-            // They remain visible in Checklist Reports.
-            if (!submittedAnswer) {
-                return;
-            }
-
-
-            const expectedAnswer =
-                String(
-                    rule.expected_answer ?? ""
-                ).trim();
-
-
-            if (
-
-                submittedAnswer
-                    .toLowerCase() !==
-                expectedAnswer
-                    .toLowerCase()
-
-            ) {
-
-                matchedRules.push({
-
-                    answer_id:
-                        answer.id,
-
-                    question_id:
-                        answer.question_id,
-
-                    question:
-                        answer.question,
-
-                    answer:
-                        answer.answer,
-
-                    expected_answer:
-                        rule.expected_answer,
-
-                    remarks:
-                        answer.remarks,
-
-                    department_ids:
-                        answer.department_ids,
-
-                    question_sla_value:
-                        answer.question_sla_value,
-
-                    question_sla_unit:
-                        answer.question_sla_unit,
-
-                    rule
-
-                });
-
-            }
-
+        if (!questionText) {
+            return;
         }
 
-    );
+        const rule = rules.find(
+            (item) => normalizeText(item.trigger_column) === questionText
+        );
 
+        if (!rule) {
+            return;
+        }
+
+        const decision = decideIssue(answer, rule);
+
+        if (decision.legacyRule && rule.id) {
+            legacyRulesToRepair.set(rule.id, decision.expectedAnswer);
+        }
+
+        if (!decision.issue) {
+            return;
+        }
+
+        matchedRules.push({
+
+            answer_id: answer.id,
+
+            question_id: answer.question_id,
+
+            question: answer.question,
+
+            answer: answer.answer,
+
+            expected_answer: decision.legacyRule
+                ? decision.expectedAnswer
+                : rule.expected_answer,
+
+            remarks: answer.remarks,
+
+            department_ids: answer.department_ids,
+
+            question_sla_value: answer.question_sla_value,
+
+            question_sla_unit: answer.question_sla_unit,
+
+            classification_reason: decision.reason,
+
+            rule
+
+        });
+
+    });
 
     return matchedRules;
+
+};
+
+
+// ======================================================
+// REPAIR LEGACY AUTO RULES
+// ======================================================
+// Older versions created every automatic rule with expected_answer
+// "Yes", even for "Are there any ... issues?" questions. Fix them so the
+// NSO Rules screen shows the correct expected answer too.
+// ======================================================
+
+const repairLegacyRules = async () => {
+
+    if (legacyRulesToRepair.size === 0) {
+        return 0;
+    }
+
+    const entries = Array.from(legacyRulesToRepair.entries());
+    legacyRulesToRepair.clear();
+
+    let repaired = 0;
+
+    for (const [ruleId, expected] of entries) {
+        try {
+            await db.query(
+                `UPDATE nso_rules SET expected_answer = ? WHERE id = ?`,
+                [expected, ruleId]
+            );
+            repaired++;
+        } catch (error) {
+            console.error(`[Inspection] Could not repair NSO rule #${ruleId}:`, error.message);
+        }
+    }
+
+    return repaired;
 
 };
 
@@ -517,228 +514,15 @@ const evaluateRules = (
 // ======================================================
 //
 // Checklist does NOT need an NSO Rule before submission.
-//
-// If a manual rule exists:
-//      use the manual rule.
-//
-// If no manual rule exists:
-//      inspect the answer automatically.
-//
-// If the answer indicates a problem:
-//      create an NSO Rule automatically.
-//
+// If no manual rule exists the answer is classified automatically
+// (see utils/answerClassifier.js). When the answer indicates a
+// problem, an NSO Rule is created automatically with the correct
+// expected answer for the question's polarity.
 // ======================================================
 
 const isAutomaticProblem = (
     answer
-) => {
-
-    const value =
-        normalizeText(
-            answer.answer
-        );
-
-
-    const remarks =
-        normalizeText(
-            answer.remarks
-        );
-
-
-    const type =
-        normalizeText(
-            answer.answer_type
-        );
-
-
-    // Empty answer is not an Action Point by itself.
-    // Blank/unanswered questions remain available in Checklist Reports.
-    if (!value) {
-
-        return false;
-
-    }
-
-
-    // Yes / No questions
-    if (
-
-        [
-            "yes/no",
-            "yes_no",
-            "boolean"
-        ].includes(type)
-
-    ) {
-
-        return value === "no";
-
-    }
-
-
-    // ==================================================
-    // PROBLEM PHRASES
-    // ==================================================
-
-    const problemPhrases = [
-
-        "no",
-
-        "not available",
-
-        "unavailable",
-
-        "missing",
-
-        "not working",
-
-        "broken",
-
-        "damaged",
-
-        "defective",
-
-        "failed",
-
-        "failure",
-
-        "error",
-
-        "issue",
-
-        "problem",
-
-        "in progress",
-
-        "progress",
-
-        "ongoing",
-
-        "continue",
-
-        "continuing",
-
-        "pending",
-
-        "not started",
-
-        "not complete",
-
-        "not completed",
-
-        "incomplete",
-
-        "unfinished",
-
-        "partially complete",
-
-        "partial",
-
-        "blocked",
-
-        "rejected",
-
-        "overdue",
-
-        "delay",
-
-        "delayed"
-
-    ];
-
-
-    // ==================================================
-    // POSITIVE PHRASES
-    // ==================================================
-
-    const positivePhrases = [
-
-        "yes",
-
-        "completed",
-
-        "complete",
-
-        "done",
-
-        "available",
-
-        "working",
-
-        "ok",
-
-        "okay",
-
-        "pass",
-
-        "passed",
-
-        "satisfactory",
-
-        "no issue",
-
-        "no problem",
-
-        "not applicable",
-
-        "n/a",
-
-        "na"
-
-    ];
-
-
-    if (
-        positivePhrases.includes(value)
-    ) {
-
-        return false;
-
-    }
-
-
-    if (
-
-        problemPhrases.some(
-
-            (phrase) =>
-                value.includes(phrase)
-
-        )
-
-    ) {
-
-        return true;
-
-    }
-
-
-    if (
-
-        problemPhrases.some(
-
-            (phrase) =>
-                remarks.includes(phrase)
-
-        ) &&
-
-        !positivePhrases.some(
-
-            (phrase) =>
-                value.includes(phrase)
-
-        )
-
-    ) {
-
-        return true;
-
-    }
-
-
-    return false;
-
-};
+) => decideIssue(answer, null).issue;
 
 
 // ======================================================
@@ -747,36 +531,7 @@ const isAutomaticProblem = (
 
 const inferExpectedAnswer = (
     answer
-) => {
-
-    const value =
-        normalizeText(
-            answer.answer
-        );
-
-
-    if (
-        value === "no"
-    ) {
-
-        return "Yes";
-
-    }
-
-
-    if (
-        value === "na" ||
-        value === "n/a"
-    ) {
-
-        return "Yes";
-
-    }
-
-
-    return "Yes";
-
-};
+) => classifyAnswer(answer).expectedAnswer || "Yes";
 
 
 // ======================================================
@@ -1326,9 +1081,14 @@ const createActionPoints = (
 
     matchedRules,
 
-    userId
+    userId,
+
+    options = {}
 
 ) => {
+
+    const sendEmail = options.sendEmail !== false;
+
 
     return new Promise(
 
@@ -1570,7 +1330,7 @@ const createActionPoints = (
 
                     // EMAIL: ACTION POINT GENERATED
                     // The service resolves active admins and the exact store manager.
-                    try {
+                    if (sendEmail) try {
                         await checklistEmailService.sendActionPointEvent(
                             result.insertId,
                             "ACTION_POINT_CREATED"
@@ -1912,6 +1672,13 @@ const runInspection = async (
             );
 
 
+        try {
+            await repairLegacyRules();
+        } catch (repairError) {
+            console.error("[Inspection] Legacy rule repair failed:", repairError.message);
+        }
+
+
         // ==================================================
         // COMBINE RULES
         // ==================================================
@@ -2089,6 +1856,16 @@ module.exports = {
 
     createActionPoints,
 
-    updateNSOStatus
+    updateNSOStatus,
+
+    getSubmissionAnswers,
+
+    getActiveRules,
+
+    isAutomaticProblem,
+
+    buildAutomaticProblems,
+
+    repairLegacyRules
 
 };
