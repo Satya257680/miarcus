@@ -1,3 +1,4 @@
+const { storedUploadPath } = require("../utils/storedUploadPath");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 
@@ -174,6 +175,7 @@ exports.getReportById = (req, res) => {
         return res.status(200).json({
             success: true,
             data: rows[0],
+            answers: rows,
         });
     });
 };
@@ -183,15 +185,16 @@ exports.getReportById = (req, res) => {
 // PUT /api/checklist-reports/:id
 // ======================================================
 exports.updateReport = (req, res) => {
-    const { status, answer, remarks } = req.body || {};
+    // Every column of the report row can be edited (submission,
+    // answer and its Action Point). A new attachment may be uploaded.
+    const body = { ...(req.body || {}) };
+    delete body.status;
+    delete body.attachment;
+    if (req.file) body.attachment = storedUploadPath(req.file);
 
     ChecklistReport.update(
         req.params.id,
-        {
-            status: status || "Completed",
-            answer,
-            remarks,
-        },
+        body,
         (err) => {
             if (err) {
                 console.error("UPDATE CHECKLIST REPORT ERROR:", err);
@@ -207,7 +210,7 @@ exports.updateReport = (req, res) => {
                 reference_id: req.params.id,
                 action: "UPDATE",
                 old_data: null,
-                new_data: { status, answer, remarks },
+                new_data: body,
                 changed_by: req.user.id,
             }, () => {});
 

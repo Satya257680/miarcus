@@ -1,3 +1,4 @@
+const { storedUploadPath } = require("../utils/storedUploadPath");
 const ChecklistSubmission = require(
     "../models/checklistSubmissionModel"
 );
@@ -109,7 +110,7 @@ exports.createSubmission = async (req, res) => {
 
         const attachment =
             req.file
-                ? req.file.path
+                ? storedUploadPath(req.file)
                 : null;
 
 

@@ -1124,6 +1124,14 @@ const update = async (
         id,
         updateData
     );
+
+    // Store / department / checklist answer from the full Edit form.
+    await ActionPoint.updateLinkedFields(id, {
+        store_id: body.store_id,
+        department_id: body.department_id,
+        answer: body.answer,
+        answer_remarks: body.answer_remarks
+    });
  
  
     if (

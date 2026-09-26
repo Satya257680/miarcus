@@ -51,7 +51,8 @@ const {
     getActionPointHistory,
     changeActionPointStatus,
     deleteActionPoint,
-    deleteAllActionPoints
+    deleteAllActionPoints,
+    getAssignees
 } = require("../controllers/actionPointController");
 
 // ======================================================
@@ -165,6 +166,14 @@ const {
     getActionPointSummary,
     reclassifyActionPoints
 } = require("../controllers/actionPointInsightsController");
+
+// Users for the "Assigned To" dropdown — keep before /:id.
+router.get(
+    "/assignees",
+    authMiddleware,
+    permissionMiddleware("Action Points", "View"),
+    getAssignees
+);
 
 router.get(
     "/summary",

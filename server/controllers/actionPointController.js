@@ -1,3 +1,4 @@
+const { storedUploadPath } = require("../utils/storedUploadPath");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 
@@ -1112,7 +1113,7 @@ exports.createActionPoint = async (req, res) => {
     try {
 
         const attachment = req.file
-            ? req.file.path.replace(/\\/g, "/")
+            ? storedUploadPath(req.file)
             : null;
 
         const result = await actionPointService.createManual(
@@ -1149,7 +1150,7 @@ exports.updateActionPoint = async (req, res) => {
     try {
 
         const attachment = req.file
-            ? req.file.path.replace(/\\/g, "/")
+            ? storedUploadPath(req.file)
             : null;
 
         const result = await actionPointService.update(
@@ -1171,6 +1172,22 @@ exports.updateActionPoint = async (req, res) => {
         });
     }
 
+};
+
+// ======================================================
+// ASSIGNEES (users for the "Assigned To" dropdown)
+// GET /api/action-points/assignees
+// ======================================================
+
+exports.getAssignees = async (req, res) => {
+    try {
+        const ActionPointModel = require("../models/actionPointModel");
+        const rows = await ActionPointModel.getAssignees();
+        return res.json({ success: true, data: rows || [] });
+    } catch (error) {
+        console.error("ACTION POINT ASSIGNEES ERROR:", error);
+        return res.status(500).json({ success: false, message: "Unable to load users." });
+    }
 };
 
 // ======================================================
@@ -1313,6 +1330,7 @@ module.exports = {
     getActionPointBulkUploadStatus: exports.getActionPointBulkUploadStatus,
     createActionPoint: exports.createActionPoint,
     updateActionPoint: exports.updateActionPoint,
+    getAssignees: exports.getAssignees,
     takeAction: exports.takeAction,
     getActionPointHistory: exports.getActionPointHistory,
     changeActionPointStatus: exports.changeActionPointStatus,

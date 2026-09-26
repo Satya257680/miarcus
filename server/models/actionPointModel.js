@@ -448,6 +448,14 @@ ActionPoint.getAll = (
             ON ap.assigned_to = au.id
 
         WHERE 1 = 1
+        -- Completed (Closed) checklist Action Points leave this module and
+        -- appear in Checklist Reports instead. Manual Action Points that are
+        -- not linked to a checklist submission stay visible.
+        AND NOT (
+            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
+            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
+        )
+
 
         -- Bulk imports must remain fully visible in Action Points so the
         -- source CSV is auditable row-for-row. Closed/no-action imported
@@ -716,9 +724,12 @@ ActionPoint.count = (
         -- Keep the Action Point list/count in sync: checklist-generated
         -- Action Points disappear from this module once Closed and are
         -- shown in Checklist Reports instead. Manual Action Points remain.
-        AND (
-            ap.submission_answer_id IS NULL
-            OR LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
+        -- Completed (Closed) checklist Action Points leave this module and
+        -- appear in Checklist Reports instead. Manual Action Points that are
+        -- not linked to a checklist submission stay visible.
+        AND NOT (
+            LOWER(COALESCE(ap.status, 'Open')) = 'closed'
+            AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL)
         )
     `;
 
@@ -1661,6 +1672,66 @@ ActionPoint.delete = (
     );
 };
 
+
+// ======================================================
+// UPDATE LINKED FIELDS (store, department, checklist answer)
+// Used by the full Edit Action Point form. Only fields that are
+// sent are changed.
+// ======================================================
+
+ActionPoint.updateLinkedFields = async (id, data = {}) => {
+    const rows = await db.query(
+        "SELECT id, submission_answer_id FROM action_points WHERE id = ? LIMIT 1",
+        [id]
+    );
+    const row = rows?.[0];
+    if (!row) return false;
+
+    const sets = [];
+    const values = [];
+    const storeId = Number(data.store_id);
+    if (Number.isInteger(storeId) && storeId > 0) {
+        sets.push("store_id = ?");
+        values.push(storeId);
+    }
+    if (data.department_id !== undefined) {
+        const departmentId = Number(data.department_id);
+        sets.push("department_id = ?");
+        values.push(Number.isInteger(departmentId) && departmentId > 0 ? departmentId : null);
+    }
+    if (sets.length) {
+        values.push(id);
+        await db.query(`UPDATE action_points SET ${sets.join(", ")} WHERE id = ?`, values);
+    }
+
+    if (row.submission_answer_id && (data.answer !== undefined || data.answer_remarks !== undefined)) {
+        const answerSets = [];
+        const answerValues = [];
+        if (data.answer !== undefined) {
+            answerSets.push("answer = ?");
+            answerValues.push(String(data.answer ?? ""));
+        }
+        if (data.answer_remarks !== undefined) {
+            answerSets.push("remarks = ?");
+            answerValues.push(String(data.answer_remarks ?? ""));
+        }
+        answerValues.push(row.submission_answer_id);
+        await db.query(
+            `UPDATE checklist_submission_answers SET ${answerSets.join(", ")} WHERE id = ?`,
+            answerValues
+        );
+    }
+    return true;
+};
+
+// Active users that an Action Point can be assigned to.
+ActionPoint.getAssignees = () => db.query(`
+    SELECT u.id, u.name, u.employee_id, d.department_name
+    FROM users u
+    LEFT JOIN departments d ON d.id = u.department_id
+    WHERE u.status = 'Active'
+    ORDER BY u.name ASC
+`);
 
 // ======================================================
 // DELETE ALL ACTION POINTS

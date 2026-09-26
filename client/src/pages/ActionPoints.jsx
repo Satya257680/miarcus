@@ -1,4 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
+import ActionPointEditModal from "../components/actionPoints/ActionPointEditModal";
+import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
 import { useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -285,28 +287,7 @@ function ActionPoints() {
     // EDIT DATA
     // ======================================================
 
-    const [editData, setEditData] = useState({
-
-        id: "",
-
-        question: "",
-
-        department_name: "",
-
-        assigned_to: "",
-
-        priority: "Medium",
-
-        sla_days: 0,
-        sla_hours: 0,
-        sla_minutes_part: 0,
-
-        remarks: "",
-        comment: "",
-        attachment: null,
-        status: "Open"
-
-    });
+    const [editRow, setEditRow] = useState(null);
 
     // ======================================================
     // TAKE ACTION
@@ -663,29 +644,12 @@ useEffect(() => {
 // UPDATE ACTION POINT
 // ======================================================
 
-const updateActionPoint = async () => {
-    try {
-        const data = new FormData();
-        data.append("assigned_to", editData.assigned_to || "");
-        data.append("priority", editData.priority || "Medium");
-        data.append("sla_days", String(editData.sla_days ?? 0));
-        data.append("sla_hours", String(editData.sla_hours ?? 0));
-        data.append("sla_minutes", String(editData.sla_minutes_part ?? 0));
-        data.append("remarks", editData.remarks || "");
-        data.append("comment", editData.comment || "");
-        data.append("status", editData.status || "Open");
-        if (editData.attachment) data.append("attachment", editData.attachment);
-
-        await axios.put(`/api/action-points/${editData.id}`, data);
-
-        alert("Action Point updated successfully.");
-        setShowEditModal(false);
-        await fetchActionPoints();
-        if (showHistoryModal) await openHistory({ id: editData.id });
-    } catch (err) {
-        console.error(err);
-        alert(err.response?.data?.message || "Unable to update Action Point.");
-    }
+const handleEditSaved = async () => {
+    const id = editRow?.id;
+    setShowEditModal(false);
+    setEditRow(null);
+    await fetchActionPoints({ silent: true });
+    if (showHistoryModal && id) await openHistory({ id });
 };
 
 // ======================================================
@@ -693,21 +657,8 @@ const updateActionPoint = async () => {
 // ======================================================
 
 const prepareEdit = (row) => {
-    const total = Number(row.sla_minutes || 0);
-    setEditData({
-        id: row.id,
-        question: row.question || "",
-        department_name: row.department_name || "",
-        assigned_to: row.assigned_to || "",
-        priority: row.priority || "Medium",
-        sla_days: Math.floor(total / 1440),
-        sla_hours: Math.floor((total % 1440) / 60),
-        sla_minutes_part: total % 60,
-        remarks: row.remarks || "",
-        comment: row.comment || "",
-        attachment: null,
-        status: row.status || "Open"
-    });
+    if (!row) return;
+    setEditRow(row);
     setShowEditModal(true);
 };
 
@@ -1480,20 +1431,16 @@ if (loading) {
 
     render: (row) => (
 
-        row.attachment ? (
+        hasAttachment(row.attachment) ? (
 
-            <a
-                href={
-                    /^https?:\/\//i.test(String(row.attachment))
-                        ? row.attachment
-                        : `${API}/${String(row.attachment).replace(/\\/g, "/")}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="table-link"
+            <button
+                type="button"
+                className="table-link attachment-link-btn"
+                onClick={() => openAttachment(row.attachment)}
+                title={attachmentName(row.attachment)}
             >
                 View
-            </a>
+            </button>
 
         ) : (
 
@@ -2308,355 +2255,21 @@ return (
 />
 
 {/* ======================================================
-    EDIT ACTION POINT MODAL
+    EDIT ACTION POINT MODAL (premium, every column editable)
 ====================================================== */}
 
-{showEditModal && (
-
-    <div className="modal-overlay action-workflow-overlay">
-
-        <div className="workflow-modal action-edit-modal">
-
-            <div className="workflow-modal-header">
-                <div>
-                    <span className="workflow-eyebrow">ACTION POINT WORKFLOW</span>
-                    <h3>Edit Action Point</h3>
-                    <p>Update ownership, SLA, status and conversation details.</p>
-                </div>
-
-                <button
-
-                    className="workflow-close-btn"
-
-                    onClick={() => setShowEditModal(false)}
-
-                >
-
-                    ×
-
-                </button>
-
-            </div>
-
-
-
-            <div className="workflow-modal-body">
-
-                <div className="filter-group">
-
-                    <label>Question</label>
-
-                    <input
-
-                        type="text"
-
-                        value={editData.question}
-
-                        readOnly
-
-                    />
-
-                </div>
-
-                <br />
-
-
-
-                <div className="filter-group">
-
-                    <label>Department</label>
-
-                    <input
-
-                        type="text"
-
-                        value={editData.department_name}
-
-                        readOnly
-
-                    />
-
-                </div>
-
-                <br />
-
-
-
-                <div className="filter-group">
-
-                    <label>Assigned To</label>
-
-                    <input
-
-                        type="text"
-
-                        value={editData.assigned_to}
-
-                        onChange={(e) =>
-
-                            setEditData({
-
-                                ...editData,
-
-                                assigned_to: e.target.value
-
-                            })
-
-                        }
-
-                    />
-
-                </div>
-
-                <br />
-
-
-
-                <div className="filter-group">
-
-                    <label>Priority</label>
-
-                    <select
-
-                        value={editData.priority}
-
-                        onChange={(e) =>
-
-                            setEditData({
-
-                                ...editData,
-
-                                priority: e.target.value
-
-                            })
-
-                        }
-
-                    >
-
-                        <option value="Low">
-
-                            Low
-
-                        </option>
-
-                        <option value="Medium">
-
-                            Medium
-
-                        </option>
-
-                        <option value="High">
-
-                            High
-
-                        </option>
-
-                        <option value="Critical">
-
-                            Critical
-
-                        </option>
-
-                    </select>
-
-                </div>
-
-                <br />
-
-
-
-                <div className="filter-group">
-                    <label>SLA</label>
-
-                    <div className="edit-sla-grid">
-                        <div>
-                            <span>Days</span>
-                            <input
-                                type="number"
-                                min="0"
-                                value={editData.sla_days}
-                                onChange={(e) =>
-                                    setEditData({
-                                        ...editData,
-                                        sla_days: e.target.value
-                                    })
-                                }
-                            />
-                        </div>
-
-                        <div>
-                            <span>Hours</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max="23"
-                                value={editData.sla_hours}
-                                onChange={(e) =>
-                                    setEditData({
-                                        ...editData,
-                                        sla_hours: e.target.value
-                                    })
-                                }
-                            />
-                        </div>
-
-                        <div>
-                            <span>Minutes</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max="59"
-                                value={editData.sla_minutes_part}
-                                onChange={(e) =>
-                                    setEditData({
-                                        ...editData,
-                                        sla_minutes_part: e.target.value
-                                    })
-                                }
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="edit-form-divider"></div>
-
-                <div className="filter-group">
-                    <label>Comment</label>
-                    <textarea
-                        rows={3}
-                        value={editData.comment}
-                        onChange={(e) => setEditData({ ...editData, comment: e.target.value })}
-                        placeholder="Add or update the Action Point comment"
-                    />
-                </div>
-
-                <div className="filter-group">
-                    <label>Attachment <span className="optional-text">Optional</span></label>
-                    <input
-                        type="file"
-                        onChange={(e) => setEditData({ ...editData, attachment: e.target.files?.[0] || null })}
-                    />
-                </div>
-
-                <br />
-
-                <div className="filter-group">
-
-                    <label>Status</label>
-
-                    <select
-
-                        value={editData.status}
-
-                        onChange={(e) =>
-
-                            setEditData({
-
-                                ...editData,
-
-                                status: e.target.value
-
-                            })
-
-                        }
-
-                    >
-
-                        <option value="Open">
-
-                            Open
-
-                        </option>
-
-                        <option value="In Progress">
-
-                            In Progress
-
-                        </option>
-
-                        <option value="Closed">
-
-                            Closed
-
-                        </option>
-
-                    </select>
-
-                </div>
-
-                <br />
-
-
-
-                <div className="filter-group">
-
-                    <label>Remarks</label>
-
-                    <textarea
-
-                        rows={4}
-
-                        value={editData.remarks}
-
-                        onChange={(e) =>
-
-                            setEditData({
-
-                                ...editData,
-
-                                remarks: e.target.value
-
-                            })
-
-                        }
-
-                    />
-
-                </div>
-
-
-
-                <div className="workflow-modal-actions">
-
-                    <button
-
-                        className="cancel-btn"
-
-                        onClick={() =>
-
-                            setShowEditModal(false)
-
-                        }
-
-                    >
-
-                        Cancel
-
-                    </button>
-
-
-
-                    <button
-
-                        className="upload-btn"
-
-                        onClick={updateActionPoint}
-
-                    >
-
-                        Update
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
+{showEditModal && editRow && (
+    <ActionPointEditModal
+        key={editRow.id}
+        row={editRow}
+        stores={stores}
+        departments={departments}
+        onClose={() => {
+            setShowEditModal(false);
+            setEditRow(null);
+        }}
+        onSaved={handleEditSaved}
+    />
 )}
 {/* ======================================================
     TAKE ACTION MODAL

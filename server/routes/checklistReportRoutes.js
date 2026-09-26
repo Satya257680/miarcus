@@ -22,6 +22,8 @@ const permissionMiddleware = require("../middleware/permissionMiddleware");
 // ======================================================
 
 const upload = require("../middleware/bulkFileUpload");
+// Regular single-attachment upload used by the Edit Report form.
+const attachmentUpload = require("../middleware/upload");
 
 // ======================================================
 // LONGER TIMEOUT FOR BULK UPLOAD
@@ -241,6 +243,8 @@ router.put(
         "Edit"
 
     ),
+
+    attachmentUpload.single("attachment"),
 
     updateReport
 

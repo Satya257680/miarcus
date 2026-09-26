@@ -1,4 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
+import { ChecklistReportViewModal, ChecklistReportEditModal } from "../components/checklist/ChecklistReportModals";
+import { attachmentName, hasAttachment, openAttachment } from "../utils/attachments";
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 
@@ -160,21 +162,11 @@ function ChecklistReports() {
 
     const [deleteId, setDeleteId] = useState(null);
 
-    const [editingReport, setEditingReport] = useState({
+    const [editingReport, setEditingReport] = useState(null);
 
-        id: "",
+    const [viewAnswers, setViewAnswers] = useState([]);
 
-        status: "",
-
-        submission_date: "",
-
-        answer: "",
-
-        remarks: "",
-
-        device: ""
-
-    });
+    const [viewLoading, setViewLoading] = useState(false);
 
     // ======================================================
 // BULK UPLOAD MODAL
@@ -658,38 +650,36 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
     // VIEW REPORT
     // ======================================================
 
-    const handleView = async (id) => {
+    const handleView = async (row) => {
 
-        if (!canView) return;
+        if (!canView || !row) return;
+
+        // Open immediately with the row already on screen, then load the
+        // full submission (every answer) in the background.
+        setSelectedReport(row);
+        setViewAnswers([]);
+        setViewLoading(true);
+        setShowViewModal(true);
 
         try {
 
-            const res = await axios.get(
+            const res = await axios.get(`${API}/checklist-reports/${row.id}`);
+            const answers = Array.isArray(res.data?.answers) ? res.data.answers : [];
+            const current = answers.find((a) => String(a.answer_id) === String(row.answer_id));
 
-                `${API}/checklist-reports/${id}`
-
-            );
-
-            setSelectedReport(
-
-                res.data.data
-
-            );
-
-            setShowViewModal(true);
+            setSelectedReport({ ...(res.data?.data || {}), ...(current || {}), ...row });
+            setViewAnswers(answers);
 
         }
         catch (err) {
 
+            // The row itself is still shown, so the view keeps working.
             console.error(err);
 
-            alert(
+        }
+        finally {
 
-                err.response?.data?.message ||
-
-                "Unable to load report."
-
-            );
+            setViewLoading(false);
 
         }
 
@@ -701,81 +691,11 @@ const [showBulkUpload, setShowBulkUpload] = useState(false);
 
     const handleEdit = (row) => {
 
-        if (!canEdit) return;
+        if (!canEdit || !row) return;
 
-        setEditingReport({
-
-            id: row.id,
-
-            // Checklist Report history is always completed.
-            status: "Completed",
-
-            submission_date:
-
-                row.submission_date || "",
-
-            answer: row.answer || "",
-
-            remarks: row.remarks || "",
-
-            device: row.device || ""
-
-        });
+        setEditingReport({ ...row, status: "Completed" });
 
         setShowEditModal(true);
-
-    };
-
-    // ======================================================
-    // UPDATE REPORT
-    // ======================================================
-
-    const updateReport = async () => {
-
-        try {
-
-            await axios.put(
-
-                `${API}/checklist-reports/${editingReport.id}`,
-
-                {
-
-                    status: "Completed",
-
-                    answer: editingReport.answer,
-
-                    remarks: editingReport.remarks
-
-                }
-
-            );
-
-            alert(
-
-                "Checklist Report updated successfully."
-
-            );
-
-            setShowEditModal(false);
-
-            silentRefresh();
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            alert(
-
-                err.response?.data?.message ||
-
-                err.message ||
-
-                "Unable to update report."
-
-            );
-
-        }
 
     };
 
@@ -1512,16 +1432,16 @@ const uploadChecklistReport = async (file, assembled) => {
 
     render: (row) => (
 
-        row.attachment ? (
+        hasAttachment(row.attachment) ? (
 
-            <a
-                href={`${API_BASE_URL}/${row.attachment}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="table-link"
+            <button
+                type="button"
+                className="table-link attachment-link-btn"
+                onClick={() => openAttachment(row.attachment)}
+                title={attachmentName(row.attachment)}
             >
                 View
-            </a>
+            </button>
 
         ) : (
 
@@ -1602,7 +1522,7 @@ const uploadChecklistReport = async (file, assembled) => {
                 <button
                     type="button"
                     className="view-btn"
-                    onClick={() => handleView(row.id)}
+                    onClick={() => handleView(row)}
                 >
                     <FaEye />
                     <span>View</span>
@@ -2016,331 +1936,40 @@ const uploadChecklistReport = async (file, assembled) => {
             />
 
             {/* ======================================================
-                VIEW MODAL
-            ======================================================}
-
-            {showViewModal && selectedReport && (
-
-                <div className="modal-overlay">
-
-                    <div className="report-modal">
-
-                        <div className="modal-header">
-
-                            <h3>
-                                Checklist Report Details
-                            </h3>
-
-                            <button
-                                className="close-btn"
-                                onClick={() =>
-                                    setShowViewModal(false)
-                                }
-                            >
-                                ×
-                            </button>
-
-                        </div>
-
-                        <div className="modal-body">
-
-                            <div className="detail-grid">
-
-                                <div>
-                                    <strong>Checklist</strong>
-                                    <p>
-                                        {selectedReport.checklist_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Store</strong>
-                                    <p>
-                                        {selectedReport.store_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Employee</strong>
-                                    <p>
-                                        {selectedReport.employee_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Employee ID</strong>
-                                    <p>
-                                        {selectedReport.employee_id || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Status</strong>
-                                    <p>
-                                        {selectedReport.status || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Submission Date</strong>
-                                    <p>
-                                        {formatDate(
-                                            selectedReport.submission_date
-                                        )}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Department</strong>
-                                    <p>
-                                        {selectedReport.department_name || "-"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <strong>Device</strong>
-                                    <p>
-                                        {selectedReport.device || "-"}
-                                    </p>
-                                </div>
-
-                            </div>
-
-                            <hr />
-
-                            <div className="question-section">
-
-                                <h4>Question</h4>
-
-                                <p>
-                                    {selectedReport.question || "-"}
-                                </p>
-
-                                <h4>Answer</h4>
-
-                                <p>
-                                    {selectedReport.answer || "-"}
-                                </p>
-
-                                <h4>Comment</h4>
-
-                                <p>
-                                    {selectedReport.remarks || "-"}
-                                </p>
-
-                                {selectedReport.action_point_id && (
-                                    <>
-                                        <h4>Action Point Comment</h4>
-                                        <p>
-                                            {selectedReport.action_point_comment || "-"}
-                                        </p>
-                                        <h4>Action Point Remarks</h4>
-                                        <p>
-                                            {selectedReport.action_point_remarks || "-"}
-                                        </p>
-                                    </>
-                                )}
-
-                                <h4>Attachment</h4>
-
-                                <p>
-
-                                    {selectedReport.attachment ? (
-
-                                        <a
-                                            href={`${API_BASE_URL}/${selectedReport.attachment}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="table-link"
-                                        >
-                                            View Attachment
-                                        </a>
-
-                                    ) : (
-
-                                        "-"
-
-                                    )}
-
-                                </p>
-
-                            </div>
-
-                            <div className="map-section">
-
-                                {selectedReport.latitude &&
-                                selectedReport.longitude ? (
-
-                                    <a
-                                        href={`https://www.google.com/maps?q=${selectedReport.latitude},${selectedReport.longitude}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="map-link"
-                                    >
-                                        <FaMapMarkerAlt />
-
-                                        {" "}Open Location in Google Maps
-                                    </a>
-
-                                ) : (
-
-                                    <p>
-                                        Location Not Available
-                                    </p>
-
-                                )}
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            )}
-                        {/* ======================================================
-                EDIT MODAL
+                PREMIUM VIEW MODAL
             ====================================================== */}
 
-            {showEditModal && (
+            {showViewModal && selectedReport && (
+                <ChecklistReportViewModal
+                    report={selectedReport}
+                    answers={viewAnswers}
+                    loading={viewLoading}
+                    canEdit={canEdit}
+                    onEdit={(report) => {
+                        setShowViewModal(false);
+                        handleEdit(report);
+                    }}
+                    onClose={() => setShowViewModal(false)}
+                />
+            )}
 
-                <div className="modal-overlay">
+            {/* ======================================================
+                PREMIUM EDIT MODAL (every column editable)
+            ====================================================== */}
 
-                    <div className="report-modal">
-
-                        {/* ==========================================
-                            HEADER
-                        ========================================== */}
-
-                        <div className="modal-header">
-
-                            <h3>Edit Checklist Report</h3>
-
-                            <button
-                                className="close-btn"
-                                onClick={() =>
-                                    setShowEditModal(false)
-                                }
-                            >
-                                ×
-                            </button>
-
-                        </div>
-
-                        {/* ==========================================
-                            BODY
-                        ========================================== */}
-
-                        <div className="modal-body">
-
-                            <div className="filter-group">
-
-                                <label>Status</label>
-
-                                <select
-                                    value="Completed"
-                                    disabled
-                                    aria-label="Checklist report status"
-                                >
-                                    <option value="Completed">
-                                        Completed
-                                    </option>
-                                </select>
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Answer</label>
-
-                                <input
-                                    type="text"
-                                    value={editingReport.answer}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            answer: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Remarks</label>
-
-                                <textarea
-                                    rows={5}
-                                    value={editingReport.remarks}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            remarks: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            <br />
-
-                            <div className="filter-group">
-
-                                <label>Device</label>
-
-                                <input
-                                    type="text"
-                                    value={editingReport.device}
-                                    onChange={(e) =>
-                                        setEditingReport({
-                                            ...editingReport,
-                                            device: e.target.value
-                                        })
-                                    }
-                                />
-
-                            </div>
-
-                            {/* ==========================================
-                                ACTIONS
-                            ========================================== */}
-
-                            <div className="modal-actions">
-
-                                <button
-                                    className="cancel-btn"
-                                    onClick={() =>
-                                        setShowEditModal(false)
-                                    }
-                                >
-                                    Cancel
-                                </button>
-
-                                {canEdit && (
-
-                                    <button
-                                        className="upload-btn"
-                                        onClick={updateReport}
-                                    >
-                                        Save Changes
-                                    </button>
-
-                                )}
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
+            {showEditModal && editingReport && (
+                <ChecklistReportEditModal
+                    key={`${editingReport.id}-${editingReport.answer_id || ""}`}
+                    report={editingReport}
+                    stores={stores}
+                    users={users}
+                    checklistTypes={checklistTypes}
+                    onClose={() => setShowEditModal(false)}
+                    onSaved={() => {
+                        setShowEditModal(false);
+                        silentRefresh();
+                    }}
+                />
             )}
 
         </div>

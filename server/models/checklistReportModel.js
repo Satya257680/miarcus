@@ -54,12 +54,12 @@ ChecklistReport.getAll = (
             COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
             COALESCE(
+                NULLIF(cs.department_override, ''),
                 GROUP_CONCAT(
                     DISTINCT d.department_name
                     ORDER BY d.department_name
                     SEPARATOR ', '
-                ),
-                cs.department_override
+                )
             ) AS department_name,
 
             q.id AS question_id,
@@ -574,6 +574,9 @@ ChecklistReport.getById = (
             cs.attachment,
 
             cs.created_at,
+            cs.submitted_by_name,
+            cs.submitted_by_employee_code,
+            cs.department_override,
 
             ct.checklist_name,
 
@@ -584,12 +587,12 @@ ChecklistReport.getById = (
             COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
             COALESCE(
+                NULLIF(cs.department_override, ''),
                 GROUP_CONCAT(
                     DISTINCT d.department_name
                     ORDER BY d.department_name
                     SEPARATOR ', '
-                ),
-                cs.department_override
+                )
             ) AS department_name,
 
             q.id AS question_id,
@@ -694,8 +697,6 @@ ChecklistReport.getById = (
 
             cs.submission_date,
 
-            'Completed' AS status,
-
             cs.latitude,
 
             cs.longitude,
@@ -784,118 +785,162 @@ ChecklistReport.getById = (
 // ------------------------------------------------------
 
 ChecklistReport.update = async (
-
     id,
-
     data,
-
     callback
-
 ) => {
+    // --------------------------------------------------
+    // Full edit of one Checklist Report row:
+    //   • submission  (checklist type, store, date, employee,
+    //                  department, device, location, attachment)
+    //   • the answer  (answer, remarks, action taken, action
+    //                  remarks, completion date) — only the row's
+    //                  own answer when answer_id is sent
+    //   • its Action Point (priority, SLA, comment, remarks)
+    // Only fields that are actually sent are changed.
+    // --------------------------------------------------
+    const has = (key) => Object.prototype.hasOwnProperty.call(data || {}, key) && data[key] !== undefined;
+    const clean = (value) => {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        return text === "" ? null : text;
+    };
+    const num = (value) => {
+        const text = clean(value);
+        if (text === null) return null;
+        const n = Number(text);
+        return Number.isFinite(n) ? n : null;
+    };
+    const dateTime = (value) => {
+        const text = clean(value);
+        if (!text) return null;
+        const normalized = text.replace("T", " ");
+        if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(normalized)) return null;
+        return normalized.length === 16 ? `${normalized}:00` : normalized;
+    };
 
     let connection;
 
     try {
-
         connection = await db.getConnection();
-
         await connection.beginTransaction();
 
-        // ==========================================
-        // UPDATE SUBMISSION STATUS
-        // ==========================================
+        // ---------------- SUBMISSION ----------------
+        const sets = ["status = ?"];
+        const values = ["Completed"];
+        const add = (column, value) => {
+            sets.push(`${column} = ?`);
+            values.push(value);
+        };
 
+        if (has("checklist_type_id") && num(data.checklist_type_id)) add("checklist_type_id", num(data.checklist_type_id));
+        if (has("store_id") && num(data.store_id)) add("store_id", num(data.store_id));
+        if (has("submission_date") && dateTime(data.submission_date)) add("submission_date", dateTime(data.submission_date));
+        if (has("device")) add("device", clean(data.device));
+        if (has("latitude")) add("latitude", num(data.latitude));
+        if (has("longitude")) add("longitude", num(data.longitude));
+        if (has("department_name")) add("department_override", clean(data.department_name));
+        if (data.attachment) add("attachment", data.attachment);
+
+        if (has("employee_name") || has("employee_id")) {
+            const code = clean(data.employee_id);
+            let userId = null;
+            if (code) {
+                const [users] = await connection.query(
+                    "SELECT id FROM users WHERE employee_id = ? LIMIT 1",
+                    [code]
+                );
+                userId = users?.[0]?.id || null;
+            }
+            add("submitted_by", userId);
+            add("submitted_by_name", clean(data.employee_name));
+            add("submitted_by_employee_code", code);
+        }
+
+        values.push(id);
         await connection.query(
-
-            `
-
-            UPDATE checklist_submissions
-
-            SET
-
-                status = ?
-
-            WHERE id = ?
-
-            `,
-
-            [
-
-                "Completed",
-
-                id
-
-            ]
-
+            `UPDATE checklist_submissions SET ${sets.join(", ")} WHERE id = ?`,
+            values
         );
 
-        // ==========================================
-        // UPDATE ANSWERS
-        // ==========================================
-
+        // ---------------- ANSWER ----------------
         let result = null;
+        const answerSets = [];
+        const answerValues = [];
+        const addAnswer = (column, value) => {
+            answerSets.push(`${column} = ?`);
+            answerValues.push(value);
+        };
+        if (has("answer")) addAnswer("answer", data.answer ?? "");
+        if (has("remarks")) addAnswer("remarks", data.remarks ?? "");
+        if (has("action_taken")) addAnswer("action_taken", clean(data.action_taken));
+        if (has("action_remarks")) addAnswer("action_remarks", clean(data.action_remarks));
+        if (has("completion_date")) addAnswer("completion_date", dateTime(data.completion_date));
 
-        if (data.answer || data.remarks) {
-
-            const [answerResult] = await connection.query(
-
-                `
-
-                UPDATE checklist_submission_answers
-
-                SET
-
-                    answer = ?,
-
-                    remarks = ?
-
-                WHERE submission_id = ?
-
-                `,
-
-                [
-
-                    data.answer || "",
-
-                    data.remarks || "",
-
-                    id
-
-                ]
-
-            );
-
+        if (answerSets.length) {
+            const answerId = num(data.answer_id);
+            const [answerResult] = answerId
+                ? await connection.query(
+                    `UPDATE checklist_submission_answers SET ${answerSets.join(", ")} WHERE id = ? AND submission_id = ?`,
+                    [...answerValues, answerId, id]
+                )
+                : await connection.query(
+                    `UPDATE checklist_submission_answers SET ${answerSets.join(", ")} WHERE submission_id = ?`,
+                    [...answerValues, id]
+                );
             result = answerResult;
+        }
 
+        // ---------------- ACTION POINT ----------------
+        const apId = num(data.action_point_id);
+        if (apId) {
+            const apSets = [];
+            const apValues = [];
+            const priority = clean(data.action_point_priority);
+            if (priority && ["Low", "Medium", "High", "Critical"].includes(priority)) {
+                apSets.push("priority = ?");
+                apValues.push(priority);
+            }
+            if (has("action_point_sla_days") && num(data.action_point_sla_days) !== null) {
+                const days = Math.max(0, num(data.action_point_sla_days));
+                apSets.push("sla_value = ?", "sla_minutes = ?");
+                apValues.push(days, days * 1440);
+            }
+            if (has("action_point_comment")) {
+                apSets.push("comment = ?");
+                apValues.push(clean(data.action_point_comment));
+            }
+            if (has("action_point_remarks")) {
+                apSets.push("remarks = ?");
+                apValues.push(clean(data.action_point_remarks));
+            }
+            if (apSets.length) {
+                apValues.push(apId, id);
+                await connection.query(
+                    `UPDATE action_points SET ${apSets.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND submission_id = ?`,
+                    apValues
+                );
+            }
         }
 
         await connection.commit();
-
         callback(null, result);
-
     } catch (error) {
-
         if (connection) {
-
             try {
                 await connection.rollback();
             } catch (rollbackError) {
                 console.error("Rollback failed:", rollbackError.message);
             }
-
         }
-
         callback(error);
-
     } finally {
-
         if (connection) {
             connection.release();
         }
-
     }
-
 };
+
 // ======================================================
 // DELETE REPORT
 // DELETE ANSWERS + SUBMISSION
@@ -1443,12 +1488,12 @@ ChecklistReport.exportReports = (
             COALESCE(u.employee_id, cs.submitted_by_employee_code) AS employee_id,
 
             COALESCE(
+                NULLIF(cs.department_override, ''),
                 GROUP_CONCAT(
                     DISTINCT d.department_name
                     ORDER BY d.department_name
                     SEPARATOR ', '
-                ),
-                cs.department_override
+                )
             ) AS department_name,
 
             DATE_FORMAT(cs.submission_date, '%Y-%m-%d %H:%i:%s') AS submission_date,
@@ -1546,8 +1591,6 @@ ChecklistReport.exportReports = (
             u.employee_id,
 
             cs.submission_date,
-
-            'Completed' AS status,
 
             q.id,
 
