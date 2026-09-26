@@ -490,7 +490,8 @@ const createFromRules = async (
 const createManual = async (
     body,
     attachment,
-    userId
+    userId,
+    options = {}
 ) => {
  
     const {
@@ -874,7 +875,9 @@ const createManual = async (
  
  
     // EMAIL: MANUAL ACTION POINT GENERATED
-    try {
+    // Bulk uploads pass { sendEmail: false } so a 100-row file does not
+    // produce 100 emails.
+    if (options.sendEmail !== false) try {
         await checklistEmailService.sendActionPointEvent(
             actionPointId,
             "ACTION_POINT_CREATED"

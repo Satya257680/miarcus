@@ -1696,6 +1696,11 @@ const runInspection = async (
         // CREATE ACTION POINTS
         // ==================================================
 
+        // ONE EMAIL PER SUBMISSION: the per-Action-Point "generated"
+        // emails are suppressed here. The single "Checklist Submitted"
+        // email (sent right after inspection) already contains how many
+        // Action Points were raised and how many answers went to
+        // Checklist Reports.
         const createdActionPoints =
 
             await createActionPoints(
@@ -1704,7 +1709,9 @@ const runInspection = async (
 
                 allMatchedRules,
 
-                userId
+                userId,
+
+                { sendEmail: false }
 
             );
 

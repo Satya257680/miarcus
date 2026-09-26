@@ -933,7 +933,8 @@ exports.bulkUploadActionPoints = async (req, res) => {
                             status: normalizeActionPointStatus(row["Status"], "Open")
                         },
                         row["Attachment"] || null,
-                        req.user.id
+                        req.user.id,
+                        { sendEmail: false }
                     );
 
                     if (historyEntries.length) {

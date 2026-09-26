@@ -24,11 +24,15 @@ const EVENTS = {
     ACTION_POINT_COMPLETED: "action_point_completed_enabled"
 };
 
-const APP_URL = String(
-    process.env.FRONTEND_URL || process.env.CLIENT_URL || process.env.APP_URL || ""
-).trim().replace(/\/+$/, "");
+const { getAppUrl } = require("../config/appUrl");
+const {
+    buildChecklistSubmissionEmail,
+    formatStoredIST
+} = require("../utils/emailTemplates/premiumNotification");
 
-const toAppUrl = (path) => APP_URL ? `${APP_URL}${path}` : null;
+// Always the current production portal (PUBLIC_APP_URL or the default
+// https://rytual2.miarcus.com) – same source as invitation emails.
+const toAppUrl = (path) => `${getAppUrl()}${path}`;
 
 const validEmail = (value) => {
     const email = String(value || "").trim().toLowerCase();
@@ -93,6 +97,7 @@ const getSubmissionContext = async (submissionId) => {
             cs.id,
             cs.store_id,
             DATE_FORMAT(cs.submission_date, '%d %b %Y, %h:%i %p') AS submission_date,
+            DATE_FORMAT(cs.submission_date, '%Y-%m-%d %H:%i:%s') AS submission_date_raw,
             cs.inspection_score,
             cs.status,
             cs.submitted_by,
@@ -269,6 +274,11 @@ const buildEmail = ({ subject, eyebrow, intro, rows, extraHtml = "", actionLabel
 // CHECKLIST SUBMITTED
 // ------------------------------------------------------
 const sendChecklistSubmitted = async (submissionId) => {
+    // ONE email per checklist submission, whatever the number of
+    // questions. It summarises how many Action Points were raised and
+    // how many answers went to Checklist Reports, and links to the
+    // portal. (Per-Action-Point "generated" emails are suppressed during
+    // submission – see inspectionService.runInspection.)
     const { settings, enabled } = await eventEnabled("CHECKLIST_SUBMITTED");
     if (!enabled) return { sent: false, skipped: true, reason: "Checklist submission email is disabled." };
 
@@ -285,59 +295,47 @@ const sendChecklistSubmitted = async (submissionId) => {
 
     const issues = await getSubmissionIssues(submissionId);
     const totalAnswers = await getAnswerCount(submissionId);
+    const actionPoints = issues.length;
+    const reportItems = Math.max(totalAnswers - actionPoints, 0);
 
-    const subject = `Checklist Submitted - ${submission.store_name || "Store"}`;
-    const rows = [
-        tableRow("Store", submission.store_name),
-        tableRow("City", [submission.city, submission.state].filter(Boolean).join(", ")),
-        tableRow("Checklist", submission.checklist_name),
-        tableRow("Submitted By", submission.submitted_by_name),
-        tableRow("Submission Date", submission.submission_date),
-        tableRow("Inspection Score", submission.inspection_score == null ? "-" : `${submission.inspection_score}%`),
-        tableRow("Questions Answered", String(totalAnswers)),
-        tableRow("Action Points Raised", issues.length
-            ? coloredPill(`${issues.length} need action`, "#fee2e2", "#b91c1c")
-            : coloredPill("None – all clear", "#dcfce7", "#15803d"), { html: true })
-    ];
+    const storeName = submission.store_name || "Store";
+    const city = [submission.city, submission.state].filter(Boolean).join(", ");
+    const submittedAt = formatStoredIST(submission.submission_date_raw);
 
-    const issuesHtml = issues.length
-        ? `<h3 style="margin:24px 0 10px;font-size:15px;color:#0f172a;">Issues that need action</h3>
-           <table style="width:100%;border-collapse:collapse;border:1px solid #eef2f7;">
-             <thead><tr>
-               <th style="text-align:left;padding:9px 12px;background:#f8f7ff;color:#6d28d9;font-size:12px;">Question</th>
-               <th style="text-align:left;padding:9px 12px;background:#f8f7ff;color:#6d28d9;font-size:12px;">Answer</th>
-               <th style="text-align:left;padding:9px 12px;background:#f8f7ff;color:#6d28d9;font-size:12px;">Priority</th>
-             </tr></thead>
-             <tbody>${issues.map((issue) => `
-               <tr>
-                 <td style="padding:9px 12px;border-top:1px solid #eef2f7;font-size:13px;">${escapeHtml(issue.question || "-")}${issue.remarks ? `<div style="color:#64748b;font-size:12px;margin-top:3px;">${escapeHtml(issue.remarks)}</div>` : ""}</td>
-                 <td style="padding:9px 12px;border-top:1px solid #eef2f7;font-size:13px;font-weight:600;">${escapeHtml(issue.answer || "-")}</td>
-                 <td style="padding:9px 12px;border-top:1px solid #eef2f7;">${pill(issue.priority || "Medium", PRIORITY_COLORS)}</td>
-               </tr>`).join("")}
-             </tbody>
-           </table>`
-        : "";
+    const subject = actionPoints
+        ? `Checklist Submitted – ${storeName} · ${actionPoints} Action Point${actionPoints === 1 ? "" : "s"}`
+        : `Checklist Submitted – ${storeName}`;
 
-    const html = buildEmail({
-        subject,
-        eyebrow: "CHECKLIST SUBMISSION",
-        intro: issues.length
-            ? "A store checklist has been submitted. The answers below report a problem and have been raised as Action Points. Everything else is available in Checklist Reports."
-            : "A store checklist has been submitted and no problems were reported. All answers are available in Checklist Reports.",
-        rows,
-        extraHtml: issuesHtml,
-        actionLabel: issues.length ? "Open Action Points" : "Open Checklist Reports",
-        actionLink: toAppUrl(issues.length ? "/action-points" : "/checklist-reports")
+    const { html, attachments } = buildChecklistSubmissionEmail({
+        storeName,
+        city,
+        checklistName: submission.checklist_name,
+        submittedBy: submission.submitted_by_name,
+        submittedAt,
+        totalQuestions: totalAnswers,
+        actionPoints,
+        reportItems,
+        link: toAppUrl(actionPoints ? "/action-points" : "/checklist-reports")
     });
 
     await sendGenericEmail({
         to: recipients,
         subject,
         html,
-        text: `${subject}\nStore: ${submission.store_name || "-"}\nChecklist: ${submission.checklist_name || "-"}\nSubmitted by: ${submission.submitted_by_name || "-"}\nAction Points raised: ${issues.length}`
+        attachments,
+        text: [
+            `Checklist submission done by ${storeName}.`,
+            `Submitted by: ${submission.submitted_by_name || "-"}`,
+            `Date & time: ${submittedAt}`,
+            `Checklist: ${submission.checklist_name || "-"}`,
+            `Total questions: ${totalAnswers}`,
+            `Action Points generated: ${actionPoints}`,
+            `Answers in Checklist Reports: ${reportItems}`,
+            `Review on the MI ARCUS Portal: ${toAppUrl(actionPoints ? "/action-points" : "/checklist-reports")}`
+        ].join("\n")
     });
 
-    return { sent: true, recipients };
+    return { sent: true, recipients, action_points: actionPoints, report_items: reportItems };
 };
 
 // ------------------------------------------------------
