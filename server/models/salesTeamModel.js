@@ -1779,6 +1779,68 @@ const getApprovals = (
   );
 };
 /* =========================================================
+   GET APPROVAL DETAILS
+========================================================= */
+
+const getApprovalDetails = (
+  employeeId,
+  month,
+  user,
+  callback
+) => {
+  const admin = isAdmin(user);
+
+  const where = admin
+    ? `
+        v.approval_status = 'Pending'
+        AND v.employee_id = ?
+        AND DATE_FORMAT(v.visit_date, '%Y-%m') = ?
+      `
+    : `
+        v.approval_status = 'Pending'
+        AND v.employee_id = ?
+        AND DATE_FORMAT(v.visit_date, '%Y-%m') = ?
+        AND (
+          CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
+          OR CAST(u.reports_to AS CHAR) = CAST(? AS CHAR)
+          OR LOWER(TRIM(CAST(u.reports_to AS CHAR))) = LOWER(TRIM(?))
+        )
+      `;
+
+  const params = admin
+    ? [employeeId, month]
+    : [
+        employeeId,
+        month,
+        user.id,
+        user.employee_id || user.id,
+        user.name || "",
+      ];
+
+  query(
+    `
+      ${visitSelect}
+      WHERE ${where}
+      GROUP BY v.id
+      ORDER BY v.visit_date ASC, v.id ASC
+    `,
+    params,
+    (err, rows) => {
+      if (err) return callback(err);
+
+      rows.forEach((row) => {
+        row.planned_store_ids = normalizeIds(row.planned_store_ids_csv);
+        row.actual_store_ids = normalizeIds(row.actual_store_ids_csv);
+        delete row.planned_store_ids_csv;
+        delete row.actual_store_ids_csv;
+      });
+
+      callback(null, rows);
+    }
+  );
+};
+
+/* =========================================================
    APPROVAL RECIPIENTS
 ========================================================= */
 
@@ -3324,6 +3386,7 @@ module.exports = {
   addHistory,
 
   getApprovals,
+  getApprovalDetails,
   getApprovalRecipients,
   getEmployeeForApproval,
   changeApproval,

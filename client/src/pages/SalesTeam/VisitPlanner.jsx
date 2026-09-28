@@ -904,19 +904,19 @@ function VisitPlanner() {
           start
         );
       },
-      minWidth: "170px",
+      minWidth: "120px",
     },
 
     {
       key: "day_name",
       title: "Day",
-      minWidth: "110px",
+      minWidth: "80px",
     },
 
     {
       key: "name",
       title: "Name",
-      minWidth: "230px",
+      minWidth: "175px",
       render: (row) => (
         <div className="pp-cell-main">
           <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
@@ -933,7 +933,7 @@ function VisitPlanner() {
     {
       key: "department",
       title: "Department",
-      minWidth: "150px",
+      minWidth: "125px",
       render: (row) =>
         row.department || "—",
     },
@@ -941,7 +941,7 @@ function VisitPlanner() {
     {
       key: "city",
       title: "City",
-      minWidth: "130px",
+      minWidth: "105px",
       render: (row) =>
         row.city
           ? <span className="pp-pill pp-pill--teal"><FaMapMarkedAlt />{row.city}</span>
@@ -951,9 +951,9 @@ function VisitPlanner() {
     {
       key: "reason_to_travel",
       title: "Reason to travel",
-      minWidth: "240px",
+      minWidth: "175px",
       render: (row) => (
-        <span className="sales-wrap-cell">
+        <span className="sales-wrap-cell sales-wrap-cell--compact">
           {row.reason_to_travel || "—"}
         </span>
       ),
@@ -962,7 +962,7 @@ function VisitPlanner() {
     {
       key: "planned_store_names",
       title: "Planned",
-      minWidth: "260px",
+      minWidth: "210px",
       render: (row) =>
         row.week_off ? (
           <span className="pp-pill pp-pill--amber">
@@ -973,9 +973,11 @@ function VisitPlanner() {
               : ""}
           </span>
         ) : (
-          <span className="sales-wrap-cell">
-            {row.planned_store_names ||
-              "—"}
+          <span
+            className="sales-wrap-cell sales-wrap-cell--planned"
+            title={row.planned_store_names || "—"}
+          >
+            {row.planned_store_names || "—"}
           </span>
         ),
     },
@@ -983,9 +985,9 @@ function VisitPlanner() {
     {
       key: "remarks",
       title: "Remarks",
-      minWidth: "180px",
+      minWidth: "135px",
       render: (row) => (
-        <span className="sales-wrap-cell">
+        <span className="sales-wrap-cell sales-wrap-cell--compact">
           {row.remarks || "—"}
         </span>
       ),

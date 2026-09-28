@@ -18,6 +18,7 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 import {
   approveTravelPlan,
+  getTravelPlanApprovalDetails,
   getTravelPlanApprovals,
   rejectTravelPlan,
 } from "../../services/salesTeamService";
@@ -58,6 +59,10 @@ function TravelPlanApprovals() {
 
   const [processing, setProcessing] =
     useState(false);
+
+  const [viewingItem, setViewingItem] = useState(null);
+  const [viewDetails, setViewDetails] = useState([]);
+  const [viewLoading, setViewLoading] = useState(false);
 
   /* =======================================================
      LOAD APPROVALS
@@ -113,6 +118,44 @@ function TravelPlanApprovals() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /* =======================================================
+     VIEW REQUEST DETAILS
+  ======================================================= */
+
+  const openView = async (item) => {
+    setViewingItem(item);
+    setViewDetails([]);
+    setViewLoading(true);
+
+    try {
+      const response = await getTravelPlanApprovalDetails(
+        item.employee_id,
+        item.month
+      );
+
+      setViewDetails(
+        Array.isArray(response?.data?.data)
+          ? response.data.data
+          : []
+      );
+    } catch (error) {
+      console.error("Unable to load travel plan details:", error);
+      alert(
+        error.response?.data?.message ||
+          "Unable to load travel plan details."
+      );
+      setViewingItem(null);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const closeView = () => {
+    if (viewLoading) return;
+    setViewingItem(null);
+    setViewDetails([]);
+  };
 
   /* =======================================================
      OPEN CONFIRMATION
@@ -420,45 +463,41 @@ function TravelPlanApprovals() {
                        ACTIONS
                     ===================================== */}
 
-                    {canEdit(
-                      permission
-                    ) && (
-                      <div className="approval-actions">
-                        <button
-                          type="button"
-                          className="approve-btn"
-                          onClick={() =>
-                            askAction(
-                              item,
-                              "approve"
-                            )
-                          }
-                          disabled={
-                            processing
-                          }
-                        >
-                          <FaCheck />
-                          Approve
-                        </button>
+                    <div className="approval-actions">
+                      <button
+                        type="button"
+                        className="view-request-btn"
+                        onClick={() => openView(item)}
+                        disabled={processing || viewLoading}
+                      >
+                        <FaClipboardCheck />
+                        View
+                      </button>
 
-                        <button
-                          type="button"
-                          className="reject-btn"
-                          onClick={() =>
-                            askAction(
-                              item,
-                              "reject"
-                            )
-                          }
-                          disabled={
-                            processing
-                          }
-                        >
-                          <FaTimes />
-                          Reject
-                        </button>
-                      </div>
-                    )}
+                      {canEdit(permission) && (
+                        <>
+                          <button
+                            type="button"
+                            className="approve-btn"
+                            onClick={() => askAction(item, "approve")}
+                            disabled={processing}
+                          >
+                            <FaCheck />
+                            Approve
+                          </button>
+
+                          <button
+                            type="button"
+                            className="reject-btn"
+                            onClick={() => askAction(item, "reject")}
+                            disabled={processing}
+                          >
+                            <FaTimes />
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               }
@@ -466,6 +505,175 @@ function TravelPlanApprovals() {
           </div>
         )}
       </Card>
+
+      {/* =================================================
+          PREMIUM REQUEST DETAILS
+      ================================================= */}
+
+      {viewingItem && (
+        <div
+          className="sales-modal-backdrop approval-view-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeView();
+          }}
+        >
+          <div
+            className="approval-view-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="travel-request-view-title"
+          >
+            <div className="approval-view-hero">
+              <div>
+                <span className="approval-view-eyebrow">
+                  SALES TEAM · TRAVEL REQUEST
+                </span>
+                <h2 id="travel-request-view-title">
+                  Travel Plan Details
+                </h2>
+                <p>
+                  Review exactly what the employee submitted before approving or rejecting the request.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="sales-modal-close approval-view-close"
+                onClick={closeView}
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="approval-view-summary">
+              <div className="approval-view-person">
+                <div className={`approval-avatar pp-avatar pp-avatar--round ${avatarTone(viewingItem.name)}`}>
+                  {viewingItem.name ? initials(viewingItem.name) : <FaUserTie />}
+                </div>
+                <div>
+                  <strong>{viewingItem.name || "Employee"}</strong>
+                  <span>{viewingItem.email || "—"}</span>
+                </div>
+              </div>
+
+              <div>
+                <small>Period</small>
+                <strong>
+                  {viewingItem.start_date || "—"}
+                  {viewingItem.end_date &&
+                  viewingItem.end_date !== viewingItem.start_date
+                    ? ` → ${viewingItem.end_date}`
+                    : ""}
+                </strong>
+              </div>
+
+              <div>
+                <small>Month</small>
+                <strong>
+                  {viewingItem.month_label || viewingItem.month}
+                </strong>
+              </div>
+
+              <div>
+                <small>Pending plans</small>
+                <strong>{viewingItem.pending_days || 0}</strong>
+              </div>
+            </div>
+
+            {viewLoading ? (
+              <div className="approval-view-loading">
+                <PremiumLoader compact title="Loading request details" />
+              </div>
+            ) : (
+              <div className="approval-view-list">
+                {viewDetails.map((plan) => (
+                  <div className="approval-detail-card" key={plan.id}>
+                    <div className="approval-detail-top">
+                      <div>
+                        <span className="approval-detail-date">
+                          {plan.visit_date || "—"}
+                          {plan.end_date &&
+                          plan.end_date !== plan.visit_date
+                            ? ` → ${plan.end_date}`
+                            : ""}
+                        </span>
+                        <h3>{plan.city || "City not specified"}</h3>
+                      </div>
+
+                      <span className="sales-status-badge pending">
+                        <FaClock /> Pending
+                      </span>
+                    </div>
+
+                    <div className="approval-detail-grid">
+                      <div>
+                        <small>Reason to travel</small>
+                        <p>{plan.reason_to_travel || "—"}</p>
+                      </div>
+
+                      <div>
+                        <small>Planned stores</small>
+                        <p>{plan.planned_store_names || "No stores selected"}</p>
+                      </div>
+
+                      <div>
+                        <small>Remarks</small>
+                        <p>{plan.remarks || "—"}</p>
+                      </div>
+
+                      <div>
+                        <small>Day type</small>
+                        <p>{plan.week_off ? "Week off" : "Store visit"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="approval-view-footer">
+              <button
+                type="button"
+                className="modal-secondary-btn"
+                onClick={closeView}
+              >
+                Close
+              </button>
+
+              {canEdit(permission) && (
+                <>
+                  <button
+                    type="button"
+                    className="reject-btn"
+                    onClick={() => {
+                      const item = viewingItem;
+                      closeView();
+                      askAction(item, "reject");
+                    }}
+                    disabled={processing || viewLoading}
+                  >
+                    <FaTimes /> Reject
+                  </button>
+
+                  <button
+                    type="button"
+                    className="approve-btn"
+                    onClick={() => {
+                      const item = viewingItem;
+                      closeView();
+                      askAction(item, "approve");
+                    }}
+                    disabled={processing || viewLoading}
+                  >
+                    <FaCheck /> Approve
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =================================================
           CONFIRM / REJECT DIALOG

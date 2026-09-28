@@ -228,6 +228,14 @@ export const getTravelPlanApprovals =
       `${api}/approvals`
     );
 
+export const getTravelPlanApprovalDetails = (
+  employeeId,
+  month
+) =>
+  axios.get(
+    `${api}/approvals/${employeeId}/${encodeURIComponent(month)}`
+  );
+
 /* ======================================================
    APPROVE
 ====================================================== */

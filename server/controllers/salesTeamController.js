@@ -1405,6 +1405,52 @@ exports.getApprovals = (
 };
 
 /* =========================================================
+   GET APPROVAL DETAILS
+========================================================= */
+
+exports.getApprovalDetails = (
+  req,
+  res
+) => {
+  const employeeId = Number(req.params.employeeId);
+  const month = String(req.params.month || "").trim();
+
+  if (!employeeId || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid employee and month are required.",
+    });
+  }
+
+  SalesTeam.getApprovalDetails(
+    employeeId,
+    month,
+    req.user,
+    (err, data) => {
+      if (err) {
+        console.error("Travel plan approval details query failed:", err);
+        return res.status(500).json({
+          success: false,
+          message: "Unable to load travel plan details.",
+        });
+      }
+
+      if (!data || !data.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Pending travel plan details not found.",
+        });
+      }
+
+      return res.json({
+        success: true,
+        data,
+      });
+    }
+  );
+};
+
+/* =========================================================
    APPROVE
 ========================================================= */
 

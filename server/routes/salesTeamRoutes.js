@@ -238,6 +238,13 @@ router.get(
     4. Create notification for employee.
     5. Send approval email.
 */
+router.get(
+  "/approvals/:employeeId/:month",
+  authMiddleware,
+  permissionMiddleware("Travel Plan Approvals", "View"),
+  controller.getApprovalDetails
+);
+
 router.post(
   "/approvals/approve",
   authMiddleware,
