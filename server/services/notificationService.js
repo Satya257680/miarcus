@@ -157,6 +157,7 @@ async function getNotifications(userId, limit = 30) {
         SELECT *
         FROM notifications
         WHERE user_id = ?
+          AND COALESCE(module_name, '') NOT IN ('System', 'Employee Location')
         ORDER BY id DESC
         LIMIT ${safeLimit}
     `, [id]).then(rows => rows.map(serialize));
@@ -167,7 +168,9 @@ async function getUnreadCount(userId) {
     const rows = await db.query(`
         SELECT COUNT(*) AS unread_count
         FROM notifications
-        WHERE user_id = ? AND is_read = 0
+        WHERE user_id = ?
+          AND is_read = 0
+          AND COALESCE(module_name, '') NOT IN ('System', 'Employee Location')
     `, [id]);
     return Number(rows[0]?.unread_count || 0);
 }

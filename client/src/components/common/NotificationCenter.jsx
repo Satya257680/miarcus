@@ -8,6 +8,20 @@ const idOf = (n) => n?.id ?? n?.notification_id;
 const isRead = (n) =>
     Number(n?.notification_is_read ?? n?.is_read ?? (n?.read_at ? 1 : 0)) === 1;
 
+// Employee Location is intentionally silent, and generic System events are
+// not user-facing notifications. Keep the UI defensive in case an old SSE
+// connection or an older backend sends one during deployment.
+const isHiddenNotification = (n) => {
+    const moduleName = String(n?.module_name ?? n?.module ?? "").trim().toLowerCase();
+    const title = String(n?.title ?? "").trim().toLowerCase();
+    return (
+        moduleName === "employee location" ||
+        moduleName === "system" ||
+        title === "system created" ||
+        title === "system updated"
+    );
+};
+
 const formatTime = (value) => {
     if (!value) return "";
     const date = new Date(value);
@@ -30,8 +44,9 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
             if (!silent) setLoading(true);
             const response = await axios.get("/api/notification-center");
             const rows = Array.isArray(response?.data?.data) ? response.data.data : [];
-            setItems(rows);
-            setUnread(Number(response?.data?.unread || 0));
+            const visibleRows = rows.filter((row) => !isHiddenNotification(row));
+            setItems(visibleRows);
+            setUnread(visibleRows.filter((row) => !isRead(row)).length);
         } catch (error) {
             console.error("Notification center load failed:", error);
         } finally {
@@ -67,7 +82,7 @@ export default function NotificationCenter({ className = "", onNavigate, refresh
                 stream.addEventListener("notification", (event) => {
                     try {
                         const incoming = JSON.parse(event.data || "{}");
-                        if (!incoming?.id) return;
+                        if (!incoming?.id || isHiddenNotification(incoming)) return;
                         setItems((current) => [incoming, ...current.filter((item) => idOf(item) !== idOf(incoming))].slice(0, 100));
                         setUnread((value) => value + (isRead(incoming) ? 0 : 1));
                     } catch (error) {

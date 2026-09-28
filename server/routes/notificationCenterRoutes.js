@@ -68,6 +68,7 @@ router.get(
                     ${readExpr} AS notification_is_read
                 FROM notifications n
                 WHERE n.user_id = ?
+                  AND COALESCE(n.module_name, '') NOT IN ('System', 'Employee Location')
                 ORDER BY n.created_at DESC, n.id DESC
                 LIMIT 100
                 `,

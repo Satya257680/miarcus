@@ -28,6 +28,10 @@ const ignoredPrefixes = [
     "/api/profile",
     "/api/activity",
     "/api/dashboard",
+    // Employee Location and its reports are operational tracking data, not
+    // notification events. This also prevents /api/location/* from falling
+    // through to the generic "System Created/Updated" notification.
+    "/api/location",
     // Collection Tracking has stage-aware, department-targeted notifications.
     // Do not duplicate them with the generic all-users bridge.
     "/api/collection-tracking",
@@ -71,7 +75,9 @@ const moduleMap = [
 function getModule(url) {
     const clean = String(url || "").split("?")[0];
     const found = moduleMap.find(([key]) => clean.includes(`/api/${key}`));
-    return found || ["System", "System", "/dashboard"];
+    // Do not turn unknown API mutations into noisy generic "System" events.
+    // Only explicitly mapped business modules should create notifications.
+    return found || null;
 }
 
 // ======================================================
@@ -354,7 +360,13 @@ function install(app) {
 
             try {
                 const actorId = getActorId(req);
-                const [moduleName, label, link] = getModule(path);
+                const moduleInfo = getModule(path);
+                // Unknown API mutations are intentionally silent. This avoids
+                // notifications such as "System Created" for technical or
+                // internal endpoints.
+                if (!moduleInfo) return;
+
+                const [moduleName, label, link] = moduleInfo;
                 const action = getAction(req);
                 const responsePayload = res.locals.notificationPayload || null;
                 const entityId = getEntityId(req, responsePayload);
