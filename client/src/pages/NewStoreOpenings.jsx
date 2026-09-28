@@ -6,9 +6,7 @@ import { useEffect, useRef, useState } from "react";
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
-import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
 import Pagination from "../components/common/Pagination";
@@ -39,6 +37,23 @@ import {
 // ======================================================
 
 import "../styles/NewStoreOpenings.css";
+import "../styles/premium/PagePremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import {
+    FaStore,
+    FaRocket,
+    FaCalendarCheck,
+    FaHourglassHalf,
+    FaHandshake,
+    FaTimes
+} from "react-icons/fa";
+import {
+    daysFromToday,
+    initials,
+    avatarTone,
+    formatCount
+} from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
 function NewStoreOpenings() {
@@ -1104,10 +1119,239 @@ function NewStoreOpenings() {
     };
 
     // ======================================================
+    // PREMIUM SUMMARY (KPI strip)
+    //
+    // One light request for the whole pipeline (not just the
+    // current page) so the KPI tiles describe every project.
+    // Re-runs whenever the record count changes (add / delete /
+    // bulk upload).
+    // ======================================================
+
+    const [summaryRows, setSummaryRows] = useState([]);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+
+    useEffect(() => {
+
+        let alive = true;
+
+        getNewStoreOpenings({ page: 1, limit: 1000, search: "" })
+            .then((res) => {
+                if (!alive) return;
+                const rows = res?.data?.data;
+                setSummaryRows(Array.isArray(rows) ? rows : []);
+            })
+            .catch(() => {
+                if (alive) setSummaryRows([]);
+            })
+            .finally(() => {
+                if (alive) setSummaryLoading(false);
+            });
+
+        return () => {
+            alive = false;
+        };
+
+    }, [totalRecords]);
+
+    const MILESTONE_KEYS = [
+        "layout_by_nso",
+        "revised_layout_by_nso",
+        "approval_deadline",
+        "visit_by_op_team",
+        "gst_deadline",
+        "hr_hiring_deadline",
+        "team_training_deadline",
+        "visit_by_nso_team_deadline",
+        "plan_of_stock_deadline",
+        "plan_of_collaterals_deadline",
+        "on_field_training_deadline",
+        "dispatch_stock_deadline",
+        "nso_handover_deadline",
+        "vm_handover_deadline",
+        "scanning_deadline",
+        "billing_start_date"
+    ];
+
+    const summary = (() => {
+
+        let live = 0;
+        let launchingSoon = 0;
+        let milestonesThisWeek = 0;
+        let dealDaysTotal = 0;
+        let dealDaysCount = 0;
+
+        summaryRows.forEach((row) => {
+
+            const launch = daysFromToday(row.billing_start_date);
+
+            if (launch !== null && launch < 0) live += 1;
+            if (launch !== null && launch >= 0 && launch <= 30) launchingSoon += 1;
+
+            MILESTONE_KEYS.forEach((key) => {
+                const diff = daysFromToday(row[key]);
+                if (diff !== null && diff >= 0 && diff <= 7) milestonesThisWeek += 1;
+            });
+
+            const deal = Number(row.deal_days);
+
+            if (Number.isFinite(deal) && String(row.deal_days ?? "").trim() !== "") {
+                dealDaysTotal += deal;
+                dealDaysCount += 1;
+            }
+        });
+
+        return {
+            total: summaryRows.length,
+            live,
+            launchingSoon,
+            milestonesThisWeek,
+            avgDealDays: dealDaysCount
+                ? Math.round(dealDaysTotal / dealDaysCount)
+                : null
+        };
+
+    })();
+
+    // ======================================================
+    // PREMIUM CELL RENDERERS
+    // ======================================================
+
+    const isBlank = (value) =>
+        value === null ||
+        value === undefined ||
+        String(value).trim() === "";
+
+    const renderValue = (value) =>
+        isBlank(value)
+            ? <span className="pp-dash">—</span>
+            : value;
+
+    const renderDate = (value) => {
+
+        const text = formatDate(value);
+
+        if (!text || text === "-") {
+            return <span className="pp-dash">—</span>;
+        }
+
+        const diff = daysFromToday(value);
+
+        let tone = "";
+
+        if (diff === 0) tone = "pp-date--today";
+        else if (diff !== null && diff > 0 && diff <= 7) tone = "pp-date--soon";
+        else if (diff !== null && diff < 0) tone = "pp-date--past";
+
+        const hint =
+            diff === 0
+                ? "Today"
+                : diff === null
+                    ? undefined
+                    : diff > 0
+                        ? `In ${diff} day${diff === 1 ? "" : "s"}`
+                        : `${Math.abs(diff)} day${diff === -1 ? "" : "s"} ago`;
+
+        return (
+            <span className={`pp-date ${tone}`} title={hint}>
+                {text}
+            </span>
+        );
+    };
+
+    const renderPerson = (value) => {
+
+        if (isBlank(value)) {
+            return <span className="pp-dash">—</span>;
+        }
+
+        return (
+            <span className="pp-person">
+                <span className={`pp-avatar pp-avatar--round pp-avatar--xs ${avatarTone(value)}`}>
+                    {initials(value)}
+                </span>
+                <span className="pp-person-name">{value}</span>
+            </span>
+        );
+    };
+
+    const launchStatus = (row) => {
+
+        const diff = daysFromToday(row.billing_start_date);
+
+        if (diff === null) {
+            return { tone: "slate", label: "Launch date TBD" };
+        }
+
+        if (diff < 0) {
+            return { tone: "green", label: "Live" };
+        }
+
+        if (diff === 0) {
+            return { tone: "violet", label: "Launching today" };
+        }
+
+        if (diff <= 30) {
+            return { tone: "amber", label: `Launch in ${diff}d` };
+        }
+
+        return { tone: "blue", label: `Launch in ${diff}d` };
+    };
+
+    // ======================================================
     // TABLE COLUMNS
     // ======================================================
 
     const columns = [
+
+        // ==================================================
+        // STORE (sticky identity column)
+        // ==================================================
+
+        {
+            key: "store",
+
+            title: "Store",
+
+            width: "260px",
+
+            render: (row) => {
+
+                const status = launchStatus(row);
+
+                const name =
+                    row.location ||
+                    row.store_name ||
+                    `NSO #${row.id}`;
+
+                return (
+
+                    <div className="pp-cell-main">
+
+                        <span className={`pp-avatar ${avatarTone(name)}`}>
+                            {initials(name)}
+                        </span>
+
+                        <span className="pp-cell-text">
+
+                            <span className="pp-cell-title" title={name}>
+                                {name}
+                            </span>
+
+                            <span className="pp-cell-sub pp-cell-sub--flex">
+                                <span>{row.city || "City not set"}</span>
+                                <span className={`pp-pill pp-pill--dot pp-pill--${status.tone} pp-pill--xs`}>
+                                    {status.label}
+                                </span>
+                            </span>
+
+                        </span>
+
+                    </div>
+
+                );
+
+            }
+        },
 
         // ==================================================
         // APPROVAL & PLANNING
@@ -1128,10 +1372,7 @@ function NewStoreOpenings() {
 
             title: "Layout by NSO",
 
-            render: (row) =>
-                formatDate(
-                    row.layout_by_nso
-                )
+            render: (row) => renderDate(row.layout_by_nso)
         },
 
         {
@@ -1139,10 +1380,7 @@ function NewStoreOpenings() {
 
             title: "Revised Layout by NSO",
 
-            render: (row) =>
-                formatDate(
-                    row.revised_layout_by_nso
-                )
+            render: (row) => renderDate(row.revised_layout_by_nso)
         },
 
         {
@@ -1150,10 +1388,7 @@ function NewStoreOpenings() {
 
             title: "Approval Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.approval_deadline
-                )
+            render: (row) => renderDate(row.approval_deadline)
         },
 
         {
@@ -1161,10 +1396,7 @@ function NewStoreOpenings() {
 
             title: "Approver Name",
 
-            render: (row) =>
-                displayValue(
-                    row.approver_name
-                )
+            render: (row) => renderPerson(row.approver_name)
         },
 
         {
@@ -1172,10 +1404,7 @@ function NewStoreOpenings() {
 
             title: "Construction Vendor",
 
-            render: (row) =>
-                displayValue(
-                    row.construction_vendor
-                )
+            render: (row) => renderPerson(row.construction_vendor)
         },
 
         {
@@ -1183,10 +1412,7 @@ function NewStoreOpenings() {
 
             title: "Project Taken By",
 
-            render: (row) =>
-                displayValue(
-                    row.project_taken_by
-                )
+            render: (row) => renderPerson(row.project_taken_by)
         },
 
         {
@@ -1194,10 +1420,7 @@ function NewStoreOpenings() {
 
             title: "Visit by OP Team",
 
-            render: (row) =>
-                formatDate(
-                    row.visit_by_op_team
-                )
+            render: (row) => renderDate(row.visit_by_op_team)
         },
 
         {
@@ -1205,10 +1428,7 @@ function NewStoreOpenings() {
 
             title: "GST Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.gst_deadline
-                )
+            render: (row) => renderDate(row.gst_deadline)
         },
 
         {
@@ -1216,10 +1436,7 @@ function NewStoreOpenings() {
 
             title: "HR Hiring Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.hr_hiring_deadline
-                )
+            render: (row) => renderDate(row.hr_hiring_deadline)
         },
 
         {
@@ -1227,10 +1444,7 @@ function NewStoreOpenings() {
 
             title: "Team Training Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.team_training_deadline
-                )
+            render: (row) => renderDate(row.team_training_deadline)
         },
 
         {
@@ -1238,10 +1452,7 @@ function NewStoreOpenings() {
 
             title: "Visit by NSO Team Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.visit_by_nso_team_deadline
-                )
+            render: (row) => renderDate(row.visit_by_nso_team_deadline)
         },
 
         {
@@ -1249,10 +1460,7 @@ function NewStoreOpenings() {
 
             title: "Plan of Stock Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.plan_of_stock_deadline
-                )
+            render: (row) => renderDate(row.plan_of_stock_deadline)
         },
 
         {
@@ -1260,10 +1468,7 @@ function NewStoreOpenings() {
 
             title: "Plan of Collaterals Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.plan_of_collaterals_deadline
-                )
+            render: (row) => renderDate(row.plan_of_collaterals_deadline)
         },
 
         {
@@ -1271,10 +1476,7 @@ function NewStoreOpenings() {
 
             title: "On Field Training Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.on_field_training_deadline
-                )
+            render: (row) => renderDate(row.on_field_training_deadline)
         },
 
         {
@@ -1282,10 +1484,7 @@ function NewStoreOpenings() {
 
             title: "Dispatch of Stock Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.dispatch_stock_deadline
-                )
+            render: (row) => renderDate(row.dispatch_stock_deadline)
         },
 
         {
@@ -1293,10 +1492,7 @@ function NewStoreOpenings() {
 
             title: "NSO Handover Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.nso_handover_deadline
-                )
+            render: (row) => renderDate(row.nso_handover_deadline)
         },
 
         {
@@ -1304,10 +1500,7 @@ function NewStoreOpenings() {
 
             title: "VM Handover Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.vm_handover_deadline
-                )
+            render: (row) => renderDate(row.vm_handover_deadline)
         },
 
         {
@@ -1315,10 +1508,7 @@ function NewStoreOpenings() {
 
             title: "Scanning of Stock Deadline",
 
-            render: (row) =>
-                formatDate(
-                    row.scanning_deadline
-                )
+            render: (row) => renderDate(row.scanning_deadline)
         },
 
         {
@@ -1326,10 +1516,7 @@ function NewStoreOpenings() {
 
             title: "Billing Start",
 
-            render: (row) =>
-                formatDate(
-                    row.billing_start_date
-                )
+            render: (row) => renderDate(row.billing_start_date)
         },
 
         {
@@ -1348,37 +1535,14 @@ function NewStoreOpenings() {
         // STORE DETAILS
         // ==================================================
 
-        {
-            key: "location",
 
-            title: "Location",
-
-            render: (row) =>
-                displayValue(
-                    row.location
-                )
-        },
-
-        {
-            key: "city",
-
-            title: "City",
-
-            render: (row) =>
-                displayValue(
-                    row.city
-                )
-        },
 
         {
             key: "sb_area",
 
             title: "SB Area (Sqft)",
 
-            render: (row) =>
-                displayValue(
-                    row.sb_area
-                )
+            render: (row) => renderValue(row.sb_area)
         },
 
         {
@@ -1386,10 +1550,7 @@ function NewStoreOpenings() {
 
             title: "Carpet Area (Sqft)",
 
-            render: (row) =>
-                displayValue(
-                    row.carpet_area
-                )
+            render: (row) => renderValue(row.carpet_area)
         },
 
         {
@@ -1397,10 +1558,7 @@ function NewStoreOpenings() {
 
             title: "CAM",
 
-            render: (row) =>
-                displayValue(
-                    row.cam
-                )
+            render: (row) => renderValue(row.cam)
         },
 
         {
@@ -1408,10 +1566,7 @@ function NewStoreOpenings() {
 
             title: "MG",
 
-            render: (row) =>
-                displayValue(
-                    row.mg
-                )
+            render: (row) => renderValue(row.mg)
         },
 
         {
@@ -1419,10 +1574,7 @@ function NewStoreOpenings() {
 
             title: "Electricity (KVA)",
 
-            render: (row) =>
-                displayValue(
-                    row.electricity_kva
-                )
+            render: (row) => renderValue(row.electricity_kva)
         },
 
         {
@@ -1472,10 +1624,7 @@ function NewStoreOpenings() {
 
             title: "Expected Sale",
 
-            render: (row) =>
-                displayValue(
-                    row.expected_sale
-                )
+            render: (row) => renderValue(row.expected_sale)
         },
 
         // ==================================================
@@ -1487,10 +1636,7 @@ function NewStoreOpenings() {
 
             title: "Possession Date (LOI)",
 
-            render: (row) =>
-                formatDate(
-                    row.possession_date_loi
-                )
+            render: (row) => renderDate(row.possession_date_loi)
         },
 
         {
@@ -1498,10 +1644,7 @@ function NewStoreOpenings() {
 
             title: "Possession Date (Broker)",
 
-            render: (row) =>
-                formatDate(
-                    row.possession_date_broker
-                )
+            render: (row) => renderDate(row.possession_date_broker)
         },
 
         {
@@ -1509,10 +1652,7 @@ function NewStoreOpenings() {
 
             title: "Broker Name",
 
-            render: (row) =>
-                displayValue(
-                    row.broker_name
-                )
+            render: (row) => renderPerson(row.broker_name)
         },
 
         {
@@ -1520,10 +1660,7 @@ function NewStoreOpenings() {
 
             title: "Operation Head Assigned",
 
-            render: (row) =>
-                displayValue(
-                    row.operation_head_assigned
-                )
+            render: (row) => renderPerson(row.operation_head_assigned)
         },
 
         {
@@ -1531,10 +1668,7 @@ function NewStoreOpenings() {
 
             title: "ASM Assigned",
 
-            render: (row) =>
-                displayValue(
-                    row.asm_assigned
-                )
+            render: (row) => renderPerson(row.asm_assigned)
         },
 
         {
@@ -1542,10 +1676,7 @@ function NewStoreOpenings() {
 
             title: "Deal Days",
 
-            render: (row) =>
-                displayValue(
-                    row.deal_days
-                )
+            render: (row) => renderValue(row.deal_days)
         },
 
         {
@@ -1553,10 +1684,7 @@ function NewStoreOpenings() {
 
             title: "Actual Possession Date",
 
-            render: (row) =>
-                formatDate(
-                    row.actual_possession_date
-                )
+            render: (row) => renderDate(row.actual_possession_date)
         },
 
         // ==================================================
@@ -1606,7 +1734,7 @@ function NewStoreOpenings() {
                         href={`${API_BASE_URL}/${attachmentPath}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="table-link"
+                        className="pp-link"
                     >
                         View
                     </a>
@@ -1622,10 +1750,7 @@ function NewStoreOpenings() {
 
             title: "Delay LOI vs Broker",
 
-            render: (row) =>
-                displayValue(
-                    row.delay_loi_vs_broker
-                )
+            render: (row) => renderValue(row.delay_loi_vs_broker)
         },
 
         {
@@ -1633,10 +1758,7 @@ function NewStoreOpenings() {
 
             title: "Possession Delay",
 
-            render: (row) =>
-                displayValue(
-                    row.possession_delay
-                )
+            render: (row) => renderValue(row.possession_delay)
         },
 
         {
@@ -1644,10 +1766,7 @@ function NewStoreOpenings() {
 
             title: "Received by NSO",
 
-            render: (row) =>
-                formatDate(
-                    row.received_by_nso
-                )
+            render: (row) => renderDate(row.received_by_nso)
         },
 
         // ==================================================
@@ -1659,7 +1778,7 @@ function NewStoreOpenings() {
 
             title: "Actions",
 
-            width: "240px",
+            width: "190px",
 
             align: "center",
 
@@ -1713,15 +1832,72 @@ function NewStoreOpenings() {
 
     return (
 
-        <div className="new-store-page">
+        <div className="new-store-page pp-premium">
 
             {/* ==================================================
-                PAGE HEADER
+                PREMIUM HERO
             ================================================== */}
 
-            <PageHeader
+            <PremiumHero
+                icon={FaStore}
+                eyebrow="Expansion · Admin workspace"
                 title="New Store Openings"
-                subtitle="Manage new store opening records."
+                badge="Admin only"
+                subtitle="Every new store from layout approval to billing start — milestones, vendors, owners and possession in one place."
+                meta={[
+                    { label: "Projects", value: formatCount(totalRecords) },
+                    { label: "Showing", value: `${data.length} on this page` }
+                ]}
+            />
+
+            {/* ==================================================
+                KPI STRIP
+            ================================================== */}
+
+            <InsightStrip
+                loading={summaryLoading}
+                items={[
+                    {
+                        key: "total",
+                        label: "Pipeline",
+                        value: formatCount(summary.total),
+                        hint: "Stores in the NSO tracker",
+                        tone: "violet",
+                        icon: FaStore
+                    },
+                    {
+                        key: "live",
+                        label: "Live",
+                        value: formatCount(summary.live),
+                        hint: "Billing has started",
+                        tone: "green",
+                        icon: FaRocket
+                    },
+                    {
+                        key: "soon",
+                        label: "Launching ≤ 30 days",
+                        value: formatCount(summary.launchingSoon),
+                        hint: "Billing start within a month",
+                        tone: "amber",
+                        icon: FaHourglassHalf
+                    },
+                    {
+                        key: "week",
+                        label: "Milestones this week",
+                        value: formatCount(summary.milestonesThisWeek),
+                        hint: "Deadlines in the next 7 days",
+                        tone: "blue",
+                        icon: FaCalendarCheck
+                    },
+                    {
+                        key: "deal",
+                        label: "Avg deal days",
+                        value: summary.avgDealDays === null ? "—" : summary.avgDealDays,
+                        hint: "Across projects with deal days",
+                        tone: "slate",
+                        icon: FaHandshake
+                    }
+                ]}
             />
 
             {/* ==================================================
@@ -1740,7 +1916,7 @@ function NewStoreOpenings() {
 
                 }}
 
-                placeholder="Search New Store Opening..."
+                placeholder="Search by store, city, vendor, owner…"
 
                 showAdd={canAdd}
 
@@ -1763,19 +1939,22 @@ function NewStoreOpenings() {
                 deleteAllText={deleteAllLabel(isFilteredDelete, totalRecords)}
                 onDeleteAll={handleDeleteAll}
 
-            />
-
-            {/* ==================================================
-                FILTER BAR
-            ================================================== */}
-
-            <FilterBar
-                onClear={handleClearFilters}
             >
 
-                {/* Future filters */}
+                {search && (
 
-            </FilterBar>
+                    <button
+                        type="button"
+                        className="toolbar-btn"
+                        onClick={handleClearFilters}
+                    >
+                        <FaTimes />
+                        Clear search
+                    </button>
+
+                )}
+
+            </PageToolbar>
 
             {/* ==================================================
                 TABLE CARD
@@ -1783,6 +1962,8 @@ function NewStoreOpenings() {
 
             <Card
                 title="New Store Opening List"
+                subtitle="Scroll sideways for every milestone. Dots mark timing: amber = due within 7 days, violet = today, grey = passed."
+                className="pp-sticky-first pp-sticky-last"
             >
 
                 <DataTable

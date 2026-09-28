@@ -20,6 +20,11 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/QuizPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
+import { initials, avatarTone } from "../../utils/premiumFormat";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 
@@ -228,7 +233,7 @@ function TrainingReport() {
                         "";
 
                     return (
-                        `${participant} ${email} ${quiz} ${safeParticipantId}`
+                        `${participant} ${email} ${quiz} ${participantId}`
                             .toLowerCase()
                             .includes(keyword)
                     );
@@ -1487,37 +1492,26 @@ window.onload = function () {
 
     return (
 
-        <div className="quiz-page">
+        <div className="quiz-page pp-premium pp-quiz">
 
 
             {/* ====================================================
-                HEADER
+                PREMIUM HERO
             ==================================================== */}
 
-            <div className="quiz-page-header">
-
-                <div>
-
-                    <div className="quiz-eyebrow">
-                        ANALYTICS & COMPLIANCE
-                    </div>
-
-                    <h1>
-                        Training Report
-                    </h1>
-
-                    <p>
-                        {reportScope === "limited"
-                            ? "Your training attempts, results and certificates (store managers also see their store team)."
-                            : "Monitor assessment attempts, performance, results and certificates."}
-                    </p>
-
-                </div>
-
-
-                <ExportButton onExport={exportReport} text="Export Report" />
-
-            </div>
+            <PremiumHero
+                icon={FaAward}
+                eyebrow="Analytics & compliance"
+                title="Training Report"
+                subtitle={reportScope === "limited"
+                    ? "Your training attempts, results and certificates (store managers also see their store team)."
+                    : "Every assessment attempt across the company — scores, pass rates and certificates in one view."}
+                meta={[
+                    { label: "Quizzes", value: quizzes.length ? quizzes.length : null },
+                    { label: "Pass rate", value: `${stats.passRate.toFixed(1)}%` }
+                ]}
+                actions={<ExportButton onExport={exportReport} text="Export Report" />}
+            />
 
 
             {/* ====================================================
@@ -1552,84 +1546,14 @@ window.onload = function () {
                 STATISTICS
             ==================================================== */}
 
-            <div className="report-stats">
-
-                <div className="report-stat-card">
-
-                    <div className="report-stat-icon">
-                        <FaClipboardCheck />
-                    </div>
-
-                    <span>
-                        Total Attempts
-                    </span>
-
-                    <strong>
-                        {stats.attempts}
-                    </strong>
-
-                </div>
-
-
-                <div className="report-stat-card">
-
-                    <div className="report-stat-icon success">
-                        <FaCheckCircle />
-                    </div>
-
-                    <span>
-                        Passed
-                    </span>
-
-                    <strong>
-                        {stats.passed}
-                    </strong>
-
-                    <small>
-                        {stats.passRate.toFixed(
-                            1
-                        )}% pass rate
-                    </small>
-
-                </div>
-
-
-                <div className="report-stat-card">
-
-                    <div className="report-stat-icon failed">
-                        <FaExclamationCircle />
-                    </div>
-
-                    <span>
-                        Failed
-                    </span>
-
-                    <strong>
-                        {stats.failed}
-                    </strong>
-
-                </div>
-
-
-                <div className="report-stat-card">
-
-                    <div className="report-stat-icon">
-                        <FaChartLine />
-                    </div>
-
-                    <span>
-                        Average Score
-                    </span>
-
-                    <strong>
-                        {stats.average.toFixed(
-                            1
-                        )}%
-                    </strong>
-
-                </div>
-
-            </div>
+            <InsightStrip
+                items={[
+                    { key: "attempts", label: "Total attempts", value: stats.attempts, hint: "All submissions in scope", tone: "violet", icon: FaClipboardCheck, onClick: () => setResult(""), active: !result },
+                    { key: "passed", label: "Passed", value: stats.passed, hint: `${stats.passRate.toFixed(1)}% pass rate`, tone: "green", icon: FaCheckCircle, onClick: () => setResult(result === "Passed" ? "" : "Passed"), active: result === "Passed" },
+                    { key: "failed", label: "Failed", value: stats.failed, hint: "Need a re-attempt", tone: "red", icon: FaExclamationCircle, onClick: () => setResult(result === "Failed" ? "" : "Failed"), active: result === "Failed" },
+                    { key: "avg", label: "Average score", value: `${stats.average.toFixed(1)}%`, hint: "Across submitted attempts", tone: "blue", icon: FaChartLine }
+                ]}
+            />
 
 
             {/* ====================================================
@@ -1850,22 +1774,18 @@ window.onload = function () {
 
                                             <td>
 
-                                                <div className="report-participant">
-
-                                                    <strong>
-                                                        {
-                                                            row.participant_name ||
-                                                            "Unknown Participant"
-                                                        }
-                                                    </strong>
-
-                                                    <small>
-                                                        {
-                                                            row.participant_email ||
-                                                            "No email"
-                                                        }
-                                                    </small>
-
+                                                <div className="report-participant pp-cell-main">
+                                                    <span className={`pp-avatar pp-avatar--round ${avatarTone(row.participant_name)}`}>
+                                                        {initials(row.participant_name)}
+                                                    </span>
+                                                    <span className="pp-cell-text">
+                                                        <strong>
+                                                            {row.participant_name || "Unknown Participant"}
+                                                        </strong>
+                                                        <small>
+                                                            {row.participant_email || "No email"}
+                                                        </small>
+                                                    </span>
                                                 </div>
 
                                             </td>
@@ -1940,14 +1860,14 @@ window.onload = function () {
                                                     </strong>
 
                                                     <small>
-                                                        {Number(
-                                                            row.percentage ||
-                                                            0
-                                                        ).toFixed(
-                                                            1
-                                                        )}
-                                                        %
+                                                        {Number(row.percentage || 0).toFixed(1)}%
                                                     </small>
+                                                    <span className="pp-meter" aria-hidden="true">
+                                                        <span
+                                                            className={String(row.result || row.status || "").toLowerCase() === "failed" ? "low" : "good"}
+                                                            style={{ width: `${Math.max(0, Math.min(100, Number(row.percentage || 0)))}%` }}
+                                                        />
+                                                    </span>
 
                                                 </div>
 

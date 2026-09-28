@@ -3,7 +3,6 @@ import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } fro
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaDownload,
-  FaInfoCircle,
   FaPlus,
   FaSyncAlt,
   FaTrash,
@@ -13,7 +12,6 @@ import {
   FaTimes,
 } from "react-icons/fa";
 
-import PageHeader from "../../components/common/PageHeader";
 import PageToolbar from "../../components/common/PageToolbar";
 import FilterBar from "../../components/common/FilterBar";
 import Card from "../../components/common/Card";
@@ -47,6 +45,11 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import "../../styles/premium/PagePremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
+import { FaMapMarkedAlt, FaHourglassHalf, FaUmbrellaBeach, FaEdit as FaEditIcon, FaListUl } from "react-icons/fa";
+import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 
 /* =========================================================
@@ -871,6 +874,16 @@ function VisitPlanner() {
      TABLE COLUMNS
   ========================================================= */
 
+  const visitSummary = rows.reduce(
+    (acc, row) => {
+      const status = String(row.approval_status || "Pending");
+      if (acc[status] !== undefined) acc[status] += 1;
+      if (row.week_off) acc.weekOff += 1;
+      return acc;
+    },
+    { Pending: 0, Approved: 0, Rejected: 0, weekOff: 0 }
+  );
+
   const columns = [
     {
       key: "visit_date",
@@ -903,18 +916,18 @@ function VisitPlanner() {
     {
       key: "name",
       title: "Name",
-      minWidth: "170px",
+      minWidth: "230px",
       render: (row) => (
-        <strong>{row.name}</strong>
+        <div className="pp-cell-main">
+          <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
+            {initials(row.name)}
+          </span>
+          <span className="pp-cell-text">
+            <span className="pp-cell-title">{row.name || "—"}</span>
+            <span className="pp-cell-sub">{row.designation || "—"}</span>
+          </span>
+        </div>
       ),
-    },
-
-    {
-      key: "designation",
-      title: "Designation",
-      minWidth: "160px",
-      render: (row) =>
-        row.designation || "—",
     },
 
     {
@@ -930,7 +943,9 @@ function VisitPlanner() {
       title: "City",
       minWidth: "130px",
       render: (row) =>
-        row.city || "—",
+        row.city
+          ? <span className="pp-pill pp-pill--teal"><FaMapMarkedAlt />{row.city}</span>
+          : <span className="pp-dash">—</span>,
     },
 
     {
@@ -950,7 +965,8 @@ function VisitPlanner() {
       minWidth: "260px",
       render: (row) =>
         row.week_off ? (
-          <span className="sales-weekoff">
+          <span className="pp-pill pp-pill--amber">
+            <FaUmbrellaBeach />
             Week off
             {row.leave_days > 1
               ? ` · ${row.leave_days} days`
@@ -996,7 +1012,7 @@ function VisitPlanner() {
 
         return (
           <span
-            className={`sales-status-badge ${status.toLowerCase()}`}
+            className={`pp-pill pp-pill--${status === "Approved" ? "green" : status === "Rejected" ? "red" : "amber"}`}
           >
             <Icon />
             {status}
@@ -1012,30 +1028,32 @@ function VisitPlanner() {
       align: "center",
 
       render: (row) => (
-        <div className="sales-action-buttons">
+        <div className="action-buttons">
           {canEdit(permission) && (
             <button
               type="button"
-              className="sales-icon-btn"
+              className="edit-btn"
               title="Edit"
               onClick={() =>
                 openEdit(row)
               }
             >
-              Edit
+              <FaEditIcon />
+              <span>Edit</span>
             </button>
           )}
 
           {canDelete(permission) && (
             <button
               type="button"
-              className="sales-icon-btn danger"
+              className="delete-btn"
               title="Delete"
               onClick={() =>
                 askDelete(row.id)
               }
             >
-              Delete
+              <FaTrash />
+              <span>Delete</span>
             </button>
           )}
         </div>
@@ -1056,15 +1074,28 @@ function VisitPlanner() {
   ========================================================= */
 
   return (
-    <div className="sales-page sales-standard-page">
-      <PageHeader
-        title={
-          <>
-            Visit Planner{" "}
-            <FaInfoCircle className="sales-title-info" />
-          </>
-        }
+    <div className="sales-page sales-standard-page pp-premium">
+      <PremiumHero
+        icon={FaMapMarkedAlt}
+        eyebrow="Sales team · Field visits"
+        title="Visit Planner"
+        tone="indigo"
         subtitle="Plan store visits for your sales force. Every new plan stays Pending until it is approved."
+        meta={[
+          { label: "Visit plans", value: formatCount(total) },
+          { label: "Page", value: pageCount > 1 ? `${page} of ${pageCount}` : null }
+        ]}
+      />
+
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "view", label: "In view", value: formatCount(rows.length), hint: "Plans on this page", tone: "violet", icon: FaListUl },
+          { key: "pending", label: "Pending", value: formatCount(visitSummary.Pending), hint: "Awaiting approval", tone: "amber", icon: FaHourglassHalf },
+          { key: "approved", label: "Approved", value: formatCount(visitSummary.Approved), hint: "Ready to travel", tone: "green", icon: FaCheckCircle },
+          { key: "rejected", label: "Rejected", value: formatCount(visitSummary.Rejected), hint: "Needs re-planning", tone: "red", icon: FaTimes },
+          { key: "off", label: "Week off", value: formatCount(visitSummary.weekOff), hint: "Leave entries", tone: "blue", icon: FaUmbrellaBeach }
+        ]}
       />
 
       {/* =====================================================
@@ -1223,6 +1254,7 @@ function VisitPlanner() {
             : "s"
         } found`}
         noPadding
+        className="pp-sticky-first pp-sticky-last"
       >
         <DataTable
           columns={columns}

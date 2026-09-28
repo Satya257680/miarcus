@@ -29,6 +29,10 @@ import {
     FaFileAudio
 } from "react-icons/fa";
 import "../styles/Gallery.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/GalleryPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import { formatCount } from "../utils/premiumFormat";
 
 const getStoredUser = () => {
     try {
@@ -799,7 +803,7 @@ export default function Gallery() {
     };
 
     return (
-        <div className="gallery-page">
+        <div className="gallery-page pp-premium">
             {(bulkUploading || uploading) && (
                 <PremiumLoader
                     overlay
@@ -808,64 +812,68 @@ export default function Gallery() {
                     caption="Uploading... please do not close this page."
                 />
             )}
-            <div className="gallery-header">
-                <div className="gallery-title-row">
-                    <div className="gallery-title-icon">
-                        <FaImages />
-                    </div>
+            <PremiumHero
+                icon={FaImages}
+                eyebrow="Media library"
+                title="Gallery"
+                badge="Shared with everyone"
+                badgeTone="mint"
+                tone="indigo"
+                subtitle="Company photos, videos and documents in one place — plus every attachment from MIARCUS modules."
+                meta={[
+                    { label: "Files", value: formatCount(pagination.total) },
+                    { label: "Categories", value: categories.length ? formatCount(categories.length) : null },
+                    { label: "Locations", value: locations.length ? formatCount(locations.length) : null }
+                ]}
+                actions={(canAdd || canDeleteAll) ? (
+                    <>
+                        {canAdd && (
+                            <>
+                                <button
+                                    type="button"
+                                    className="pp-hero-btn"
+                                    onClick={openMobileUpload}
+                                >
+                                    <FaQrcode />
+                                    Upload from Mobile
+                                </button>
 
-                    <div>
-                        <h1>Gallery</h1>
-                        <p>
-                            Store and share company photos, videos,
-                            documents and attachments in one central place.
-                        </p>
-                    </div>
-                </div>
+                                <button
+                                    type="button"
+                                    className="pp-hero-btn"
+                                    onClick={() => {
+                                        setBulkError("");
+                                        setShowBulk(true);
+                                    }}
+                                >
+                                    <FaLayerGroup />
+                                    Bulk Upload
+                                </button>
 
-                <div className="gallery-header-actions">
-                    {canAdd && (
-                        <>
+                                <button
+                                    type="button"
+                                    className="pp-hero-btn pp-hero-btn--solid"
+                                    onClick={() => setShowUpload(true)}
+                                >
+                                    <FaPlus />
+                                    Add File
+                                </button>
+                            </>
+                        )}
+
+                        {canDeleteAll && (
                             <button
-                                className="gallery-btn secondary"
-                                onClick={openMobileUpload}
+                                type="button"
+                                className="pp-hero-btn pp-hero-btn--danger"
+                                onClick={deleteAll}
                             >
-                                <FaQrcode />
-                                Upload from Mobile
+                                <FaTrash />
+                                {deleteAllLabel(isFilteredDelete, isFilteredDelete ? pagination?.total : undefined)}
                             </button>
-
-                            <button
-                                className="gallery-btn secondary"
-                                onClick={() => {
-                                    setBulkError("");
-                                    setShowBulk(true);
-                                }}
-                            >
-                                <FaLayerGroup />
-                                Bulk Upload
-                            </button>
-
-                            <button
-                                className="gallery-btn primary"
-                                onClick={() => setShowUpload(true)}
-                            >
-                                <FaPlus />
-                                Add File
-                            </button>
-                        </>
-                    )}
-
-                    {canDeleteAll && (
-                        <button
-                            className="gallery-btn danger-btn"
-                            onClick={deleteAll}
-                        >
-                            <FaTrash />
-                            {deleteAllLabel(isFilteredDelete, isFilteredDelete ? pagination?.total : undefined)}
-                        </button>
-                    )}
-                </div>
-            </div>
+                        )}
+                    </>
+                ) : null}
+            />
 
             <div className="gallery-toolbar">
                 <div className="gallery-search">
@@ -965,10 +973,45 @@ export default function Gallery() {
                 </button>
             </div>
 
+            {categories.length > 0 && (
+                <div className="pp-gallery-chips" role="tablist" aria-label="Filter by category">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={!category}
+                        className={`pp-gallery-chip ${!category ? "active" : ""}`}
+                        onClick={() => setCategory("")}
+                    >
+                        All
+                    </button>
+
+                    {categories.map(item => (
+                        <button
+                            type="button"
+                            role="tab"
+                            key={item.category}
+                            aria-selected={category === item.category}
+                            className={`pp-gallery-chip ${category === item.category ? "active" : ""}`}
+                            onClick={() =>
+                                setCategory(
+                                    category === item.category ? "" : item.category
+                                )
+                            }
+                        >
+                            {item.category}
+                            {item.photo_count !== undefined && (
+                                <span>{formatCount(item.photo_count)}</span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="gallery-meta-row">
                 <span>
-                    {pagination.total} file
+                    <strong>{formatCount(pagination.total)}</strong> file
                     {pagination.total === 1 ? "" : "s"}
+                    {pagination.totalPages > 1 ? ` · page ${pagination.page} of ${pagination.totalPages}` : ""}
                 </span>
 
                 <span>
@@ -986,7 +1029,9 @@ export default function Gallery() {
                 <PremiumLoader compact title="Loading Gallery" />
             ) : photos.length === 0 ? (
                 <div className="gallery-empty">
-                    <FaImages />
+                    <span className="pp-gallery-empty-icon">
+                        <FaImages />
+                    </span>
 
                     <h2>No files found</h2>
 
@@ -1056,14 +1101,18 @@ export default function Gallery() {
                                 </div>
 
                                 <div className="gallery-card-meta">
-                                    {photo.location_name ||
-                                        "Head Office"}{" "}
-                                    ·{" "}
-                                    {photo.uploaded_by_name}{" "}
-                                    ·{" "}
-                                    {formatDate(
-                                        photo.uploaded_at
-                                    )}
+                                    <span>
+                                        <FaMapMarkerAlt />
+                                        {photo.location_name ||
+                                            "Head Office"}
+                                    </span>
+                                    <span>
+                                        {photo.uploaded_by_name || "—"}
+                                        {" · "}
+                                        {formatDate(
+                                            photo.uploaded_at
+                                        )}
+                                    </span>
                                 </div>
                             </div>
                         </article>

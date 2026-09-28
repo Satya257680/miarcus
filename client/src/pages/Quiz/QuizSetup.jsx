@@ -15,6 +15,10 @@ import {
     FaChevronDown,
 } from "react-icons/fa";
 import "../../styles/pages/Quiz.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/QuizPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import { FaGraduationCap, FaLayerGroup } from "react-icons/fa";
 
 // ======================================================
 // DEFAULT QUIZ
@@ -2822,38 +2826,34 @@ const QuizSetup = () => {
     // ==================================================
 
     return (
-        <div className="quiz-page quiz-setup-v2">
+        <div className="quiz-page quiz-setup-v2 pp-premium pp-quiz">
 
             {/* ==========================================
-                PAGE HEADER
+                PREMIUM HERO
             ========================================== */}
 
-            <div className="quiz-setup-top">
-
-                <h1>
-                    Quiz Setup
-                </h1>
-
-                <div className="quiz-global-search">
-
-                    <FaSearch />
-
-                    <input
-                        value={
-                            globalSearch
-                        }
-                        onChange={
-                            (e) =>
-                                setGlobalSearch(
-                                    e.target.value
-                                )
-                        }
-                        placeholder="Search all categories and questions..."
-                    />
-
-                </div>
-
-            </div>
+            <PremiumHero
+                icon={FaGraduationCap}
+                eyebrow="Learning & assessments"
+                title="Quiz Setup"
+                badge="Admin only"
+                subtitle="Build assessment categories, write or bulk-generate questions and share one reusable link per quiz."
+                meta={[
+                    { label: "Categories", value: quizzes.length },
+                    { label: "Questions in view", value: selected?.questions ? selected.questions.length : null }
+                ]}
+                actions={
+                    <div className="quiz-global-search pp-hero-search">
+                        <FaSearch />
+                        <input
+                            value={globalSearch}
+                            onChange={(e) => setGlobalSearch(e.target.value)}
+                            placeholder="Search all categories and questions..."
+                            aria-label="Search all categories and questions"
+                        />
+                    </div>
+                }
+            />
 
             {/* ==========================================
                 TOAST
@@ -3091,7 +3091,9 @@ const QuizSetup = () => {
                     {!selected ? (
 
                         <div className="quiz-no-selection">
-
+                            <span className="pp-quiz-empty-icon">
+                                <FaLayerGroup />
+                            </span>
                             <h2>
                                 Select a category
                             </h2>

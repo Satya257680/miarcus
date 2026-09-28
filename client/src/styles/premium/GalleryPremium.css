@@ -1,0 +1,368 @@
+/* ==========================================================
+   GALLERY – premium skin (scoped to .gallery-page.pp-premium)
+========================================================== */
+
+.gallery-page.pp-premium {
+    gap: 16px;
+}
+
+/* hero danger button */
+.pp-hero-btn--danger {
+    color: #ffe4e6;
+    border-color: rgba(254, 202, 202, 0.45);
+    background: rgba(220, 38, 38, 0.18);
+}
+
+.pp-hero-btn--danger:hover {
+    background: rgba(220, 38, 38, 0.32);
+}
+
+/* ---------- toolbar ---------- */
+
+.pp-premium .gallery-toolbar {
+    gap: 10px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--pp-line);
+    border-radius: var(--pp-radius);
+    background: var(--pp-card);
+    box-shadow: var(--pp-shadow-sm);
+}
+
+.pp-premium .gallery-search,
+.pp-premium .gallery-filter,
+.pp-premium .gallery-location-filter,
+.pp-premium .gallery-toolbar input[type="date"] {
+    height: 44px;
+    border: 1px solid var(--pp-line-2);
+    border-radius: 12px;
+    background: var(--pp-card-2);
+    color: var(--pp-ink);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.pp-premium .gallery-search {
+    padding: 0 14px;
+    gap: 10px;
+    color: var(--pp-faint);
+}
+
+.pp-premium .gallery-filter {
+    padding: 0 12px;
+    color: var(--pp-violet);
+}
+
+.pp-premium .gallery-toolbar input[type="date"],
+.pp-premium .gallery-location-filter {
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+.pp-premium .gallery-search input,
+.pp-premium .gallery-filter select {
+    height: 42px;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 13.5px;
+    color: var(--pp-ink);
+}
+
+.pp-premium .gallery-search:focus-within,
+.pp-premium .gallery-filter:focus-within,
+.pp-premium .gallery-location-filter:focus,
+.pp-premium .gallery-toolbar input[type="date"]:focus {
+    outline: none;
+    border-color: var(--pp-violet-2);
+    background: var(--pp-card);
+    box-shadow: 0 0 0 4px var(--pp-violet-ring);
+}
+
+.pp-premium .gallery-clear {
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px dashed #cfc5ec;
+    background: var(--pp-violet-soft);
+    color: var(--pp-violet);
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+/* ---------- category chips ---------- */
+
+.pp-gallery-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 4px;
+    scrollbar-width: thin;
+}
+
+.pp-gallery-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--pp-line-2);
+    background: var(--pp-card);
+    color: var(--pp-ink-2);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.pp-gallery-chip:hover {
+    transform: translateY(-1px);
+    border-color: #d8ccf7;
+    color: var(--pp-violet);
+}
+
+.pp-gallery-chip span {
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--pp-violet);
+    background: var(--pp-violet-soft);
+    box-sizing: border-box;
+}
+
+.pp-gallery-chip.active {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28);
+}
+
+.pp-gallery-chip.active span {
+    color: #4f46e5;
+    background: #fff;
+}
+
+/* ---------- meta row ---------- */
+
+.pp-premium .gallery-meta-row {
+    margin: 0 4px;
+    font-size: 12px;
+    color: var(--pp-muted);
+}
+
+.pp-premium .gallery-meta-row strong {
+    color: var(--pp-ink);
+    font-weight: 800;
+}
+
+/* ---------- grid + cards ---------- */
+
+.pp-premium .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+}
+
+.pp-premium .gallery-card {
+    border: 1px solid var(--pp-line);
+    border-radius: 18px;
+    background: var(--pp-card);
+    box-shadow: var(--pp-shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pp-premium .gallery-card:hover {
+    transform: translateY(-4px);
+    border-color: #d8ccf7;
+    box-shadow: var(--pp-shadow);
+}
+
+.pp-premium .gallery-image-wrap {
+    height: 190px;
+    background: linear-gradient(160deg, #f5f3ff, #ece8fb);
+}
+
+.pp-premium .gallery-image-wrap img,
+.pp-premium .gallery-media-preview {
+    transition: transform 0.4s ease;
+}
+
+.pp-premium .gallery-card:hover .gallery-image-wrap img,
+.pp-premium .gallery-card:hover .gallery-media-preview {
+    transform: scale(1.05);
+}
+
+.pp-premium .gallery-card-overlay {
+    place-items: end start;
+    padding: 14px;
+    background: linear-gradient(180deg, transparent 45%, rgba(20, 12, 48, 0.7));
+    font-size: 12.5px;
+}
+
+.pp-premium .gallery-card-overlay span {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(6px);
+}
+
+.pp-premium .gallery-file-preview,
+.pp-premium .gallery-image-placeholder {
+    background: linear-gradient(160deg, #f7f5ff, #ece8fb);
+    color: var(--pp-violet);
+}
+
+.pp-premium .gallery-file-icon {
+    color: var(--pp-violet);
+}
+
+.pp-premium .gallery-card-body {
+    padding: 14px 16px 16px;
+}
+
+.pp-premium .gallery-card-topline {
+    align-items: center;
+    font-size: 11px;
+    color: var(--pp-faint);
+}
+
+.pp-premium .gallery-card-topline strong {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #4f46e5;
+    background: #eef0ff;
+    max-width: 65%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pp-premium .gallery-card-name {
+    margin: 10px 0 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--pp-ink);
+}
+
+.pp-premium .gallery-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11.5px;
+    color: var(--pp-muted);
+}
+
+.pp-premium .gallery-card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pp-premium .gallery-card-meta svg {
+    flex: 0 0 auto;
+    color: var(--pp-violet-2);
+    font-size: 10px;
+}
+
+/* ---------- empty ---------- */
+
+.pp-premium .gallery-empty {
+    min-height: 380px;
+    border: 1px solid var(--pp-line);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 50% 0%, #eef0ff, transparent 62%),
+        var(--pp-card);
+    box-shadow: var(--pp-shadow-sm);
+    color: var(--pp-muted);
+}
+
+.pp-gallery-empty-icon {
+    width: 84px;
+    height: 84px;
+    border-radius: 26px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #818cf8, #4338ca);
+    box-shadow: 0 20px 40px rgba(67, 56, 202, 0.3);
+    transform: rotate(-6deg);
+}
+
+.pp-premium .gallery-empty .pp-gallery-empty-icon svg {
+    font-size: 32px;
+    color: #fff;
+    transform: rotate(6deg);
+}
+
+.pp-premium .gallery-empty h2 {
+    margin: 18px 0 6px;
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--pp-ink);
+}
+
+.pp-premium .gallery-empty p {
+    font-size: 13.5px;
+}
+
+.pp-premium .gallery-empty .gallery-btn.primary {
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #fff;
+    background: linear-gradient(135deg, #4338ca, #6d28d9 60%, #8b5cf6);
+    box-shadow: 0 10px 22px rgba(79, 70, 229, 0.3);
+}
+
+/* ---------- pagination ---------- */
+
+.pp-premium .gallery-pagination {
+    margin-top: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--pp-ink-2);
+}
+
+.pp-premium .gallery-pagination button {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--pp-line-2);
+    background: var(--pp-card);
+    color: var(--pp-violet);
+}
+
+.pp-premium .gallery-pagination button:hover:not(:disabled) {
+    color: #fff;
+    background: var(--pp-violet);
+    border-color: var(--pp-violet);
+}
+
+@media (max-width: 620px) {
+    .pp-premium .gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .pp-premium .gallery-image-wrap {
+        height: 140px;
+    }
+
+    .pp-premium .pp-hero-actions .pp-hero-btn {
+        flex: 1 1 calc(50% - 10px);
+        justify-content: center;
+    }
+}

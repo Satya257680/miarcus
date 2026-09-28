@@ -12,12 +12,17 @@ import {
   FaPlus,
   FaUpload,
   FaTrash,
-  FaInfoCircle,
   FaPhoneAlt,
   FaWhatsapp,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/UsersPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaUsers, FaUserCheck, FaUserShield, FaSitemap, FaTimes as FaClear, FaEdit as FaEditIcon, FaBan } from "react-icons/fa";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 
 function Users() {
 
@@ -471,27 +476,46 @@ const getWhatsappUrl = (user) => {
   return number ? `https://wa.me/${number}` : "";
 };
 
+const userSummary = users.reduce(
+  (acc, user) => {
+    acc.total += 1;
+    if (user.status === "Active") acc.active += 1;
+    if (user.is_admin || user.is_super_admin) acc.admins += 1;
+    return acc;
+  },
+  { total: 0, active: 0, admins: 0 }
+);
+
 return (
   
-    <div className="users-page">
+    <div className="users-page pp-premium">
 
       {/* ============================
-          Header
+          Premium hero + KPIs
       ============================ */}
 
+      <PremiumHero
+        icon={FaUsers}
+        eyebrow="Settings · People"
+        title="Users"
+        badge="Admin only"
+        subtitle="Everyone who can sign in to MIARCUS — their stores, reporting line, contact details and access."
+        meta={[
+          { label: "Users", value: formatCount(users.length) },
+          { label: "Showing", value: filteredUsers.length !== users.length ? `${formatCount(filteredUsers.length)} filtered` : null }
+        ]}
+      />
+
+      <InsightStrip
+        items={[
+          { key: "all", label: "All users", value: formatCount(userSummary.total), hint: "Accounts in MIARCUS", tone: "violet", icon: FaUsers },
+          { key: "active", label: "Active", value: formatCount(userSummary.active), hint: `${formatCount(userSummary.total - userSummary.active)} inactive`, tone: "green", icon: FaUserCheck },
+          { key: "admins", label: "Admins", value: formatCount(userSummary.admins), hint: "Admin or super admin", tone: "amber", icon: FaUserShield },
+          { key: "depts", label: "Departments", value: formatCount(departments.length), hint: "Teams configured", tone: "blue", icon: FaSitemap }
+        ]}
+      />
+
       <div className="users-header">
-
-        <div className="users-title">
-
-          <h2>
-
-            Users
-
-            <FaInfoCircle className="info-icon" />
-
-          </h2>
-
-        </div>
 
   {/* Toolbar */}
 
@@ -563,6 +587,7 @@ return (
 
     }}
   >
+    <FaClear />
     Clear Filters
   </button>
 
@@ -747,7 +772,15 @@ return (
             </td>
 
             <td className="user-name">
-              {user.name}
+              <div className="pp-cell-main">
+                <span className={`pp-avatar pp-avatar--round ${avatarTone(user.name)}`}>
+                  {initials(user.name)}
+                </span>
+                <span className="pp-cell-text">
+                  <span className="pp-cell-title">{user.name}</span>
+                  <span className="pp-cell-sub">{user.department || user.designation || "—"}</span>
+                </span>
+              </div>
             </td>
 
             <td>
@@ -833,11 +866,11 @@ return (
             <td>
 
               <span
-                className={
+                className={`pp-pill pp-pill--dot ${
                   user.status === "Active"
-                    ? "status-active"
-                    : "status-inactive"
-                }
+                    ? "pp-pill--green"
+                    : "pp-pill--slate"
+                }`}
               >
 
                 {user.status || "Inactive"}
@@ -848,11 +881,13 @@ return (
 
             <td>
 
-              {user.is_super_admin
-                ? "Super Admin"
-                : user.is_admin
-                ? "Yes"
-                : "No"}
+              {user.is_super_admin ? (
+                <span className="pp-pill pp-pill--violet">Super Admin</span>
+              ) : user.is_admin ? (
+                <span className="pp-pill pp-pill--amber">Admin</span>
+              ) : (
+                <span className="pp-dash">—</span>
+              )}
 
             </td>
 
@@ -867,7 +902,8 @@ return (
           setShowAddModal(true);
         }}
       >
-        Edit
+        <FaEditIcon />
+        <span>Edit</span>
       </button>
     )}
 
@@ -885,14 +921,16 @@ return (
             className="disable-btn"
             onClick={() => disableUser(user.id, user)}
           >
-            Disable
+            <FaBan />
+            <span>Disable</span>
           </button>
 
           <button
             className="remove-btn"
             onClick={() => deleteUser(user.id, user)}
           >
-            Delete
+            <FaTrash />
+            <span>Delete</span>
           </button>
         </>
       )

@@ -26,6 +26,12 @@ import PageToolbar from "../components/common/PageToolbar";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Announcements.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AnnouncementsPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaEnvelope, FaClock } from "react-icons/fa";
+import { daysFromToday, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
 // ======================================================
@@ -273,6 +279,22 @@ function Announcements() {
             (item) =>
                 item.id !== pinned?.id
         );
+
+    // ==================================================
+    // PREMIUM SUMMARY
+    // ==================================================
+
+    const announcementSummary = announcements.reduce(
+        (acc, item) => {
+            acc.total += 1;
+            if (item.in_app_status !== "read") acc.unread += 1;
+            if (item.attachment_path || item.attachment_original_name) acc.withFiles += 1;
+            const age = daysFromToday(item.published_at || item.created_at);
+            if (age !== null && age <= 0 && age >= -7) acc.thisWeek += 1;
+            return acc;
+        },
+        { total: 0, unread: 0, thisWeek: 0, withFiles: 0 }
+    );
 
     // ==================================================
     // FILE URL
@@ -691,7 +713,7 @@ function Announcements() {
     if (!canView) {
 
         return (
-            <div className="announcements-page">
+            <div className="announcements-page pp-premium">
 
                 <div className="announcement-empty">
 
@@ -718,36 +740,34 @@ function Announcements() {
 
     return (
 
-        <div className="announcements-page">
+        <div className="announcements-page pp-premium">
 
             {/* ==================================================
-                PAGE HEADER
+                PREMIUM HERO
             ================================================== */}
 
-            <div className="announcement-header">
+            <PremiumHero
+                icon={FaBullhorn}
+                eyebrow="Company updates"
+                title="Announcements"
+                badge="Visible to everyone"
+                badgeTone="mint"
+                subtitle="News, circulars and notices for every team — the latest updates first, pinned notices on top."
+                meta={[
+                    { label: "Unread", value: loading ? null : formatCount(announcementSummary.unread) },
+                    { label: "Pinned", value: pinned ? pinned.title : null }
+                ]}
+            />
 
-                <div className="announcement-title-row">
-
-                    <div className="announcement-title-icon">
-                        <FaBullhorn />
-                    </div>
-
-                    <div>
-
-                        <h1>
-                            Announcements
-                        </h1>
-
-                        <p>
-                            Share important updates
-                            with the right people.
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "total", label: "Announcements", value: formatCount(announcementSummary.total), hint: hasActiveFilters({ search, startDate, endDate }) ? "Matching your filters" : "All published updates", tone: "violet", icon: FaBullhorn },
+                    { key: "unread", label: "Unread", value: formatCount(announcementSummary.unread), hint: "Waiting for you to open", tone: "amber", icon: FaEnvelope },
+                    { key: "week", label: "This week", value: formatCount(announcementSummary.thisWeek), hint: "Published in the last 7 days", tone: "blue", icon: FaClock },
+                    { key: "files", label: "With attachments", value: formatCount(announcementSummary.withFiles), hint: "Images, PDFs & documents", tone: "green", icon: FaPaperclip }
+                ]}
+            />
 
             {/* ==================================================
                 TOOLBAR
@@ -818,7 +838,7 @@ function Announcements() {
                 DATE FILTERS
             ================================================== */}
 
-            <div className="announcement-filters">
+            <div className="announcement-filters pp-ann-filters">
 
                 <label>
 
@@ -883,16 +903,32 @@ function Announcements() {
 
                 <div className="announcement-empty">
 
-                    <FaBullhorn />
+                    <span className="pp-ann-empty-icon">
+                        <FaBullhorn />
+                    </span>
 
                     <h3>
-                        No announcements yet
+                        {hasActiveFilters({ search, startDate, endDate })
+                            ? "No announcements match your filters"
+                            : "No announcements yet"}
                     </h3>
 
                     <p>
-                        Published announcements
-                        will appear here.
+                        {hasActiveFilters({ search, startDate, endDate })
+                            ? "Try a different search or clear the date range."
+                            : "When your team publishes an update, it will appear here for everyone it's meant for."}
                     </p>
+
+                    {canAdd && !hasActiveFilters({ search, startDate, endDate }) && (
+                        <button
+                            type="button"
+                            className="pp-btn pp-btn--primary"
+                            onClick={() => setShowCreate(true)}
+                        >
+                            <FaBullhorn />
+                            Publish the first announcement
+                        </button>
+                    )}
 
                 </div>
 
@@ -1455,8 +1491,12 @@ function AnnouncementCard({
                           maxWidth:
                               "calc(50% - 12px)",
 
+                          // Text-only cards size to their content;
+                          // the flex row still equalises heights.
                           height:
-                              "620px",
+                              fileUrl
+                                  ? "620px"
+                                  : undefined,
 
                           display:
                               "flex",
@@ -1536,9 +1576,6 @@ function AnnouncementCard({
 
                             objectFit:
                                 "contain",
-
-                            background:
-                                "#eef3f5",
                         }}
                     />
 
@@ -1569,9 +1606,6 @@ function AnnouncementCard({
 
                             border:
                                 "none",
-
-                            background:
-                                "#eef3f5",
                         }}
 
                     />
@@ -1579,16 +1613,20 @@ function AnnouncementCard({
                 ) : (
 
                     <div
-                        className="announcement-document"
+                        className={`announcement-document ${fileUrl ? "" : "announcement-document--text"}`}
 
                         style={{
                             width:
                                 "100%",
 
                             height:
-                                horizontal
-                                    ? "360px"
-                                    : "300px",
+                                fileUrl
+                                    ? horizontal
+                                        ? "360px"
+                                        : "300px"
+                                    : horizontal
+                                        ? "150px"
+                                        : "170px",
 
                             display:
                                 "flex",
@@ -1604,9 +1642,6 @@ function AnnouncementCard({
 
                             gap:
                                 "12px",
-
-                            background:
-                                "#eef3f5",
                         }}
                     >
 
@@ -1619,7 +1654,7 @@ function AnnouncementCard({
                         <span>
                             {
                                 item.attachment_original_name ||
-                                "Announcement"
+                                formatAudience(item.audience)
                             }
                         </span>
 
@@ -1730,6 +1765,7 @@ function AnnouncementCard({
                 <div className="announcement-meta">
 
                     <span>
+                        <FaCalendarAlt />
                         {new Date(
                             item.published_at ||
                                 item.created_at
@@ -1737,12 +1773,14 @@ function AnnouncementCard({
                     </span>
 
                     <span>
+                        <FaUsers />
                         {formatAudience(
                             item.audience
                         )}
                     </span>
 
                     <span>
+                        <FaUser />
                         {
                             item.created_by_name ||
                             "MIARCUS"

@@ -5,9 +5,7 @@ import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } fro
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
-import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
 import ActionButtons from "../components/common/ActionButtons";
@@ -44,6 +42,19 @@ import {
 // ======================================================
 
 import "../styles/NSORules.css";
+import "../styles/premium/PagePremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import {
+    FaGavel,
+    FaCheckCircle,
+    FaFire,
+    FaAsterisk,
+    FaBolt,
+    FaTimes,
+    FaLongArrowAltRight
+} from "react-icons/fa";
+import { formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
 function NSORules() {
@@ -446,39 +457,110 @@ const handleBulkUpload = async (file) => {
     };
 
 // ======================================================
+// PREMIUM SUMMARY (all rules, not just this page)
+// ======================================================
+
+const [summaryRules, setSummaryRules] = useState([]);
+const [summaryLoading, setSummaryLoading] = useState(true);
+
+useEffect(() => {
+
+    let alive = true;
+
+    getRules({ search: "", page: 1, limit: 1000 })
+        .then((result) => {
+            if (alive) setSummaryRules(Array.isArray(result?.data) ? result.data : []);
+        })
+        .catch(() => {
+            if (alive) setSummaryRules([]);
+        })
+        .finally(() => {
+            if (alive) setSummaryLoading(false);
+        });
+
+    return () => {
+        alive = false;
+    };
+
+}, [totalRecords]);
+
+const isOn = (value) =>
+    value === true ||
+    value === 1 ||
+    value === "1" ||
+    String(value).toLowerCase() === "true" ||
+    String(value).toLowerCase() === "yes";
+
+const summary = summaryRules.reduce(
+    (acc, rule) => {
+        acc.total += 1;
+        if (isOn(rule.is_active)) acc.active += 1;
+        if (["high", "critical", "urgent"].includes(String(rule.priority || "").toLowerCase())) acc.high += 1;
+        if (isOn(rule.mandatory)) acc.mandatory += 1;
+        if (isOn(rule.create_action_point)) acc.actionPoints += 1;
+        return acc;
+    },
+    { total: 0, active: 0, high: 0, mandatory: 0, actionPoints: 0 }
+);
+
+const PRIORITY_TONE = {
+    critical: "red",
+    urgent: "red",
+    high: "red",
+    medium: "amber",
+    low: "green"
+};
+
+const yesNoPill = (value) =>
+    isOn(value)
+        ? <span className="pp-pill pp-pill--violet">Yes</span>
+        : <span className="pp-pill pp-pill--slate">No</span>;
+
+// ======================================================
 // TABLE COLUMNS
 // ======================================================
 
 const columns = [
 
     {
-        key: "id",
-        title: "ID",
-        width: "80px",
-        align: "center",
-    },
+        key: "rule",
+        title: "Rule",
+        width: "380px",
+        render: (row) => {
 
-    {
-        key: "trigger_column",
-        title: "Trigger Column",
-        width: "320px",
-        render: (row) => (
-            <div className="wrap-text">
-                {row.trigger_column || "-"}
-            </div>
-        ),
-    },
+            const expected = String(row.expected_answer || "").trim();
 
-    {
-        key: "expected_answer",
-        title: "Expected",
-        width: "130px",
-        align: "center",
-        render: (row) => (
-            <span className={`answer-badge ${String(row.expected_answer).toLowerCase()}`}>
-                {row.expected_answer || "-"}
-            </span>
-        ),
+            return (
+                <div className="pp-cell-main pp-rule-cell">
+
+                    <span className="pp-avatar pp-rule-id">
+                        #{row.id}
+                    </span>
+
+                    <span className="pp-cell-text">
+
+                        <span className="pp-cell-title pp-wrap" title={row.trigger_column || ""}>
+                            {row.trigger_column || "Untitled rule"}
+                        </span>
+
+                        <span className="pp-cell-sub pp-cell-sub--flex">
+                            <span>When answered</span>
+                            <span className={`pp-pill pp-pill--xs pp-pill--${expected.toLowerCase() === "no" ? "red" : "green"}`}>
+                                {expected || "—"}
+                            </span>
+                            <FaLongArrowAltRight className="pp-rule-arrow" />
+                            <span>
+                                {isOn(row.create_action_point)
+                                    ? "raise an action point"
+                                    : "flag in NSO tracking"}
+                            </span>
+                        </span>
+
+                    </span>
+
+                </div>
+            );
+        },
     },
 
     {
@@ -486,23 +568,31 @@ const columns = [
         title: "Priority",
         width: "130px",
         align: "center",
-        render: (row) => (
-            <span className={`priority-badge ${String(row.priority).toLowerCase()}`}>
-                {row.priority || "-"}
-            </span>
-        ),
+        render: (row) => {
+            const value = String(row.priority || "").trim();
+            if (!value) return <span className="pp-dash">—</span>;
+            return (
+                <span className={`pp-pill pp-pill--dot pp-pill--${PRIORITY_TONE[value.toLowerCase()] || "slate"}`}>
+                    {value}
+                </span>
+            );
+        },
     },
 
     {
         key: "sla_days",
         title: "SLA",
-        width: "90px",
+        width: "110px",
         align: "center",
-        render: (row) => (
-            <span>
-                {row.sla_days ?? "-"} Days
-            </span>
-        ),
+        render: (row) =>
+            row.sla_days === null || row.sla_days === undefined || row.sla_days === ""
+                ? <span className="pp-dash">—</span>
+                : (
+                    <span className="pp-sla">
+                        <strong>{row.sla_days}</strong>
+                        <span>day{Number(row.sla_days) === 1 ? "" : "s"}</span>
+                    </span>
+                ),
     },
 
     {
@@ -510,35 +600,15 @@ const columns = [
         title: "Mandatory",
         width: "120px",
         align: "center",
-        render: (row) => (
-            <span
-                className={
-                    row.mandatory
-                        ? "yes-badge"
-                        : "no-badge"
-                }
-            >
-                {row.mandatory ? "Yes" : "No"}
-            </span>
-        ),
+        render: (row) => yesNoPill(row.mandatory),
     },
 
     {
         key: "create_action_point",
         title: "Action Point",
-        width: "140px",
+        width: "130px",
         align: "center",
-        render: (row) => (
-            <span
-                className={
-                    row.create_action_point
-                        ? "yes-badge"
-                        : "no-badge"
-                }
-            >
-                {row.create_action_point ? "Yes" : "No"}
-            </span>
-        ),
+        render: (row) => yesNoPill(row.create_action_point),
     },
 
     {
@@ -546,34 +616,45 @@ const columns = [
         title: "Status",
         width: "120px",
         align: "center",
-        render: (row) => (
-            <span
-                className={
-                    row.is_active
-                        ? "status-active"
-                        : "status-inactive"
-                }
-            >
-                {row.is_active ? "Active" : "Inactive"}
-            </span>
-        ),
+        render: (row) =>
+            isOn(row.is_active)
+                ? <span className="pp-pill pp-pill--dot pp-pill--green">Active</span>
+                : <span className="pp-pill pp-pill--dot pp-pill--slate">Inactive</span>,
     },
 
     {
         key: "departments",
         title: "Departments",
-        width: "260px",
-        render: (row) => (
-            <div className="wrap-text">
-                {row.departments || "-"}
-            </div>
-        ),
+        width: "280px",
+        render: (row) => {
+            const list = String(row.departments || "")
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean);
+
+            if (list.length === 0) {
+                return <span className="pp-pill pp-pill--blue">All departments</span>;
+            }
+
+            return (
+                <div className="pp-chip-list">
+                    {list.slice(0, 3).map((item) => (
+                        <span className="pp-pill pp-pill--slate" key={item}>{item}</span>
+                    ))}
+                    {list.length > 3 && (
+                        <span className="pp-pill pp-pill--violet" title={list.slice(3).join(", ")}>
+                            +{list.length - 3}
+                        </span>
+                    )}
+                </div>
+            );
+        },
     },
 
     {
         key: "actions",
         title: "Actions",
-        width: "250px",
+        width: "190px",
         align: "center",
 
         render: (row) => (
@@ -597,15 +678,33 @@ const columns = [
 ];
         return (
 
-        <div className="nso-rules-page">
+        <div className="nso-rules-page pp-premium">
 
             {/* ======================================================
-                PAGE HEADER
+                PREMIUM HERO
             ====================================================== */}
 
-            <PageHeader
+            <PremiumHero
+                icon={FaGavel}
+                eyebrow="Expansion · Admin workspace"
                 title="NSO Rules"
-                subtitle="Manage NSO Rules."
+                badge="Admin only"
+                subtitle="The automation behind NSO tracking — which answers raise action points, how urgent they are and how long teams have to close them."
+                meta={[
+                    { label: "Rules", value: formatCount(totalRecords) },
+                    { label: "Active", value: summaryLoading ? null : formatCount(summary.active) }
+                ]}
+            />
+
+            <InsightStrip
+                loading={summaryLoading}
+                items={[
+                    { key: "total", label: "Total rules", value: formatCount(summary.total), hint: "Configured for NSO", tone: "violet", icon: FaGavel },
+                    { key: "active", label: "Active", value: formatCount(summary.active), hint: `${formatCount(summary.total - summary.active)} inactive`, tone: "green", icon: FaCheckCircle },
+                    { key: "high", label: "High priority", value: formatCount(summary.high), hint: "High / critical rules", tone: "red", icon: FaFire },
+                    { key: "mandatory", label: "Mandatory", value: formatCount(summary.mandatory), hint: "Must be answered", tone: "amber", icon: FaAsterisk },
+                    { key: "ap", label: "Auto action points", value: formatCount(summary.actionPoints), hint: "Raise a task automatically", tone: "blue", icon: FaBolt }
+                ]}
             />
 
             {/* ======================================================
@@ -618,7 +717,7 @@ const columns = [
 
                 setSearch={setSearch}
 
-                placeholder="Search NSO Rules..."
+                placeholder="Search rules, priorities, departments…"
 
                 showAdd={canAdd}
 
@@ -640,22 +739,25 @@ const columns = [
 
                 onDeleteAll={handleDeleteAll}
 
-            />
-
-            {/* ======================================================
-                FILTER BAR
-            ====================================================== */}
-
-            <FilterBar
-                onClear={handleClearFilters}
             >
-                {/* Future Filters */}
-            </FilterBar>
+
+                {search && (
+                    <button
+                        type="button"
+                        className="toolbar-btn"
+                        onClick={handleClearFilters}
+                    >
+                        <FaTimes />
+                        Clear search
+                    </button>
+                )}
+
+            </PageToolbar>
 
             {/* ======================================================
                 CARD
             ====================================================== */}
-<Card title="NSO Rule List">
+<Card title="NSO Rule List" subtitle="Each rule watches one NSO checklist answer." className="pp-sticky-last">
 
     <DataTable
         columns={columns}

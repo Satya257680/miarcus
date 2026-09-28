@@ -7,7 +7,6 @@ import { activeFilters, hasActiveFilters, deleteAllLabel, deleteAllMessage } fro
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -24,8 +23,19 @@ import {
     FaEye,
     FaTrash,
     FaMapMarkerAlt,
-    FaDownload
+    FaDownload,
+    FaCalendarCheck,
+    FaSignInAlt,
+    FaCheckDouble,
+    FaUserSlash,
+    FaUsers,
+    FaCamera,
+    FaClipboardList
 } from "react-icons/fa";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import "../styles/premium/PagePremium.css";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 
 
 // ======================================================
@@ -1020,138 +1030,178 @@ function AttendanceReports() {
     // TABLE COLUMNS
     // ======================================================
 
+    const attendanceSummary = filteredRecords.reduce(
+        (acc, row) => {
+            const status = String(row.status || "Present").toLowerCase();
+            acc.total += 1;
+            if (status === "present") acc.present += 1;
+            if (status === "completed") acc.completed += 1;
+            if (status === "absent" || status === "on leave") acc.away += 1;
+            acc.ids.add(row.user_id || row.employee_id || row.name);
+            return acc;
+        },
+        { total: 0, present: 0, completed: 0, away: 0, ids: new Set() }
+    );
+    attendanceSummary.people = attendanceSummary.ids.size;
+
+    const STATUS_TONE = {
+        present: "blue",
+        completed: "green",
+        absent: "red",
+        "on leave": "amber"
+    };
+
+    const timeOf = (value) => {
+        const time = formatTimeOnly(value);
+        return time === "-" ? null : time.slice(0, 5);
+    };
+
+    // "YYYY-MM-DD HH:mm:ss" (already local) → minutes worked
+    const workedLabel = (row) => {
+        if (!row.check_in_at || !row.check_out_at) return null;
+        const toDate = (value) => {
+            const [d, t = "00:00:00"] = String(value).split(" ");
+            const [y, m, day] = d.split("-").map(Number);
+            const [hh, mm, ss] = t.split(":").map(Number);
+            return new Date(y, (m || 1) - 1, day || 1, hh || 0, mm || 0, ss || 0);
+        };
+        const minutes = Math.round((toDate(row.check_out_at) - toDate(row.check_in_at)) / 60000);
+        if (!Number.isFinite(minutes) || minutes <= 0) return null;
+        return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+    };
+
+    const punchCell = (row, kind) => {
+        const at = kind === "check-in" ? row.check_in_at : row.check_out_at;
+        const photo = kind === "check-in" ? row.check_in_photo : row.check_out_photo;
+        const lat = kind === "check-in" ? row.check_in_latitude : row.check_out_latitude;
+        const lng = kind === "check-in" ? row.check_in_longitude : row.check_out_longitude;
+        const time = timeOf(at);
+
+        if (!time) {
+            return <span className="pp-dash">{kind === "check-out" && row.check_in_at ? "Not checked out" : "—"}</span>;
+        }
+
+        return (
+            <div className="pp-punch">
+                <strong className="pp-punch-time">{time}</strong>
+                <span className="pp-punch-actions">
+                    {photo && (
+                        <button
+                            type="button"
+                            className="pp-link"
+                            onClick={() => handleViewPhoto(row, kind)}
+                            title={`View ${kind} photo`}
+                        >
+                            <FaCamera /> Photo
+                        </button>
+                    )}
+                    {lat && lng && (
+                        <a
+                            href={`https://www.google.com/maps?q=${lat},${lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pp-link"
+                            title={`Open ${kind} location`}
+                        >
+                            <FaMapMarkerAlt /> Map
+                        </a>
+                    )}
+                </span>
+            </div>
+        );
+    };
+
     const columns = [
+
+        {
+            key: "name",
+            title: "Employee",
+            width: "250px",
+            render: (row) => (
+                <div className="pp-cell-main">
+                    <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
+                        {initials(row.name)}
+                    </span>
+                    <span className="pp-cell-text">
+                        <span className="pp-cell-title" title={row.name || ""}>
+                            {row.name || "Unknown"}
+                        </span>
+                        <span className="pp-cell-sub">
+                            {[row.employee_id, row.designation].filter(Boolean).join(" · ") || "—"}
+                        </span>
+                    </span>
+                </div>
+            )
+        },
 
         {
             key: "work_date",
             title: "Work Date",
-            render: (row) => formatDateOnly(row.work_date)
-        },
-
-        {
-            key: "status",
-            title: "Status",
+            width: "140px",
             render: (row) => (
-                <span
-                    className={`status-badge ${(row.status || "Present")
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}`}
-                >
-                    {row.status || "Present"}
+                <span className="pp-cell-text">
+                    <span className="pp-cell-title">{formatDateOnly(row.work_date)}</span>
+                    <span className="pp-cell-sub">{formatDayName(row.work_date) === "-" ? "" : formatDayName(row.work_date)}</span>
                 </span>
             )
         },
 
         {
-            key: "name",
-            title: "Employee",
-            render: (row) => row.name || "-"
-        },
-
-        {
-            key: "employee_id",
-            title: "Employee ID",
-            render: (row) => row.employee_id || "-"
-        },
-
-        {
-            key: "department",
-            title: "Department",
-            render: (row) => row.department || "-"
-        },
-
-        {
-            key: "designation",
-            title: "Designation",
-            render: (row) => row.designation || "-"
+            key: "status",
+            title: "Status",
+            width: "130px",
+            render: (row) => {
+                const status = row.status || "Present";
+                return (
+                    <span className={`pp-pill pp-pill--dot pp-pill--${STATUS_TONE[status.toLowerCase()] || "slate"}`}>
+                        {status}
+                    </span>
+                );
+            }
         },
 
         {
             key: "store_name",
             title: "Store",
-            render: (row) => row.store_name || "-"
+            width: "200px",
+            render: (row) =>
+                row.store_name
+                    ? <span className="pp-pill pp-pill--violet">{row.store_name}</span>
+                    : <span className="pp-dash">—</span>
+        },
+
+        {
+            key: "department",
+            title: "Department",
+            width: "160px",
+            render: (row) => row.department || <span className="pp-dash">—</span>
         },
 
         {
             key: "check_in_at",
-            title: "Check-in At",
-            render: (row) => formatDateTime(row.check_in_at)
-        },
-
-        {
-            key: "check_in_photo",
-            title: "Check-in Photo",
-            align: "center",
-            render: (row) => (
-                row.check_in_photo ? (
-                    <button
-                        type="button"
-                        className="table-link"
-                        onClick={() => handleViewPhoto(row, "check-in")}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                    >
-                        View
-                    </button>
-                ) : "-"
-            )
-        },
-
-        {
-            key: "check_in_location",
-            title: "Check-in Location",
-            render: (row) => (
-                row.check_in_latitude && row.check_in_longitude ? (
-                    <a
-                        href={`https://www.google.com/maps?q=${row.check_in_latitude},${row.check_in_longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="table-link"
-                    >
-                        <FaMapMarkerAlt />{" "}View Map
-                    </a>
-                ) : "-"
-            )
+            title: "Check-in",
+            width: "190px",
+            render: (row) => punchCell(row, "check-in")
         },
 
         {
             key: "check_out_at",
-            title: "Check-out At",
-            render: (row) => formatDateTime(row.check_out_at)
+            title: "Check-out",
+            width: "190px",
+            render: (row) => punchCell(row, "check-out")
         },
 
         {
-            key: "check_out_photo",
-            title: "Check-out Photo",
+            key: "worked",
+            title: "Worked",
+            width: "110px",
             align: "center",
-            render: (row) => (
-                row.check_out_photo ? (
-                    <button
-                        type="button"
-                        className="table-link"
-                        onClick={() => handleViewPhoto(row, "check-out")}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                    >
-                        View
-                    </button>
-                ) : "-"
-            )
-        },
-
-        {
-            key: "check_out_location",
-            title: "Check-out Location",
-            render: (row) => (
-                row.check_out_latitude && row.check_out_longitude ? (
-                    <a
-                        href={`https://www.google.com/maps?q=${row.check_out_latitude},${row.check_out_longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="table-link"
-                    >
-                        <FaMapMarkerAlt />{" "}View Map
-                    </a>
-                ) : "-"
-            )
+            render: (row) => {
+                const worked = workedLabel(row);
+                return worked
+                    ? <span className="pp-sla"><strong>{worked}</strong></span>
+                    : <span className="pp-dash">—</span>;
+            }
         },
 
         {
@@ -1190,11 +1240,28 @@ function AttendanceReports() {
 
     return (
 
-        <div className="checklist-reports-page">
+        <div className="checklist-reports-page pp-premium">
 
-            <PageHeader
+            <PremiumHero
+                icon={FaCalendarCheck}
+                eyebrow="People · Attendance"
                 title="Attendance Reports"
-                subtitle="Manage employee check-in and check-out attendance records."
+                subtitle="Every check-in and check-out across stores — with selfie proof, map location and hours worked."
+                tone="teal"
+                meta={[
+                    { label: "Records", value: formatCount(records.length) },
+                    { label: "Showing", value: isFilteredDelete ? `${formatCount(filteredRecords.length)} filtered` : null }
+                ]}
+            />
+
+            <InsightStrip
+                items={[
+                    { key: "all", label: "Records", value: formatCount(attendanceSummary.total), hint: "Matching current filters", tone: "violet", icon: FaClipboardList, onClick: () => setSelectedStatus(""), active: !selectedStatus },
+                    { key: "present", label: "Checked in", value: formatCount(attendanceSummary.present), hint: "Present, not checked out", tone: "blue", icon: FaSignInAlt, onClick: () => setSelectedStatus(selectedStatus === "Present" ? "" : "Present"), active: selectedStatus === "Present" },
+                    { key: "completed", label: "Completed", value: formatCount(attendanceSummary.completed), hint: "Full shift recorded", tone: "green", icon: FaCheckDouble, onClick: () => setSelectedStatus(selectedStatus === "Completed" ? "" : "Completed"), active: selectedStatus === "Completed" },
+                    { key: "absent", label: "Absent / Leave", value: formatCount(attendanceSummary.away), hint: "Absent or on leave", tone: "red", icon: FaUserSlash, onClick: () => setSelectedStatus(selectedStatus === "Absent" ? "" : "Absent"), active: selectedStatus === "Absent" },
+                    { key: "people", label: "Employees", value: formatCount(attendanceSummary.people), hint: "Distinct people in view", tone: "slate", icon: FaUsers }
+                ]}
             />
 
             {loadError && (
@@ -1214,7 +1281,7 @@ function AttendanceReports() {
             <PageToolbar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Search Attendance Reports..."
+                placeholder="Search employee, store, department…"
                 showAdd={false}
                 showExport={canView}
                 onExport={handleExport}
@@ -1291,7 +1358,7 @@ function AttendanceReports() {
 
             </FilterBar>
 
-            <Card title="Attendance Report List">
+            <Card title="Attendance Report List" subtitle="Tap Photo for the selfie taken at punch time, Map for where it happened." className="pp-sticky-first pp-sticky-last">
 
                 <DataTable
                     columns={columns}

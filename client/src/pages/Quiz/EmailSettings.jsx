@@ -31,6 +31,10 @@ import {
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/QuizPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import { FaPaperPlane as FaHeroSend } from "react-icons/fa";
 
 
 function EmailSettings() {
@@ -1194,66 +1198,24 @@ function EmailSettings() {
 
     return (
 
-        <div className="quiz-page">
-
+        <div className="quiz-page pp-premium pp-quiz pp-quiz-email">
 
             {/* ====================================================
-                HEADER
+                PREMIUM HERO
             ==================================================== */}
 
-            <div className="quiz-page-header">
-
-                <div>
-
-                    <div className="quiz-eyebrow">
-                        COMMUNICATION CENTER
-                    </div>
-
-                    <h1>
-                        Email Settings
-                    </h1>
-
-                    <p>
-                        Send one reusable quiz link
-                        to everyone, selected
-                        employees, or custom
-                        recipients.
-                    </p>
-
-                </div>
-
-
-                <div className="quiz-email-summary">
-
-                    <span>
-
-                        <FaCheckCircle />
-
-                        {emailStats.sent}
-                        {" "}sent
-
-                    </span>
-
-
-                    <span>
-
-                        {emailStats.failed}
-                        {" "}failed
-
-                    </span>
-
-
-                    <span>
-
-                        {emailStats.total}
-                        {" "}total
-
-                    </span>
-
-                </div>
-
-            </div>
-
+            <PremiumHero
+                icon={FaHeroSend}
+                eyebrow="Communication center"
+                title="Email Settings"
+                badge="Admin only"
+                subtitle="Send one reusable quiz link to everyone, selected employees or custom recipients — and track every delivery."
+                meta={[
+                    { label: "Sent", value: emailStats.sent },
+                    { label: "Failed", value: emailStats.failed },
+                    { label: "Total", value: emailStats.total }
+                ]}
+            />
 
             {/* ====================================================
                 FEEDBACK
