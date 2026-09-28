@@ -21,7 +21,15 @@ const VALID_THEMES = new Set([
     "forest",
     "rose",
     "midnight",
-    "sepia"
+    "sepia",
+    "lavender",
+    "emerald",
+    "royal",
+    "nord",
+    "coffee",
+    "aurora",
+    "cherry",
+    "slate"
 ]);
 
 const VALID_ACCENTS = new Set([
@@ -34,7 +42,12 @@ const VALID_ACCENTS = new Set([
     "pink",
     "indigo",
     "amber",
-    "cyan"
+    "cyan",
+    "violet",
+    "lime",
+    "gold",
+    "slate",
+    "magenta"
 ]);
 
 const VALID_FONT_SIZES = new Set([
@@ -47,7 +60,9 @@ const VALID_FONT_FAMILIES = new Set([
     "default",
     "rounded",
     "serif",
-    "mono"
+    "mono",
+    "modern",
+    "system"
 ]);
 
 const VALID_SIDEBAR_STYLES = new Set([

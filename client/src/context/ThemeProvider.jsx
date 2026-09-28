@@ -8,6 +8,7 @@ import React, {
 } from "react";
 
 import axios from "../axiosConfig";
+import { applyUiExtras } from "../utils/uiExtras";
 
 const ThemeContext = createContext(null);
 
@@ -102,6 +103,62 @@ export const THEMES = [
         description: "Warm, paper-like reading tone.",
         icon: "📜",
         preview: "sepia"
+    },
+    {
+        id: "lavender",
+        name: "Lavender",
+        description: "Soft violet, light and airy.",
+        icon: "💜",
+        preview: "lavender"
+    },
+    {
+        id: "emerald",
+        name: "Emerald",
+        description: "Fresh jewel green with crisp white.",
+        icon: "💚",
+        preview: "emerald"
+    },
+    {
+        id: "royal",
+        name: "Royal",
+        description: "Deep plum with a gold accent.",
+        icon: "👑",
+        preview: "royal"
+    },
+    {
+        id: "nord",
+        name: "Nord",
+        description: "Cool arctic blue-grey.",
+        icon: "❄️",
+        preview: "nord"
+    },
+    {
+        id: "coffee",
+        name: "Coffee",
+        description: "Rich espresso browns, cosy and warm.",
+        icon: "☕",
+        preview: "coffee"
+    },
+    {
+        id: "aurora",
+        name: "Aurora",
+        description: "Dark mode with teal and violet glow.",
+        icon: "🌠",
+        preview: "aurora"
+    },
+    {
+        id: "cherry",
+        name: "Cherry",
+        description: "Bold crimson with clean white panels.",
+        icon: "🍒",
+        preview: "cherry"
+    },
+    {
+        id: "slate",
+        name: "Slate",
+        description: "Neutral grey for long work sessions.",
+        icon: "🪨",
+        preview: "slate"
     }
 ];
 
@@ -115,7 +172,12 @@ export const ACCENT_COLORS = [
     { id: "pink", name: "Pink", value: "#db2777" },
     { id: "indigo", name: "Indigo", value: "#4f46e5" },
     { id: "amber", name: "Amber", value: "#d97706" },
-    { id: "cyan", name: "Cyan", value: "#0891b2" }
+    { id: "cyan", name: "Cyan", value: "#0891b2" },
+    { id: "violet", name: "Violet", value: "#7c3aed" },
+    { id: "magenta", name: "Magenta", value: "#c026d3" },
+    { id: "lime", name: "Lime", value: "#65a30d" },
+    { id: "gold", name: "Gold", value: "#b8860b" },
+    { id: "slate", name: "Slate", value: "#475569" }
 ];
 
 export const FONT_FAMILIES = [
@@ -142,6 +204,18 @@ export const FONT_FAMILIES = [
         name: "Monospace",
         description: "Fixed-width, technical look.",
         stack: "'JetBrains Mono', 'Courier New', Courier, monospace"
+    },
+    {
+        id: "modern",
+        name: "Modern",
+        description: "Geometric premium sans — Plus Jakarta Sans.",
+        stack: "'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif"
+    },
+    {
+        id: "system",
+        name: "System",
+        description: "Your device's native interface font.",
+        stack: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
     }
 ];
 
@@ -326,6 +400,7 @@ function ThemeProvider({ children }) {
         applyPreferences(
             readLocalPreferences()
         );
+        applyUiExtras();
     }, [applyPreferences]);
 
     // --------------------------------------------------

@@ -13,6 +13,11 @@ import {
 
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 
 // ======================================================
 // HELPERS
@@ -506,69 +511,29 @@ function ApproveExpenses() {
     // ==================================================
 
     return (
-        <div className="expense-page">
+        <div className="expense-page pp-premium">
 
-            {/* ==================================================
-                PAGE HEADING
-            ================================================== */}
+            <PremiumHero
+                icon={FaShieldAlt}
+                eyebrow="Expenses · Finance review"
+                title="Approve Expenses"
+                badge="Finance review queue"
+                subtitle="Review verified bills before finance or manager approval. Select one or more bills to approve or reject."
+                meta={[
+                    { label: "In queue", value: String(expenses.length) },
+                    { label: "Selected", value: selected.length ? String(selected.length) : null }
+                ]}
+            />
 
-            <div className="expense-page-heading">
-
-                <div>
-                    <div className="expense-eyebrow">
-                        Expenses
-                    </div>
-
-                    <h1>
-                        Approve Expenses
-                    </h1>
-
-                    <p>
-                        Review verified bills before
-                        finance or manager approval.
-                    </p>
-                </div>
-
-                <div className="expense-heading-badge">
-                    <FaShieldAlt />
-                    Finance review queue
-                </div>
-
-            </div>
-
-            {/* ==================================================
-                REVIEW ALERTS
-            ================================================== */}
-
-            <div className="expense-review-alerts">
-
-                <div className="expense-review-alert warning">
-
-                    <FaExclamationTriangle />
-
-                    <span>
-                        <strong>
-                            {reviewRisk}
-                        </strong>{" "}
-                        bills need review.
-                    </span>
-
-                </div>
-
-                <div className="expense-review-alert danger">
-
-                    <FaShieldAlt />
-
-                    <span>
-                        <strong>
-                            {highRisk}
-                        </strong>{" "}
-                        bills are high risk.
-                    </span>
-
-                </div>
-
-            </div>
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "queue", label: "Awaiting review", value: expenses.length, hint: "Bills in the queue", tone: "violet", icon: FaShieldAlt },
+                    { key: "pending", label: "Pending", value: pendingCount, hint: "Not yet verified", tone: "amber", icon: FaExclamationTriangle },
+                    { key: "review", label: "Need review", value: reviewRisk, hint: "Review Required risk", tone: "blue", icon: FaExclamationTriangle },
+                    { key: "high", label: "High risk", value: highRisk, hint: "Check carefully", tone: "red", icon: FaShieldAlt }
+                ]}
+            />
 
             {/* ==================================================
                 SEARCH + BULK ACTIONS

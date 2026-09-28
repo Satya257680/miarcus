@@ -14,6 +14,7 @@ const edit = pettyPermission("Edit");
 // Settings and collection routes must be declared before /:id.
 router.get("/email-settings", authMiddleware, view, controller.emailSettings);
 router.put("/email-settings", authMiddleware, view, controller.updateEmailSettings);
+router.post("/email-settings/test", authMiddleware, view, controller.sendTestEmail);
 router.get("/options", authMiddleware, view, controller.options);
 router.get("/summary", authMiddleware, view, controller.summary);
 router.get("/audit/:id", authMiddleware, view, controller.audit);

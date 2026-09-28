@@ -39,6 +39,11 @@ import {
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 
 /* ======================================================
    HELPERS
@@ -547,34 +552,20 @@ export default function Bills() {
   ==================================================== */
 
   return (
-    <div className="billing-page billing-bills-page">
+    <div className="billing-page billing-bills-page pp-premium">
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div className="billing-header">
-
-        <div className="billing-header-left">
-
-          <div className="billing-title-icon">
-            <FaFileInvoiceDollar />
-          </div>
-
-          <div>
-            <h1>
-              Bills
-            </h1>
-
-            <p>
-              View, search and manage
-              all billing transactions.
-            </p>
-          </div>
-
-        </div>
-
-        <div className="billing-header-actions">
+      <PremiumHero
+        icon={FaFileInvoiceDollar}
+        eyebrow="Billing · Transactions"
+        title="Bills"
+        badge="Live register"
+        badgeTone="mint"
+        subtitle="View, search and manage all billing transactions."
+        meta={[
+          { label: "Bills", value: String(summary.total) },
+          { label: "Total amount", value: formatCurrency(summary.totalAmount) }
+        ]}
+        actions={<div className="pp-hero-actions-inline">
 
           <button
             type="button"
@@ -608,9 +599,8 @@ export default function Bills() {
             New Bill
           </Link>
 
-        </div>
-
-      </div>
+</div>}
+      />
 
       {/* ==================================================
           ERROR
@@ -647,101 +637,16 @@ export default function Bills() {
           SUMMARY
       ================================================== */}
 
-      <div className="billing-summary-grid">
-
-        <div className="billing-summary-card">
-
-          <div className="billing-summary-icon">
-            <FaFileInvoiceDollar />
-          </div>
-
-          <div>
-            <span>
-              Total Bills
-            </span>
-
-            <strong>
-              {summary.total}
-            </strong>
-          </div>
-
-        </div>
-
-        <div className="billing-summary-card">
-
-          <div className="billing-summary-icon audit-summary-create">
-            <FaCheckCircle />
-          </div>
-
-          <div>
-            <span>
-              Paid
-            </span>
-
-            <strong>
-              {summary.paid}
-            </strong>
-          </div>
-
-        </div>
-
-        <div className="billing-summary-card">
-
-          <div className="billing-summary-icon audit-summary-update">
-            <FaClock />
-          </div>
-
-          <div>
-            <span>
-              Pending
-            </span>
-
-            <strong>
-              {summary.pending}
-            </strong>
-          </div>
-
-        </div>
-
-        <div className="billing-summary-card">
-
-          <div className="billing-summary-icon audit-summary-cancel">
-            <FaTimesCircle />
-          </div>
-
-          <div>
-            <span>
-              Cancelled
-            </span>
-
-            <strong>
-              {summary.cancelled}
-            </strong>
-          </div>
-
-        </div>
-
-        <div className="billing-summary-card">
-
-          <div className="billing-summary-icon">
-            <FaMoneyBillWave />
-          </div>
-
-          <div>
-            <span>
-              Total Amount
-            </span>
-
-            <strong>
-              {formatCurrency(
-                summary.totalAmount
-              )}
-            </strong>
-          </div>
-
-        </div>
-
-      </div>
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "total", label: "Total bills", value: summary.total, hint: "All transactions", tone: "violet", icon: FaFileInvoiceDollar, onClick: () => setStatusFilter("ALL"), active: statusFilter === "ALL" },
+          { key: "paid", label: "Paid", value: summary.paid, hint: "Payment received", tone: "green", icon: FaCheckCircle },
+          { key: "pending", label: "Pending", value: summary.pending, hint: "Awaiting payment", tone: "amber", icon: FaClock },
+          { key: "cancelled", label: "Cancelled", value: summary.cancelled, hint: "Voided bills", tone: "red", icon: FaTimesCircle },
+          { key: "amount", label: "Total amount", value: formatCurrency(summary.totalAmount), hint: "Across all bills", tone: "blue", icon: FaMoneyBillWave }
+        ]}
+      />
 
       {/* ==================================================
           MAIN CARD

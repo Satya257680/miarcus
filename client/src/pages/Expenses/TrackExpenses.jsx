@@ -16,6 +16,11 @@ import {
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 
@@ -554,141 +559,36 @@ This action cannot be undone.`
     // ==================================================
 
     return (
-        <div className="expense-page">
+        <div className="expense-page pp-premium">
 
-            {/* ==========================================
-                PAGE HEADING
-            ========================================== */}
+            <PremiumHero
+                icon={FaReceipt}
+                eyebrow="Expenses · Register"
+                title="Track Expenses"
+                badge="Live register"
+                badgeTone="mint"
+                subtitle="Monitor submitted bills, verification results, risk and review status."
+                meta={[
+                    { label: "Bills", value: String(summary.count) },
+                    { label: "Total value", value: money(summary.amount) }
+                ]}
+                actions={
+                    <button type="button" className="pp-hero-btn" onClick={load} disabled={loading}>
+                        {loading ? "Refreshing..." : "Refresh"}
+                    </button>
+                }
+            />
 
-            <div className="expense-page-heading">
-
-                <div>
-
-                    <div className="expense-eyebrow">
-                        Expenses
-                    </div>
-
-                    <h1>
-                        Track Expenses
-                    </h1>
-
-                    <p>
-                        Monitor submitted bills,
-                        verification results,
-                        risk and review status.
-                    </p>
-
-                </div>
-
-                <button
-                    className="expense-heading-action"
-                    onClick={load}
-                    disabled={loading}
-                >
-                    {loading
-                        ? "Refreshing..."
-                        : "Refresh"}
-                </button>
-
-            </div>
-
-            {/* ==========================================
-                SUMMARY CARDS
-            ========================================== */}
-
-            <div className="expense-stat-grid">
-
-                <div className="expense-stat-card">
-
-                    <div className="expense-stat-icon blue">
-                        <FaReceipt />
-                    </div>
-
-                    <div>
-                        <span>
-                            Total bills
-                        </span>
-
-                        <strong>
-                            {summary.count}
-                        </strong>
-                    </div>
-
-                </div>
-
-                <div className="expense-stat-card">
-
-                    <div className="expense-stat-icon amber">
-                        <FaClock />
-                    </div>
-
-                    <div>
-                        <span>
-                            Pending
-                        </span>
-
-                        <strong>
-                            {summary.pending}
-                        </strong>
-                    </div>
-
-                </div>
-
-                <div className="expense-stat-card">
-
-                    <div className="expense-stat-icon orange">
-                        <FaExclamationTriangle />
-                    </div>
-
-                    <div>
-                        <span>
-                            Review required
-                        </span>
-
-                        <strong>
-                            {summary.review}
-                        </strong>
-                    </div>
-
-                </div>
-
-                <div className="expense-stat-card">
-
-                    <div className="expense-stat-icon green">
-                        <FaCheckCircle />
-                    </div>
-
-                    <div>
-                        <span>
-                            Approved
-                        </span>
-
-                        <strong>
-                            {summary.approved}
-                        </strong>
-                    </div>
-
-                </div>
-
-                <div className="expense-stat-card amount">
-
-                    <div className="expense-stat-icon purple">
-                        <FaShieldAlt />
-                    </div>
-
-                    <div>
-                        <span>
-                            Total value
-                        </span>
-
-                        <strong>
-                            {money(summary.amount)}
-                        </strong>
-                    </div>
-
-                </div>
-
-            </div>
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "all", label: "Total bills", value: summary.count, hint: "Submitted bills", tone: "violet", icon: FaReceipt, onClick: () => setStatus(""), active: !status },
+                    { key: "pending", label: "Pending", value: summary.pending, hint: "Awaiting verification", tone: "amber", icon: FaClock, onClick: () => setStatus(status === "Pending" ? "" : "Pending"), active: status === "Pending" },
+                    { key: "review", label: "Review required", value: summary.review, hint: "Flagged by checks", tone: "red", icon: FaExclamationTriangle, onClick: () => setStatus(status === "Review Required" ? "" : "Review Required"), active: status === "Review Required" },
+                    { key: "approved", label: "Approved", value: summary.approved, hint: "Cleared by finance", tone: "green", icon: FaCheckCircle, onClick: () => setStatus(status === "Approved" ? "" : "Approved"), active: status === "Approved" },
+                    { key: "value", label: "Total value", value: money(summary.amount), hint: "Excludes rejected", tone: "blue", icon: FaShieldAlt }
+                ]}
+            />
 
             {/* ==========================================
                 FILTERS

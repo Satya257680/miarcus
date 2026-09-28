@@ -4,6 +4,7 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const permissionMiddleware = require("../middleware/permissionMiddleware");
 const controller = require("../controllers/locationController");
+const reports = require("../controllers/locationReportController");
 const adminOnlyLocation = (req, res, next) => {
     const isAdmin = Number(req.user?.is_admin) === 1;
     if (!isAdmin) return res.status(403).json({ success: false, message: "Employee Location is restricted to administrators." });
@@ -26,5 +27,13 @@ router.get("/config", adminOnlyLocation, permissionMiddleware("Employee Location
 router.get("/live", adminOnlyLocation, permissionMiddleware("Employee Location", "Full"), controller.getLive);
 router.get("/history/:employeeId", adminOnlyLocation, permissionMiddleware("Employee Location", "Full"), controller.getHistory);
 router.get("/access-logs", adminOnlyLocation, permissionMiddleware("Employee Location", "Full"), controller.getAccessLogs);
+
+// Store-wise location reports (day / week / month / year).
+const reportAccess = [adminOnlyLocation, permissionMiddleware("Employee Location", "Full")];
+router.get("/reports/options", ...reportAccess, reports.getOptions);
+router.get("/reports", ...reportAccess, reports.getReports);
+router.post("/reports/delete-all", ...reportAccess, reports.deleteAll);
+router.put("/reports/:id", ...reportAccess, reports.updateRecord);
+router.delete("/reports/:id", ...reportAccess, reports.deleteRecord);
 
 module.exports = router;

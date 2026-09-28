@@ -27,12 +27,14 @@ async function sendPettyCashEventEmail(actorIdValue, event, subject, html, conte
         // Email Notifications page. It is not tied to the user who
         // happened to trigger the action.
         const settings = await PettyCash.getGlobalEmailSettings();
+        if (settings.master_enabled === false) return;
         if (settings[event] === false) return;
 
         const recipients = await PettyCash.getEmailRecipients({
             giverId: context.giverId,
             receiverId: context.receiverId,
-            settings
+            settings,
+            event
         });
 
         if (!recipients.length) return;
@@ -265,9 +267,10 @@ exports.bulkCancel = async (req,res)=>{
 
 exports.emailSettings = async (req,res)=>{
     try {
+        const settings = await PettyCash.getGlobalEmailSettings();
         res.json({
             success:true,
-            data:await PettyCash.getGlobalEmailSettings()
+            data:{ ...settings, recipients: await PettyCash.getEmailContacts() }
         });
     } catch(error) {
         console.error("Petty Cash email settings load error:",error);
@@ -293,11 +296,37 @@ exports.updateEmailSettings = async (req,res)=>{
         res.json({
             success:true,
             message:"Email notification settings saved.",
-            data
+            data:{ ...data, recipients: await PettyCash.getEmailContacts() }
         });
     } catch(error) {
         console.error("Petty Cash email settings error:",error);
-        res.status(500).json({success:false,message:"Unable to save email settings."});
+        res.status(error.statusCode || 500).json({success:false,message:error.statusCode ? error.message : "Unable to save email settings."});
+    }
+};
+
+// Sends one sample e-mail to every enabled contact so admins can
+// confirm the routing before a real Petty Cash event happens.
+exports.sendTestEmail = async (req,res)=>{
+    try {
+        if (!isAdmin(req)) {
+            return res.status(403).json({ success:false, message:"Only a system administrator can send test emails." });
+        }
+        const contacts = (await PettyCash.getEmailContacts()).filter((c)=>c.enabled && c.email);
+        if (!contacts.length) {
+            return res.status(400).json({ success:false, message:"No enabled contacts with an email address." });
+        }
+        const html = emailTemplate(
+            "Petty Cash Email Test",
+            "<p>This is a test message from MIARCUS Petty Cash email routing. If you received it, your address is set up correctly.</p>"
+        );
+        const results = await Promise.allSettled(contacts.map((c)=>
+            sendGenericEmail({ to:c.email, subject:"MIARCUS Petty Cash – test email", html })
+        ));
+        const sent = results.filter((r)=>r.status==="fulfilled").length;
+        res.json({ success:true, sent, failed: results.length - sent, message:`Test email sent to ${sent} of ${results.length} contact(s).` });
+    } catch(error) {
+        console.error("Petty Cash test email error:",error);
+        res.status(500).json({success:false,message:"Unable to send test emails."});
     }
 };
 

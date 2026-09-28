@@ -250,7 +250,9 @@ function Sidebar({ collapsed }) {
     const canAccessAttendance = canAttendance || hasFullAttendanceAccess;
 
     // Operations
-    const canEmployeeLocation = can("location.live");
+    const canEmployeeLocationLive = can("location.live");
+    const canLocationReports = can("location.reports");
+    const canEmployeeLocation = canEmployeeLocationLive || canLocationReports;
     const canActionPoints = can("actionpoints.list");
     const canChecklistReports = can("checklist.reports");
     const canChecklistSubmit = can("checklist.submit");
@@ -475,8 +477,12 @@ function Sidebar({ collapsed }) {
                 ================================================== */}
 
                 {canEmployeeLocation && (
+                <div className={`sidebar-group ${
+                    location.pathname.startsWith("/employee-location") ? "open" : ""
+                }`}>
                     <NavLink
-                        to="/employee-location"
+                        to={canEmployeeLocationLive ? "/employee-location" : "/employee-location/reports"}
+                        end
                         className={getMenuClass}
                     >
                         <FaMapMarkedAlt />
@@ -487,6 +493,17 @@ function Sidebar({ collapsed }) {
                             </span>
                         )}
                     </NavLink>
+                    {!collapsed && canLocationReports && (
+                        <div className="sidebar-submenu">
+                            <NavLink
+                                to="/employee-location/reports"
+                                className={({ isActive }) => `submenu-item ${isActive ? "active" : ""}`}
+                            >
+                                <FaChartBar /><span>Location Reports</span>
+                            </NavLink>
+                        </div>
+                    )}
+                </div>
                 )}
 
                 {/* ==================================================

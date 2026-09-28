@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FaArrowLeft, FaEnvelope, FaSave, FaCheckCircle, FaUsers, FaUserShield, FaPlus, FaTrash } from "react-icons/fa";
 import "../../styles/pages/NSOEmailSettings.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 
 const emptySettings = { create_recipient_mode: "all", update_recipient_mode: "all", recipients: [] };
 
@@ -62,14 +66,24 @@ export default function NSOEmailSettings() {
         finally { setSaving(false); }
     };
 
-    return <div className="nso-email-settings-page">
-        <div className="nso-email-settings-header">
-            <div className="nso-email-title-wrap">
-                <button className="nso-email-back" onClick={() => navigate("/settings")}><FaArrowLeft /></button>
-                <div><span>NEW STORE OPENINGS</span><h1>Email Routing</h1><p>Set who receives New Store Opening emails and manage specific recipients.</p></div>
-            </div>
-            <button className="nso-email-save" onClick={save} disabled={saving || loading}><FaSave /> {saving ? "Saving..." : "Save Settings"}</button>
-        </div>
+    return <div className="nso-email-settings-page pp-premium er-legacy">
+        <PremiumHero
+            icon={FaEnvelope}
+            eyebrow="New Store Openings · Email routing"
+            title="Email Routing"
+            badge="NSO"
+            subtitle="Set who receives New Store Opening emails and manage specific recipients."
+            meta={[
+                { label: "Contacts", value: String(settings.recipients.length) },
+                { label: "Enabled", value: String(settings.recipients.filter((r) => r.enabled).length) },
+                { label: "On create", value: settings.create_recipient_mode === "all" ? "All" : "Specific" },
+                { label: "On update", value: settings.update_recipient_mode === "all" ? "All" : "Specific" }
+            ]}
+            actions={<>
+                <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings")}><FaArrowLeft /> Settings</button>
+                <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={save} disabled={saving || loading}><FaSave /> {saving ? "Saving..." : "Save Settings"}</button>
+            </>}
+        />
         {message && <div className="nso-email-alert success"><FaCheckCircle /> {message}</div>}
         {error && <div className="nso-email-alert error">{error}</div>}
         {loading ? <div className="nso-email-card loading"><PremiumLoader compact title="Loading email routing" /></div> : <>

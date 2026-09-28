@@ -110,6 +110,40 @@ const PettyCash = {
             }
         }
 
+        // Contact list for "Specific" routing (like NSO / Checklist email routing).
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS petty_cash_email_recipients (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                role_key VARCHAR(120) NOT NULL UNIQUE,
+                role_label VARCHAR(150) NOT NULL DEFAULT 'Recipient',
+                contact_name VARCHAR(150) NULL,
+                email VARCHAR(255) NULL,
+                user_id INT NULL,
+                is_custom TINYINT(1) NOT NULL DEFAULT 0,
+                enabled TINYINT(1) NOT NULL DEFAULT 1,
+                advance_created TINYINT(1) NOT NULL DEFAULT 1,
+                expense_added TINYINT(1) NOT NULL DEFAULT 1,
+                deposit_added TINYINT(1) NOT NULL DEFAULT 1,
+                settlement_completed TINYINT(1) NOT NULL DEFAULT 1,
+                advance_cancelled TINYINT(1) NOT NULL DEFAULT 1,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_pcer_enabled (enabled)
+            )
+        `);
+
+        for (const [column, definition] of [
+            ["include_direct", "TINYINT(1) NOT NULL DEFAULT 1"],
+            ["master_enabled", "TINYINT(1) NOT NULL DEFAULT 1"]
+        ]) {
+            try {
+                await db.query(`ALTER TABLE petty_cash_email_settings ADD COLUMN ${column} ${definition}`);
+            } catch (error) {
+                if (error?.code !== "ER_DUP_FIELDNAME") {
+                    console.error(`Petty Cash email settings migration (${column}) skipped:`, error.message || error);
+                }
+            }
+        }
+
         // Seed the global row from an existing administrator's settings once.
         // This preserves today's notification choices when the central mode is introduced.
         try {
@@ -441,11 +475,21 @@ const PettyCash = {
     },
 
     async getEmailSettings(userId = 0) {
-        const rows = await db.query(`
-            SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,
-                   recipient_mode
-            FROM petty_cash_email_settings WHERE user_id=? LIMIT 1
-        `, [userId]);
+        let rows = [];
+        try {
+            rows = await db.query(`
+                SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,
+                       recipient_mode,include_direct,master_enabled
+                FROM petty_cash_email_settings WHERE user_id=? LIMIT 1
+            `, [userId]);
+        } catch (error) {
+            // Older installs before the include_direct / master_enabled columns.
+            rows = await db.query(`
+                SELECT advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,
+                       recipient_mode
+                FROM petty_cash_email_settings WHERE user_id=? LIMIT 1
+            `, [userId]);
+        }
 
         if (!rows.length) {
             return {
@@ -454,9 +498,13 @@ const PettyCash = {
                 deposit_added:true,
                 settlement_completed:true,
                 advance_cancelled:true,
-                recipient_mode:"direct"
+                recipient_mode:"direct",
+                include_direct:true,
+                master_enabled:true
             };
         }
+
+        const mode = ["everyone","specific"].includes(rows[0].recipient_mode) ? rows[0].recipient_mode : "direct";
 
         return {
             advance_created: Boolean(rows[0].advance_created),
@@ -464,8 +512,103 @@ const PettyCash = {
             deposit_added: Boolean(rows[0].deposit_added),
             settlement_completed: Boolean(rows[0].settlement_completed),
             advance_cancelled: Boolean(rows[0].advance_cancelled),
-            recipient_mode: rows[0].recipient_mode === "everyone" ? "everyone" : "direct"
+            recipient_mode: mode,
+            include_direct: rows[0].include_direct === undefined ? true : Boolean(rows[0].include_direct),
+            master_enabled: rows[0].master_enabled === undefined ? true : Boolean(rows[0].master_enabled)
         };
+    },
+
+    // Every active administrator is listed automatically; extra
+    // e-mails (accounts, owners, regional heads) are added as custom rows.
+    async getEmailContacts() {
+        const admins = await db.query(`
+            SELECT id,name,email
+            FROM users
+            WHERE (is_admin=1 OR administrator=1)
+              AND LOWER(COALESCE(status,'Active')) NOT IN ('inactive','disabled')
+              AND email IS NOT NULL AND TRIM(email)<>''
+            ORDER BY name
+        `);
+
+        for (const admin of admins) {
+            await db.query(`
+                INSERT INTO petty_cash_email_recipients
+                    (role_key,role_label,contact_name,email,user_id,is_custom,enabled)
+                VALUES (?,?,?,?,?,0,1)
+                ON DUPLICATE KEY UPDATE contact_name=VALUES(contact_name), email=VALUES(email)
+            `, [`admin_${admin.id}`, "Administrator", admin.name, admin.email, admin.id]);
+        }
+
+        const rows = await db.query(`
+            SELECT id,role_key,role_label,contact_name,email,user_id,is_custom,enabled,
+                   advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled
+            FROM petty_cash_email_recipients
+            ORDER BY is_custom ASC, contact_name ASC, id ASC
+        `);
+
+        const activeAdminKeys = new Set(admins.map((a) => `admin_${a.id}`));
+
+        return rows
+            .filter((row) => Number(row.is_custom) === 1 || activeAdminKeys.has(row.role_key))
+            .map((row) => ({
+                ...row,
+                is_custom: Boolean(row.is_custom),
+                enabled: Boolean(row.enabled),
+                advance_created: Boolean(row.advance_created),
+                expense_added: Boolean(row.expense_added),
+                deposit_added: Boolean(row.deposit_added),
+                settlement_completed: Boolean(row.settlement_completed),
+                advance_cancelled: Boolean(row.advance_cancelled)
+            }));
+    },
+
+    async saveEmailContacts(list = []) {
+        const flags = ["enabled","advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled"];
+        const keep = [];
+
+        for (const item of Array.isArray(list) ? list : []) {
+            const email = String(item.email || "").trim();
+            const roleKey = String(item.role_key || "").trim().slice(0, 120);
+            if (!roleKey) continue;
+            if (item.is_custom && !email) continue;
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                const err = new Error(`Invalid email address: ${email}`);
+                err.statusCode = 400;
+                throw err;
+            }
+            keep.push(roleKey);
+            const values = flags.map((f) => (item[f] === false || item[f] === 0 || item[f] === "0" ? 0 : 1));
+
+            await db.query(`
+                INSERT INTO petty_cash_email_recipients
+                    (role_key,role_label,contact_name,email,is_custom,${flags.join(",")})
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                ON DUPLICATE KEY UPDATE
+                    role_label=VALUES(role_label),
+                    contact_name=VALUES(contact_name),
+                    email=VALUES(email),
+                    ${flags.map((f) => `${f}=VALUES(${f})`).join(",")}
+            `, [
+                roleKey,
+                String(item.role_label || (item.is_custom ? "Recipient" : "Administrator")).trim().slice(0, 150),
+                String(item.contact_name || "").trim().slice(0, 150) || null,
+                email || null,
+                item.is_custom ? 1 : 0,
+                ...values
+            ]);
+        }
+
+        // Custom rows removed on the page are deleted.
+        if (keep.length) {
+            await db.query(
+                `DELETE FROM petty_cash_email_recipients WHERE is_custom=1 AND role_key NOT IN (?)`,
+                [keep]
+            );
+        } else {
+            await db.query(`DELETE FROM petty_cash_email_recipients WHERE is_custom=1`);
+        }
+
+        return PettyCash.getEmailContacts();
     },
 
     async getGlobalEmailSettings() {
@@ -482,27 +625,35 @@ const PettyCash = {
             "advance_cancelled"
         ];
         const values = keys.map((key)=>data[key] === false || data[key] === 0 ? 0 : 1);
-        const recipientMode = data.recipient_mode === "everyone" ? "everyone" : "direct";
+        const recipientMode = ["everyone","specific"].includes(data.recipient_mode) ? data.recipient_mode : "direct";
+        const includeDirect = data.include_direct === false || data.include_direct === 0 ? 0 : 1;
+        const masterEnabled = data.master_enabled === false || data.master_enabled === 0 ? 0 : 1;
 
         await db.query(`
             INSERT INTO petty_cash_email_settings
-                (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,recipient_mode)
-            VALUES (?,?,?,?,?,?,?)
+                (user_id,advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled,recipient_mode,include_direct,master_enabled)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ON DUPLICATE KEY UPDATE
                 advance_created=VALUES(advance_created),
                 expense_added=VALUES(expense_added),
                 deposit_added=VALUES(deposit_added),
                 settlement_completed=VALUES(settlement_completed),
                 advance_cancelled=VALUES(advance_cancelled),
-                recipient_mode=VALUES(recipient_mode)
-        `, [targetUserId,...values,recipientMode]);
+                recipient_mode=VALUES(recipient_mode),
+                include_direct=VALUES(include_direct),
+                master_enabled=VALUES(master_enabled)
+        `, [targetUserId,...values,recipientMode,includeDirect,masterEnabled]);
+
+        if (global && Array.isArray(data.recipients)) {
+            await PettyCash.saveEmailContacts(data.recipients);
+        }
 
         return global
             ? PettyCash.getGlobalEmailSettings()
             : PettyCash.getEmailSettings(targetUserId);
     },
 
-    async getEmailRecipients({ giverId=0, receiverId=0, settings={} } = {}) {
+    async getEmailRecipients({ giverId=0, receiverId=0, settings={}, event=null } = {}) {
         const recipients = new Map();
 
         const addRows = (rows) => {
@@ -525,6 +676,22 @@ const PettyCash = {
                   AND TRIM(email)<>''
                 ORDER BY name
             `));
+        } else if (settings.recipient_mode === "specific") {
+            const flag = ["advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled"].includes(event) ? event : null;
+            const contacts = await PettyCash.getEmailContacts();
+            addRows(contacts
+                .filter((c) => c.enabled && c.email && (!flag || c[flag]))
+                .map((c) => ({ email: c.email, name: c.contact_name })));
+
+            if (settings.include_direct !== false) {
+                const targetIds = [Number(giverId), Number(receiverId)].filter(Boolean);
+                if (targetIds.length) {
+                    addRows(await db.query(`
+                        SELECT id,name,email FROM users
+                        WHERE id IN (?) AND email IS NOT NULL AND TRIM(email)<>''
+                    `, [targetIds]));
+                }
+            }
         } else {
             const targetIds = [Number(giverId), Number(receiverId)].filter(Boolean);
             if (targetIds.length) {

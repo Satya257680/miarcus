@@ -17,6 +17,10 @@ import {
 } from "react-icons/fa";
 import ExpenseDetails from "./ExpensesDetails";
 import "../../styles/pages/Expenses.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 
 const DEFAULT_TYPES = [
     "Travel",
@@ -220,17 +224,19 @@ function ExpenseEntry() {
     };
 
     return (
-        <div className="expense-page">
-            <div className="expense-page-heading">
-                <div>
-                    <div className="expense-eyebrow">Expenses</div>
-                    <h1>Expense Entry</h1>
-                    <p>Upload a bill and let MI ARCUS verify it before approval.</p>
-                </div>
-                <div className="expense-heading-badge">
-                    <FaShieldAlt /> AI-assisted verification
-                </div>
-            </div>
+        <div className="expense-page pp-premium">
+            <PremiumHero
+                icon={FaFileInvoice}
+                eyebrow="Expenses · Submit"
+                title="Expense Entry"
+                badge="AI-assisted verification"
+                badgeTone="mint"
+                subtitle="Upload a bill and let MI ARCUS verify it before approval — OCR, duplicate check, GST maths, image analysis and risk score."
+                meta={[
+                    { label: "Stores", value: stores.length ? String(stores.length) : null },
+                    { label: "Expense types", value: types.length ? String(types.length) : null }
+                ]}
+            />
 
             <div className="expense-process-card">
                 {FLOW.map(({ label, icon: Icon }, index) => (

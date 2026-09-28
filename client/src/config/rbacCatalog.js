@@ -177,6 +177,7 @@ export const RBAC_GROUPS = [
         adminOnly: true,
         pages: [
           { key: "location.live", label: "Employee Location", paths: ["/employee-location"] },
+          { key: "location.reports", label: "Location Reports", paths: ["/employee-location/reports"], min: "Full" },
         ],
       },
     ],

@@ -35,6 +35,10 @@ import {
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 
 /* ======================================================
    CONSTANTS
@@ -952,57 +956,32 @@ export default function BillingEntry() {
   return (
 
     <div
-      className="billing-page billing-entry-page"
+      className="billing-page billing-entry-page pp-premium"
     >
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div
-        className="billing-header"
-      >
-
-        <div
-          className="billing-header-left"
-        >
-
+      <PremiumHero
+        icon={FaFileInvoiceDollar}
+        eyebrow="Billing · New bill"
+        title="Billing Entry"
+        badge="Draft"
+        badgeTone="gold"
+        subtitle="Create a new customer bill and payment record."
+        meta={[
+          { label: "Items", value: String(items.length) },
+          { label: "Grand total", value: formatCurrency(totals.grandTotal) },
+          { label: "Payment", value: form.payment_type }
+        ]}
+        actions={
           <button
             type="button"
-            className="billing-back-btn"
-            onClick={() =>
-              navigate(
-                "/billing/bills"
-              )
-            }
+            className="pp-hero-btn"
+            onClick={() => navigate("/billing/bills")}
             disabled={saving}
-            title="Back to Bills"
           >
-            <FaArrowLeft />
+            <FaArrowLeft /> Back to Bills
           </button>
-
-          <div
-            className="billing-title-icon"
-          >
-            <FaFileInvoiceDollar />
-          </div>
-
-          <div>
-
-            <h1>
-              Billing Entry
-            </h1>
-
-            <p>
-              Create a new customer
-              bill and payment record.
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
+        }
+      />
 
       {/* ==================================================
           MESSAGE

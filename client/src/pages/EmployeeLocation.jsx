@@ -1,5 +1,6 @@
 import PremiumLoader from "../components/premium/PremiumLoader";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import {
     FaBell,
@@ -12,13 +13,18 @@ import {
     FaMapMarkerAlt,
     FaRoute,
     FaSearch,
-    FaShieldAlt,
     FaSignal,
     FaUserCircle,
     FaUsers,
-    FaWifi
+    FaWifi,
+    FaChartBar
 } from "react-icons/fa";
 import "../styles/EmployeeLocation.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import "../styles/premium/ModulesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -125,21 +131,39 @@ const EmployeeLocation = () => {
     };
 
     return (
-        <div className="employee-location-page">
-            <section className="location-hero">
-                <div>
-                    <div className="eyebrow"><FaShieldAlt /> Employee privacy controlled</div>
-                    <h1>Employee Live Location</h1>
-                    <p>Track authorized employee locations during the 09:00 AM–09:00 PM policy window. Location comes from the employee’s browser while they are signed in to the MIARCUS website.</p>
-                </div>
-                <div className="provider-pill">
-                    <span className="provider-dot" /> Live Website Location
-                    <small>Browser / website based tracking</small>
-                </div>
-            </section>
+        <div className="employee-location-page pp-premium">
+            <PremiumHero
+                icon={FaMapMarkerAlt}
+                eyebrow="Operations · Employee privacy controlled"
+                title="Employee Live Location"
+                badge="Live website location"
+                badgeTone="mint"
+                subtitle="Track authorised employee locations during the 09:00 AM – 09:00 PM policy window. Location comes from the employee's browser while they are signed in to MIARCUS."
+                meta={[
+                    { label: "Online", value: String(onlineCount) },
+                    { label: "Employees", value: String(employees.length) },
+                    { label: "Last refresh", value: lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }
+                ]}
+                actions={
+                    <Link to="/employee-location/reports" className="pp-hero-btn pp-hero-btn--solid">
+                        <FaChartBar /> Location Reports
+                    </Link>
+                }
+            />
 
-            <div className="location-flow">
-                <div className="flow-card"><b>1</b><FaUserCircle /><strong>Employee Enrolled</strong><span>Authorized device/user</span></div>
+            <InsightStrip
+                loading={loading && !employees.length}
+                items={[
+                    { key: "online", label: "Online now", value: onlineCount, hint: "Sharing live location", tone: "green", icon: FaWifi, onClick: () => setStatus(status === "online" ? "" : "online"), active: status === "online" },
+                    { key: "offline", label: "Offline", value: offlineCount, hint: "Last known shown", tone: "red", icon: FaSignal, onClick: () => setStatus(status === "offline" ? "" : "offline"), active: status === "offline" },
+                    { key: "all", label: "Employees shown", value: employees.length, hint: "Matching search", tone: "violet", icon: FaUsers, onClick: () => setStatus(""), active: !status },
+                    { key: "window", label: "Tracking window", value: "12 hrs", hint: "09:00 – 21:00 IST", tone: "amber", icon: FaClock },
+                    { key: "points", label: "Points today", value: history.length, hint: selected ? `For ${selected.name}` : "Select an employee", tone: "blue", icon: FaRoute }
+                ]}
+            />
+
+            <div className="location-flow pp-flow">
+                <div className="flow-card"><b>1</b><FaUserCircle /><strong>Employee Enrolled</strong><span>Authorised device / user</span></div>
                 <div className="flow-arrow">→</div>
                 <div className="flow-card"><b>2</b><FaLock /><strong>Permission</strong><span>Company policy applies</span></div>
                 <div className="flow-arrow">→</div>
@@ -148,13 +172,6 @@ const EmployeeLocation = () => {
                 <div className="flow-card"><b>4</b><FaSignal /><strong>Location Updates</strong><span>Website updates</span></div>
                 <div className="flow-arrow">→</div>
                 <div className="flow-card"><b>5</b><FaMapMarkerAlt /><strong>Admin Map</strong><span>Last known + history</span></div>
-            </div>
-
-            <div className="location-stats">
-                <div className="stat-card stat-green"><FaWifi /><div><strong>{onlineCount}</strong><span>Online now</span></div></div>
-                <div className="stat-card stat-gray"><FaUsers /><div><strong>{employees.length}</strong><span>Employees shown</span></div></div>
-                <div className="stat-card stat-orange"><FaClock /><div><strong>09:00 – 21:00</strong><span>Company tracking window</span></div></div>
-                <div className="stat-card stat-blue"><FaHistory /><div><strong>{lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong><span>Last refresh</span></div></div>
             </div>
 
             <section className="location-toolbar">

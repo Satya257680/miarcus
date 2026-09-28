@@ -43,6 +43,7 @@ import Announcements from "./pages/Announcements";
 import Gallery from "./pages/Gallery";
 import GalleryMobile from "./pages/GalleryMobile";
 import EmployeeLocation from "./pages/EmployeeLocation";
+import EmployeeLocationReports from "./pages/EmployeeLocationReports";
 
 // ======================================================
 // ADMIN / SETTINGS MODULES
@@ -407,6 +408,15 @@ function App() {
                         element={
                             <ModulePermissionRoute page="location.live">
                                 <EmployeeLocation />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/employee-location/reports"
+                        element={
+                            <ModulePermissionRoute page="location.reports">
+                                <EmployeeLocationReports />
                             </ModulePermissionRoute>
                         }
                     />

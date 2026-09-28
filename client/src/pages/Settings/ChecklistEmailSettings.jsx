@@ -19,6 +19,10 @@ import {
     FaExclamationTriangle
 } from "react-icons/fa";
 import "../../styles/pages/ChecklistEmailSettings.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 
 // ======================================================
 // CHECKLIST & CONTROLS – EMAIL ROUTING
@@ -178,22 +182,22 @@ export default function ChecklistEmailSettings() {
     };
 
     return (
-        <div className="checklist-email-settings-page">
-            <div className="checklist-email-settings-header">
-                <div className="checklist-email-title-wrap">
-                    <button className="checklist-email-back" onClick={() => navigate("/settings")} aria-label="Back to settings">
-                        <FaArrowLeft />
-                    </button>
-                    <div>
-                        <span>CHECKLIST &amp; CONTROLS</span>
-                        <h1>Email Routing</h1>
-                        <p>Choose exactly who is emailed for Checklist Submissions and Action Points.</p>
-                    </div>
-                </div>
-                <button className="checklist-email-save" onClick={save} disabled={saving || loading}>
-                    <FaSave /> {saving ? "Saving..." : "Save Settings"}
-                </button>
-            </div>
+        <div className="checklist-email-settings-page pp-premium er-legacy">
+            <PremiumHero
+                icon={FaEnvelope}
+                eyebrow="Checklist & Controls · Email routing"
+                title="Email Routing"
+                badge="Checklist"
+                subtitle="Choose exactly who is emailed for Checklist Submissions and Action Points."
+                meta={[
+                    { label: "Contacts", value: String(settings.recipients.length) },
+                    { label: "Active", value: String(activeCount) }
+                ]}
+                actions={<>
+                    <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings")}><FaArrowLeft /> Settings</button>
+                    <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={save} disabled={saving || loading}><FaSave /> {saving ? "Saving..." : "Save Settings"}</button>
+                </>}
+            />
 
             {message && <div className="checklist-email-alert success"><FaCheckCircle /> {message}</div>}
             {error && <div className="checklist-email-alert error"><FaExclamationTriangle /> {error}</div>}

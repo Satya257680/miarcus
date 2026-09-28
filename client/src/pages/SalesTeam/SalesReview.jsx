@@ -50,6 +50,7 @@ import {
 import "../../styles/pages/SalesTeam.css";
 import "../../styles/premium/PagePremium.css";
 import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 

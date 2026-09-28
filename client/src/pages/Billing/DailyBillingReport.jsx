@@ -35,6 +35,10 @@ import {
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 
@@ -923,45 +927,21 @@ export default function DailyBillingReport() {
   return (
 
     <div
-      className="billing-page billing-report-page"
+      className="billing-page billing-report-page pp-premium"
     >
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div
-        className="billing-header"
-      >
-
-        <div
-          className="billing-header-left"
-        >
-
-          <div
-            className="billing-title-icon"
-          >
-            <FaChartLine />
-          </div>
-
-          <div>
-
-            <h1>
-              Daily Billing Report
-            </h1>
-
-            <p>
-              Transaction-based daily
-              sales and payment summary.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div
-          className="billing-header-actions"
-        >
+      <PremiumHero
+        icon={FaChartLine}
+        eyebrow="Billing · Daily report"
+        title="Daily Billing Report"
+        badge={date}
+        badgeTone="sky"
+        subtitle="Transaction-based daily sales and payment summary."
+        meta={[
+          { label: "Bills", value: String(totalBills) },
+          { label: "Net total", value: formatCurrency(netTotal) }
+        ]}
+        actions={<div className="pp-hero-actions-inline">
 
           <button
             type="button"
@@ -1006,9 +986,8 @@ export default function DailyBillingReport() {
             disabled={loading || !filteredDetails.length}
           />
 
-        </div>
-
-      </div>
+</div>}
+      />
 
       {/* ==================================================
           ERROR

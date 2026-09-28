@@ -31,6 +31,10 @@ import {
     FaEnvelope
 } from "react-icons/fa";
 import "./PettyCash.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 
@@ -456,7 +460,7 @@ function PettyCash() {
         const canDelete = !settled && detail.status !== "CANCELLED" && access.canEdit && isGiver;
 
         return (
-            <div className="petty-page">
+            <div className="petty-page pp-premium">
                 <div className="petty-detail-header">
                     <button className="petty-back-btn" onClick={() => navigate("/petty-cash")}><FaArrowLeft /></button>
                     <div>
@@ -652,15 +656,24 @@ function PettyCash() {
     };
 
     return (
-        <div className="petty-page">
-            <div className="petty-page-header">
-                <div>
-                    <span className="petty-eyebrow">Cash Control</span>
-                    <h1>Petty Cash Advance & Settlement</h1>
-                    <p>Manager gives advance → expense with bills → return unused cash → settlement.</p>
-                </div>
-                {access.canAdd && <button className="petty-btn primary large" onClick={() => setModal("advance")}><FaPlus /> New Advance</button>}
-            </div>
+        <div className="petty-page pp-premium">
+            <PremiumHero
+                icon={FaWallet}
+                eyebrow="Cash Control · Petty Cash"
+                title="Petty Cash Advance & Settlement"
+                badge="Live position"
+                badgeTone="mint"
+                subtitle="Manager gives advance → expense with bills → return unused cash → settlement."
+                meta={[
+                    { label: "Advances", value: String(summary.total_advances || 0) },
+                    { label: "Outstanding", value: money(summary.outstanding_balance) }
+                ]}
+                actions={
+                    <>
+                        {access.canAdd && <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={() => setModal("advance")}><FaPlus /> New Advance</button>}
+                    </>
+                }
+            />
 
             {error && <div className="petty-error global"><FaExclamationCircle /> {error}</div>}
 

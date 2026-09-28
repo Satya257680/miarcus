@@ -18,6 +18,10 @@ import {
 } from "react-icons/fa";
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import "../../styles/pages/NSOEmailSettings.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 import "../../styles/pages/DailyCollectionPremium.css";
 
 // ======================================================
@@ -161,27 +165,32 @@ export default function DailyCollectionEmailSettings() {
     ).length;
 
     return (
-        <div className="nso-email-settings-page dc-email-page">
-            <div className="nso-email-settings-header">
-                <div className="nso-email-title-wrap">
-                    <button className="nso-email-back" onClick={() => navigate("/settings")} aria-label="Back to settings">
-                        <FaArrowLeft />
-                    </button>
-                    <div>
-                        <span>DAILY COLLECTION</span>
-                        <h1>Email Routing</h1>
-                        <p>Choose who receives the one daily summary and which store-manager emails are sent.</p>
-                    </div>
-                </div>
-                <div className="dc-email-actions">
-                    <button className="dc-email-test" onClick={sendTest} disabled={testing || loading}>
-                        <FaPaperPlane /> {testing ? "Sending..." : "Send Test Emails"}
-                    </button>
-                    <button className="nso-email-save" onClick={save} disabled={saving || loading}>
-                        <FaSave /> {saving ? "Saving..." : "Save Settings"}
-                    </button>
-                </div>
-            </div>
+        <div className="nso-email-settings-page dc-email-page pp-premium er-legacy">
+            <PremiumHero
+                icon={FaEnvelope}
+                eyebrow="Daily Collection · Email routing"
+                title="Email Routing"
+                badge={flag(settings.email_enabled) ? "Emails on" : "Emails off"}
+                badgeTone={flag(settings.email_enabled) ? "mint" : "gold"}
+                subtitle="Choose who receives the one daily summary and which store-manager emails are sent."
+                meta={[
+                    { label: "Contacts", value: String(settings.recipients.length) },
+                    { label: "Summary recipients", value: String(summaryRecipients) }
+                ]}
+                actions={
+                    <>
+                        <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings")}>
+                            <FaArrowLeft /> Settings
+                        </button>
+                        <button type="button" className="pp-hero-btn" onClick={sendTest} disabled={testing || loading}>
+                            <FaPaperPlane /> {testing ? "Sending..." : "Send Test Emails"}
+                        </button>
+                        <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={save} disabled={saving || loading}>
+                            <FaSave /> {saving ? "Saving..." : "Save Settings"}
+                        </button>
+                    </>
+                }
+            />
 
             {message && <div className="nso-email-alert success"><FaCheckCircle /> {message}</div>}
             {error && <div className="nso-email-alert error">{error}</div>}
