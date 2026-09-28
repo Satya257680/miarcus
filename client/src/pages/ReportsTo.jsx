@@ -7,7 +7,6 @@ import { getDepartments } from "../services/departmentService.js";
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -36,6 +35,12 @@ import {
 // ======================================================
 
 import "../styles/ReportsTo.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaSitemap, FaUserTie, FaUserCheck, FaUserSlash, FaBuilding } from "react-icons/fa";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import { exportFromXLSXBinary } from "../utils/exportUtils.js";
 
 // ======================================================
@@ -653,9 +658,19 @@ function ReportsTo() {
             key: "manager_name",
             title: "Manager Name",
 
-            render: (row) =>
+            render: (row) => (
 
-                row.manager_name || "-"
+                <div className="pp-cell-main">
+                    <span className={`pp-avatar pp-avatar--round ${avatarTone(row.manager_name)}`}>
+                        {initials(row.manager_name)}
+                    </span>
+                    <span className="pp-cell-text">
+                        <span className="pp-cell-title">{row.manager_name || "-"}</span>
+                        <span className="pp-cell-sub">{row.designation || "Reporting manager"}</span>
+                    </span>
+                </div>
+
+            )
 
         },
 
@@ -669,7 +684,9 @@ function ReportsTo() {
 
             render: (row) =>
 
-                row.department || "-"
+                row.department
+                    ? <span className="pp-pill pp-pill--violet">{row.department}</span>
+                    : <span className="pp-dash">—</span>
 
         },
 
@@ -699,11 +716,13 @@ function ReportsTo() {
             render: (row) => (
 
                 <span
-                    className={`status-badge ${getStatusClass(
-                        row.status
-                    )}`}
+                    className={`pp-pill pp-pill--dot ${
+                        getStatusClass(row.status) === "active"
+                            ? "pp-pill--green"
+                            : "pp-pill--slate"
+                    }`}
                 >
-                    {row.status || "-"}
+                    {row.status || "Inactive"}
                 </span>
 
             )
@@ -729,11 +748,13 @@ function ReportsTo() {
 
                         <button
                             className="edit-btn"
+                            title="Edit"
                             onClick={() =>
                                 handleEdit(row)
                             }
                         >
                             <FaEdit />
+                            <span>Edit</span>
                         </button>
 
                     )}
@@ -742,11 +763,13 @@ function ReportsTo() {
 
                         <button
                             className="delete-btn"
+                            title="Delete"
                             onClick={() =>
                                 handleDelete(row.id)
                             }
                         >
                             <FaTrash />
+                            <span>Delete</span>
                         </button>
 
                     )}
@@ -764,15 +787,32 @@ function ReportsTo() {
 
     return (
 
-        <div className="reports-page">
+        <div className="reports-page pp-premium">
 
             {/* ======================================================
-                PAGE HEADER
+                PREMIUM HERO + KPIs
             ====================================================== */}
 
-            <PageHeader
+            <PremiumHero
+                icon={FaSitemap}
+                eyebrow="Settings · Hierarchy"
                 title="Reports To"
-                subtitle="Manage Reporting Managers."
+                badge="Admin only"
+                subtitle="Reporting managers that users roll up to — their department, designation and status."
+                meta={[
+                    { label: "Managers", value: formatCount(reports.length) },
+                    { label: "Showing", value: filteredReports.length !== reports.length ? `${formatCount(filteredReports.length)} filtered` : null }
+                ]}
+            />
+
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "all", label: "All managers", value: formatCount(reports.length), hint: "Reporting heads", tone: "violet", icon: FaUserTie },
+                    { key: "active", label: "Active", value: formatCount(reports.filter((r) => getStatusClass(r.status) === "active").length), hint: "Can receive reports", tone: "green", icon: FaUserCheck, onClick: () => setStatusFilter(statusFilter === "Active" ? "" : "Active"), active: statusFilter === "Active" },
+                    { key: "inactive", label: "Inactive", value: formatCount(reports.filter((r) => getStatusClass(r.status) !== "active").length), hint: "Disabled managers", tone: "red", icon: FaUserSlash, onClick: () => setStatusFilter(statusFilter === "Inactive" ? "" : "Inactive"), active: statusFilter === "Inactive" },
+                    { key: "depts", label: "Departments", value: formatCount(new Set(reports.map((r) => r.department).filter(Boolean)).size), hint: "Covered by managers", tone: "blue", icon: FaBuilding }
+                ]}
             />
 
             {/* ======================================================
@@ -891,6 +931,7 @@ function ReportsTo() {
 
             <Card
                 title="Reports To List"
+                subtitle={`${formatCount(filteredReports.length)} managers`}
             >
 
                 <DataTable

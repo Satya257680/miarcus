@@ -2,7 +2,23 @@ import PremiumLoader from "../components/premium/PremiumLoader";
 import { useEffect, useMemo, useState } from "react";
 import axios, { API_BASE_URL } from "../axiosConfig.js";
 import "../styles/Profile.css";
-import { FaUserCircle, FaSave, FaKey, FaStore } from "react-icons/fa";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import InsightStrip from "../components/premium/InsightStrip";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
+import {
+    FaSave,
+    FaKey,
+    FaStore,
+    FaCamera,
+    FaBuilding,
+    FaIdBadge,
+    FaUserEdit,
+    FaShieldAlt,
+    FaLock,
+    FaSearch,
+    FaMapMarkerAlt,
+} from "react-icons/fa";
 
 // Use the exact same backend URL configured by axiosConfig.
 // This prevents the deployed Vercel profile page from falling
@@ -463,60 +479,56 @@ function Profile() {
         );
     }, [stores, storeSearch]);
 
+    const passwordStrength = (() => {
+        if (!newPassword) return { score: 0, label: "" };
+        let score = 0;
+        if (newPassword.length >= 8) score += 1;
+        if (/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword)) score += 1;
+        if (/\d/.test(newPassword)) score += 1;
+        if (/[^A-Za-z0-9]/.test(newPassword)) score += 1;
+        return { score, label: ["Too short", "Weak", "Fair", "Good", "Strong"][score] };
+    })();
+
+    const profileCompletion = Math.round(
+        ([name, employeeId, email, department, designation, reportsTo, previewUrl]
+            .filter((value) => String(value || "").trim()).length / 7) * 100
+    );
+
+    const passwordsMismatch =
+        Boolean(confirmPassword) && newPassword !== confirmPassword;
+
     if (loading) {
         return (
-            <div className="profile-page">
-                <h1 className="profile-heading">User Profile</h1>
-                <div className="profile-card profile-loading"><PremiumLoader compact title="Loading your profile" /></div>
+            <div className="pf-page pp-premium">
+                <div className="pf-card pf-loading"><PremiumLoader compact title="Loading your profile" /></div>
             </div>
         );
     }
 
     return (
-        <div className="profile-page">
-            <h1 className="profile-heading">User Profile</h1>
+        <div className="pf-page pp-premium">
 
-            {error && (
-                <div className="profile-message profile-message-error">
-                    {error}
-                </div>
-            )}
+            {/* ==================================================
+                HERO — identity card
+            ================================================== */}
 
-            {message && (
-                <div className="profile-message profile-message-success">
-                    {message}
-                </div>
-            )}
+            <section className="pp-hero pf-hero">
+                <span className="pp-hero-orb pp-hero-orb--a" aria-hidden="true" />
+                <span className="pp-hero-orb pp-hero-orb--b" aria-hidden="true" />
+                <span className="pp-hero-grid" aria-hidden="true" />
 
-            <div className="profile-card">
-                {/* ==================================================
-                    PROFILE PHOTO
-                ================================================== */}
-
-                <section className="photo-section">
-                    <h2>Profile Photo</h2>
-
-                    <p>
-                        Your photo is stored with your account and remains
-                        connected to your user profile after refreshes and
-                        application updates.
-                    </p>
-
-                    <div className="photo-area">
-                        <div className="photo-circle">
+                <div className="pf-hero-main">
+                    <div className="pf-avatar-wrap">
+                        <div className="pf-avatar">
                             {previewUrl ? (
-                                <img
-                                    src={previewUrl}
-                                    alt="Profile"
-                                    className="profile-preview"
-                                />
+                                <img src={previewUrl} alt="Profile" />
                             ) : (
-                                <FaUserCircle className="profile-placeholder" />
+                                <span className="pf-avatar-initials">{initials(name)}</span>
                             )}
                         </div>
 
-                        <label className="upload-btn">
-                            Upload Photo
+                        <label className="pf-avatar-edit" title="Upload photo">
+                            <FaCamera />
                             <input
                                 type="file"
                                 hidden
@@ -525,109 +537,222 @@ function Profile() {
                             />
                         </label>
                     </div>
-                </section>
 
-                <div className="profile-grid">
-                    {/* ==================================================
-                        USER INFORMATION
-                    ================================================== */}
+                    <div className="pp-hero-copy">
+                        <span className="pp-hero-eyebrow">My account · Profile</span>
 
-                    <div>
-                        <h2>Your Information</h2>
+                        <div className="pp-hero-title-row">
+                            <h1 className="pp-hero-title">{name || "Your profile"}</h1>
+                            {designation && (
+                                <span className="pp-hero-badge pp-hero-badge--gold">{designation}</span>
+                            )}
+                        </div>
 
-                        <label>Name</label>
+                        <p className="pp-hero-subtitle">
+                            {email || "No email on file"}
+                        </p>
+
+                        <div className="pp-hero-meta">
+                            <span className="pp-hero-chip">
+                                <span className="pp-hero-chip-label">Employee ID</span>
+                                <strong className="pp-hero-chip-value">{employeeId || "—"}</strong>
+                            </span>
+                            <span className="pp-hero-chip">
+                                <span className="pp-hero-chip-label">Department</span>
+                                <strong className="pp-hero-chip-value">{department || "Not assigned"}</strong>
+                            </span>
+                            <span className="pp-hero-chip">
+                                <span className="pp-hero-chip-label">Reports to</span>
+                                <strong className="pp-hero-chip-value">{reportsTo || "Not assigned"}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pp-hero-actions">
+                    <label className="pp-hero-btn">
+                        <FaCamera /> Upload Photo
                         <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            type="file"
+                            hidden
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            onChange={handlePhotoChange}
                         />
+                    </label>
 
-                        <label>Employee ID</label>
-                        <input
-                            type="text"
-                            value={employeeId}
-                            onChange={(e) =>
-                                setEmployeeId(e.target.value)
-                            }
-                        />
+                    <button
+                        type="button"
+                        className="pp-hero-btn pp-hero-btn--solid"
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                    >
+                        <FaSave /> {saving ? "Saving..." : "Save Profile"}
+                    </button>
+                </div>
+            </section>
 
-                        <label>Email</label>
-                        <input
-                            type="email"
-                            value={email}
-                            disabled
-                            readOnly
-                        />
+            <InsightStrip
+                items={[
+                    { key: "stores", label: "Assigned stores", value: formatCount(stores.length), hint: "Stores you can access", tone: "violet", icon: FaStore },
+                    { key: "cities", label: "Cities", value: formatCount(new Set(stores.map((s) => s.city).filter(Boolean)).size), hint: "Across your stores", tone: "blue", icon: FaMapMarkerAlt },
+                    { key: "states", label: "States", value: formatCount(new Set(stores.map((s) => s.state).filter(Boolean)).size), hint: "Regions covered", tone: "amber", icon: FaBuilding },
+                    { key: "complete", label: "Profile complete", value: `${profileCompletion}%`, hint: profileCompletion === 100 ? "All details on file" : "Add the missing details", tone: profileCompletion === 100 ? "green" : "red", icon: FaIdBadge }
+                ]}
+            />
 
-                        <div className="profile-readonly-grid">
-                            <div>
-                                <span>Department</span>
-                                <strong>
-                                    {department || "Not assigned"}
-                                </strong>
-                            </div>
+            {error && (
+                <div className="pf-alert pf-alert--error" role="alert">
+                    {error}
+                </div>
+            )}
 
-                            <div>
-                                <span>Designation</span>
-                                <strong>
-                                    {designation || "Not assigned"}
-                                </strong>
+            {message && (
+                <div className="pf-alert pf-alert--success" role="status">
+                    {message}
+                </div>
+            )}
+
+            <div className="pf-grid">
+
+                {/* ==================================================
+                    USER INFORMATION
+                ================================================== */}
+
+                <section className="pf-card">
+                    <header className="pf-card-head">
+                        <span className="pf-card-icon"><FaUserEdit /></span>
+                        <div>
+                            <h2>Your Information</h2>
+                            <p>Update how your name and employee ID appear across MIARCUS.</p>
+                        </div>
+                    </header>
+
+                    <div className="pf-fields">
+                        <div className="pf-field">
+                            <label htmlFor="pf-name">Name</label>
+                            <input
+                                id="pf-name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="pf-field">
+                            <label htmlFor="pf-emp">Employee ID</label>
+                            <input
+                                id="pf-emp"
+                                type="text"
+                                value={employeeId}
+                                onChange={(e) =>
+                                    setEmployeeId(e.target.value)
+                                }
+                            />
+                        </div>
+
+                        <div className="pf-field pf-field--full">
+                            <label htmlFor="pf-email">Email</label>
+                            <div className="pf-input-lock">
+                                <input
+                                    id="pf-email"
+                                    type="email"
+                                    value={email}
+                                    disabled
+                                    readOnly
+                                />
+                                <FaLock />
                             </div>
                         </div>
 
-                        <label>Reports To</label>
-                        <input
-                            type="text"
-                            value={reportsTo || "Not assigned"}
-                            disabled
-                            readOnly
-                        />
+                        <div className="pf-readonly">
+                            <span>Department</span>
+                            <strong>{department || "Not assigned"}</strong>
+                        </div>
+
+                        <div className="pf-readonly">
+                            <span>Designation</span>
+                            <strong>{designation || "Not assigned"}</strong>
+                        </div>
+
+                        <div className="pf-readonly pf-field--full">
+                            <span>Reports To</span>
+                            <strong>{reportsTo || "Not assigned"}</strong>
+                        </div>
                     </div>
 
-                    {/* ==================================================
-                        PASSWORD
-                    ================================================== */}
+                    <p className="pf-hint">
+                        Department, designation and reporting line are managed by your admin.
+                    </p>
+                </section>
 
-                    <div>
-                        <h2>Change Password</h2>
+                {/* ==================================================
+                    PASSWORD
+                ================================================== */}
 
-                        <p className="password-note">
-                            Change your own password securely. Your password
-                            is never stored in the browser.
-                        </p>
+                <section className="pf-card">
+                    <header className="pf-card-head">
+                        <span className="pf-card-icon pf-card-icon--amber"><FaShieldAlt /></span>
+                        <div>
+                            <h2>Change Password</h2>
+                            <p>Change your own password securely. Your password is never stored in the browser.</p>
+                        </div>
+                    </header>
 
-                        <label>Current Password</label>
-                        <input
-                            type="password"
-                            placeholder="Enter current password"
-                            value={currentPassword}
-                            onChange={(e) =>
-                                setCurrentPassword(e.target.value)
-                            }
-                        />
+                    <div className="pf-fields pf-fields--single">
+                        <div className="pf-field">
+                            <label htmlFor="pf-cur">Current Password</label>
+                            <input
+                                id="pf-cur"
+                                type="password"
+                                placeholder="Enter current password"
+                                value={currentPassword}
+                                onChange={(e) =>
+                                    setCurrentPassword(e.target.value)
+                                }
+                            />
+                        </div>
 
-                        <label>New Password</label>
-                        <input
-                            type="password"
-                            placeholder="Enter new password"
-                            value={newPassword}
-                            onChange={(e) =>
-                                setNewPassword(e.target.value)
-                            }
-                        />
+                        <div className="pf-field">
+                            <label htmlFor="pf-new">New Password</label>
+                            <input
+                                id="pf-new"
+                                type="password"
+                                placeholder="Enter new password"
+                                value={newPassword}
+                                onChange={(e) =>
+                                    setNewPassword(e.target.value)
+                                }
+                            />
+                            {newPassword && (
+                                <div className={`pf-strength pf-strength--${passwordStrength.score}`}>
+                                    <span className="pf-strength-bar"><i /></span>
+                                    <small>{passwordStrength.label}</small>
+                                </div>
+                            )}
+                        </div>
 
-                        <label>Confirm Password</label>
-                        <input
-                            type="password"
-                            placeholder="Confirm new password"
-                            value={confirmPassword}
-                            onChange={(e) =>
-                                setConfirmPassword(e.target.value)
-                            }
-                        />
+                        <div className="pf-field">
+                            <label htmlFor="pf-confirm">Confirm Password</label>
+                            <input
+                                id="pf-confirm"
+                                type="password"
+                                placeholder="Confirm new password"
+                                className={passwordsMismatch ? "is-invalid" : ""}
+                                value={confirmPassword}
+                                onChange={(e) =>
+                                    setConfirmPassword(e.target.value)
+                                }
+                            />
+                            {passwordsMismatch && (
+                                <small className="pf-error-text">Passwords do not match.</small>
+                            )}
+                        </div>
+                    </div>
 
+                    <div className="pf-card-foot">
                         <button
-                            className="reset-btn"
+                            type="button"
+                            className="pp-btn pp-btn--primary"
                             onClick={handlePasswordReset}
                             disabled={passwordSaving}
                         >
@@ -637,76 +762,81 @@ function Profile() {
                                 : "Update Password"}
                         </button>
                     </div>
-                </div>
+                </section>
+            </div>
 
-                {/* ==================================================
-                    ASSIGNED STORES
-                ================================================== */}
+            {/* ==================================================
+                ASSIGNED STORES
+            ================================================== */}
 
-                <div className="stores-section">
-                    <div className="stores-header">
-                        <h2>
-                            <FaStore /> Assigned Stores ({stores.length})
-                        </h2>
+            <section className="pf-card">
+                <header className="pf-card-head pf-card-head--split">
+                    <div className="pf-card-head-left">
+                        <span className="pf-card-icon pf-card-icon--teal"><FaStore /></span>
+                        <div>
+                            <h2>Assigned Stores <span className="pf-count">{formatCount(stores.length)}</span></h2>
+                            <p>Stores you can see and act on across every module.</p>
+                        </div>
+                    </div>
 
+                    <div className="pf-search">
+                        <FaSearch />
                         <input
                             type="text"
-                            placeholder="Search Store..."
+                            placeholder="Search store, city or state..."
                             value={storeSearch}
                             onChange={(e) =>
                                 setStoreSearch(e.target.value)
                             }
                         />
                     </div>
+                </header>
 
-                    <div className="stores-box">
-                        {filteredStores.length ? (
-                            <ul>
-                                {filteredStores.map((store) => (
-                                    <li key={store.id}>
-                                        <strong>
-                                            {store.store_name ||
-                                                "Unnamed Store"}
-                                        </strong>
-
-                                        {(store.location ||
-                                            store.city ||
-                                            store.state) && (
-                                            <small>
-                                                {[
-                                                    store.location,
-                                                    store.city,
-                                                    store.state,
-                                                ]
-                                                    .filter(Boolean)
-                                                    .join(", ")}
-                                            </small>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className="profile-empty-state">
-                                No stores are assigned to this user.
-                            </div>
-                        )}
+                {filteredStores.length ? (
+                    <ul className="pf-store-grid">
+                        {filteredStores.map((store) => (
+                            <li key={store.id} className="pf-store">
+                                <span className={`pp-avatar ${avatarTone(store.store_name)}`}>
+                                    {initials(String(store.store_name || "").replace(/^MRPL\s*-\s*/i, ""))}
+                                </span>
+                                <span className="pf-store-text">
+                                    <strong title={store.store_name}>
+                                        {store.store_name || "Unnamed Store"}
+                                    </strong>
+                                    {(store.location || store.city || store.state) && (
+                                        <small title={[store.location, store.city, store.state].filter(Boolean).join(", ")}>
+                                            <FaMapMarkerAlt />
+                                            {[store.city, store.state].filter(Boolean).join(", ") || store.location}
+                                        </small>
+                                    )}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <div className="pf-empty">
+                        <FaStore />
+                        <strong>{storeSearch ? "No stores match your search" : "No stores assigned"}</strong>
+                        <span>{storeSearch ? "Try another name, city or state." : "Ask your admin to assign stores to your account."}</span>
                     </div>
-                </div>
+                )}
+            </section>
 
-                {/* ==================================================
-                    SAVE
-                ================================================== */}
+            {/* ==================================================
+                SAVE (sticky)
+            ================================================== */}
 
-                <div className="profile-footer">
-                    <button
-                        className="save-btn"
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                    >
-                        <FaSave />
-                        {saving ? "Saving..." : "Save Profile"}
-                    </button>
-                </div>
+            <div className="pf-savebar">
+                <span>Changes to your name, employee ID and photo are saved together.</span>
+                <button
+                    type="button"
+                    className="pp-btn pp-btn--primary"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                >
+                    <FaSave />
+                    {saving ? "Saving..." : "Save Profile"}
+                </button>
             </div>
         </div>
     );

@@ -19,6 +19,11 @@ import {
 
 import "../styles/StoreManagement.css";
 import "../styles/StoreManagementPremium.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { formatCount } from "../utils/premiumFormat";
 import AddStoreModal from "../components/AddStoreModal";
 import ExportButton from "../components/common/ExportButton";
 import { exportTableData } from "../utils/exportUtils.js";
@@ -577,21 +582,21 @@ const handleFileChange = async (e) => {
 
 
   const statCards = [
-    { key: "total", label: "Total Stores", value: stats.total, icon: <FaStore />, tone: "teal" },
-    { key: "active", label: "Active", value: stats.active, icon: <FaCheckCircle />, tone: "green" },
-    { key: "inactive", label: "Inactive", value: stats.inactive, icon: <FaPauseCircle />, tone: "rose" },
+    { key: "total", label: "Total Stores", value: formatCount(stats.total), hint: "Outlets on MIARCUS", icon: FaStore, tone: "violet", onClick: () => setStatusFilter("All"), active: statusFilter === "All" },
+    { key: "active", label: "Active", value: formatCount(stats.active), hint: "Trading today", icon: FaCheckCircle, tone: "green", onClick: () => setStatusFilter("Active"), active: statusFilter === "Active" },
+    { key: "inactive", label: "Inactive", value: formatCount(stats.inactive), hint: "Closed or paused", icon: FaPauseCircle, tone: "red", onClick: () => setStatusFilter("Inactive"), active: statusFilter === "Inactive" },
     {
       key: "reach",
       label: "Cities Covered",
-      value: stats.cities,
-      sub: `${stats.countries} ${stats.countries === 1 ? "country" : "countries"}`,
-      icon: <FaGlobeAsia />,
+      value: formatCount(stats.cities),
+      hint: `${stats.countries} ${stats.countries === 1 ? "country" : "countries"}`,
+      icon: FaGlobeAsia,
       tone: "amber",
     },
   ];
 
   return (
-    <div className="sm-page">
+    <div className="sm-page pp-premium">
 
       {/* Hidden File Input for CSV Import */}
       <input
@@ -606,63 +611,21 @@ const handleFileChange = async (e) => {
           Hero Header
       ========================== */}
 
-      <header className="sm-hero">
-        <div className="sm-hero-text">
-          <span className="sm-crumbs">Settings <span>/</span> Stores</span>
-          <h2>Store Management</h2>
-          <p>Manage every outlet, its location and contact details in one place.</p>
-        </div>
+      <PremiumHero
+        icon={FaStore}
+        eyebrow="Settings · Stores"
+        title="Store Management"
+        badge="Admin only"
+        subtitle="Every outlet, its location and contact details in one place."
+        meta={[
+          { label: "Stores", value: formatCount(stats.total) },
+          { label: "Showing", value: filteredStores.length !== stats.total ? `${formatCount(filteredStores.length)} filtered` : null }
+        ]}
+      />
 
-        <div className="sm-actions">
-          {canView && <ExportButton onExport={handleExport} />}
+      <InsightStrip loading={loading} items={statCards} />
 
-          {canAdd && (
-            <button className="sm-btn sm-btn-ghost" onClick={handleImport}>
-              <FaFileImport />
-              Import
-            </button>
-          )}
-
-          {canDelete && (
-            <button className="sm-btn sm-btn-danger" onClick={handleDeleteAll}>
-              <FaTrash />
-              {deleteAllLabel(hasActiveFilters({ search, status: statusFilter }), filteredStores.length)}
-            </button>
-          )}
-
-          {canAdd && (
-            <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
-              <FaPlus />
-              Add Store
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* ==========================
-          Stat Cards
-      ========================== */}
-
-      <section className="sm-stats">
-        {statCards.map((c) => (
-          <div key={c.key} className={`sm-stat sm-tone-${c.tone}`}>
-            <div className="sm-stat-icon">{c.icon}</div>
-            <div className="sm-stat-body">
-              <span className="sm-stat-label">{c.label}</span>
-              <strong className="sm-stat-value">
-                {loading ? <span className="sm-skel sm-skel-num" /> : c.value.toLocaleString()}
-              </strong>
-              {c.sub && !loading && <span className="sm-stat-sub">{c.sub}</span>}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* ==========================
-          Toolbar
-      ========================== */}
-
-      <div className="sm-toolbar">
+      <div className="sm-toolbar sm-toolbar--premium">
         <div className="sm-search">
           <FaSearch />
           <input
@@ -696,6 +659,32 @@ const handleFileChange = async (e) => {
             </button>
           ))}
         </div>
+
+        <div className="sm-actions">
+          {canView && <ExportButton onExport={handleExport} />}
+
+          {canAdd && (
+            <button className="sm-btn sm-btn-ghost" onClick={handleImport}>
+              <FaFileImport />
+              Import
+            </button>
+          )}
+
+          {canDelete && (
+            <button className="sm-btn sm-btn-danger" onClick={handleDeleteAll}>
+              <FaTrash />
+              {deleteAllLabel(hasActiveFilters({ search, status: statusFilter }), filteredStores.length)}
+            </button>
+          )}
+
+          {canAdd && (
+            <button className="sm-btn sm-btn-primary" onClick={handleAddStore}>
+              <FaPlus />
+              Add Store
+            </button>
+          )}
+        </div>
+
       </div>
 
       {/* ==========================

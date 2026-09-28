@@ -15,6 +15,8 @@ import {
     FaBoxOpen,
     FaCheckCircle,
     FaCircle,
+    FaTags,
+    FaExclamationTriangle,
 } from "react-icons/fa";
 import {
     createListing,
@@ -27,6 +29,10 @@ import {
     updateListing,
 } from "../services/listingTrackerService";
 import "../styles/pages/ListingTracker.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
 import ExportButton from "../components/common/ExportButton";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
@@ -451,7 +457,7 @@ export default function ListingTracker() {
     }
 
     return (
-        <div className="listing-page">
+        <div className="listing-page pp-premium">
             {importing && (
                 <PremiumLoader
                     overlay
@@ -461,24 +467,29 @@ export default function ListingTracker() {
                 />
             )}
             <div className="listing-shell">
-                <div className="listing-hero">
-                    <div>
-                        <div className="listing-eyebrow">
-                            Product Operations
-                        </div>
-                        <h1>Listing Tracker</h1>
-                        <p>
-                            Track product readiness from SKU creation to
-                            photoshoot completion and online listing — with
-                            live operational visibility.
-                        </p>
-                    </div>
+                <PremiumHero
+                    icon={FaTags}
+                    eyebrow="Product Operations"
+                    title="Listing Tracker"
+                    tone="indigo"
+                    badge={refreshing ? "Syncing…" : "Live · 20 sec"}
+                    badgeTone="mint"
+                    subtitle="Track product readiness from SKU creation to photoshoot completion and online listing — with live operational visibility."
+                    meta={[
+                        { label: "Products", value: formatNumber(summary.total) },
+                        { label: "Photoshoot", value: formatPercent(photosPercent) },
+                        { label: "Listed", value: formatPercent(listedPercent) }
+                    ]}
+                />
 
-                    <div className="listing-live">
-                        <span className="listing-live-dot" />
-                        {refreshing ? "Syncing live data…" : "Live sync · 20 sec"}
-                    </div>
-                </div>
+                <InsightStrip
+                    items={[
+                        { key: "total", label: "Total products", value: formatNumber(summary.total), hint: "Across the current filter", tone: "violet", icon: FaBoxOpen },
+                        { key: "photo", label: "Photoshoot complete", value: formatPercent(photosPercent), hint: `${formatNumber(summary.photoshootYes)} products ready`, tone: "green", icon: FaCamera, onClick: () => setPhotoshoot(photoshoot === "yes" ? "" : "yes"), active: photoshoot === "yes" },
+                        { key: "listed", label: "Product listed", value: formatPercent(listedPercent), hint: `${formatNumber(summary.listedYes)} products live`, tone: "blue", icon: FaShoppingBag, onClick: () => setListed(listed === "yes" ? "" : "yes"), active: listed === "yes" },
+                        { key: "action", label: "Action required", value: formatNumber(Math.max(summary.photoshootNo, summary.listedNo)), hint: "Highest outstanding count", tone: "red", icon: FaExclamationTriangle, onClick: () => setListed(listed === "no" ? "" : "no"), active: listed === "no" }
+                    ]}
+                />
 
                 {error && (
                     <div className="listing-error">
@@ -587,49 +598,6 @@ export default function ListingTracker() {
                             <FaTrash /> {deleteAllLabel(hasActiveFilters({ search, collection, category, photoshoot, listed }), total)}
                         </button>
                     )}
-                </div>
-
-                <div className="listing-kpis">
-                    <div className="listing-kpi primary">
-                        <div className="listing-kpi-label">Total Products</div>
-                        <div className="listing-kpi-value">{formatNumber(summary.total)}</div>
-                        <div className="listing-kpi-meta">Across the current filter</div>
-                    </div>
-
-                    <div className="listing-kpi success">
-                        <div className="listing-kpi-label">Photoshoot Complete</div>
-                        <div className="listing-kpi-value">
-                            {formatPercent(photosPercent)}
-                        </div>
-                        <div className="listing-kpi-meta">
-                            {formatNumber(summary.photoshootYes)} products ready
-                        </div>
-                    </div>
-
-                    <div className="listing-kpi success">
-                        <div className="listing-kpi-label">Product Listed</div>
-                        <div className="listing-kpi-value">
-                            {formatPercent(listedPercent)}
-                        </div>
-                        <div className="listing-kpi-meta">
-                            {formatNumber(summary.listedYes)} products live
-                        </div>
-                    </div>
-
-                    <div className="listing-kpi danger">
-                        <div className="listing-kpi-label">Action Required</div>
-                        <div className="listing-kpi-value">
-                            {formatNumber(
-                                Math.max(
-                                    summary.photoshootNo,
-                                    summary.listedNo
-                                )
-                            )}
-                        </div>
-                        <div className="listing-kpi-meta">
-                            Highest outstanding count
-                        </div>
-                    </div>
                 </div>
 
                 <div className="listing-dashboard-grid">

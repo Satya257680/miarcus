@@ -7,7 +7,6 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -37,6 +36,12 @@ import {
 // ======================================================
 
 import "../styles/ChecklistTypes.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaClipboardList, FaClipboardCheck, FaHistory, FaClock } from "react-icons/fa";
+import { formatCount } from "../utils/premiumFormat";
 import { exportFromXLSXBinary } from "../utils/exportUtils.js";
 
 // ======================================================
@@ -729,7 +734,15 @@ const handleSave = async (data) => {
         {
             key: "checklist_name",
             title: "Checklist Name",
-            render: (row) => row.checklist_name || "-"
+            render: (row) => (
+                <div className="pp-cell-main">
+                    <span className="pp-avatar pp-avatar--teal"><FaClipboardList /></span>
+                    <span className="pp-cell-text">
+                        <span className="pp-cell-title">{row.checklist_name || "-"}</span>
+                        <span className="pp-cell-sub">{row.cutoff_time ? `Cutoff ${String(row.cutoff_time).slice(0, 5)}` : "No cutoff"}</span>
+                    </span>
+                </div>
+            )
         },
 
         // ==================================================
@@ -740,8 +753,12 @@ const handleSave = async (data) => {
             key: "departments",
             title: "Departments Allowed",
             render: (row) => (
-                <div className="department-cell">
-                    {row.departments || "-"}
+                <div className="department-cell pp-chip-list">
+                    {row.departments
+                        ? String(row.departments).split(",").map((d) => d.trim()).filter(Boolean).map((d) => (
+                            <span key={d} className="pp-pill pp-pill--xs pp-pill--violet">{d}</span>
+                        ))
+                        : <span className="pp-pill pp-pill--xs pp-pill--slate">All departments</span>}
                 </div>
             )
         },
@@ -760,8 +777,8 @@ const handleSave = async (data) => {
                 <span
                     className={
                         row.allow_past_submission
-                            ? "required-badge yes"
-                            : "required-badge no"
+                            ? "pp-pill pp-pill--green"
+                            : "pp-pill pp-pill--red"
                     }
                 >
                     {row.allow_past_submission
@@ -783,7 +800,9 @@ const handleSave = async (data) => {
 
             render: (row) =>
 
-                row.cutoff_time || "-"
+                row.cutoff_time
+                    ? <span className="pp-sla"><strong>{String(row.cutoff_time).slice(0, 5)}</strong><span>hrs</span></span>
+                    : <span className="pp-dash">—</span>
 
         },
 
@@ -799,11 +818,13 @@ const handleSave = async (data) => {
             render: (row) => (
 
                 <span
-                    className={`status-badge ${getStatusClass(
-                        row.status
-                    )}`}
+                    className={`pp-pill pp-pill--dot ${
+                        getStatusClass(row.status) === "active"
+                            ? "pp-pill--green"
+                            : "pp-pill--slate"
+                    }`}
                 >
-                    {row.status || "-"}
+                    {row.status || "Inactive"}
                 </span>
 
             )
@@ -834,6 +855,7 @@ const handleSave = async (data) => {
                             }
                         >
                             <FaEdit />
+                            <span>Edit</span>
                         </button>
 
                     )}
@@ -847,6 +869,7 @@ const handleSave = async (data) => {
                             }
                         >
                             <FaTrash />
+                            <span>Delete</span>
                         </button>
 
                     )}
@@ -865,15 +888,33 @@ const handleSave = async (data) => {
 
     return (
 
-        <div className="checklist-page">
+        <div className="checklist-page pp-premium">
 
             {/* ======================================================
-                PAGE HEADER
+                PREMIUM HERO + KPIs
             ====================================================== */}
 
-            <PageHeader
+            <PremiumHero
+                icon={FaClipboardList}
+                eyebrow="Settings · Checklists"
                 title="Checklist Types"
-                subtitle="Manage Checklist Types."
+                badge="Admin only"
+                tone="teal"
+                subtitle="Every checklist stores submit — who can fill it, the daily cutoff and whether past dates are allowed."
+                meta={[
+                    { label: "Types", value: formatCount(checklists.length) },
+                    { label: "Showing", value: filteredChecklists.length !== checklists.length ? `${formatCount(filteredChecklists.length)} filtered` : null }
+                ]}
+            />
+
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "all", label: "Checklist types", value: formatCount(checklists.length), hint: "Configured", tone: "violet", icon: FaClipboardList },
+                    { key: "active", label: "Active", value: formatCount(checklists.filter((c) => String(c.status || "").toLowerCase() === "active").length), hint: "Open for submission", tone: "green", icon: FaClipboardCheck, onClick: () => setStatusFilter(statusFilter === "Active" ? "" : "Active"), active: statusFilter === "Active" },
+                    { key: "past", label: "Past submission", value: formatCount(checklists.filter((c) => c.allow_past_submission).length), hint: "Allow back-dated entries", tone: "amber", icon: FaHistory },
+                    { key: "cutoff", label: "With cutoff", value: formatCount(checklists.filter((c) => c.cutoff_time).length), hint: "Time-bound daily", tone: "blue", icon: FaClock }
+                ]}
             />
 <PageToolbar
 
@@ -987,6 +1028,7 @@ const handleSave = async (data) => {
 
             <Card
                 title="Checklist Types List"
+                subtitle={`${formatCount(filteredChecklists.length)} checklist types`}
             >
 
                 <DataTable

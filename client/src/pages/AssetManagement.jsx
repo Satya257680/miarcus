@@ -7,9 +7,14 @@ import {
     FaCloudUploadAlt,
     FaInfoCircle,
     FaExternalLinkAlt,
+    FaBullhorn,
+    FaBalanceScale,
+    FaHourglassHalf,
+    FaExclamationTriangle,
+    FaStore,
+    FaBuilding,
 } from "react-icons/fa";
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import Card from "../components/common/Card";
 import DataTable from "../components/common/DataTable";
@@ -29,6 +34,11 @@ import {
     updateAsset,
 } from "../services/assetService";
 import "../styles/pages/AssetManagement.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import { exportFromCSV } from "../utils/exportUtils.js";
 
 const API = API_BASE_URL;
@@ -486,7 +496,25 @@ export default function AssetManagement({ type = "marketing" }) {
             const days = Number(row.days_to_expire);
             return <span className={`expiry-value ${days < 0 ? "expired" : days <= 30 ? "soon" : "healthy"}`}>{days < 0 ? `${Math.abs(days)} days overdue` : `${days} days`}</span>;
         }
-        if (key === "status") return <span className={`asset-status ${String(row.status || "").toLowerCase().replace(/\s+/g, "-")}`}>{row.status || "-"}</span>;
+        if (key === "status") {
+            const s = String(row.status || "").toLowerCase();
+            const tone = /resolved|active|valid|closed/.test(s) && !/unresolved/.test(s) ? "green" : /expired|unresolved|overdue|inactive/.test(s) ? "red" : s ? "amber" : "slate";
+            return row.status ? <span className={`pp-pill pp-pill--dot pp-pill--${tone}`}>{row.status}</span> : <span className="pp-dash">—</span>;
+        }
+        if (key === "particular_name" || key === "name") {
+            const value = row[key];
+            return (
+                <div className="pp-cell-main">
+                    <span className={`pp-avatar pp-avatar--round ${avatarTone(value)}`}>{initials(value)}</span>
+                    <span className="pp-cell-text">
+                        <span className="pp-cell-title">{value || "-"}</span>
+                        <span className="pp-cell-sub">{row.category || row.department_name || (isMarketing ? "Marketing asset" : "Legal asset")}</span>
+                    </span>
+                </div>
+            );
+        }
+        if (key === "store_name") return row.store_name ? <span className="pp-pill pp-pill--teal"><FaStore /> {row.store_name}</span> : <span className="pp-dash">—</span>;
+        if (key === "department_name") return row.department_name ? <span className="pp-pill pp-pill--violet">{row.department_name}</span> : <span className="pp-dash">—</span>;
         if (key === "attachments") {
             const items = Array.isArray(row.attachments) ? row.attachments : [];
             if (!items.length) return "-";
@@ -527,11 +555,35 @@ export default function AssetManagement({ type = "marketing" }) {
     }
 
     return (
-        <div className="asset-page">
-            <PageHeader
+        <div className="asset-page pp-premium">
+            <PremiumHero
+                icon={isMarketing ? FaBullhorn : FaBalanceScale}
+                eyebrow="Asset Master"
                 title={title}
+                tone={isMarketing ? "violet" : "indigo"}
+                badge={isMarketing ? "Marketing" : "Legal"}
+                badgeTone={isMarketing ? "gold" : "sky"}
                 subtitle={subtitle}
-                actions={<span className="asset-page-info"><FaInfoCircle /> Asset Master</span>}
+                meta={[
+                    { label: "Records", value: formatCount(total) },
+                    { label: "Search", value: search ? `“${search}”` : null }
+                ]}
+                actions={<span className="pp-hero-btn"><FaInfoCircle /> Asset Master</span>}
+            />
+
+            <InsightStrip
+                loading={loading}
+                items={isMarketing ? [
+                    { key: "total", label: "Marketing assets", value: formatCount(total), hint: "Total records", tone: "violet", icon: FaBullhorn },
+                    { key: "soon", label: "Expiring ≤ 30 days", value: formatCount(rows.filter((r) => r.days_to_expire !== null && r.days_to_expire !== undefined && r.days_to_expire !== "" && Number(r.days_to_expire) >= 0 && Number(r.days_to_expire) <= 30).length), hint: "On this page", tone: "amber", icon: FaHourglassHalf },
+                    { key: "expired", label: "Expired", value: formatCount(rows.filter((r) => r.days_to_expire !== null && r.days_to_expire !== undefined && r.days_to_expire !== "" && Number(r.days_to_expire) < 0).length), hint: "On this page", tone: "red", icon: FaExclamationTriangle },
+                    { key: "files", label: "With attachments", value: formatCount(rows.filter((r) => Array.isArray(r.attachments) && r.attachments.length).length), hint: "On this page", tone: "blue", icon: FaPaperclip }
+                ] : [
+                    { key: "total", label: "Legal assets", value: formatCount(total), hint: "Total records", tone: "violet", icon: FaBalanceScale },
+                    { key: "stores", label: "Stores", value: formatCount(new Set(rows.map((r) => r.store_name).filter(Boolean)).size), hint: "On this page", tone: "green", icon: FaStore },
+                    { key: "depts", label: "Departments", value: formatCount(new Set(rows.map((r) => r.department_name).filter(Boolean)).size), hint: "On this page", tone: "amber", icon: FaBuilding },
+                    { key: "files", label: "With attachments", value: formatCount(rows.filter((r) => Array.isArray(r.attachments) && r.attachments.length).length), hint: "On this page", tone: "blue", icon: FaPaperclip }
+                ]}
             />
 
             <PageToolbar
@@ -553,7 +605,7 @@ export default function AssetManagement({ type = "marketing" }) {
 
             {error && <div className="asset-page-error">{error}</div>}
 
-            <Card title={isMarketing ? "Marketing Asset List" : "Legal Asset List"} subtitle={`Total Records: ${total}`} className="asset-list-card" noPadding>
+            <Card title={isMarketing ? "Marketing Asset List" : "Legal Asset List"} subtitle={`Total Records: ${total}`} className="asset-list-card">
                 <DataTable
                     columns={tableColumns}
                     data={rows}

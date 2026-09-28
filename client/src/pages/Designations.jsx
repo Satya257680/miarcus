@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -13,6 +12,12 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Designation.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaIdBadge, FaCheckCircle, FaUsers, FaBuilding } from "react-icons/fa";
+import { formatCount } from "../utils/premiumFormat";
 import { exportTableData } from "../utils/exportUtils.js";
 
 import DesignationModal from "../components/designations/DesignationModal";
@@ -88,6 +93,10 @@ function Designations() {
     setSearch
 
   ] = useState("");
+
+  const [departmentFilter, setDepartmentFilter] = useState("");
+
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [
 
@@ -346,6 +355,10 @@ function Designations() {
 
     const filtered = designations.filter((item) => {
 
+      if (departmentFilter && item.department_name !== departmentFilter) return false;
+
+      if (statusFilter && String(item.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+
       const designation =
         item.designation_name?.toLowerCase() || "";
 
@@ -371,7 +384,7 @@ function Designations() {
 
     setCurrentPage(1);
 
-  }, [search, designations]);
+  }, [search, departmentFilter, statusFilter, designations]);
 
   // =====================================================
   // ADD DESIGNATION
@@ -649,7 +662,7 @@ function Designations() {
 
   };
 
-  const isFilteredDelete = hasActiveFilters({ search });
+  const isFilteredDelete = hasActiveFilters({ search, departmentFilter, statusFilter });
 
   const confirmDeleteAll = async () => {
 
@@ -708,6 +721,10 @@ function Designations() {
 
     setSearch("");
 
+    setDepartmentFilter("");
+
+    setStatusFilter("");
+
   };
 
   // =====================================================
@@ -742,26 +759,37 @@ const columns = [
   {
     key: "id",
     title: "ID",
-    width: "70px",
-    render: (row) => row.id
+    width: "80px",
+    render: (row) => <span className="pp-id">#{row.id}</span>
   },
 
   {
     key: "department_name",
     title: "Department",
-    render: (row) => row.department_name || "-"
+    render: (row) =>
+      row.department_name
+        ? <span className="pp-pill pp-pill--violet">{row.department_name}</span>
+        : <span className="pp-dash">—</span>
   },
 
   {
     key: "designation_name",
     title: "Designation",
-    render: (row) => row.designation_name || "-"
+    render: (row) => (
+      <div className="pp-cell-main">
+        <span className="pp-avatar pp-avatar--blue"><FaIdBadge /></span>
+        <span className="pp-cell-text">
+          <span className="pp-cell-title">{row.designation_name || "-"}</span>
+          <span className="pp-cell-sub">{row.department_name || "No department"}</span>
+        </span>
+      </div>
+    )
   },
 
   {
     key: "description",
     title: "Description",
-    render: (row) => row.description || "-"
+    render: (row) => <span className="pp-wrap pp-muted-text">{row.description || "—"}</span>
   },
 
   {
@@ -779,7 +807,11 @@ const columns = [
     key: "assigned_users",
     title: "Assigned Users",
     align: "center",
-    render: (row) => row.assigned_users ?? 0
+    render: (row) => (
+      <span className={`pp-count ${Number(row.assigned_users) > 0 ? "pp-count--on" : ""}`}>
+        <FaUsers /> {formatCount(row.assigned_users ?? 0)}
+      </span>
+    )
   },
 
  {
@@ -812,18 +844,32 @@ const columns = [
 
   return (
 
-    <div className="designation-page">
+    <div className="designation-page pp-premium">
 
       {/* ==========================================
-          PAGE HEADER
+          PREMIUM HERO + KPIs
       ========================================== */}
 
-      <PageHeader
-
+      <PremiumHero
+        icon={FaIdBadge}
+        eyebrow="Settings · Organisation"
         title="Designations"
+        badge="Admin only"
+        subtitle="Job titles inside each department and how many people currently hold them."
+        meta={[
+          { label: "Designations", value: formatCount(designations.length) },
+          { label: "Showing", value: filteredDesignations.length !== designations.length ? `${formatCount(filteredDesignations.length)} filtered` : null }
+        ]}
+      />
 
-        subtitle="Manage all designations"
-
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "all", label: "Designations", value: formatCount(designations.length), hint: "Titles configured", tone: "violet", icon: FaIdBadge },
+          { key: "active", label: "Active", value: formatCount(designations.filter((d) => String(d.status || "").toLowerCase() === "active").length), hint: "Available to assign", tone: "green", icon: FaCheckCircle, onClick: () => setStatusFilter(statusFilter === "Active" ? "" : "Active"), active: statusFilter === "Active" },
+          { key: "assigned", label: "Assigned users", value: formatCount(designations.reduce((sum, d) => sum + Number(d.assigned_users || 0), 0)), hint: "People with a title", tone: "blue", icon: FaUsers },
+          { key: "depts", label: "Departments", value: formatCount(new Set(designations.map((d) => d.department_name).filter(Boolean)).size), hint: "Using designations", tone: "amber", icon: FaBuilding }
+        ]}
       />
 
       {/* ==========================================
@@ -865,20 +911,50 @@ const columns = [
 
       <FilterBar
 
-        search={search}
-
-        onSearch={setSearch}
-
-        searchPlaceholder="Search Designation..."
-
         onClear={handleClearFilters}
 
-      />
+      >
+
+        <div className="filter-group">
+
+          <label>Department</label>
+
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
+            <option value="">All Departments</option>
+            {[...new Set([
+              ...departments.map((d) => d.department_name),
+              ...designations.map((d) => d.department_name)
+            ].filter(Boolean))].sort().map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+
+        </div>
+
+        <div className="filter-group">
+
+          <label>Status</label>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+
+        </div>
+
+      </FilterBar>
 
       {/* ==========================================
           CARD
       ========================================== */}
-<Card title="Designation List">
+<Card title="Designation List" subtitle={`${formatCount(filteredDesignations.length)} designations`}>
               {/* ==========================================
             DATA TABLE
         ========================================== */}

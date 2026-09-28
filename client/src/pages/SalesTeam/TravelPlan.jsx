@@ -17,9 +17,12 @@ import {
   FaSave,
   FaStore,
   FaCheckCircle,
+  FaPlaneDeparture,
+  FaUsers,
+  FaMapMarkerAlt,
+  FaBed,
 } from "react-icons/fa";
 
-import PageHeader from "../../components/common/PageHeader";
 import PageToolbar from "../../components/common/PageToolbar";
 import FilterBar from "../../components/common/FilterBar";
 import Card from "../../components/common/Card";
@@ -46,6 +49,11 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
+import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 
 /* =========================================================
@@ -696,9 +704,15 @@ function TravelPlan() {
       title: "Name",
       minWidth: "170px",
       render: (row) => (
-        <strong>
-          {row.name || "—"}
-        </strong>
+        <div className="pp-cell-main">
+          <span className={`pp-avatar pp-avatar--round ${avatarTone(row.name)}`}>
+            {initials(row.name)}
+          </span>
+          <span className="pp-cell-text">
+            <span className="pp-cell-title">{row.name || "—"}</span>
+            <span className="pp-cell-sub">{row.designation || "—"}</span>
+          </span>
+        </div>
       ),
     },
 
@@ -716,8 +730,9 @@ function TravelPlan() {
       title: "Department",
       minWidth: "150px",
       render: (row) =>
-        row.department ||
-        "—",
+        row.department
+          ? <span className="pp-pill pp-pill--violet">{row.department}</span>
+          : <span className="pp-dash">—</span>,
     },
 
     {
@@ -725,7 +740,9 @@ function TravelPlan() {
       title: "City",
       minWidth: "130px",
       render: (row) =>
-        row.city || "—",
+        row.city
+          ? <span className="pp-city"><FaMapMarkerAlt />{row.city}</span>
+          : <span className="pp-dash">—</span>,
     },
 
     {
@@ -1058,15 +1075,33 @@ function TravelPlan() {
   ======================================================= */
 
   return (
-    <div className="sales-page sales-standard-page">
+    <div className="sales-page sales-standard-page pp-premium">
 
       {/* =================================================
-          HEADER
+          PREMIUM HERO + KPIs
       ================================================= */}
 
-      <PageHeader
+      <PremiumHero
+        icon={FaPlaneDeparture}
+        eyebrow="Sales Team · Travel"
         title="Travel Plan"
+        badge="Approved plans"
+        badgeTone="mint"
         subtitle="Work only with approved plans. Track actual stores, visit rate, remarks and travel history."
+        meta={[
+          { label: "Approved plans", value: formatCount(total) },
+          { label: "This page", value: rows.length ? formatCount(rows.length) : null }
+        ]}
+      />
+
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "total", label: "Approved plans", value: formatCount(total), hint: "Matching the filters", tone: "violet", icon: FaPlaneDeparture },
+          { key: "people", label: "Travellers", value: formatCount(new Set(rows.map((r) => r.name).filter(Boolean)).size), hint: "On this page", tone: "blue", icon: FaUsers },
+          { key: "cities", label: "Cities", value: formatCount(new Set(rows.map((r) => r.city).filter(Boolean)).size), hint: "On this page", tone: "green", icon: FaMapMarkerAlt },
+          { key: "weekoff", label: "Week offs", value: formatCount(rows.filter((r) => r.week_off).length), hint: "On this page", tone: "amber", icon: FaBed }
+        ]}
       />
 
       {/* =================================================

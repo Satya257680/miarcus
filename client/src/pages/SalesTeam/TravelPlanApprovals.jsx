@@ -8,9 +8,11 @@ import {
   FaTimes,
   FaUserTie,
   FaExclamationTriangle,
+  FaClipboardCheck,
+  FaUsers,
+  FaCalendarDay,
 } from "react-icons/fa";
 
-import PageHeader from "../../components/common/PageHeader";
 import Card from "../../components/common/Card";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
@@ -26,6 +28,11 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
+import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 
 /* =========================================================
    TRAVEL PLAN APPROVALS
@@ -227,19 +234,25 @@ function TravelPlanApprovals() {
   ======================================================= */
 
   return (
-    <div className="sales-page approvals-standard-page">
+    <div className="sales-page approvals-standard-page pp-premium">
 
       {/* =================================================
-          HEADER
+          PREMIUM HERO
       ================================================= */}
 
-      <PageHeader
+      <PremiumHero
+        icon={FaClipboardCheck}
+        eyebrow="Sales Team · Approvals"
         title="Travel Plan Approvals"
+        badge="Approvers"
         subtitle="Review submitted Sales Team travel plans. Approvers can only Approve or Reject pending requests."
+        meta={[
+          { label: "Pending", value: loading ? null : formatCount(items.length) }
+        ]}
         actions={
           <button
             type="button"
-            className="header-refresh-btn"
+            className="pp-hero-btn"
             onClick={() =>
               load(true)
             }
@@ -267,33 +280,15 @@ function TravelPlanApprovals() {
           SUMMARY
       ================================================= */}
 
-      {!loading &&
-        items.length > 0 && (
-          <div className="approval-summary">
-            <div className="approval-summary-icon">
-              <FaClock />
-            </div>
-
-            <div>
-              <strong>
-                {items.length}
-              </strong>
-
-              <span>
-                pending approval
-                {items.length === 1
-                  ? ""
-                  : "s"}
-              </span>
-            </div>
-
-            <div className="approval-summary-note">
-              New submissions remain
-              Pending until an authorized
-              approver takes action.
-            </div>
-          </div>
-        )}
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "pending", label: "Pending requests", value: formatCount(items.length), hint: "Waiting for a decision", tone: "amber", icon: FaClock },
+          { key: "people", label: "Employees", value: formatCount(new Set(items.map((i) => i.employee_id || i.name)).size), hint: "With pending plans", tone: "violet", icon: FaUsers },
+          { key: "plans", label: "Pending plan days", value: formatCount(items.reduce((sum, i) => sum + (Number(i.pending_days) || 0), 0)), hint: "Across all requests", tone: "blue", icon: FaCalendarDay },
+          { key: "leave", label: "Leave days", value: formatCount(items.reduce((sum, i) => sum + (Number(i.leave_days) || 0), 0)), hint: items.length ? "Requested in the queue" : "Queue is clear", tone: items.length ? "red" : "green", icon: items.length ? FaExclamationTriangle : FaCheck }
+        ]}
+      />
 
       {/* =================================================
           APPROVAL CARD
@@ -367,8 +362,8 @@ function TravelPlanApprovals() {
                     ===================================== */}
 
                     <div className="approval-person">
-                      <div className="approval-avatar">
-                        <FaUserTie />
+                      <div className={`approval-avatar pp-avatar pp-avatar--round ${avatarTone(item.name)}`}>
+                        {item.name ? initials(item.name) : <FaUserTie />}
                       </div>
 
                       <div className="approval-person-info">

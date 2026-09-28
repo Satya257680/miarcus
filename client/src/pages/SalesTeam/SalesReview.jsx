@@ -22,7 +22,6 @@ import {
   FaCalculator,
 } from "react-icons/fa";
 
-import PageHeader from "../../components/common/PageHeader";
 import PageToolbar from "../../components/common/PageToolbar";
 import FilterBar from "../../components/common/FilterBar";
 import Card from "../../components/common/Card";
@@ -49,6 +48,9 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 
 
@@ -1477,21 +1479,24 @@ function SalesReview() {
   return (
     <>
       <style>{departmentScoringStyles}</style>
-      <div className="sales-page sales-standard-page">
+      <div className="sales-page sales-standard-page sales-review-premium pp-premium">
 
       {/* =================================================
-          HEADER
+          PREMIUM HERO
       ================================================= */}
 
-      <PageHeader
-        title={
-          <>
-            Sales Review
-
-            <FaChartLine className="sales-title-info" />
-          </>
-        }
+      <PremiumHero
+        icon={FaChartLine}
+        eyebrow="Sales Team · Performance"
+        title="Sales Review"
+        badge={salesPulse.lastMonthChange >= 0 ? "Momentum rising" : "Momentum falling"}
+        badgeTone={salesPulse.lastMonthChange >= 0 ? "mint" : "gold"}
         subtitle="Review uploaded sales performance data, filter results, monitor targets and maintain UPT, ABV and ASP benchmarks."
+        meta={[
+          { label: "MTD", value: formatMoney(salesPulse.mtd) },
+          { label: "Target achieved", value: `${salesPulse.targetAchievement.toFixed(1)}%` },
+          { label: "Records", value: String(total) }
+        ]}
       />
 
       {/* =================================================

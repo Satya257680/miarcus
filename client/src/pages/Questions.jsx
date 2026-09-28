@@ -7,7 +7,6 @@ import axios, { API_BASE_URL } from "../axiosConfig.js";
 // COMMON COMPONENTS
 // ======================================================
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -38,6 +37,12 @@ import {
 // ======================================================
 
 import "../styles/Questions.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaQuestionCircle, FaClipboardList, FaAsterisk, FaStopwatch } from "react-icons/fa";
+import { formatCount } from "../utils/premiumFormat";
 import { exportTableData } from "../utils/exportUtils.js";
 
 // ======================================================
@@ -732,7 +737,10 @@ const uploadQuestions = async (file) => {
         {
             key: "checklist_name",
             title: "Checklist Type",
-            render: (row) => row.checklist_name || "-"
+            render: (row) =>
+                row.checklist_name
+                    ? <span className="pp-pill pp-pill--violet">{row.checklist_name}</span>
+                    : <span className="pp-dash">—</span>
         },
 
         // ==================================================
@@ -743,7 +751,7 @@ const uploadQuestions = async (file) => {
             key: "question",
             title: "Question",
             render: (row) => (
-                <div className="question-cell">
+                <div className="question-cell pp-wrap pp-cell-title">
                     {row.question || "-"}
                 </div>
             )
@@ -757,7 +765,10 @@ const uploadQuestions = async (file) => {
             key: "sequence_no",
             title: "Seq",
             align: "center",
-            render: (row) => row.sequence_no || "-"
+            render: (row) =>
+                row.sequence_no
+                    ? <span className="pp-seq">{row.sequence_no}</span>
+                    : <span className="pp-dash">—</span>
         },
 
         // ==================================================
@@ -767,7 +778,10 @@ const uploadQuestions = async (file) => {
         {
             key: "answer_type",
             title: "Answer Type",
-            render: (row) => row.answer_type || "-"
+            render: (row) =>
+                row.answer_type
+                    ? <span className="pp-pill pp-pill--blue">{row.answer_type}</span>
+                    : <span className="pp-dash">—</span>
         },
 
         // ==================================================
@@ -781,9 +795,9 @@ const uploadQuestions = async (file) => {
 
                 row.sla_value
 
-                    ? `${row.sla_value} ${row.sla_unit}`
+                    ? <span className="pp-sla"><strong>{row.sla_value}</strong><span>{row.sla_unit}</span></span>
 
-                    : "-"
+                    : <span className="pp-dash">—</span>
 
         },
 
@@ -796,9 +810,13 @@ const uploadQuestions = async (file) => {
             title: "Departments",
             render: (row) => (
 
-                <div className="department-cell">
+                <div className="department-cell pp-chip-list">
 
-                    {row.departments || "-"}
+                    {row.departments
+                        ? String(row.departments).split(",").map((d) => d.trim()).filter(Boolean).map((d) => (
+                            <span key={d} className="pp-pill pp-pill--xs pp-pill--slate">{d}</span>
+                        ))
+                        : <span className="pp-dash">—</span>}
 
                 </div>
 
@@ -819,8 +837,8 @@ const uploadQuestions = async (file) => {
                 <span
                     className={
                         row.answer_required
-                            ? "required-badge yes"
-                            : "required-badge no"
+                            ? "pp-pill pp-pill--green"
+                            : "pp-pill pp-pill--red"
                     }
                 >
                     {row.answer_required ? "Yes" : "No"}
@@ -842,11 +860,13 @@ const uploadQuestions = async (file) => {
             render: (row) => (
 
                 <span
-                    className={`status-badge ${getStatusClass(
-                        row.status
-                    )}`}
+                    className={`pp-pill pp-pill--dot ${
+                        getStatusClass(row.status) === "active"
+                            ? "pp-pill--green"
+                            : "pp-pill--slate"
+                    }`}
                 >
-                    {row.status || "-"}
+                    {row.status || "Inactive"}
                 </span>
 
             )
@@ -877,6 +897,7 @@ const uploadQuestions = async (file) => {
                             }
                         >
                             <FaEdit />
+                            <span>Edit</span>
                         </button>
 
                     )}
@@ -890,6 +911,7 @@ const uploadQuestions = async (file) => {
                             }
                         >
                             <FaTrash />
+                            <span>Delete</span>
                         </button>
 
                     )}
@@ -903,15 +925,33 @@ const uploadQuestions = async (file) => {
     ];
     return (
 
-    <div className="questions-page">
+    <div className="questions-page pp-premium">
 
         {/* ======================================================
-            PAGE HEADER
+            PREMIUM HERO + KPIs
         ====================================================== */}
 
-        <PageHeader
+        <PremiumHero
+            icon={FaQuestionCircle}
+            eyebrow="Settings · Checklists"
             title="Checklist Questions"
-            subtitle="Manage Checklist Questions."
+            badge="Admin only"
+            tone="indigo"
+            subtitle="The questions inside every checklist — order, answer type, SLA and which departments see them."
+            meta={[
+                { label: "Questions", value: formatCount(questions.length) },
+                { label: "Showing", value: filteredQuestions.length !== questions.length ? `${formatCount(filteredQuestions.length)} filtered` : null }
+            ]}
+        />
+
+        <InsightStrip
+            loading={loading}
+            items={[
+                { key: "all", label: "All questions", value: formatCount(questions.length), hint: "Across all checklists", tone: "violet", icon: FaQuestionCircle },
+                { key: "types", label: "Checklist types", value: formatCount(checklistTypes.length), hint: "With questions", tone: "blue", icon: FaClipboardList },
+                { key: "required", label: "Answer required", value: formatCount(questions.filter((q) => q.answer_required).length), hint: "Mandatory answers", tone: "green", icon: FaAsterisk },
+                { key: "sla", label: "With SLA", value: formatCount(questions.filter((q) => q.sla_value).length), hint: "Time-bound follow-up", tone: "amber", icon: FaStopwatch }
+            ]}
         />
 
         {/* ======================================================
@@ -1033,6 +1073,7 @@ const uploadQuestions = async (file) => {
 
         <Card
             title="Questions List"
+            subtitle={`${formatCount(filteredQuestions.length)} questions`}
         >
 
             <DataTable

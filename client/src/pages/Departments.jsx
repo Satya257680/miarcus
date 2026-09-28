@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../utils/deleteScope";
 
-import PageHeader from "../components/common/PageHeader";
 import PageToolbar from "../components/common/PageToolbar";
 import FilterBar from "../components/common/FilterBar";
 import Card from "../components/common/Card";
@@ -13,6 +12,12 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import BulkUploadModal from "../components/common/BulkUploadModal";
 
 import "../styles/Departments.css";
+import "../styles/premium/PagePremium.css";
+import "../styles/premium/AdminPagesPremium.css";
+import PremiumHero from "../components/premium/PremiumHero";
+import InsightStrip from "../components/premium/InsightStrip";
+import { FaBuilding, FaCheckCircle, FaPauseCircle, FaAlignLeft } from "react-icons/fa";
+import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
 import DepartmentModal from "../components/Departments/DepartmentModal";
 import { exportTableData } from "../utils/exportUtils.js";
 import {
@@ -38,6 +43,8 @@ function Departments() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
+
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [editDepartment, setEditDepartment] = useState(null);
@@ -166,6 +173,8 @@ function Departments() {
 
     const filtered = departments.filter((item) => {
 
+      if (statusFilter && String(item.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+
       const department =
         item.department_name?.toLowerCase() || "";
 
@@ -186,7 +195,7 @@ function Departments() {
 
     setCurrentPage(1);
 
-  }, [search, departments]);
+  }, [search, statusFilter, departments]);
   // =====================================================
 // ADD DEPARTMENT
 // =====================================================
@@ -440,7 +449,7 @@ const handleDeleteAll = () => {
 
 };
 
-const isFilteredDelete = hasActiveFilters({ search });
+const isFilteredDelete = hasActiveFilters({ search, statusFilter });
 
 const confirmDeleteAll = async () => {
 
@@ -494,6 +503,8 @@ const handleClearFilters = () => {
 
   setSearch("");
 
+  setStatusFilter("");
+
 };
 
 // =====================================================
@@ -527,17 +538,33 @@ const columns = [
     {
         key: "id",
         title: "ID",
+        width: "90px",
+        minWidth: "90px",
+        render: (row) => <span className="pp-id">#{row.id}</span>,
     },
 
     {
         key: "department_name",
         title: "Department",
+        minWidth: "220px",
+        render: (row) => (
+            <div className="pp-cell-main">
+                <span className={`pp-avatar ${avatarTone(row.department_name)}`}>
+                    {initials(row.department_name)}
+                </span>
+                <span className="pp-cell-text">
+                    <span className="pp-cell-title">{row.department_name || "-"}</span>
+                    <span className="pp-cell-sub">Department #{row.id}</span>
+                </span>
+            </div>
+        ),
     },
 
     {
         key: "description",
         title: "Description",
-        render: (row) => row.description || "-",
+        minWidth: "320px",
+        render: (row) => <span className="pp-wrap pp-muted-text">{row.description || "—"}</span>,
     },
 
     {
@@ -574,15 +601,32 @@ const columns = [
 
 return (
 
-  <div className="departments-page">
+  <div className="departments-page pp-premium">
 
     {/* =====================================================
-        PAGE HEADER
+        PREMIUM HERO + KPIs
     ===================================================== */}
 
-    <PageHeader
+    <PremiumHero
+      icon={FaBuilding}
+      eyebrow="Settings · Organisation"
       title="Departments"
-      subtitle="Manage department information."
+      badge="Admin only"
+      subtitle="The teams that make up the business — used for designations, checklists, access and reporting."
+      meta={[
+        { label: "Departments", value: formatCount(departments.length) },
+        { label: "Showing", value: filteredDepartments.length !== departments.length ? `${formatCount(filteredDepartments.length)} filtered` : null }
+      ]}
+    />
+
+    <InsightStrip
+      loading={loading}
+      items={[
+        { key: "all", label: "Departments", value: formatCount(departments.length), hint: "Teams configured", tone: "violet", icon: FaBuilding },
+        { key: "active", label: "Active", value: formatCount(departments.filter((d) => String(d.status || "").toLowerCase() === "active").length), hint: "In use", tone: "green", icon: FaCheckCircle, onClick: () => setStatusFilter(statusFilter === "Active" ? "" : "Active"), active: statusFilter === "Active" },
+        { key: "inactive", label: "Inactive", value: formatCount(departments.filter((d) => String(d.status || "").toLowerCase() !== "active").length), hint: "Paused teams", tone: "red", icon: FaPauseCircle, onClick: () => setStatusFilter(statusFilter === "Inactive" ? "" : "Inactive"), active: statusFilter === "Inactive" },
+        { key: "described", label: "Documented", value: formatCount(departments.filter((d) => String(d.description || "").trim()).length), hint: "Have a description", tone: "blue", icon: FaAlignLeft }
+      ]}
     />
 
     {/* =====================================================
@@ -612,7 +656,17 @@ return (
     <FilterBar
       onClear={handleClearFilters}
     >
-      {/* Future filters can be added here */}
+      <div className="filter-group">
+        <label>Status</label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
     </FilterBar>
 
     {/* =====================================================
@@ -621,6 +675,7 @@ return (
 
     <Card
       title="Department List"
+      subtitle={`${formatCount(filteredDepartments.length)} departments`}
     >
 
       <DataTable
