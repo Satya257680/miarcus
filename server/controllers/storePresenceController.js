@@ -46,16 +46,17 @@ exports.getStoreStatus = async (req, res) => {
     try {
         const data = await StorePresence.getStoreStatus();
 
-        const online = data.filter((store) => store.is_online).length;
+        const count = (status) => data.filter((store) => store.status === status).length;
 
         return res.json({
             success: true,
             data,
             summary: {
                 total: data.length,
-                online,
-                offline: data.length - online,
-                users_online: data.reduce((sum, store) => sum + store.online_count, 0)
+                online: count("online"),
+                offline: count("offline"),
+                no_manager: count("no_manager"),
+                staff_online: data.reduce((sum, store) => sum + store.staff_online, 0)
             },
             online_window_seconds: StorePresence.ONLINE_WINDOW_SECONDS,
             generated_at: new Date().toISOString()

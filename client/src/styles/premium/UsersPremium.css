@@ -336,23 +336,23 @@
 }
 
 /* ==========================================================
-   Actions column always visible (sticky on the right) so Edit,
-   Disable and Delete never scroll out of view on wide tables.
+   Actions column is a NORMAL (movable) column: it scrolls
+   horizontally together with the rest of the table instead of
+   being pinned on the right, so it never covers the "Call" /
+   "Contact No" columns.
 ========================================================== */
 
 .users-page.pp-premium .users-action-header,
 .users-page.pp-premium .users-action-cell {
-    position: sticky;
-    right: 0;
-    z-index: 6;
+    position: static;
+    right: auto;
     width: 250px;
     min-width: 250px;
     max-width: none;
-    box-shadow: -10px 0 16px -12px rgba(28, 21, 55, 0.35);
+    box-shadow: none;
 }
 
 .users-page.pp-premium .users-action-header {
-    z-index: 26;
     background: var(--pp-th) !important;
     color: #e9e4ff !important;
 }

@@ -6,15 +6,16 @@ import axios from "../axiosConfig";
 // STORE PRESENCE HEARTBEAT
 // =============================================================
 // While a logged-in user has the website open, tell the server
-// "I'm here" every 45 seconds. The admin "Store Status" page uses
+// "I'm here" every 30 seconds. The admin "Store Status" page uses
 // this to show which stores are ONLINE / OFFLINE.
 //
-// - Paused while the tab is hidden (so a forgotten background
-//   tab does not keep a store "online" forever).
-// - When the tab is closed, a best-effort "offline" ping is sent.
+// - Keeps running while the tab is in the background (the site is
+//   still open), and pings immediately when the tab comes back.
+// - When the tab/browser is closed or the user logs out, an
+//   "offline" ping is sent so the exact offline time is recorded.
 // =============================================================
 
-const HEARTBEAT_MS = 45 * 1000;
+const HEARTBEAT_MS = 30 * 1000;
 
 const apiBase = () =>
     String(axios.defaults.baseURL || "").replace(/\/+$/, "");
@@ -30,7 +31,6 @@ export default function useStorePresence() {
 
         const beat = () => {
             if (stopped || !token()) return;
-            if (document.visibilityState === "hidden") return;
 
             axios
                 .post("/api/store-presence/heartbeat", {
@@ -61,17 +61,21 @@ export default function useStorePresence() {
             if (document.visibilityState === "visible") beat();
         };
 
+        const onOnline = () => beat();
+
         beat();
         timer = window.setInterval(beat, HEARTBEAT_MS);
 
         document.addEventListener("visibilitychange", onVisibility);
         window.addEventListener("pagehide", offline);
+        window.addEventListener("online", onOnline);
 
         return () => {
             stopped = true;
             window.clearInterval(timer);
             document.removeEventListener("visibilitychange", onVisibility);
             window.removeEventListener("pagehide", offline);
+            window.removeEventListener("online", onOnline);
         };
     }, []);
 
