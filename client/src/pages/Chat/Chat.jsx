@@ -60,6 +60,8 @@ import {
     sendCallSignal,
     getCallSignals,
     updateChatCall,
+    getChatCall,
+    getIncomingChatCalls,
     getChatCallHistory,
     getChatAdminOverview,
     assignChatStoreManager,
@@ -269,6 +271,14 @@ function Chat() {
     const signalCursorRef = useRef(0);
     const signalPollRef = useRef(null);
     const incomingCallTimeoutRef = useRef(null);
+    const outgoingCallTimeoutRef = useRef(null);
+    const callStatusPollRef = useRef(null);
+    const remoteStreamRef = useRef(null);
+    const processedSignalIdsRef = useRef(new Set());
+    const handledCallIdsRef = useRef(new Set());
+    const sseAliveRef = useRef(false);
+    const ringtoneRef = useRef(null);
+    const callStateRef = useRef(null);
 
     const selectedConversationId =
         selectedConversation?.id
@@ -300,6 +310,16 @@ function Chat() {
                 ? "Online"
                 : formatLastSeen(selectedOtherMember?.last_seen)
         : "Choose a person from your store";
+
+    // Calls are app-to-app (WebRTC). Only the team member's name is shown on
+    // the call screen — phone numbers are never loaded or displayed.
+    const callPeerName = (() => {
+        const call = callState?.call;
+        if (!call) return selectedOtherMember?.name || "Team member";
+        return Number(call.caller_id) === Number(currentUser.id)
+            ? (call.callee_name || selectedOtherMember?.name || "Team member")
+            : (call.caller_name || "Team member");
+    })();
 
     const filteredConversations = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -555,6 +575,12 @@ function Chat() {
 
     useEffect(() => () => {
         clearTimeout(incomingCallTimeoutRef.current);
+        clearTimeout(outgoingCallTimeoutRef.current);
+        clearInterval(callStatusPollRef.current);
+        clearInterval(signalPollRef.current);
+        stopRingtone();
+        localStreamRef.current?.getTracks().forEach(track => track.stop());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -664,25 +690,7 @@ function Chat() {
             },
 
             incoming_call: (event) => {
-                if (event?.call) {
-                    clearTimeout(incomingCallTimeoutRef.current);
-                    setCallState({
-                        mode: "incoming",
-                        call: event.call,
-                        conversation: event.conversation
-                    });
-
-                    incomingCallTimeoutRef.current = setTimeout(async () => {
-                        try {
-                            await updateChatCall(event.call.id, "missed");
-                        } catch {
-                            // The other side may have ended the call already.
-                        }
-                        setCallState(previous =>
-                            previous?.call?.id === event.call.id ? null : previous
-                        );
-                    }, 30000);
-                }
+                showIncomingCall(event?.call, event?.conversation);
             },
 
             call_signal: async (signal) => {
@@ -693,16 +701,17 @@ function Chat() {
                 const call = event?.call;
                 if (!call) return;
 
-                if (activeCallRef.current?.call?.id === call.id) {
-                    if (["ended", "rejected", "missed"].includes(call.status)) {
-                        finishCallUi();
-                    } else {
-                        setCallState(previous => previous ? {
-                            ...previous,
-                            call
-                        } : previous);
-                    }
-                }
+                applyCallStatus(call);
+            },
+
+            connected: () => {
+                sseAliveRef.current = true;
+            },
+
+            error: () => {
+                // EventSource retries on its own; until it reconnects the
+                // polling fallback below keeps chat and calls working.
+                sseAliveRef.current = false;
             }
         });
 
@@ -719,6 +728,218 @@ function Chat() {
             behavior: messagesLoading ? "auto" : "smooth"
         });
     }, [messages, messagesLoading]);
+
+    useEffect(() => {
+        callStateRef.current = callState;
+    }, [callState]);
+
+    useEffect(() => {
+        if (!callError || callState) return undefined;
+        const timer = setTimeout(() => setCallError(""), 4000);
+        return () => clearTimeout(timer);
+    }, [callError, callState]);
+
+    // Re-attach media streams whenever the call panel re-renders (for example
+    // when an incoming call switches from the ringing view to the active view,
+    // the <video>/<audio> elements are created after the stream already exists).
+    useEffect(() => {
+        if (!callState || callState.mode === "incoming") return;
+
+        if (localVideoRef.current && localStreamRef.current &&
+            localVideoRef.current.srcObject !== localStreamRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+        }
+
+        const remote = remoteStreamRef.current;
+        if (remote) {
+            if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remote) {
+                remoteVideoRef.current.srcObject = remote;
+                remoteVideoRef.current.play?.().catch(() => {});
+            }
+            if (remoteAudioRef.current && remoteAudioRef.current.srcObject !== remote) {
+                remoteAudioRef.current.srcObject = remote;
+                remoteAudioRef.current.play?.().catch(() => {});
+            }
+        }
+    });
+
+    const stopRingtone = () => {
+        const ring = ringtoneRef.current;
+        if (!ring) return;
+        clearInterval(ring.timer);
+        try { ring.ctx.close(); } catch { /* ignore */ }
+        ringtoneRef.current = null;
+    };
+
+    const startRingtone = () => {
+        stopRingtone();
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const beep = () => {
+                [0, 0.35].forEach(offset => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.value = 440;
+                    gain.gain.value = 0.08;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + offset);
+                    osc.stop(ctx.currentTime + offset + 0.25);
+                });
+            };
+            beep();
+            ringtoneRef.current = { ctx, timer: setInterval(beep, 2000) };
+        } catch {
+            // Ringtone is best-effort only.
+        }
+    };
+
+    function showIncomingCall(call, conversation) {
+        if (!call?.id) return;
+        if (handledCallIdsRef.current.has(Number(call.id))) return;
+
+        // Already busy with another call: the new one is left to ring out.
+        const current = callStateRef.current;
+        if (current && Number(current.call?.id) !== Number(call.id)) return;
+        if (current && Number(current.call?.id) === Number(call.id)) return;
+
+        handledCallIdsRef.current.add(Number(call.id));
+        clearTimeout(incomingCallTimeoutRef.current);
+
+        const next = { mode: "incoming", call, conversation };
+        callStateRef.current = next;
+        setCallState(next);
+        startRingtone();
+
+        incomingCallTimeoutRef.current = setTimeout(async () => {
+            stopRingtone();
+            try {
+                await updateChatCall(call.id, "missed");
+            } catch {
+                // The other side may have ended the call already.
+            }
+            setCallState(previous =>
+                previous?.call?.id === call.id && previous.mode === "incoming" ? null : previous
+            );
+        }, 30000);
+    }
+
+    function applyCallStatus(call) {
+        if (!call?.id) return;
+        const current = callStateRef.current;
+        if (!current || Number(current.call?.id) !== Number(call.id)) return;
+
+        if (["ended", "rejected", "missed"].includes(call.status)) {
+            if (current.mode === "outgoing" && call.status === "rejected") {
+                setCallError("Call declined.");
+            } else if (current.mode === "outgoing" && call.status === "missed") {
+                setCallError("No answer.");
+            }
+            finishCallUi();
+            return;
+        }
+
+        if (call.status === "accepted") {
+            clearTimeout(outgoingCallTimeoutRef.current);
+            outgoingCallTimeoutRef.current = null;
+        }
+
+        setCallState(previous => previous ? {
+            ...previous,
+            call: { ...previous.call, ...call },
+            mode: call.status === "accepted" && previous.mode === "outgoing"
+                ? "active"
+                : previous.mode
+        } : previous);
+    }
+
+    // Poll the call row while a call is ringing/active so both sides see
+    // accept / decline / hang-up even when the live event stream is blocked.
+    const startCallStatusPolling = (callId) => {
+        clearInterval(callStatusPollRef.current);
+        callStatusPollRef.current = setInterval(async () => {
+            try {
+                const response = await getChatCall(callId);
+                applyCallStatus(response.data?.call);
+            } catch {
+                // Ignore transient errors.
+            }
+        }, 2000);
+    };
+
+    // Fallback: look for incoming calls by polling, so a call always rings
+    // even if the SSE stream cannot connect through the proxy.
+    useEffect(() => {
+        let stopped = false;
+        let ticks = 0;
+
+        const check = async () => {
+            ticks += 1;
+            // With a healthy live stream only a light safety check is needed.
+            if (sseAliveRef.current && ticks % 5 !== 0) return;
+            if (callStateRef.current) return;
+
+            try {
+                const response = await getIncomingChatCalls();
+                if (stopped) return;
+                const first = (response.data?.calls || [])[0];
+                if (first?.call) showIncomingCall(first.call, first.conversation);
+            } catch {
+                // Ignore; next tick retries.
+            }
+        };
+
+        const timer = setInterval(check, 3000);
+        check();
+
+        return () => {
+            stopped = true;
+            clearInterval(timer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Fallback: keep messages and the chat list live when SSE is unavailable.
+    useEffect(() => {
+        const timer = setInterval(async () => {
+            if (sseAliveRef.current) return;
+            if (document.hidden) return;
+
+            loadConversations(selectedStoreId).catch(() => {});
+
+            if (!selectedConversationId) return;
+
+            try {
+                const response = await getChatMessages(selectedConversationId);
+                const fetched = response.data?.messages || [];
+                if (!fetched.length) return;
+
+                let appended = false;
+                setMessages(previous => {
+                    const minFetched = Math.min(...fetched.map(item => Number(item.id)));
+                    const older = previous.filter(item => Number(item.id) < minFetched);
+                    const previousMaxId = previous.reduce(
+                        (max, item) => Math.max(max, Number(item.id) || 0), 0
+                    );
+                    appended = fetched.some(item => Number(item.id) > previousMaxId);
+                    return [...older, ...fetched];
+                });
+
+                const last = fetched[fetched.length - 1];
+                if (appended && last?.id && Number(last.sender_id) !== Number(currentUser.id)) {
+                    markChatRead(selectedConversationId, last.id).catch(() => {});
+                }
+            } catch {
+                // Ignore; next tick retries.
+            }
+        }, 3000);
+
+        return () => clearInterval(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedConversationId, selectedStoreId]);
 
     const sendMessageNow = async () => {
         const trimmed = message.trim();
@@ -950,7 +1171,20 @@ function Chat() {
         const pc = new RTCPeerConnection({
             iceServers: [
                 { urls: "stun:stun.l.google.com:19302" },
-                { urls: "stun:stun1.l.google.com:19302" }
+                { urls: "stun:stun1.l.google.com:19302" },
+                // A TURN relay is required when both people are behind
+                // strict NAT / mobile data. Configure it in client/.env:
+                // VITE_TURN_URL, VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL
+                ...(import.meta.env.VITE_TURN_URL
+                    ? [{
+                        urls: String(import.meta.env.VITE_TURN_URL)
+                            .split(",")
+                            .map(url => url.trim())
+                            .filter(Boolean),
+                        username: import.meta.env.VITE_TURN_USERNAME || "",
+                        credential: import.meta.env.VITE_TURN_CREDENTIAL || ""
+                    }]
+                    : [])
             ]
         });
 
@@ -967,8 +1201,16 @@ function Chat() {
         };
 
         pc.ontrack = (event) => {
-            const [stream] = event.streams;
-            if (!stream) return;
+            let [stream] = event.streams;
+            if (!stream) {
+                stream = remoteStreamRef.current || new MediaStream();
+                stream.addTrack(event.track);
+            }
+            remoteStreamRef.current = stream;
+
+            setCallState(previous => previous && previous.mode === "outgoing"
+                ? { ...previous, mode: "active" }
+                : previous);
 
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = stream;
@@ -976,6 +1218,7 @@ function Chat() {
 
             if (remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = stream;
+                remoteAudioRef.current.play?.().catch(() => {});
             }
         };
 
@@ -1030,8 +1273,18 @@ function Chat() {
             return;
         }
 
+        // The same signal can arrive twice (live stream + polling fallback).
+        // Applying an offer/answer twice breaks the WebRTC negotiation.
+        if (signal.id != null) {
+            const signalId = Number(signal.id);
+            if (processedSignalIdsRef.current.has(signalId)) return;
+            processedSignalIdsRef.current.add(signalId);
+            signalCursorRef.current = Math.max(signalCursorRef.current, signalId);
+        }
+
         try {
             if (signal.signal_type === "offer") {
+                if (remoteDescriptionSetRef.current) return;
                 await pcRef.current.setRemoteDescription(
                     new RTCSessionDescription(signal.payload)
                 );
@@ -1050,6 +1303,8 @@ function Chat() {
                     answer
                 );
             } else if (signal.signal_type === "answer") {
+                if (remoteDescriptionSetRef.current ||
+                    pcRef.current.signalingState !== "have-local-offer") return;
                 await pcRef.current.setRemoteDescription(
                     new RTCSessionDescription(signal.payload)
                 );
@@ -1087,12 +1342,6 @@ function Chat() {
                     response.data?.signals || [];
 
                 for (const signal of signals) {
-                    signalCursorRef.current =
-                        Math.max(
-                            signalCursorRef.current,
-                            Number(signal.id)
-                        );
-
                     await handleCallSignal(signal);
                 }
             } catch {
@@ -1108,11 +1357,16 @@ function Chat() {
             type,
             caller
         };
+        processedSignalIdsRef.current = new Set();
+        remoteStreamRef.current = null;
+        handledCallIdsRef.current.add(Number(call.id));
 
-        setCallState({
+        const nextState = {
             mode: caller ? "outgoing" : "active",
             call
-        });
+        };
+        callStateRef.current = nextState;
+        setCallState(nextState);
 
         try {
             await ensureMedia(type);
@@ -1121,6 +1375,19 @@ function Chat() {
 
             const pc = createPeerConnection(call);
             startSignalPolling(call.id);
+            startCallStatusPolling(call.id);
+
+            if (caller) {
+                clearTimeout(outgoingCallTimeoutRef.current);
+                outgoingCallTimeoutRef.current = setTimeout(async () => {
+                    const current = callStateRef.current;
+                    if (current?.mode === "outgoing" && Number(current.call?.id) === Number(call.id)) {
+                        await updateChatCall(call.id, "missed").catch(() => {});
+                        setCallError("No answer.");
+                        finishCallUi();
+                    }
+                }, 40000);
+            }
 
             if (caller) {
                 const offer = await pc.createOffer();
@@ -1179,6 +1446,7 @@ function Chat() {
     };
 
     const acceptIncomingCall = async () => {
+        stopRingtone();
         clearTimeout(incomingCallTimeoutRef.current);
         incomingCallTimeoutRef.current = null;
         const call = callState?.call;
@@ -1200,6 +1468,7 @@ function Chat() {
     };
 
     const rejectIncomingCall = async () => {
+        stopRingtone();
         clearTimeout(incomingCallTimeoutRef.current);
         incomingCallTimeoutRef.current = null;
         const call = callState?.call;
@@ -1210,10 +1479,17 @@ function Chat() {
     };
 
     const finishCallUi = () => {
+        stopRingtone();
         clearTimeout(incomingCallTimeoutRef.current);
         incomingCallTimeoutRef.current = null;
+        clearTimeout(outgoingCallTimeoutRef.current);
+        outgoingCallTimeoutRef.current = null;
         clearInterval(signalPollRef.current);
         signalPollRef.current = null;
+        clearInterval(callStatusPollRef.current);
+        callStatusPollRef.current = null;
+        remoteStreamRef.current = null;
+        processedSignalIdsRef.current = new Set();
 
         if (pcRef.current) {
             pcRef.current.ontrack = null;
@@ -1242,6 +1518,7 @@ function Chat() {
         pendingIceRef.current = [];
         remoteDescriptionSetRef.current = false;
         signalCursorRef.current = 0;
+        callStateRef.current = null;
         setCallState(null);
         setMicMuted(false);
         setCameraOff(false);
@@ -2683,6 +2960,12 @@ function Chat() {
                 </div>
             )}
 
+            {!callState && callError && (
+                <div className="chat-call-toast" role="status" onClick={() => setCallError("")}>
+                    <FaPhone /> {callError}
+                </div>
+            )}
+
             {callState && (
                 <div className="chat-call-backdrop">
                     <div className={`chat-call-panel ${
@@ -2697,17 +2980,13 @@ function Chat() {
                                         ? "Video call"
                                         : "Voice call"}
                                 </span>
-                                <h2>
-                                    {callState.call?.caller_name ||
-                                        selectedOtherMember?.name ||
-                                        "Team member"}
-                                </h2>
+                                <h2>{callPeerName}</h2>
                             </div>
 
                             {callState.mode !== "incoming" && (
                                 <span className="chat-call-status">
                                     {callState.mode === "outgoing"
-                                        ? "Calling…"
+                                        ? "Ringing…"
                                         : "Connected"}
                                 </span>
                             )}
@@ -2751,6 +3030,7 @@ function Chat() {
                                     <video
                                         ref={remoteVideoRef}
                                         autoPlay
+                                        muted
                                         playsInline
                                         className={
                                             callState.call?.call_type === "video"
@@ -2780,17 +3060,9 @@ function Chat() {
                                     {callState.call?.call_type !== "video" && (
                                         <div className="chat-audio-call-art">
                                             <div className="chat-call-avatar">
-                                                {initials(
-                                                    callState.call?.callee_name ||
-                                                    callState.call?.caller_name ||
-                                                    selectedOtherMember?.name
-                                                )}
+                                                {initials(callPeerName)}
                                             </div>
-                                            <h3>
-                                                {callState.call?.callee_name ||
-                                                    callState.call?.caller_name ||
-                                                    selectedOtherMember?.name}
-                                            </h3>
+                                            <h3>{callPeerName}</h3>
                                         </div>
                                     )}
                                 </div>

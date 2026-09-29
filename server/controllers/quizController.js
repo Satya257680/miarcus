@@ -2831,6 +2831,66 @@ exports.deleteReport = async (
 // GET PUBLIC QUIZ
 // ======================================================
 
+// ======================================================
+// PUBLIC STORE LIST (participant form)
+// ======================================================
+
+const getPublicStoreList = async () => {
+
+    try {
+
+        const rows =
+            await db.query(
+                `
+                SELECT id, store_name, store_code
+                FROM stores
+                WHERE status IS NULL
+                   OR status = ''
+                   OR LOWER(status) = 'active'
+                ORDER BY store_name ASC
+                `
+            );
+
+        const list =
+            Array.isArray(rows?.[0]) ? rows[0] : rows;
+
+        return (list || []).map((row) => ({
+            id: row.id,
+            store_name: row.store_name,
+            store_code: row.store_code || null
+        }));
+
+    } catch (error) {
+
+        console.error(
+            "Quiz public store list error:",
+            error.message
+        );
+
+        return [];
+
+    }
+
+};
+
+
+const normalizeContactNumber = (value) => {
+
+    let digits =
+        String(value || "").replace(/\D/g, "");
+
+    // Accept +91 / 91 / 0 prefixes for Indian mobile numbers.
+    if (digits.length === 12 && digits.startsWith("91")) {
+        digits = digits.slice(2);
+    } else if (digits.length === 11 && digits.startsWith("0")) {
+        digits = digits.slice(1);
+    }
+
+    return digits;
+
+};
+
+
 exports.getPublicQuiz = async (
     req,
     res
@@ -2879,12 +2939,28 @@ exports.getPublicQuiz = async (
         }
 
 
+        // Store list for the mandatory "Store" field on the
+        // participant form. Only the id and name are exposed.
+        const stores =
+            await getPublicStoreList();
+
         return res.json({
 
             success: true,
 
-            data:
-                quiz
+            data: {
+
+                ...quiz,
+
+                stores,
+
+                // Camera is optional for every public assessment.
+                // Location is always mandatory.
+                camera_optional: true,
+
+                require_location: true
+
+            }
 
         });
 
@@ -3008,6 +3084,78 @@ exports.startPublicQuiz = async (
         }
 
 
+        // --------------------------------------------------
+        // STORE (MANDATORY)
+        // --------------------------------------------------
+
+        const storeId =
+            Number(
+                req.body.store_id ||
+                0
+            );
+
+        if (!storeId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Please select your store"
+
+            });
+
+        }
+
+        const storeRows =
+            await db.query(
+                "SELECT id, store_name FROM stores WHERE id = ? LIMIT 1",
+                [storeId]
+            );
+
+        const storeList =
+            Array.isArray(storeRows?.[0]) ? storeRows[0] : storeRows;
+
+        const store =
+            storeList?.[0] || null;
+
+        if (!store) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Selected store was not found"
+
+            });
+
+        }
+
+
+        // --------------------------------------------------
+        // CONTACT NUMBER (MANDATORY)
+        // --------------------------------------------------
+
+        const contactNumber =
+            normalizeContactNumber(
+                req.body.contact_number
+            );
+
+        if (!/^[6-9]\d{9}$/.test(contactNumber)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Enter a valid 10-digit contact number"
+
+            });
+
+        }
+
+
         const emailConsent =
             Boolean(
                 req.body.email_consent
@@ -3043,26 +3191,24 @@ exports.startPublicQuiz = async (
         }
 
 
-        if (
-            quiz.require_camera &&
-            !cameraConsent
-        ) {
+        // Camera / photo is OPTIONAL. When no photo is given the
+        // Mi Arcus image is shown on the quiz screen and certificate.
 
-            return res.status(400).json({
+        // Location is MANDATORY for every public assessment.
+        const latitudeValue =
+            Number(req.body.latitude);
 
-                success: false,
-
-                message:
-                    "Camera permission is required"
-
-            });
-
-        }
-
+        const longitudeValue =
+            Number(req.body.longitude);
 
         if (
-            quiz.require_location &&
-            !locationConsent
+            !locationConsent ||
+            req.body.latitude === undefined ||
+            req.body.latitude === "" ||
+            req.body.longitude === undefined ||
+            req.body.longitude === "" ||
+            !Number.isFinite(latitudeValue) ||
+            !Number.isFinite(longitudeValue)
         ) {
 
             return res.status(400).json({
@@ -3306,6 +3452,9 @@ exports.startPublicQuiz = async (
                     participant_id,
                     participant_name,
                     participant_email,
+                    store_id,
+                    store_name,
+                    contact_number,
                     session_token,
                     photo_path,
                     photo_captured_at,
@@ -3322,7 +3471,7 @@ exports.startPublicQuiz = async (
                 )
 
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
 
@@ -3333,6 +3482,12 @@ exports.startPublicQuiz = async (
                     name,
 
                     email,
+
+                    store.id,
+
+                    store.store_name,
+
+                    contactNumber,
 
                     sessionToken,
 
@@ -3385,6 +3540,15 @@ exports.startPublicQuiz = async (
 
             participant_id:
                 participantId,
+
+            store_id:
+                store.id,
+
+            store_name:
+                store.store_name,
+
+            contact_number:
+                contactNumber,
 
             photo_path:
                 photoPath,

@@ -233,7 +233,7 @@ function TrainingReport() {
                         "";
 
                     return (
-                        `${participant} ${email} ${quiz} ${participantId}`
+                        `${participant} ${email} ${quiz} ${participantId} ${row?.store_name || ""} ${row?.contact_number || ""}`
                             .toLowerCase()
                             .includes(keyword)
                     );
@@ -667,6 +667,14 @@ function TrainingReport() {
         const participantPhotoUrl =
             certificateDetail?.photo_data_url ||
             quizMediaUrl(certificateDetail?.photo_path);
+
+        // Camera is optional. When the participant gave no photo (or the
+        // stored photo cannot be loaded) the Mi Arcus image is used.
+        const defaultPhotoUrl =
+            `${window.location.origin}/miarcus-participant-default.png`;
+
+        const safeStoreName =
+            escapeHtml(certificateDetail?.store_name || "");
 
         const verificationLocation =
             certificateDetail?.latitude !== null &&
@@ -1189,6 +1197,11 @@ body {
     background: #f1eff9;
 }
 
+.certificate-photo-default {
+    object-fit: contain;
+    background: #a597cf;
+}
+
 .certificate-photo-placeholder {
     display: grid;
     place-items: center;
@@ -1300,11 +1313,12 @@ body {
 
         <div class="certificate-photo-row">
             ${participantPhotoUrl
-                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" /><div class="certificate-photo certificate-photo-placeholder" style="display:none">Photo<br/>unavailable</div>`
-                : `<div class="certificate-photo certificate-photo-placeholder">Participant<br/>photo</div>`}
+                ? `<img class="certificate-photo" src="${participantPhotoUrl}" alt="Participant photo" decoding="async" onerror="this.onerror=null;this.src='${defaultPhotoUrl}';" />`
+                : `<img class="certificate-photo certificate-photo-default" src="${defaultPhotoUrl}" alt="Mi Arcus" decoding="async" />`}
             <div class="verification-copy">
                 <strong>Participant verification</strong>
-                <span>Photo captured before assessment</span>
+                <span>${participantPhotoUrl ? "Photo captured before assessment" : "No photo provided"}</span>
+                ${safeStoreName ? `<small>Store: ${safeStoreName}</small>` : ""}
                 <small>Location: ${safeVerificationLocation} · Accuracy: ${safeVerificationAccuracy}</small>
                 <small>Verified at: ${safeVerificationTime}</small>
             </div>
@@ -1419,6 +1433,8 @@ window.onload = function () {
 
             "Participant",
             "Email",
+            "Store",
+            "Contact Number",
             "Quiz",
             "Submitted",
             "Score",
@@ -1437,6 +1453,12 @@ window.onload = function () {
                 "",
 
                 row?.participant_email ||
+                "",
+
+                row?.store_name ||
+                "",
+
+                row?.contact_number ||
                 "",
 
                 row?.quiz_name ||
@@ -1785,6 +1807,13 @@ window.onload = function () {
                                                         <small>
                                                             {row.participant_email || "No email"}
                                                         </small>
+                                                        {(row.store_name || row.contact_number) && (
+                                                            <small>
+                                                                {[row.store_name, row.contact_number]
+                                                                    .filter(Boolean)
+                                                                    .join(" • ")}
+                                                            </small>
+                                                        )}
                                                     </span>
                                                 </div>
 

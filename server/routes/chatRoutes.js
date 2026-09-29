@@ -132,7 +132,9 @@ router.post("/messages/:id/star", addAccess, C.starMessage);
 
 router.put("/presence", viewAccess, C.presence);
 router.get("/calls/history", viewAccess, C.callHistory);
+router.get("/calls/incoming", viewAccess, C.incomingCalls);
 router.post("/calls", addAccess, C.startCall);
+router.get("/calls/:id", viewAccess, C.getCallStatus);
 router.post("/calls/:id/signals", addAccess, C.callSignal);
 router.get("/calls/:id/signals", viewAccess, C.callSignals);
 router.put("/calls/:id", addAccess, C.updateCall);

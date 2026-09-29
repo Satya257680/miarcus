@@ -1555,6 +1555,26 @@ const createTables = (callback) => {
         ALTER TABLE quiz_submissions
         ADD COLUMN photo_mime VARCHAR(40) NULL
         AFTER photo_data
+        `,
+
+        // Participant store + contact number (mandatory for new
+        // public assessments; NULL for older records).
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN store_id INT NULL
+        AFTER participant_email
+        `,
+
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN store_name VARCHAR(255) NULL
+        AFTER store_id
+        `,
+
+        `
+        ALTER TABLE quiz_submissions
+        ADD COLUMN contact_number VARCHAR(20) NULL
+        AFTER store_name
         `
 
     ];
@@ -3223,10 +3243,14 @@ const getSubmissions = async (
                 s.participant_name LIKE ?
                 OR s.participant_email LIKE ?
                 OR s.participant_id LIKE ?
+                OR s.store_name LIKE ?
+                OR s.contact_number LIKE ?
             )
         `;
 
         params.push(
+            searchValue,
+            searchValue,
             searchValue,
             searchValue,
             searchValue

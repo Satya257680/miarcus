@@ -202,6 +202,38 @@ exports.createSubmission = async (req, res) => {
 
 
         // ==================================================
+        // ALL QUESTIONS ARE MANDATORY
+        // ==================================================
+        //
+        // Every question of every checklist type must be
+        // answered. Blank / whitespace-only answers are
+        // rejected here as well as in the browser.
+        // ==================================================
+
+        const unanswered =
+            validAnswers.filter((item) => {
+                const value = item.answer;
+                if (value === undefined || value === null) return true;
+                if (Array.isArray(value)) return value.length === 0;
+                if (typeof value === "object") return Object.keys(value).length === 0;
+                return String(value).trim() === "";
+            });
+
+        if (unanswered.length > 0) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    `All checklist questions are mandatory. ${unanswered.length} question(s) are not answered.`
+
+            });
+
+        }
+
+
+        // ==================================================
         // SUBMISSION DATA
         // ==================================================
         //

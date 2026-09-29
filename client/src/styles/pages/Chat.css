@@ -3338,7 +3338,9 @@
     color: var(--wa-muted);
 }
 
-.chat-page.wa-theme .wa-back { display: none; flex: 0 0 40px; }
+/* Back button is visible on every screen size so users can always
+   leave the open chat and return to the chat list. */
+.chat-page.wa-theme .wa-back { display: grid; flex: 0 0 40px; margin-left: -6px; }
 
 .chat-page.wa-theme .chat-call-actions {
     display: flex;
@@ -3882,4 +3884,32 @@
     }
 
     .chat-page.wa-theme .wa-sidebar-icons button { width: 36px; height: 36px; font-size: 16px; }
+}
+
+
+/* ============================================================
+   Call feedback toast (declined / no answer / errors)
+   ============================================================ */
+.chat-call-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-radius: 999px;
+    background: #111b21;
+    color: #fff;
+    font-size: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+    cursor: pointer;
+    max-width: calc(100vw - 32px);
+}
+
+.chat-call-toast svg {
+    color: #25d366;
+    flex: 0 0 auto;
 }

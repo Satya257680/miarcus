@@ -932,6 +932,31 @@ const updateCall = async (callId, status) => {
     return getCall(callId);
 };
 
+// Fallback for clients whose live event stream (SSE) is blocked by a proxy:
+// returns calls that are still ringing for this user. Calls left ringing for
+// more than 45 seconds are closed as "missed" so they never ring forever.
+const getIncomingCalls = async (userId) => {
+    await db.query(`
+        UPDATE chat_calls
+        SET status = 'missed', ended_at = CURRENT_TIMESTAMP
+        WHERE callee_id = ?
+          AND status = 'ringing'
+          AND created_at < (CURRENT_TIMESTAMP - INTERVAL 45 SECOND)
+    `, [userId]);
+
+    return db.query(`
+        SELECT c.*, cu.name caller_name, cu.profile_photo caller_photo,
+               ru.name callee_name, ru.profile_photo callee_photo
+        FROM chat_calls c
+        INNER JOIN users cu ON cu.id = c.caller_id
+        INNER JOIN users ru ON ru.id = c.callee_id
+        WHERE c.callee_id = ?
+          AND c.status = 'ringing'
+        ORDER BY c.id DESC
+        LIMIT 5
+    `, [userId]);
+};
+
 const getCallHistory = async (userId, admin = false, storeId = null, limit = 100) => {
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 300);
     const params = [];
@@ -1085,6 +1110,7 @@ module.exports = {
     addSignal,
     getSignals,
     updateCall,
+    getIncomingCalls,
     getStoreManager,
     getAdminStoreOverview,
     assignStoreManager

@@ -740,6 +740,34 @@ exports.updateCall = async (req, res) => {
     res.json({ success: true, call: updated });
 };
 
+exports.incomingCalls = async (req, res) => {
+    const calls = await Model.getIncomingCalls(req.user.id);
+    const result = [];
+
+    for (const call of calls) {
+        let conversation = null;
+        try {
+            conversation = await Model.getConversation(call.conversation_id);
+        } catch {
+            conversation = null;
+        }
+        result.push({ call, conversation });
+    }
+
+    res.json({ success: true, calls: result });
+};
+
+exports.getCallStatus = async (req, res) => {
+    const call = await Model.getCall(req.params.id);
+    if (!call) return res.status(404).json({ success: false, message: "Call not found." });
+
+    if (![Number(call.caller_id), Number(call.callee_id)].includes(Number(req.user.id))) {
+        return res.status(403).json({ success: false, message: "You are not part of this call." });
+    }
+
+    res.json({ success: true, call });
+};
+
 exports.callHistory = async (req, res) => {
     const storeId = Number(req.query.store_id || 0) || null;
     if (storeId) await requireStoreAccess(req, storeId);

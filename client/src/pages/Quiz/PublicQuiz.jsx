@@ -17,6 +17,8 @@ import {
     FaArrowRight,
     FaLock,
     FaEnvelope,
+    FaPhone,
+    FaStore,
 } from "react-icons/fa";
 
 import "../../styles/pages/Quiz.css";
@@ -27,6 +29,21 @@ const QUIZ_API_URL = (
     import.meta.env.VITE_API_URL?.trim() ||
     "http://localhost:5000"
 ).replace(/\/+$/, "");
+
+// Shown on the quiz screen and certificate whenever the participant
+// chose not to provide a camera photo (camera is optional).
+const DEFAULT_PARTICIPANT_PHOTO = "/miarcus-participant-default.png";
+
+// Accepts 10-digit Indian mobile numbers, optionally prefixed with +91 / 91 / 0.
+const normalizeContactNumber = (value) => {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+    else if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+    return digits;
+};
+
+const isValidContactNumber = (value) =>
+    /^[6-9]\d{9}$/.test(normalizeContactNumber(value));
 
 const mediaUrl = (value) => {
     if (!value) return "";
@@ -127,6 +144,8 @@ function PublicQuiz() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [gender, setGender] = useState("");
+    const [storeId, setStoreId] = useState("");
+    const [contactNumber, setContactNumber] = useState("");
 
     const [emailConsent, setEmailConsent] = useState(false);
     const [cameraConsent, setCameraConsent] = useState(false);
@@ -439,7 +458,35 @@ function PublicQuiz() {
         setName("");
         setEmail("");
         setGender("");
+        setStoreId("");
+        setContactNumber("");
         setEmailConsent(false);
+
+        setError("");
+    };
+
+    // ============================================================
+    // CANCEL CAMERA (camera is optional)
+    // ============================================================
+    // Closes the camera without a photo and unlocks the details,
+    // keeping everything the participant already typed.
+
+    const cancelCamera = () => {
+        stopAutoCapture();
+        stopCamera();
+
+        setPhoto(null);
+        setPhotoCapturedAt(null);
+        setCameraConsent(false);
+        setCameraLoading(false);
+        setVerificationLocked(false);
+        setParticipantDetailsLocked(false);
+
+        setCameraVerification({
+            status: "idle",
+            message: "Camera verification is ready.",
+            checks: [],
+        });
 
         setError("");
     };
@@ -452,17 +499,25 @@ function PublicQuiz() {
     // and after verification. Only Retake Photo can clear it.
 
     useEffect(() => {
+        // Camera is optional, so details are only frozen once the
+        // participant actually starts camera verification (a photo must
+        // stay attached to the identity it was captured for).
         if (
             !participantDetailsLocked &&
-            isCameraPrerequisiteComplete()
+            isCameraPrerequisiteComplete() &&
+            (cameraConsent || photo)
         ) {
             setParticipantDetailsLocked(true);
         }
     }, [
+        cameraConsent,
+        photo,
         name,
         email,
         emailConsent,
         gender,
+        storeId,
+        contactNumber,
         participantDetailsLocked,
     ]);
 
@@ -475,7 +530,7 @@ function PublicQuiz() {
 
         if (!isCameraPrerequisiteComplete()) {
             setError(
-                "Please complete your name, email address, and agreement before enabling the camera."
+                "Please complete your name, email, store, contact number, gender and agreement before enabling the camera."
             );
             return;
         }
@@ -528,10 +583,13 @@ function PublicQuiz() {
             }, 50);
         } catch (err) {
             setCameraConsent(false);
+            // Camera is optional — unlock details so the participant can
+            // continue without a photo.
+            setParticipantDetailsLocked(false);
 
             setError(
-                err?.message ||
-                "Camera permission is required for this assessment."
+                (err?.message || "Camera is not available.") +
+                " You can continue without a photo."
             );
         } finally {
             setCameraLoading(false);
@@ -1097,6 +1155,8 @@ function PublicQuiz() {
         return (
             participantName.length > 0 &&
             emailPattern.test(participantEmail) &&
+            Boolean(storeId) &&
+            isValidContactNumber(contactNumber) &&
             (gender === "Male" || gender === "Female") &&
             emailConsent === true
         );
@@ -1136,6 +1196,21 @@ function PublicQuiz() {
             return false;
         }
 
+        if (!storeId) {
+            setError("Please select your store.");
+            return false;
+        }
+
+        if (!contactNumber.trim()) {
+            setError("Please enter your contact number.");
+            return false;
+        }
+
+        if (!isValidContactNumber(contactNumber)) {
+            setError("Please enter a valid 10-digit contact number.");
+            return false;
+        }
+
         if (gender !== "Male" && gender !== "Female") {
             setError("Please select Male or Female before continuing.");
             return false;
@@ -1172,25 +1247,18 @@ function PublicQuiz() {
             }
         }
 
-        if (
-            quiz?.require_camera &&
-            (
-                !cameraConsent ||
-                !photo ||
-                cameraVerification.status !== "passed"
-            )
-        ) {
-            setError(
-                cameraVerification.message ||
-                "Please complete camera verification before continuing."
-            );
-
+        // Camera is OPTIONAL. If the participant does not provide a
+        // photo, the Mi Arcus image is used on the quiz and certificate.
+        // A photo is only held back while a check is still running.
+        if (cameraConsent && cameraVerification.status === "checking") {
+            setError("Please wait — camera verification is still checking.");
             return false;
         }
 
+        // Location is MANDATORY for every assessment.
         if (
-            quiz?.require_location &&
-            !locationConsent
+            !locationConsent ||
+            !location
         ) {
             setError(
                 "Please allow location access before continuing."
@@ -1232,6 +1300,16 @@ function PublicQuiz() {
         );
 
         formData.append(
+            "store_id",
+            String(storeId)
+        );
+
+        formData.append(
+            "contact_number",
+            normalizeContactNumber(contactNumber)
+        );
+
+        formData.append(
             "email_consent",
             emailConsent ? "1" : "0"
         );
@@ -1269,7 +1347,7 @@ function PublicQuiz() {
             );
         }
 
-        if (photo) {
+        if (photo && cameraVerification.status === "passed") {
             formData.append(
                 "photo",
                 photo
@@ -2107,7 +2185,7 @@ function PublicQuiz() {
 
                                 <label>
                                     <span>
-                                        Full Name
+                                        Full Name <em className="pq-required">*</em>
                                     </span>
 
                                     <input
@@ -2127,7 +2205,7 @@ function PublicQuiz() {
 
                                 <label>
                                     <span>
-                                        Email Address
+                                        Email Address <em className="pq-required">*</em>
                                     </span>
 
                                     <div className="input-with-icon">
@@ -2154,7 +2232,67 @@ function PublicQuiz() {
                                 </label>
 
                                 <label>
-                                    <span>Gender</span>
+                                    <span>
+                                        Store <em className="pq-required">*</em>
+                                    </span>
+
+                                    <div className="input-with-icon">
+                                        <FaStore />
+                                        <select
+                                            value={storeId}
+                                            onChange={(event) => {
+                                                if (!participantDetailsLocked && !verificationLocked) {
+                                                    setStoreId(event.target.value);
+                                                }
+                                            }}
+                                            disabled={participantDetailsLocked || verificationLocked}
+                                            required
+                                        >
+                                            <option value="">Select your store</option>
+                                            {(quiz.stores || []).map((store) => (
+                                                <option key={store.id} value={store.id}>
+                                                    {store.store_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </label>
+
+                                <label>
+                                    <span>
+                                        Contact Number <em className="pq-required">*</em>
+                                    </span>
+
+                                    <div className="input-with-icon">
+                                        <FaPhone />
+                                        <input
+                                            type="tel"
+                                            inputMode="numeric"
+                                            maxLength={14}
+                                            value={contactNumber}
+                                            onChange={(event) => {
+                                                if (!participantDetailsLocked) {
+                                                    setContactNumber(
+                                                        event.target.value.replace(/[^\d+\s-]/g, "")
+                                                    );
+                                                }
+                                            }}
+                                            placeholder="10-digit mobile number"
+                                            autoComplete="tel"
+                                            readOnly={participantDetailsLocked || verificationLocked}
+                                            aria-readonly={participantDetailsLocked || verificationLocked}
+                                            required
+                                        />
+                                    </div>
+                                    {contactNumber && !isValidContactNumber(contactNumber) && (
+                                        <small className="pq-field-error">
+                                            Enter a valid 10-digit mobile number.
+                                        </small>
+                                    )}
+                                </label>
+
+                                <label>
+                                    <span>Gender <em className="pq-required">*</em></span>
                                     <select
                                         value={gender}
                                         onChange={(event) => {
@@ -2199,8 +2337,8 @@ function PublicQuiz() {
 
                                 {participantDetailsLocked && (
                                     <p className="participant-details-locked">
-                                        Participant details, including gender, are locked for this verification.
-                                        Use <strong>Retake Photo</strong> to start a new verification.
+                                        Participant details are locked for this camera verification.
+                                        Use <strong>{photo ? "Retake Photo" : "Cancel Camera"}</strong> to change them.
                                     </p>
                                 )}
                             </section>
@@ -2233,7 +2371,7 @@ function PublicQuiz() {
 
                                 {/* CAMERA */}
 
-                                {quiz.require_camera && (
+                                {(
                                     <>
                                         <div className="permission-card">
                                             <div>
@@ -2245,7 +2383,7 @@ function PublicQuiz() {
 
                                                     <small>
                                                         {!cameraConsent
-                                                            ? "Required before starting"
+                                                            ? "Optional — Mi Arcus image is used if you skip"
                                                             : cameraVerification.status === "passed"
                                                                 ? "Face and photo quality verified"
                                                                 : cameraVerification.status === "checking"
@@ -2271,13 +2409,13 @@ function PublicQuiz() {
                                                     {cameraLoading
                                                         ? "Opening..."
                                                         : isCameraPrerequisiteComplete()
-                                                            ? "Allow Camera"
+                                                            ? "Allow Camera (Optional)"
                                                             : "Complete Details First"}
                                                 </button>
                                             ) : (
                                                 <button
                                                     type="button"
-                                                    onClick={resetParticipantForRetake}
+                                                    onClick={photo ? resetParticipantForRetake : cancelCamera}
                                                     disabled={
                                                         cameraVerification.status === "checking"
                                                     }
@@ -2286,7 +2424,7 @@ function PublicQuiz() {
                                                         ? "Checking..."
                                                         : photo
                                                             ? "Retake Photo"
-                                                            : "Auto Capture"}
+                                                            : "Cancel Camera"}
                                                 </button>
                                             )}
                                         </div>
@@ -2294,9 +2432,9 @@ function PublicQuiz() {
                                         {!cameraConsent &&
                                             !isCameraPrerequisiteComplete() && (
                                                 <p className="camera-prerequisite-hint">
-                                                    Enter your name, valid email address,
-                                                    and accept the agreement before enabling
-                                                    camera verification.
+                                                    Camera photo is optional. To add one, first enter your
+                                                    name, email, store, contact number, gender and accept
+                                                    the agreement.
                                                 </p>
                                             )}
 
@@ -2355,8 +2493,8 @@ function PublicQuiz() {
 
                                 {/* LOCATION */}
 
-                                {quiz.require_location && (
-                                    <div className="permission-card">
+                                {(
+                                    <div className={`permission-card ${locationConsent ? "" : "pq-location-required"}`}>
                                         <div>
                                             <FaMapMarkerAlt />
 
@@ -2370,7 +2508,7 @@ function PublicQuiz() {
                                                             location?.accuracy ||
                                                             0
                                                         )}m`
-                                                        : "Required before starting"}
+                                                        : "Mandatory — required before starting"}
                                                 </small>
                                             </span>
                                         </div>
@@ -2393,28 +2531,6 @@ function PublicQuiz() {
                                     </div>
                                 )}
 
-                                {!quiz.require_camera &&
-                                    !quiz.require_location && (
-                                        <div className="verification-ready">
-                                            <FaCheckCircle />
-
-                                            <div>
-                                                <strong>
-                                                    No additional
-                                                    verification
-                                                    required
-                                                </strong>
-
-                                                <span>
-                                                    You can
-                                                    proceed
-                                                    directly to
-                                                    the
-                                                    assessment.
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
                             </section>
                         </div>
 
@@ -2542,7 +2658,7 @@ function PublicQuiz() {
                                         />
                                     ) : (
                                         <img
-                                            src="/miarcus.png"
+                                            src={DEFAULT_PARTICIPANT_PHOTO}
                                             alt="Mi Arcus"
                                         />
                                     )}
@@ -2550,7 +2666,18 @@ function PublicQuiz() {
 
                                 <div className="quiz-verification-copy">
                                     <strong>Participant verification</strong>
-                                    <span>Photo captured before assessment</span>
+                                    <span>
+                                        {photoPreviewUrl
+                                            ? "Photo captured before assessment"
+                                            : "No photo provided — Mi Arcus image used"}
+                                    </span>
+                                    {(storeId || contactNumber) && (
+                                        <span>
+                                            {(quiz.stores || []).find(
+                                                (store) => String(store.id) === String(storeId)
+                                            )?.store_name || ""}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="quiz-verification-meta">

@@ -473,10 +473,8 @@ function TakeQuiz() {
                                 ? "Unlimited"
                                 : `${quiz.attempts_allowed} attempt${Number(quiz.attempts_allowed) === 1 ? "" : "s"}`;
 
-                        const hasChecks =
-                            quiz.require_camera ||
-                            quiz.require_location ||
-                            quiz.require_email_consent;
+                        // Location is always mandatory; camera is always optional.
+                        const hasChecks = true;
 
                         return (
 
@@ -535,17 +533,13 @@ function TakeQuiz() {
 
                                         <span className="tq-checks-label">Verification</span>
 
-                                        {quiz.require_camera && (
-                                            <span className="tq-chip" title="Camera verification required">
-                                                <FaCamera /> Camera
-                                            </span>
-                                        )}
+                                        <span className="tq-chip" title="Location verification is mandatory">
+                                            <FaMapMarkerAlt /> Location
+                                        </span>
 
-                                        {quiz.require_location && (
-                                            <span className="tq-chip" title="Location verification required">
-                                                <FaMapMarkerAlt /> Location
-                                            </span>
-                                        )}
+                                        <span className="tq-chip" title="Camera photo is optional">
+                                            <FaCamera /> Camera (optional)
+                                        </span>
 
                                         {quiz.require_email_consent && (
                                             <span className="tq-chip" title="Email consent required">

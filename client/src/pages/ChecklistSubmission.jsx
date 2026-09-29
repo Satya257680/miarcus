@@ -26,6 +26,26 @@ const CHECKLIST_STEPS = [
   { title: "Review & Submit", text: "Verify and submit checklist", icon: FaCheck },
 ];
 
+
+// ---------------------------------------------------------
+// ANSWER HELPERS
+// Every checklist question is mandatory. A whitespace-only
+// text answer does not count as answered.
+// ---------------------------------------------------------
+const hasAnswerValue = (value) => {
+  if (value === undefined || value === null) return false;
+  if (typeof File !== "undefined" && value instanceof File) return true;
+  if (Array.isArray(value)) return value.length > 0;
+  return String(value).trim() !== "";
+};
+
+const answerToText = (value) => {
+  if (value === undefined || value === null) return "";
+  if (typeof File !== "undefined" && value instanceof File) return value.name || "file";
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value).trim();
+};
+
 function ChecklistSubmission() {
   // =========================================================
   // DATA
@@ -651,20 +671,20 @@ function ChecklistSubmission() {
         question.id ||
         question.question_id;
 
-      const required =
-        question.required === true ||
-        question.required === 1 ||
-        question.is_required === true ||
-        question.is_required === 1;
+      // Every question of every checklist type is mandatory.
+      const required = true;
 
       if (
         required &&
-        (
-          answers[questionId] === undefined ||
-          answers[questionId] === null ||
-          answers[questionId] === ""
-        )
+        !hasAnswerValue(answers[questionId])
       ) {
+        const card = document.getElementById(`cs-q-${questionId}`);
+        if (card) {
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          card.classList.add("unanswered-highlight");
+          setTimeout(() => card.classList.remove("unanswered-highlight"), 2500);
+        }
+
         alert(
           `Please answer: ${
             question.question ||
@@ -720,7 +740,7 @@ function ChecklistSubmission() {
             question_id: questionId,
 
             answer:
-              answers[questionId] || "",
+              answerToText(answers[questionId]),
 
             remarks:
               remarks[questionId] || "",
@@ -878,15 +898,10 @@ function ChecklistSubmission() {
   // =========================================================
 
   const questionKey = (question) => question.id || question.question_id;
-  const isAnswered = (question) => {
-    const value = answers[questionKey(question)];
-    return value !== undefined && value !== null && value !== "";
-  };
-  const isRequired = (question) =>
-    question.required === true ||
-    question.required === 1 ||
-    question.is_required === true ||
-    question.is_required === 1;
+  const isAnswered = (question) => hasAnswerValue(answers[questionKey(question)]);
+  // All questions are mandatory for every checklist type.
+  // eslint-disable-next-line no-unused-vars
+  const isRequired = (question) => true;
 
   const answeredCount = questions.filter(isAnswered).length;
   const requiredLeft = questions.filter((question) => isRequired(question) && !isAnswered(question)).length;
@@ -1311,18 +1326,11 @@ function ChecklistSubmission() {
                       question.title ||
                       "Checklist Question";
 
-                    const required =
-                      question.required === true ||
-                      question.required === 1 ||
-                      question.is_required === true ||
-                      question.is_required === 1;
+                    // Every question of every checklist type is mandatory.
+                    const required = true;
 
                     const answered =
-                      answers[questionId] !==
-                        undefined &&
-                      answers[questionId] !==
-                        null &&
-                      answers[questionId] !== "";
+                      hasAnswerValue(answers[questionId]);
 
                     return (
                       <div
@@ -1332,6 +1340,7 @@ function ChecklistSubmission() {
                             : ""
                         }`}
                         key={questionId}
+                        id={`cs-q-${questionId}`}
                       >
 
                         <div className="question-top">

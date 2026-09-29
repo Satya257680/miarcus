@@ -135,6 +135,12 @@ export const getCallSignals = (callId, after = 0) =>
         params: { after }
     });
 
+export const getChatCall = (callId) =>
+    axios.get(`${API}/calls/${callId}`, authConfig());
+
+export const getIncomingChatCalls = () =>
+    axios.get(`${API}/calls/incoming`, authConfig());
+
 export const updateChatCall = (callId, status) =>
     axios.put(`${API}/calls/${callId}`, { status }, authConfig());
 
@@ -156,11 +162,19 @@ export const openChatEventStream = (handlers = {}) => {
     const token = localStorage.getItem("token");
     if (!token) return () => {};
 
-    const base = (
+    // The chat routes live at <origin>/api/chat. Some deployments set the
+    // API base URL with a trailing "/api", which produced the broken
+    // "/api/api/chat/events" URL (404). Strip any trailing "/api" so the
+    // stream always resolves to "/api/chat/events".
+    const base = String(
         axios.defaults.baseURL ||
         import.meta.env.VITE_API_URL ||
-        API_BASE_URL
-    ).replace(/\/+$/, "");
+        API_BASE_URL ||
+        window.location.origin
+    )
+        .trim()
+        .replace(/\/+$/, "")
+        .replace(/\/api$/i, "");
 
     const source = new EventSource(
         `${base}${API}/events?token=${encodeURIComponent(token)}`
@@ -190,6 +204,14 @@ export const openChatEventStream = (handlers = {}) => {
             }
         });
     });
+
+    source.addEventListener("connected", () => {
+        handlers.connected?.();
+    });
+
+    source.onopen = () => {
+        handlers.connected?.();
+    };
 
     source.onerror = () => {
         handlers.error?.();

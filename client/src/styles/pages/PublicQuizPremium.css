@@ -421,3 +421,36 @@
     .public-quiz-shell.pq-premium .player-footer { padding: 16px 20px !important; }
     .public-quiz-shell.pq-premium .public-primary { width: 100%; justify-content: center; }
 }
+
+/* ------------------------------------------------------------
+   Mandatory participant fields: store, contact number, etc.
+   ------------------------------------------------------------ */
+.pq-required {
+    color: #dc2626;
+    font-style: normal;
+    font-weight: 700;
+    margin-left: 2px;
+}
+
+.public-quiz-shell.pq-premium .verification-grid .input-with-icon select {
+    width: 100% !important;
+    padding-left: 42px !important;
+    cursor: pointer;
+}
+
+.public-quiz-shell.pq-premium .verification-grid select:disabled {
+    cursor: not-allowed;
+    background: #f7f5fc;
+}
+
+.pq-field-error {
+    display: block;
+    margin-top: 6px;
+    color: #dc2626;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.permission-card.pq-location-required {
+    border-color: rgba(220, 38, 38, 0.35);
+}
