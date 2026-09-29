@@ -17,7 +17,9 @@ import {
     FaClock,
     FaDownload,
     FaPrint,
+    FaRedo,
 } from "react-icons/fa";
+import { isAdministratorUser } from "../../utils/rbac";
 
 import "../../styles/pages/Quiz.css";
 import "../../styles/premium/PagePremium.css";
@@ -85,6 +87,12 @@ function TrainingReport() {
 
     const [deletingId, setDeletingId] =
         useState(null);
+
+    const [reattempting, setReattempting] =
+        useState(false);
+
+    const isAdmin =
+        isAdministratorUser();
 
     // "all" for Admin / Super Admin, "limited" for everyone else
     const [reportScope, setReportScope] =
@@ -376,6 +384,78 @@ function TrainingReport() {
         } finally {
 
             setLoadingDetail(false);
+
+        }
+
+    };
+
+
+    // ============================================================
+    // ALLOW RE-ATTEMPT (ADMIN)
+    // ============================================================
+    // Gives a failed participant one more attempt and e-mails
+    // them the same shared quiz link again.
+
+    const allowReattempt = async () => {
+
+        if (!detail?.id || reattempting) {
+            return;
+        }
+
+        const hasUnused =
+            detail?.reattempt &&
+            !detail.reattempt.unlimited &&
+            detail.reattempt.has_available_attempt;
+
+        const confirmed =
+            window.confirm(
+                hasUnused
+                    ? `${detail.participant_name} already has an unused attempt.\n\nRe-send the quiz link to ${detail.participant_email}?`
+                    : `Allow ${detail.participant_name} one more attempt at "${detail.quiz_name}"?\n\nThe quiz link will be e-mailed to ${detail.participant_email}.`
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setReattempting(true);
+
+        try {
+
+            const response =
+                await axios.post(
+                    `/api/quiz/reports/${detail.id}/reattempt`,
+                    { send_email: true }
+                );
+
+            setDetail(
+                previous =>
+                    previous
+                        ? {
+                            ...previous,
+                            reattempt:
+                                response?.data?.reattempt ||
+                                previous.reattempt,
+                        }
+                        : previous
+            );
+
+            setMessage(
+                response?.data?.message ||
+                "Re-attempt allowed."
+            );
+
+        } catch (error) {
+
+            setMessage(
+                error?.response?.data
+                    ?.message ||
+                "Unable to allow re-attempt."
+            );
+
+        } finally {
+
+            setReattempting(false);
 
         }
 
@@ -2338,6 +2418,32 @@ window.onload = function () {
                             FOOTER
                         ========================================== */}
 
+                        {isAdmin &&
+                            detail?.reattempt &&
+                            String(detail?.result ?? "").trim().toLowerCase() === "failed" && (
+
+                            <div className="quiz-reattempt-info">
+
+                                <FaRedo />
+
+                                <span>
+                                    {detail.reattempt.passed
+                                        ? "This participant has already passed this quiz in a later attempt."
+                                        : detail.reattempt.unlimited
+                                            ? `Attempts used: ${detail.reattempt.attempts_used} (unlimited attempts allowed)`
+                                            : `Attempts used: ${detail.reattempt.attempts_used} of ${detail.reattempt.effective_limit}` +
+                                              (detail.reattempt.grants
+                                                  ? ` (includes ${detail.reattempt.grants} re-attempt${detail.reattempt.grants > 1 ? "s" : ""} given)`
+                                                  : "") +
+                                              (detail.reattempt.has_available_attempt
+                                                  ? " — an attempt is available."
+                                                  : " — no attempts left.")}
+                                </span>
+
+                            </div>
+
+                        )}
+
                         <div className="quiz-modal-footer">
 
                             <button
@@ -2353,6 +2459,33 @@ window.onload = function () {
                                 Close
 
                             </button>
+
+
+                            {isAdmin &&
+                                String(detail?.result ?? "").trim().toLowerCase() === "failed" &&
+                                !detail?.reattempt?.passed && (
+
+                                <button
+                                    type="button"
+                                    className="quiz-primary quiz-reattempt-btn"
+                                    onClick={allowReattempt}
+                                    disabled={reattempting}
+                                    title="Give one more attempt and e-mail the quiz link"
+                                >
+
+                                    <FaRedo />
+
+                                    {reattempting
+                                        ? "Sending..."
+                                        : detail?.reattempt &&
+                                          !detail.reattempt.unlimited &&
+                                          detail.reattempt.has_available_attempt
+                                            ? "Resend Re-attempt Link"
+                                            : "Allow Re-attempt"}
+
+                                </button>
+
+                            )}
 
 
                             {String(

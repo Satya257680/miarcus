@@ -17,6 +17,27 @@ import App from "./App";
 import "./index.css";
 import registerServiceWorker from "./registerServiceWorker";
 
+// Tell the blank-page self-heal in index.html that the app started.
+window.__MIARCUS_BOOTED__ = true;
+
+// Remove the one-time "?_r=" cache-buster added by the self-heal.
+try {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("_r")) {
+    url.searchParams.delete("_r");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }
+} catch {
+  // ignore
+}
+
+// A lazily loaded chunk from an older deployment is gone -> reload fresh.
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  window.__MIARCUS_BOOTED__ = false;
+  window.__MIARCUS_RECOVER__?.();
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

@@ -43,7 +43,8 @@ import {
     FaKey,
     FaRoute,
     FaUserLock,
-    FaPalette
+    FaPalette,
+    FaWifi
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -535,6 +536,26 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Password Management
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    STORE STATUS (ADMIN ONLY)
+                    Which stores are online / offline right now.
+                ================================================== */}
+
+                {isAdministrator && (
+                    <NavLink
+                        to="/store-status"
+                        className={getMenuClass}
+                    >
+                        <FaWifi />
+
+                        {!collapsed && (
+                            <span>
+                                Store Status
                             </span>
                         )}
                     </NavLink>

@@ -1520,6 +1520,51 @@ const createTables = (callback) => {
 
         ) ENGINE=InnoDB
         DEFAULT CHARSET=utf8mb4
+        `,
+
+
+        // --------------------------------------------------
+        // RE-ATTEMPT GRANTS
+        // --------------------------------------------------
+        // Each row gives ONE extra attempt to a participant
+        // (per quiz + email) on top of quiz.attempts_allowed.
+        // Created by an administrator from the Training Report.
+        // --------------------------------------------------
+
+        `
+        CREATE TABLE IF NOT EXISTS quiz_reattempt_grants (
+
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+            quiz_id INT NOT NULL,
+
+            participant_email VARCHAR(255) NOT NULL,
+
+            participant_name VARCHAR(255) NULL,
+
+            source_submission_id BIGINT NULL,
+
+            granted_by INT NULL,
+
+            email_status ENUM('Sent','Failed','Skipped')
+                NOT NULL DEFAULT 'Skipped',
+
+            granted_at DATETIME
+                NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+            CONSTRAINT fk_quiz_reattempt_quiz
+                FOREIGN KEY (quiz_id)
+                REFERENCES quizzes(id)
+                ON DELETE CASCADE,
+
+            INDEX idx_quiz_reattempt_quiz_email
+                (quiz_id, participant_email),
+
+            INDEX idx_quiz_reattempt_source
+                (source_submission_id)
+
+        ) ENGINE=InnoDB
+        DEFAULT CHARSET=utf8mb4
         `
     ];
 
@@ -3866,6 +3911,210 @@ const checkPublicQuizAvailability =
 
 
 // ======================================================
+// RE-ATTEMPT GRANTS
+// ======================================================
+// Extra attempts given by an administrator to a participant
+// who failed. Counted per quiz + participant email, exactly
+// like normal attempts, so the same shared quiz link keeps
+// working for everyone else.
+// ======================================================
+
+const getReattemptGrantCount =
+    async (
+        quizId,
+        participantEmail
+    ) => {
+
+        const id = normalizeId(quizId);
+        const email = normalizeEmail(participantEmail);
+
+        if (!id || !isValidEmail(email)) {
+            return 0;
+        }
+
+        try {
+            const rows = await db.query(
+                `
+                SELECT COUNT(*) AS total
+                FROM quiz_reattempt_grants
+                WHERE quiz_id = ?
+                  AND LOWER(TRIM(participant_email)) = ?
+                `,
+                [id, email]
+            );
+
+            return Number(rows[0]?.total || 0);
+        } catch (error) {
+            // Table not created yet (first boot) -> no grants.
+            if (error?.code === "ER_NO_SUCH_TABLE") {
+                return 0;
+            }
+            throw error;
+        }
+    };
+
+
+const createReattemptGrant =
+    async ({
+        quiz_id,
+        participant_email,
+        participant_name = null,
+        source_submission_id = null,
+        granted_by = null,
+        email_status = "Skipped"
+    } = {}) => {
+
+        const quizId = normalizeId(quiz_id);
+        const email = normalizeEmail(participant_email);
+
+        if (!quizId) {
+            throw new Error("Invalid quiz ID");
+        }
+
+        if (!isValidEmail(email)) {
+            throw new Error("Participant email is invalid");
+        }
+
+        const result = await db.query(
+            `
+            INSERT INTO quiz_reattempt_grants
+            (
+                quiz_id,
+                participant_email,
+                participant_name,
+                source_submission_id,
+                granted_by,
+                email_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            `,
+            [
+                quizId,
+                email,
+                participant_name
+                    ? String(participant_name).trim()
+                    : null,
+                normalizeId(source_submission_id),
+                normalizeId(granted_by),
+                ["Sent", "Failed", "Skipped"].includes(email_status)
+                    ? email_status
+                    : "Skipped"
+            ]
+        );
+
+        return result.insertId;
+    };
+
+
+const updateReattemptGrantEmailStatus =
+    async (grantId, emailStatus) => {
+
+        const id = normalizeId(grantId);
+
+        if (!id) {
+            return;
+        }
+
+        await db.query(
+            `
+            UPDATE quiz_reattempt_grants
+            SET email_status = ?
+            WHERE id = ?
+            `,
+            [
+                ["Sent", "Failed", "Skipped"].includes(emailStatus)
+                    ? emailStatus
+                    : "Skipped",
+                id
+            ]
+        );
+    };
+
+
+// Full re-attempt picture for one participant of one quiz:
+// how many attempts they used, how many they may use, and
+// whether they currently have an unused attempt available.
+const getReattemptStatus =
+    async (
+        quizId,
+        participantEmail
+    ) => {
+
+        const id = normalizeId(quizId);
+        const email = normalizeEmail(participantEmail);
+
+        const empty = {
+            attempts_used: 0,
+            attempts_allowed: 0,
+            grants: 0,
+            effective_limit: 0,
+            unlimited: true,
+            has_available_attempt: true,
+            passed: false,
+            last_granted_at: null
+        };
+
+        if (!id || !isValidEmail(email)) {
+            return empty;
+        }
+
+        const quizRows = await db.query(
+            `SELECT attempts_allowed FROM quizzes WHERE id = ? LIMIT 1`,
+            [id]
+        );
+
+        const attemptsAllowed = Number(quizRows[0]?.attempts_allowed || 0);
+
+        const attemptsUsed = await getParticipantAttemptCount(id, email);
+
+        const grants = await getReattemptGrantCount(id, email);
+
+        const passedRows = await db.query(
+            `
+            SELECT COUNT(*) AS total
+            FROM quiz_submissions
+            WHERE quiz_id = ?
+              AND LOWER(TRIM(participant_email)) = ?
+              AND status = 'Submitted'
+              AND result = 'Passed'
+            `,
+            [id, email]
+        );
+
+        let lastGrantedAt = null;
+
+        try {
+            const lastRows = await db.query(
+                `
+                SELECT MAX(granted_at) AS last_granted_at
+                FROM quiz_reattempt_grants
+                WHERE quiz_id = ?
+                  AND LOWER(TRIM(participant_email)) = ?
+                `,
+                [id, email]
+            );
+            lastGrantedAt = lastRows[0]?.last_granted_at || null;
+        } catch {
+            lastGrantedAt = null;
+        }
+
+        const unlimited = attemptsAllowed <= 0;
+        const effectiveLimit = unlimited ? 0 : attemptsAllowed + grants;
+
+        return {
+            attempts_used: attemptsUsed,
+            attempts_allowed: attemptsAllowed,
+            grants,
+            effective_limit: effectiveLimit,
+            unlimited,
+            has_available_attempt: unlimited || attemptsUsed < effectiveLimit,
+            passed: Number(passedRows[0]?.total || 0) > 0,
+            last_granted_at: lastGrantedAt
+        };
+    };
+
+
+// ======================================================
 // GET QUIZ SUMMARY
 // ======================================================
 
@@ -3996,6 +4245,12 @@ module.exports = {
     backfillSubmissionPhotos,
     getParticipantAttemptCount,
     getActiveParticipantSession,
+
+    // Re-attempts
+    getReattemptGrantCount,
+    createReattemptGrant,
+    updateReattemptGrantEmailStatus,
+    getReattemptStatus,
 
     // Email
     createEmailLog,

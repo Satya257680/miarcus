@@ -3,13 +3,13 @@
 // =============================================================
 //
 // Registers /sw.js so the browser can offer the native
-// "Install app" prompt and so the app shell keeps working the
-// next time it's opened, even on a flaky connection.
+// "Install app" prompt.
 //
-// This is intentionally a no-op if the browser doesn't support
-// service workers (nothing breaks, the site just behaves like a
-// normal website there), and it's skipped entirely during local
-// `vite dev` so it never interferes with hot-reloading.
+// - updateViaCache: "none" -> the browser always re-downloads
+//   sw.js itself, so a fixed/new worker is picked up right
+//   after a deployment instead of days later.
+// - We ask for an update when the tab becomes visible again.
+// - Skipped during local `vite dev`.
 // =============================================================
 
 export default function registerServiceWorker() {
@@ -18,7 +18,20 @@ export default function registerServiceWorker() {
 
     window.addEventListener("load", () => {
         navigator.serviceWorker
-            .register("/sw.js")
+            .register("/sw.js", { updateViaCache: "none" })
+            .then((registration) => {
+                registration.update().catch(() => {});
+
+                if (registration.waiting) {
+                    registration.waiting.postMessage("SKIP_WAITING");
+                }
+
+                document.addEventListener("visibilitychange", () => {
+                    if (document.visibilityState === "visible") {
+                        registration.update().catch(() => {});
+                    }
+                });
+            })
             .catch((error) => {
                 console.warn("Service worker registration failed:", error);
             });

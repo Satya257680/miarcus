@@ -3448,3 +3448,26 @@ mask-composite: exclude;
   flex-wrap:nowrap;
   white-space:nowrap;
 }
+
+/* ==========================================================
+   TRAINING REPORT — ALLOW RE-ATTEMPT (ADMIN)
+========================================================== */
+.quiz-reattempt-info{
+  margin:12px 18px 0;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  background:#f6f3ff;
+  border:1px solid #e3dcfa;
+  border-radius:9px;
+  color:#4d3f8f;
+  font-size:12px;
+  font-weight:600;
+}
+.quiz-reattempt-info svg{flex:0 0 auto;color:#6d57c8}
+.quiz-primary.quiz-reattempt-btn{
+  background:linear-gradient(135deg,#f08c2e,#e2621b);
+  box-shadow:0 7px 15px rgba(226,98,27,.22);
+}
+.quiz-primary.quiz-reattempt-btn:disabled{opacity:.65;cursor:wait;transform:none}

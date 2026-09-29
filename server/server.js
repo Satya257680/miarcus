@@ -476,6 +476,16 @@ async function initializeDatabase() {
             console.error("❌ chat table initialization failed:", error.message);
         }
 
+        // --------------------------------------------------
+        // STORE ONLINE / OFFLINE PRESENCE
+        // --------------------------------------------------
+        try {
+            await require("./models/storePresenceModel").ensureTables();
+            console.log("✅ store presence tables verified");
+        } catch (error) {
+            console.error("❌ store presence table initialization failed:", error.message);
+        }
+
         // ==================================================
         // ACTION POINT WORKFLOW / HISTORY SCHEMA
         // ==================================================
@@ -1805,6 +1815,16 @@ loadRoute(
     "./routes/inventoryPlanningRoutes",
     "/api/inventory-planning",
     "Inventory Planning Routes"
+);
+
+// ======================================================
+// STORE ONLINE / OFFLINE STATUS (ADMIN)
+// ======================================================
+
+loadRoute(
+    "./routes/storePresenceRoutes",
+    "/api/store-presence",
+    "Store Presence Routes"
 );
 
 // ======================================================

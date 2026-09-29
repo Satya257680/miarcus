@@ -13,12 +13,16 @@ import "../../styles/LocationTrackingGate.css";
 import RbacActionGuard from "./RbacActionGuard";
 import { refreshAccess } from "../../utils/rbac";
 import "../../styles/rbac.css";
+import useStorePresence from "../../hooks/useStorePresence";
 
 function Layout() {
 
   const navigate = useNavigate();
 
   const [collapsed, setCollapsed] = useState(false);
+
+  // Online / offline heartbeat for the admin Store Status page.
+  useStorePresence();
 
   // ==========================================
   // Toggle Sidebar

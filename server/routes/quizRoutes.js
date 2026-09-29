@@ -19,6 +19,10 @@ const permissionMiddleware = require(
     "../middleware/permissionMiddleware"
 );
 
+const adminOnly = require(
+    "../middleware/adminOnly"
+);
+
 
 // ======================================================
 // DATABASE
@@ -964,6 +968,23 @@ router.delete(
     ),
 
     quiz.deleteReport
+
+);
+
+
+// ALLOW RE-ATTEMPT (ADMINISTRATOR ONLY)
+// Gives a failed participant one more attempt and e-mails
+// them the shared quiz link again.
+
+router.post(
+
+    "/reports/:id/reattempt",
+
+    authMiddleware,
+
+    adminOnly,
+
+    quiz.grantReattempt
 
 );
 

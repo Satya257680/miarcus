@@ -157,6 +157,17 @@ function Topbar({ toggleSidebar }) {
        * session is still cleared below.
        */
       if (token) {
+        // Mark this user offline on the admin Store Status board.
+        try {
+          await axios.post(
+            `${API}/api/store-presence/offline`,
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch {
+          // best effort only
+        }
+
         try {
           await axios.post(
             `${API}/api/auth/logout`,

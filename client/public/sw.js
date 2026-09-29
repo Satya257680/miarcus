@@ -1,26 +1,35 @@
 /* =========================================================
-   MI ARCUS — SERVICE WORKER
+   MI ARCUS — SERVICE WORKER (v2)
    =========================================================
-   Keeps this lightweight and safe:
+   WHY v2:
+   v1 used "stale while revalidate" for EVERYTHING, including
+   the HTML page. After every new deployment the browser was
+   served the OLD cached index.html, which points at an OLD
+   /assets/index-XXXX.js file that no longer exists on the
+   server. The server's SPA fallback then answers that .js
+   request with index.html (text/html) and the browser shows:
 
-   - Only caches this site's own static, same-origin files
-     (the app shell + icons). It never touches the backend API,
-     which lives on a different origin (see axiosConfig.js).
-   - Uses a "stale while revalidate" strategy: the cached copy
-     answers instantly, while a network request runs in the
-     background to refresh the cache for next time. If there is
-     no cached copy yet, it waits for the network.
-   - Existing with a service worker (even a minimal one) is what
-     makes Chrome/Edge/Android offer the native "Install app"
-     prompt reliably, on top of the manifest already in place.
-   - Old cache versions are cleaned up on activate, so bumping
-     CACHE_NAME below is enough to ship a fresh app shell.
+     "Failed to load module script: Expected a JavaScript
+      module script but the server responded with a MIME
+      type of text/html"
+
+   -> blank white page until the user refreshes.
+
+   v2 rules:
+   - Page navigations (HTML)   : NETWORK FIRST, cache only as
+                                 an offline fallback.
+   - /assets/* (hashed files)  : cache first — safe, because
+                                 the file name changes on every
+                                 build. Only real JS/CSS/images
+                                 are cached, NEVER an HTML reply.
+   - Everything else static    : network first, cache fallback.
+   - API calls / non-GET       : never touched.
+   - Old caches (v1) are deleted on activate.
 ========================================================= */
 
-const CACHE_NAME = "miarcus-shell-v1";
+const CACHE_NAME = "miarcus-shell-v2";
 
 const APP_SHELL = [
-    "/",
     "/site.webmanifest",
     "/favicon.svg",
     "/miarcus-icon-192.png",
@@ -32,10 +41,7 @@ self.addEventListener("install", (event) => {
         caches
             .open(CACHE_NAME)
             .then((cache) => cache.addAll(APP_SHELL))
-            .catch(() => {
-                // Never block install if one of the shell files
-                // is momentarily unreachable.
-            })
+            .catch(() => {})
     );
 
     self.skipWaiting();
@@ -56,42 +62,107 @@ self.addEventListener("activate", (event) => {
     );
 });
 
+self.addEventListener("message", (event) => {
+    if (event.data === "SKIP_WAITING") {
+        self.skipWaiting();
+    }
+});
+
+const isHtmlResponse = (response) =>
+    String(response?.headers?.get("content-type") || "")
+        .toLowerCase()
+        .includes("text/html");
+
+const putInCache = (request, response) => {
+    const copy = response.clone();
+    caches
+        .open(CACHE_NAME)
+        .then((cache) => cache.put(request, copy))
+        .catch(() => {});
+};
+
 self.addEventListener("fetch", (event) => {
     const { request } = event;
 
-    // Only handle safe, same-origin GET requests. Everything
-    // else (API calls, POST/PUT/DELETE, cross-origin requests)
-    // goes straight to the network untouched.
     if (request.method !== "GET") return;
 
     const url = new URL(request.url);
 
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith("/api/")) return;
+    if (url.pathname.startsWith("/uploads/")) return;
+    if (url.pathname === "/sw.js") return;
 
-    event.respondWith(
-        caches.match(request).then((cachedResponse) => {
-            const networkFetch = fetch(request)
-                .then((networkResponse) => {
-                    if (
-                        networkResponse &&
-                        networkResponse.status === 200 &&
-                        networkResponse.type === "basic"
-                    ) {
-                        const responseClone = networkResponse.clone();
-
-                        caches
-                            .open(CACHE_NAME)
-                            .then((cache) =>
-                                cache.put(request, responseClone)
-                            );
+    // ------------------------------------------------------
+    // 1. PAGE NAVIGATION -> network first (always fresh HTML)
+    // ------------------------------------------------------
+    if (
+        request.mode === "navigate" ||
+        (request.headers.get("accept") || "").includes("text/html")
+    ) {
+        event.respondWith(
+            fetch(request, { cache: "no-store" })
+                .then((response) => {
+                    if (response && response.ok) {
+                        putInCache("/", response);
                     }
-
-                    return networkResponse;
+                    return response;
                 })
-                .catch(() => cachedResponse);
+                .catch(() =>
+                    caches
+                        .match("/")
+                        .then((cached) => cached || Response.error())
+                )
+        );
+        return;
+    }
 
-            return cachedResponse || networkFetch;
-        })
+    // ------------------------------------------------------
+    // 2. HASHED BUILD FILES -> cache first, never cache HTML
+    // ------------------------------------------------------
+    if (url.pathname.startsWith("/assets/")) {
+        event.respondWith(
+            caches.match(request).then((cached) => {
+                if (cached && !isHtmlResponse(cached)) {
+                    return cached;
+                }
+
+                return fetch(request).then((response) => {
+                    if (
+                        response &&
+                        response.ok &&
+                        response.type === "basic" &&
+                        !isHtmlResponse(response)
+                    ) {
+                        putInCache(request, response);
+                    }
+                    return response;
+                });
+            })
+        );
+        return;
+    }
+
+    // ------------------------------------------------------
+    // 3. OTHER STATIC FILES -> network first, cache fallback
+    // ------------------------------------------------------
+    event.respondWith(
+        fetch(request)
+            .then((response) => {
+                if (
+                    response &&
+                    response.ok &&
+                    response.type === "basic" &&
+                    !isHtmlResponse(response)
+                ) {
+                    putInCache(request, response);
+                }
+                return response;
+            })
+            .catch(() =>
+                caches
+                    .match(request)
+                    .then((cached) => cached || Response.error())
+            )
     );
 });

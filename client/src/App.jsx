@@ -50,6 +50,7 @@ import EmployeeLocationReports from "./pages/EmployeeLocationReports";
 // ======================================================
 import Users from "./pages/Users";
 import PasswordManagement from "./pages/PasswordManagement";
+import StoreStatus from "./pages/StoreStatus";
 import Departments from "./pages/Departments";
 import Designations from "./pages/Designations";
 import StoreManagement from "./pages/StoreManagement";
@@ -468,6 +469,16 @@ function App() {
                         element={
                             <ModulePermissionRoute page="settings.users">
                                 <Users />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    {/* STORE STATUS (ADMIN ONLY) */}
+                    <Route
+                        path="/store-status"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <StoreStatus />
                             </ModulePermissionRoute>
                         }
                     />

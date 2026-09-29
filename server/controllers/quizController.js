@@ -2675,6 +2675,28 @@ exports.getReport = async (
         }
 
 
+        // Re-attempt status (used by the "Allow Re-attempt"
+        // button in the submission detail modal).
+        try {
+
+            data.reattempt =
+                await Quiz.getReattemptStatus(
+                    data.quiz_id,
+                    data.participant_email
+                );
+
+        } catch (reattemptError) {
+
+            console.warn(
+                "Quiz re-attempt status unavailable:",
+                reattemptError?.message || reattemptError
+            );
+
+            data.reattempt = null;
+
+        }
+
+
         return res.json({
 
             success: true,
@@ -2698,6 +2720,335 @@ exports.getReport = async (
             message:
                 "Unable to load submission"
 
+        });
+
+    }
+
+};
+
+
+// ======================================================
+// ALLOW RE-ATTEMPT (ADMIN ONLY)
+// ======================================================
+// Gives a failed participant one more attempt on the same
+// quiz and e-mails them the (shared) quiz link again.
+//
+// - Only for submissions whose result is "Failed".
+// - Not allowed when the participant has already passed.
+// - If the participant still has an unused attempt, no new
+//   grant is created — the invitation e-mail is just re-sent.
+// ======================================================
+
+const buildReattemptEmail = ({
+    participantName,
+    quizName,
+    link,
+    percentage,
+    passingScore,
+    note
+}) => {
+
+    const clean = (value) =>
+        String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+
+    const safeNote = note
+        ? clean(note).replace(/\n/g, "<br>")
+        : "";
+
+    const html = `
+        <div style="font-family:Arial,sans-serif;background:#f4f6fb;padding:32px;color:#243142;">
+            <div style="max-width:620px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e7e4f5;">
+                <div style="padding:26px 30px;background:linear-gradient(135deg,#8d78d4,#6d57c8);color:#fff;">
+                    <div style="font-size:13px;letter-spacing:2px;opacity:.85;">MI ARCUS TRAINING · RE-ATTEMPT</div>
+                    <h1 style="margin:8px 0 0;font-size:25px;">${clean(quizName)}</h1>
+                </div>
+                <div style="padding:30px;">
+                    <p>Hello ${clean(participantName || "Participant")},</p>
+                    <p>
+                        Your previous attempt scored <b>${clean(percentage)}%</b>
+                        (passing score: <b>${clean(passingScore)}%</b>).
+                        Your administrator has allowed you
+                        <b>one more attempt</b> at this assessment.
+                    </p>
+                    ${safeNote ? `<p style="background:#f6f3ff;border-left:4px solid #6d57c8;padding:12px 14px;border-radius:8px;">${safeNote}</p>` : ""}
+                    <p>Please use the <b>same e-mail address</b> when you start the quiz.</p>
+                    <div style="margin:26px 0;text-align:center;">
+                        <a href="${link}" style="display:inline-block;background:#6d57c8;color:#fff;text-decoration:none;padding:13px 24px;border-radius:10px;font-weight:700;">
+                            Re-attempt Quiz
+                        </a>
+                    </div>
+                    <p style="font-size:12px;color:#718096;">
+                        If the button does not work, open this link: <br>${link}
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const text =
+`${quizName} - Re-attempt allowed
+
+Hello ${participantName || "Participant"},
+
+Your previous attempt scored ${percentage}% (passing score: ${passingScore}%).
+Your administrator has allowed you one more attempt.
+${note ? `\nNote: ${note}\n` : ""}
+Please use the same e-mail address when you start the quiz.
+
+Re-attempt Quiz:
+${link}`;
+
+    return { html, text };
+};
+
+
+exports.grantReattempt = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const id =
+            normalizeId(
+                req.params.id
+            );
+
+        if (!id) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid submission ID"
+            });
+
+        }
+
+
+        const submission =
+            await Quiz.getSubmission(id);
+
+        if (!submission) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Submission not found"
+            });
+
+        }
+
+
+        if (
+            String(submission.result || "")
+                .trim()
+                .toLowerCase() !== "failed"
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Re-attempt can only be given for a failed submission"
+            });
+
+        }
+
+
+        const quiz =
+            await Quiz.getQuizById(
+                submission.quiz_id,
+                false
+            );
+
+        if (!quiz) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Quiz not found"
+            });
+
+        }
+
+        if (quiz.status !== "Active") {
+
+            return res.status(400).json({
+                success: false,
+                message: "This quiz is inactive. Activate it in Quiz Setup before allowing a re-attempt."
+            });
+
+        }
+
+
+        const participantEmail =
+            normalizeEmail(
+                submission.participant_email
+            );
+
+        const statusBefore =
+            await Quiz.getReattemptStatus(
+                quiz.id,
+                participantEmail
+            );
+
+        if (statusBefore.passed) {
+
+            return res.status(409).json({
+                success: false,
+                message: "This participant has already passed this quiz",
+                reattempt: statusBefore
+            });
+
+        }
+
+
+        // Only create a new grant when the participant has
+        // no unused attempt left. Otherwise just re-send mail.
+        let grantId = null;
+        let grantCreated = false;
+
+        if (!statusBefore.has_available_attempt) {
+
+            grantId =
+                await Quiz.createReattemptGrant({
+                    quiz_id: quiz.id,
+                    participant_email: participantEmail,
+                    participant_name: submission.participant_name,
+                    source_submission_id: submission.id,
+                    granted_by: getCurrentUserId(req),
+                    email_status: "Skipped"
+                });
+
+            grantCreated = true;
+
+        }
+
+
+        // --------------------------------------------------
+        // SEND E-MAIL (default: yes)
+        // --------------------------------------------------
+
+        const shouldSendEmail =
+            req.body?.send_email !== false &&
+            req.body?.send_email !== "false";
+
+        let emailStatus = "Skipped";
+        let emailError = null;
+
+        if (shouldSendEmail) {
+
+            const link =
+                `${frontendUrl()}/quiz/${quiz.public_token}`;
+
+            const { html, text } =
+                buildReattemptEmail({
+                    participantName: submission.participant_name,
+                    quizName: quiz.name,
+                    link,
+                    percentage: Number(submission.percentage || 0).toFixed(1),
+                    passingScore: Number(quiz.passing_score || 0).toFixed(0),
+                    note: String(req.body?.note || "").trim().slice(0, 1000)
+                });
+
+            try {
+
+                const emailResult =
+                    await sendGenericEmail({
+                        to: participantEmail,
+                        subject: `Re-attempt allowed – ${quiz.name}`,
+                        html,
+                        text
+                    });
+
+                emailStatus = "Sent";
+
+                await Quiz.createEmailLog({
+                    quiz_id: quiz.id,
+                    recipient_name: submission.participant_name || null,
+                    recipient_email: participantEmail,
+                    email_type: "quiz_reattempt",
+                    sent_by: getCurrentUserId(req),
+                    status: "Sent",
+                    message_id:
+                        emailResult?.id ||
+                        emailResult?.messageId ||
+                        null
+                });
+
+            } catch (error) {
+
+                emailStatus = "Failed";
+                emailError = String(error?.message || error);
+
+                console.error(
+                    `Quiz re-attempt email failed for ${participantEmail}:`,
+                    error
+                );
+
+                try {
+                    await Quiz.createEmailLog({
+                        quiz_id: quiz.id,
+                        recipient_name: submission.participant_name || null,
+                        recipient_email: participantEmail,
+                        email_type: "quiz_reattempt",
+                        sent_by: getCurrentUserId(req),
+                        status: "Failed",
+                        error_message: emailError
+                    });
+                } catch (logError) {
+                    console.error("Unable to save re-attempt email log:", logError);
+                }
+
+            }
+
+            if (grantId) {
+                try {
+                    await Quiz.updateReattemptGrantEmailStatus(grantId, emailStatus);
+                } catch {
+                    // non-critical
+                }
+            }
+
+        }
+
+
+        const statusAfter =
+            await Quiz.getReattemptStatus(
+                quiz.id,
+                participantEmail
+            );
+
+        const baseMessage = grantCreated
+            ? `Re-attempt allowed for ${submission.participant_name || participantEmail}.`
+            : `${submission.participant_name || participantEmail} already has an unused attempt.`;
+
+        const mailMessage =
+            emailStatus === "Sent"
+                ? ` Quiz link e-mailed to ${participantEmail}.`
+                : emailStatus === "Failed"
+                    ? ` E-mail could not be sent (${emailError}).`
+                    : "";
+
+        return res.json({
+            success: true,
+            message: baseMessage + mailMessage,
+            grant_created: grantCreated,
+            email_status: emailStatus,
+            reattempt: statusAfter
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Quiz grantReattempt error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message:
+                error.message ||
+                "Unable to allow re-attempt"
         });
 
     }
@@ -3236,11 +3587,20 @@ exports.startPublicQuiz = async (
                 );
 
 
+            // Extra attempts given by an administrator from the
+            // Training Report ("Allow Re-attempt").
+            const extraAttempts =
+                await Quiz.getReattemptGrantCount(
+                    quiz.id,
+                    email
+                );
+
+
             if (
                 attempts >=
                 Number(
                     quiz.attempts_allowed
-                )
+                ) + extraAttempts
             ) {
 
                 return res.status(409).json({
@@ -3248,7 +3608,7 @@ exports.startPublicQuiz = async (
                     success: false,
 
                     message:
-                        "Maximum attempts reached for this email"
+                        "Maximum attempts reached for this email. Please contact your administrator for a re-attempt."
 
                 });
 

@@ -21,6 +21,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Mi Arcus Portal</title>
 
+    <!-- Always re-check the HTML page so a new deployment is picked up. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <!--
+      BLANK-PAGE SELF HEAL
+      After a new deployment an old cached page can ask for a JS bundle
+      that no longer exists ("Failed to load module script ... MIME type
+      text/html"). When that happens we clear the old service worker and
+      caches and reload ONCE with a fresh copy, so the user never sees a
+      blank white screen.
+    -->
+    <script>
+      (function () {
+        var KEY = "miarcus-recover-at";
+
+        function recentlyRecovered() {
+          try {
+            var last = Number(sessionStorage.getItem(KEY) || 0);
+            return Date.now() - last < 60000;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function recover() {
+          if (window.__MIARCUS_BOOTED__ || recentlyRecovered()) return;
+          try { sessionStorage.setItem(KEY, String(Date.now())); } catch (e) {}
+
+          var reload = function () {
+            try {
+              var url = new URL(window.location.href);
+              url.searchParams.set("_r", String(Date.now()));
+              window.location.replace(url.toString());
+            } catch (e) {
+              window.location.reload();
+            }
+          };
+
+          var jobs = [];
+          try {
+            if ("serviceWorker" in navigator) {
+              jobs.push(
+                navigator.serviceWorker.getRegistrations().then(function (regs) {
+                  return Promise.all(regs.map(function (r) { return r.unregister(); }));
+                })
+              );
+            }
+            if (window.caches && caches.keys) {
+              jobs.push(
+                caches.keys().then(function (keys) {
+                  return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                })
+              );
+            }
+          } catch (e) {}
+
+          Promise.all(jobs).then(reload, reload);
+          setTimeout(reload, 2500);
+        }
+
+        window.__MIARCUS_RECOVER__ = recover;
+
+        // A <script type="module"> / stylesheet from /assets failed to load.
+        window.addEventListener("error", function (event) {
+          var el = event && event.target;
+          if (!el || el === window) return;
+          var src = el.src || el.href || "";
+          if ((el.tagName === "SCRIPT" || el.tagName === "LINK") && src.indexOf("/assets/") !== -1) {
+            recover();
+          }
+        }, true);
+
+        // Safety net: app never started (blank page) -> recover once.
+        window.addEventListener("load", function () {
+          setTimeout(function () {
+            var root = document.getElementById("root");
+            if (!window.__MIARCUS_BOOTED__ && root && !root.children.length) {
+              recover();
+            }
+          }, 8000);
+        });
+      })();
+    </script>
+
     <!-- Optional typefaces for the Appearance > Font family setting. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
