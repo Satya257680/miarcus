@@ -42,7 +42,8 @@ import {
     FaLifeRing,
     FaKey,
     FaRoute,
-    FaUserLock
+    FaUserLock,
+    FaPalette
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -92,9 +93,16 @@ function Sidebar({ collapsed }) {
         location.pathname === "/inventory-planning" ||
         location.pathname.startsWith("/inventory-planning/");
 
+    // Appearance and Password Management live at /settings/* but have
+    // their own top-level sidebar links, so they must not open or
+    // highlight the Settings group.
+    const isStandaloneSettingsPath =
+        location.pathname === "/settings/appearance" ||
+        location.pathname === "/settings/password-management";
+
     const settingsOpenByPath =
         location.pathname === "/settings" ||
-        location.pathname.startsWith("/settings/") ||
+        (location.pathname.startsWith("/settings/") && !isStandaloneSettingsPath) ||
         location.pathname === "/users" ||
         location.pathname.startsWith("/users/") ||
         location.pathname === "/departments" ||
@@ -1497,6 +1505,26 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Profile
+                            </span>
+                        )}
+                    </NavLink>
+
+                    {/* ==============================================
+                        APPEARANCE
+                        Personal preference — visible to every
+                        signed-in user (Administrator and regular
+                        users alike). No RBAC check on purpose.
+                    ============================================== */}
+
+                    <NavLink
+                        to="/settings/appearance"
+                        className={getMenuClass}
+                    >
+                        <FaPalette />
+
+                        {!collapsed && (
+                            <span>
+                                Appearance
                             </span>
                         )}
                     </NavLink>
