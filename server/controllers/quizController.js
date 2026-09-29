@@ -2479,62 +2479,31 @@ const resolveReportScope = async (req) => {
         emails.add(String(me.email).trim().toLowerCase());
     }
 
-    const isStoreManagerByDesignation =
-        /store\s*manager/i.test(String(me.designation || ""));
-
-    let managedStores = [];
-
+    // Users with FULL access to the Quiz module see every report,
+    // exactly like administrators.
     try {
-        managedStores = await db.query(
+        const permissionRows = await db.query(
             `
-            SELECT store_id FROM chat_store_managers WHERE user_id = ?
+            SELECT permission
+            FROM user_permissions
+            WHERE user_id = ?
+              AND module_name = 'Quiz'
+            LIMIT 1
             `,
             [userId]
         );
-    } catch {
-        managedStores = [];
-    }
 
-    if (isStoreManagerByDesignation) {
-        const assigned = await db.query(
-            `
-            SELECT store_id FROM user_stores WHERE user_id = ?
-            `,
-            [userId]
+        if (String(permissionRows[0]?.permission || "") === "Full") {
+            return { all: true, emails: [] };
+        }
+    } catch (permissionError) {
+        console.warn(
+            "Quiz report scope permission check failed:",
+            permissionError?.message || permissionError
         );
-        managedStores = managedStores.concat(assigned);
     }
 
-    const storeIds = [
-        ...new Set(
-            managedStores
-                .map((row) => Number(row.store_id))
-                .filter((id) => Number.isInteger(id) && id > 0)
-        )
-    ];
-
-    if (storeIds.length) {
-        const placeholders = storeIds.map(() => "?").join(",");
-
-        const staff = await db.query(
-            `
-            SELECT DISTINCT u.email
-            FROM users u
-            INNER JOIN user_stores us
-                ON us.user_id = u.id
-            WHERE us.store_id IN (${placeholders})
-              AND u.email IS NOT NULL
-            `,
-            storeIds
-        );
-
-        staff.forEach((row) => {
-            if (row.email) {
-                emails.add(String(row.email).trim().toLowerCase());
-            }
-        });
-    }
-
+    // Everyone else: ONLY their own training reports.
     return { all: false, emails: [...emails] };
 };
 
@@ -3574,45 +3543,34 @@ exports.startPublicQuiz = async (
         }
 
 
-        if (
-            Number(
-                quiz.attempts_allowed
-            ) > 0
-        ) {
+        // --------------------------------------------------
+        // ATTEMPT RULE
+        // --------------------------------------------------
+        // One attempt per e-mail. After a FAILED attempt the
+        // participant is blocked until an administrator gives a
+        // re-attempt from the Training Report. After PASSING the
+        // quiz cannot be taken again.
+        // --------------------------------------------------
 
-            const attempts =
-                await Quiz.getParticipantAttemptCount(
-                    quiz.id,
-                    email
-                );
+        const eligibility =
+            await Quiz.checkParticipantEligibility(
+                quiz.id,
+                email
+            );
 
+        if (!eligibility.allowed) {
 
-            // Extra attempts given by an administrator from the
-            // Training Report ("Allow Re-attempt").
-            const extraAttempts =
-                await Quiz.getReattemptGrantCount(
-                    quiz.id,
-                    email
-                );
+            return res.status(409).json({
 
+                success: false,
 
-            if (
-                attempts >=
-                Number(
-                    quiz.attempts_allowed
-                ) + extraAttempts
-            ) {
+                code: eligibility.code,
 
-                return res.status(409).json({
+                last_result: eligibility.last_result,
 
-                    success: false,
+                message: eligibility.message
 
-                    message:
-                        "Maximum attempts reached for this email. Please contact your administrator for a re-attempt."
-
-                });
-
-            }
+            });
 
         }
 
@@ -3950,6 +3908,82 @@ exports.startPublicQuiz = async (
                 error.message ||
                 "Unable to start quiz"
 
+        });
+
+    }
+
+};
+
+
+// ======================================================
+// PUBLIC ELIGIBILITY CHECK
+// ======================================================
+// Called by the quiz page as soon as the participant types
+// their e-mail, so a blocked person sees the message BEFORE
+// filling the rest of the form.
+// ======================================================
+
+exports.checkPublicEligibility = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const token =
+            String(req.params.token || "").trim();
+
+        const email =
+            normalizeEmail(
+                req.body?.participant_email ??
+                req.query?.email
+            );
+
+        if (!token || !isValidEmail(email)) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Enter a valid email address"
+            });
+
+        }
+
+        const quiz =
+            await Quiz.getQuizByToken(token);
+
+        if (!quiz) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Quiz link is invalid or the quiz is inactive"
+            });
+
+        }
+
+        const eligibility =
+            await Quiz.checkParticipantEligibility(
+                quiz.id,
+                email
+            );
+
+        return res.json({
+            success: true,
+            allowed: eligibility.allowed,
+            code: eligibility.code,
+            last_result: eligibility.last_result,
+            message: eligibility.message
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Quiz checkPublicEligibility error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to check quiz eligibility"
         });
 
     }

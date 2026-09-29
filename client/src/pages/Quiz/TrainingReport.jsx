@@ -96,7 +96,19 @@ function TrainingReport() {
 
     // "all" for Admin / Super Admin, "limited" for everyone else
     const [reportScope, setReportScope] =
-        useState("all");
+        useState(
+            isAdministratorUser()
+                ? "all"
+                : "limited"
+        );
+
+    // Admin / Full-access users manage every report (delete etc.).
+    // Everyone else only sees THEIR OWN reports and can only view
+    // them and download their certificate.
+    const canManage =
+        isAdmin ||
+        reportScope === "all";
+
 
 
     // ============================================================
@@ -391,6 +403,46 @@ function TrainingReport() {
 
 
     // ============================================================
+    // DOWNLOAD CERTIFICATE (row button)
+    // ============================================================
+
+    const downloadCertificate = async id => {
+
+        setLoadingDetail(true);
+
+        try {
+
+            const response =
+                await axios.get(
+                    `/api/quiz/reports/${id}`
+                );
+
+            const data =
+                response?.data?.data ||
+                null;
+
+            if (data) {
+                printCertificate(data);
+            }
+
+        } catch (error) {
+
+            setMessage(
+                error?.response?.data
+                    ?.message ||
+                "Unable to load certificate."
+            );
+
+        } finally {
+
+            setLoadingDetail(false);
+
+        }
+
+    };
+
+
+    // ============================================================
     // ALLOW RE-ATTEMPT (ADMIN)
     // ============================================================
     // Gives a failed participant one more attempt and e-mails
@@ -467,6 +519,10 @@ function TrainingReport() {
     // ============================================================
 
     const del = async id => {
+
+        if (!canManage) {
+            return;
+        }
 
         const confirmed =
             window.confirm(
@@ -1606,7 +1662,7 @@ window.onload = function () {
                 eyebrow="Analytics & compliance"
                 title="Training Report"
                 subtitle={reportScope === "limited"
-                    ? "Your training attempts, results and certificates (store managers also see their store team)."
+                    ? "Your own training attempts, results and certificates."
                     : "Every assessment attempt across the company — scores, pass rates and certificates in one view."}
                 meta={[
                     { label: "Quizzes", value: quizzes.length ? quizzes.length : null },
@@ -2034,15 +2090,11 @@ window.onload = function () {
 
                                                         <button
                                                             type="button"
-                                                            title="Certificate"
-                                                            onClick={
-                                                                async () => {
-
-                                                                    await open(
-                                                                        row.id
-                                                                    );
-
-                                                                }
+                                                            title="Download certificate"
+                                                            onClick={() =>
+                                                                downloadCertificate(
+                                                                    row.id
+                                                                )
                                                             }
                                                         >
 
@@ -2052,6 +2104,8 @@ window.onload = function () {
 
                                                     )}
 
+
+                                                    {canManage && (
 
                                                     <button
                                                         type="button"
@@ -2071,6 +2125,8 @@ window.onload = function () {
                                                         <FaTrash />
 
                                                     </button>
+
+                                                    )}
 
                                                 </div>
 

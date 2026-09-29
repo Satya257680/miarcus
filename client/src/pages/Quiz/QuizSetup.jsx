@@ -3441,20 +3441,15 @@ const QuizSetup = () => {
                                 Attempts Allowed
 
                                 <input
-                                    type="number"
-                                    min="0"
-                                    value={
-                                        quizForm.attempts_allowed
-                                    }
-                                    onChange={
-                                        (e) =>
-                                            setQuizForm({
-                                                ...quizForm,
-                                                attempts_allowed:
-                                                    e.target.value
-                                            })
-                                    }
+                                    type="text"
+                                    value="Unlimited people · 1 per email"
+                                    readOnly
+                                    title="Anyone with the link can take the quiz. The same email can attempt only once — an admin can allow a re-attempt from Training Report."
                                 />
+
+                                <small className="quiz-field-hint">
+                                    Same email = 1 attempt. Admin can allow a re-attempt from Training Report.
+                                </small>
 
                             </label>
 

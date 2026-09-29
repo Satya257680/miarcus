@@ -4098,18 +4098,95 @@ const getReattemptStatus =
             lastGrantedAt = null;
         }
 
-        const unlimited = attemptsAllowed <= 0;
-        const effectiveLimit = unlimited ? 0 : attemptsAllowed + grants;
+        // The shared quiz link is UNLIMITED for different people,
+        // but the SAME e-mail gets exactly ONE attempt. Every further
+        // attempt for that e-mail must be given by an administrator
+        // ("Allow Re-attempt" in the Training Report).
+        // (attempts_allowed from Quiz Setup never gives the same
+        // e-mail extra attempts.)
+        void attemptsAllowed;
+        const baseAttempts = 1;
+        const effectiveLimit = baseAttempts + grants;
+        const passed = Number(passedRows[0]?.total || 0) > 0;
 
         return {
             attempts_used: attemptsUsed,
-            attempts_allowed: attemptsAllowed,
+            attempts_allowed: baseAttempts,
             grants,
             effective_limit: effectiveLimit,
-            unlimited,
-            has_available_attempt: unlimited || attemptsUsed < effectiveLimit,
-            passed: Number(passedRows[0]?.total || 0) > 0,
+            unlimited: false,
+            has_available_attempt: !passed && attemptsUsed < effectiveLimit,
+            passed,
             last_granted_at: lastGrantedAt
+        };
+    };
+
+
+// Can this e-mail START the quiz now?
+//  - already passed                      -> blocked
+//  - used all attempts, no re-attempt    -> blocked (ask admin)
+//  - admin gave a re-attempt / first try -> allowed
+const checkParticipantEligibility =
+    async (quizId, participantEmail) => {
+
+        const status = await getReattemptStatus(quizId, participantEmail);
+
+        let lastResult = null;
+        let lastSubmittedAt = null;
+
+        try {
+            const rows = await db.query(
+                `
+                SELECT result, submitted_at, percentage
+                FROM quiz_submissions
+                WHERE quiz_id = ?
+                  AND LOWER(TRIM(participant_email)) = ?
+                  AND status = 'Submitted'
+                ORDER BY submitted_at DESC, id DESC
+                LIMIT 1
+                `,
+                [normalizeId(quizId), normalizeEmail(participantEmail)]
+            );
+            lastResult = rows[0]?.result || null;
+            lastSubmittedAt = rows[0]?.submitted_at || null;
+        } catch {
+            lastResult = null;
+        }
+
+        if (status.passed) {
+            return {
+                allowed: false,
+                code: "ALREADY_PASSED",
+                last_result: "Passed",
+                last_submitted_at: lastSubmittedAt,
+                message:
+                    "You have already taken this quiz and your status is PASSED. You cannot take it again. Please contact your admin for your certificate.",
+                reattempt: status
+            };
+        }
+
+        if (!status.has_available_attempt) {
+            return {
+                allowed: false,
+                code: "REATTEMPT_REQUIRED",
+                last_result: lastResult || "Failed",
+                last_submitted_at: lastSubmittedAt,
+                message:
+                    "You have already taken this quiz and your status is FAILED. Please ask your admin to allow a re-attempt. Once your admin allows it, this same link will open again.",
+                reattempt: status
+            };
+        }
+
+        return {
+            allowed: true,
+            code: status.attempts_used > 0 ? "REATTEMPT_ALLOWED" : "FIRST_ATTEMPT",
+            last_result: lastResult,
+            last_submitted_at: lastSubmittedAt,
+            message:
+                status.attempts_used > 0
+                    ? "Your admin has allowed you a re-attempt. You can start the quiz now."
+                    : "",
+            reattempt: status
         };
     };
 
@@ -4251,6 +4328,7 @@ module.exports = {
     createReattemptGrant,
     updateReattemptGrantEmailStatus,
     getReattemptStatus,
+    checkParticipantEligibility,
 
     // Email
     createEmailLog,

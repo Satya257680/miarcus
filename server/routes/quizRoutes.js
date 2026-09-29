@@ -857,6 +857,18 @@ router.get(
 );
 
 
+// CHECK IF AN E-MAIL MAY START THE QUIZ
+// (already passed / failed without re-attempt -> blocked)
+
+router.post(
+
+    "/public/:token/eligibility",
+
+    quiz.checkPublicEligibility
+
+);
+
+
 // START PUBLIC QUIZ
 
 router.post(

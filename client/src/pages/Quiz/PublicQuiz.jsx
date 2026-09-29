@@ -143,6 +143,11 @@ function PublicQuiz() {
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
+
+    // Attempt rule: blocked when the e-mail already PASSED, or FAILED
+    // and the admin has not allowed a re-attempt yet.
+    // { status: "idle" | "checking" | "allowed" | "blocked", code, message, last_result }
+    const [attemptCheck, setAttemptCheck] = useState({ status: "idle" });
     const [gender, setGender] = useState("");
     const [storeId, setStoreId] = useState("");
     const [contactNumber, setContactNumber] = useState("");
@@ -1163,6 +1168,50 @@ function PublicQuiz() {
     };
 
     // ============================================================
+    // ATTEMPT ELIGIBILITY (checked as soon as the e-mail is typed)
+    // ============================================================
+
+    useEffect(() => {
+        const value = email.trim().toLowerCase();
+
+        if (!token || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            setAttemptCheck({ status: "idle" });
+            return undefined;
+        }
+
+        let cancelled = false;
+        setAttemptCheck((prev) => ({ ...prev, status: "checking" }));
+
+        const timer = window.setTimeout(async () => {
+            try {
+                const { data } = await axios.post(
+                    `/api/quiz/public/${token}/eligibility`,
+                    { participant_email: value }
+                );
+
+                if (cancelled) return;
+
+                setAttemptCheck({
+                    status: data?.allowed === false ? "blocked" : "allowed",
+                    code: data?.code || "",
+                    message: data?.message || "",
+                    last_result: data?.last_result || null,
+                });
+            } catch {
+                // Network problem: let the server decide on Start.
+                if (!cancelled) setAttemptCheck({ status: "idle" });
+            }
+        }, 600);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [email, token]);
+
+    const attemptBlocked = attemptCheck.status === "blocked";
+
+    // ============================================================
     // VALIDATE PARTICIPANT
     // ============================================================
 
@@ -1193,6 +1242,11 @@ function PublicQuiz() {
                 "Please enter a valid email address."
             );
 
+            return false;
+        }
+
+        if (attemptBlocked) {
+            setError(attemptCheck.message);
             return false;
         }
 
@@ -1398,6 +1452,17 @@ function PublicQuiz() {
 
             stopCamera();
         } catch (err) {
+            const code = err?.response?.data?.code;
+
+            if (code === "REATTEMPT_REQUIRED" || code === "ALREADY_PASSED") {
+                setAttemptCheck({
+                    status: "blocked",
+                    code,
+                    message: err.response.data.message,
+                    last_result: err.response.data.last_result || null,
+                });
+            }
+
             setError(
                 err?.response?.data?.message ||
                 "Unable to start assessment."
@@ -2231,6 +2296,36 @@ function PublicQuiz() {
                                     </div>
                                 </label>
 
+                                {attemptCheck.status === "checking" && (
+                                    <div className="pq-attempt-note checking">
+                                        Checking your previous attempts…
+                                    </div>
+                                )}
+
+                                {attemptCheck.status === "blocked" && (
+                                    <div className={`pq-attempt-note blocked ${attemptCheck.code === "ALREADY_PASSED" ? "passed" : "failed"}`}>
+                                        <FaLock />
+                                        <div>
+                                            <strong>
+                                                {attemptCheck.code === "ALREADY_PASSED"
+                                                    ? "Already completed — Status: PASSED"
+                                                    : "Attempt already taken — Status: FAILED"}
+                                            </strong>
+                                            <span>{attemptCheck.message}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {attemptCheck.status === "allowed" && attemptCheck.code === "REATTEMPT_ALLOWED" && (
+                                    <div className="pq-attempt-note allowed">
+                                        <FaCheckCircle />
+                                        <div>
+                                            <strong>Re-attempt allowed</strong>
+                                            <span>{attemptCheck.message}</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <label>
                                     <span>
                                         Store <em className="pq-required">*</em>
@@ -2554,9 +2649,13 @@ function PublicQuiz() {
                                 onClick={
                                     startQuiz
                                 }
+                                disabled={attemptBlocked}
+                                title={attemptBlocked ? attemptCheck.message : undefined}
                             >
-                                Proceed to Assessment
-                                <FaArrowRight />
+                                {attemptBlocked
+                                    ? "Re-attempt needs admin approval"
+                                    : "Proceed to Assessment"}
+                                {!attemptBlocked && <FaArrowRight />}
                             </button>
                         </div>
                     </div>

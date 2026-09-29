@@ -468,10 +468,8 @@ function TakeQuiz() {
                         const passScore =
                             Number(quiz?.passing_score ?? 70) || 0;
 
-                        const attemptsLabel =
-                            Number(quiz.attempts_allowed) === 0
-                                ? "Unlimited"
-                                : `${quiz.attempts_allowed} attempt${Number(quiz.attempts_allowed) === 1 ? "" : "s"}`;
+                        // Link is unlimited for everyone; same email = 1 attempt.
+                        const attemptsLabel = "1 per email";
 
                         // Location is always mandatory; camera is always optional.
                         const hasChecks = true;

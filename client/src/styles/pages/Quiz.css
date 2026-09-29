@@ -3471,3 +3471,5 @@ mask-composite: exclude;
   box-shadow:0 7px 15px rgba(226,98,27,.22);
 }
 .quiz-primary.quiz-reattempt-btn:disabled{opacity:.65;cursor:wait;transform:none}
+
+.quiz-field-hint{display:block;font-size:11px;font-weight:500;color:#7c7699;margin-top:2px;line-height:1.35}

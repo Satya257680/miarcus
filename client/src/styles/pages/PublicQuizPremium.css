@@ -454,3 +454,31 @@
 .permission-card.pq-location-required {
     border-color: rgba(220, 38, 38, 0.35);
 }
+
+/* ==========================================================
+   ATTEMPT RULE NOTICE (under the e-mail field)
+========================================================== */
+.pq-attempt-note{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  margin:-2px 0 12px;
+  padding:11px 13px;
+  border-radius:12px;
+  font-size:12.5px;
+  line-height:1.45;
+  border:1px solid transparent;
+}
+.pq-attempt-note svg{flex:0 0 auto;margin-top:3px}
+.pq-attempt-note strong{display:block;font-size:13px;margin-bottom:2px}
+.pq-attempt-note span{display:block;font-weight:500}
+.pq-attempt-note.checking{background:#f5f3ff;color:#5b4bb0;border-color:#e4defc}
+.pq-attempt-note.blocked.failed{background:#fff1f1;color:#b42318;border-color:#f7caca}
+.pq-attempt-note.blocked.passed{background:#ecfdf3;color:#166534;border-color:#bbf0cf}
+.pq-attempt-note.allowed{background:#ecfdf3;color:#166534;border-color:#bbf0cf}
+.public-quiz-shell .public-primary:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+  box-shadow:none;
+  background:#9ca3af !important;
+}
