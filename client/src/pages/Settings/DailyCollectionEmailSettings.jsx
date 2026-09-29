@@ -125,8 +125,16 @@ export default function DailyCollectionEmailSettings() {
         }));
     };
 
+    // Custom rows are simply dropped; administrator rows are remembered in
+    // removed_keys so the server keeps them hidden after the next auto-sync.
     const removeRecipient = (index) =>
-        setSettings((prev) => ({ ...prev, recipients: prev.recipients.filter((_, i) => i !== index) }));
+        setSettings((prev) => {
+            const row = prev.recipients[index];
+            const removed = row && !flag(row.is_custom) ? [...(prev.removed_keys || []), row.recipient_key] : prev.removed_keys || [];
+            return { ...prev, removed_keys: removed, recipients: prev.recipients.filter((_, i) => i !== index) };
+        });
+
+    const restoreRemoved = () => setSettings((prev) => ({ ...prev, restore_removed: true, removed_keys: [] }));
 
     const setAll = (field, value) =>
         setSettings((prev) => ({ ...prev, recipients: prev.recipients.map((row) => ({ ...row, [field]: value ? 1 : 0 })) }));
@@ -137,7 +145,7 @@ export default function DailyCollectionEmailSettings() {
         setError("");
         try {
             const { data } = await axios.put("/api/daily-collection/email-routing", settings);
-            setSettings({ ...empty, ...(data?.data || settings) });
+            setSettings({ ...empty, ...(data?.data || settings), removed_keys: [], restore_removed: false });
             setMessage(data?.message || "Daily Collection email routing saved successfully.");
         } catch (err) {
             setError(err.response?.data?.message || "Unable to save Daily Collection email routing.");
@@ -284,7 +292,19 @@ export default function DailyCollectionEmailSettings() {
                             <button type="button" onClick={() => setAll("enabled", false)}>Select All Disable</button>
                             <button type="button" onClick={() => setAll("receive_summary", true)}>Select All Summary</button>
                             <button type="button" onClick={() => setAll("receive_summary", false)}>Clear Summary</button>
+                            {Number(settings.removed_count || 0) > 0 && !settings.restore_removed && (
+                                <button type="button" onClick={restoreRemoved} title="Bring back administrators you removed earlier">
+                                    Restore {settings.removed_count} removed admin{Number(settings.removed_count) === 1 ? "" : "s"}
+                                </button>
+                            )}
                         </div>
+                        {(settings.removed_keys?.length > 0 || settings.restore_removed) && (
+                            <div className="nso-email-alert success" style={{ marginBottom: 10 }}>
+                                {settings.restore_removed
+                                    ? "Removed administrators will be restored when you click Save Settings."
+                                    : `${settings.removed_keys.length} administrator(s) will be removed from this list when you click Save Settings.`}
+                            </div>
+                        )}
                         <div className="nso-email-table-wrap">
                             <table className="nso-email-table">
                                 <thead>
@@ -327,9 +347,14 @@ export default function DailyCollectionEmailSettings() {
                                             <td><input type="checkbox" checked={flag(row.enabled)} onChange={(e) => updateRecipient(index, { enabled: e.target.checked ? 1 : 0 })} /></td>
                                             <td><input type="checkbox" checked={flag(row.receive_summary)} onChange={(e) => updateRecipient(index, { receive_summary: e.target.checked ? 1 : 0 })} /></td>
                                             <td>
-                                                {flag(row.is_custom) ? (
-                                                    <button type="button" className="nso-remove-email-btn" onClick={() => removeRecipient(index)} title="Remove recipient"><FaTrash /></button>
-                                                ) : "-"}
+                                                <button
+                                                    type="button"
+                                                    className="nso-remove-email-btn"
+                                                    onClick={() => removeRecipient(index)}
+                                                    title={flag(row.is_custom) ? "Remove recipient" : "Remove this administrator from Daily Collection emails"}
+                                                >
+                                                    <FaTrash /> <span>Delete</span>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

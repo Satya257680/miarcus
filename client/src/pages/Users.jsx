@@ -370,10 +370,18 @@ const filteredUsers = users.filter((user) => {
     departmentFilter === "All Departments" ||
     user.department === departmentFilter;
 
+  // Reports-to is stored as free text, so compare loosely: ignore case /
+  // extra spaces, accept "A, B" lists and numeric manager ids, and keep
+  // the selected manager's own row visible too.
+  const norm = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const selectedManager = reportsTo.find((m) => norm(m.manager_name) === norm(reportsFilter));
+  const reportsList = String(user.reports_to ?? "").split(/[,;/|]/).map(norm).filter(Boolean);
   const matchesReports =
     reportsFilter === "" ||
     reportsFilter === "All Reports" ||
-    user.reports_to === reportsFilter;
+    reportsList.includes(norm(reportsFilter)) ||
+    (selectedManager && reportsList.includes(norm(selectedManager.id))) ||
+    norm(user.name) === norm(reportsFilter);
 
   return (
     matchesSearch &&

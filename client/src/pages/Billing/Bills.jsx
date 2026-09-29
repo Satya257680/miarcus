@@ -31,11 +31,15 @@ import {
   FaChevronRight,
   FaExclamationTriangle,
   FaExternalLinkAlt,
+  FaBan,
 } from "react-icons/fa";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 import {
   getBills,
   cancelBill,
+  deleteBill,
+  deleteAllBills,
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
@@ -219,6 +223,15 @@ export default function Bills() {
 
   const [deletingId, setDeletingId] =
     useState(null);
+
+  const [confirmAction, setConfirmAction] =
+    useState(null); // { type: "cancel" | "delete" | "deleteAll", bill? }
+
+  const [actionBusy, setActionBusy] =
+    useState(false);
+
+  const [notice, setNotice] =
+    useState("");
 
   const [page, setPage] = useState(1);
 
@@ -448,63 +461,62 @@ export default function Bills() {
      DELETE / CANCEL BILL
   ==================================================== */
 
-  const handleDelete = async (
-    bill
-  ) => {
-    if (!bill?.id) {
-      return;
-    }
+  const handleCancelBill = (bill) => {
+    if (!bill?.id) return;
+    setConfirmAction({ type: "cancel", bill });
+  };
 
-    const billNumber =
-      bill.bill_no ||
-      `#${bill.id}`;
+  const handleDelete = (bill) => {
+    if (!bill?.id) return;
+    setConfirmAction({ type: "delete", bill });
+  };
 
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to delete/cancel bill ${billNumber}?\n\nThe bill will be marked as CANCELLED and the action will be recorded in the audit history.`
-      );
-
-    if (!confirmed) {
-      return;
-    }
+  const runConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const { type, bill } = confirmAction;
 
     try {
-      setDeletingId(
-        bill.id
-      );
-
+      setActionBusy(true);
       setError("");
+      if (bill?.id) setDeletingId(bill.id);
 
-      /*
-       * IMPORTANT:
-       * The current billing backend exposes
-       * cancelBill(), not a hard DELETE endpoint.
-       *
-       * Therefore this action safely cancels
-       * the bill instead of permanently deleting
-       * the database record.
-       */
-      await cancelBill(
-        bill.id
-      );
+      let message = "";
 
+      if (type === "cancel") {
+        const response = await cancelBill(bill.id);
+        message = response?.data?.message || "Bill cancelled.";
+      } else if (type === "delete") {
+        const response = await deleteBill(bill.id);
+        message = response?.data?.message || "Bill deleted.";
+      } else {
+        const ids = filteredData.map((row) => row.id).filter(Boolean);
+        const response = await deleteAllBills(hasFilters ? { ids } : { all: true });
+        message = response?.data?.message || "Bills deleted.";
+        setPage(1);
+      }
+
+      setNotice(message);
+      setConfirmAction(null);
       await loadBills(true);
     } catch (err) {
-      console.error(
-        "Delete/cancel bill error:",
-        err
-      );
-
+      console.error("Bill action error:", err);
       setError(
-        err?.response?.data
-          ?.message ||
+        err?.response?.data?.message ||
           err?.message ||
-          "Unable to cancel this bill."
+          "Unable to complete this action."
       );
+      setConfirmAction(null);
     } finally {
+      setActionBusy(false);
       setDeletingId(null);
     }
   };
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(""), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   /* ====================================================
      EDIT BILL
@@ -788,11 +800,31 @@ export default function Bills() {
                 clearFilters
               }
             >
-              Clear
+              Clear Filters
             </button>
           )}
 
+          <button
+            type="button"
+            className="billing-delete-all-btn"
+            disabled={!filteredData.length}
+            onClick={() => setConfirmAction({ type: "deleteAll" })}
+          >
+            <FaTrash />
+            {hasFilters ? `Delete Filtered (${filteredData.length})` : "Delete All"}
+          </button>
+
         </div>
+
+        {notice && (
+          <div className="billing-alert billing-alert-success">
+            <FaCheckCircle />
+            <div>
+              <strong>Done</strong>
+              <span>{notice}</span>
+            </div>
+          </div>
+        )}
 
         {/* ==================================================
             RESULT BAR
@@ -1144,34 +1176,36 @@ export default function Bills() {
                               <FaEdit />
                             </button>
 
-                            {/* DELETE / CANCEL */}
+                            {/* CANCEL (soft) */}
+
+                            {!isCancelled && (
+                              <button
+                                type="button"
+                                className="billing-action-btn billing-action-cancel"
+                                title="Cancel Bill (keeps the record)"
+                                aria-label="Cancel Bill"
+                                disabled={isDeleting}
+                                onClick={() => handleCancelBill(bill)}
+                              >
+                                <FaBan />
+                              </button>
+                            )}
+
+                            {/* DELETE (permanent) */}
 
                             <button
                               type="button"
                               className="billing-action-btn billing-action-delete"
-                              title={
-                                isCancelled
-                                  ? "Bill already cancelled"
-                                  : "Delete / Cancel Bill"
-                              }
+                              title="Delete Bill permanently"
                               aria-label="Delete Bill"
-                              disabled={
-                                isCancelled ||
-                                isDeleting
-                              }
-                              onClick={() =>
-                                handleDelete(
-                                  bill
-                                )
-                              }
+                              disabled={isDeleting}
+                              onClick={() => handleDelete(bill)}
                             >
-
                               {isDeleting ? (
                                 <FaSyncAlt className="billing-spin" />
                               ) : (
                                 <FaTrash />
                               )}
-
                             </button>
 
                           </div>
@@ -1288,6 +1322,33 @@ export default function Bills() {
         )}
 
       </div>
+
+      <ConfirmDialog
+        open={Boolean(confirmAction)}
+        title={
+          confirmAction?.type === "cancel"
+            ? "Cancel Bill"
+            : confirmAction?.type === "delete"
+              ? "Delete Bill"
+              : hasFilters
+                ? "Delete Filtered Bills"
+                : "Delete All Bills"
+        }
+        message={
+          confirmAction?.type === "cancel"
+            ? `Cancel bill ${confirmAction.bill?.bill_no || `#${confirmAction.bill?.id}`}? It stays in the register as CANCELLED and the change is recorded in the audit history.`
+            : confirmAction?.type === "delete"
+              ? `Permanently delete bill ${confirmAction.bill?.bill_no || `#${confirmAction.bill?.id}`} with its items and payments? This cannot be undone.`
+              : hasFilters
+                ? `Permanently delete the ${filteredData.length} bill(s) that match the current search and filters? This cannot be undone.`
+                : "No filter is applied. EVERY bill, with its items and payments, will be permanently deleted. This cannot be undone."
+        }
+        confirmText={actionBusy ? "Working..." : confirmAction?.type === "cancel" ? "Cancel Bill" : "Delete"}
+        cancelText="Close"
+        confirmVariant="danger"
+        onConfirm={runConfirmedAction}
+        onCancel={() => !actionBusy && setConfirmAction(null)}
+      />
 
     </div>
   );

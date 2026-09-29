@@ -12,7 +12,9 @@ import {
     FaUnlock,
     FaEnvelope,
     FaCheckCircle,
-    FaTimesCircle
+    FaTimesCircle,
+    FaStore,
+    FaClock
 } from "react-icons/fa";
 import PageToolbar from "../../components/common/PageToolbar";
 import BulkUploadModal from "../../components/common/BulkUploadModal";
@@ -33,6 +35,11 @@ import {
     updateDailyCollectionEmailSettings
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", {
@@ -382,18 +389,39 @@ export default function DailyCollection() {
     }
 
     return (
-        <div className="daily-collection-page">
-            <section className="daily-collection-hero">
-                <div>
-                    <div className="eyebrow"><FaChartBar /> Daily Collection module</div>
-                    <h1>Daily Collection</h1>
-                    <p>
-                        {admin
-                            ? "Enter and manage Daily Collection for any active store."
-                            : "Enter today's UPI, cash, bank transfer and card collection for your assigned store."}
-                    </p>
-                </div>
-            </section>
+        <div className="daily-collection-page pp-premium">
+            <PremiumHero
+                icon={FaChartBar}
+                eyebrow="Daily Collection · Entry"
+                title="Daily Collection"
+                badge={admin ? "Administrator" : "Store manager"}
+                badgeTone={admin ? "gold" : "mint"}
+                subtitle={admin
+                    ? "Enter and manage Daily Collection for any active store."
+                    : "Enter today's UPI, cash, bank transfer and card collection for your assigned store."}
+                meta={[
+                    { label: "Date", value: date },
+                    { label: "Stores", value: String(stores.length) },
+                    { label: "Emails", value: emailSettings?.email_enabled === false ? "Off" : "On" }
+                ]}
+                actions={admin ? (
+                    <div className="pp-hero-actions-inline">
+                        <Link to="/daily-collection/blocked" className="pp-hero-btn"><FaLock /> Blocked Stores</Link>
+                        <Link to="/settings/daily-collection-email" className="pp-hero-btn pp-hero-btn--solid"><FaEnvelope /> Email Routing</Link>
+                    </div>
+                ) : null}
+            />
+
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "stores", label: "Stores shown", value: filteredReports.length, hint: "For this date", tone: "violet", icon: FaStore },
+                    { key: "submitted", label: "Submitted", value: filteredReports.filter((r) => r.status === "submitted").length, hint: "Collection entered", tone: "green", icon: FaCheckCircle },
+                    { key: "pending", label: "Not submitted", value: filteredReports.filter((r) => r.status !== "submitted" && r.status !== "locked").length, hint: "Waiting for entry", tone: "amber", icon: FaClock },
+                    { key: "locked", label: "Locked", value: filteredReports.filter((r) => r.status === "locked").length + blockedControls.length, hint: "Blocked by deadline", tone: "red", icon: FaLock },
+                    { key: "billed", label: "System billed", value: `₹${filteredReports.reduce((sum, r) => sum + Number(r.summary?.total_billed ?? r.total_billed ?? 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, hint: "From Billing", tone: "blue", icon: FaMoneyBillWave }
+                ]}
+            />
 
             <PageToolbar
                 search={search}

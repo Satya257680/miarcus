@@ -92,6 +92,94 @@ const getInitialPermissions = () => {
     };
 };
 
+
+// ======================================================
+// Small SVG charts for the dashboard cards
+// ======================================================
+
+function ReadinessBarChart({ bars = [] }) {
+    const ticks = [100, 75, 50, 25, 0];
+    return (
+        <div className="lt-bar-chart" role="img" aria-label={bars.map((b) => `${b.label} ${Math.round(b.value)}%`).join(", ")}>
+            <div className="lt-bar-axis">
+                {ticks.map((t) => <span key={t}>{t}%</span>)}
+            </div>
+            <div className="lt-bar-main">
+                <div className="lt-bar-area">
+                    {ticks.map((t) => (
+                        <i key={t} className="lt-bar-grid" style={{ bottom: `${t}%` }} />
+                    ))}
+                    {bars.map((bar) => {
+                        const h = Math.max(0, Math.min(100, bar.value));
+                        return (
+                            <div className="lt-bar-col" key={bar.label} title={`${bar.label}: ${bar.value.toFixed(1)}% (${bar.count})`}>
+                                <div className="lt-bar-fill" style={{ height: `${h}%`, background: bar.color }}>
+                                    <span className="lt-bar-value">{bar.value.toFixed(0)}%</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="lt-bar-labels">
+                    {bars.map((bar) => (
+                        <div className="lt-bar-label" key={bar.label}>
+                            <strong>{bar.label}</strong>
+                            <small>{bar.count}</small>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SignalsPieChart({ slices = [], centerLabel = "", centerValue = "" }) {
+    const total = slices.reduce((sum, s) => sum + Math.max(0, s.value), 0);
+    const r = 70;
+    const c = 2 * Math.PI * r;
+    let offset = 0;
+    return (
+        <div className="lt-pie">
+            <svg viewBox="0 0 200 200" className="lt-pie-svg" role="img" aria-label={slices.map((s) => `${s.label} ${s.value}`).join(", ")}>
+                <circle cx="100" cy="100" r={r} fill="none" stroke="var(--pp-line, #ebe7f5)" strokeWidth="34" />
+                {total > 0 && slices.map((slice) => {
+                    const len = (Math.max(0, slice.value) / total) * c;
+                    const el = (
+                        <circle
+                            key={slice.label}
+                            cx="100"
+                            cy="100"
+                            r={r}
+                            fill="none"
+                            stroke={slice.color}
+                            strokeWidth="34"
+                            strokeDasharray={`${Math.max(0, len - 2)} ${c}`}
+                            strokeDashoffset={-offset}
+                            transform="rotate(-90 100 100)"
+                        >
+                            <title>{`${slice.label}: ${slice.value}`}</title>
+                        </circle>
+                    );
+                    offset += len;
+                    return el;
+                })}
+                <text x="100" y="96" textAnchor="middle" className="lt-pie-center-value">{centerValue}</text>
+                <text x="100" y="118" textAnchor="middle" className="lt-pie-center-label">{centerLabel}</text>
+            </svg>
+            <ul className="lt-pie-legend">
+                {slices.map((slice) => (
+                    <li key={slice.label}>
+                        <i style={{ background: slice.color }} />
+                        <span>{slice.label}</span>
+                        <strong>{slice.valueLabel ?? slice.value}</strong>
+                        <small>{slice.note || (total ? `${((slice.value / total) * 100).toFixed(1)}%` : "0%")}</small>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 export default function ListingTracker() {
     const [rows, setRows] = useState([]);
     const [summary, setSummary] = useState({
@@ -610,36 +698,16 @@ export default function ListingTracker() {
                         </div>
 
                         <div className="listing-card-body">
-                            <div className="listing-progress-row">
-                                <div className="listing-progress-head">
-                                    <span>
-                                        <FaCamera /> Photoshoot
-                                    </span>
-                                    <span>{formatPercent(photosPercent)}</span>
-                                </div>
-                                <div className="listing-progress-track">
-                                    <div
-                                        className="listing-progress-fill photos"
-                                        style={{ width: `${photosPercent}%` }}
-                                    />
-                                </div>
-                            </div>
+                            <ReadinessBarChart
+                                bars={[
+                                    { label: "Photoshoot done", value: Number(photosPercent) || 0, count: `${formatNumber(summary.photoshootYes)} of ${formatNumber(summary.total)}`, color: "linear-gradient(180deg, #a78bfa, #6d28d9)" },
+                                    { label: "Product listed", value: Number(listedPercent) || 0, count: `${formatNumber(summary.listedYes)} of ${formatNumber(summary.total)}`, color: "linear-gradient(180deg, #34d399, #047857)" },
+                                    { label: "Photoshoot pending", value: summary.total ? (summary.photoshootNo / summary.total) * 100 : 0, count: formatNumber(summary.photoshootNo), color: "linear-gradient(180deg, #fcd34d, #d97706)" },
+                                    { label: "Listing pending", value: summary.total ? (summary.listedNo / summary.total) * 100 : 0, count: formatNumber(summary.listedNo), color: "linear-gradient(180deg, #fda4af, #e11d48)" }
+                                ]}
+                            />
 
-                            <div className="listing-progress-row">
-                                <div className="listing-progress-head">
-                                    <span>
-                                        <FaShoppingBag /> Product Listed
-                                    </span>
-                                    <span>{formatPercent(listedPercent)}</span>
-                                </div>
-                                <div className="listing-progress-track">
-                                    <div
-                                        className="listing-progress-fill listed"
-                                        style={{ width: `${listedPercent}%` }}
-                                    />
-                                </div>
-                            </div>
-
+                            <div className="lt-subhead">Listed by collection</div>
                             <div className="listing-collection-list">
                                 {collectionOptions.length ? (
                                     collectionOptions.slice(0, 10).map((item) => (
@@ -652,6 +720,9 @@ export default function ListingTracker() {
                                             </div>
                                             <div className="listing-collection-count">
                                                 {formatNumber(item.total)}
+                                            </div>
+                                            <div className="lt-hbar" title={`${formatPercent(item.listed_percent)} listed`}>
+                                                <i style={{ width: `${Math.max(0, Math.min(100, Number(item.listed_percent) || 0))}%` }} />
                                             </div>
                                             <div className="listing-collection-rate">
                                                 {formatPercent(item.listed_percent)} listed
@@ -677,44 +748,14 @@ export default function ListingTracker() {
                         </div>
 
                         <div className="listing-card-body">
-                            <div className="listing-progress-row">
-                                <div className="listing-progress-head">
-                                    <span>Photoshoot pending</span>
-                                    <span>{formatNumber(summary.photoshootNo)}</span>
-                                </div>
-                                <div className="listing-progress-track">
-                                    <div
-                                        className="listing-progress-fill photos"
-                                        style={{
-                                            width: `${
-                                                summary.total
-                                                    ? (summary.photoshootNo / summary.total) * 100
-                                                    : 0
-                                            }%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="listing-progress-row">
-                                <div className="listing-progress-head">
-                                    <span>Listing pending</span>
-                                    <span>{formatNumber(summary.listedNo)}</span>
-                                </div>
-                                <div className="listing-progress-track">
-                                    <div
-                                        className="listing-progress-fill listed"
-                                        style={{
-                                            width: `${
-                                                summary.total
-                                                    ? (summary.listedNo / summary.total) * 100
-                                                    : 0
-                                            }%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
-
+                            <SignalsPieChart
+                                centerValue={formatNumber(summary.photoshootNo + summary.listedNo)}
+                                centerLabel="open gaps"
+                                slices={[
+                                    { label: "Photoshoot pending", value: summary.photoshootNo, valueLabel: formatNumber(summary.photoshootNo), color: "#f59e0b", note: summary.total ? `${((summary.photoshootNo / summary.total) * 100).toFixed(1)}% of catalogue` : "" },
+                                    { label: "Listing pending", value: summary.listedNo, valueLabel: formatNumber(summary.listedNo), color: "#e11d48", note: summary.total ? `${((summary.listedNo / summary.total) * 100).toFixed(1)}% of catalogue` : "" }
+                                ]}
+                            />
                             <div className="listing-card-header" style={{ padding: "13px 0 0", marginTop: 10 }}>
                                 <div>
                                     <h2 style={{ fontSize: 13 }}>Last sync</h2>
@@ -826,7 +867,7 @@ export default function ListingTracker() {
                                                             onClick={() => openEdit(row)}
                                                             title="Edit"
                                                         >
-                                                            <FaEdit />
+                                                            <FaEdit /> <span>Edit</span>
                                                         </button>
                                                     )}
                                                     {permissions.canDelete && (
@@ -835,7 +876,7 @@ export default function ListingTracker() {
                                                             onClick={() => handleDelete(row)}
                                                             title="Delete"
                                                         >
-                                                            <FaTrash />
+                                                            <FaTrash /> <span>Delete</span>
                                                         </button>
                                                     )}
                                                 </div>

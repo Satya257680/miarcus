@@ -833,6 +833,15 @@ function App() {
                     />
 
                     <Route
+                        path="/billing/bills/:id/edit"
+                        element={
+                            <ModulePermissionRoute page="billing.bills">
+                                <BillingEntry />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
                         path="/billing/bills/:id"
                         element={
                             <ModulePermissionRoute page="billing.bills">

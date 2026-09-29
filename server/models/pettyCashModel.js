@@ -110,39 +110,7 @@ const PettyCash = {
             }
         }
 
-        // Contact list for "Specific" routing (like NSO / Checklist email routing).
-        await db.query(`
-            CREATE TABLE IF NOT EXISTS petty_cash_email_recipients (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                role_key VARCHAR(120) NOT NULL UNIQUE,
-                role_label VARCHAR(150) NOT NULL DEFAULT 'Recipient',
-                contact_name VARCHAR(150) NULL,
-                email VARCHAR(255) NULL,
-                user_id INT NULL,
-                is_custom TINYINT(1) NOT NULL DEFAULT 0,
-                enabled TINYINT(1) NOT NULL DEFAULT 1,
-                advance_created TINYINT(1) NOT NULL DEFAULT 1,
-                expense_added TINYINT(1) NOT NULL DEFAULT 1,
-                deposit_added TINYINT(1) NOT NULL DEFAULT 1,
-                settlement_completed TINYINT(1) NOT NULL DEFAULT 1,
-                advance_cancelled TINYINT(1) NOT NULL DEFAULT 1,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_pcer_enabled (enabled)
-            )
-        `);
-
-        for (const [column, definition] of [
-            ["include_direct", "TINYINT(1) NOT NULL DEFAULT 1"],
-            ["master_enabled", "TINYINT(1) NOT NULL DEFAULT 1"]
-        ]) {
-            try {
-                await db.query(`ALTER TABLE petty_cash_email_settings ADD COLUMN ${column} ${definition}`);
-            } catch (error) {
-                if (error?.code !== "ER_DUP_FIELDNAME") {
-                    console.error(`Petty Cash email settings migration (${column}) skipped:`, error.message || error);
-                }
-            }
-        }
+        await PettyCash.ensureEmailRecipientsTable();
 
         // Seed the global row from an existing administrator's settings once.
         // This preserves today's notification choices when the central mode is introduced.
@@ -199,10 +167,60 @@ const PettyCash = {
         console.log("✅ Petty Cash tables verified");
     },
 
+    // Contact list for "Specific" routing (like NSO / Checklist email
+    // routing). Also called lazily so the page works even before the
+    // server has been restarted after an update.
+    async ensureEmailRecipientsTable() {
+        if (PettyCash._recipientsTableReady) return;
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS petty_cash_email_recipients (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                role_key VARCHAR(120) NOT NULL UNIQUE,
+                role_label VARCHAR(150) NOT NULL DEFAULT 'Recipient',
+                contact_name VARCHAR(150) NULL,
+                email VARCHAR(255) NULL,
+                user_id INT NULL,
+                is_custom TINYINT(1) NOT NULL DEFAULT 0,
+                enabled TINYINT(1) NOT NULL DEFAULT 1,
+                advance_created TINYINT(1) NOT NULL DEFAULT 1,
+                expense_added TINYINT(1) NOT NULL DEFAULT 1,
+                deposit_added TINYINT(1) NOT NULL DEFAULT 1,
+                settlement_completed TINYINT(1) NOT NULL DEFAULT 1,
+                advance_cancelled TINYINT(1) NOT NULL DEFAULT 1,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_pcer_enabled (enabled)
+            )
+        `);
+
+        try {
+            await db.query(`ALTER TABLE petty_cash_email_recipients ADD COLUMN removed TINYINT(1) NOT NULL DEFAULT 0`);
+        } catch (error) {
+            if (error?.code !== "ER_DUP_FIELDNAME") {
+                console.error("Petty Cash email recipients migration (removed) skipped:", error.message || error);
+            }
+        }
+        for (const [column, definition] of [
+            ["include_direct", "TINYINT(1) NOT NULL DEFAULT 1"],
+            ["master_enabled", "TINYINT(1) NOT NULL DEFAULT 1"]
+        ]) {
+            try {
+                await db.query(`ALTER TABLE petty_cash_email_settings ADD COLUMN ${column} ${definition}`);
+            } catch (error) {
+                if (error?.code !== "ER_DUP_FIELDNAME") {
+                    console.error(`Petty Cash email settings migration (${column}) skipped:`, error.message || error);
+                }
+            }
+        }
+        PettyCash._recipientsTableReady = true;
+    },
+
     async isAdmin(userId) {
-        const rows = await db.query(`
-            SELECT is_admin, administrator FROM users WHERE id=? LIMIT 1
-        `, [userId]);
+        let rows;
+        try {
+            rows = await db.query(`SELECT is_admin, administrator FROM users WHERE id=? LIMIT 1`, [userId]);
+        } catch {
+            rows = await db.query(`SELECT is_admin FROM users WHERE id=? LIMIT 1`, [userId]);
+        }
         const u = rows[0] || {};
         return u.is_admin === 1 || u.administrator === 1 || u.is_admin === true || u.administrator === true;
     },
@@ -521,10 +539,13 @@ const PettyCash = {
     // Every active administrator is listed automatically; extra
     // e-mails (accounts, owners, regional heads) are added as custom rows.
     async getEmailContacts() {
+        await PettyCash.ensureEmailRecipientsTable();
+        // The users table only has is_admin (there is no "administrator"
+        // column) - referencing it made this endpoint return HTTP 500.
         const admins = await db.query(`
             SELECT id,name,email
             FROM users
-            WHERE (is_admin=1 OR administrator=1)
+            WHERE is_admin=1
               AND LOWER(COALESCE(status,'Active')) NOT IN ('inactive','disabled')
               AND email IS NOT NULL AND TRIM(email)<>''
             ORDER BY name
@@ -539,12 +560,23 @@ const PettyCash = {
             `, [`admin_${admin.id}`, "Administrator", admin.name, admin.email, admin.id]);
         }
 
-        const rows = await db.query(`
-            SELECT id,role_key,role_label,contact_name,email,user_id,is_custom,enabled,
-                   advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled
-            FROM petty_cash_email_recipients
-            ORDER BY is_custom ASC, contact_name ASC, id ASC
-        `);
+        let rows;
+        try {
+            rows = await db.query(`
+                SELECT id,role_key,role_label,contact_name,email,user_id,is_custom,enabled,
+                       advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled
+                FROM petty_cash_email_recipients
+                WHERE COALESCE(removed,0)=0
+                ORDER BY is_custom ASC, contact_name ASC, id ASC
+            `);
+        } catch (error) {
+            rows = await db.query(`
+                SELECT id,role_key,role_label,contact_name,email,user_id,is_custom,enabled,
+                       advance_created,expense_added,deposit_added,settlement_completed,advance_cancelled
+                FROM petty_cash_email_recipients
+                ORDER BY is_custom ASC, contact_name ASC, id ASC
+            `);
+        }
 
         const activeAdminKeys = new Set(admins.map((a) => `admin_${a.id}`));
 
@@ -562,7 +594,24 @@ const PettyCash = {
             }));
     },
 
-    async saveEmailContacts(list = []) {
+    async countRemovedContacts() {
+        try {
+            const rows = await db.query(`SELECT COUNT(*) AS n FROM petty_cash_email_recipients WHERE is_custom=0 AND removed=1`);
+            return Number(rows[0]?.n || 0);
+        } catch {
+            return 0;
+        }
+    },
+
+    async saveEmailContacts(list = [], { removedKeys = [], restoreRemoved = false } = {}) {
+        if (restoreRemoved) {
+            await db.query(`UPDATE petty_cash_email_recipients SET removed=0 WHERE is_custom=0`).catch(() => {});
+        }
+        const removed = (Array.isArray(removedKeys) ? removedKeys : []).map((k) => String(k || "").trim()).filter(Boolean);
+        if (removed.length) {
+            await db.query(`UPDATE petty_cash_email_recipients SET removed=1 WHERE is_custom=0 AND role_key IN (?)`, [removed]).catch(() => {});
+        }
+
         const flags = ["enabled","advance_created","expense_added","deposit_added","settlement_completed","advance_cancelled"];
         const keep = [];
 
@@ -624,6 +673,7 @@ const PettyCash = {
             "settlement_completed",
             "advance_cancelled"
         ];
+        await PettyCash.ensureEmailRecipientsTable();
         const values = keys.map((key)=>data[key] === false || data[key] === 0 ? 0 : 1);
         const recipientMode = ["everyone","specific"].includes(data.recipient_mode) ? data.recipient_mode : "direct";
         const includeDirect = data.include_direct === false || data.include_direct === 0 ? 0 : 1;
@@ -645,7 +695,10 @@ const PettyCash = {
         `, [targetUserId,...values,recipientMode,includeDirect,masterEnabled]);
 
         if (global && Array.isArray(data.recipients)) {
-            await PettyCash.saveEmailContacts(data.recipients);
+            await PettyCash.saveEmailContacts(data.recipients, {
+                removedKeys: data.removed_keys,
+                restoreRemoved: Boolean(data.restore_removed)
+            });
         }
 
         return global

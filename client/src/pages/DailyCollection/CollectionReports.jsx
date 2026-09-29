@@ -1,8 +1,14 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
-import { FaChartLine, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
+import { FaChartLine, FaMoneyBillWave, FaSyncAlt, FaStore, FaCheckCircle, FaExclamationTriangle, FaLock, FaWallet, FaBalanceScale } from "react-icons/fa";
+import { initials, avatarTone } from "../../utils/premiumFormat";
 import { getCollectionReports, getDailyCollectionStores } from "../../services/billingService";
 import "../../styles/CollectionReports.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
 
@@ -105,14 +111,19 @@ export default function CollectionReports() {
     if (!canView) return <div className="collection-reports-page"><div className="collection-reports-empty">You do not have permission to view Collection Reports.</div></div>;
 
     return (
-        <div className="collection-reports-page">
-            <section className="collection-reports-hero">
-                <div>
-                    <div className="collection-reports-eyebrow"><FaChartLine /> Daily Collection module</div>
-                    <h1>Collection Reports</h1>
-                    <p>Review Daily Collection history by day, week, month or year, with store-wise totals and reconciliation.</p>
-                </div>
-            </section>
+        <div className="collection-reports-page pp-premium">
+            <PremiumHero
+                icon={FaChartLine}
+                eyebrow="Daily Collection · History"
+                title="Collection Reports"
+                badge={PERIODS.find((p) => p.value === period)?.label || "Report"}
+                badgeTone="sky"
+                subtitle="Review Daily Collection history by day, week, month or year, with store-wise totals and reconciliation."
+                meta={[
+                    { label: "Period", value: selectedStore ? (label || date) : null },
+                    { label: "Scope", value: selectedStore === "all" ? "All stores" : selectedStore ? "Selected store" : null }
+                ]}
+            />
 
             <section className="collection-reports-filters">
                 <div className="collection-periods">
@@ -138,15 +149,18 @@ export default function CollectionReports() {
 
             {error && <div className="collection-reports-alert">{error}</div>}
 
-            {selectedStore && <section className="collection-summary-grid">
-                <div><span>Stores</span><strong>{totals.stores || 0}</strong></div>
-                <div><span>Submitted Days</span><strong>{totals.submitted_days || 0}</strong></div>
-                <div><span>Missing Days</span><strong>{totals.missing_days || 0}</strong></div>
-                <div><span>Locked Days</span><strong>{totals.locked_days || 0}</strong></div>
-                <div><span>System Billed</span><strong>{money(totals.system_billed)}</strong></div>
-                <div><span>Total Collected</span><strong>{money(totals.total_collected)}</strong></div>
-                <div><span>Variance</span><strong className={Math.abs(Number(totals.variance || 0)) < 0.01 ? "match" : "mismatch"}>{money(totals.variance)}</strong></div>
-            </section>}
+            {selectedStore && <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "stores", label: "Stores", value: totals.stores || 0, hint: "In this period", tone: "violet", icon: FaStore },
+                    { key: "submitted", label: "Submitted days", value: totals.submitted_days || 0, hint: "Entered", tone: "green", icon: FaCheckCircle },
+                    { key: "missing", label: "Missing days", value: totals.missing_days || 0, hint: "Not submitted", tone: "amber", icon: FaExclamationTriangle },
+                    { key: "locked", label: "Locked days", value: totals.locked_days || 0, hint: "Blocked", tone: "red", icon: FaLock },
+                    { key: "billed", label: "System billed", value: money(totals.system_billed), hint: "From Billing", tone: "blue", icon: FaMoneyBillWave },
+                    { key: "collected", label: "Total collected", value: money(totals.total_collected), hint: "All payment modes", tone: "slate", icon: FaWallet },
+                    { key: "variance", label: "Variance", value: money(totals.variance), hint: Math.abs(Number(totals.variance || 0)) < 0.01 ? "Fully reconciled" : "Needs review", tone: Math.abs(Number(totals.variance || 0)) < 0.01 ? "green" : "red", icon: FaBalanceScale }
+                ]}
+            />}
 
             <section className="collection-report-table-wrap">
                 {!selectedStore ? <div className="collection-reports-empty">Select a specific store or choose All stores to display Collection Reports.</div> : loading ? <div className="collection-reports-empty"><PremiumLoader compact title="Loading Collection Reports" /></div> : !filteredReports.length ? <div className="collection-reports-empty">No Collection data is available for the selected period.</div> : (
@@ -155,7 +169,15 @@ export default function CollectionReports() {
                             <thead><tr><th>Store</th><th>Period</th><th>Days</th><th>Submitted</th><th>Missing</th><th>Locked</th><th>Bills</th><th>System Billed</th><th>UPI</th><th>Cash</th><th>Bank</th><th>Card</th><th>Collected</th><th>Variance</th></tr></thead>
                             <tbody>{filteredReports.map((row) => (
                                 <tr key={`${row.store_id}-${row.from_date}-${row.to_date}`}>
-                                    <td><strong>{row.store_name}</strong><small>{row.store_code || ""}{row.manager_name ? ` • ${row.manager_name}` : ""}</small></td>
+                                    <td>
+                                        <div className="pp-cell-main">
+                                            <span className={`pp-avatar ${avatarTone(row.store_name)}`}>{initials(String(row.store_name || "").replace(/^MRPL\s*-\s*/i, ""))}</span>
+                                            <span className="pp-cell-text">
+                                                <span className="pp-cell-title">{row.store_name}</span>
+                                                <span className="pp-cell-sub">{row.store_code || ""}{row.manager_name ? ` • ${row.manager_name}` : ""}</span>
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td>{row.from_date === row.to_date ? row.from_date : `${row.from_date} → ${row.to_date}`}</td>
                                     <td>{row.days}</td>
                                     <td><span className="count submitted">{row.submitted_days}</span></td>

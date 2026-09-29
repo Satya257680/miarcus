@@ -28,15 +28,26 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaTimesCircle,
-  FaEye,
-  FaCalendarAlt
+  FaEye
 } from "react-icons/fa";
 
 import {
-  getBillingAudit
+  getBillingAudit,
+  getBill,
+  deleteBill
 } from "../../services/billingService";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { FaTrash, FaStore, FaUserTag, FaMoneyBillWave, FaReceipt } from "react-icons/fa";
+
+const inr = (value) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 }).format(Number(value || 0));
 
 import "../../styles/Billing.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 
 /* ======================================================
    HELPERS
@@ -439,6 +450,48 @@ export default function BillingAudit() {
     useNavigate();
 
   /* ====================================================
+     BILL DETAILS (the "View" page shows the bill itself
+     first, then its audit history)
+  ==================================================== */
+
+  const [bill, setBill] = useState(null);
+  const [billMissing, setBillMissing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletingBill, setDeletingBill] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getBill(id)
+      .then((response) => {
+        if (!alive) return;
+        const data = response?.data?.data || null;
+        setBill(data);
+        setBillMissing(!data);
+      })
+      .catch(() => {
+        if (alive) setBillMissing(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  const removeBill = async () => {
+    try {
+      setDeletingBill(true);
+      await deleteBill(id);
+      navigate("/billing/bills");
+    } catch (err) {
+      setDeletingBill(false);
+      setConfirmDelete(false);
+      window.alert(err?.response?.data?.message || "Unable to delete this bill.");
+    }
+  };
+
+  const billCancelled = String(bill?.status || "").toUpperCase() === "CANCELLED";
+  const billPayment = Array.isArray(bill?.payments) && bill.payments.length ? bill.payments[0] : null;
+
+  /* ====================================================
      STATE
   ==================================================== */
 
@@ -758,95 +811,48 @@ export default function BillingAudit() {
   return (
 
     <div
-      className="billing-page billing-audit-page"
+      className="billing-page billing-audit-page pp-premium"
     >
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div
-        className="billing-header billing-audit-header"
-      >
-
-        <div
-          className="billing-header-left"
-        >
-
-          <button
-            type="button"
-            className="billing-back-btn"
-            onClick={() =>
-              navigate(-1)
-            }
-            title="Go back"
-          >
-            <FaArrowLeft />
-          </button>
-
-          <div>
-
-            <div
-              className="billing-title-row"
+      <PremiumHero
+        icon={FaHistory}
+        eyebrow="Billing · Audit trail"
+        title={bill?.bill_no ? `Bill ${bill.bill_no}` : "Billing Audit History"}
+        badge={bill ? String(bill.status || "—").toUpperCase() : `Bill #${id}`}
+        badgeTone="sky"
+        subtitle="Bill details first, then every create, update, cancel and delete on this bill — who changed it, when, and exactly what changed."
+        meta={[
+          { label: "Activities", value: String(logs.length) },
+          { label: "First", value: firstActivity ? firstActivityFormatted.full : null },
+          { label: "Last", value: lastActivity ? lastActivityFormatted.full : null }
+        ]}
+        actions={
+          <div className="pp-hero-actions-inline">
+            <button type="button" className="pp-hero-btn" onClick={() => navigate(-1)}>
+              <FaArrowLeft /> Back
+            </button>
+            {!billCancelled && !billMissing && (
+              <button type="button" className="pp-hero-btn" onClick={() => navigate(`/billing/bills/${id}/edit`)}>
+                <FaEdit /> Edit Bill
+              </button>
+            )}
+            {!billMissing && (
+              <button type="button" className="pp-hero-btn" onClick={() => setConfirmDelete(true)}>
+                <FaTrash /> Delete
+              </button>
+            )}
+            <button
+              type="button"
+              className="pp-hero-btn pp-hero-btn--solid"
+              onClick={() => loadAuditLogs(true)}
+              disabled={loading || refreshing}
             >
-
-              <span
-                className="billing-title-icon"
-              >
-                <FaHistory />
-              </span>
-
-              <h1>
-                Billing Audit History
-              </h1>
-
-            </div>
-
-            <p>
-              Complete activity history
-              for billing record{" "}
-              <strong>
-                #{id}
-              </strong>
-            </p>
-
+              <FaSyncAlt className={refreshing ? "billing-spin" : ""} />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
           </div>
-
-        </div>
-
-        <div
-          className="billing-header-actions"
-        >
-
-          <button
-            type="button"
-            className="billing-secondary-btn"
-            onClick={() =>
-              loadAuditLogs(true)
-            }
-            disabled={
-              loading ||
-              refreshing
-            }
-          >
-
-            <FaSyncAlt
-              className={
-                refreshing
-                  ? "billing-spin"
-                  : ""
-              }
-            />
-
-            {refreshing
-              ? "Refreshing..."
-              : "Refresh"}
-
-          </button>
-
-        </div>
-
-      </div>
+        }
+      />
 
       {/* ==================================================
           ERROR
@@ -888,177 +894,68 @@ export default function BillingAudit() {
           SUMMARY
       ================================================== */}
 
-      <div
-        className="billing-audit-summary"
-      >
-
-        {/* Total */}
-
-        <div
-          className="billing-summary-card"
-        >
-
-          <div
-            className="billing-summary-icon"
-          >
-            <FaDatabase />
+      {bill && (
+        <section className="bv-card">
+          <div className="bv-grid">
+            <div className="bv-fact"><span className="bv-ic"><FaReceipt /></span><div><small>Bill no</small><strong>{bill.bill_no || `#${bill.id}`}</strong></div></div>
+            <div className="bv-fact"><span className="bv-ic bv-ic--teal"><FaStore /></span><div><small>Store</small><strong>{bill.store_name || "—"}</strong></div></div>
+            <div className="bv-fact"><span className="bv-ic bv-ic--blue"><FaUserTag /></span><div><small>Customer</small><strong>{bill.customer_name || "—"}</strong></div></div>
+            <div className="bv-fact"><span className="bv-ic bv-ic--amber"><FaClock /></span><div><small>Bill date</small><strong>{formatDateTime(bill.bill_date).full}</strong></div></div>
+            <div className="bv-fact"><span className="bv-ic bv-ic--green"><FaMoneyBillWave /></span><div><small>Payment</small><strong>{billPayment?.payment_type || bill.payment_type || "—"}{billPayment?.transaction_reference ? ` · ${billPayment.transaction_reference}` : ""}</strong></div></div>
+            <div className="bv-fact"><span className={`bv-status ${billCancelled ? "is-off" : "is-on"}`}>{billCancelled ? <FaTimesCircle /> : <FaCheckCircle />} {String(bill.status || "—")}</span><div><small>Created by</small><strong>{bill.created_by_name || "—"}</strong></div></div>
           </div>
 
+          <div className="bv-items">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Product</th><th>Qty</th><th>Rate</th><th>Discount</th><th>Amount</th></tr>
+              </thead>
+              <tbody>
+                {(bill.items || []).length === 0 ? (
+                  <tr><td colSpan="6" className="bv-empty">No items on this bill.</td></tr>
+                ) : (bill.items || []).map((item, index) => (
+                  <tr key={item.id || index}>
+                    <td>{index + 1}</td>
+                    <td><strong>{item.product_name}</strong></td>
+                    <td>{Number(item.quantity || 0)}</td>
+                    <td>{inr(item.rate)}</td>
+                    <td>{inr(item.discount)}</td>
+                    <td><strong>{inr(item.amount)}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="bv-totals">
+            <div><span>Subtotal</span><strong>{inr(bill.subtotal)}</strong></div>
+            <div><span>Discount</span><strong>− {inr(bill.discount)}</strong></div>
+            <div><span>Tax</span><strong>{inr(bill.tax ?? bill.tax_amount)}</strong></div>
+            <div className="bv-grand"><span>Grand total</span><strong>{inr(bill.grand_total)}</strong></div>
+          </div>
+        </section>
+      )}
+
+      {billMissing && (
+        <div className="billing-alert billing-alert-error">
+          <FaExclamationTriangle />
           <div>
-            <span>
-              Total Activities
-            </span>
-
-            <strong>
-              {logs.length}
-            </strong>
+            <strong>Bill not found</strong>
+            <span>This bill was deleted. Its audit history is still shown below.</span>
           </div>
-
         </div>
+      )}
 
-        {/* Created */}
-
-        <div
-          className="billing-summary-card"
-        >
-
-          <div
-            className="billing-summary-icon audit-summary-create"
-          >
-            <FaPlus />
-          </div>
-
-          <div>
-            <span>
-              Created
-            </span>
-
-            <strong>
-              {actionCounts.create}
-            </strong>
-          </div>
-
-        </div>
-
-        {/* Updated */}
-
-        <div
-          className="billing-summary-card"
-        >
-
-          <div
-            className="billing-summary-icon audit-summary-update"
-          >
-            <FaEdit />
-          </div>
-
-          <div>
-            <span>
-              Updated
-            </span>
-
-            <strong>
-              {actionCounts.update}
-            </strong>
-          </div>
-
-        </div>
-
-        {/* Cancelled */}
-
-        <div
-          className="billing-summary-card"
-        >
-
-          <div
-            className="billing-summary-icon audit-summary-cancel"
-          >
-            <FaBan />
-          </div>
-
-          <div>
-            <span>
-              Cancelled
-            </span>
-
-            <strong>
-              {actionCounts.cancel}
-            </strong>
-          </div>
-
-        </div>
-
-        {/* Last Activity */}
-
-        <div
-          className="billing-summary-card billing-summary-last"
-        >
-
-          <div
-            className="billing-summary-icon"
-          >
-            <FaClock />
-          </div>
-
-          <div>
-
-            <span>
-              Last Activity
-            </span>
-
-            <strong>
-              {lastActivity
-                ? `${lastActivityFormatted.date} ${lastActivityFormatted.time}`
-                : "No activity"}
-            </strong>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          ACTIVITY PERIOD
-      ================================================== */}
-
-      {!loading &&
-        logs.length > 0 && (
-
-          <div
-            className="billing-audit-period"
-          >
-
-            <div>
-              <FaCalendarAlt />
-
-              <span>
-                Activity Period
-              </span>
-
-              <strong>
-                {firstActivity
-                  ? firstActivityFormatted.full
-                  : "-"}
-              </strong>
-            </div>
-
-            <span className="billing-audit-period-arrow">
-              →
-            </span>
-
-            <div>
-              <FaClock />
-
-              <strong>
-                {lastActivity
-                  ? lastActivityFormatted.full
-                  : "-"}
-              </strong>
-            </div>
-
-          </div>
-        )}
+      <InsightStrip
+        loading={loading}
+        items={[
+          { key: "all", label: "Total activities", value: logs.length, hint: "Audit entries", tone: "violet", icon: FaDatabase, onClick: () => setActionFilter("ALL"), active: actionFilter === "ALL" },
+          { key: "create", label: "Created", value: actionCounts.create, hint: "Bill created", tone: "green", icon: FaPlus, onClick: () => setActionFilter(actionFilter === "CREATE" ? "ALL" : "CREATE"), active: actionFilter === "CREATE" },
+          { key: "update", label: "Updated", value: actionCounts.update, hint: "Edits recorded", tone: "blue", icon: FaEdit, onClick: () => setActionFilter(actionFilter === "UPDATE" ? "ALL" : "UPDATE"), active: actionFilter === "UPDATE" },
+          { key: "cancel", label: "Cancelled", value: actionCounts.cancel, hint: "Soft cancels", tone: "red", icon: FaBan, onClick: () => setActionFilter(actionFilter === "CANCEL" ? "ALL" : "CANCEL"), active: actionFilter === "CANCEL" },
+          { key: "last", label: "Last activity", value: lastActivity ? lastActivityFormatted.date : "—", hint: lastActivity ? lastActivityFormatted.time : "No activity", tone: "amber", icon: FaClock }
+        ]}
+      />
 
       {/* ==================================================
           FILTER BAR
@@ -1543,6 +1440,17 @@ export default function BillingAudit() {
           </div>
 
         )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Bill"
+        message={`Permanently delete bill ${bill?.bill_no || `#${id}`} with its items and payments? This cannot be undone.`}
+        confirmText={deletingBill ? "Deleting..." : "Delete"}
+        cancelText="Close"
+        confirmVariant="danger"
+        onConfirm={removeBill}
+        onCancel={() => !deletingBill && setConfirmDelete(false)}
+      />
 
     </div>
   );

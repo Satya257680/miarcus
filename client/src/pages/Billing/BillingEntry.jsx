@@ -7,6 +7,7 @@ import React, {
 
 import {
   useNavigate,
+  useParams,
 } from "react-router-dom";
 
 import {
@@ -31,7 +32,9 @@ import {
 
 import {
   createBill,
+  getBill,
   getStores,
+  updateBill,
 } from "../../services/billingService";
 
 import "../../styles/Billing.css";
@@ -228,6 +231,76 @@ export default function BillingEntry() {
     errors,
     setErrors
   ] = useState({});
+
+  /* ====================================================
+     EDIT MODE  (/billing/bills/:id/edit)
+  ==================================================== */
+
+  const { id: editId } = useParams();
+  const isEdit = Boolean(editId);
+  const [loadingBill, setLoadingBill] = useState(isEdit);
+
+  useEffect(() => {
+    if (!isEdit) return undefined;
+    let mounted = true;
+
+    const toLocalInput = (value) => {
+      if (!value) return getCurrentDateTime();
+      const text = String(value).replace(" ", "T");
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text) && !text.endsWith("Z")) {
+        return text.slice(0, 16);
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return getCurrentDateTime();
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    };
+
+    (async () => {
+      try {
+        const response = await getBill(editId);
+        const bill = response?.data?.data || response?.data || {};
+        if (!mounted) return;
+
+        if (String(bill.status || "").toUpperCase() === "CANCELLED") {
+          setMessage("Cancelled bills cannot be edited. You can still view or delete this bill.");
+          setMessageType("error");
+        }
+
+        const billItems = (Array.isArray(bill.items) ? bill.items : []).map((item) => ({
+          product_name: String(item.product_name ?? ""),
+          quantity: Number(item.quantity) || 1,
+          rate: Number(item.rate) || 0,
+          discount: Number(item.discount) || 0,
+        }));
+
+        const itemDiscount = billItems.reduce((sum, item) => sum + item.discount, 0);
+        const payment = Array.isArray(bill.payments) && bill.payments.length ? bill.payments[0] : {};
+
+        setItems(billItems.length ? billItems : [createBlankItem()]);
+        setForm({
+          bill_no: String(bill.bill_no ?? ""),
+          store_id: bill.store_id ? String(bill.store_id) : "",
+          customer_name: String(bill.customer_name ?? ""),
+          bill_date: toLocalInput(bill.bill_date),
+          discount: Math.max(0, Number(bill.discount || 0) - itemDiscount),
+          tax: Number(bill.tax || bill.tax_amount || 0),
+          payment_type: payment.payment_type || bill.payment_type || "Cash",
+          transaction_reference: String(payment.transaction_reference || bill.transaction_reference || ""),
+        });
+      } catch (error) {
+        if (!mounted) return;
+        setMessage(getErrorMessage(error));
+        setMessageType("error");
+      } finally {
+        if (mounted) setLoadingBill(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isEdit, editId]);
 
   /* ====================================================
      LOAD STORES
@@ -816,8 +889,9 @@ export default function BillingEntry() {
          CREATE BILL
       ---------------------------------------------- */
 
-      const response =
-        await createBill(
+      const response = isEdit
+        ? await updateBill(editId, payload)
+        : await createBill(
           payload
         );
 
@@ -843,7 +917,7 @@ export default function BillingEntry() {
 
       setMessage(
         response?.data?.message ||
-        "Bill created successfully."
+        (isEdit ? "Bill updated successfully." : "Bill created successfully.")
       );
 
       setMessageType(
@@ -961,11 +1035,11 @@ export default function BillingEntry() {
 
       <PremiumHero
         icon={FaFileInvoiceDollar}
-        eyebrow="Billing · New bill"
-        title="Billing Entry"
-        badge="Draft"
+        eyebrow={isEdit ? "Billing · Edit bill" : "Billing · New bill"}
+        title={isEdit ? `Edit Bill ${form.bill_no || ""}`.trim() : "Billing Entry"}
+        badge={isEdit ? (loadingBill ? "Loading…" : "Editing") : "Draft"}
         badgeTone="gold"
-        subtitle="Create a new customer bill and payment record."
+        subtitle={isEdit ? "Update the items, customer and payment of this bill. Every change is recorded in the audit history." : "Create a new customer bill and payment record."}
         meta={[
           { label: "Items", value: String(items.length) },
           { label: "Grand total", value: formatCurrency(totals.grandTotal) },
@@ -1861,14 +1935,14 @@ export default function BillingEntry() {
                   className="billing-spin"
                 />
 
-                Creating Bill...
+                {isEdit ? "Saving Changes..." : "Creating Bill..."}
               </>
 
             ) : (
 
               <>
                 <FaSave />
-                Create Bill
+                {isEdit ? "Save Changes" : "Create Bill"}
               </>
 
             )}

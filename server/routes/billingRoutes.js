@@ -228,6 +228,30 @@ router.put(
  *
  * An audit record is also created.
  */
+/* ======================================================
+   PERMANENT DELETE  (Billing → Full)
+====================================================== */
+
+const canDeleteBilling =
+    permissionMiddleware(
+        "Billing",
+        "Full"
+    );
+
+router.post(
+    "/delete-all",
+    authMiddleware,
+    canDeleteBilling,
+    billingController.deleteAllBills
+);
+
+router.delete(
+    "/:id",
+    authMiddleware,
+    canDeleteBilling,
+    billingController.deleteBill
+);
+
 router.post(
     "/:id/cancel",
     authMiddleware,

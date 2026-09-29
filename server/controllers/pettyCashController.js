@@ -268,9 +268,16 @@ exports.bulkCancel = async (req,res)=>{
 exports.emailSettings = async (req,res)=>{
     try {
         const settings = await PettyCash.getGlobalEmailSettings();
+        let recipients = [];
+        try {
+            recipients = await PettyCash.getEmailContacts();
+        } catch (contactError) {
+            // Settings still load if the contact list cannot be read.
+            console.error("Petty Cash email contacts load error:", contactError);
+        }
         res.json({
             success:true,
-            data:{ ...settings, recipients: await PettyCash.getEmailContacts() }
+            data:{ ...settings, recipients, removed_count: await PettyCash.countRemovedContacts() }
         });
     } catch(error) {
         console.error("Petty Cash email settings load error:",error);
@@ -296,7 +303,7 @@ exports.updateEmailSettings = async (req,res)=>{
         res.json({
             success:true,
             message:"Email notification settings saved.",
-            data:{ ...data, recipients: await PettyCash.getEmailContacts() }
+            data:{ ...data, recipients: await PettyCash.getEmailContacts(), removed_count: await PettyCash.countRemovedContacts() }
         });
     } catch(error) {
         console.error("Petty Cash email settings error:",error);

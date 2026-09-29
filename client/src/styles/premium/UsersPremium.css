@@ -334,3 +334,59 @@
         flex: 1 1 calc(50% - 8px);
     }
 }
+
+/* ==========================================================
+   Actions column always visible (sticky on the right) so Edit,
+   Disable and Delete never scroll out of view on wide tables.
+========================================================== */
+
+.users-page.pp-premium .users-action-header,
+.users-page.pp-premium .users-action-cell {
+    position: sticky;
+    right: 0;
+    z-index: 6;
+    width: 250px;
+    min-width: 250px;
+    max-width: none;
+    box-shadow: -10px 0 16px -12px rgba(28, 21, 55, 0.35);
+}
+
+.users-page.pp-premium .users-action-header {
+    z-index: 26;
+    background: var(--pp-th) !important;
+    color: #e9e4ff !important;
+}
+
+.users-page.pp-premium .users-action-cell {
+    background: var(--pp-card) !important;
+}
+
+.users-page.pp-premium .users-table tbody tr:hover .users-action-cell {
+    background: #f4efff !important;
+}
+
+.users-page.pp-premium .users-action-cell .action-buttons {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.users-page.pp-premium .users-action-cell .action-buttons button.remove-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--pp-red) !important;
+    background: var(--pp-card) !important;
+    border: 1px solid #f5d0d0 !important;
+    cursor: pointer;
+}
+
+.users-page.pp-premium .users-action-cell .action-buttons button.remove-btn:hover {
+    color: #fff !important;
+    background: var(--pp-red) !important;
+    border-color: var(--pp-red) !important;
+}

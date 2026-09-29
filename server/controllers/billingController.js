@@ -871,3 +871,49 @@ exports.audit = (
 /* ======================================================
    EXPORT
 ====================================================== */
+
+/* ======================================================
+   PERMANENT DELETE
+   DELETE /api/billing/:id            → one bill
+   POST   /api/billing/delete-all     → { ids: [...] } or { all: true }
+====================================================== */
+
+exports.deleteBill = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!id) {
+            return res.status(400).json({ success: false, message: "Bill ID is required." });
+        }
+        const result = await Billing.deleteBills([id], actorId(req));
+        if (!result.deleted) {
+            return res.status(404).json({ success: false, message: "Bill not found." });
+        }
+        return res.json({ success: true, message: "Bill deleted permanently.", deleted: result.deleted });
+    } catch (error) {
+        console.error("Delete bill error:", error);
+        return res.status(500).json({ success: false, message: error.message || "Failed to delete bill." });
+    }
+};
+
+exports.deleteAllBills = async (req, res) => {
+    try {
+        const body = req.body || {};
+        const ids = body.all === true
+            ? await Billing.getAllBillIds()
+            : (Array.isArray(body.ids) ? body.ids : []);
+
+        if (!ids.length) {
+            return res.status(400).json({ success: false, message: "No bills selected to delete." });
+        }
+
+        const result = await Billing.deleteBills(ids, actorId(req));
+        return res.json({
+            success: true,
+            deleted: result.deleted,
+            message: `${result.deleted} bill(s) deleted permanently.`
+        });
+    } catch (error) {
+        console.error("Delete all bills error:", error);
+        return res.status(500).json({ success: false, message: error.message || "Failed to delete bills." });
+    }
+};

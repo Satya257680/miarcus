@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from "react";
-import PageHeader from "../../components/common/PageHeader";
-
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     FaUsers,
     FaBuilding,
@@ -10,14 +9,33 @@ import {
     FaClipboardList,
     FaSitemap,
     FaPalette,
-    FaEnvelope
+    FaEnvelope,
+    FaArrowRight,
+    FaCog,
+    FaLayerGroup,
+    FaSearch,
+    FaTimes,
+    FaUserShield,
+    FaWallet
 } from "react-icons/fa";
 
-import { SettingsCard } from "./components";
-
 import "../../styles/pages/Settings.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
+
+const CATEGORIES = [
+    { id: "People & Access", tone: "violet", blurb: "Who can sign in and how they report." },
+    { id: "Organization", tone: "blue", blurb: "Departments and job titles." },
+    { id: "Operations", tone: "teal", blurb: "Stores and operational email routing." },
+    { id: "Checklist & Controls", tone: "amber", blurb: "Checklists, questions and their emails." },
+    { id: "Personal", tone: "rose", blurb: "Your own look and feel." }
+];
 
 function Settings() {
+    const navigate = useNavigate();
 
     // ==========================================
     // USER & PERMISSIONS
@@ -113,6 +131,15 @@ function Settings() {
         },
 
         {
+            category: "Operations",
+            permission: "Petty Cash Email Routing",
+            title: "Petty Cash Email Notifications",
+            description: "Choose which Petty Cash events send email and exactly who receives them.",
+            icon: FaWallet,
+            path: "/petty-cash/email-settings",
+            adminOnly: true
+        },
+        {
             category: "Checklist & Controls",
             permission: "Checklist Email Routing",
             title: "Checklist Email Routing",
@@ -180,71 +207,110 @@ function Settings() {
 
     }, [modules, permissions, isAdministrator, search]);
 
+    const totalAllowed = modules.filter((module) =>
+        module.personal || isAdministrator || (!module.adminOnly && ["View", "Add", "Edit", "Full"].includes(permissions[module.permission]))
+    ).length;
+    const emailRoutes = visibleModules.filter((module) => module.path.includes("email")).length;
+    const categoryCount = CATEGORIES.filter((cat) => visibleModules.some((module) => module.category === cat.id)).length;
+
     return (
-
-        <div className="settings-page">
-
-            <PageHeader
+        <div className="settings-page pp-premium st-page">
+            <PremiumHero
+                icon={FaCog}
+                eyebrow="Administration · Control centre"
                 title="Settings"
-                subtitle="Manage all application configuration from one place."
+                badge={isAdministrator ? "Administrator" : "Personal"}
+                badgeTone={isAdministrator ? "gold" : "mint"}
+                subtitle="Manage all application configuration from one place — people, organisation, stores, email routing and your own appearance."
+                meta={[
+                    { label: "Options", value: String(totalAllowed) },
+                    { label: "Levels", value: String(categoryCount) },
+                    { label: "Showing", value: search ? `${visibleModules.length} match` : null }
+                ]}
             />
 
-            {/* Search */}
+            <InsightStrip
+                items={[
+                    { key: "all", label: "Settings options", value: totalAllowed, hint: "Available to you", tone: "violet", icon: FaLayerGroup },
+                    { key: "people", label: "People & access", value: visibleModules.filter((m) => m.category === "People & Access").length, hint: "Users & hierarchy", tone: "blue", icon: FaUserShield },
+                    { key: "email", label: "Email routing", value: emailRoutes, hint: "Notification pages", tone: "green", icon: FaEnvelope },
+                    { key: "ops", label: "Operations", value: visibleModules.filter((m) => m.category === "Operations").length, hint: "Stores & emails", tone: "amber", icon: FaStore }
+                ]}
+            />
 
-            <div className="settings-search">
-
-                <input
-                    type="text"
-                    placeholder="Search settings..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-
+            <div className="page-toolbar">
+                <div className="toolbar-search">
+                    <FaSearch className="toolbar-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Search settings — e.g. users, email, stores..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                {search && (
+                    <div className="toolbar-buttons">
+                        <button type="button" className="toolbar-btn" onClick={() => setSearch("")}>
+                            <FaTimes /> Clear
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Hierarchical settings groups */}
+            {visibleModules.length === 0 && (
+                <div className="empty-state">
+                    <div className="empty-state-icon"><FaSearch /></div>
+                    <h3 className="empty-state-title">No settings match "{search}"</h3>
+                    <p className="empty-state-description">Try another word, or clear the search.</p>
+                </div>
+            )}
 
-            <div className="settings-hierarchy">
+            {CATEGORIES.map((category) => {
+                const categoryModules = visibleModules.filter(
+                    (module) => module.category === category.id
+                );
 
-                {["People & Access", "Organization", "Operations", "Checklist & Controls", "Personal"].map((category) => {
+                if (!categoryModules.length) return null;
 
-                    const categoryModules = visibleModules.filter(
-                        (module) => module.category === category
-                    );
-
-                    if (!categoryModules.length) return null;
-
-                    return (
-                        <section className="settings-section" key={category}>
-                            <div className="settings-section-heading">
-                                <div>
-                                    <span>Settings level</span>
-                                    <h2>{category}</h2>
-                                </div>
-                                <strong>{categoryModules.length} option{categoryModules.length === 1 ? "" : "s"}</strong>
+                return (
+                    <section className={`st-section st-tone-${category.tone}`} key={category.id}>
+                        <header className="st-section-head">
+                            <div>
+                                <span className="st-eyebrow">Settings level</span>
+                                <h2>{category.id}</h2>
+                                <p>{category.blurb}</p>
                             </div>
+                            <strong className="st-count">
+                                {categoryModules.length} option{categoryModules.length === 1 ? "" : "s"}
+                            </strong>
+                        </header>
 
-                            <div className="settings-grid">
-                                {categoryModules.map((module) => (
-                                    <SettingsCard
+                        <div className="st-grid">
+                            {categoryModules.map((module) => {
+                                const Icon = module.icon;
+                                return (
+                                    <button
+                                        type="button"
                                         key={module.permission}
-                                        title={module.title}
-                                        description={module.description}
-                                        icon={module.icon}
-                                        path={module.path}
-                                    />
-                                ))}
-                            </div>
-                        </section>
-                    );
-                })}
-
-            </div>
-
+                                        className="st-card"
+                                        onClick={() => navigate(module.path)}
+                                    >
+                                        <span className="st-card-icon"><Icon /></span>
+                                        <span className="st-card-copy">
+                                            <strong>{module.title}</strong>
+                                            <small>{module.description}</small>
+                                        </span>
+                                        <span className="st-card-go"><FaArrowRight /></span>
+                                        {module.adminOnly && <span className="st-card-badge">Admin</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+                );
+            })}
         </div>
-
     );
-
 }
 
 export default Settings;

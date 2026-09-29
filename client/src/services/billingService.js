@@ -105,6 +105,27 @@ export const cancelBill = (id) => {
   );
 };
 
+/* Permanent delete (Billing → Full) */
+export const deleteBill = (id) => {
+  const error = requireId(id);
+
+  if (error) {
+    return error;
+  }
+
+  return axios.delete(
+    `${API}/${id}`,
+    requestConfig()
+  );
+};
+
+export const deleteAllBills = (payload = {}) =>
+  axios.post(
+    `${API}/delete-all`,
+    payload,
+    requestConfig()
+  );
+
 /* ======================================================
    DAILY REPORT
 ====================================================== */

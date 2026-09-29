@@ -118,7 +118,13 @@ export default function PettyCashEmailSettings() {
     };
 
     const removeRecipient = (roleKey) =>
-        setSettings((prev) => ({ ...prev, recipients: prev.recipients.filter((row) => row.role_key !== roleKey) }));
+        setSettings((prev) => {
+            const row = prev.recipients.find((r) => r.role_key === roleKey);
+            const removed = row && !row.is_custom ? [...(prev.removed_keys || []), roleKey] : prev.removed_keys || [];
+            return { ...prev, removed_keys: removed, recipients: prev.recipients.filter((r) => r.role_key !== roleKey) };
+        });
+
+    const restoreRemoved = () => setSettings((prev) => ({ ...prev, restore_removed: true, removed_keys: [] }));
 
     const visibleRecipients = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -142,7 +148,7 @@ export default function PettyCashEmailSettings() {
         setError("");
         try {
             const { data } = await axios.put("/api/petty-cash/email-settings", settings);
-            setSettings({ ...DEFAULTS, ...(data?.data || settings), recipients: data?.data?.recipients || settings.recipients });
+            setSettings({ ...DEFAULTS, ...(data?.data || settings), recipients: data?.data?.recipients || settings.recipients, removed_keys: [], restore_removed: false });
             setMessage("Petty Cash email routing saved successfully.");
         } catch (err) {
             setError(err.response?.data?.message || "Unable to save email settings.");
@@ -326,7 +332,20 @@ export default function PettyCashEmailSettings() {
                                     Toggle {event.short}
                                 </button>
                             ))}
+                            {Number(settings.removed_count || 0) > 0 && !settings.restore_removed && (
+                                <button type="button" className="er-bulk-btn" onClick={restoreRemoved}>
+                                    Restore {settings.removed_count} removed admin{Number(settings.removed_count) === 1 ? "" : "s"}
+                                </button>
+                            )}
                         </div>
+
+                        {(settings.removed_keys?.length > 0 || settings.restore_removed) && (
+                            <div className="er-alert er-alert--success">
+                                {settings.restore_removed
+                                    ? "Removed administrators will be restored when you click Save Settings."
+                                    : `${settings.removed_keys.length} administrator(s) will be removed when you click Save Settings.`}
+                            </div>
+                        )}
 
                         <div className="er-table-wrap">
                             <table className="er-table">
@@ -398,13 +417,14 @@ export default function PettyCashEmailSettings() {
                                                 </td>
                                             ))}
                                             <td className="er-center">
-                                                {row.is_custom ? (
-                                                    <button type="button" className="er-remove" onClick={() => removeRecipient(row.role_key)} title="Remove recipient">
-                                                        <FaTrash />
-                                                    </button>
-                                                ) : (
-                                                    <span className="pp-dash">—</span>
-                                                )}
+                                                <button
+                                                    type="button"
+                                                    className="er-remove"
+                                                    onClick={() => removeRecipient(row.role_key)}
+                                                    title={row.is_custom ? "Remove recipient" : "Remove this administrator from Petty Cash emails"}
+                                                >
+                                                    <FaTrash />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

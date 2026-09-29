@@ -1,7 +1,7 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
 import React, { useEffect, useMemo, useState } from "react";
 import { collectIds, hasActiveFilters, deleteAllLabel, deleteAllMessage } from "../../utils/deleteScope";
-import { FaChartBar, FaMoneyBillWave, FaSyncAlt } from "react-icons/fa";
+import { FaChartBar, FaMoneyBillWave, FaSyncAlt, FaStore, FaCheckCircle, FaExclamationTriangle, FaLock, FaWallet } from "react-icons/fa";
 import PageToolbar from "../../components/common/PageToolbar";
 import ActionButtons from "../../components/common/ActionButtons";
 import BulkUploadModal from "../../components/common/BulkUploadModal";
@@ -16,6 +16,12 @@ import {
     deleteAllDailyCollections
 } from "../../services/billingService";
 import "../../styles/DailyCollection.css";
+import "../../styles/premium/PagePremium.css";
+import "../../styles/premium/AdminPagesPremium.css";
+import "../../styles/premium/ModulesPremium.css";
+import { initials, avatarTone } from "../../utils/premiumFormat";
+import PremiumHero from "../../components/premium/PremiumHero";
+import InsightStrip from "../../components/premium/InsightStrip";
 import { exportTableData } from "../../utils/exportUtils.js";
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
@@ -191,14 +197,31 @@ export default function DailyCollectionReport() {
     }
 
     return (
-        <div className="daily-collection-page">
-            <section className="daily-collection-hero">
-                <div>
-                    <div className="eyebrow"><FaChartBar /> Daily Collection module</div>
-                    <h1>Daily Data Report</h1>
-                    <p>Review the daily collection submitted by each assigned store, including billed amount, payment-method split, status and reconciliation variance.</p>
-                </div>
-            </section>
+        <div className="daily-collection-page pp-premium">
+            <PremiumHero
+                icon={FaChartBar}
+                eyebrow="Daily Collection · Daily data"
+                title="Daily Data Report"
+                badge={date}
+                badgeTone="sky"
+                subtitle="Review the daily collection submitted by each assigned store, including billed amount, payment-method split, status and reconciliation variance."
+                meta={[
+                    { label: "Stores", value: String(filteredReports.length) },
+                    { label: "Collected", value: money(totals.collected) }
+                ]}
+            />
+
+            <InsightStrip
+                loading={loading}
+                items={[
+                    { key: "stores", label: "Stores", value: filteredReports.length, hint: "In this report", tone: "violet", icon: FaStore },
+                    { key: "submitted", label: "Submitted", value: totals.submitted, hint: "Entered on time", tone: "green", icon: FaCheckCircle },
+                    { key: "missing", label: "Missing", value: totals.missing, hint: "Not yet submitted", tone: "amber", icon: FaExclamationTriangle },
+                    { key: "locked", label: "Locked", value: totals.locked, hint: "Blocked stores", tone: "red", icon: FaLock },
+                    { key: "billed", label: "System billed", value: money(totals.billed), hint: "From Billing", tone: "blue", icon: FaMoneyBillWave },
+                    { key: "collected", label: "Collected", value: money(totals.collected), hint: "UPI + cash + bank + card", tone: "slate", icon: FaWallet }
+                ]}
+            />
 
             <PageToolbar
                 search={search}
@@ -236,14 +259,6 @@ export default function DailyCollectionReport() {
             {error && <div className="collection-alert error">{error}</div>}
             {success && <div className="collection-alert success">{success}</div>}
 
-            <section className="daily-report-summary-grid">
-                <div><span>Stores</span><strong>{filteredReports.length}</strong></div>
-                <div><span>Submitted</span><strong>{totals.submitted}</strong></div>
-                <div><span>Missing</span><strong>{totals.missing}</strong></div>
-                <div><span>Locked</span><strong>{totals.locked}</strong></div>
-                <div><span>System billed</span><strong>{money(totals.billed)}</strong></div>
-                <div><span>Collected</span><strong>{money(totals.collected)}</strong></div>
-            </section>
 
             <section className="daily-report-table-wrap">
                 {loading ? <div className="collection-empty"><PremiumLoader compact title="Loading daily report" /></div> : !filteredReports.length ? <div className="collection-empty">No Daily Collection data for this date.</div> : (
@@ -255,7 +270,15 @@ export default function DailyCollectionReport() {
                                 const variance = Number(row.variance ?? (Number(row.total_collected || 0) - billed));
                                 const status = row.status === "submitted" ? "Submitted" : row.status === "locked" ? "Locked" : "Not Submitted";
                                 return <tr key={row.id}>
-                                    <td><strong>{row.store_name}</strong><small>{row.store_code || ""}</small></td>
+                                    <td>
+                                        <div className="pp-cell-main">
+                                            <span className={`pp-avatar ${avatarTone(row.store_name)}`}>{initials(String(row.store_name || "").replace(/^MRPL\s*-\s*/i, ""))}</span>
+                                            <span className="pp-cell-text">
+                                                <span className="pp-cell-title">{row.store_name}</span>
+                                                <span className="pp-cell-sub">{row.store_code || "—"}</span>
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td><span className={`report-status ${row.status}`}>{status}</span></td>
                                     <td>{Number(row.summary?.bill_count ?? row.bill_count ?? 0)}</td>
                                     <td>{money(billed)}</td>

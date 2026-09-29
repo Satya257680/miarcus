@@ -1359,4 +1359,59 @@ Billing.getBillingAudit = (
    EXPORT
 ====================================================== */
 
+/* ======================================================
+   PERMANENT DELETE (one bill, selected bills or all)
+   Removes payments, bill items and the bill itself in one
+   transaction and writes a DELETE audit row per bill so the
+   history page can still show what was removed.
+====================================================== */
+
+Billing.deleteBills = async (ids, userId) => {
+    const list = [...new Set((ids || []).map(Number).filter((n) => n > 0))];
+    if (!list.length) return { deleted: 0 };
+
+    let connection = null;
+    try {
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        let deleted = 0;
+        for (const id of list) {
+            const oldBill = await getBillForTransaction(connection, id);
+            if (!oldBill) continue;
+
+            await connection.query(`DELETE FROM payments WHERE bill_id = ?`, [id]);
+            await connection.query(`DELETE FROM bill_items WHERE bill_id = ?`, [id]);
+            const [result] = await connection.query(`DELETE FROM bills WHERE id = ?`, [id]);
+
+            await createAuditLog(connection, {
+                moduleName: "Billing",
+                referenceId: id,
+                action: "DELETE",
+                oldData: oldBill,
+                newData: null,
+                changedBy: userId
+            });
+
+            deleted += Number(result?.affectedRows || 0);
+        }
+
+        await connection.commit();
+        connection.release();
+        connection = null;
+        return { deleted };
+    } catch (error) {
+        if (connection) {
+            try { await connection.rollback(); } catch { /* ignore */ }
+            try { connection.release(); } catch { /* ignore */ }
+        }
+        throw error;
+    }
+};
+
+Billing.getAllBillIds = async () => {
+    const rows = await db.query(`SELECT id FROM bills`);
+    return rows.map((row) => Number(row.id));
+};
+
 module.exports = Billing;

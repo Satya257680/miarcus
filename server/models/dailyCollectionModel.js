@@ -121,6 +121,16 @@ DailyCollection.ensureTables = async () => {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Administrators can be removed from the contact list; the flag
+    // survives the automatic admin sync on every page load.
+    try {
+        await db.query(`ALTER TABLE daily_collection_email_recipients ADD COLUMN removed TINYINT(1) NOT NULL DEFAULT 0`);
+    } catch (error) {
+        if (error?.code !== "ER_DUP_FIELDNAME") {
+            console.error("Daily Collection email recipients migration (removed) skipped:", error.message || error);
+        }
+    }
+
     // One admin summary per report date (claim + sent markers make it
     // safe when several server instances run the scheduler).
     await db.query(`
@@ -239,16 +249,39 @@ DailyCollection.syncAdminRecipients = async () => {
 DailyCollection.getRoutingSettings = async () => {
     await DailyCollection.syncAdminRecipients();
     const settings = await DailyCollection.getEmailSettings();
-    const recipients = await db.query(`
-        SELECT r.id, r.recipient_key, r.user_id, r.role_label, r.contact_name, r.email,
-               r.enabled, r.receive_summary, r.is_custom
-        FROM daily_collection_email_recipients r
-        LEFT JOIN users u ON u.id = r.user_id
-        WHERE r.is_custom = 1
-           OR (u.id IS NOT NULL AND u.is_admin = 1 AND u.status = 'Active')
-        ORDER BY r.is_custom ASC, r.contact_name ASC, r.id ASC
-    `);
-    return { ...settings, recipients };
+    let recipients;
+    let removedCount = 0;
+    try {
+        recipients = await db.query(`
+            SELECT r.id, r.recipient_key, r.user_id, r.role_label, r.contact_name, r.email,
+                   r.enabled, r.receive_summary, r.is_custom
+            FROM daily_collection_email_recipients r
+            LEFT JOIN users u ON u.id = r.user_id
+            WHERE COALESCE(r.removed, 0) = 0
+              AND (r.is_custom = 1
+                   OR (u.id IS NOT NULL AND u.is_admin = 1 AND u.status = 'Active'))
+            ORDER BY r.is_custom ASC, r.contact_name ASC, r.id ASC
+        `);
+        const removed = await db.query(`
+            SELECT COUNT(*) AS n
+            FROM daily_collection_email_recipients r
+            INNER JOIN users u ON u.id = r.user_id
+            WHERE r.is_custom = 0 AND r.removed = 1 AND u.is_admin = 1 AND u.status = 'Active'
+        `);
+        removedCount = Number(removed[0]?.n || 0);
+    } catch (error) {
+        // Older schema without the "removed" column.
+        recipients = await db.query(`
+            SELECT r.id, r.recipient_key, r.user_id, r.role_label, r.contact_name, r.email,
+                   r.enabled, r.receive_summary, r.is_custom
+            FROM daily_collection_email_recipients r
+            LEFT JOIN users u ON u.id = r.user_id
+            WHERE r.is_custom = 1
+               OR (u.id IS NOT NULL AND u.is_admin = 1 AND u.status = 'Active')
+            ORDER BY r.is_custom ASC, r.contact_name ASC, r.id ASC
+        `);
+    }
+    return { ...settings, recipients, removed_count: removedCount };
 };
 
 DailyCollection.saveRoutingSettings = async (payload = {}, adminId = null) => {
@@ -272,6 +305,20 @@ DailyCollection.saveRoutingSettings = async (payload = {}, adminId = null) => {
         bool(payload.ready_email_enabled),
         adminId
     ]);
+
+    if (payload.restore_removed) {
+        await db.query(`UPDATE daily_collection_email_recipients SET removed = 0 WHERE is_custom = 0`).catch(() => {});
+    }
+    const removedKeys = (Array.isArray(payload.removed_keys) ? payload.removed_keys : [])
+        .map((key) => String(key || "").trim())
+        .filter((key) => key && !key.startsWith("custom_"));
+    if (removedKeys.length) {
+        await db.query(
+            `UPDATE daily_collection_email_recipients SET removed = 1
+             WHERE is_custom = 0 AND recipient_key IN (${removedKeys.map(() => "?").join(",")})`,
+            removedKeys
+        ).catch((error) => console.error("Daily Collection recipient remove skipped:", error.message || error));
+    }
 
     const list = Array.isArray(payload.recipients) ? payload.recipients : [];
     const keep = [];
