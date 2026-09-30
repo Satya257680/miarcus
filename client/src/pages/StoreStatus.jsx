@@ -36,6 +36,8 @@ import "../styles/pages/StoreStatus.css";
 //   No Manager -> no Store Manager / ASM linked to the store
 // Head-office / ASM / regional users linked to "All Stores"
 // never make a store online.
+// Manager names come from the Store Manager master list
+// (server/data/storeManagers.js).
 // Live: refreshes every 15 seconds.
 // ======================================================
 
@@ -99,6 +101,7 @@ const presenceLine = (person) => {
             ? `Online since ${formatTime(person.online_since_today)}`
             : "Online now";
     }
+    if (person.in_app === false) return "Not registered on Mi Arcus";
     if (person.never_logged_in) return "Never logged in";
     if (person.offline_since) {
         return `Offline since ${formatExact(person.offline_since)}`;
@@ -267,7 +270,9 @@ function StoreStatus() {
                     <small title={person.offline_since ? formatExact(person.offline_since) : ""}>
                         {person.is_online
                             ? `Online${person.last_path ? ` · ${pageLabel(person.last_path)}` : ""}`
-                            : person.never_logged_in
+                            : person.in_app === false
+                                ? "Not registered on Mi Arcus"
+                                : person.never_logged_in
                                 ? "Never logged in"
                                 : `Offline · ${formatAgo(person.offline_seconds_ago)}`}
                     </small>
@@ -478,7 +483,9 @@ function StoreStatus() {
                                                 )}
                                                 {store.status === "offline" && (
                                                     store.never_logged_in ? (
-                                                        <strong className="sst-muted">Never logged in</strong>
+                                                        <strong className="sst-muted">
+                                                            {store.managers.every((p) => p.in_app === false) ? "Not registered on Mi Arcus" : "Never logged in"}
+                                                        </strong>
                                                     ) : (
                                                         <>
                                                             <strong className="is-off"><FaClock /> {formatExact(store.offline_since)}</strong>

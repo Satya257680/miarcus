@@ -1,4 +1,9 @@
 const db = require("../config/db");
+const { STORE_MANAGERS, STORE_ALIASES } = require("../data/storeManagers");
+const {
+    matchManagersToStores,
+    normalizeEmployeeId
+} = require("../utils/storeManagerMatcher");
 
 // ======================================================
 // STORE PRESENCE MODEL
@@ -27,6 +32,8 @@ const ONLINE_WINDOW_SECONDS = 90;
 // A user assigned to more stores than this is a head-office /
 // area level user and never decides a single store's status.
 const MAX_STORES_FOR_STORE_USER = 3;
+
+let loggedUnmatched = false;
 
 const normalizeId = (value) => {
     const id = Number(value);
@@ -196,6 +203,74 @@ const getStoreStatus = async () => {
         [ONLINE_WINDOW_SECONDS, MAX_STORES_FOR_STORE_USER]
     );
 
+    // Every active user with presence (store links not needed) —
+    // used to find the Mi Arcus login of each manager in the
+    // Store Manager master list by employee id / email.
+    const allUsers = await db.query(
+        `
+        SELECT
+            u.id AS user_id,
+            u.name,
+            u.email,
+            u.employee_id,
+            u.call_contact,
+            dg.designation_name AS designation,
+            p.last_seen,
+            p.last_path,
+            CASE
+                WHEN p.last_seen IS NULL THEN NULL
+                ELSE TIMESTAMPDIFF(SECOND, p.last_seen, CURRENT_TIMESTAMP)
+            END AS seen_seconds_ago,
+            CASE
+                WHEN p.went_offline_at IS NULL THEN NULL
+                ELSE TIMESTAMPDIFF(SECOND, p.went_offline_at, CURRENT_TIMESTAMP)
+            END AS offline_seconds_ago,
+            CASE
+                WHEN p.first_seen_today IS NULL
+                  OR DATE(p.first_seen_today) <> CURRENT_DATE()
+                THEN NULL
+                ELSE TIMESTAMPDIFF(SECOND, p.first_seen_today, CURRENT_TIMESTAMP)
+            END AS first_today_seconds_ago,
+            CASE
+                WHEN p.is_online = 1
+                 AND p.last_seen >= (CURRENT_TIMESTAMP - INTERVAL ? SECOND)
+                THEN 1 ELSE 0
+            END AS is_online
+        FROM users u
+        LEFT JOIN designations dg
+            ON dg.id = u.designation_id
+        LEFT JOIN user_presence p
+            ON p.user_id = u.id
+        WHERE u.status = 'Active'
+        `,
+        [ONLINE_WINDOW_SECONDS]
+    );
+
+    const usersByEmpId = new Map();
+    const usersByEmail = new Map();
+    allUsers.forEach((u) => {
+        const emp = normalizeEmployeeId(u.employee_id);
+        if (emp && !usersByEmpId.has(emp)) usersByEmpId.set(emp, u);
+        const mail = String(u.email || "").trim().toLowerCase();
+        if (mail && !usersByEmail.has(mail)) usersByEmail.set(mail, u);
+    });
+
+    // Store Manager master list -> store id
+    const { byStoreId: masterByStore, unmatched } = matchManagersToStores(
+        stores,
+        STORE_MANAGERS,
+        STORE_ALIASES
+    );
+
+    if (unmatched.length && !loggedUnmatched) {
+        loggedUnmatched = true;
+        console.warn(
+            "Store Status: these sheet store names did not match a store " +
+            "(add them to STORE_ALIASES in server/data/storeManagers.js):",
+            [...new Set(unmatched.map((r) => r.store))].join(" | ")
+        );
+    }
+
     const nowMs = Date.now();
 
     // Seconds-ago values are computed by MySQL itself, then turned
@@ -242,6 +317,46 @@ const getStoreStatus = async () => {
         };
     };
 
+    // A manager from the master list. The name, designation and
+    // phone always come from the list (exact HR names); presence
+    // comes from their Mi Arcus login when one is found.
+    const toMasterPerson = (entry) => {
+        const user =
+            usersByEmpId.get(normalizeEmployeeId(entry.employee_id)) ||
+            usersByEmail.get(String(entry.email || "").trim().toLowerCase()) ||
+            null;
+
+        if (user) {
+            return {
+                ...toPerson(user),
+                name: entry.name,
+                designation: entry.designation,
+                employee_id: entry.employee_id,
+                contact: entry.mobile || user.call_contact || null,
+                in_app: true
+            };
+        }
+
+        // Not registered on Mi Arcus yet.
+        return {
+            user_id: `emp-${entry.employee_id}`,
+            name: entry.name,
+            email: entry.email || null,
+            employee_id: entry.employee_id,
+            contact: entry.mobile || null,
+            designation: entry.designation,
+            is_online: false,
+            last_seen_at: null,
+            last_seen_seconds_ago: null,
+            offline_since: null,
+            offline_seconds_ago: null,
+            online_since_today: null,
+            last_path: null,
+            never_logged_in: true,
+            in_app: false
+        };
+    };
+
     const byStore = new Map();
     stores.forEach((s) => byStore.set(Number(s.id), []));
 
@@ -250,27 +365,53 @@ const getStoreStatus = async () => {
         if (list) list.push(row);
     });
 
-    return stores.map((store) => {
+    const result = stores.map((store) => {
         const linked = byStore.get(Number(store.id)) || [];
+        const master = masterByStore.get(Number(store.id)) || [];
 
-        let managerRows = linked.filter((r) => isStoreManager(r.designation));
+        let managerRows = [];
         let managerRole = "Store Manager";
+        let managers = [];
+        let extraStaff = [];
 
-        if (!managerRows.length) {
-            managerRows = linked.filter((r) => isAssistantStoreManager(r.designation));
-            managerRole = "Assistant Store Manager";
+        if (master.length) {
+            // The Store Manager master list decides the manager(s).
+            let chosen = master.filter((e) => isStoreManager(e.designation));
+            if (!chosen.length) {
+                chosen = master.filter((e) => isAssistantStoreManager(e.designation));
+                managerRole = "Assistant Store Manager";
+            }
+            if (!chosen.length) chosen = master;
+
+            managers = chosen.map(toMasterPerson);
+            extraStaff = master.filter((e) => !chosen.includes(e)).map(toMasterPerson);
+
+            const taken = new Set(
+                managers.concat(extraStaff).map((p) => String(p.user_id))
+            );
+            managerRows = linked.filter((r) => taken.has(String(r.user_id)));
+        } else {
+            managerRows = linked.filter((r) => isStoreManager(r.designation));
+
+            if (!managerRows.length) {
+                managerRows = linked.filter((r) => isAssistantStoreManager(r.designation));
+                managerRole = "Assistant Store Manager";
+            }
+
+            managers = managerRows.map(toPerson);
         }
 
-        const managers = managerRows
-            .map(toPerson)
-            .sort((a, b) => {
-                if (a.is_online !== b.is_online) return a.is_online ? -1 : 1;
-                return (a.last_seen_seconds_ago ?? Infinity) - (b.last_seen_seconds_ago ?? Infinity);
-            });
+        managers.sort((a, b) => {
+            if (a.is_online !== b.is_online) return a.is_online ? -1 : 1;
+            return (a.last_seen_seconds_ago ?? Infinity) - (b.last_seen_seconds_ago ?? Infinity);
+        });
 
-        const staff = linked
-            .filter((r) => !managerRows.includes(r))
-            .map(toPerson)
+        const staff = extraStaff
+            .concat(
+                linked
+                    .filter((r) => !managerRows.includes(r))
+                    .map(toPerson)
+            )
             .sort((a, b) => {
                 if (a.is_online !== b.is_online) return a.is_online ? -1 : 1;
                 return String(a.name || "").localeCompare(String(b.name || ""));
@@ -315,8 +456,30 @@ const getStoreStatus = async () => {
 
             staff,
             staff_count: staff.length,
-            staff_online: staff.filter((p) => p.is_online).length
+            staff_online: staff.filter((p) => p.is_online).length,
+
+            from_master_list: master.length > 0
         };
+    });
+
+    syncStoreManagerNames(stores, result);
+
+    return result;
+};
+
+// Keep stores.manager_name in step with the master list so other
+// pages (store list, reports) show the same exact names.
+const syncStoreManagerNames = (stores, result) => {
+    const updates = result.filter((r, i) => {
+        if (!r.from_master_list) return false;
+        const want = r.managers.map((m) => m.name).join(", ");
+        return want && String(stores[i].manager_name || "").trim() !== want;
+    });
+
+    updates.forEach((r) => {
+        const want = r.managers.map((m) => m.name).join(", ").slice(0, 255);
+        db.query(`UPDATE stores SET manager_name = ? WHERE id = ?`, [want, r.id])
+            .catch((error) => console.error("Store manager name sync error:", error.message));
     });
 };
 
