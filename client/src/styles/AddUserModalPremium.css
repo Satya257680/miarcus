@@ -1,0 +1,612 @@
+/* =================================================================
+   ADD USER — PREMIUM REFRESH
+   Loaded after AddUserModal.css. Larger, more readable type and a
+   richer look that matches the MIARCUS violet brand. Selectors are
+   scoped with ".user-modal-overlay .user-modal" so they win over the
+   base + PermissionMatrix rules without touching layout/sizing.
+   ================================================================= */
+
+.user-modal-overlay {
+  --um-brand: #6d28d9;
+  --um-brand-2: #4f46e5;
+  --um-brand-soft: #f3efff;
+  --um-brand-ring: rgba(109, 40, 217, 0.16);
+  --um-ink: #111827;
+  --um-ink-2: #374151;
+  --um-muted: #6b7280;
+  --um-line: #e5e7eb;
+  --um-surface: #ffffff;
+  --um-bg: #f7f6fb;
+
+  background: rgba(17, 12, 38, 0.62) !important;
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+.user-modal-overlay .user-modal {
+  background: var(--um-bg);
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+  box-shadow:
+    0 40px 80px -20px rgba(30, 16, 80, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- Header ---------- */
+.user-modal-overlay .user-modal .user-modal-header {
+  min-height: 104px;
+  padding: 20px 32px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(600px 180px at 12% -40%, rgba(255, 255, 255, 0.22), transparent 70%),
+    radial-gradient(500px 200px at 95% 140%, rgba(236, 72, 153, 0.35), transparent 70%),
+    linear-gradient(120deg, #4c1d95 0%, #6d28d9 45%, #4f46e5 100%);
+}
+
+.user-modal-overlay .user-modal .user-modal-title-area {
+  gap: 16px;
+  position: relative;
+}
+
+.user-modal-overlay .user-modal .user-modal-main-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  font-size: 26px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 10px 24px rgba(20, 8, 60, 0.25);
+}
+
+.user-modal-overlay .user-modal .user-modal-title-area h2 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.user-modal-overlay .user-modal .user-modal-title-area p {
+  margin-top: 6px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.user-modal-overlay .user-modal .user-modal-close {
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.user-modal-overlay .user-modal .user-modal-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+  transform: rotate(90deg);
+}
+
+/* ---------- Stepper ---------- */
+.user-modal-overlay .user-modal .user-stepper {
+  min-height: 96px;
+  padding: 18px 32px;
+  background: var(--um-surface);
+  border-bottom: 1px solid var(--um-line);
+}
+
+.user-modal-overlay .user-modal .user-step {
+  gap: 12px;
+}
+
+.user-modal-overlay .user-modal .user-step-circle {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  font-size: 19px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.user-modal-overlay .user-modal .user-step.active .user-step-circle {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--um-brand), var(--um-brand-2));
+  box-shadow:
+    0 0 0 5px var(--um-brand-ring),
+    0 10px 22px rgba(109, 40, 217, 0.35);
+}
+
+.user-modal-overlay .user-modal .user-step.completed .user-step-circle {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 8px 18px rgba(5, 150, 105, 0.28);
+}
+
+.user-modal-overlay .user-modal .user-step-text small {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.user-modal-overlay .user-modal .user-step-text strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--um-ink);
+}
+
+.user-modal-overlay .user-modal .user-step.active .user-step-text strong {
+  color: var(--um-brand);
+}
+
+.user-modal-overlay .user-modal .user-step-line {
+  height: 3px;
+  border-radius: 99px;
+  background: #ece9f5;
+}
+
+.user-modal-overlay .user-modal .user-step-line.completed {
+  background: linear-gradient(90deg, #10b981, var(--um-brand));
+}
+
+/* ---------- Content card ---------- */
+.user-modal-overlay .user-modal .user-page-card {
+  padding: 30px 32px;
+  border: 1px solid #ece9f5;
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -12px rgba(76, 29, 149, 0.14);
+}
+
+.user-modal-overlay .user-modal .user-page-heading {
+  gap: 16px;
+}
+
+.user-modal-overlay .user-modal .user-page-heading-icon {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 14px;
+  font-size: 22px;
+  color: var(--um-brand);
+  background: linear-gradient(135deg, #f3efff, #e9e4ff);
+  box-shadow: inset 0 0 0 1px #e3dbff;
+}
+
+.user-modal-overlay .user-modal .user-page-heading h3 {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--um-ink);
+}
+
+.user-modal-overlay .user-modal .user-page-heading p {
+  margin-top: 5px;
+  font-size: 14.5px;
+  color: var(--um-muted);
+}
+
+.user-modal-overlay .user-modal .user-page-divider {
+  margin: 24px 0;
+  background: linear-gradient(90deg, #ece9f5, #ece9f5 60%, transparent);
+}
+
+/* ---------- Form fields ---------- */
+.user-modal-overlay .user-modal .user-form-grid {
+  gap: 22px 22px !important;
+}
+
+.user-modal-overlay .user-modal .user-field label {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--um-ink-2);
+}
+
+.user-modal-overlay .user-modal .user-field input,
+.user-modal-overlay .user-modal .user-field select,
+.user-modal-overlay .user-modal .user-password-input-wrap input,
+.user-modal-overlay .user-modal .report-input-wrap input,
+.user-modal-overlay .user-modal .store-search input {
+  font-size: 15px;
+  color: var(--um-ink);
+}
+
+.user-modal-overlay .user-modal .user-field input,
+.user-modal-overlay .user-modal .user-field select {
+  height: 50px;
+  padding: 0 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fcfcfe;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.user-modal-overlay .user-modal .user-field input::placeholder,
+.user-modal-overlay .user-modal .user-password-input-wrap input::placeholder,
+.user-modal-overlay .user-modal .report-input-wrap input::placeholder,
+.user-modal-overlay .user-modal .store-search input::placeholder {
+  color: #9ca3af;
+  font-size: 14.5px;
+}
+
+.user-modal-overlay .user-modal .user-field input:hover,
+.user-modal-overlay .user-modal .user-field select:hover {
+  border-color: #d4cdf5;
+}
+
+.user-modal-overlay .user-modal .user-field input:focus,
+.user-modal-overlay .user-modal .user-field select:focus,
+.user-modal-overlay .user-modal .user-password-input-wrap input:focus {
+  background: #fff;
+  border-color: var(--um-brand);
+  box-shadow: 0 0 0 4px var(--um-brand-ring);
+}
+
+.user-modal-overlay .user-modal .user-password-input-wrap input {
+  height: 50px;
+  border-radius: 12px;
+}
+
+.user-modal-overlay .user-modal .user-generate-password-btn {
+  font-size: 13.5px;
+}
+
+.user-modal-overlay .user-modal .user-password-hint {
+  font-size: 12.5px;
+}
+
+.user-modal-overlay .user-modal .user-info-banner {
+  border-radius: 14px;
+}
+
+.user-modal-overlay .user-modal .user-info-banner strong {
+  font-size: 14px;
+}
+
+.user-modal-overlay .user-modal .user-info-banner p {
+  font-size: 13.5px;
+}
+
+/* ---------- Organization / reports to ---------- */
+.user-modal-overlay .user-modal .report-input-wrap {
+  border-radius: 12px;
+}
+
+.user-modal-overlay .user-modal .report-results strong,
+.user-modal-overlay .user-modal .report-no-results {
+  font-size: 14px;
+}
+
+.user-modal-overlay .user-modal .report-results small {
+  font-size: 12px;
+}
+
+.user-modal-overlay .user-modal .report-avatar {
+  font-size: 13px;
+}
+
+.user-modal-overlay .user-modal .organization-summary span {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.user-modal-overlay .user-modal .organization-summary strong {
+  font-size: 15px;
+}
+
+/* ---------- Stores ---------- */
+.user-modal-overlay .user-modal .store-toolbar > button {
+  font-size: 13.5px;
+  border-radius: 10px;
+}
+
+.user-modal-overlay .user-modal .store-check {
+  font-size: 11px;
+}
+
+.user-modal-overlay .user-modal .store-selection-summary strong {
+  font-size: 16px;
+}
+
+.user-modal-overlay .user-modal .store-selection-summary span {
+  font-size: 13.5px;
+}
+
+.user-modal-overlay .user-modal .store-selection-summary small {
+  font-size: 12px;
+}
+
+.user-modal-overlay .user-modal .store-item {
+  border-radius: 12px;
+}
+
+.user-modal-overlay .user-modal .store-item > span:last-child {
+  font-size: 14px;
+}
+
+.user-modal-overlay .user-modal .store-item-check {
+  font-size: 11px;
+}
+
+.user-modal-overlay .user-modal .store-item.selected {
+  border-color: var(--um-brand);
+  box-shadow: 0 0 0 3px var(--um-brand-ring);
+}
+
+/* ---------- Access / settings ---------- */
+.user-modal-overlay .user-modal .settings-section-title h4,
+.user-modal-overlay .user-modal .permission-section-header h4 {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.user-modal-overlay .user-modal .settings-section-title p,
+.user-modal-overlay .user-modal .permission-section-header p {
+  font-size: 13px;
+}
+
+.user-modal-overlay .user-modal .setting-card {
+  border-radius: 14px;
+}
+
+.user-modal-overlay .user-modal .setting-content strong {
+  font-size: 14.5px;
+}
+
+.user-modal-overlay .user-modal .setting-content span {
+  font-size: 12.5px;
+}
+
+.user-modal-overlay .user-modal .admin-banner strong {
+  font-size: 14px;
+}
+
+.user-modal-overlay .user-modal .admin-banner p {
+  font-size: 13px;
+}
+
+.user-modal-overlay .user-modal .permission-count strong {
+  font-size: 18px;
+}
+
+.user-modal-overlay .user-modal .permission-count span {
+  font-size: 11px;
+}
+
+.user-modal-overlay .user-modal .permission-header-row {
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+}
+
+.user-modal-overlay .user-modal .permission-module {
+  font-size: 13.5px;
+}
+
+/* ---------- Summary panel ---------- */
+.user-modal-overlay .user-modal .user-summary-panel {
+  padding: 22px;
+  border: 1px solid #ece9f5;
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -12px rgba(76, 29, 149, 0.16);
+}
+
+.user-modal-overlay .user-modal .user-summary-panel::before {
+  height: 4px;
+  background: linear-gradient(90deg, var(--um-brand), #ec4899, var(--um-brand-2));
+}
+
+.user-modal-overlay .user-modal .summary-panel-icon {
+  font-size: 18px;
+  color: var(--um-brand);
+  background: var(--um-brand-soft);
+}
+
+.user-modal-overlay .user-modal .summary-panel-top h3 {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--um-ink);
+}
+
+.user-modal-overlay .user-modal .summary-panel-top span {
+  font-size: 12px;
+  color: var(--um-muted);
+}
+
+.user-modal-overlay .user-modal .summary-progress-label span {
+  font-size: 12.5px;
+  color: var(--um-muted);
+}
+
+.user-modal-overlay .user-modal .summary-progress-label strong {
+  font-size: 14px;
+  color: var(--um-brand);
+}
+
+.user-modal-overlay .user-modal .summary-progress-track {
+  height: 8px;
+  border-radius: 99px;
+  background: #efecf7;
+}
+
+.user-modal-overlay .user-modal .summary-progress-fill {
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--um-brand), #ec4899);
+}
+
+.user-modal-overlay .user-modal .summary-item > svg {
+  font-size: 18px;
+  color: var(--um-brand);
+}
+
+.user-modal-overlay .user-modal .summary-item span {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.user-modal-overlay .user-modal .summary-item strong {
+  font-size: 15.5px;
+  color: var(--um-ink);
+}
+
+.user-modal-overlay .user-modal .summary-active {
+  color: #059669 !important;
+}
+
+.user-modal-overlay .user-modal .summary-step-status {
+  font-size: 13px;
+}
+
+/* ---------- Review ---------- */
+.user-modal-overlay .user-modal .review-block {
+  border-radius: 14px;
+}
+
+.user-modal-overlay .user-modal .review-block-title span {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.user-modal-overlay .user-modal .review-block-title button {
+  font-size: 12.5px;
+}
+
+.user-modal-overlay .user-modal .review-grid span,
+.user-modal-overlay .user-modal .review-access-grid span {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.user-modal-overlay .user-modal .review-grid strong,
+.user-modal-overlay .user-modal .review-access-grid strong {
+  font-size: 14.5px;
+}
+
+.user-modal-overlay .user-modal .review-store-chip {
+  font-size: 12.5px;
+}
+
+.user-modal-overlay .user-modal .review-ready-banner strong {
+  font-size: 15px;
+}
+
+.user-modal-overlay .user-modal .review-ready-banner span {
+  font-size: 13px;
+}
+
+/* ---------- Footer ---------- */
+.user-modal-overlay .user-modal .user-modal-footer {
+  min-height: 76px;
+  padding: 14px 32px;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--um-line);
+  box-shadow: 0 -8px 24px -16px rgba(17, 24, 39, 0.18);
+}
+
+.user-modal-overlay .user-modal .user-footer-navigation {
+  gap: 12px;
+}
+
+.user-modal-overlay .user-modal .user-cancel-btn,
+.user-modal-overlay .user-modal .user-back-btn,
+.user-modal-overlay .user-modal .user-next-btn,
+.user-modal-overlay .user-modal .user-submit-btn {
+  height: 48px;
+  padding: 0 24px;
+  gap: 8px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.user-modal-overlay .user-modal .user-next-btn {
+  min-width: 130px;
+  background: linear-gradient(135deg, var(--um-brand), var(--um-brand-2));
+  box-shadow: 0 10px 22px -6px rgba(109, 40, 217, 0.55);
+}
+
+.user-modal-overlay .user-modal .user-next-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -8px rgba(109, 40, 217, 0.6);
+}
+
+.user-modal-overlay .user-modal .user-submit-btn {
+  min-width: 150px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 10px 22px -6px rgba(5, 150, 105, 0.5);
+}
+
+/* ---------- Mobile ---------- */
+.user-modal-overlay .user-modal .user-mobile-progress > div:first-child {
+  font-size: 12.5px;
+}
+
+@media (max-width: 850px) {
+  .user-modal-overlay .user-modal .user-stepper {
+    min-height: 72px;
+    padding: 12px 16px;
+  }
+
+  .user-modal-overlay .user-modal .user-step-circle {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .user-modal-overlay .user-modal .user-modal-header {
+    min-height: 80px;
+    padding: 14px 16px;
+  }
+
+  .user-modal-overlay .user-modal .user-modal-main-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .user-modal-overlay .user-modal .user-modal-title-area h2 {
+    font-size: 21px;
+  }
+
+  .user-modal-overlay .user-modal .user-modal-title-area p {
+    font-size: 12.5px;
+  }
+
+  .user-modal-overlay .user-modal .user-page-card {
+    padding: 18px;
+  }
+
+  .user-modal-overlay .user-modal .user-field input,
+  .user-modal-overlay .user-modal .user-field select {
+    height: 48px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .user-modal-overlay .user-modal .user-modal-footer {
+    padding: 10px 14px;
+  }
+
+  .user-modal-overlay .user-modal .user-cancel-btn,
+  .user-modal-overlay .user-modal .user-back-btn,
+  .user-modal-overlay .user-modal .user-next-btn,
+  .user-modal-overlay .user-modal .user-submit-btn {
+    height: 44px;
+    padding: 0 16px;
+    font-size: 14px;
+    min-width: auto;
+  }
+}

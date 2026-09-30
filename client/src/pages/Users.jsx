@@ -14,6 +14,8 @@ import {
   FaTrash,
   FaPhoneAlt,
   FaWhatsapp,
+  FaEye,
+  FaEyeSlash,
 } from "react-icons/fa";
 
 import "../styles/Users.css";
@@ -39,6 +41,22 @@ function Users() {
 const [users, setUsers] = useState([]);
 
 const [search, setSearch] = useState("");
+
+/* Contact numbers are masked by default; reveal per row + per field. */
+const [revealedNumbers, setRevealedNumbers] = useState(() => new Set());
+
+const isNumberRevealed = (userId, field) =>
+  revealedNumbers.has(`${userId}:${field}`);
+
+const toggleNumberReveal = (userId, field) => {
+  setRevealedNumbers((prev) => {
+    const next = new Set(prev);
+    const key = `${userId}:${field}`;
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+};
 
 const [reportsTo, setReportsTo] = useState([]);
 
@@ -447,6 +465,11 @@ const getStoreDisplay = (user) => {
   return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
 };
 
+const maskNumber = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  return "•".repeat(Math.max(digits.length, 10));
+};
+
 const getCallNumber = (user) =>
   String(user.call_contact || "").trim();
 
@@ -801,13 +824,30 @@ return (
 
             <td className="user-contact-cell">
               {getCallNumber(user) ? (
-                <a
-                  className="user-phone-link"
-                  href={`tel:${getCallNumber(user)}`}
-                  title={`Call ${getCallNumber(user)}`}
-                >
-                  {getCallNumber(user)}
-                </a>
+                <span className="user-number-wrap">
+                  {isNumberRevealed(user.id, "call") ? (
+                    <a
+                      className="user-phone-link"
+                      href={`tel:${getCallNumber(user)}`}
+                      title={`Call ${getCallNumber(user)}`}
+                    >
+                      {getCallNumber(user)}
+                    </a>
+                  ) : (
+                    <span className="user-number-masked" aria-label="Hidden number">
+                      {maskNumber(getCallNumber(user))}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className={`user-number-eye${isNumberRevealed(user.id, "call") ? " is-open" : ""}`}
+                    onClick={() => toggleNumberReveal(user.id, "call")}
+                    aria-label={isNumberRevealed(user.id, "call") ? "Hide contact number" : "Show contact number"}
+                    title={isNumberRevealed(user.id, "call") ? "Hide number" : "Show number"}
+                  >
+                    {isNumberRevealed(user.id, "call") ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </span>
               ) : (
                 "-"
               )}
@@ -819,7 +859,7 @@ return (
                   className="user-call-btn"
                   href={`tel:${getCallNumber(user)}`}
                   aria-label={`Call ${user.name}`}
-                  title={`Call ${getCallNumber(user)}`}
+                  title={`Call ${user.name}`}
                 >
                   <FaPhoneAlt />
                   <span>Call</span>
@@ -831,15 +871,32 @@ return (
 
             <td className="user-whatsapp-number-cell">
               {getWhatsappNumber(user) && getWhatsappUrl(user) ? (
-                <a
-                  className="user-whatsapp-link"
-                  href={getWhatsappUrl(user)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open WhatsApp chat with ${getWhatsappNumber(user)}`}
-                >
-                  {getWhatsappNumber(user)}
-                </a>
+                <span className="user-number-wrap">
+                  {isNumberRevealed(user.id, "wa") ? (
+                    <a
+                      className="user-whatsapp-link"
+                      href={getWhatsappUrl(user)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Open WhatsApp chat with ${getWhatsappNumber(user)}`}
+                    >
+                      {getWhatsappNumber(user)}
+                    </a>
+                  ) : (
+                    <span className="user-number-masked is-wa" aria-label="Hidden WhatsApp number">
+                      {maskNumber(getWhatsappNumber(user))}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className={`user-number-eye is-wa${isNumberRevealed(user.id, "wa") ? " is-open" : ""}`}
+                    onClick={() => toggleNumberReveal(user.id, "wa")}
+                    aria-label={isNumberRevealed(user.id, "wa") ? "Hide WhatsApp number" : "Show WhatsApp number"}
+                    title={isNumberRevealed(user.id, "wa") ? "Hide number" : "Show number"}
+                  >
+                    {isNumberRevealed(user.id, "wa") ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </span>
               ) : (
                 "-"
               )}

@@ -203,6 +203,26 @@ router.get(
 
 
 // ======================================================
+// STORE COMPLIANCE (who submitted / who didn't) — keep before /:id
+// GET /api/checklist-reports/compliance
+// ======================================================
+
+const {
+    getChecklistCompliance
+} = require("../controllers/checklistComplianceController");
+
+router.get(
+    "/compliance",
+    authMiddleware,
+    permissionMiddleware(
+        "Checklist Reports",
+        "View"
+    ),
+    getChecklistCompliance
+);
+
+
+// ======================================================
 // GET REPORT BY ID
 // GET /api/checklist-reports/:id
 // ======================================================

@@ -38,6 +38,7 @@ import DashboardAnalytics from "./pages/Dashboard/Dashboard/DashboardAnalytics";
 // ======================================================
 import ChecklistSubmission from "./pages/ChecklistSubmission";
 import ChecklistReports from "./pages/ChecklistReports";
+import ChecklistTracker from "./pages/ChecklistTracker";
 import ActionPoints from "./pages/ActionPoints";
 import Announcements from "./pages/Announcements";
 import Gallery from "./pages/Gallery";
@@ -311,6 +312,15 @@ function App() {
                         element={
                             <ModulePermissionRoute page="checklist.reports">
                                 <ChecklistReports />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/checklist-tracker"
+                        element={
+                            <ModulePermissionRoute page="checklist.reports">
+                                <ChecklistTracker />
                             </ModulePermissionRoute>
                         }
                     />

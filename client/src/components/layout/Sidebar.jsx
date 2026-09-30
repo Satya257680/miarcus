@@ -44,7 +44,8 @@ import {
     FaRoute,
     FaUserLock,
     FaPalette,
-    FaWifi
+    FaWifi,
+    FaStoreAlt,
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -624,6 +625,25 @@ function Sidebar({ collapsed }) {
                         {!collapsed && (
                             <span>
                                 Checklist Reports
+                            </span>
+                        )}
+                    </NavLink>
+                )}
+
+                {/* ==================================================
+                    CHECKLIST TRACKER (store submission status)
+                ================================================== */}
+
+                {canChecklistReports && (
+                    <NavLink
+                        to="/checklist-tracker"
+                        className={getMenuClass}
+                    >
+                        <FaStoreAlt />
+
+                        {!collapsed && (
+                            <span>
+                                Checklist Tracker
                             </span>
                         )}
                     </NavLink>

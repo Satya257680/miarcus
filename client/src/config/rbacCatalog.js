@@ -139,7 +139,7 @@ export const RBAC_GROUPS = [
         name: "Checklist Reports",
         icon: "checklistReports",
         description: "Submitted checklist reports and scores",
-        pages: [{ key: "checklist.reports", label: "Checklist Reports", paths: ["/checklist-reports"] }],
+        pages: [{ key: "checklist.reports", label: "Checklist Reports", paths: ["/checklist-reports", "/checklist-tracker"] }],
       },
       {
         name: "Action Points",

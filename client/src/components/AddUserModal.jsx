@@ -34,6 +34,7 @@ import {
   PAGES,
   clampLevel,
 } from "../config/rbacCatalog";
+import "../styles/AddUserModalPremium.css";
 
 function AddUserModal({
   onClose,

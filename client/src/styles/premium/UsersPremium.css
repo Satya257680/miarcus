@@ -390,3 +390,73 @@
     background: var(--pp-red) !important;
     border-color: var(--pp-red) !important;
 }
+
+/* =========================================================
+   Masked contact numbers + eye toggle
+========================================================= */
+.user-number-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.user-number-masked {
+    display: inline-block;
+    min-width: 92px;
+    color: #94a3b8;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: 13px;
+    user-select: none;
+}
+
+.user-number-eye {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #e4dcfb;
+    border-radius: 999px;
+    background: #f6f2ff;
+    color: #6d4ee8;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.user-number-eye:hover {
+    background: #6d4ee8;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(109, 78, 232, 0.28);
+}
+
+.user-number-eye:focus-visible {
+    outline: 2px solid #6d4ee8;
+    outline-offset: 2px;
+}
+
+.user-number-eye.is-wa {
+    border-color: #c4ecd9;
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.user-number-eye.is-wa:hover {
+    background: #059669;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);
+}
+
+.user-number-eye.is-open {
+    background: #6d4ee8;
+    color: #fff;
+    border-color: #6d4ee8;
+}
+
+.user-number-eye.is-wa.is-open {
+    background: #059669;
+    border-color: #059669;
+}
