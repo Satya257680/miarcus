@@ -3,6 +3,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const Attendance = require("../models/attendanceModel");
+const LocationService = require("../services/locationService");
 const Gallery = require("../models/galleryModel");
 const { createFileAccessToken, safeRelativePath, uploadRoot } = require("../middleware/privateFileAccess");
 
@@ -240,10 +241,42 @@ const checkIn = async (req, res) => {
         // ASSIGNED STORE
         // ------------------------------------------------
 
-        const assignedStore =
+        // Default store (assigned / Head Office), then the
+        // store that is actually in the city of the GPS
+        // point wins — a punch made in Jodhpur is no longer
+        // recorded as HEAD OFFICE MRC (Ludhiana).
+        const defaultStore =
             await getAttendanceStore(
                 req.user.id
             );
+
+        const punchPlace =
+            await LocationService.reverseGeocode(
+                latitude,
+                longitude
+            );
+
+        let assignedStore = defaultStore;
+
+        if (punchPlace) {
+            try {
+                const [assignedStores, allStores] = await Promise.all([
+                    Attendance.getAssignedStores(req.user.id),
+                    Attendance.getActiveStores()
+                ]);
+
+                const picked = LocationService.pickStoreForLocation({
+                    geo: punchPlace,
+                    assignedStores,
+                    allStores,
+                    defaultStore
+                });
+
+                if (picked.store) assignedStore = picked.store;
+            } catch (storeError) {
+                console.error("Attendance store-by-location error:", storeError.message);
+            }
+        }
 
         if (!assignedStore) {
             return res.status(400).json({
@@ -309,7 +342,15 @@ const checkIn = async (req, res) => {
                 photo:
                     `/uploads/attendance/${req.file.filename}`,
 
-                remarks
+                remarks,
+
+                address:
+                    punchPlace?.address || null,
+
+                city:
+                    punchPlace
+                        ? [punchPlace.city, punchPlace.state].filter(Boolean).join(", ")
+                        : null
             });
 
         attendancePersisted = true;
@@ -469,6 +510,12 @@ const checkOut = async (req, res) => {
         // current India timestamp.
         // ------------------------------------------------
 
+        const checkoutPlace =
+            await LocationService.reverseGeocode(
+                latitude,
+                longitude
+            );
+
         const attendance =
             await Attendance.createCheckOut({
                 id:
@@ -486,7 +533,15 @@ const checkOut = async (req, res) => {
                 photo:
                     `/uploads/attendance/${req.file.filename}`,
 
-                remarks
+                remarks,
+
+                address:
+                    checkoutPlace?.address || null,
+
+                city:
+                    checkoutPlace
+                        ? [checkoutPlace.city, checkoutPlace.state].filter(Boolean).join(", ")
+                        : null
             });
 
         attendancePersisted = true;

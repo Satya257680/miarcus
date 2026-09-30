@@ -38,6 +38,40 @@ const ensurePhotoRequirementColumn = async () => {
     photoRequirementReady = true;
 };
 
+// Questions listed in config/checklistPhotoRules.js (the "Required"
+// rows of the Opening / Closing checklist sheets) get
+// photo_requirement = 'Required' unless an administrator has
+// already chosen a setting for them.
+const applyDefaultPhotoRules = async () => {
+
+    if (!photoRequirementReady) return 0;
+
+    const { isPhotoRequiredQuestion } = require("../config/checklistPhotoRules");
+
+    const rows = await new Promise((resolve, reject) => {
+        db.query(
+            `SELECT id, question FROM questions WHERE photo_requirement IS NULL OR photo_requirement = ''`,
+            (err, result) => err ? reject(err) : resolve(result || [])
+        );
+    });
+
+    const ids = rows
+        .filter((row) => isPhotoRequiredQuestion(row.question))
+        .map((row) => row.id);
+
+    if (!ids.length) return 0;
+
+    await new Promise((resolve, reject) => {
+        db.query(
+            `UPDATE questions SET photo_requirement = 'Required' WHERE id IN (?)`,
+            [ids],
+            (err) => err ? reject(err) : resolve()
+        );
+    });
+
+    return ids.length;
+};
+
 const normalizePhotoRequirement = (value) => {
     const text = String(value ?? "").trim().toLowerCase();
     if (!text) return null;
@@ -820,6 +854,8 @@ const bulkCreateQuestions = (
 module.exports = {
 
     ensurePhotoRequirementColumn,
+
+    applyDefaultPhotoRules,
 
     setPhotoRequirement,
 

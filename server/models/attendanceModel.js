@@ -100,7 +100,71 @@ const createTables = async () => {
         // Index already removed / never existed on a
         // fresh install. Nothing to do.
     }
+
+    // ------------------------------------------------
+    // MIGRATION: where each punch really happened
+    // (address + city from the GPS point), so reports
+    // no longer show only the assigned store.
+    // ------------------------------------------------
+
+    try {
+        const columns = [
+            ["check_in_address", "VARCHAR(500) NULL"],
+            ["check_in_city", "VARCHAR(150) NULL"],
+            ["check_out_address", "VARCHAR(500) NULL"],
+            ["check_out_city", "VARCHAR(150) NULL"]
+        ];
+
+        for (const [name, ddl] of columns) {
+            const rows = await query(
+                `SHOW COLUMNS FROM attendance_records LIKE ?`,
+                [name]
+            );
+            if (!rows.length) {
+                await query(`ALTER TABLE attendance_records ADD COLUMN ${name} ${ddl}`);
+            }
+        }
+
+        locationColumnsReady = true;
+    } catch (error) {
+        console.error("Attendance location columns migration failed:", error.message);
+    }
 };
+
+// Set once the check_in/out address + city columns exist.
+let locationColumnsReady = false;
+
+// Every active store assigned to the employee
+const getAssignedStores = async (userId) =>
+    query(
+        `
+            SELECT
+                s.id,
+                s.store_name,
+                s.store_code,
+                s.city,
+                s.state,
+                s.address
+            FROM user_stores us
+            INNER JOIN stores s
+                ON s.id = us.store_id
+            WHERE us.user_id = ?
+              AND (s.status IS NULL OR s.status = 'Active')
+            ORDER BY s.id ASC
+        `,
+        [userId]
+    );
+
+// Every active store (for matching a punch to the store in that city)
+const getActiveStores = async () =>
+    query(
+        `
+            SELECT id, store_name, store_code, city, state, address
+            FROM stores
+            WHERE (status IS NULL OR status = 'Active')
+            ORDER BY id ASC
+        `
+    );
 
 // ======================================================
 // ADMIN / PERMISSION HELPERS
@@ -472,6 +536,7 @@ const createCheckIn = async (data) => {
                 check_in_accuracy,
                 check_in_photo,
                 check_in_remarks
+                ${locationColumnsReady ? ", check_in_address, check_in_city" : ""}
             )
             VALUES
             (
@@ -485,6 +550,7 @@ const createCheckIn = async (data) => {
                 ?,
                 ?,
                 ?
+                ${locationColumnsReady ? ", ?, ?" : ""}
             )
         `,
         [
@@ -503,7 +569,10 @@ const createCheckIn = async (data) => {
             data.accuracy ?? null,
 
             data.photo || null,
-            data.remarks || null
+            data.remarks || null,
+            ...(locationColumnsReady
+                ? [data.address || null, data.city || null]
+                : [])
         ]
     );
 
@@ -539,6 +608,7 @@ const createCheckOut = async (data) => {
                 check_out_accuracy = ?,
                 check_out_photo = ?,
                 check_out_remarks = ?
+                ${locationColumnsReady ? ", check_out_address = ?, check_out_city = ?" : ""}
             WHERE id = ?
               AND employee_id = ?
               AND work_date = ?
@@ -552,6 +622,9 @@ const createCheckOut = async (data) => {
             data.accuracy ?? null,
             data.photo || null,
             data.remarks || null,
+            ...(locationColumnsReady
+                ? [data.address || null, data.city || null]
+                : []),
             data.id,
             data.employeeId,
             data.workDate
@@ -730,6 +803,13 @@ const getReport = async ({
                 a.check_in_remarks,
                 a.check_out_remarks,
 
+                ${locationColumnsReady ? `
+                a.check_in_address,
+                a.check_in_city,
+                a.check_out_address,
+                a.check_out_city,
+                ` : ""}
+
                 u.id AS user_id,
                 u.employee_id,
                 u.name,
@@ -741,7 +821,8 @@ const getReport = async ({
 
                 s.id AS store_id,
                 s.store_name,
-                s.store_code
+                s.store_code,
+                s.city AS store_city
 
             FROM attendance_records a
 
@@ -1000,6 +1081,8 @@ module.exports = {
 
     getHeadOfficeStore,
     getAssignedAttendanceStore,
+    getAssignedStores,
+    getActiveStores,
 
     getContext,
     getRecord,

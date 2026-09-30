@@ -22,10 +22,13 @@ import {
     FaCommentDots,
     FaCamera,
     FaChevronRight,
+    FaExclamationTriangle,
 } from "react-icons/fa";
 import { initials, avatarTone } from "../../utils/premiumFormat";
 import { getAttendancePhotoAccess, downloadAttendancePhoto } from "../../services/attendanceService.js";
 import "../../styles/attendance/AttendanceDetails.css";
+import usePunchPlace, { placeLabel } from "../../hooks/usePunchPlace";
+import { storeMatchesPlace } from "../../utils/reverseGeocode";
 
 // ==========================================================
 // ATTENDANCE DETAILS SHEET
@@ -124,39 +127,6 @@ const punchOf = (record, kind) => {
     };
 };
 
-// Address lookup (OpenStreetMap). Cached; silently falls back to
-// coordinates if it can't be reached.
-const addressCache = new Map();
-const useAddress = (lat, lng) => {
-    const key = hasPoint(lat, lng) ? `${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}` : "";
-    const [, setVersion] = useState(0);
-
-    useEffect(() => {
-        if (!key || addressCache.has(key)) return undefined;
-        let alive = true;
-        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-        fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`,
-            { signal: controller?.signal, headers: { Accept: "application/json" } }
-        )
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-                const text = data?.display_name
-                    ? data.display_name.split(",").slice(0, 5).join(",").trim()
-                    : "";
-                addressCache.set(key, text);
-                if (alive) setVersion((v) => v + 1);
-            })
-            .catch(() => {});
-        return () => {
-            alive = false;
-            controller?.abort();
-        };
-    }, [key, lat, lng]);
-
-    return key ? addressCache.get(key) || "" : "";
-};
-
 // Loads a protected attendance selfie as a blob URL
 const usePhoto = (recordId, kind, enabled) => {
     const key = enabled && recordId ? `${recordId}:${kind}` : "";
@@ -183,6 +153,48 @@ const usePhoto = (recordId, kind, enabled) => {
     if (state.key !== key) return { url: "", loading: true, error: false };
     return { url: state.url, loading: false, error: state.error };
 };
+
+// Where the punch really happened (city from GPS)
+function PunchWhere({ record, punch }) {
+    const place = usePunchPlace(record, punch.kind);
+    const label = place ? placeLabel(place) : "";
+    const away = place ? storeMatchesPlace(record.store_name, record.store_city, place) === false : false;
+    return (
+        <>
+            <b className={away ? "ad-away-text" : ""}>
+                {away ? <FaExclamationTriangle /> : <FaMapMarkerAlt />} {label || record.store_name || "Location"}
+            </b>
+            <small>
+                {hasPoint(punch.lat, punch.lng)
+                    ? `${fmtCoord(punch.lat, "N", "S")}, ${fmtCoord(punch.lng, "E", "W")}`
+                    : "Location not captured"}
+            </small>
+        </>
+    );
+}
+
+// Banner when the punch city is not the store's city
+function AwayBanner({ record, punch }) {
+    const place = usePunchPlace(record, punch.kind);
+    if (!place || !record.store_name) return null;
+    if (storeMatchesPlace(record.store_name, record.store_city, place) !== false) return null;
+    return (
+        <section className="ad-away">
+            <FaExclamationTriangle />
+            <span>
+                {punch.label} was made at <b>{placeLabel(place)}</b>, not at the store{" "}
+                <b>{record.store_name}{record.store_city ? ` (${record.store_city})` : ""}</b>.
+            </span>
+        </section>
+    );
+}
+
+function PunchPlaceText({ record, punch }) {
+    const place = usePunchPlace(record, punch.kind);
+    if (!hasPoint(punch.lat, punch.lng)) return "Not captured";
+    if (place === undefined) return "Finding location…";
+    return (place && (place.address || placeLabel(place))) || `${fmtCoord(punch.lat, "N", "S")}, ${fmtCoord(punch.lng, "E", "W")}`;
+}
 
 function PhotoThumb({ photo, big = false, onOpen }) {
     if (photo.loading) return <span className={`ad-photo ${big ? "is-big" : ""} is-loading`} />;
@@ -340,6 +352,9 @@ export default function AttendanceDetailsSheet({ record, onClose }) {
                                 </div>
                             </section>
 
+                            {checkIn.at && <AwayBanner record={record} punch={checkIn} />}
+                            {checkOut.at && <AwayBanner record={record} punch={checkOut} />}
+
                             <section className="ad-card ad-date">
                                 <span className="ad-date-icon"><FaCalendarAlt /></span>
                                 <b>{fmtDate(record.work_date)}</b>
@@ -404,12 +419,7 @@ export default function AttendanceDetailsSheet({ record, onClose }) {
                                                     >
                                                         <PhotoThumb photo={photos[punch.kind]} />
                                                         <span className="ad-tl-where">
-                                                            <b><FaMapMarkerAlt /> {record.store_name || "Location"}</b>
-                                                            <small>
-                                                                {hasPoint(punch.lat, punch.lng)
-                                                                    ? `${fmtCoord(punch.lat, "N", "S")}, ${fmtCoord(punch.lng, "E", "W")}`
-                                                                    : "Location not captured"}
-                                                            </small>
+                                                            <PunchWhere record={record} punch={punch} />
                                                             {punch.remarks && <small className="ad-tl-remark">“{punch.remarks}”</small>}
                                                         </span>
                                                         <span className="ad-tl-go"><FaChevronRight /></span>
@@ -463,6 +473,9 @@ export default function AttendanceDetailsSheet({ record, onClose }) {
                                 <InfoRow icon={<FaStore />} label="Store">
                                     {record.store_name || "—"}{record.store_code ? ` (${record.store_code})` : ""}
                                 </InfoRow>
+                                <InfoRow icon={<FaGlobeAsia />} label="Punched At">
+                                    <PunchPlaceText record={record} punch={active} />
+                                </InfoRow>
                                 <InfoRow icon={<FaClock />} label="Time">{fmtTime(active.at)}</InfoRow>
                                 <InfoRow icon={<FaMapMarkerAlt />} label="Location">
                                     {hasPoint(active.lat, active.lng) ? (
@@ -513,7 +526,9 @@ export default function AttendanceDetailsSheet({ record, onClose }) {
 }
 
 function LocationScreen({ record, punch, onClose }) {
-    const address = useAddress(punch.lat, punch.lng);
+    const place = usePunchPlace(record, punch.kind);
+    const address = place ? place.address || placeLabel(place) : "";
+    const away = place ? storeMatchesPlace(record.store_name, record.store_city, place) === false : false;
     const lat = Number(punch.lat);
     const lng = Number(punch.lng);
     const mapSrc = `https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed`;
@@ -524,7 +539,7 @@ function LocationScreen({ record, punch, onClose }) {
             <section className="ad-map">
                 <iframe title="Punch location" src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
                 <div className="ad-map-card">
-                    <b>{record.store_name || "Punch location"}{record.store_code ? ` (${record.store_code})` : ""}</b>
+                    <b>{place ? placeLabel(place) || "Punch location" : "Punch location"}</b>
                     <small>{address || `${fmtCoord(punch.lat, "N", "S")}, ${fmtCoord(punch.lng, "E", "W")}`}</small>
                 </div>
                 <a className="ad-map-open" href={openUrl} target="_blank" rel="noopener noreferrer" aria-label="Open in Google Maps">
@@ -537,6 +552,8 @@ function LocationScreen({ record, punch, onClose }) {
                 <InfoRow icon={<FaMapMarkerAlt />} label="Address">{address || "—"}</InfoRow>
                 <InfoRow icon={<FaStore />} label="Store">
                     {record.store_name || "—"}{record.store_code ? ` (${record.store_code})` : ""}
+                    {record.store_city ? ` · ${record.store_city}` : ""}
+                    {away && <span className="ad-away-chip"><FaExclamationTriangle /> Different city</span>}
                 </InfoRow>
                 <InfoRow icon={<FaGlobeAsia />} label="Latitude">{fmtCoord(punch.lat, "N", "S")}</InfoRow>
                 <InfoRow icon={<FaGlobeAsia />} label="Longitude">{fmtCoord(punch.lng, "E", "W")}</InfoRow>

@@ -71,34 +71,22 @@ const notifyGalleryUpload = async ({ req, photoId, fileName, count = 1 }) => {
     const actorId = Number(req.user?.id || 0);
     if (!Number.isInteger(actorId) || actorId <= 0) return;
 
-    // Always notify the uploader. This is deliberately independent of the
-    // permission lookup so a permission-table/query problem can never make a
-    // successful Gallery upload appear to have produced no notification.
+    // Uploader always gets the confirmation. Everyone else only if
+    // they should see it (admins, all-store users, users of this store
+    // with Gallery access) — services/notificationAudience.js.
     const recipients = new Set([actorId]);
 
     try {
-        const rows = await db.query(`
-            SELECT DISTINCT u.id
-            FROM users u
-            LEFT JOIN user_permissions p
-              ON p.user_id = u.id
-             AND LOWER(p.module_name) = LOWER('Gallery')
-            WHERE LOWER(COALESCE(u.status, 'active')) = 'active'
-              AND (
-                  u.id = ?
-                  OR COALESCE(u.is_admin, 0) = 1
-                  OR p.permission IN ('View', 'Add', 'Edit', 'Full')
-              )
-            ORDER BY u.id ASC
-        `, [actorId]);
-
-        for (const row of rows || []) {
-            const id = Number(row.id);
-            if (Number.isInteger(id) && id > 0) recipients.add(id);
-        }
+        const storeValue = Number(req.body?.store_id ?? req.body?.storeId);
+        const storeIds = Number.isInteger(storeValue) && storeValue > 0 ? [storeValue] : [];
+        const audience = await require("../services/notificationAudience").getAudience({
+            moduleName: "Gallery",
+            storeIds,
+            actorId,
+            includeActor: true
+        });
+        audience.forEach((id) => recipients.add(id));
     } catch (error) {
-        // Do not lose the uploader notification because the optional audience
-        // expansion query failed. The actor still receives the event below.
         console.error("Gallery notification audience lookup failed:", error.message);
     }
 

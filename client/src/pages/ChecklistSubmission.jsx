@@ -18,6 +18,7 @@ import checklistHeroArt from "../assets/premium/checklist-hero.png";
 import checklistBulb from "../assets/premium/checklist-bulb.png";
 import QuestionPhotoPicker from "../components/checklist/QuestionPhotoPicker";
 import { releasePhoto } from "../utils/photoEvidence";
+import { isPhotoRequiredQuestion } from "../config/checklistPhotoRules";
 
 const API = API_BASE_URL;
 
@@ -76,6 +77,8 @@ const photoRule = (question, answerValue) => {
       : { mode: "optional", reason: "" };
   }
   if (setting === "optional") return { mode: "optional", reason: "" };
+  // Questions marked "Required" in the Opening / Closing checklist sheets
+  if (isPhotoRequiredQuestion(text)) return { mode: "required", reason: "" };
   if (PHOTO_WORDS.test(text)) return { mode: "required", reason: "" };
   return { mode: "optional", reason: "" };
 };

@@ -72,55 +72,63 @@ const getModuleLink = (moduleName) => {
     return map[moduleName] || "/gallery";
 };
 
-const MODULE_PERMISSION_ALIASES = {
-    "Announcements": ["Announcements"],
-    "Action Points": ["Action Points"],
-    "Checklist Submission": ["Checklist Submit", "Checklist Submission"],
-    "New Store Openings": ["New Store Openings"],
-    "Expenses": ["Expenses"],
-    "Petty Cash": ["Petty Cash"],
-    "Asset Master": ["Asset Master"],
-    "Attendance": ["Attendance"],
-    "Activity Center": ["Activity Center"],
-    "Collection Tracking": ["Collection Tracking"],
-    "Travel Plan": ["Travel Plan", "Visit Planner", "Sales Team"]
-};
-
-const notifyAttachment = async ({
+// One notification per request (not one per file), sent only to
+// the people who should see it — see services/notificationAudience.js
+// (admins, all-store users, and users of THIS store with access to
+// the module). The uploader is not notified about their own upload.
+const notifyAttachments = async ({
     moduleName,
     recordId,
-    fileName,
-    actorId
+    fileNames = [],
+    actorId,
+    storeId,
+    isCreate
 }) => {
     try {
-        const aliases = MODULE_PERMISSION_ALIASES[moduleName] || [moduleName];
-        const placeholders = aliases.map(() => "?").join(",");
-        const actor = Number(actorId || 0);
+        const Audience = require("../services/notificationAudience");
 
-        const users = await db.query(`
-            SELECT DISTINCT u.id
-            FROM users u
-            LEFT JOIN user_permissions p
-                ON p.user_id = u.id
-               AND p.module_name IN (${placeholders})
-            WHERE u.status = 'Active'
-              AND (
-                  u.id = ?
-                  OR u.is_admin = 1
-                  OR p.permission IN ('View', 'Add', 'Edit', 'Full')
-              )
-            ORDER BY u.id ASC
-        `, [...aliases, actor || 0]);
+        const recipients = await Audience.getAudience({
+            moduleName,
+            storeIds: storeId ? [storeId] : [],
+            actorId
+        });
 
-        const recipients = users.map(row => Number(row.id)).filter(Boolean);
         if (!recipients.length) return;
 
+        let actorName = "A team member";
+        let storeName = "";
+
+        try {
+            const [actorRows, storeRows] = await Promise.all([
+                actorId ? db.query("SELECT name FROM users WHERE id = ? LIMIT 1", [actorId]) : [],
+                storeId ? db.query("SELECT store_name FROM stores WHERE id = ? LIMIT 1", [storeId]) : []
+            ]);
+            actorName = actorRows?.[0]?.name || actorName;
+            storeName = storeRows?.[0]?.store_name || "";
+        } catch {
+            /* names are cosmetic */
+        }
+
+        const count = fileNames.length;
+        const where = storeName ? ` · ${storeName}` : "";
+        const files = count === 1
+            ? (fileNames[0] || "1 file")
+            : `${count} files`;
+
+        const title = isCreate
+            ? `New ${moduleName}${where}`
+            : `New attachment in ${moduleName}${where}`;
+
+        const message = isCreate
+            ? `${actorName} submitted ${moduleName}${storeName ? ` for ${storeName}` : ""} with ${count === 1 ? "1 attachment" : `${count} attachments`}.`
+            : `${actorName} added ${files} to ${moduleName}.`;
+
         await Notification.createForUsers(recipients, {
-            title: `New attachment in ${moduleName}`,
-            message: `${fileName || "A file"} was added to ${moduleName}.`,
+            title,
+            message,
             type: "info",
             module_name: moduleName,
-            action_name: "Attachment Added",
+            action_name: isCreate ? "Submitted" : "Attachment Added",
             entity_id: recordId,
             link: getModuleLink(moduleName)
         });
@@ -168,6 +176,8 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
 
             void (async () => {
                 const recordId = getRecordId(responsePayload, req);
+                const syncedNames = [];
+                let lastGalleryId = null;
 
                 for (const { file, buffer } of attachmentSnapshots) {
                     try {
@@ -214,18 +224,34 @@ const syncAttachmentToGallery = (moduleName, fieldName = "attachment") => {
                             source_field: fieldName
                         });
 
-                        await notifyAttachment({
-                            moduleName,
-                            recordId: recordId || galleryId,
-                            fileName: file.originalname || file.filename || galleryFileName,
-                            actorId: req.user?.id
-                        });
+                        syncedNames.push(file.originalname || file.filename || galleryFileName);
+                        lastGalleryId = galleryId;
                     } catch (error) {
                         console.error(
                             `Gallery attachment sync failed (${moduleName}):`,
                             error
                         );
                     }
+                }
+
+                // Attendance selfies are kept in Gallery but are not
+                // notification events (Attendance Reports shows them).
+                if (syncedNames.length && !/^check-(in|out)-photo$/i.test(moduleName)) {
+                    const storeIdValue = req.body?.store_id ?? req.body?.storeId;
+                    const storeId = Number.isInteger(Number(storeIdValue)) && Number(storeIdValue) > 0
+                        ? Number(storeIdValue)
+                        : null;
+
+                    await notifyAttachments({
+                        moduleName,
+                        recordId: recordId || lastGalleryId,
+                        fileNames: syncedNames,
+                        actorId: req.user?.id,
+                        storeId,
+                        isCreate:
+                            String(req.method).toUpperCase() === "POST" &&
+                            !/\/\d+(\/|$)/.test(String(req.originalUrl || "").split("?")[0])
+                    });
                 }
             })();
         });

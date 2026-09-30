@@ -1614,6 +1614,65 @@ exports.bulkUploadQuestions = async (req, res) => {
                 }
 
                 // ==================================================
+                // PHOTO EVIDENCE
+                //
+                // Column "Photo Evidence" / "Photo Required" /
+                // "Remarks" = Required | Optional | Required on No | None
+                // (the Opening / Closing checklist sheets mark photo
+                // questions with Remarks = "Required"). Questions in
+                // config/checklistPhotoRules.js are Required by default.
+                // ==================================================
+
+                const photoRaw = cleanValue(
+                    getRowValue(
+                        row,
+                        [
+                            "photoRequirement",
+                            "photo_requirement",
+                            "Photo Requirement",
+                            "photoEvidence",
+                            "Photo Evidence",
+                            "photoRequired",
+                            "Photo Required",
+                            "photo",
+                            "Photo",
+                            "remarks",
+                            "Remarks"
+                        ]
+                    )
+                ).toLowerCase();
+
+                let photoRequirement;
+
+                if (["required", "yes", "y", "true", "1", "mandatory", "photo required"].includes(photoRaw)) {
+                    photoRequirement = "Required";
+                } else if (["required on no", "required if no", "on no"].includes(photoRaw)) {
+                    photoRequirement = "Required on No";
+                } else if (photoRaw === "optional") {
+                    photoRequirement = "Optional";
+                } else if (["none", "no photo", "not required"].includes(photoRaw)) {
+                    photoRequirement = "None";
+                } else if (
+                    require("../config/checklistPhotoRules")
+                        .isPhotoRequiredQuestion(questionText)
+                ) {
+                    photoRequirement = "Required";
+                }
+
+                if (photoRequirement) {
+                    await new Promise((resolve) =>
+                        Question.setPhotoRequirement(
+                            questionId,
+                            photoRequirement,
+                            (photoErr) => {
+                                if (photoErr) console.error("bulk setPhotoRequirement error:", photoErr);
+                                resolve();
+                            }
+                        )
+                    );
+                }
+
+                // ==================================================
                 // DEPARTMENT LINKS
                 //
                 // Department can be:

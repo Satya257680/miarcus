@@ -49,6 +49,27 @@ const requireConversationAccess = async (req, conversationId) => {
     return conversation;
 };
 
+// req.user from the auth middleware has no name, which is why
+// notifications said "Someone is calling". Read it from Users.
+const nameCache = new Map();
+const getUserName = async (req) => {
+    if (req.user?.name) return req.user.name;
+    const id = Number(req.user?.id);
+    if (!id) return "";
+    if (nameCache.has(id)) return nameCache.get(id);
+    try {
+        const rows = await require("../config/db").query(
+            "SELECT name FROM users WHERE id = ? LIMIT 1",
+            [id]
+        );
+        const name = rows?.[0]?.name || "";
+        nameCache.set(id, name);
+        return name;
+    } catch {
+        return "";
+    }
+};
+
 const notifyUsers = async (userIds, data) => {
     for (const userId of [...new Set(userIds.map(Number).filter(Boolean))]) {
         try {
@@ -345,7 +366,7 @@ exports.sendMessage = async (req, res) => {
     const memberIds = await Model.getConversationMemberIds(req.params.id);
     const recipients = memberIds.filter(id => Number(id) !== Number(req.user.id));
 
-    const actorName = req.user.name || "A team member";
+    const actorName = (await getUserName(req)) || "A team member";
     const preview = text || `${messageType} attachment`;
     const event = {
         conversation_id: Number(req.params.id),
@@ -359,7 +380,8 @@ exports.sendMessage = async (req, res) => {
         message: preview.slice(0, 180),
         entityId: message.id,
         link: `/chat?conversation=${conversation.id}`,
-        action: "Message"
+        action: "Message",
+        type: "message"
     });
 
     res.status(201).json({ success: true, message });
@@ -668,12 +690,15 @@ exports.startCall = async (req, res) => {
     });
 
     ChatEvents.emitToUser(calleeId, "incoming_call", { call, conversation });
+    // Only the person being called is notified.
+    const callerName = (await getUserName(req)) || "Someone";
     await notifyUsers([calleeId], {
-        title: `${req.user.name || "Someone"} is calling`,
-        message: `${callType === "video" ? "Video" : "Voice"} call`,
+        title: `${callerName} is calling you`,
+        message: `Incoming ${callType === "video" ? "video" : "voice"} call · tap to open chat`,
         entityId: call.id,
         link: `/chat?conversation=${conversation.id}`,
-        action: "Call"
+        action: "Call",
+        type: "call"
     });
 
     res.status(201).json({ success: true, call });

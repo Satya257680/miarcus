@@ -34,6 +34,8 @@ import {
 } from "react-icons/fa";
 import PremiumHero from "../components/premium/PremiumHero";
 import AttendanceDetailsSheet from "../components/attendance/AttendanceDetailsSheet";
+import AttendanceStoreCell from "../components/attendance/AttendanceStoreCell";
+import "../styles/attendance/AttendanceStoreCell.css";
 import InsightStrip from "../components/premium/InsightStrip";
 import "../styles/premium/PagePremium.css";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
@@ -158,7 +160,9 @@ const buildPhotoViewUrl = (id, type) =>
 const ATTENDANCE_EXPORT_HEADERS = [
     "Work Date", "Day", "Status", "Employee", "Employee ID", "Department",
     "Designation", "Store", "Check-in At", "Check-in Latitude", "Check-in Longitude",
+    "Check-in Location",
     "Check-out At", "Check-out Latitude", "Check-out Longitude",
+    "Check-out Location",
     "Check-in Remarks", "Check-out Remarks", "Check-in Photo", "Check-out Photo"
 ];
 
@@ -174,9 +178,12 @@ const buildAttendanceExportBaseRow = (r) => [
     formatDateTime(r.check_in_at),
     r.check_in_latitude ?? "-",
     r.check_in_longitude ?? "-",
+    // Where the punch really happened (from GPS, saved by the server)
+    r.check_in_address || r.check_in_city || "-",
     formatDateTime(r.check_out_at),
     r.check_out_latitude ?? "-",
     r.check_out_longitude ?? "-",
+    r.check_out_address || r.check_out_city || "-",
     r.check_in_remarks || "-",
     r.check_out_remarks || "-"
 ];
@@ -1164,11 +1171,10 @@ function AttendanceReports() {
         {
             key: "store_name",
             title: "Store",
-            width: "200px",
-            render: (row) =>
-                row.store_name
-                    ? <span className="pp-pill pp-pill--violet">{row.store_name}</span>
-                    : <span className="pp-dash">—</span>
+            width: "250px",
+            // Store + the city where the punch really happened
+            // (warns when it is not the store's city).
+            render: (row) => <AttendanceStoreCell row={row} />
         },
 
         {

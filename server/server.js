@@ -663,6 +663,15 @@ async function initializeDatabase() {
 
             await require("./models/questionModel").ensurePhotoRequirementColumn();
 
+            const photoRulesApplied =
+                await require("./models/questionModel").applyDefaultPhotoRules();
+
+            if (photoRulesApplied) {
+                console.log(
+                    `✅ ${photoRulesApplied} checklist question(s) set to "Photo required"`
+                );
+            }
+
             console.log(
                 "✅ checklist question photo columns verified"
             );

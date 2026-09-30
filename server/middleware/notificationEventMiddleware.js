@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_ALGORITHM } = require("../config/security");
 const notificationService = require("../services/notificationService");
 const db = require("../config/db");
+const Audience = require("../services/notificationAudience");
 
 // ======================================================
 // MIARCUS - GLOBAL CHANGE -> NOTIFICATION BRIDGE
@@ -14,9 +15,14 @@ const db = require("../config/db");
 // it resolves the actor directly from the Bearer JWT. This
 // fixes the old req.user timing problem.
 //
-// Notifications are sent to every ACTIVE user except the
-// person who performed the change. The notification contains
-// a module-specific link so clicking it opens that module.
+// Recipients (services/notificationAudience.js):
+//   • Administrators / Super Admin → everything
+//   • ASM / RM / high designations / all-store users → every
+//     store, for the modules they can access
+//   • Store users → only their own stores, only modules they
+//     can access
+// The person who made the change is not notified. The
+// notification contains a module-specific link.
 // ======================================================
 
 const ignoredPrefixes = [
@@ -201,29 +207,6 @@ function getActorId(req) {
 }
 
 // ======================================================
-// ALL ACTIVE USERS
-// ======================================================
-
-async function getActiveUsersExcept(excludedIds = []) {
-    const excluded = new Set(
-        excludedIds
-            .map(Number)
-            .filter(id => Number.isInteger(id) && id > 0)
-    );
-
-    const rows = await db.query(`
-        SELECT id
-        FROM users
-        WHERE status = 'Active'
-        ORDER BY id ASC
-    `);
-
-    return rows
-        .map(row => Number(row.id))
-        .filter(id => id > 0 && !excluded.has(id));
-}
-
-// ======================================================
 // ENTITY ID / RESPONSE DATA
 // ======================================================
 
@@ -234,6 +217,29 @@ function findId(value) {
     if (Number.isInteger(id) && id > 0) return id;
 
     return null;
+}
+
+function getStoreIds(req, responsePayload = null) {
+    const values = [
+        req.body?.store_id,
+        req.body?.storeId,
+        responsePayload?.store_id,
+        responsePayload?.data?.store_id,
+        responsePayload?.data?.storeId
+    ];
+
+    [req.body?.store_ids, req.body?.storeIds].forEach((list) => {
+        if (Array.isArray(list)) values.push(...list);
+        else if (typeof list === "string") values.push(...list.split(","));
+    });
+
+    return [...new Set(values.map(findId).filter(Boolean))];
+}
+
+// numeric id in the URL, e.g. /api/action-points/42 or /api/expenses/42/approve
+function getPathId(path) {
+    const match = String(path || "").match(/\/(\d+)(?:\/[a-z-]*)?\/?$/i);
+    return match ? findId(match[1]) : null;
 }
 
 function getEntityId(req, responsePayload = null) {
@@ -349,6 +355,15 @@ function install(app) {
 
         let handled = false;
 
+        // Look up the record's store BEFORE the change (a deleted
+        // record can't be looked up afterwards).
+        const earlyModule = getModule(path);
+        const pathId = getPathId(path);
+        const storeBefore =
+            earlyModule && pathId && Audience.isStoreScoped(earlyModule[1])
+                ? Audience.getRecordStoreId(earlyModule[1], pathId).catch(() => null)
+                : Promise.resolve(null);
+
         res.on("finish", async () => {
             if (handled || res.statusCode < 200 || res.statusCode >= 300) return;
             handled = true;
@@ -378,39 +393,24 @@ function install(app) {
                     ? getResponseParticipantId(responsePayload)
                     : null;
 
-                const excludedIds = [actorId, participantId].filter(Boolean);
-                let recipientIds = await getActiveUsersExcept(excludedIds);
+                // Stores this change belongs to
+                let storeIds = getStoreIds(req, responsePayload);
+                if (!storeIds.length && Audience.isStoreScoped(label)) {
+                    const before = await storeBefore;
+                    const after = before || await Audience.getRecordStoreId(label, entityId);
+                    if (after) storeIds = [after];
+                }
 
-                if (moduleName === "Gallery") {
-                    // Gallery notifications are intentionally visible to the
-                    // uploader as well. This is important for single-user/admin
-                    // deployments where excluding the actor would otherwise
-                    // make a successful Gallery upload look like it generated
-                    // no notification at all. Other authorized Gallery users
-                    // receive the same event.
-                    const rows = await db.query(`
-                        SELECT DISTINCT u.id
-                        FROM users u
-                        WHERE u.status = 'Active'
-                          AND (
-                              u.id = ?
-                              OR u.is_admin = 1
-                              OR EXISTS (
-                                  SELECT 1
-                                  FROM user_permissions gp
-                                  WHERE gp.user_id = u.id
-                                    AND gp.module_name = 'Gallery'
-                                    AND gp.permission IN ('View', 'Add', 'Edit', 'Full')
-                              )
-                          )
-                    `, [actorId || 0]);
-                    recipientIds = rows.map(row => Number(row.id)).filter(Boolean);
+                let recipientIds = await Audience.getAudience({
+                    moduleName: label,
+                    storeIds,
+                    actorId,
+                    // Gallery confirms the upload to the uploader too
+                    includeActor: label === "Gallery"
+                });
 
-                    // Never send a public-quiz participant's unrelated Gallery
-                    // event back to that participant if this branch is reused.
-                    if (participantId) {
-                        recipientIds = recipientIds.filter(id => id !== participantId);
-                    }
+                if (participantId) {
+                    recipientIds = recipientIds.filter(id => id !== participantId);
                 }
 
                 if (recipientIds.length === 0) return;
