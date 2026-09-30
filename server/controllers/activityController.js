@@ -18,6 +18,7 @@ exports.getAllActivities = (req, res) => {
         date_from: req.query.date_from || "",
         date_to: req.query.date_to || "",
         new_store_opening_id: req.query.new_store_opening_id || "",
+        quick: req.query.quick || "",
         page: req.query.page || 1,
         limit: req.query.limit || 10
     };

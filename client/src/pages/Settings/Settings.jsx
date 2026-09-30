@@ -16,7 +16,8 @@ import {
     FaSearch,
     FaTimes,
     FaUserShield,
-    FaWallet
+    FaWallet,
+    FaTasks
 } from "react-icons/fa";
 
 import "../../styles/pages/Settings.css";
@@ -143,9 +144,18 @@ function Settings() {
             category: "Checklist & Controls",
             permission: "Checklist Email Routing",
             title: "Checklist Email Routing",
-            description: "Control checklist submission, Action Point and completion email notifications.",
+            description: "Choose who receives the one email sent when a store submits a checklist.",
             icon: FaEnvelope,
             path: "/settings/checklist-email",
+            adminOnly: true
+        },
+        {
+            category: "Checklist & Controls",
+            permission: "Action Point Email Routing",
+            title: "Action Point Email Routing",
+            description: "Separate routing for Action Point generated, status and completion emails – one email per store.",
+            icon: FaTasks,
+            path: "/settings/action-point-email",
             adminOnly: true
         },
 

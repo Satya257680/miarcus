@@ -16,6 +16,8 @@ import {
     FaPause,
     FaPlay,
     FaBolt,
+    FaUndoAlt,
+    FaHistory,
 } from "react-icons/fa";
 
 import "../../../styles/dashboard/DashboardAnalytics.css";
@@ -28,6 +30,17 @@ const PULSE_MS = 5000;        // cheap "anything changed?" check
 const FULL_REFRESH_MS = 60000; // safety full refresh while live
 
 const numberFormatter = new Intl.NumberFormat("en-IN");
+
+// "2026-09-30 10:05:12" (DB time) -> "30 Sep 2026, 10:05 am"
+const formatSince = (since) => {
+    if (!since) return "";
+    const [datePart, timePart = "00:00:00"] = String(since).split(" ");
+    const [y, m, d] = datePart.split("-").map(Number);
+    const [hh, mm, ss] = timePart.split(":").map(Number);
+    const date = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
+    if (Number.isNaN(date.getTime())) return since;
+    return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
 const formatNumber = (value) => numberFormatter.format(Math.round(Number(value || 0)));
 
 const formatValue = (value) => {
@@ -584,20 +597,32 @@ function DashboardAnalytics() {
     const [pulse, setPulse] = useState(null);
     const [flash, setFlash] = useState(false);
     const [now, setNow] = useState(() => Date.now());
+    // Reset point: when set, only records created after it are counted.
+    const [since, setSince] = useState(null);
+    const [baselineReady, setBaselineReady] = useState(false);
+    const [resetting, setResetting] = useState(false);
 
     const signatureRef = useRef(null);
     const loadingRef = useRef(false);
+    const sinceRef = useRef(null);
 
-    const loadAnalytics = useCallback(async ({ fresh = false, silent = false } = {}) => {
-        if (loadingRef.current) return;
+    const loadAnalytics = useCallback(async ({ fresh = false, silent = false, force = false } = {}) => {
+        if (loadingRef.current && !force) return;
         loadingRef.current = true;
         if (!silent) setLoading(true);
         setError("");
         try {
+            const currentSince = sinceRef.current;
             const response = await axios.get("/api/dashboard/analytics", {
-                params: { _ts: Date.now(), ...(fresh ? { fresh: 1 } : {}) },
+                params: {
+                    _ts: Date.now(),
+                    ...(fresh ? { fresh: 1 } : {}),
+                    ...(currentSince ? { since: currentSince } : {}),
+                },
                 headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
             });
+            // A reset / all-time switch happened while this request was running.
+            if (sinceRef.current !== currentSince) return;
             const data = response?.data?.data;
             setModules(Array.isArray(data) ? data : []);
             setLastUpdated(new Date());
@@ -616,13 +641,57 @@ function DashboardAnalytics() {
         }
     }, []);
 
+    // Load the saved reset point first, then the analytics for it.
     useEffect(() => {
-        loadAnalytics();
+        let alive = true;
+        (async () => {
+            try {
+                const { data } = await axios.get("/api/dashboard/analytics/baseline", { params: { _ts: Date.now() } });
+                if (!alive) return;
+                const saved = data?.data?.since || null;
+                sinceRef.current = saved;
+                setSince(saved);
+            } catch {
+                // Older API without reset support – show all-time counts.
+            } finally {
+                if (alive) {
+                    setBaselineReady(true);
+                    loadAnalytics();
+                }
+            }
+        })();
+        return () => { alive = false; };
     }, [loadAnalytics]);
+
+    const applySince = useCallback(async (request) => {
+        setResetting(true);
+        setError("");
+        try {
+            const { data } = await request();
+            const next = data?.data?.since || null;
+            sinceRef.current = next;
+            setSince(next);
+            await loadAnalytics({ fresh: true, force: true });
+        } catch (requestError) {
+            setError(requestError?.response?.data?.message || "Unable to update the analytics reset point.");
+        } finally {
+            setResetting(false);
+        }
+    }, [loadAnalytics]);
+
+    const handleReset = useCallback(
+        () => applySince(() => axios.post("/api/dashboard/analytics/baseline")),
+        [applySince]
+    );
+
+    const handleShowAllTime = useCallback(
+        () => applySince(() => axios.delete("/api/dashboard/analytics/baseline")),
+        [applySince]
+    );
 
     // ---------- REAL TIME ----------
     useEffect(() => {
-        if (!live) return undefined;
+        if (!live || !baselineReady) return undefined;
         let alive = true;
 
         const checkPulse = async () => {
@@ -653,7 +722,7 @@ function DashboardAnalytics() {
             window.clearInterval(fullTimer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, [live, loadAnalytics]);
+    }, [live, baselineReady, loadAnalytics]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -667,7 +736,21 @@ function DashboardAnalytics() {
         return modules.find((module) => module.key === selectedKey) || null;
     }, [modules, selectedKey]);
 
+    // Modules that read the same data (Checklist Reports / Checklist
+    // Submission, Attendance / Attendance Reports, Users / Profile) are
+    // counted only once in the "All Modules" overview.
+    const uniqueList = useMemo(() => {
+        const seen = new Set();
+        return list.filter((module) => {
+            const group = module.group || (module.tables || []).slice().sort().join("|") || module.key;
+            if (seen.has(group)) return false;
+            seen.add(group);
+            return true;
+        });
+    }, [list]);
+
     const overview = useMemo(() => {
+        const list = uniqueList;
         const total = list.reduce((sum, module) => sum + Number(module.total || 0), 0);
         const positive = list.filter((module) => Number(module.change || 0) > 0).length;
         const negative = list.filter((module) => Number(module.change || 0) < 0).length;
@@ -707,7 +790,7 @@ function DashboardAnalytics() {
             trendRanges,
             moduleCount: list.length,
         };
-    }, [list]);
+    }, [uniqueList]);
 
     const view = selectedModule || overview;
     const topStatus = [...(view.status || [])].sort((a, b) => b.total - a.total)[0];
@@ -787,6 +870,16 @@ function DashboardAnalytics() {
 
                     <button
                         type="button"
+                        className="analytics-refresh da3-reset"
+                        onClick={handleReset}
+                        disabled={resetting}
+                        title="Reset counts to zero and count only records created from now on"
+                    >
+                        <FaUndoAlt className={resetting ? "analytics-spin" : ""} /> Reset
+                    </button>
+
+                    <button
+                        type="button"
                         className="analytics-refresh"
                         onClick={() => loadAnalytics({ fresh: true })}
                         disabled={loading}
@@ -797,6 +890,19 @@ function DashboardAnalytics() {
                     </button>
                 </div>
             </section>
+
+            {since && (
+                <div className="da3-since-bar">
+                    <span>
+                        <FaHistory /> Counting records created since <b>{formatSince(since)}</b>
+                        {" "}— older data is excluded.
+                    </span>
+                    <div>
+                        <button type="button" onClick={handleReset} disabled={resetting}>Reset again</button>
+                        <button type="button" onClick={handleShowAllTime} disabled={resetting}>Show all-time</button>
+                    </div>
+                </div>
+            )}
 
             {error && <div className="analytics-error">{error}</div>}
 
@@ -812,7 +918,7 @@ function DashboardAnalytics() {
                             <div>
                                 <span>Total Records</span>
                                 <strong><AnimatedNumber value={view.total} /></strong>
-                                <small>{selectedModule ? selectedModule.name : `${overview.moduleCount} modules analyzed`}</small>
+                                <small>{selectedModule ? selectedModule.name : `${overview.moduleCount} modules analyzed`}{since ? " · since reset" : ""}</small>
                             </div>
                         </article>
 

@@ -534,6 +534,23 @@ exports.createSubmission = async (req, res) => {
                 }
 
                 // ==================================================
+                // ACTION POINT EMAIL (separate routing)
+                // ==================================================
+                // Routed by Settings → Action Point Email Routing, NOT by
+                // the Checklist routing. One email per store submission
+                // listing every Action Point raised (if any).
+                try {
+                    await checklistEmailService.sendActionPointsForSubmission(
+                        submissionId
+                    );
+                } catch (emailError) {
+                    console.error(
+                        "ACTION POINTS GENERATED EMAIL ERROR:",
+                        emailError.message
+                    );
+                }
+
+                // ==================================================
                 // RESPONSE
                 // ==================================================
 

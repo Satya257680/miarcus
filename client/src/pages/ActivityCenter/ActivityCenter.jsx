@@ -60,6 +60,13 @@ const EMPTY_FILTERS = {
     date_from: "",
     date_to: "",
     new_store_opening_id: "",
+    quick: "",
+};
+
+// Quick views behind the clickable KPI cards (see buildActivityWhere
+// on the server – same conditions as the card counts).
+const QUICK_LABELS = {
+    today: "Today",
 };
 
 const FILTER_LABELS = {
@@ -72,6 +79,7 @@ const FILTER_LABELS = {
     date_from: "From",
     date_to: "To",
     new_store_opening_id: "NSO",
+    quick: "Show",
 };
 
 const PRIORITY_ORDER = ["low", "medium", "high", "critical"];
@@ -328,11 +336,43 @@ function ActivityCenter() {
     const from = total === 0 ? 0 : (page - 1) * limit + 1;
     const to = Math.min((page - 1) * limit + activities.length, Math.max(total, (page - 1) * limit + activities.length));
 
+    // Every KPI card is clickable:
+    //   Total  -> clears every filter and shows all activity
+    //   Today  -> only activity logged today (toggle)
+    //   Open   -> Status = Open (toggle)
+    //   High   -> Priority = High (toggle)
+    const toggleField = (key, value) => setField(key, applied[key] === value ? "" : value);
+
     const stats = [
-        { key: "total", label: "Total Activities", value: summary.total ?? total, hint: isFiltered ? "Matching filters" : "All recorded activity", icon: <FaHistory />, tone: "violet" },
-        { key: "today", label: "Today", value: summary.today ?? 0, hint: "Logged today", icon: <FaCalendarDay />, tone: "blue" },
-        { key: "open", label: "Open", value: summary.open ?? 0, hint: "Open / in progress", icon: <FaFolderOpen />, tone: "amber", filter: ["status", "Open"] },
-        { key: "high", label: "High Priority", value: summary.high_priority ?? 0, hint: "High / critical", icon: <FaExclamationTriangle />, tone: "red", filter: ["priority", "High"] },
+        {
+            key: "total", label: "Total Activities", value: summary.total ?? total,
+            hint: isFiltered ? "Matching filters · click to show all" : "All recorded activity",
+            icon: <FaHistory />, tone: "violet",
+            active: !isFiltered,
+            title: "Show all activity (clear filters)",
+            onClick: handleReset,
+        },
+        {
+            key: "today", label: "Today", value: summary.today ?? 0, hint: "Logged today",
+            icon: <FaCalendarDay />, tone: "blue",
+            active: applied.quick === "today",
+            title: "Show only activity logged today",
+            onClick: () => toggleField("quick", "today"),
+        },
+        {
+            key: "open", label: "Open", value: summary.open ?? 0, hint: "Open / in progress",
+            icon: <FaFolderOpen />, tone: "amber",
+            active: applied.status === "Open",
+            title: "Show only Open activity",
+            onClick: () => toggleField("status", "Open"),
+        },
+        {
+            key: "high", label: "High Priority", value: summary.high_priority ?? 0, hint: "High / critical",
+            icon: <FaExclamationTriangle />, tone: "red",
+            active: applied.priority === "High",
+            title: "Show only High priority activity",
+            onClick: () => toggleField("priority", "High"),
+        },
     ];
 
     return (
@@ -359,12 +399,13 @@ function ActivityCenter() {
                 {stats.map((stat) => (
                     <div
                         key={stat.key}
-                        className={`ac-stat ac-tone-${stat.tone} ${stat.filter ? "ac-stat-click" : ""}`}
-                        role={stat.filter ? "button" : undefined}
-                        tabIndex={stat.filter ? 0 : undefined}
-                        title={stat.filter ? `Show only ${stat.filter[1]} ${stat.filter[0]}` : undefined}
-                        onClick={stat.filter ? () => setField(stat.filter[0], stat.filter[1]) : undefined}
-                        onKeyDown={stat.filter ? (e) => e.key === "Enter" && setField(stat.filter[0], stat.filter[1]) : undefined}
+                        className={`ac-stat ac-tone-${stat.tone} ac-stat-click ${stat.active ? "ac-stat-active" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={Boolean(stat.active)}
+                        title={stat.title}
+                        onClick={stat.onClick}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), stat.onClick())}
                     >
                         <div className="ac-stat-icon">{stat.icon}</div>
                         <div>
@@ -472,7 +513,7 @@ function ActivityCenter() {
                     <div className="ac-chips">
                         {Object.entries(appliedActive).map(([key, value]) => (
                             <button type="button" key={key} className="ac-chip" onClick={() => clearOne(key)} title="Remove filter">
-                                <span>{FILTER_LABELS[key] || key}:</span> <b>{String(value)}</b> <FaTimes />
+                                <span>{FILTER_LABELS[key] || key}:</span> <b>{key === "quick" ? (QUICK_LABELS[value] || value) : String(value)}</b> <FaTimes />
                             </button>
                         ))}
                         <button type="button" className="ac-chip ac-chip-clear" onClick={handleReset}>Clear all</button>

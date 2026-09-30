@@ -80,6 +80,18 @@ const buildActivityWhere = (filters = {}, user) => {
         params.push(`${text(filters.date_to)} 23:59:59`);
     }
 
+    // Quick views used by the clickable KPI cards. They use exactly the
+    // same conditions as the summary counts, so clicking a card shows
+    // the same number of records the card displays.
+    const quick = text(filters.quick).toLowerCase();
+    if (quick === "today") {
+        where.push("DATE(a.created_at) = CURDATE()");
+    } else if (quick === "open") {
+        where.push("LOWER(TRIM(a.status)) IN ('open', 'in progress', 'pending')");
+    } else if (quick === "high") {
+        where.push("LOWER(TRIM(a.priority)) IN ('high', 'critical')");
+    }
+
     const nsoId = Number(filters.new_store_opening_id);
     if (Number.isInteger(nsoId) && nsoId > 0) {
         where.push("a.module_name = 'New Store Openings' AND a.reference_id = ?");
@@ -127,8 +139,8 @@ Activity.getAll = (filters, user, callback) => {
         SELECT
             COUNT(*) AS total,
             COALESCE(SUM(CASE WHEN DATE(a.created_at) = CURDATE() THEN 1 ELSE 0 END), 0) AS today,
-            COALESCE(SUM(CASE WHEN LOWER(a.priority) IN ('high', 'critical') THEN 1 ELSE 0 END), 0) AS high_count,
-            COALESCE(SUM(CASE WHEN LOWER(a.status) IN ('open', 'in progress', 'pending') THEN 1 ELSE 0 END), 0) AS open_count
+            COALESCE(SUM(CASE WHEN LOWER(TRIM(a.priority)) IN ('high', 'critical') THEN 1 ELSE 0 END), 0) AS high_count,
+            COALESCE(SUM(CASE WHEN LOWER(TRIM(a.status)) IN ('open', 'in progress', 'pending') THEN 1 ELSE 0 END), 0) AS open_count
         FROM activities a
         ${joins}
         ${whereSql}

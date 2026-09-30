@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const ActionPoint = require("../models/actionPointModel");
 const { reclassify } = require("../services/actionPointReclassifyService");
 
 // ======================================================
@@ -15,6 +16,16 @@ exports.getActionPointSummary = async (req, res) => {
             params.push(Number(req.query.store_id));
         }
 
+        // Same SLA rule as the list's view=overdue filter and the live
+        // countdown in the table (sla_minutes, else legacy sla_value days).
+        const SLA_MIN = ActionPoint.AP_SLA_MINUTES_SQL;
+
+        // Rows the Action Points list shows (closed checklist Action
+        // Points move to Checklist Reports) – used for "Today" so the
+        // card count equals the records shown when it is clicked.
+        const VISIBLE = `NOT (LOWER(COALESCE(ap.status, 'Open')) = 'closed'
+                          AND (ap.submission_answer_id IS NOT NULL OR ap.submission_id IS NOT NULL))`;
+
         const rows = await db.query(`
             SELECT
                 COUNT(*) AS total,
@@ -24,10 +35,13 @@ exports.getActionPointSummary = async (req, res) => {
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'Open')) <> 'closed'
                           AND ap.priority IN ('High','Critical') THEN 1 ELSE 0 END) AS high_priority_count,
                 SUM(CASE WHEN LOWER(COALESCE(ap.status,'Open')) <> 'closed'
-                          AND COALESCE(ap.sla_minutes, 0) > 0
-                          AND DATE_ADD(ap.created_at, INTERVAL ap.sla_minutes MINUTE) < NOW()
-                         THEN 1 ELSE 0 END) AS overdue_count
+                          AND ${SLA_MIN} > 0
+                          AND DATE_ADD(ap.created_at, INTERVAL ${SLA_MIN} MINUTE) <= NOW()
+                         THEN 1 ELSE 0 END) AS overdue_count,
+                SUM(CASE WHEN DATE(ap.created_at) = CURDATE() AND ${VISIBLE}
+                         THEN 1 ELSE 0 END) AS today_count
             FROM action_points ap
+            INNER JOIN stores s ON s.id = ap.store_id
             ${where}
         `, params);
 
@@ -40,7 +54,8 @@ exports.getActionPointSummary = async (req, res) => {
                 in_progress: Number(r.in_progress_count || 0),
                 closed: Number(r.closed_count || 0),
                 high_priority: Number(r.high_priority_count || 0),
-                overdue: Number(r.overdue_count || 0)
+                overdue: Number(r.overdue_count || 0),
+                today: Number(r.today_count || 0)
             }
         });
     } catch (error) {

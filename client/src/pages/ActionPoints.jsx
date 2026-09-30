@@ -40,6 +40,7 @@ import {
     FaHourglassHalf,
     FaCheckCircle,
     FaExclamationTriangle,
+    FaCalendarDay,
 } from "react-icons/fa";
 
 import InsightStrip, { useInsightSummary } from "../components/premium/InsightStrip";
@@ -197,6 +198,12 @@ const getSlaMeta = (row, now = Date.now()) => {
     };
 };
 
+const VIEW_LABELS = {
+    overdue: "Overdue",
+    today: "Today",
+    high: "High / Critical open",
+};
+
 function ActionPoints() {
 
     // ======================================================
@@ -235,6 +242,10 @@ function ActionPoints() {
     const [department, setDepartment] = useState("");
 
     const [status, setStatus] = useState("");
+
+    // Quick view from the clickable KPI cards: "overdue" | "today" | "".
+    // Sent to the API as ?view=… and combined with the other filters.
+    const [view, setView] = useState("");
 
     const [priority, setPriority] = useState("");
 
@@ -405,6 +416,7 @@ const fetchActionPointsOnce = () =>
                 new_store_opening_id: nsoProject,
                 priority,
                 status,
+                view,
                 start_date: startDate,
                 end_date: endDate
             }
@@ -632,6 +644,8 @@ useEffect(() => {
 
     status,
 
+    view,
+
     startDate,
 
     endDate
@@ -797,6 +811,7 @@ const deleteFilters = activeFilters({
     new_store_opening_id: nsoProject,
     priority,
     status,
+    view,
     start_date: startDate,
     end_date: endDate
 });
@@ -1005,6 +1020,7 @@ const handleManagementExport = async () => {
                     checklist_type_id: checklistType,
                     priority,
                     status,
+                    view,
                     start_date: startDate,
                     end_date: endDate,
                 },
@@ -1040,6 +1056,32 @@ const handleManagementExport = async () => {
 };
 
 // ======================================================
+// KPI CARD CLICK
+// ======================================================
+// Every KPI card is clickable. A status card (Open / In Progress /
+// Completed) shows that status; Today / Overdue switch to the quick
+// view and show every status. Clicking the active card again goes
+// back to all Action Points.
+
+const showCard = (nextStatus, nextView) => {
+
+    const alreadyActive =
+        status === nextStatus &&
+        view === nextView;
+
+    if (alreadyActive && (nextStatus || nextView)) {
+        setStatus("");
+        setView("");
+    } else {
+        setStatus(nextStatus);
+        setView(nextView);
+    }
+
+    setCurrentPage(1);
+
+};
+
+// ======================================================
 // SUCCESS
 // ======================================================
 
@@ -1068,6 +1110,8 @@ const handleClearFilters = () => {
     setNsoProject("");
 
     setStatus("Open");
+
+    setView("");
 
     setPriority("");
 
@@ -1115,6 +1159,8 @@ useEffect(() => {
     department,
 
     status,
+
+    view,
 
     priority,
 
@@ -1749,8 +1795,18 @@ return (
                     hint: "All Action Points",
                     tone: "violet",
                     icon: FaListUl,
-                    active: !status,
-                    onClick: () => { setStatus(""); setCurrentPage(1); }
+                    active: !status && !view,
+                    onClick: () => showCard("", "")
+                },
+                {
+                    key: "today",
+                    label: "Today",
+                    value: apSummary?.today,
+                    hint: "Raised today",
+                    tone: "slate",
+                    icon: FaCalendarDay,
+                    active: view === "today",
+                    onClick: () => showCard("", "today")
                 },
                 {
                     key: "open",
@@ -1759,8 +1815,8 @@ return (
                     hint: "Waiting for action",
                     tone: "blue",
                     icon: FaFolderOpen,
-                    active: status === "Open",
-                    onClick: () => { setStatus("Open"); setCurrentPage(1); }
+                    active: status === "Open" && !view,
+                    onClick: () => showCard("Open", "")
                 },
                 {
                     key: "progress",
@@ -1769,8 +1825,8 @@ return (
                     hint: "Being worked on",
                     tone: "amber",
                     icon: FaHourglassHalf,
-                    active: status === "In Progress",
-                    onClick: () => { setStatus("In Progress"); setCurrentPage(1); }
+                    active: status === "In Progress" && !view,
+                    onClick: () => showCard("In Progress", "")
                 },
                 {
                     key: "closed",
@@ -1779,8 +1835,8 @@ return (
                     hint: "Moved to Checklist Reports",
                     tone: "green",
                     icon: FaCheckCircle,
-                    active: status === "Closed",
-                    onClick: () => { setStatus("Closed"); setCurrentPage(1); }
+                    active: status === "Closed" && !view,
+                    onClick: () => showCard("Closed", "")
                 },
                 {
                     key: "overdue",
@@ -1788,7 +1844,9 @@ return (
                     value: apSummary?.overdue,
                     hint: `${apSummary?.high_priority ?? 0} high / critical open`,
                     tone: "red",
-                    icon: FaExclamationTriangle
+                    icon: FaExclamationTriangle,
+                    active: view === "overdue",
+                    onClick: () => showCard("", "overdue")
                 }
             ]}
         />
@@ -2014,6 +2072,42 @@ return (
             </div>
 
             {/* ==========================================
+                QUICK VIEW (same as the KPI cards)
+            ========================================== */}
+
+            <div className="filter-group">
+
+                <label>Show</label>
+
+                <select
+                    value={view}
+                    onChange={(e) => {
+                        setView(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                >
+
+                    <option value="">
+                        All Action Points
+                    </option>
+
+                    <option value="today">
+                        Raised Today
+                    </option>
+
+                    <option value="overdue">
+                        Overdue
+                    </option>
+
+                    <option value="high">
+                        High / Critical (open)
+                    </option>
+
+                </select>
+
+            </div>
+
+            {/* ==========================================
                 PRIORITY
             ========================================== */}
 
@@ -2130,7 +2224,7 @@ return (
 <Card
     className="premium-table-card"
     title="Action Point List"
-    subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"}${status ? ` · ${status}` : ""}`}
+    subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"}${status ? ` · ${status}` : ""}${view ? ` · ${VIEW_LABELS[view] || view}` : ""}`}
 >
 
     <DataTable

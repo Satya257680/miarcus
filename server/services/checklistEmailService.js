@@ -2,17 +2,30 @@ const db = require("../config/db");
 const { sendGenericEmail } = require("./emailService");
 const ChecklistEmailSettings = require("../models/checklistEmailSettingsModel");
 
+const ActionPointEmailSettings = require("../models/actionPointEmailSettingsModel");
+
 // ======================================================
 // CHECKLIST & ACTION POINT EMAILS
 // ======================================================
 //
+// Two SEPARATE routings:
+//
+//   Checklist submitted  -> Settings → Checklist & Controls →
+//                           Checklist Email Routing
+//   Action Point events  -> Settings → Checklist & Controls →
+//   (generated / status /   Action Point Email Routing
+//    completed)
+//
+// Each routing has its own contact list, its own store-manager /
+// submitter switches and its own master switches, so turning on
+// Checklist emails never sends Action Point emails (and vice versa).
+//
 // Recipients (per event):
-//   • Checklist email contacts (Settings → Checklist & Controls →
-//     Email Routing) that are enabled for the event – same idea as the
-//     New Store Opening contact list.
+//   • Contacts of that routing enabled for the event.
 //   • The manager of THAT store only (Chat Store Manager, falling back
 //     to the email saved on the store in Store Management).
 //   • Optionally the employee who submitted the checklist.
+//   • Action Points only: optionally the assigned person.
 //
 // Administrators are no longer broadcast to automatically.
 // ======================================================
@@ -188,15 +201,19 @@ const getActionPointContext = async (actionPointId) => {
 // ------------------------------------------------------
 // RECIPIENTS
 // ------------------------------------------------------
-const getRecipients = async ({ event, storeId, settings, submitter }) => {
+const AP_EVENTS = new Set(["ACTION_POINT_CREATED", "ACTION_POINT_STATUS", "ACTION_POINT_COMPLETED"]);
+
+const routingFor = (event) => (AP_EVENTS.has(event) ? ActionPointEmailSettings : ChecklistEmailSettings);
+
+const getRecipients = async ({ event, storeId, settings, submitter, assignee }) => {
     const recipients = new Map();
     const add = (email, type, name) => {
         const valid = validEmail(email);
         if (valid && !recipients.has(valid)) recipients.set(valid, { type, name: name || "", email: valid });
     };
 
-    // 1. Contact list (like NSO email routing)
-    for (const contact of await ChecklistEmailSettings.getContactsForEvent(event)) {
+    // 1. Contact list of the routing this event belongs to
+    for (const contact of await routingFor(event).getContactsForEvent(event)) {
         add(contact.email, contact.role_label || "Contact", contact.contact_name);
     }
 
@@ -212,12 +229,17 @@ const getRecipients = async ({ event, storeId, settings, submitter }) => {
         add(submitter.email, "Submitted By", submitter.name);
     }
 
+    // 4. Action Points only: the person the Action Point is assigned to
+    if (AP_EVENTS.has(event) && Number(settings.assignee_recipients_enabled) === 1 && assignee) {
+        add(assignee.email, "Assigned To", assignee.name);
+    }
+
     const details = Array.from(recipients.values());
     return { recipients: details.map((row) => row.email), details };
 };
 
 const eventEnabled = async (event) => {
-    const settings = await ChecklistEmailSettings.getSettings();
+    const settings = await routingFor(event).getSettings();
     const key = EVENTS[event];
     return { settings, enabled: Boolean(key && Number(settings[key]) === 1) };
 };
@@ -253,7 +275,7 @@ const tableRow = (label, value, { html = false } = {}) =>
         <td style="padding:10px 14px;border-bottom:1px solid #eef2f7;color:#0f172a;font-size:14px;font-weight:600;">${html ? value : escapeHtml(value || "-")}</td>
     </tr>`;
 
-const buildEmail = ({ subject, eyebrow, intro, rows, extraHtml = "", actionLabel, actionLink, accent = "#6d28d9" }) => `
+const buildEmail = ({ subject, eyebrow, intro, rows, extraHtml = "", actionLabel, actionLink, accent = "#6d28d9", footerLabel = "Action Point" }) => `
 <div style="font-family:'Segoe UI',Arial,sans-serif;background:#f3f1fb;padding:28px 12px;color:#172033;">
   <div style="max-width:720px;margin:auto;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(76,29,149,.12);">
     <div style="padding:26px 30px;background:linear-gradient(135deg,${accent},#8b5cf6 60%,#a78bfa);color:#fff;">
@@ -265,7 +287,7 @@ const buildEmail = ({ subject, eyebrow, intro, rows, extraHtml = "", actionLabel
       <table style="width:100%;border-collapse:collapse;border:1px solid #eef2f7;border-radius:12px;overflow:hidden;">${rows.join("")}</table>
       ${extraHtml}
       ${actionLink ? `<div style="margin-top:24px;"><a href="${escapeHtml(actionLink)}" style="display:inline-block;padding:12px 20px;background:${accent};color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">${escapeHtml(actionLabel || "Open Mi Arcus")}</a></div>` : ""}
-      <p style="margin:26px 0 0;color:#94a3b8;font-size:12px;">This email was generated automatically by the Mi Arcus Checklist workflow.</p>
+      <p style="margin:26px 0 0;color:#94a3b8;font-size:12px;">This email was generated automatically by the Mi Arcus ${escapeHtml(footerLabel)} workflow.</p>
     </div>
   </div>
 </div>`;
@@ -355,13 +377,18 @@ const sendActionPointEvent = async (actionPointId, event, extra = {}) => {
         submitter = await getUserContact(actionPoint.submitted_by);
     }
 
+    const assignee = actionPoint.assigned_to_email
+        ? { name: actionPoint.assigned_to_name, email: actionPoint.assigned_to_email }
+        : null;
+
     const { recipients } = await getRecipients({
         event,
         storeId: actionPoint.store_id,
         settings,
-        submitter
+        submitter,
+        assignee
     });
-    if (!recipients.length) return { sent: false, reason: "No valid Checklist email recipients configured." };
+    if (!recipients.length) return { sent: false, reason: "No valid Action Point email recipients configured." };
 
     const status = extra.status || actionPoint.status || "Open";
     const isCompleted = event === "ACTION_POINT_COMPLETED" || status === "Closed";
@@ -419,9 +446,153 @@ const sendActionPointEvent = async (actionPointId, event, extra = {}) => {
     return { sent: true, recipients };
 };
 
+// ------------------------------------------------------
+// ACTION POINTS GENERATED – ONE EMAIL PER STORE SUBMISSION
+// ------------------------------------------------------
+// Sent right after a checklist is submitted (next to the Checklist
+// email, but routed by Action Point Email Routing). Whatever the number
+// of Action Points raised, the store gets ONE email listing them all.
+// With "one email per store" switched off, one email per Action Point
+// is sent instead.
+const getSubmissionActionPoints = async (submissionId) => {
+    try {
+        return await db.query(`
+            SELECT ap.id, ap.priority, ap.status, ap.sla_value, ap.sla_minutes,
+                   q.question, csa.answer, csa.remarks,
+                   d.name AS department_name,
+                   au.name AS assigned_to_name, au.email AS assigned_to_email
+            FROM action_points ap
+            LEFT JOIN questions q ON q.id = ap.question_id
+            LEFT JOIN checklist_submission_answers csa ON csa.id = ap.submission_answer_id
+            LEFT JOIN departments d ON d.id = ap.department_id
+            LEFT JOIN users au ON au.id = ap.assigned_to
+            WHERE ap.submission_id = ?
+            ORDER BY FIELD(ap.priority, 'Critical', 'High', 'Medium', 'Low'), ap.id ASC
+        `, [Number(submissionId)]);
+    } catch (error) {
+        console.warn("Action Point digest: could not load Action Points:", error.message);
+        return [];
+    }
+};
+
+const slaText = (row) => {
+    const minutes = Number(row.sla_minutes) || (Number(row.sla_value) || 0) * 1440;
+    if (!minutes) return "-";
+    if (minutes % 1440 === 0) return `${minutes / 1440} day${minutes === 1440 ? "" : "s"}`;
+    if (minutes % 60 === 0) return `${minutes / 60} hr`;
+    return `${minutes} min`;
+};
+
+const sendActionPointsForSubmission = async (submissionId) => {
+    const { settings, enabled } = await eventEnabled("ACTION_POINT_CREATED");
+    if (!enabled) return { sent: false, skipped: true, reason: "Action Point generated email is disabled." };
+
+    const actionPoints = await getSubmissionActionPoints(submissionId);
+    if (!actionPoints.length) return { sent: false, skipped: true, reason: "No Action Points raised." };
+
+    // Per-Action-Point mode.
+    if (Number(settings.one_email_per_store) !== 1) {
+        const results = [];
+        for (const row of actionPoints) {
+            try {
+                results.push(await sendActionPointEvent(row.id, "ACTION_POINT_CREATED"));
+            } catch (error) {
+                results.push({ sent: false, reason: error.message });
+            }
+        }
+        return { sent: results.some((r) => r.sent), mode: "per_action_point", results };
+    }
+
+    const submission = await getSubmissionContext(submissionId);
+    if (!submission) return { sent: false, reason: "Checklist submission not found." };
+
+    // Assigned people of ALL listed Action Points (if that switch is on).
+    const { recipients: baseRecipients } = await getRecipients({
+        event: "ACTION_POINT_CREATED",
+        storeId: submission.store_id,
+        settings,
+        submitter: { name: submission.submitted_by_name, email: submission.submitted_by_email }
+    });
+    const recipients = [...baseRecipients];
+    if (Number(settings.assignee_recipients_enabled) === 1) {
+        for (const row of actionPoints) {
+            const email = validEmail(row.assigned_to_email);
+            if (email && !recipients.includes(email)) recipients.push(email);
+        }
+    }
+    if (!recipients.length) return { sent: false, reason: "No valid Action Point email recipients configured." };
+
+    const storeName = submission.store_name || "Store";
+    const count = actionPoints.length;
+    const subject = `${count} Action Point${count === 1 ? "" : "s"} Generated – ${storeName}`;
+    const highCount = actionPoints.filter((row) => ["high", "critical"].includes(String(row.priority || "").toLowerCase())).length;
+
+    const cell = "padding:9px 10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#0f172a;vertical-align:top;";
+    const head = "padding:9px 10px;background:#f5f3ff;color:#4c1d95;font-size:11px;font-weight:800;letter-spacing:.5px;text-align:left;text-transform:uppercase;";
+    const listHtml = `
+      <h3 style="margin:24px 0 10px;font-size:15px;color:#0f172a;">Action Points raised (${count})</h3>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #eef2f7;">
+        <tr>
+          <th style="${head}">#</th>
+          <th style="${head}">Question / Problem</th>
+          <th style="${head}">Answer</th>
+          <th style="${head}">Priority</th>
+          <th style="${head}">SLA</th>
+          <th style="${head}">Department</th>
+        </tr>
+        ${actionPoints.map((row, index) => `
+        <tr>
+          <td style="${cell}color:#64748b;">${index + 1}<div style="font-size:11px;color:#94a3b8;">AP #${escapeHtml(row.id)}</div></td>
+          <td style="${cell}font-weight:600;">${escapeHtml(row.question || "-")}${row.remarks ? `<div style="margin-top:4px;font-weight:400;color:#64748b;font-size:12px;">Remarks: ${escapeHtml(row.remarks)}</div>` : ""}</td>
+          <td style="${cell}">${escapeHtml(row.answer || "-")}</td>
+          <td style="${cell}">${pill(row.priority || "Medium", PRIORITY_COLORS)}</td>
+          <td style="${cell}">${escapeHtml(slaText(row))}</td>
+          <td style="${cell}">${escapeHtml(row.department_name || "-")}</td>
+        </tr>`).join("")}
+      </table>`;
+
+    const html = buildEmail({
+        subject,
+        eyebrow: "ACTION POINTS GENERATED",
+        intro: `The checklist submitted by ${storeName} reported ${count} problem${count === 1 ? "" : "s"}. ${count === 1 ? "An Action Point has" : "Action Points have"} been raised and need${count === 1 ? "s" : ""} action.`,
+        rows: [
+            tableRow("Store", storeName),
+            tableRow("City", [submission.city, submission.state].filter(Boolean).join(", ")),
+            tableRow("Checklist", submission.checklist_name),
+            tableRow("Submitted By", submission.submitted_by_name),
+            tableRow("Submitted On", formatStoredIST(submission.submission_date_raw)),
+            tableRow("Action Points", String(count)),
+            tableRow("High / Critical", String(highCount))
+        ],
+        extraHtml: listHtml,
+        accent: "#b45309",
+        actionLabel: "Open Action Points",
+        actionLink: toAppUrl("/action-points")
+    });
+
+    await sendGenericEmail({
+        to: recipients,
+        subject,
+        html,
+        text: [
+            subject,
+            `Store: ${storeName}`,
+            `Checklist: ${submission.checklist_name || "-"}`,
+            `Submitted by: ${submission.submitted_by_name || "-"}`,
+            "",
+            ...actionPoints.map((row, index) => `${index + 1}. [${row.priority || "Medium"}] ${row.question || "-"} – ${row.answer || "-"}`),
+            "",
+            `Review on the MI ARCUS Portal: ${toAppUrl("/action-points")}`
+        ].join("\n")
+    });
+
+    return { sent: true, mode: "one_per_store", recipients, action_points: count };
+};
+
 module.exports = {
     EVENTS,
     getRecipients,
     sendChecklistSubmitted,
-    sendActionPointEvent
+    sendActionPointEvent,
+    sendActionPointsForSubmission
 };

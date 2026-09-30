@@ -706,3 +706,10 @@
     .ac-page-numbers { display: none; }
     .ac-pagination { justify-content: center; }
 }
+
+/* Active (selected) KPI card */
+.ac-stat-active {
+    border-color: var(--tone);
+    box-shadow: 0 0 0 2px var(--tone), 0 14px 28px -18px rgba(76, 29, 149, .45);
+}
+.ac-stat-click:focus-visible { outline: 3px solid var(--tone); outline-offset: 2px; }

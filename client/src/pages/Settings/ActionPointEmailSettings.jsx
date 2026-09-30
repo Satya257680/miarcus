@@ -11,9 +11,13 @@ import {
     FaStore,
     FaClipboardCheck,
     FaTasks,
+    FaCheck,
+    FaBell,
     FaPlus,
     FaTrash,
     FaUserEdit,
+    FaUserCheck,
+    FaLayerGroup,
     FaExclamationTriangle
 } from "react-icons/fa";
 import "../../styles/pages/ChecklistEmailSettings.css";
@@ -23,35 +27,55 @@ import "../../styles/premium/ModulesPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 
 // ======================================================
-// CHECKLIST & CONTROLS – EMAIL ROUTING
+// ACTION POINTS – EMAIL ROUTING
 // ======================================================
-// Only the "Checklist submitted" email is routed here. Action Point
-// emails have their own page: Settings → Action Point Email Routing.
-// Recipients are managed like New Store Opening email routing:
-//   • a named contact list with per-event switches
+// Completely separate from Checklist Email Routing:
+//   • its own contact list with per-event switches
 //   • the manager of the SPECIFIC store only (never other stores)
-//   • optionally the person who submitted the checklist
+//   • optionally the submitter and the assigned person
+//   • one email per store submission listing every Action Point
 // ======================================================
 
+const API_URL = "/api/action-point-email-settings";
+
 const defaults = {
-    checklist_submitted_enabled: 1,
     action_point_created_enabled: 1,
     action_point_status_enabled: 1,
     action_point_completed_enabled: 1,
     store_manager_recipients_enabled: 1,
     submitter_recipients_enabled: 1,
+    assignee_recipients_enabled: 1,
+    one_email_per_store: 1,
     recipients: []
 };
 
 const events = [
     {
-        key: "checklist_submitted_enabled",
-        column: "send_on_submission",
-        short: "Submission",
-        icon: FaClipboardCheck,
-        title: "Checklist submitted",
-        description: "Sent when a store checklist is submitted – includes the list of issues raised.",
-        badge: "Submission"
+        key: "action_point_created_enabled",
+        column: "send_on_ap_created",
+        short: "Generated",
+        icon: FaTasks,
+        title: "Action Point generated",
+        description: "Sent when a checklist answer reports a problem (one email per store listing all of them) or an Action Point is created manually.",
+        badge: "Needs Action"
+    },
+    {
+        key: "action_point_status_enabled",
+        column: "send_on_ap_status",
+        short: "Status",
+        icon: FaBell,
+        title: "Action Point status changed",
+        description: "Sent when an Action Point moves between Open and In Progress.",
+        badge: "Progress"
+    },
+    {
+        key: "action_point_completed_enabled",
+        column: "send_on_ap_completed",
+        short: "Completed",
+        icon: FaCheck,
+        title: "Action Point completed",
+        description: "Sent when the Action Point is closed and its answer moves to Checklist Reports.",
+        badge: "Completed"
     }
 ];
 
@@ -63,14 +87,13 @@ const newRecipient = () => ({
     contact_name: "",
     email: "",
     enabled: 1,
-    send_on_submission: 1,
     send_on_ap_created: 1,
     send_on_ap_status: 1,
     send_on_ap_completed: 1,
     is_new: true
 });
 
-export default function ChecklistEmailSettings() {
+export default function ActionPointEmailSettings() {
     const navigate = useNavigate();
     const [settings, setSettings] = useState(defaults);
     const [loading, setLoading] = useState(true);
@@ -79,9 +102,9 @@ export default function ChecklistEmailSettings() {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        axios.get("/api/checklist-email-settings")
+        axios.get(API_URL)
             .then(({ data }) => setSettings({ ...defaults, ...(data?.data || {}), recipients: data?.data?.recipients || [] }))
-            .catch(err => setError(err.response?.data?.message || "Unable to load Checklist email settings."))
+            .catch(err => setError(err.response?.data?.message || "Unable to load Action Point email settings."))
             .finally(() => setLoading(false));
     }, []);
 
@@ -144,11 +167,11 @@ export default function ChecklistEmailSettings() {
                     role_label: String(row.role_label || "").trim() || String(row.contact_name || "").trim() || "Recipient"
                 }))
             };
-            const { data } = await axios.put("/api/checklist-email-settings", payload);
+            const { data } = await axios.put(API_URL, payload);
             setSettings({ ...defaults, ...(data?.data || payload), recipients: data?.data?.recipients || payload.recipients });
-            setMessage("Checklist email routing saved successfully.");
+            setMessage("Action Point email routing saved successfully.");
         } catch (err) {
-            setError(err.response?.data?.message || "Unable to save Checklist email settings.");
+            setError(err.response?.data?.message || "Unable to save Action Point email settings.");
         } finally {
             setSaving(false);
         }
@@ -158,17 +181,17 @@ export default function ChecklistEmailSettings() {
         <div className="checklist-email-settings-page pp-premium er-legacy">
             <PremiumHero
                 icon={FaEnvelope}
-                eyebrow="Checklist & Controls · Email routing"
+                eyebrow="Checklist & Controls · Action Point email routing"
                 title="Email Routing"
-                badge="Checklist"
-                subtitle="Choose exactly who is emailed when a checklist is submitted. Action Point emails have their own routing."
+                badge="Action Points"
+                subtitle="Choose exactly who is emailed for Action Points – separate from the Checklist email."
                 meta={[
                     { label: "Contacts", value: String(settings.recipients.length) },
                     { label: "Active", value: String(activeCount) }
                 ]}
                 actions={<>
                     <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings")}><FaArrowLeft /> Settings</button>
-                    <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings/action-point-email")}><FaTasks /> Action Point Routing</button>
+                    <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings/checklist-email")}><FaClipboardCheck /> Checklist Routing</button>
                     <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={save} disabled={saving || loading}><FaSave /> {saving ? "Saving..." : "Save Settings"}</button>
                 </>}
             />
@@ -177,7 +200,7 @@ export default function ChecklistEmailSettings() {
             {error && <div className="checklist-email-alert error"><FaExclamationTriangle /> {error}</div>}
 
             {loading ? (
-                <div className="checklist-email-card loading"><PremiumLoader compact title="Loading email routing" /></div>
+                <div className="checklist-email-card loading"><PremiumLoader compact title="Loading Action Point email routing" /></div>
             ) : (
                 <>
                     {/* ================= STORE-LEVEL RECIPIENTS ================= */}
@@ -186,7 +209,7 @@ export default function ChecklistEmailSettings() {
                             <FaStore />
                             <div>
                                 <h2>Store recipients</h2>
-                                <p>Resolved automatically for every event. Only people of the store that submitted the checklist are emailed – never managers of other stores.</p>
+                                <p>Resolved automatically for every Action Point event. Only people of the store the Action Point belongs to are emailed – never managers of other stores.</p>
                             </div>
                         </div>
 
@@ -195,7 +218,7 @@ export default function ChecklistEmailSettings() {
                                 <div className="checklist-recipient-icon"><FaStore /></div>
                                 <div className="checklist-recipient-copy">
                                     <strong>That store's manager</strong>
-                                    <span>The manager assigned to the submitting store (Chat Store Manager, or the store's email in Store Management).</span>
+                                    <span>The manager assigned to the Action Point's store (Chat Store Manager, or the store's email in Store Management).</span>
                                 </div>
                                 <label className="checklist-switch">
                                     <input type="checkbox" checked={Boolean(settings.store_manager_recipients_enabled)} onChange={e => setValue("store_manager_recipients_enabled", e.target.checked)} />
@@ -207,10 +230,34 @@ export default function ChecklistEmailSettings() {
                                 <div className="checklist-recipient-icon"><FaUserEdit /></div>
                                 <div className="checklist-recipient-copy">
                                     <strong>Person who submitted</strong>
-                                    <span>The employee who filled in the checklist gets a copy of the submission email.</span>
+                                    <span>The employee who filled in the checklist gets the Action Points raised from it and their follow-ups.</span>
                                 </div>
                                 <label className="checklist-switch">
                                     <input type="checkbox" checked={Boolean(settings.submitter_recipients_enabled)} onChange={e => setValue("submitter_recipients_enabled", e.target.checked)} />
+                                    <span />
+                                </label>
+                            </div>
+
+                            <div className={`checklist-recipient-box ${settings.assignee_recipients_enabled ? "active" : ""}`}>
+                                <div className="checklist-recipient-icon"><FaUserCheck /></div>
+                                <div className="checklist-recipient-copy">
+                                    <strong>Assigned person</strong>
+                                    <span>The user an Action Point is assigned to (Assigned To) is emailed about it.</span>
+                                </div>
+                                <label className="checklist-switch">
+                                    <input type="checkbox" checked={Boolean(settings.assignee_recipients_enabled)} onChange={e => setValue("assignee_recipients_enabled", e.target.checked)} />
+                                    <span />
+                                </label>
+                            </div>
+
+                            <div className={`checklist-recipient-box ${settings.one_email_per_store ? "active" : ""}`}>
+                                <div className="checklist-recipient-icon"><FaLayerGroup /></div>
+                                <div className="checklist-recipient-copy">
+                                    <strong>One email per store</strong>
+                                    <span>When a checklist raises several Action Points, the store gets ONE email listing all of them (like the Checklist email). Off = one email per Action Point.</span>
+                                </div>
+                                <label className="checklist-switch">
+                                    <input type="checkbox" checked={Boolean(settings.one_email_per_store)} onChange={e => setValue("one_email_per_store", e.target.checked)} />
                                     <span />
                                 </label>
                             </div>
@@ -222,8 +269,8 @@ export default function ChecklistEmailSettings() {
                         <div className="checklist-email-card-head">
                             <FaUsers />
                             <div>
-                                <h2>Checklist email contacts <em className="checklist-count-pill">{activeCount} active</em></h2>
-                                <p>Head-office people who should be informed (Retail Head, VM, Operations …). Tick the events each contact should receive. Administrators are no longer emailed automatically.</p>
+                                <h2>Action Point email contacts <em className="checklist-count-pill">{activeCount} active</em></h2>
+                                <p>Head-office people who should follow Action Points (Retail Head, VM, Operations …). This list is separate from the Checklist email contacts. Tick the events each contact should receive.</p>
                             </div>
                         </div>
 
@@ -316,7 +363,7 @@ export default function ChecklistEmailSettings() {
                             <FaEnvelope />
                             <div>
                                 <h2>Notification events</h2>
-                                <p>Master switch. When it is off, nobody receives the Checklist email. Action Point emails are switched in Action Point Email Routing.</p>
+                                <p>Master switches for Action Point emails. When an event is off, nobody receives that email. The Checklist email is controlled in Checklist Email Routing.</p>
                             </div>
                         </div>
 
@@ -342,18 +389,18 @@ export default function ChecklistEmailSettings() {
                         <div className="checklist-email-card-head">
                             <FaCheckCircle />
                             <div>
-                                <h2>Checklist workflow</h2>
+                                <h2>Action Point workflow</h2>
                                 <p>The email flow follows the same lifecycle as the application.</p>
                             </div>
                         </div>
                         <div className="checklist-flow-grid">
-                            <div><b>01</b><strong>Checklist Submitted</strong><span>Contacts + that store's manager receive ONE submission email with the number of issues found.</span></div>
-                            <div><b>02</b><strong>Problem → Action Point</strong><span>Action Point emails are sent by the separate Action Point Email Routing (one email per store).</span></div>
-                            <div><b>03</b><strong>Open / In Progress</strong><span>Status change emails – see Action Point Email Routing.</span></div>
-                            <div><b>04</b><strong>Completed → Report</strong><span>After closure, the answer appears in Checklist Reports. “All OK” answers go there directly.</span></div>
+                            <div><b>01</b><strong>Checklist Submitted</strong><span>The Checklist email goes to the Checklist routing only – not to these contacts.</span></div>
+                            <div><b>02</b><strong>Problem → Action Points</strong><span>One Action Point email per store submission, listing every Action Point raised.</span></div>
+                            <div><b>03</b><strong>Open / In Progress</strong><span>Status changes are emailed so the responsible team sees progress.</span></div>
+                            <div><b>04</b><strong>Completed → Report</strong><span>After closure, the answer appears in Checklist Reports.</span></div>
                         </div>
                         <div className="checklist-email-note">
-                            <b>Important:</b> Email failures never cancel a saved checklist or Action Point. Contacts with an empty or disabled email are skipped.
+                            <b>Important:</b> Email failures never cancel a saved checklist or Action Point. Contacts with an empty or disabled email are skipped. Remember to click <b>Save Settings</b>.
                         </div>
                     </div>
                 </>

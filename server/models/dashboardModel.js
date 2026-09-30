@@ -362,37 +362,49 @@ Dashboard.getNSOSummary = (callback) => {
 // BUSINESS ANALYTICS — ALL MODULES
 // ======================================================
 
+// Each module counts ONLY its primary record table(s). Child tables
+// (answers, line items, recipients, logs...) are NOT added on top, otherwise
+// one checklist submission + its answers was counted twice (≈9.9 lakh
+// instead of the real ≈5 lakh). `group` marks modules that read the same
+// data so the "All Modules" overview counts that data only once.
 const ANALYTICS_MODULES = [
     { key: "dashboard", name: "Dashboard", tables: ["users", "stores", "action_points", "checklist_submissions", "new_store_openings"] },
     { key: "action-points", name: "Action Points", tables: ["action_points"] },
-    { key: "announcements", name: "Announcements", tables: ["announcements", "announcement_recipients"] },
-    { key: "gallery", name: "Gallery", tables: ["gallery_photos", "gallery_mobile_sessions"] },
+    { key: "announcements", name: "Announcements", tables: ["announcements"] },
+    { key: "gallery", name: "Gallery", tables: ["gallery_photos"] },
     { key: "asset-master", name: "Asset Master", tables: ["marketing_assets", "legal_assets"] },
-    { key: "attendance", name: "Attendance", tables: ["attendance_records"] },
-    { key: "attendance-reports", name: "Attendance Reports", tables: ["attendance_records"] },
-    { key: "employee-location", name: "Employee Location", tables: ["location_records", "location_access_logs", "location_devices"] },
-    { key: "checklist-reports", name: "Checklist Reports", tables: ["checklist_submissions", "checklist_submission_answers"] },
-    { key: "checklist-submit", name: "Checklist Submission", tables: ["checklist_submissions", "checklist_submission_answers"] },
+    { key: "attendance", name: "Attendance", tables: ["attendance_records"], group: "attendance" },
+    { key: "attendance-reports", name: "Attendance Reports", tables: ["attendance_records"], group: "attendance" },
+    { key: "employee-location", name: "Employee Location", tables: ["location_records"] },
+    { key: "checklist-reports", name: "Checklist Reports", tables: ["checklist_submissions"], group: "checklist" },
+    { key: "checklist-submit", name: "Checklist Submission", tables: ["checklist_submissions"], group: "checklist" },
     { key: "checklist-types", name: "Checklist Types", tables: ["checklist_types"] },
     { key: "questions", name: "Questions", tables: ["questions"] },
     { key: "departments", name: "Departments", tables: ["departments"] },
     { key: "designations", name: "Designations", tables: ["designations"] },
     { key: "stores", name: "Store Management", tables: ["stores"] },
-    { key: "users", name: "Users", tables: ["users"] },
+    { key: "users", name: "Users", tables: ["users"], group: "users" },
     { key: "reports-to", name: "Reports To", tables: ["reports_to"] },
     { key: "new-store-openings", name: "New Store Openings", tables: ["new_store_openings"] },
     { key: "nso-rules", name: "NSO Rules", tables: ["nso_rules"] },
     { key: "nso-tracking", name: "NSO Tracking", tables: ["nso_tracking"] },
-    { key: "expenses", name: "Expenses", tables: ["expenses", "expense_items", "expense_checks"] },
+    { key: "expenses", name: "Expenses", tables: ["expenses"] },
     { key: "petty-cash", name: "Petty Cash", tables: ["petty_cash_advances", "petty_cash_deposits", "petty_cash_expenses", "petty_cash_settlements"] },
-    { key: "billing", name: "Billing", tables: ["bills", "bill_items", "payments"] },
-    { key: "quiz", name: "Quiz", tables: ["quizzes", "quiz_questions", "quiz_submissions", "quiz_submission_answers"] },
+    { key: "billing", name: "Billing", tables: ["bills"] },
+    { key: "quiz", name: "Quiz", tables: ["quizzes", "quiz_submissions"] },
     { key: "listing-tracker", name: "Listing Tracker", tables: ["listing_tracker_products"] },
-    { key: "activity-center", name: "Activity Center", tables: ["activities", "activity_comments", "activity_files", "activity_notifications", "activity_mentions", "activity_timeline"] },
-    { key: "sales-team", name: "Sales Team", tables: ["sales_visit_plans", "sales_visit_plan_stores", "sales_visit_history", "sales_review_records"] },
-    { key: "profile", name: "Profile", tables: ["users"] },
-    { key: "settings", name: "Settings", tables: ["user_theme_preferences", "user_permissions"] }
+    { key: "activity-center", name: "Activity Center", tables: ["activities"] },
+    { key: "sales-team", name: "Sales Team", tables: ["sales_visit_plans", "sales_visit_history", "sales_review_records"] },
+    { key: "profile", name: "Profile", tables: ["users"], group: "users" },
+    { key: "settings", name: "Settings", tables: ["user_theme_preferences"] }
 ];
+
+// "YYYY-MM-DD HH:MM:SS" produced by MySQL NOW() when the user pressed Reset.
+const SINCE_PATTERN = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const normalizeSince = (value) => {
+    const text = String(value || "").trim();
+    return SINCE_PATTERN.test(text) ? text : null;
+};
 
 const quoteIdentifier = (value) => `\`${String(value).replace(/`/g, "``")}\``;
 
@@ -426,8 +438,10 @@ const firstColumn = (columns, candidates) => {
     return null;
 };
 
-const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
+const buildTrendRange = async (table, dateColumn, range = "sevenDays", since = null) => {
     if (!dateColumn) return [];
+    const sinceSql = since ? ` AND ${quoteIdentifier(dateColumn)} >= ?` : "";
+    const sinceParams = since ? [since] : [];
 
     const config = {
         sevenDays: { days: 7 },
@@ -448,10 +462,11 @@ const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
                 SELECT DATE(${quoteIdentifier(dateColumn)}) AS period, COUNT(*) AS total
                 FROM ${quoteIdentifier(table)}
                 WHERE ${quoteIdentifier(dateColumn)} >= DATE_SUB(CURDATE(), INTERVAL ${days - 1} DAY)
-                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(CURDATE(), INTERVAL 1 DAY)${sinceSql}
                 GROUP BY DATE(${quoteIdentifier(dateColumn)})
                 ORDER BY period ASC
-            `
+            `,
+            sinceParams
         );
 
         const lookup = new Map(
@@ -483,10 +498,11 @@ const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
                        COUNT(*) AS total
                 FROM ${quoteIdentifier(table)}
                 WHERE ${quoteIdentifier(dateColumn)} >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01')
-                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)${sinceSql}
                 GROUP BY DATE_FORMAT(${quoteIdentifier(dateColumn)}, '%Y-%m')
                 ORDER BY period ASC
-            `
+            `,
+            sinceParams
         );
 
         const lookup = new Map(
@@ -515,10 +531,11 @@ const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
                        COUNT(*) AS total
                 FROM ${quoteIdentifier(table)}
                 WHERE ${quoteIdentifier(dateColumn)} >= MAKEDATE(YEAR(CURDATE()) - 4, 1)
-                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(MAKEDATE(YEAR(CURDATE()), 1), INTERVAL 1 YEAR)
+                  AND ${quoteIdentifier(dateColumn)} < DATE_ADD(MAKEDATE(YEAR(CURDATE()), 1), INTERVAL 1 YEAR)${sinceSql}
                 GROUP BY YEAR(${quoteIdentifier(dateColumn)})
                 ORDER BY period ASC
-            `
+            `,
+            sinceParams
         );
 
         const lookup = new Map(
@@ -543,9 +560,20 @@ const buildTrendRange = async (table, dateColumn, range = "sevenDays") => {
     return result;
 };
 
-const buildTrend = async (table, dateColumn) => buildTrendRange(table, dateColumn, "sevenDays");
+const buildTrend = async (table, dateColumn, since = null) => buildTrendRange(table, dateColumn, "sevenDays", since);
 
-const getTableAnalytics = async (table) => {
+const DATE_COLUMN_CANDIDATES = [
+    "created_at",
+    "createdat",
+    "submission_date",
+    "check_in",
+    "date_of_issue",
+    "date",
+    "updated_at",
+    "updatedat"
+];
+
+const getTableAnalytics = async (table, since = null) => {
     try {
         const columns = await getTableColumns(table);
 
@@ -553,8 +581,30 @@ const getTableAnalytics = async (table) => {
             return null;
         }
 
+        // Creation-time column first, so "since reset" means records
+        // CREATED after the reset (not old records that were edited).
+        const dateColumn = firstColumn(columns, DATE_COLUMN_CANDIDATES);
+
+        // After a reset, a table without any date column cannot tell new
+        // records from old ones, so it contributes nothing.
+        if (since && !dateColumn) {
+            return {
+                table,
+                total: 0,
+                status: [],
+                trend: [],
+                trendRanges: { sevenDays: [], daily: [], monthly: [], yearly: [] },
+                valueTotal: null,
+                dateColumn: null
+            };
+        }
+
+        const whereSql = since ? `WHERE ${quoteIdentifier(dateColumn)} >= ?` : "";
+        const whereParams = since ? [since] : [];
+
         const countRows = await db.query(
-            `SELECT COUNT(*) AS total FROM ${quoteIdentifier(table)}`
+            `SELECT COUNT(*) AS total FROM ${quoteIdentifier(table)} ${whereSql}`,
+            whereParams
         );
 
         const total = Number(countRows?.[0]?.total || 0);
@@ -568,17 +618,19 @@ const getTableAnalytics = async (table) => {
 
         let status = [];
 
-        if (statusColumn) {
+        if (statusColumn && total > 0) {
             const statusRows = await db.query(
                 `
                     SELECT
                         COALESCE(NULLIF(TRIM(CAST(${quoteIdentifier(statusColumn)} AS CHAR)), ''), 'Unknown') AS label,
                         COUNT(*) AS total
                     FROM ${quoteIdentifier(table)}
+                    ${whereSql}
                     GROUP BY ${quoteIdentifier(statusColumn)}
                     ORDER BY total DESC
                     LIMIT 8
-                `
+                `,
+                whereParams
             );
 
             status = (statusRows || []).map((row) => ({
@@ -591,22 +643,11 @@ const getTableAnalytics = async (table) => {
             status = [{ label: "Records", total }];
         }
 
-        const dateColumn = firstColumn(columns, [
-            "created_at",
-            "createdat",
-            "updated_at",
-            "updatedat",
-            "date_of_issue",
-            "check_in",
-            "submission_date",
-            "date"
-        ]);
-
         const trendRanges = {
-            sevenDays: await buildTrendRange(table, dateColumn, "sevenDays"),
-            daily: await buildTrendRange(table, dateColumn, "daily"),
-            monthly: await buildTrendRange(table, dateColumn, "monthly"),
-            yearly: await buildTrendRange(table, dateColumn, "yearly")
+            sevenDays: await buildTrendRange(table, dateColumn, "sevenDays", since),
+            daily: await buildTrendRange(table, dateColumn, "daily", since),
+            monthly: await buildTrendRange(table, dateColumn, "monthly", since),
+            yearly: await buildTrendRange(table, dateColumn, "yearly", since)
         };
 
         const trend = trendRanges.sevenDays;
@@ -631,7 +672,9 @@ const getTableAnalytics = async (table) => {
                 `
                     SELECT COALESCE(SUM(${quoteIdentifier(numericColumn.name)}), 0) AS total
                     FROM ${quoteIdentifier(table)}
-                `
+                    ${whereSql}
+                `,
+                whereParams
             );
             valueTotal = Number(valueRows?.[0]?.total || 0);
         }
@@ -651,15 +694,27 @@ const getTableAnalytics = async (table) => {
     }
 };
 
-Dashboard.getAnalytics = async (callback) => {
+Dashboard.getAnalytics = async (options, callback) => {
+    if (typeof options === "function") {
+        callback = options;
+        options = {};
+    }
+    const since = normalizeSince(options?.since);
+
     try {
         const modules = [];
+        // The same table is shared by several modules (e.g. Attendance and
+        // Attendance Reports) – query it once per request.
+        const tableCache = new Map();
 
         for (const module of ANALYTICS_MODULES) {
             const tableResults = [];
 
             for (const table of module.tables) {
-                const result = await getTableAnalytics(table);
+                if (!tableCache.has(table)) {
+                    tableCache.set(table, await getTableAnalytics(table, since));
+                }
+                const result = tableCache.get(table);
                 if (result) tableResults.push(result);
             }
 
@@ -734,7 +789,8 @@ Dashboard.getAnalytics = async (callback) => {
                 trendRanges,
                 change: Number(change.toFixed(1)),
                 direction: change > 0 ? "up" : change < 0 ? "down" : "flat",
-                tables: tableResults.map((item) => item.table)
+                tables: tableResults.map((item) => item.table),
+                group: module.group || module.key
             });
         }
 
@@ -743,6 +799,59 @@ Dashboard.getAnalytics = async (callback) => {
         callback(error);
     }
 };
+
+// ======================================================
+// ANALYTICS RESET BASELINE (per user)
+// Reset stores the database's NOW(); afterwards the analytics page only
+// counts records created from that moment on. Stored in the DB so the
+// reset follows the user across devices and browsers.
+// ======================================================
+
+let baselineTableReady = null;
+const ensureBaselineTable = () => {
+    if (!baselineTableReady) {
+        baselineTableReady = db.query(`
+            CREATE TABLE IF NOT EXISTS dashboard_analytics_baselines (
+                user_id INT NOT NULL PRIMARY KEY,
+                since_at DATETIME NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `).catch((error) => {
+            baselineTableReady = null;
+            throw error;
+        });
+    }
+    return baselineTableReady;
+};
+
+Dashboard.getAnalyticsBaseline = async (userId) => {
+    await ensureBaselineTable();
+    const rows = await db.query(
+        `SELECT DATE_FORMAT(since_at, '%Y-%m-%d %H:%i:%s') AS since
+         FROM dashboard_analytics_baselines WHERE user_id = ? LIMIT 1`,
+        [userId]
+    );
+    return rows?.[0]?.since || null;
+};
+
+Dashboard.resetAnalyticsBaseline = async (userId) => {
+    await ensureBaselineTable();
+    await db.query(
+        `INSERT INTO dashboard_analytics_baselines (user_id, since_at)
+         VALUES (?, NOW())
+         ON DUPLICATE KEY UPDATE since_at = NOW()`,
+        [userId]
+    );
+    return Dashboard.getAnalyticsBaseline(userId);
+};
+
+Dashboard.clearAnalyticsBaseline = async (userId) => {
+    await ensureBaselineTable();
+    await db.query(`DELETE FROM dashboard_analytics_baselines WHERE user_id = ?`, [userId]);
+    return null;
+};
+
+Dashboard.normalizeAnalyticsSince = normalizeSince;
 
 // ======================================================
 // EXPORT MODEL

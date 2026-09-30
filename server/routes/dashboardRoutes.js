@@ -29,6 +29,9 @@ const {
     getActionPointSummary,
     getNSOSummary,
     getAnalytics,
+    getAnalyticsBaseline,
+    resetAnalyticsBaseline,
+    clearAnalyticsBaseline,
     getPulse
 
 } = require(
@@ -69,6 +72,11 @@ router.get(
     authMiddleware,
     getAnalytics
 );
+
+// Reset point for Dashboard Analytics (count only records created after it)
+router.get("/analytics/baseline", authMiddleware, getAnalyticsBaseline);
+router.post("/analytics/baseline", authMiddleware, resetAnalyticsBaseline);
+router.delete("/analytics/baseline", authMiddleware, clearAnalyticsBaseline);
 
 // Real-time change signal for Dashboard Analytics
 router.get(

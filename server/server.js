@@ -135,6 +135,9 @@ const NsoEmailSettings =
 const ChecklistEmailSettings =
     require("./models/checklistEmailSettingsModel");
 
+const ActionPointEmailSettings =
+    require("./models/actionPointEmailSettingsModel");
+
 const DailyCollection =
     require("./models/dailyCollectionModel");
 
@@ -386,6 +389,18 @@ async function initializeDatabase() {
             console.log("✅ Checklist email routing schema verified");
         } catch (error) {
             console.error("❌ Checklist email routing schema initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
+        // ACTION POINT EMAIL ROUTING (separate from Checklist)
+        // Must run after the Checklist routing so the first run can
+        // copy its contacts / switches.
+        // --------------------------------------------------
+        try {
+            await ActionPointEmailSettings.ensureTables();
+            console.log("✅ Action Point email routing schema verified");
+        } catch (error) {
+            console.error("❌ Action Point email routing schema initialization failed:", error.message);
         }
 
         // --------------------------------------------------
@@ -1687,6 +1702,15 @@ loadRoute(
     "./routes/checklistEmailSettingsRoutes",
     "/api/checklist-email-settings",
     "Checklist Email Settings Routes"
+);
+
+// ======================================================
+// ACTION POINT EMAIL SETTINGS (separate routing)
+// ======================================================
+loadRoute(
+    "./routes/actionPointEmailSettingsRoutes",
+    "/api/action-point-email-settings",
+    "Action Point Email Settings Routes"
 );
 
 // ======================================================

@@ -77,6 +77,7 @@ import BlockedStores from "./pages/DailyCollection/BlockedStores";
 import NSOTrackingDetails from "./pages/NSOTrackingDetails";
 import NSOTrackingEdit from "./pages/NSOTrackingEdit";
 import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
+import ActionPointEmailSettings from "./pages/Settings/ActionPointEmailSettings";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -459,6 +460,15 @@ function App() {
                         element={
                             <ModulePermissionRoute adminOnly>
                                 <ChecklistEmailSettings />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/settings/action-point-email"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <ActionPointEmailSettings />
                             </ModulePermissionRoute>
                         }
                     />

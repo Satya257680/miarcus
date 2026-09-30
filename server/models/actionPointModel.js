@@ -309,6 +309,39 @@ ActionPoint.ensureSlaMinutesColumn = async () => {
 // GET ALL ACTION POINTS
 // ======================================================
 
+
+// ======================================================
+// QUICK VIEWS (clickable KPI cards on the Action Points page)
+// ------------------------------------------------------
+// view=overdue -> not Closed and the SLA deadline (created_at +
+//                 sla_minutes, or legacy sla_value days) has passed.
+//                 Same rule as the red "OVERDUE" countdown in the table
+//                 and the Overdue KPI count.
+// view=today   -> Action Points raised today.
+// view=high    -> High / Critical priority that are still open.
+// ======================================================
+const AP_SLA_MINUTES_SQL = `(CASE WHEN COALESCE(ap.sla_minutes, 0) > 0 THEN ap.sla_minutes ELSE COALESCE(ap.sla_value, 0) * 1440 END)`;
+
+const AP_VIEW_SQL = {
+    overdue: `
+            AND LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
+            AND ${AP_SLA_MINUTES_SQL} > 0
+            AND DATE_ADD(ap.created_at, INTERVAL ${AP_SLA_MINUTES_SQL} MINUTE) <= NOW()
+        `,
+    today: `
+            AND DATE(ap.created_at) = CURDATE()
+        `,
+    high: `
+            AND LOWER(COALESCE(ap.status, 'Open')) <> 'closed'
+            AND ap.priority IN ('High', 'Critical')
+        `
+};
+
+const apViewSql = (view) => AP_VIEW_SQL[String(view || "").trim().toLowerCase()] || "";
+
+ActionPoint.AP_SLA_MINUTES_SQL = AP_SLA_MINUTES_SQL;
+ActionPoint.apViewSql = apViewSql;
+
 ActionPoint.getAll = (
     filters,
     callback
@@ -530,6 +563,10 @@ ActionPoint.getAll = (
             filters.status
         );
     }
+
+
+    // QUICK VIEW (overdue / today / high)
+    sql += apViewSql(filters.view);
 
 
     // ==================================================
@@ -783,6 +820,10 @@ ActionPoint.count = (
             filters.status
         );
     }
+
+
+    // QUICK VIEW (overdue / today / high)
+    sql += apViewSql(filters.view);
 
 
     if (filters.priority) {
@@ -2101,6 +2142,10 @@ ActionPoint.exportData = (
             filters.status
         );
     }
+
+
+    // QUICK VIEW (overdue / today / high)
+    sql += apViewSql(filters.view);
 
 
     // ==================================================

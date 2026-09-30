@@ -103,17 +103,22 @@ const getDashboardStats = (req,res)=>{
 
 // Short-lived cache: the analytics page polls in real time, so many
 // open dashboards must not each re-run every module query.
-let analyticsCache = { at: 0, data: null, pending: null };
+// Keyed by the reset baseline ("all" = all-time counts).
+const analyticsCache = new Map();
 const ANALYTICS_CACHE_MS = 8000;
+const ANALYTICS_CACHE_MAX = 50;
 
 const getAnalytics = (req, res) => {
     const fresh = String(req.query.fresh || "") === "1";
-    if (!fresh && analyticsCache.data && Date.now() - analyticsCache.at < ANALYTICS_CACHE_MS) {
-        return res.status(200).json({ success: true, data: analyticsCache.data, cached: true, generated_at: new Date(analyticsCache.at).toISOString() });
+    const since = Dashboard.normalizeAnalyticsSince(req.query.since);
+    const cacheKey = since || "all";
+    const cached = analyticsCache.get(cacheKey);
+
+    if (!fresh && cached && Date.now() - cached.at < ANALYTICS_CACHE_MS) {
+        return res.status(200).json({ success: true, data: cached.data, since, cached: true, generated_at: new Date(cached.at).toISOString() });
     }
 
-    Dashboard.getAnalytics((err, results) => {
-        if (!err) analyticsCache = { at: Date.now(), data: results || [], pending: null };
+    Dashboard.getAnalytics({ since }, (err, results) => {
         if (err) {
             console.error("DASHBOARD ANALYTICS ERROR:", err);
 
@@ -124,12 +129,53 @@ const getAnalytics = (req, res) => {
             });
         }
 
+        if (analyticsCache.size >= ANALYTICS_CACHE_MAX) analyticsCache.clear();
+        analyticsCache.set(cacheKey, { at: Date.now(), data: results || [] });
+
         return res.status(200).json({
             success: true,
             data: results || [],
+            since,
             generated_at: new Date().toISOString()
         });
     });
+};
+
+// ======================================================
+// ANALYTICS RESET BASELINE
+// GET    /api/dashboard/analytics/baseline  -> current reset point
+// POST   /api/dashboard/analytics/baseline  -> reset: count from now
+// DELETE /api/dashboard/analytics/baseline  -> back to all-time counts
+// ======================================================
+
+const getAnalyticsBaseline = async (req, res) => {
+    try {
+        const since = await Dashboard.getAnalyticsBaseline(req.user.id);
+        return res.status(200).json({ success: true, data: { since } });
+    } catch (error) {
+        console.error("ANALYTICS BASELINE ERROR:", error.message);
+        return res.status(500).json({ success: false, message: "Failed to read analytics reset point." });
+    }
+};
+
+const resetAnalyticsBaseline = async (req, res) => {
+    try {
+        const since = await Dashboard.resetAnalyticsBaseline(req.user.id);
+        return res.status(200).json({ success: true, message: "Analytics reset. Counting from now.", data: { since } });
+    } catch (error) {
+        console.error("ANALYTICS RESET ERROR:", error.message);
+        return res.status(500).json({ success: false, message: "Failed to reset analytics." });
+    }
+};
+
+const clearAnalyticsBaseline = async (req, res) => {
+    try {
+        await Dashboard.clearAnalyticsBaseline(req.user.id);
+        return res.status(200).json({ success: true, message: "Showing all-time analytics.", data: { since: null } });
+    } catch (error) {
+        console.error("ANALYTICS CLEAR RESET ERROR:", error.message);
+        return res.status(500).json({ success: false, message: "Failed to clear analytics reset." });
+    }
 };
 
 // ======================================================
@@ -524,6 +570,9 @@ module.exports = {
     getChecklistSummary,
     getNSOSummary,
     getAnalytics,
+    getAnalyticsBaseline,
+    resetAnalyticsBaseline,
+    clearAnalyticsBaseline,
     getPulse,
 
     getActionPointSummary
