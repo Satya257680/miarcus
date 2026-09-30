@@ -654,6 +654,29 @@ async function initializeDatabase() {
         }
 
         // ==================================================
+        // CHECKLIST PER-QUESTION PHOTOS + QUESTION PHOTO RULE
+        // ==================================================
+
+        try {
+
+            await ChecklistSubmission.ensureAnswerPhotosColumn();
+
+            await require("./models/questionModel").ensurePhotoRequirementColumn();
+
+            console.log(
+                "✅ checklist question photo columns verified"
+            );
+
+        } catch (error) {
+
+            console.error(
+                "❌ checklist question photo column migration failed:",
+                error.message
+            );
+
+        }
+
+        // ==================================================
         // CHECKLIST SUBMISSION EXACT DATE/TIME MIGRATION
         //
         // Upgrades submission_date from DATE to DATETIME on existing

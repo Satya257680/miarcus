@@ -71,7 +71,9 @@ router.post(
 
     ),
 
-    upload.single("attachment"),
+    // "attachment" (optional, 1 file) + "question_photos"
+    // (photo evidence for individual questions).
+    upload.checklistEvidence(),
 
     syncGalleryAttachment("Checklist Submission", "attachment"),
 

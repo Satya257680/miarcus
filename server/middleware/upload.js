@@ -63,8 +63,41 @@ const baseUpload = multer({
 
 const wrap = method => (...args) => [baseUpload[method](...args), validateUploadedFiles];
 
+// ------------------------------------------------------
+// CHECKLIST SUBMISSION EVIDENCE
+// One optional "attachment" + per-question photos
+// ("question_photos"). A checklist can have 40+ questions,
+// so this uploader allows more files than the shared one
+// while keeping the same type / signature / size checks.
+// ------------------------------------------------------
+const MAX_QUESTION_PHOTOS = Number(process.env.MAX_CHECKLIST_QUESTION_PHOTOS) > 0
+    ? Number(process.env.MAX_CHECKLIST_QUESTION_PHOTOS)
+    : 150;
+
+const checklistUpload = multer({
+    storage,
+    fileFilter,
+    limits: {
+        fileSize: MAX_UPLOAD_SIZE,
+        files: MAX_QUESTION_PHOTOS + 1,
+        parts: MAX_QUESTION_PHOTOS + 80,
+        fields: 60,
+        fieldSize: 4 * 1024 * 1024
+    }
+});
+
+const checklistEvidence = () => [
+    checklistUpload.fields([
+        { name: "attachment", maxCount: 1 },
+        { name: "question_photos", maxCount: MAX_QUESTION_PHOTOS }
+    ]),
+    validateUploadedFiles
+];
+
 module.exports = {
     single: wrap("single"),
     array: wrap("array"),
+    fields: wrap("fields"),
+    checklistEvidence,
     uploadFolder
 };

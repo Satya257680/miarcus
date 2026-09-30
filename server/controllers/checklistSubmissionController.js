@@ -108,10 +108,97 @@ exports.createSubmission = async (req, res) => {
         // OPTIONAL
         // ==================================================
 
+        const attachmentFile =
+            req.file ||
+            (req.files && !Array.isArray(req.files)
+                ? req.files.attachment?.[0]
+                : null) ||
+            null;
+
         const attachment =
-            req.file
-                ? storedUploadPath(req.file)
+            attachmentFile
+                ? storedUploadPath(attachmentFile)
                 : null;
+
+
+        // ==================================================
+        // PER-QUESTION PHOTO EVIDENCE
+        // ==================================================
+        //
+        // question_photos      → uploaded image files
+        // question_photo_map   → JSON array of question ids, one per
+        //                        uploaded file, in the same order
+        // answers[].photo_urls → images the user added "From Website"
+        //
+        // Every answer ends up with   photos: ["uploads/..", "https://.."]
+        // ==================================================
+
+        const questionPhotoFiles =
+            req.files && !Array.isArray(req.files)
+                ? req.files.question_photos || []
+                : [];
+
+        let questionPhotoMap = [];
+
+        try {
+
+            questionPhotoMap = JSON.parse(
+                req.body.question_photo_map || "[]"
+            );
+
+            if (!Array.isArray(questionPhotoMap)) questionPhotoMap = [];
+
+        } catch (error) {
+
+            questionPhotoMap = [];
+
+        }
+
+        const photosByQuestion = new Map();
+
+        questionPhotoFiles.forEach((file, index) => {
+
+            const questionId = String(questionPhotoMap[index] ?? "");
+
+            if (!questionId) return;
+
+            if (!photosByQuestion.has(questionId)) photosByQuestion.set(questionId, []);
+
+            photosByQuestion.get(questionId).push(storedUploadPath(file));
+
+        });
+
+        const safeUrl = (value) => {
+
+            const text = String(value || "").trim();
+
+            if (!/^https?:\/\/[^\s]+$/i.test(text) || text.length > 1000) return null;
+
+            return text;
+
+        };
+
+        answers = (Array.isArray(answers) ? answers : []).map((item) => {
+
+            if (!item || typeof item !== "object") return item;
+
+            const uploaded = photosByQuestion.get(String(item.question_id)) || [];
+
+            const urls = (Array.isArray(item.photo_urls) ? item.photo_urls : [])
+                .map(safeUrl)
+                .filter(Boolean)
+                .slice(0, 20);
+
+            const { photo_urls, ...rest } = item;
+
+            void photo_urls;
+
+            return {
+                ...rest,
+                photos: [...uploaded, ...urls]
+            };
+
+        });
 
 
         // ==================================================

@@ -16,6 +16,8 @@ import {
 } from "react-icons/fa";
 import checklistHeroArt from "../assets/premium/checklist-hero.png";
 import checklistBulb from "../assets/premium/checklist-bulb.png";
+import QuestionPhotoPicker from "../components/checklist/QuestionPhotoPicker";
+import { releasePhoto } from "../utils/photoEvidence";
 
 const API = API_BASE_URL;
 
@@ -37,6 +39,45 @@ const hasAnswerValue = (value) => {
   if (typeof File !== "undefined" && value instanceof File) return true;
   if (Array.isArray(value)) return value.length > 0;
   return String(value).trim() !== "";
+};
+
+// ---------------------------------------------------------
+// PHOTO EVIDENCE RULES
+// ---------------------------------------------------------
+// Decides, per question, whether a photo is needed:
+//   • Admin setting (Questions → "Photo Evidence")
+//       Required / Required on No / Optional / None
+//   • Auto (no setting): "Image" answer type, or the question
+//     text asks for a photo / picture / image  → Required
+//   • Everything else → optional "Add Photo" next to Remarks
+// ---------------------------------------------------------
+const IMAGE_TYPES = ["image", "photo", "file", "picture"];
+const PHOTO_WORDS = /\b(photos?|pictures?|pics?|images?|snaps?|selfies?|photographs?|click a pic)\b/i;
+
+const questionType = (question) =>
+  String(question.answer_type || question.question_type || question.type || "text")
+    .trim()
+    .toLowerCase();
+
+const isImageQuestion = (question) => IMAGE_TYPES.includes(questionType(question));
+
+const photoRule = (question, answerValue) => {
+  const setting = String(question.photo_requirement || "").trim().toLowerCase();
+  const text = question.question || question.question_text || question.title || "";
+
+  if (isImageQuestion(question)) {
+    return { mode: "required", reason: "Answer this question with a photo" };
+  }
+  if (setting === "none") return { mode: "none", reason: "" };
+  if (setting === "required") return { mode: "required", reason: "" };
+  if (setting === "required on no" || setting === "required_on_no") {
+    return String(answerValue || "").trim().toLowerCase() === "no"
+      ? { mode: "required", reason: "Required because the answer is No" }
+      : { mode: "optional", reason: "" };
+  }
+  if (setting === "optional") return { mode: "optional", reason: "" };
+  if (PHOTO_WORDS.test(text)) return { mode: "required", reason: "" };
+  return { mode: "optional", reason: "" };
 };
 
 const answerToText = (value) => {
@@ -69,6 +110,35 @@ function ChecklistSubmission() {
   const [answers, setAnswers] = useState({});
   const [remarks, setRemarks] = useState({});
   const [attachmentFile, setAttachmentFile] = useState(null);
+
+  // Per-question photo evidence: { [questionId]: [{ id, kind, file|url, preview }] }
+  const [photos, setPhotos] = useState({});
+  const [photoMissing, setPhotoMissing] = useState(null);
+
+  const clearPhotos = () => {
+    setPhotos((previous) => {
+      Object.values(previous).flat().forEach(releasePhoto);
+      return {};
+    });
+    setPhotoMissing(null);
+  };
+
+  const setQuestionPhotos = (questionId, list) => {
+    setPhotos((previous) => ({ ...previous, [questionId]: list }));
+    if (list.length && String(photoMissing) === String(questionId)) setPhotoMissing(null);
+  };
+
+  const photosOf = (questionId) => photos[questionId] || [];
+
+  // Image questions are answered by their photos.
+  const effectiveAnswer = (question) => {
+    const questionId = question.id || question.question_id;
+    if (isImageQuestion(question)) {
+      const count = photosOf(questionId).length;
+      return count ? `Photo attached (${count})` : "";
+    }
+    return answers[questionId];
+  };
 
   // =========================================================
   // UI STATES
@@ -190,6 +260,7 @@ function ChecklistSubmission() {
     if (!canView) {
       setQuestions([]);
       setAnswers({});
+      clearPhotos();
       setRemarks({});
       return;
     }
@@ -199,6 +270,7 @@ function ChecklistSubmission() {
     if (!basicDetailsComplete) {
       setQuestions([]);
       setAnswers({});
+      clearPhotos();
       setRemarks({});
       setLoadingQuestions(false);
       return;
@@ -249,6 +321,7 @@ function ChecklistSubmission() {
 
       setQuestions(finalQuestions);
       setAnswers({});
+      clearPhotos();
       setRemarks({});
     } catch (error) {
       console.error(
@@ -275,6 +348,7 @@ function ChecklistSubmission() {
     // Reset previous answers when checklist changes.
     setQuestions([]);
     setAnswers({});
+      clearPhotos();
     setRemarks({});
     setErrorMessage("");
   };
@@ -290,6 +364,7 @@ function ChecklistSubmission() {
     // combination is loaded.
     setQuestions([]);
     setAnswers({});
+      clearPhotos();
     setRemarks({});
     setErrorMessage("");
   };
@@ -348,7 +423,9 @@ function ChecklistSubmission() {
       "text"
     )
       .toString()
-      .toLowerCase();
+      .toLowerCase()
+      // "Yes / No" (as saved by the Questions screen) → "yes/no"
+      .replace(/\s+/g, "");
 
     const value =
       answers[questionId] || "";
@@ -360,6 +437,7 @@ function ChecklistSubmission() {
     if (
       type === "yes/no" ||
       type === "yes_no" ||
+      type === "yesno" ||
       type === "boolean"
     ) {
       return (
@@ -519,21 +597,11 @@ function ChecklistSubmission() {
     if (
       type === "image" ||
       type === "photo" ||
-      type === "file"
+      type === "file" ||
+      type === "picture"
     ) {
-      return (
-        <input
-          type="file"
-          className="answer-input"
-          accept="image/*"
-          onChange={(e) =>
-            handleAnswerChange(
-              questionId,
-              e.target.files?.[0] || null
-            )
-          }
-        />
-      );
+      // Answered with the photo evidence block below the question.
+      return null;
     }
 
     // =======================================================
@@ -676,7 +744,7 @@ function ChecklistSubmission() {
 
       if (
         required &&
-        !hasAnswerValue(answers[questionId])
+        !hasAnswerValue(effectiveAnswer(question))
       ) {
         const card = document.getElementById(`cs-q-${questionId}`);
         if (card) {
@@ -693,6 +761,31 @@ function ChecklistSubmission() {
           }`
         );
 
+        return;
+      }
+    }
+
+    // -------------------------------------------------------
+    // REQUIRED PHOTO EVIDENCE
+    // -------------------------------------------------------
+
+    for (const question of questions) {
+      const questionId = question.id || question.question_id;
+      const rule = photoRule(question, answers[questionId]);
+
+      if (rule.mode === "required" && photosOf(questionId).length === 0) {
+        setPhotoMissing(questionId);
+        const card = document.getElementById(`cs-q-${questionId}`);
+        if (card) {
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          card.classList.add("unanswered-highlight");
+          setTimeout(() => card.classList.remove("unanswered-highlight"), 2500);
+        }
+        alert(
+          `Please add a photo for: ${
+            question.question || question.question_text || question.title
+          }`
+        );
         return;
       }
     }
@@ -740,10 +833,16 @@ function ChecklistSubmission() {
             question_id: questionId,
 
             answer:
-              answerToText(answers[questionId]),
+              answerToText(effectiveAnswer(question)),
 
             remarks:
               remarks[questionId] || "",
+
+            // Photos added "From Website" (links). Uploaded photos
+            // are sent as files below (question_photos).
+            photo_urls: photosOf(questionId)
+              .filter((photo) => photo.kind === "url")
+              .map((photo) => photo.url),
           };
         });
 
@@ -809,6 +908,28 @@ function ChecklistSubmission() {
       );
 
       // -----------------------------------------------------
+      // PER-QUESTION PHOTOS
+      // question_photo_map[i] = question id of question_photos[i]
+      // -----------------------------------------------------
+
+      const photoMap = [];
+
+      questions.forEach((question) => {
+        const questionId = question.id || question.question_id;
+        photosOf(questionId)
+          .filter((photo) => photo.kind === "file" && photo.file)
+          .forEach((photo) => {
+            formData.append("question_photos", photo.file, photo.file.name || "photo.jpg");
+            photoMap.push(questionId);
+          });
+      });
+
+      formData.append(
+        "question_photo_map",
+        JSON.stringify(photoMap)
+      );
+
+      // -----------------------------------------------------
       // API
       // -----------------------------------------------------
 
@@ -842,6 +963,7 @@ function ChecklistSubmission() {
 
       setQuestions([]);
       setAnswers({});
+      clearPhotos();
       setRemarks({});
       setAttachmentFile(null);
 
@@ -897,13 +1019,13 @@ function ChecklistSubmission() {
   // PREMIUM STEPPER STATE
   // =========================================================
 
-  const questionKey = (question) => question.id || question.question_id;
-  const isAnswered = (question) => hasAnswerValue(answers[questionKey(question)]);
+  const isAnswered = (question) => hasAnswerValue(effectiveAnswer(question));
   // All questions are mandatory for every checklist type.
   // eslint-disable-next-line no-unused-vars
   const isRequired = (question) => true;
 
   const answeredCount = questions.filter(isAnswered).length;
+  const totalPhotos = Object.values(photos).reduce((sum, list) => sum + (list?.length || 0), 0);
   const requiredLeft = questions.filter((question) => isRequired(question) && !isAnswered(question)).length;
   const allAnswered = questions.length > 0 && requiredLeft === 0 && answeredCount > 0;
 
@@ -926,6 +1048,7 @@ function ChecklistSubmission() {
     setSubmissionDate(new Date().toISOString().split("T")[0]);
     setQuestions([]);
     setAnswers({});
+      clearPhotos();
     setRemarks({});
     setAttachmentFile(null);
     setErrorMessage("");
@@ -1225,6 +1348,7 @@ function ChecklistSubmission() {
               <span>
                 <strong>{questions.length}</strong> questions loaded ·{" "}
                 <strong>{answeredCount}</strong> answered
+                {totalPhotos > 0 && <> · <strong>{totalPhotos}</strong> photo{totalPhotos > 1 ? "s" : ""}</>}
                 {requiredLeft > 0 ? <> · <strong>{requiredLeft}</strong> required remaining</> : " · all required questions answered"}
               </span>
             </div>
@@ -1330,7 +1454,12 @@ function ChecklistSubmission() {
                     const required = true;
 
                     const answered =
-                      hasAnswerValue(answers[questionId]);
+                      hasAnswerValue(effectiveAnswer(question));
+
+                    const rule = photoRule(question, answers[questionId]);
+                    const questionPhotos = photosOf(questionId);
+                    const typeLabel =
+                      question.answer_type || question.question_type || question.type || "Text";
 
                     return (
                       <div
@@ -1371,11 +1500,37 @@ function ChecklistSubmission() {
 
                             </div>
 
+                            <div className="cs-q-meta">
+                              <span>Type: {typeLabel}</span>
+                              {rule.mode === "required" && (
+                                <span className="cs-q-photo-req">
+                                  + Photo <b>(Required)</b>
+                                </span>
+                              )}
+                              {questionPhotos.length > 0 && (
+                                <span className="cs-q-photo-count">
+                                  📷 {questionPhotos.length}
+                                </span>
+                              )}
+                            </div>
+
                             <div className="question-answer">
                               {renderQuestionInput(
                                 question
                               )}
                             </div>
+
+                            {rule.mode === "required" && (
+                              <QuestionPhotoPicker
+                                questionId={questionId}
+                                mode="required"
+                                reason={rule.reason}
+                                photos={questionPhotos}
+                                missing={String(photoMissing) === String(questionId)}
+                                disabled={submitting}
+                                onChange={(list) => setQuestionPhotos(questionId, list)}
+                              />
+                            )}
 
                             <div className="remarks-wrapper">
 
@@ -1401,6 +1556,16 @@ function ChecklistSubmission() {
                                   )
                                 }
                               />
+
+                              {rule.mode === "optional" && (
+                                <QuestionPhotoPicker
+                                  questionId={questionId}
+                                  mode="optional"
+                                  photos={questionPhotos}
+                                  disabled={submitting}
+                                  onChange={(list) => setQuestionPhotos(questionId, list)}
+                                />
+                              )}
 
                             </div>
 

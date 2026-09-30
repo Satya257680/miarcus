@@ -16,6 +16,8 @@ import "../../styles/rbac.css";
 import useStorePresence from "../../hooks/useStorePresence";
 import MobileBottomNav from "./MobileBottomNav";
 import "../../styles/mobile/MobileApp.css";
+import "../../styles/mobile/MobileModules.css";
+import useMobileTableCards from "../../hooks/useMobileTableCards";
 
 // Phones only (tablets / laptops / desktops keep the existing layout).
 const MOBILE_QUERY = "(max-width: 768px)";
@@ -78,6 +80,9 @@ function Layout() {
       document.body.classList.remove("mobile-menu-open");
     };
   }, [mobileMenuOpen]);
+
+  // Phones: every module table is shown as app-style cards.
+  useMobileTableCards(isMobile);
 
   // Online / offline heartbeat for the admin Store Status page.
   useStorePresence();

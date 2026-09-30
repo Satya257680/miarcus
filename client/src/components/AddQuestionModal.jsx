@@ -38,6 +38,7 @@ function AddQuestionModal({
     sla_unit: "Hours",
     answer_required: false,
     status: "Active",
+    photo_requirement: "",
     departments: [],
   });
 
@@ -89,6 +90,7 @@ function AddQuestionModal({
         sla_unit: "Hours",
         answer_required: false,
         status: "Active",
+        photo_requirement: "",
         departments: [],
       });
 
@@ -130,6 +132,9 @@ function AddQuestionModal({
 
       status:
         question.status || "Active",
+
+      photo_requirement:
+        question.photo_requirement || "",
 
       departments: departmentIds,
     });
@@ -501,6 +506,46 @@ function AddQuestionModal({
 
                   <option value="Image">
                     Image
+                  </option>
+
+                </select>
+
+              </div>
+
+              {/* Photo Evidence (Checklist Submission) */}
+
+              <div className="question-form-group">
+
+                <label>
+                  Photo Evidence
+                </label>
+
+                <select
+                  name="photo_requirement"
+                  value={
+                    formData.photo_requirement
+                  }
+                  onChange={handleChange}
+                >
+
+                  <option value="">
+                    Auto (system decides)
+                  </option>
+
+                  <option value="Optional">
+                    Optional photo
+                  </option>
+
+                  <option value="Required">
+                    Photo required
+                  </option>
+
+                  <option value="Required on No">
+                    Photo required when answer is No
+                  </option>
+
+                  <option value="None">
+                    No photo
                   </option>
 
                 </select>

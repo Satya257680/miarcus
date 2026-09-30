@@ -297,4 +297,30 @@ router.delete(
 // EXPORT ROUTER
 // ======================================================
 
+// ======================================================
+// PER-QUESTION PHOTOS OF A SUBMISSION
+// GET /api/checklist-reports/:id/photos
+// → [{ answer_id, question_id, photos: ["uploads/..", "https://.."] }]
+// Files are opened through the secure /api/files route.
+// ======================================================
+
+router.get(
+    "/:id/photos",
+    authMiddleware,
+    permissionMiddleware(
+        "Checklist Reports",
+        "View"
+    ),
+    (req, res) => {
+        const ChecklistSubmission = require("../models/checklistSubmissionModel");
+        ChecklistSubmission.getAnswerPhotos(req.params.id, (err, data) => {
+            if (err) {
+                console.error("GET CHECKLIST ANSWER PHOTOS ERROR:", err);
+                return res.status(500).json({ success: false, message: "Unable to load photos." });
+            }
+            return res.json({ success: true, data });
+        });
+    }
+);
+
 module.exports = router;

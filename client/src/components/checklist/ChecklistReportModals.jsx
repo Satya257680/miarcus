@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "../../axiosConfig.js";
 import {
     FaClipboardCheck,
@@ -10,9 +10,13 @@ import {
     FaMapMarkerAlt,
     FaListUl,
     FaSave,
+    FaCamera,
+    FaTimes,
 } from "react-icons/fa";
+import { attachmentPath } from "../../utils/attachments";
 import PremiumModal, { PmSection, PmGrid, PmItem, PmField, PmAttachment } from "../premium/PremiumModal";
 import PremiumLoader from "../premium/PremiumLoader";
+import "../../styles/checklist/ReportPhotos.css";
 
 // ======================================================
 // HELPERS
@@ -74,12 +78,86 @@ const mapLink = (row) =>
     ) : "-";
 
 // ======================================================
+// PER-QUESTION PHOTOS
+// Uploaded photos are protected files → loaded through
+// /api/files with the user's token. Website links load directly.
+// ======================================================
+
+const blobCache = new Map();
+
+function SecureImage({ value, alt = "", className = "", onOpen }) {
+    const path = attachmentPath(value);
+    const isExternal = /^(https?:|blob:|data:)/i.test(path);
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+        if (!path || isExternal || blobCache.has(path)) return undefined;
+        let alive = true;
+        axios
+            .get("/api/files", { params: { path }, responseType: "blob" })
+            .then((res) => {
+                blobCache.set(path, URL.createObjectURL(res.data));
+                if (alive) setTick((t) => t + 1);
+            })
+            .catch(() => {
+                blobCache.set(path, "");
+                if (alive) setTick((t) => t + 1);
+            });
+        return () => {
+            alive = false;
+        };
+    }, [path, isExternal]);
+
+    const src = isExternal ? path : blobCache.get(path);
+
+    if (src === undefined) return <span className={`crp-photo is-loading ${className}`} />;
+    if (!src) return <span className={`crp-photo is-empty ${className}`}><FaCamera /></span>;
+
+    return (
+        <button type="button" className={`crp-photo ${className}`} onClick={() => onOpen?.(src)}>
+            <img src={src} alt={alt} />
+        </button>
+    );
+}
+
+function useAnswerPhotos(submissionId) {
+    const [state, setState] = useState({ id: null, map: {} });
+
+    useEffect(() => {
+        if (!submissionId) return undefined;
+        let alive = true;
+        axios
+            .get(`/api/checklist-reports/${submissionId}/photos`)
+            .then((res) => {
+                const map = {};
+                (res.data?.data || []).forEach((row) => {
+                    map[`a${row.answer_id}`] = row.photos || [];
+                    map[`q${row.question_id}`] = row.photos || [];
+                });
+                if (alive) setState({ id: submissionId, map });
+            })
+            .catch(() => alive && setState({ id: submissionId, map: {} }));
+        return () => {
+            alive = false;
+        };
+    }, [submissionId]);
+
+    return state.id === submissionId ? state.map : {};
+}
+
+const photosFor = (map, item) =>
+    map[`a${item?.answer_id}`] || map[`q${item?.question_id}`] || [];
+
+// ======================================================
 // VIEW MODAL
 // ======================================================
 
 export function ChecklistReportViewModal({ report, answers = [], loading = false, canEdit = false, onEdit, onClose }) {
+    const photoMap = useAnswerPhotos(report?.id);
+    const [zoom, setZoom] = useState("");
     if (!report) return null;
     const status = actionStatus(report);
+    const currentPhotos = photosFor(photoMap, report);
 
     return (
         <PremiumModal
@@ -128,6 +206,16 @@ export function ChecklistReportViewModal({ report, answers = [], loading = false
                 </PmGrid>
             </PmSection>
 
+            {currentPhotos.length > 0 && (
+                <PmSection title={`Photos (${currentPhotos.length})`} icon={<FaCamera />}>
+                    <div className="crp-photos">
+                        {currentPhotos.map((value, index) => (
+                            <SecureImage key={`${value}-${index}`} value={value} alt={`Photo ${index + 1}`} onOpen={setZoom} />
+                        ))}
+                    </div>
+                </PmSection>
+            )}
+
             <PmSection title="Action Point" icon={<FaBolt />}>
                 <PmGrid cols={4}>
                     <PmItem label="Action Status"><span className={`pm-chip ${status.tone}`}>{status.label}</span></PmItem>
@@ -174,6 +262,13 @@ export function ChecklistReportViewModal({ report, answers = [], loading = false
                                     <div className="pm-answer-q">{item.question || "-"}</div>
                                     {item.remarks && <div className="pm-answer-r">{item.remarks}</div>}
                                     {item.action_taken && <div className="pm-answer-r">Action taken: {item.action_taken}</div>}
+                                    {photosFor(photoMap, item).length > 0 && (
+                                        <div className="crp-photos crp-photos--small">
+                                            {photosFor(photoMap, item).map((value, i) => (
+                                                <SecureImage key={`${value}-${i}`} value={value} onOpen={setZoom} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <span className="pm-chip">{item.answer || "-"}</span>
                             </div>
@@ -181,6 +276,13 @@ export function ChecklistReportViewModal({ report, answers = [], loading = false
                     </div>
                 )}
             </PmSection>
+
+            {zoom && (
+                <div className="crp-zoom" onClick={() => setZoom("")} role="dialog" aria-modal="true">
+                    <button type="button" className="crp-zoom-x" aria-label="Close"><FaTimes /></button>
+                    <img src={zoom} alt="Checklist evidence" />
+                </div>
+            )}
         </PremiumModal>
     );
 }

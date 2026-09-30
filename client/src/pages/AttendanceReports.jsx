@@ -33,6 +33,7 @@ import {
     FaClipboardList
 } from "react-icons/fa";
 import PremiumHero from "../components/premium/PremiumHero";
+import AttendanceDetailsSheet from "../components/attendance/AttendanceDetailsSheet";
 import InsightStrip from "../components/premium/InsightStrip";
 import "../styles/premium/PagePremium.css";
 import { initials, avatarTone, formatCount } from "../utils/premiumFormat";
@@ -1416,135 +1417,10 @@ function AttendanceReports() {
             ====================================================== */}
 
             {showViewModal && selectedRecord && (
-                <div className="modal-overlay">
-                    <div className="report-modal">
-
-                        <div className="modal-header">
-                            <h3>Attendance Record Details</h3>
-                            <button
-                                className="close-btn"
-                                onClick={() => setShowViewModal(false)}
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        <div className="modal-body">
-
-                            <div className="detail-grid">
-
-                                <div>
-                                    <strong>Employee</strong>
-                                    <p>{selectedRecord.name || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Employee ID</strong>
-                                    <p>{selectedRecord.employee_id || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Department</strong>
-                                    <p>{selectedRecord.department || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Designation</strong>
-                                    <p>{selectedRecord.designation || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Store</strong>
-                                    <p>{selectedRecord.store_name || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Status</strong>
-                                    <p>{selectedRecord.status || "-"}</p>
-                                </div>
-
-                                <div>
-                                    <strong>Work Date</strong>
-                                    <p>{formatDateOnly(selectedRecord.work_date)}</p>
-                                </div>
-
-                            </div>
-
-                            <hr />
-
-                            <div className="question-section">
-
-                                <h4>Check-in At</h4>
-                                <p>{formatDateTime(selectedRecord.check_in_at)}</p>
-
-                                <h4>Check-in Remarks</h4>
-                                <p>{selectedRecord.check_in_remarks || "-"}</p>
-
-                                <h4>Check-out At</h4>
-                                <p>{formatDateTime(selectedRecord.check_out_at)}</p>
-
-                                <h4>Check-out Remarks</h4>
-                                <p>{selectedRecord.check_out_remarks || "-"}</p>
-
-                            </div>
-
-                            <div className="map-section" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-
-                                {selectedRecord.check_in_latitude && selectedRecord.check_in_longitude ? (
-                                    <a
-                                        href={`https://www.google.com/maps?q=${selectedRecord.check_in_latitude},${selectedRecord.check_in_longitude}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="map-link"
-                                    >
-                                        <FaMapMarkerAlt />{" "}Check-in Location
-                                    </a>
-                                ) : (
-                                    <p>Check-in Location Not Available</p>
-                                )}
-
-                                {selectedRecord.check_out_latitude && selectedRecord.check_out_longitude ? (
-                                    <a
-                                        href={`https://www.google.com/maps?q=${selectedRecord.check_out_latitude},${selectedRecord.check_out_longitude}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="map-link"
-                                    >
-                                        <FaMapMarkerAlt />{" "}Check-out Location
-                                    </a>
-                                ) : (
-                                    <p>Check-out Location Not Available</p>
-                                )}
-
-                            </div>
-
-                            {(selectedRecord.check_in_photo || selectedRecord.check_out_photo) && (
-                                <div className="modal-actions" style={{ marginTop: "1rem" }}>
-                                    {selectedRecord.check_in_photo && (
-                                        <button
-                                            type="button"
-                                            className="upload-btn"
-                                            onClick={() => handleViewPhoto(selectedRecord, "check-in")}
-                                        >
-                                            View Check-in Photo
-                                        </button>
-                                    )}
-                                    {selectedRecord.check_out_photo && (
-                                        <button
-                                            type="button"
-                                            className="upload-btn"
-                                            onClick={() => handleViewPhoto(selectedRecord, "check-out")}
-                                        >
-                                            View Check-out Photo
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                        </div>
-
-                    </div>
-                </div>
+                <AttendanceDetailsSheet
+                    record={selectedRecord}
+                    onClose={() => setShowViewModal(false)}
+                />
             )}
 
             {/* ======================================================

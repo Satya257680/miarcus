@@ -1,0 +1,649 @@
+/* ==========================================================
+   MIARCUS — MOBILE MODULES
+   ----------------------------------------------------------
+   Makes every module page (reports, masters, trackers,
+   settings…) look like a native app on phones, matching the
+   Dashboard / Gallery / Checklist Submission mobile screens.
+
+   Scope: phones only (≤ 768px). Laptop, desktop and tablet
+   layouts are NOT changed by anything in this file.
+
+   Pieces:
+     1. Page rhythm (hero, insight tiles, cards)
+     2. Toolbar (search + Export / Add / Delete All)
+     3. Filters (2-column grid, compact inputs)
+     4. Tables → app cards   (table.m-cards, see
+        hooks/useMobileTableCards.js)
+     5. Pagination
+     6. Modals → bottom sheets
+========================================================== */
+
+@media (max-width: 768px) {
+
+    /* ------------------------------------------------------
+       1. PAGE RHYTHM
+    ------------------------------------------------------ */
+
+    .layout--mobile .page-content > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .layout--mobile .pp-premium,
+    .layout--mobile .checklist-reports-page,
+    .layout--mobile [class*="-page"] {
+        gap: 12px;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* Page hero → compact app banner */
+    .layout--mobile .pp-hero {
+        padding: 16px 16px 14px !important;
+        border-radius: 20px !important;
+        gap: 12px !important;
+        margin-bottom: 2px;
+    }
+
+    .layout--mobile .pp-hero-main {
+        gap: 12px !important;
+    }
+
+    .layout--mobile .pp-hero-icon {
+        width: 42px !important;
+        height: 42px !important;
+        flex: 0 0 42px !important;
+        font-size: 17px !important;
+        border-radius: 13px !important;
+    }
+
+    .layout--mobile .pp-hero-eyebrow {
+        font-size: 10px !important;
+        letter-spacing: 0.14em !important;
+    }
+
+    .layout--mobile .pp-hero-title,
+    .layout--mobile .pp-premium .pp-hero-title {
+        font-size: 21px !important;
+        line-height: 1.2 !important;
+    }
+
+    .layout--mobile .pp-hero-subtitle {
+        font-size: 12.5px !important;
+        line-height: 1.45 !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+         line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .layout--mobile .pp-hero-meta {
+        gap: 6px !important;
+        margin-top: 8px !important;
+    }
+
+    .layout--mobile .pp-hero-chip {
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+    }
+
+    /* KPI tiles → 2-column app tiles (were 1 per row) */
+    .layout--mobile .premium-insights {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .layout--mobile .premium-insight {
+        min-width: 0 !important;
+        padding: 12px !important;
+        gap: 10px !important;
+        border-radius: 16px !important;
+        align-items: center !important;
+    }
+
+    .layout--mobile .premium-insight-icon {
+        width: 34px !important;
+        height: 34px !important;
+        flex: 0 0 34px !important;
+        font-size: 14px !important;
+        border-radius: 11px !important;
+    }
+
+    .layout--mobile .premium-insight-copy {
+        min-width: 0;
+    }
+
+    .layout--mobile .premium-insight-label {
+        font-size: 10px !important;
+        letter-spacing: 0.06em !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    .layout--mobile .premium-insight-value {
+        font-size: 20px !important;
+        line-height: 1.15 !important;
+    }
+
+    .layout--mobile .premium-insight-hint {
+        display: none !important;
+    }
+
+    /* An odd last tile spans the full row so the grid stays tidy */
+    .layout--mobile .premium-insights > .premium-insight:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    /* Generic white cards */
+    .layout--mobile .card,
+    .layout--mobile .pp-premium .card {
+        border-radius: 18px !important;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .layout--mobile .card-header {
+        padding: 14px 14px 10px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .layout--mobile .card-title {
+        font-size: 16px !important;
+    }
+
+    .layout--mobile .card-subtitle {
+        font-size: 12px !important;
+        line-height: 1.4;
+    }
+
+    .layout--mobile .card-body,
+    .layout--mobile .pp-premium .card-body {
+        padding: 10px !important;
+    }
+
+    /* ------------------------------------------------------
+       2. TOOLBAR
+       Bug fix: in the column layout `flex: 1 1 320px` on the
+       search turned into a 320px HEIGHT — that is the big
+       empty box with the lonely search icon on phones.
+    ------------------------------------------------------ */
+
+    .layout--mobile .page-toolbar,
+    .layout--mobile .pp-premium .page-toolbar {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 10px !important;
+        border-radius: 18px !important;
+    }
+
+    .layout--mobile .toolbar-search,
+    .layout--mobile .pp-premium .toolbar-search {
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+    }
+
+    .layout--mobile .toolbar-search input,
+    .layout--mobile .pp-premium .toolbar-search input {
+        height: 46px !important;
+        font-size: 16px !important;
+        border-radius: 14px !important;
+        padding-left: 42px !important;
+    }
+
+    .layout--mobile .toolbar-search-icon {
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+    }
+
+    .layout--mobile .toolbar-buttons,
+    .layout--mobile .pp-premium .toolbar-buttons {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .layout--mobile .toolbar-buttons > * {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: none !important;
+    }
+
+    .layout--mobile .toolbar-buttons > *:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .layout--mobile .toolbar-btn,
+    .layout--mobile .export-button,
+    .layout--mobile .toolbar-buttons button {
+        width: 100% !important;
+        min-height: 42px !important;
+        height: auto !important;
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+        border-radius: 12px !important;
+        justify-content: center !important;
+        white-space: nowrap;
+    }
+
+    .layout--mobile .export-dropdown,
+    .layout--mobile .export-menu {
+        max-width: calc(100vw - 32px);
+    }
+
+    /* ------------------------------------------------------
+       3. FILTERS
+    ------------------------------------------------------ */
+
+    .layout--mobile .filter-bar {
+        padding: 12px !important;
+        border-radius: 18px !important;
+        gap: 10px !important;
+    }
+
+    .layout--mobile .filter-items {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        width: 100%;
+    }
+
+    .layout--mobile .filter-items > * {
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* selects with long options & search fields get the full row */
+    .layout--mobile .filter-items > .filter-group:has(select),
+    .layout--mobile .filter-items > .filter-group:has(input[type="text"]),
+    .layout--mobile .filter-items > .filter-group:has(input[type="search"]),
+    .layout--mobile .filter-items > *:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .layout--mobile .filter-group label {
+        font-size: 10.5px !important;
+        letter-spacing: 0.06em;
+        margin-bottom: 5px !important;
+    }
+
+    .layout--mobile .filter-group input,
+    .layout--mobile .filter-group select,
+    .layout--mobile .filter-bar input,
+    .layout--mobile .filter-bar select {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 44px !important;
+        border-radius: 12px !important;
+        font-size: 15px !important;
+        padding: 0 12px !important;
+    }
+
+    .layout--mobile .filter-group input[type="date"] {
+        font-size: 14px !important;
+        padding: 0 8px !important;
+    }
+
+    .layout--mobile .clear-filter-btn {
+        width: 100% !important;
+        min-height: 42px !important;
+        border-radius: 12px !important;
+    }
+
+    /* ------------------------------------------------------
+       4. TABLES → APP CARDS
+       (classes are added by hooks/useMobileTableCards.js)
+    ------------------------------------------------------ */
+
+    .layout--mobile .data-table-wrapper,
+    .layout--mobile .table-responsive,
+    .layout--mobile .table-wrapper,
+    .layout--mobile .table-container,
+    .layout--mobile [class*="table-wrap"],
+    .layout--mobile [class*="table-scroll"] {
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        max-height: none !important;
+        padding: 0 !important;
+    }
+}
+
+/* Cards (applies to page tables AND tables inside modals) */
+@media (max-width: 768px) {
+
+    table.m-cards,
+    table.m-cards > tbody {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        border: 0 !important;
+        background: transparent !important;
+        table-layout: auto !important;
+        box-shadow: none !important;
+    }
+
+    table.m-cards > thead,
+    table.m-cards > colgroup {
+        display: none !important;
+    }
+
+    table.m-cards > tfoot {
+        display: block;
+    }
+
+    table.m-cards > tbody > tr {
+        position: relative;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 10px;
+        row-gap: 10px;
+        width: 100% !important;
+        margin: 0 0 12px !important;
+        padding: 14px !important;
+        background: #fff !important;
+        border: 1px solid #ebe6f7 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 6px 18px rgba(62, 40, 140, 0.07) !important;
+        box-sizing: border-box;
+        height: auto !important;
+    }
+
+    table.m-cards > tbody > tr:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    table.m-cards > tbody > tr > td,
+    table.m-cards > tbody > tr > th {
+        position: static !important;
+        display: block !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere;
+        font-size: 13px !important;
+        line-height: 1.4 !important;
+        color: #1e1742;
+        left: auto !important;
+        right: auto !important;
+    }
+
+    table.m-cards > tbody > tr > td[data-label]:not([data-label=""])::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 3px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #8a84a8;
+        line-height: 1.2;
+    }
+
+    /* Title of the card (employee / store / rule …) */
+    table.m-cards > tbody > tr > td.m-primary {
+        grid-column: 1 / -1;
+        order: -2;
+        padding-right: 40px !important;
+        padding-bottom: 10px !important;
+        border-bottom: 1px dashed #ebe6f7 !important;
+        font-size: 14px !important;
+        font-weight: 600;
+    }
+
+    table.m-cards > tbody > tr > td.m-primary::before {
+        display: none !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-primary * {
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-primary,
+    table.m-cards > tbody > tr > td.m-primary * {
+        text-align: left !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-primary .ctr-store,
+    table.m-cards > tbody > tr > td.m-primary [class*="-cell-text"] {
+        align-items: flex-start !important;
+    }
+
+    /* expanded "detail" rows sit right under their card */
+    table.m-cards > tbody > tr.m-row-single {
+        margin-top: -6px !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-primary .pp-cell-main,
+    table.m-cards > tbody > tr > td.m-primary > div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Full-width values (long text) */
+    table.m-cards > tbody > tr > td.m-full,
+    table.m-cards > tbody > tr > td.m-wide {
+        grid-column: 1 / -1;
+    }
+
+    /* Action buttons → card footer */
+    table.m-cards > tbody > tr > td.m-actions {
+        grid-column: 1 / -1;
+        order: 50;
+        padding-top: 10px !important;
+        border-top: 1px solid #f0ecfa !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-actions::before {
+        display: none !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-actions > *,
+    table.m-cards > tbody > tr > td.m-actions .action-buttons,
+    table.m-cards > tbody > tr > td.m-actions [class*="action"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        width: 100% !important;
+        justify-content: stretch !important;
+        margin: 0 !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-actions button,
+    table.m-cards > tbody > tr > td.m-actions a {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        min-height: 40px !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 8px 10px !important;
+        border-radius: 12px !important;
+        justify-content: center !important;
+        align-items: center !important;
+        display: inline-flex !important;
+        gap: 6px;
+        font-size: 13px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Expand / select control → top-right corner of the card */
+    table.m-cards > tbody > tr > td.m-tool {
+        position: absolute !important;
+        top: 12px;
+        right: 12px !important;
+        left: auto !important;
+        z-index: 2;
+    }
+
+    table.m-cards > tbody > tr > td.m-tool::before {
+        display: none !important;
+    }
+
+    table.m-cards > tbody > tr > td.m-empty,
+    table.m-cards > tbody > tr > td.m-hide {
+        display: none !important;
+    }
+
+    /* Empty state / loading / expanded detail rows */
+    table.m-cards > tbody > tr.m-row-single {
+        display: block !important;
+        box-shadow: none !important;
+        background: #faf8ff !important;
+    }
+
+    table.m-cards > tbody > tr.m-row-single > td {
+        text-align: center !important;
+    }
+
+    table.m-cards > tbody > tr.m-row-single > td.m-full {
+        text-align: left !important;
+    }
+
+    /* Pills / badges never overflow the card */
+    table.m-cards .pp-pill,
+    table.m-cards [class*="badge"],
+    table.m-cards [class*="status"] {
+        max-width: 100%;
+        white-space: normal !important;
+    }
+
+    /* Punch cells (Attendance) */
+    table.m-cards .pp-punch {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    table.m-cards .pp-punch-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    /* Nested tables inside a card (rare) stay scrollable */
+    table.m-cards table:not(.m-cards) {
+        display: block;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    /* ------------------------------------------------------
+       5. PAGINATION
+    ------------------------------------------------------ */
+
+    .layout--mobile .pagination {
+        display: grid !important;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px !important;
+        padding: 12px 4px 4px !important;
+        font-size: 12.5px !important;
+    }
+
+    .layout--mobile .pagination-left,
+    .layout--mobile .pagination-right {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+        margin: 0 !important;
+        white-space: nowrap;
+    }
+
+    .layout--mobile .pagination-right select {
+        height: 36px !important;
+        min-width: 64px;
+        border-radius: 10px !important;
+        font-size: 14px !important;
+    }
+
+    .layout--mobile .pagination-center {
+        grid-column: 1 / -1;
+        display: grid !important;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 8px !important;
+        width: 100%;
+    }
+
+    .layout--mobile .pagination-center .page-btn {
+        width: 100% !important;
+        min-height: 40px !important;
+        border-radius: 12px !important;
+        font-size: 13px !important;
+    }
+
+    .layout--mobile .pagination-center .page-info {
+        white-space: nowrap;
+        font-size: 12.5px !important;
+        padding: 8px 12px !important;
+        border-radius: 999px;
+    }
+
+    /* ------------------------------------------------------
+       6. MODALS → BOTTOM SHEETS
+    ------------------------------------------------------ */
+
+    .layout--mobile .modal-overlay,
+    .modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal-overlay > .report-modal,
+    .modal-overlay > .modal,
+    .modal-overlay > .modal-content,
+    .modal-overlay > [class$="-modal"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92vh !important;
+        margin: 0 !important;
+        border-radius: 22px 22px 0 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .modal-overlay .detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .modal-overlay .modal-actions {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .modal-overlay .modal-actions > * {
+        flex: 1 1 140px;
+    }
+}

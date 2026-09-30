@@ -1,4 +1,61 @@
 const db = require("../config/db");
+
+// ==========================================================
+// PHOTO EVIDENCE RULE PER QUESTION
+// ----------------------------------------------------------
+// questions.photo_requirement tells Checklist Submission when a
+// question needs a picture:
+//   NULL / "Auto"      → system decides (Image answer type, or the
+//                        question mentions photo / picture / image)
+//   "Optional"         → "Add Photo" button, not mandatory
+//   "Required"         → photo must be attached
+//   "Required on No"   → photo must be attached when answered "No"
+//   "None"             → no photo option for this question
+// ==========================================================
+
+const PHOTO_REQUIREMENTS = ["Auto", "Optional", "Required", "Required on No", "None"];
+
+let photoRequirementReady = false;
+
+const ensurePhotoRequirementColumn = async () => {
+
+    const hasColumn = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW COLUMNS FROM questions LIKE 'photo_requirement'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasColumn) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE questions ADD COLUMN photo_requirement VARCHAR(30) NULL`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    photoRequirementReady = true;
+};
+
+const normalizePhotoRequirement = (value) => {
+    const text = String(value ?? "").trim().toLowerCase();
+    if (!text) return null;
+    return PHOTO_REQUIREMENTS.find((item) => item.toLowerCase() === text) || null;
+};
+
+const setPhotoRequirement = (id, value, callback = () => {}) => {
+
+    if (!photoRequirementReady || value === undefined) return callback(null);
+
+    const normalized = normalizePhotoRequirement(value);
+
+    db.query(
+        `UPDATE questions SET photo_requirement = ? WHERE id = ?`,
+        [normalized && normalized !== "Auto" ? normalized : null, id],
+        (err) => callback(err || null)
+    );
+};
 // ==========================================================
 // GET ALL QUESTIONS
 // FILTER + SEARCH
@@ -33,6 +90,8 @@ const getAllQuestions = (
             q.sla_unit,
 
             q.answer_required,
+
+            ${photoRequirementReady ? "q.photo_requirement," : ""}
 
             q.status,
 
@@ -190,6 +249,8 @@ const getAllQuestions = (
 
             q.answer_required,
 
+            ${photoRequirementReady ? "q.photo_requirement," : ""}
+
             q.status,
 
             q.created_at
@@ -267,6 +328,8 @@ const getQuestionsByChecklistType = (
             q.sla_unit,
 
             q.answer_required,
+
+            ${photoRequirementReady ? "q.photo_requirement," : ""}
 
             q.status
 
@@ -755,6 +818,10 @@ const bulkCreateQuestions = (
 // ==========================================================
 
 module.exports = {
+
+    ensurePhotoRequirementColumn,
+
+    setPhotoRequirement,
 
     getAllQuestions,
 

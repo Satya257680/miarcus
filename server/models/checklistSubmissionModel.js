@@ -390,6 +390,73 @@ ChecklistSubmission.ensureSubmissionDateTime = async () => {
 };
 
 // ======================================================
+// ENSURE PER-QUESTION PHOTO COLUMN
+//
+// Checklist Submission now lets the user attach photos to an
+// individual question (camera / gallery / website link). They are
+// stored with the answer as a JSON array of stored paths / URLs:
+//
+//   ["uploads/1727..-ab.jpg", "https://example.com/shelf.jpg"]
+// ======================================================
+
+let answerPhotosColumnReady = false;
+
+ChecklistSubmission.ensureAnswerPhotosColumn = async () => {
+
+    const hasColumn = await new Promise((resolve, reject) => {
+        db.query(
+            `SHOW COLUMNS FROM checklist_submission_answers LIKE 'photos'`,
+            (err, rows) => err ? reject(err) : resolve(rows.length > 0)
+        );
+    });
+
+    if (!hasColumn) {
+        await new Promise((resolve, reject) => {
+            db.query(
+                `ALTER TABLE checklist_submission_answers ADD COLUMN photos TEXT NULL`,
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    }
+
+    answerPhotosColumnReady = true;
+};
+
+// Photos of every answer in one submission → { answer_id: [paths] }
+ChecklistSubmission.getAnswerPhotos = (submissionId, callback) => {
+
+    if (!answerPhotosColumnReady) {
+        return callback(null, []);
+    }
+
+    db.query(
+        `SELECT id AS answer_id, question_id, photos
+         FROM checklist_submission_answers
+         WHERE submission_id = ?
+           AND photos IS NOT NULL
+           AND photos <> ''`,
+        [submissionId],
+        (err, rows) => {
+            if (err) return callback(err);
+            const data = (rows || []).map((row) => {
+                let photos = [];
+                try {
+                    photos = JSON.parse(row.photos || "[]");
+                } catch {
+                    photos = [];
+                }
+                return {
+                    answer_id: row.answer_id,
+                    question_id: row.question_id,
+                    photos: Array.isArray(photos) ? photos.filter(Boolean) : []
+                };
+            });
+            return callback(null, data);
+        }
+    );
+};
+
+// ======================================================
 // CREATE SUBMISSION WITH ANSWERS
 //
 // FIX (v2 - matches actual config/db.js):
@@ -558,25 +625,47 @@ ChecklistSubmission.create = async (
 
         ) {
 
+            // Per-question photo evidence is stored as a JSON array
+            // in checklist_submission_answers.photos (see
+            // ensureAnswerPhotosColumn below). Older databases that
+            // could not be migrated simply skip the column.
+            const withPhotos = answerPhotosColumnReady;
+
             const answerValues = answers.map(
 
-                (item) => [
+                (item) => {
 
-                    submissionId,
+                    const row = [
 
-                    item.question_id,
+                        submissionId,
 
-                    item.answer !== undefined &&
+                        item.question_id,
 
-                    item.answer !== null
+                        item.answer !== undefined &&
 
-                        ? String(item.answer)
+                        item.answer !== null
 
-                        : "",
+                            ? String(item.answer)
 
-                    item.remarks || ""
+                            : "",
 
-                ]
+                        item.remarks || ""
+
+                    ];
+
+                    if (withPhotos) {
+
+                        const photos = Array.isArray(item.photos)
+                            ? item.photos.filter(Boolean)
+                            : [];
+
+                        row.push(photos.length ? JSON.stringify(photos) : null);
+
+                    }
+
+                    return row;
+
+                }
 
             );
 
@@ -592,7 +681,7 @@ ChecklistSubmission.create = async (
 
                     answer,
 
-                    remarks
+                    remarks${withPhotos ? ",\n\n                    photos" : ""}
 
                 )
 

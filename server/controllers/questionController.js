@@ -188,6 +188,7 @@ exports.createQuestion = (req, res) => {
         sla_unit,
         answer_required,
         status,
+        photo_requirement,
         departments = []
     } = req.body;
 
@@ -262,6 +263,11 @@ exports.createQuestion = (req, res) => {
             }
 
             const questionId = result.insertId;
+
+            // Photo evidence rule (Auto / Optional / Required / Required on No / None)
+            Question.setPhotoRequirement(questionId, photo_requirement, (photoErr) => {
+                if (photoErr) console.error("setPhotoRequirement error:", photoErr);
+            });
 
             // ==================================================
             // SAVE DEPARTMENTS
@@ -342,6 +348,7 @@ exports.updateQuestion = (req, res) => {
         sla_unit,
         answer_required,
         status,
+        photo_requirement,
         departments = []
     } = req.body;
 
@@ -415,6 +422,11 @@ exports.updateQuestion = (req, res) => {
                     message: err.message
                 });
             }
+
+            // Photo evidence rule (Auto / Optional / Required / Required on No / None)
+            Question.setPhotoRequirement(id, photo_requirement, (photoErr) => {
+                if (photoErr) console.error("setPhotoRequirement error:", photoErr);
+            });
 
             // ==================================================
             // DELETE OLD DEPARTMENTS
