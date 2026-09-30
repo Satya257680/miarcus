@@ -1,0 +1,886 @@
+/* ==========================================================
+   MIARCUS — MOBILE APP SHELL
+   Everything here is scoped to phones (≤ 768px) so the
+   laptop / desktop / tablet layout stays exactly as it is.
+
+   - Sidebar  → slide-in drawer (opens from ☰ or "More")
+   - Topbar   → compact app header (menu · logo · bell · avatar)
+   - Bottom tab bar (Dashboard · Gallery · Checklist · …)
+   - Generic touch-friendly fixes for all pages
+   - Checklist Submission app layout
+   - Gallery app layout
+========================================================== */
+
+/* On desktop the drawer wrapper must not affect layout */
+.sidebar-shell {
+    display: contents;
+}
+
+.mobile-bottom-nav,
+.mobile-drawer-backdrop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+
+    /* ------------------------------------------------------
+       APP SHELL
+    ------------------------------------------------------ */
+
+    .layout--mobile {
+        --m-violet: #5b35d5;
+        --m-violet-2: #7c4dff;
+        --m-ink: #1e1742;
+        --m-muted: #6f6a8c;
+        --m-bg: #f3f0fb;
+        --m-nav-h: 66px;
+        --m-safe-b: env(safe-area-inset-bottom, 0px);
+        background: var(--m-bg);
+    }
+
+    .layout--mobile .page-content {
+        padding: 12px 12px calc(var(--m-nav-h) + var(--m-safe-b) + 18px) !important;
+        background: var(--m-bg) !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        scroll-padding-bottom: calc(var(--m-nav-h) + 24px);
+    }
+
+    /* ------------------------------------------------------
+       TOPBAR — compact app header
+    ------------------------------------------------------ */
+
+    .layout--mobile .topbar {
+        position: relative;
+        height: calc(62px + env(safe-area-inset-top, 0px)) !important;
+        min-height: calc(62px + env(safe-area-inset-top, 0px)) !important;
+        padding: env(safe-area-inset-top, 0px) 12px 0 !important;
+        background: linear-gradient(120deg, #9c86d6 0%, #8a6fd0 45%, #7b5cc9 100%) !important;
+        border-bottom: 0 !important;
+        border-radius: 0 0 22px 22px;
+        box-shadow: 0 8px 22px rgba(74, 48, 150, 0.22) !important;
+        z-index: 1150;
+    }
+
+    .layout--mobile .topbar-left {
+        flex: 0 0 auto;
+    }
+
+    .layout--mobile .menu-btn {
+        width: 42px !important;
+        height: 42px !important;
+        font-size: 22px !important;
+        border-radius: 12px !important;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .layout--mobile .topbar-center {
+        position: absolute !important;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 31px);
+        transform: translate(-50%, -50%);
+        width: auto !important;
+        height: 46px !important;
+        margin: 0 !important;
+        pointer-events: none;
+    }
+
+    .layout--mobile .topbar-logo {
+        width: 46px !important;
+        height: 46px !important;
+        max-width: 46px !important;
+        max-height: 46px !important;
+        border-radius: 14px !important;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 8px rgba(40, 20, 90, 0.3));
+    }
+
+    .layout--mobile .topbar-right {
+        gap: 8px !important;
+        margin-left: auto;
+    }
+
+    .layout--mobile .notification-icon-btn,
+    .layout--mobile .topbar .icon-btn {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        border-radius: 13px !important;
+    }
+
+    /* Avatar only — name hidden */
+    .layout--mobile .profile-btn {
+        width: 44px !important;
+        min-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
+        border: 2px solid rgba(255, 255, 255, 0.95) !important;
+        overflow: visible;
+        position: relative;
+    }
+
+    .layout--mobile .profile-btn > span {
+        display: none !important;
+    }
+
+    .layout--mobile .topbar-profile-img {
+        width: 40px !important;
+        height: 40px !important;
+        border: 0 !important;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .layout--mobile .profile-btn::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #22c55e;
+        border: 2px solid #fff;
+    }
+
+    /* Logout lives in the profile menu on phones */
+    .layout--mobile .topbar .topbar-right .logout-btn {
+        display: none !important;
+    }
+
+    .layout--mobile .topbar-profile-wrapper .dropdown-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 10px);
+        min-width: 180px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(40, 25, 90, 0.25);
+        z-index: 1400;
+    }
+
+    .layout--mobile .topbar-profile-wrapper .dropdown-menu p {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    .layout--mobile .notification-menu {
+        top: calc(62px + env(safe-area-inset-top, 0px)) !important;
+        max-height: calc(100vh - 150px);
+        border-radius: 18px;
+    }
+
+    /* ------------------------------------------------------
+       SIDEBAR → DRAWER
+    ------------------------------------------------------ */
+
+    .layout--mobile .sidebar-shell {
+        display: block;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1300;
+        width: min(84vw, 310px);
+        transform: translateX(-104%);
+        transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        box-shadow: 18px 0 40px rgba(30, 16, 70, 0);
+        padding-top: env(safe-area-inset-top, 0px);
+        background: linear-gradient(180deg, #8e81ba 0%, #7866a4 52%, #6d5e8f 100%);
+        border-radius: 0 24px 24px 0;
+        overflow: hidden;
+    }
+
+    .layout--mobile .sidebar-shell.is-open {
+        transform: translateX(0);
+        box-shadow: 18px 0 40px rgba(30, 16, 70, 0.35);
+    }
+
+    .layout--mobile .sidebar-shell .sidebar {
+        width: 100% !important;
+        flex-basis: auto !important;
+        height: 100% !important;
+        border-right: 0;
+        box-shadow: none;
+    }
+
+    .layout--mobile .sidebar-shell .menu-item,
+    .layout--mobile .sidebar-shell .sidebar-group-toggle {
+        min-height: 48px !important;
+        font-size: 15px !important;
+    }
+
+    .layout--mobile .sidebar-shell .submenu-item {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    .layout--mobile .sidebar-shell .sidebar-branding {
+        padding-bottom: calc(14px + var(--m-safe-b));
+    }
+
+    .layout--mobile .mobile-drawer-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1250;
+        background: rgba(22, 12, 50, 0.45);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    .layout--mobile .mobile-drawer-backdrop.is-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* ------------------------------------------------------
+       BOTTOM TAB BAR
+    ------------------------------------------------------ */
+
+    .layout--mobile .mobile-bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1200;
+        display: flex;
+        align-items: stretch;
+        justify-content: space-around;
+        gap: 2px;
+        height: calc(var(--m-nav-h) + var(--m-safe-b));
+        padding: 6px 8px var(--m-safe-b);
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-top: 1px solid #ece7f8;
+        border-radius: 22px 22px 0 0;
+        box-shadow: 0 -8px 26px rgba(60, 40, 120, 0.1);
+    }
+
+    .mbn-item {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 4px 2px;
+        border: 0;
+        border-radius: 16px;
+        background: transparent;
+        color: #7a7596;
+        text-decoration: none;
+        font-family: inherit;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: color 0.2s ease, background 0.2s ease;
+    }
+
+    .mbn-icon {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 28px;
+        border-radius: 12px;
+        font-size: 19px;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .mbn-label {
+        max-width: 100%;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mbn-item.active {
+        color: var(--m-violet);
+        background: #f1ebff;
+    }
+
+    .mbn-item.active .mbn-icon {
+        transform: translateY(-1px);
+    }
+
+    .mbn-item.active .mbn-label {
+        font-weight: 800;
+    }
+
+    .mbn-item:active .mbn-icon {
+        transform: scale(0.92);
+    }
+
+    /* ------------------------------------------------------
+       GENERIC PAGE FIXES (all modules)
+    ------------------------------------------------------ */
+
+    /* 16px inputs stop iOS from zooming the page on focus */
+    .layout--mobile input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    .layout--mobile select,
+    .layout--mobile textarea {
+        font-size: 16px !important;
+    }
+
+    .layout--mobile button,
+    .layout--mobile a {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Wide tables scroll sideways instead of breaking the page */
+    .layout--mobile .data-table-wrapper,
+    .layout--mobile [class$="table-wrap"],
+    .layout--mobile [class*="table-wrap "],
+    .layout--mobile [class$="table-wrapper"],
+    .layout--mobile [class$="table-scroll"],
+    .layout--mobile .table-responsive {
+        max-width: 100%;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Premium page hero — compact card */
+    .layout--mobile .pp-hero {
+        padding: 18px 16px !important;
+        border-radius: 22px !important;
+        gap: 14px !important;
+    }
+
+    .layout--mobile .pp-hero-subtitle {
+        font-size: 13px;
+    }
+
+    .layout--mobile .pp-hero-actions {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px !important;
+        width: 100%;
+    }
+
+    .layout--mobile .pp-hero-actions > * {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .layout--mobile .pp-hero-actions > *:only-child,
+    .layout--mobile .pp-hero-actions > *:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .layout--mobile .page-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Modals behave like bottom sheets */
+    .layout--mobile .gallery-modal,
+    .layout--mobile .premium-modal,
+    .layout--mobile .professional-modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100dvh - 24px) !important;
+        border-radius: 24px 24px 0 0 !important;
+        margin-top: auto;
+    }
+
+    .layout--mobile .gallery-modal-backdrop {
+        align-items: flex-end !important;
+        padding: 12px 0 0 !important;
+    }
+
+    /* ------------------------------------------------------
+       CHECKLIST SUBMISSION — app layout
+    ------------------------------------------------------ */
+
+    .layout--mobile .checklist-submission-page.cs-premium {
+        min-height: 0;
+        padding: 4px 2px 12px !important;
+        background: transparent !important;
+    }
+
+    .layout--mobile .cs-hero {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) !important;
+        grid-template-areas:
+            "text text"
+            "art  quote";
+        gap: 12px !important;
+        min-height: 0 !important;
+        padding: 16px 14px !important;
+        border-radius: 22px !important;
+    }
+
+    .layout--mobile .cs-hero-text {
+        grid-area: text;
+    }
+
+    .layout--mobile .cs-eyebrow {
+        display: none;
+    }
+
+    .layout--mobile .cs-title-row {
+        margin: 0 0 4px !important;
+        gap: 10px !important;
+    }
+
+    .layout--mobile .cs-title-row h1 {
+        font-size: 24px !important;
+        line-height: 1.15;
+    }
+
+    .layout--mobile .cs-hero-text p {
+        font-size: 13px;
+    }
+
+    .layout--mobile .cs-hero-art {
+        grid-area: art;
+        display: block !important;
+        width: 100%;
+        max-height: 120px;
+        object-fit: contain;
+    }
+
+    .layout--mobile .cs-quote {
+        grid-area: quote;
+        grid-column: auto !important;
+        align-self: center;
+        padding: 12px !important;
+        border-radius: 16px !important;
+        gap: 8px !important;
+    }
+
+    .layout--mobile .cs-quote img {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .layout--mobile .cs-premium .cs-hero .cs-quote p {
+        font-size: 12.5px !important;
+        line-height: 1.4 !important;
+    }
+
+    .layout--mobile .cs-stepper-card {
+        margin-top: 12px;
+        padding: 12px 8px !important;
+        border-radius: 22px !important;
+    }
+
+    .layout--mobile .cs-stepper {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        row-gap: 0 !important;
+        gap: 4px !important;
+    }
+
+    .layout--mobile .cs-step {
+        text-align: center;
+    }
+
+    .layout--mobile .cs-step-line {
+        display: block !important;
+    }
+
+    .layout--mobile .cs-step-icon {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 15px !important;
+    }
+
+    .layout--mobile .cs-premium .cs-stepper .cs-step b {
+        font-size: 11.5px !important;
+    }
+
+    .layout--mobile .cs-premium .cs-stepper .cs-step small {
+        font-size: 10px !important;
+        line-height: 1.3;
+    }
+
+    .layout--mobile .cs-premium .cs-details-card,
+    .layout--mobile .cs-premium .questions-section {
+        padding: 14px 12px !important;
+        border-radius: 22px !important;
+    }
+
+    .layout--mobile .cs-section-heading h2,
+    .layout--mobile .cs-section-heading h3 {
+        font-size: 18px !important;
+    }
+
+    .layout--mobile .cs-premium .checklist-field.cs-field {
+        padding: 12px !important;
+        border: 1px solid #ece6fb !important;
+        border-radius: 16px !important;
+        background: #fff;
+    }
+
+    .layout--mobile .cs-actions {
+        flex-direction: row !important;
+        gap: 10px;
+    }
+
+    .layout--mobile .cs-actions .cs-btn {
+        flex: 1 1 0;
+        min-height: 48px;
+        border-radius: 14px !important;
+    }
+
+    .layout--mobile .cs-premium .question-card {
+        padding: 14px 12px !important;
+        border-radius: 18px !important;
+    }
+
+    .layout--mobile .cs-premium .question-top {
+        gap: 10px !important;
+    }
+
+    .layout--mobile .cs-premium .question-number {
+        flex: 0 0 34px;
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 10px !important;
+        font-size: 14px !important;
+    }
+
+    .layout--mobile .cs-premium .question-title h4 {
+        font-size: 15px !important;
+        line-height: 1.35;
+    }
+
+    .layout--mobile .cs-premium .answer-textarea,
+    .layout--mobile .cs-premium .answer-input,
+    .layout--mobile .cs-premium .remarks-input {
+        width: 100%;
+        border-radius: 14px !important;
+    }
+
+    .layout--mobile .cs-premium .submit-area {
+        position: sticky;
+        bottom: calc(-1 * (var(--m-nav-h) + var(--m-safe-b) + 18px));
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+        padding: 12px !important;
+        border-radius: 18px !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        box-shadow: 0 -6px 20px rgba(60, 40, 120, 0.1);
+    }
+
+    .layout--mobile .cs-premium .submit-checklist-btn {
+        width: 100% !important;
+        min-height: 52px;
+        justify-content: center;
+        border-radius: 16px !important;
+        font-size: 16px !important;
+    }
+
+    /* ------------------------------------------------------
+       GALLERY — app layout
+    ------------------------------------------------------ */
+
+    .layout--mobile .gallery-page.pp-premium {
+        padding: 4px 2px 12px !important;
+        background: transparent !important;
+    }
+
+    /* the large desktop hero is replaced by the app header */
+    .layout--mobile .gallery-page > .pp-hero {
+        display: none !important;
+    }
+
+    .layout--mobile .gallery-toolbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 50px;
+        gap: 10px !important;
+        padding: 0 !important;
+        margin: 0 0 12px !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .layout--mobile .gallery-toolbar .gallery-search {
+        grid-column: 1;
+        height: 50px;
+        border-radius: 16px !important;
+        background: #fff !important;
+        border: 1px solid #e6dff6 !important;
+        box-shadow: 0 4px 14px rgba(76, 58, 111, 0.06);
+    }
+
+    .layout--mobile .gallery-toolbar > :not(.gallery-search):not(.gallery-m-filter-toggle) {
+        display: none !important;
+        grid-column: 1 / -1;
+    }
+
+    .layout--mobile .gallery-toolbar.is-filters-open > .gallery-filter,
+    .layout--mobile .gallery-toolbar.is-filters-open > .gallery-location-filter {
+        display: flex !important;
+    }
+
+    .layout--mobile .gallery-toolbar.is-filters-open > .gallery-location-filter,
+    .layout--mobile .gallery-toolbar.is-filters-open > input[type="date"],
+    .layout--mobile .gallery-toolbar.is-filters-open > .gallery-clear {
+        display: block !important;
+        width: 100% !important;
+        height: 48px;
+        border-radius: 14px !important;
+    }
+
+    .layout--mobile .gallery-toolbar.is-filters-open > .gallery-filter {
+        height: 48px;
+        border-radius: 14px !important;
+    }
+
+    .layout--mobile .gallery-toolbar.is-filters-open > input[type="date"] {
+        grid-column: auto;
+    }
+
+    .layout--mobile .gallery-m-filter-toggle {
+        grid-column: 2;
+        grid-row: 1;
+        display: grid !important;
+        place-items: center;
+        width: 50px;
+        height: 50px;
+        border: 1px solid #e6dff6;
+        border-radius: 16px;
+        background: #fff;
+        color: var(--m-violet);
+        font-size: 17px;
+        box-shadow: 0 4px 14px rgba(76, 58, 111, 0.06);
+        position: relative;
+    }
+
+    .layout--mobile .gallery-m-filter-toggle.has-filters::after {
+        content: "";
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+    }
+
+    .layout--mobile .gallery-toolbar.is-filters-open .gallery-m-filter-toggle {
+        background: var(--m-violet);
+        color: #fff;
+    }
+
+    .layout--mobile .pp-gallery-chips {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        margin: 0 -2px 10px !important;
+        padding: 2px 2px 4px;
+        scrollbar-width: none;
+    }
+
+    .layout--mobile .pp-gallery-chips::-webkit-scrollbar {
+        display: none;
+    }
+
+    .layout--mobile .pp-gallery-chip {
+        flex: 0 0 auto;
+        min-height: 38px;
+    }
+
+    .layout--mobile .gallery-meta-row {
+        flex-direction: row !important;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 10px !important;
+    }
+
+    .layout--mobile .gallery-meta-row > span:last-child {
+        display: none;
+    }
+
+    .layout--mobile .gallery-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .layout--mobile .gallery-card {
+        border-radius: 14px !important;
+        overflow: hidden;
+    }
+
+    .layout--mobile .gallery-card .gallery-image-wrap {
+        aspect-ratio: 1 / 1;
+        height: auto !important;
+    }
+
+    .layout--mobile .gallery-card .gallery-image-wrap img,
+    .layout--mobile .gallery-card .gallery-image-wrap video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .layout--mobile .gallery-card .gallery-file-preview {
+        height: 100%;
+        min-height: 0 !important;
+        font-size: 10px;
+        padding: 6px !important;
+    }
+
+    .layout--mobile .gallery-card-overlay {
+        display: none !important;
+    }
+
+    .layout--mobile .gallery-card-body {
+        padding: 6px 7px 8px !important;
+        gap: 2px !important;
+    }
+
+    .layout--mobile .gallery-card-topline {
+        display: none !important;
+    }
+
+    .layout--mobile .gallery-card-name {
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-line-clamp: 1;
+                line-clamp: 1;
+    }
+
+    .layout--mobile .gallery-card-meta {
+        font-size: 10px !important;
+    }
+
+    .layout--mobile .gallery-card-meta > span:first-child {
+        display: none !important;
+    }
+
+    .layout--mobile .gallery-card-meta > span:last-child {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Gallery mobile header — hidden on larger screens */
+.gallery-m-head,
+.gallery-m-filter-toggle {
+    display: none;
+}
+
+@media (max-width: 768px) {
+
+    .gallery-m-head {
+        display: block;
+        margin-bottom: 12px;
+    }
+
+    .gallery-m-titlebar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .gallery-m-titlebar h1 {
+        margin: 0;
+        color: #1e1742;
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+    }
+
+    .gallery-m-titlebar p {
+        margin: 4px 0 0;
+        color: #6f6a8c;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .gallery-m-camera-btn {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 50px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #7c4dff 0%, #5b35d5 100%);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 800;
+        box-shadow:
+            0 3px 0 #4524ad,
+            0 12px 22px -6px rgba(91, 53, 213, 0.6);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .gallery-m-camera-btn svg {
+        font-size: 18px;
+    }
+
+    .gallery-m-camera-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 0 0 #4524ad, 0 6px 12px -4px rgba(91, 53, 213, 0.5);
+    }
+
+    .gallery-m-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .gallery-m-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 78px;
+        padding: 10px 6px;
+        border: 1px solid #ebe5f8;
+        border-radius: 18px;
+        background: #fff;
+        color: #5b35d5;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        box-shadow: 0 6px 16px rgba(76, 58, 111, 0.07);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .gallery-m-action svg {
+        font-size: 22px;
+    }
+
+    .gallery-m-action:active {
+        transform: scale(0.97);
+    }
+
+    .gallery-m-action--danger {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        min-height: 44px;
+        color: #dc2626;
+        border-color: #fde2e2;
+        background: #fff7f7;
+    }
+
+    .gallery-m-action--danger svg {
+        font-size: 15px;
+    }
+}

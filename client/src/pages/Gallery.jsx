@@ -33,6 +33,7 @@ import "../styles/premium/PagePremium.css";
 import "../styles/premium/GalleryPremium.css";
 import PremiumHero from "../components/premium/PremiumHero";
 import { formatCount } from "../utils/premiumFormat";
+import GalleryCamera from "../components/gallery/GalleryCamera";
 
 const getStoredUser = () => {
     try {
@@ -254,6 +255,10 @@ export default function Gallery() {
     const [showBulk, setShowBulk] = useState(false);
     const [showQr, setShowQr] = useState(false);
     const [selected, setSelected] = useState(null);
+
+    // Mobile: in-app camera + collapsible filters
+    const [showCamera, setShowCamera] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     const [uploading, setUploading] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
@@ -804,6 +809,22 @@ export default function Gallery() {
 
     return (
         <div className="gallery-page pp-premium">
+            <GalleryCamera
+                open={showCamera}
+                onClose={() => setShowCamera(false)}
+                onUploaded={() => {
+                    loadGallery(1);
+                    loadCategories();
+                }}
+                onViewGallery={() => {
+                    clearFilters();
+                    const scroller = document.querySelector(".page-content");
+                    if (scroller) scroller.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                categories={categories}
+                locations={locations}
+            />
+
             {(bulkUploading || uploading) && (
                 <PremiumLoader
                     overlay
@@ -812,6 +833,64 @@ export default function Gallery() {
                     caption="Uploading... please do not close this page."
                 />
             )}
+            {/* ==============================================
+                MOBILE APP HEADER (phones only — see MobileApp.css)
+            ============================================== */}
+            <div className="gallery-m-head">
+                <div className="gallery-m-titlebar">
+                    <div>
+                        <h1>Gallery</h1>
+                        <p>Company photos, videos and documents in one place.</p>
+                    </div>
+
+                    {canAdd && (
+                        <button
+                            type="button"
+                            className="gallery-m-camera-btn"
+                            onClick={() => setShowCamera(true)}
+                        >
+                            <FaCamera />
+                            Camera
+                        </button>
+                    )}
+                </div>
+
+                {(canAdd || canDeleteAll) && (
+                    <div className="gallery-m-actions">
+                        {canAdd && (
+                            <>
+                                <button type="button" className="gallery-m-action" onClick={openMobileUpload}>
+                                    <FaQrcode />
+                                    Upload from Mobile
+                                </button>
+                                <button
+                                    type="button"
+                                    className="gallery-m-action"
+                                    onClick={() => {
+                                        setBulkError("");
+                                        setShowBulk(true);
+                                    }}
+                                >
+                                    <FaLayerGroup />
+                                    Bulk Upload
+                                </button>
+                                <button type="button" className="gallery-m-action" onClick={() => setShowUpload(true)}>
+                                    <FaPlus />
+                                    Add File
+                                </button>
+                            </>
+                        )}
+
+                        {canDeleteAll && (
+                            <button type="button" className="gallery-m-action gallery-m-action--danger" onClick={deleteAll}>
+                                <FaTrash />
+                                {deleteAllLabel(isFilteredDelete, isFilteredDelete ? pagination?.total : undefined)}
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+
             <PremiumHero
                 icon={FaImages}
                 eyebrow="Media library"
@@ -875,7 +954,7 @@ export default function Gallery() {
                 ) : null}
             />
 
-            <div className="gallery-toolbar">
+            <div className={`gallery-toolbar ${showMobileFilters ? "is-filters-open" : ""}`}>
                 <div className="gallery-search">
                     <FaSearch />
                     <input
@@ -886,6 +965,17 @@ export default function Gallery() {
                         placeholder="Search photos, employee, category..."
                     />
                 </div>
+
+                {/* Phones only: shows / hides the filter fields */}
+                <button
+                    type="button"
+                    className={`gallery-m-filter-toggle ${(category || locationFilter || from || to) ? "has-filters" : ""}`}
+                    onClick={() => setShowMobileFilters(value => !value)}
+                    aria-expanded={showMobileFilters}
+                    aria-label="Filters"
+                >
+                    <FaFilter />
+                </button>
 
                 <div className="gallery-filter">
                     <FaFilter />

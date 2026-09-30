@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDashboardStats, getNSOSummary } from "../../../services/dashboardService";
 import {
   FaTasks,
@@ -23,14 +23,20 @@ import {
   FaClipboardCheck,
   FaExclamationTriangle,
 
+  // Welcome card chips
+  FaUser,
+  FaShieldAlt,
+  FaClock,
+  FaArrowRight,
+
 } from "react-icons/fa";
 
 import { Navigate, useNavigate } from "react-router-dom";
-import PageHeader from "../../../components/common/PageHeader";
 import SearchBar from "../../../components/common/SearchBar";
 import Card from "../../../components/common/Card";
 import ModuleGrid from "../components/ModuleGrid";
 import "../../../styles/dashboard/Dashboard.css";
+import "../../../styles/dashboard/Dashboard3D.css";
 import RecentActivity from "../components/RecentActivity";
 
 function Dashboard() {
@@ -54,6 +60,43 @@ function Dashboard() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   const navigate = useNavigate();
+
+  // ======================================================
+  // 3D tilt for the welcome card (mouse / trackpad only)
+  // ======================================================
+
+  const stageRef = useRef(null);
+  const tiltFrame = useRef(0);
+
+  const handleTiltMove = (event) => {
+    if (event.pointerType && event.pointerType !== "mouse") return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const rect = stage.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+
+    cancelAnimationFrame(tiltFrame.current);
+    tiltFrame.current = requestAnimationFrame(() => {
+      stage.style.setProperty("--tilt-x", `${(-y * 6).toFixed(2)}deg`);
+      stage.style.setProperty("--tilt-y", `${(x * 8).toFixed(2)}deg`);
+      stage.style.setProperty("--glare-x", `${((x + 0.5) * 100).toFixed(1)}%`);
+      stage.style.setProperty("--glare-y", `${((y + 0.5) * 100).toFixed(1)}%`);
+      stage.classList.add("is-tilting");
+    });
+  };
+
+  const handleTiltLeave = () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    cancelAnimationFrame(tiltFrame.current);
+    stage.style.setProperty("--tilt-x", "0deg");
+    stage.style.setProperty("--tilt-y", "0deg");
+    stage.classList.remove("is-tilting");
+  };
+
+  useEffect(() => () => cancelAnimationFrame(tiltFrame.current), []);
 
   // ======================================================
   // Load Dashboard Statistics
@@ -345,91 +388,130 @@ function Dashboard() {
 
     <div className="dashboard-page">
 
-      <PageHeader
-        title="Dashboard"
-        subtitle={
-          <>
-            <span className="dashboard-greeting">
-              {greeting}
-            </span>
-            {", "}
-            <span className="dashboard-username">
-              {user.name || "User"}
-            </span>
-            {" 👋"}
-          </>
-        }
-      />
-
       {/* ==========================================
-          Welcome Card
+          3D Page Title + Greeting
       ========================================== */}
 
-      <Card className="dashboard-welcome-card">
+      <header className="dash3d-header">
 
-        <div className="dashboard-welcome">
+        <h1 className="dash3d-title">
+          Dashboard
+        </h1>
 
-          <div className="dashboard-welcome-left">
+        <p className="dash3d-greeting">
+          <span className="dashboard-greeting">
+            {greeting},
+          </span>{" "}
+          <span className="dashboard-username">
+            {user.name || "User"}
+          </span>
+          <span className="dash3d-wave" aria-hidden="true"> 👋</span>
+        </p>
 
-            <h2>
-              MIARCUS Management Portal
-            </h2>
+      </header>
 
-            <p>
-              Access all modules from one place. Use the search below to quickly find the module you need.
-            </p>
+      {/* ==========================================
+          Welcome Card (3D)
+      ========================================== */}
 
-            <div className="dashboard-user-info">
+      <div
+        className="dash3d-stage"
+        ref={stageRef}
+        onPointerMove={handleTiltMove}
+        onPointerLeave={handleTiltLeave}
+      >
 
-              <span>
-                👤 {user.name || "User"}
-              </span>
+        <Card className="dashboard-welcome-card dash3d-card">
 
-              <span>
-                {user.designation || (isAdmin ? "Administrator" : "User")}
-              </span>
+          <span className="dash3d-glare" aria-hidden="true" />
+          <span className="dash3d-orb dash3d-orb--a" aria-hidden="true" />
+          <span className="dash3d-orb dash3d-orb--b" aria-hidden="true" />
 
-              <span>
-                🕒 {currentTime}
-              </span>
+          <div className="dashboard-welcome">
 
-              <span>
-                📅 {currentDate}
-              </span>
+            <div className="dashboard-welcome-left">
+
+              <h2 className="dash3d-portal-title">
+                MIARCUS Management Portal
+              </h2>
+
+              <p>
+                Access all modules from one place. Use the search below to quickly find the module you need.
+              </p>
+
+              <div className="dashboard-user-info">
+
+                <span>
+                  <FaUser /> {user.name || "User"}
+                </span>
+
+                <span>
+                  <FaShieldAlt /> {user.designation || (isAdmin ? "Administrator" : "User")}
+                </span>
+
+                <span>
+                  <FaClock /> {currentTime}
+                </span>
+
+                <span>
+                  <FaCalendarAlt /> {currentDate}
+                </span>
+
+              </div>
+
+            </div>
+
+            <div className="dashboard-welcome-visual dash3d-photo">
+
+              <div className="dash3d-photo-frame">
+
+                <img
+                  src="/miarcus-storefront.png"
+                  alt="Mi Arcus storefront"
+                  className="dashboard-welcome-image"
+                />
+
+                <span className="dash3d-photo-sheen" aria-hidden="true" />
+
+              </div>
+
+            </div>
+
+            <div className="dashboard-welcome-analytics-wrap">
+
+              <button
+                type="button"
+                className="dashboard-welcome-analytics dash3d-analytics"
+                onClick={() => navigate("/dashboard-analytics")}
+                title="Dashboard Analytics"
+                aria-label="Dashboard Analytics"
+              >
+                <FaChartLine />
+              </button>
+
+              <span className="dashboard-analytics-label">Analytics</span>
+
+              {/* Mobile: full-width 3D analytics button */}
+              <button
+                type="button"
+                className="dash3d-analytics-mobile"
+                onClick={() => navigate("/dashboard-analytics")}
+              >
+                <span className="dash3d-analytics-mobile-icon"><FaChartLine /></span>
+                <span>
+                  <strong>View Analytics</strong>
+                  <small>Live business insights</small>
+                </span>
+                <FaArrowRight className="dash3d-analytics-mobile-arrow" />
+              </button>
 
             </div>
 
           </div>
 
-          <div className="dashboard-welcome-visual">
+        </Card>
 
-            <img
-              src="/miarcus-storefront.png"
-              alt="Mi Arcus storefront"
-              className="dashboard-welcome-image"
-            />
-
-          </div>
-
-          <div className="dashboard-welcome-analytics-wrap">
-
-            <button
-              type="button"
-              className="dashboard-welcome-analytics"
-              onClick={() => navigate("/dashboard-analytics")}
-              title="Dashboard Analytics"
-              aria-label="Dashboard Analytics"
-            >
-              <FaChartLine />
-            </button>
-
-            <span className="dashboard-analytics-label">Analytics</span>
-
-          </div>
-
-        </div>
-
-      </Card>
+      </div>
 
       {/* ==========================================
           Search
