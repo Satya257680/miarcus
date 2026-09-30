@@ -15,9 +15,25 @@ const headers = () => ({
 // ======================================================
 
 export const getActivities = (params = {}) => {
+    // Drop empty filters and add a cache-buster so the list, the
+    // total and the pager are always live (never a cached 304).
+    const clean = Object.fromEntries(
+        Object.entries(params).filter(([, value]) => value !== "" && value !== null && value !== undefined)
+    );
     return axios.get(API, {
+        headers: { ...headers(), "Cache-Control": "no-cache", Pragma: "no-cache" },
+        params: { ...clean, _ts: Date.now() }
+    });
+};
+
+// ======================================================
+// FILTER OPTIONS (distinct values stored in the database)
+// ======================================================
+
+export const getActivityFilterOptions = () => {
+    return axios.get(`${API}/filters`, {
         headers: headers(),
-        params
+        params: { _ts: Date.now() }
     });
 };
 

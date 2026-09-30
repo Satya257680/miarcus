@@ -1304,6 +1304,18 @@ const update = async (
         () => {}
     );
  
+    // EMAIL: RE-ASSIGNED → only the newly assigned person is told.
+    const newAssignee = Number(updateData.assigned_to || 0);
+    if (newAssignee > 0 && newAssignee !== Number(oldData.assigned_to || 0)) {
+        try {
+            await checklistEmailService.sendActionPointEvent(id, "ACTION_POINT_CREATED", {
+                reassigned: true
+            });
+        } catch (emailError) {
+            console.error("ACTION POINT ASSIGNED EMAIL ERROR:", emailError.message);
+        }
+    }
+
     // EMAIL: STATUS / COMPLETION
     if (status && status !== oldData.status) {
         const event = status === "Closed" ? "ACTION_POINT_COMPLETED" : "ACTION_POINT_STATUS";

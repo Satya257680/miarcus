@@ -7,26 +7,94 @@ const Activity = {};
 // SEARCH + FILTER + PAGINATION
 // ======================================================
 
+// ======================================================
+// SHARED FILTER BUILDER
+// Used by the list, the count and "Delete Filtered", so all
+// three always work on exactly the same set of records.
+// Expects the query to alias activities as "a" and users
+// (creator) as "u".
+// ======================================================
+
+const buildActivityWhere = (filters = {}, user) => {
+
+
+    // --------------------------------------------------
+    // WHERE clause is built ONCE and shared by the list
+    // query and the count query, so the total (and the
+    // "Page X of Y" pager) always matches the rows.
+    // --------------------------------------------------
+    const where = ["a.module_name <> 'Employee Location'"];
+    const params = [];
+
+    // RBAC - admin sees all, others see own / assigned
+    if (!user || !user.is_admin) {
+        where.push("(a.created_by = ? OR a.assigned_to = ?)");
+        params.push(user?.id || 0, user?.id || 0);
+    }
+
+    const text = (value) => String(value ?? "").trim();
+
+    const search = text(filters.search);
+    if (search) {
+        const like = `%${search}%`;
+        where.push(`(
+            a.title LIKE ?
+            OR a.description LIKE ?
+            OR a.module_name LIKE ?
+            OR a.activity_type LIKE ?
+            OR u.name LIKE ?
+            OR CAST(a.id AS CHAR) = ?
+        )`);
+        params.push(like, like, like, like, like, search);
+    }
+
+    // Case / whitespace insensitive matching so values such as
+    // "open", "Open " or "OPEN" stored by older modules still match.
+    const exact = (column, value) => {
+        const v = text(value);
+        if (!v) return;
+        where.push(`LOWER(TRIM(${column})) = LOWER(?)`);
+        params.push(v);
+    };
+
+    exact("a.module_name", filters.module_name);
+    exact("a.activity_type", filters.activity_type);
+    exact("a.status", filters.status);
+    exact("a.priority", filters.priority);
+
+    const action = text(filters.action);
+    if (action) {
+        where.push("(a.title LIKE ? OR a.description LIKE ?)");
+        params.push(`%${action}%`, `%${action}%`);
+    }
+
+    const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(text(value));
+
+    if (isDate(filters.date_from)) {
+        where.push("a.created_at >= ?");
+        params.push(`${text(filters.date_from)} 00:00:00`);
+    }
+
+    if (isDate(filters.date_to)) {
+        where.push("a.created_at <= ?");
+        params.push(`${text(filters.date_to)} 23:59:59`);
+    }
+
+    const nsoId = Number(filters.new_store_opening_id);
+    if (Number.isInteger(nsoId) && nsoId > 0) {
+        where.push("a.module_name = 'New Store Openings' AND a.reference_id = ?");
+        params.push(nsoId);
+    }
+
+    return { whereSql: `WHERE ${where.join("\n          AND ")}`, params };
+};
+
 Activity.getAll = (filters, user, callback) => {
 
-    let sql = `
-        SELECT
-            a.*,
-            u.name AS created_by_name,
-            au.name AS assigned_to_name,
-            CASE
-                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.location
-                ELSE NULL
-            END AS nso_location,
-            CASE
-                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.city
-                ELSE NULL
-            END AS nso_city,
-            CASE
-                WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.status
-                ELSE NULL
-            END AS nso_status
-        FROM activities a
+    const { whereSql, params } = buildActivityWhere(filters, user);
+
+
+    const joins = `
         LEFT JOIN new_store_openings nso
             ON a.module_name = 'New Store Openings'
             AND nso.id = a.reference_id
@@ -34,186 +102,117 @@ Activity.getAll = (filters, user, callback) => {
             ON a.created_by = u.id
         LEFT JOIN users au
             ON a.assigned_to = au.id
-        WHERE 1 = 1
-          AND a.module_name <> 'Employee Location'
     `;
 
-    const params = [];
-        // ======================================================
-    // RBAC - ADMIN CAN SEE ALL
-    // NORMAL USER CAN SEE ONLY OWN OR ASSIGNED ACTIVITIES
-    // ======================================================
+    const page = Math.max(parseInt(filters.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(filters.limit, 10) || 10, 1), 200);
+    const offset = (page - 1) * limit;
 
-    if (!user.is_admin) {
+    const listSql = `
+        SELECT
+            a.*,
+            u.name AS created_by_name,
+            au.name AS assigned_to_name,
+            CASE WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.location ELSE NULL END AS nso_location,
+            CASE WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.city ELSE NULL END AS nso_city,
+            CASE WHEN a.module_name = 'New Store Openings' AND a.reference_id > 0 THEN nso.status ELSE NULL END AS nso_status
+        FROM activities a
+        ${joins}
+        ${whereSql}
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT ${limit} OFFSET ${offset}
+    `;
 
-        sql += `
-            AND (
-                a.created_by = ?
-                OR a.assigned_to = ?
-            )
-        `;
-
-        params.push(user.id, user.id);
-
-    }
-
-    // ======================================================
-    // SEARCH
-    // ======================================================
-
-    if (filters.search) {
-
-        sql += `
-            AND (
-                a.title LIKE ?
-                OR a.description LIKE ?
-                OR a.module_name LIKE ?
-            )
-        `;
-
-        const search = `%${filters.search}%`;
-
-        params.push(search, search, search);
-
-    }
-
-    // ======================================================
-    // MODULE FILTER
-    // ======================================================
-
-    if (filters.module_name) {
-
-        sql += ` AND a.module_name = ? `;
-
-        params.push(filters.module_name);
-
-    }
-
-    // ======================================================
-    // STATUS FILTER
-    // ======================================================
-
-    if (filters.activity_type) {
-
-        sql += ` AND a.activity_type = ? `;
-
-        params.push(filters.activity_type);
-
-    }
-
-    if (filters.action) {
-        sql += ` AND a.title LIKE ? `;
-        params.push(`%${filters.action}%`);
-    }
-
-    if (filters.status) {
-
-        sql += ` AND a.status = ? `;
-
-        params.push(filters.status);
-
-    }
-
-    if (filters.date_from) {
-        sql += ` AND DATE(a.created_at) >= ? `;
-        params.push(filters.date_from);
-    }
-
-    if (filters.date_to) {
-        sql += ` AND DATE(a.created_at) <= ? `;
-        params.push(filters.date_to);
-    }
-
-    // ======================================================
-    // PRIORITY FILTER
-    // ======================================================
-
-    if (filters.priority) {
-
-        sql += ` AND a.priority = ? `;
-
-        params.push(filters.priority);
-
-    }
-
-    if (filters.new_store_opening_id) {
-
-        sql += ` AND a.module_name = 'New Store Openings' AND a.reference_id = ? `;
-
-        params.push(filters.new_store_opening_id);
-
-    }
-
-    // ======================================================
-    // ORDER
-    // ======================================================
-
-    // ======================================================
-    // TOTAL COUNT (used by the UI to build a clean Sl. No.
-    // that always restarts from 1 after "Delete All")
-    // ======================================================
-
-    const whereIndex = sql.indexOf("WHERE 1 = 1");
     const countSql = `
         SELECT
             COUNT(*) AS total,
-            COALESCE(SUM(DATE(a.created_at) = CURDATE()), 0) AS today,
-            COALESCE(SUM(a.priority IN ('High', 'Critical')), 0) AS high_priority,
-            COALESCE(SUM(a.status IN ('Open', 'In Progress')), 0) AS open_count
+            COALESCE(SUM(CASE WHEN DATE(a.created_at) = CURDATE() THEN 1 ELSE 0 END), 0) AS today,
+            COALESCE(SUM(CASE WHEN LOWER(a.priority) IN ('high', 'critical') THEN 1 ELSE 0 END), 0) AS high_count,
+            COALESCE(SUM(CASE WHEN LOWER(a.status) IN ('open', 'in progress', 'pending') THEN 1 ELSE 0 END), 0) AS open_count
         FROM activities a
-        ${sql.slice(whereIndex)}
-    `;
-    const countParams = [...params];
-
-    sql += `
-        ORDER BY a.created_at DESC, a.id DESC
+        ${joins}
+        ${whereSql}
     `;
 
-    // ======================================================
-    // PAGINATION
-    // ======================================================
+    db.query(countSql, params, (countErr, countRows) => {
+        if (countErr) {
+            console.error("ACTIVITY COUNT ERROR:", countErr.message);
+        }
 
-    const page = Math.max(Number(filters.page) || 1, 1);
+        db.query(listSql, params, (err, rows) => {
+            if (err) return callback(err);
 
-    const limit = Math.min(Math.max(Number(filters.limit) || 10, 1), 200);
+            const list = rows || [];
+            const c = countErr ? {} : (countRows?.[0] || {});
 
-    const offset = (page - 1) * limit;
-
-    sql += `
-        LIMIT ? OFFSET ?
-    `;
-
-    params.push(limit, offset);
-
-    db.query(sql, params, (err, rows) => {
-        if (err) return callback(err);
-
-        db.query(countSql, countParams, (countErr, countRows) => {
-            // A failed count must never break the list itself.
+            // If the count ever fails, still let the pager move forward
+            // when this page is full.
             const total = countErr
-                ? offset + (rows || []).length
-                : Number(countRows?.[0]?.total || 0);
+                ? offset + list.length + (list.length === limit ? 1 : 0)
+                : Number(c.total || 0);
 
             // Sl. No. = position counted from the OLDEST matching record,
-            // so the first activity logged after a Delete All is #1,
-            // the next one is #2, and so on.
-            const data = (rows || []).map((row, index) => ({
+            // so the first activity logged after a Delete All is #1.
+            const data = list.map((row, index) => ({
                 ...row,
                 sl_no: Math.max(total - offset - index, 1)
             }));
 
-            const c = countErr ? {} : (countRows?.[0] || {});
             const summary = {
                 total,
                 today: Number(c.today || 0),
-                high_priority: Number(c.high_priority || 0),
+                high_priority: Number(c.high_count || 0),
                 open: Number(c.open_count || 0)
             };
 
-            callback(null, data, { total, page, limit, summary });
+            callback(null, data, {
+                total,
+                page,
+                limit,
+                total_pages: Math.max(Math.ceil(total / limit), 1),
+                has_more: offset + list.length < total,
+                summary
+            });
         });
     });
 
+};
+
+// ======================================================
+// FILTER OPTIONS (distinct values actually stored)
+// ======================================================
+
+Activity.getFilterOptions = async (user) => {
+    const where = ["module_name <> 'Employee Location'"];
+    const params = [];
+
+    if (!user || !user.is_admin) {
+        where.push("(created_by = ? OR assigned_to = ?)");
+        params.push(user?.id || 0, user?.id || 0);
+    }
+
+    const distinct = async (column) => {
+        const rows = await db.query(
+            `SELECT DISTINCT TRIM(${column}) AS value
+             FROM activities
+             WHERE ${where.join(" AND ")}
+               AND ${column} IS NOT NULL
+               AND TRIM(${column}) <> ''
+             ORDER BY value ASC
+             LIMIT 200`,
+            params
+        );
+        return (rows || []).map((row) => String(row.value));
+    };
+
+    const [modules, activityTypes, statuses, priorities] = await Promise.all([
+        distinct("module_name"),
+        distinct("activity_type"),
+        distinct("status"),
+        distinct("priority")
+    ]);
+
+    return { modules, activity_types: activityTypes, statuses, priorities };
 };
 
 // ======================================================
@@ -833,55 +832,16 @@ Activity.deleteById = (activityId, user, callback) => {
 };
 
 Activity.deleteAll = (filters, user, callback) => {
-    let sql = `DELETE FROM activities WHERE 1 = 1 AND module_name <> 'Employee Location'`;
-    const params = [];
-
-    if (!user.is_admin) {
-        sql += ` AND (created_by = ? OR assigned_to = ?)`;
-        params.push(user.id, user.id);
-    }
-
-    if (filters.search) {
-        sql += ` AND (title LIKE ? OR description LIKE ? OR module_name LIKE ?)`;
-        const q = `%${filters.search}%`;
-        params.push(q, q, q);
-    }
-    if (filters.module_name) {
-        sql += ` AND module_name = ?`;
-        params.push(filters.module_name);
-    }
-    if (filters.status) {
-        sql += ` AND status = ?`;
-        params.push(filters.status);
-    }
-    if (filters.priority) {
-        sql += ` AND priority = ?`;
-        params.push(filters.priority);
-    }
-    if (filters.activity_type) {
-        sql += ` AND activity_type = ?`;
-        params.push(filters.activity_type);
-    }
-    if (filters.action) {
-        sql += ` AND title LIKE ?`;
-        params.push(`%${filters.action}%`);
-    }
-    if (filters.date_from) {
-        sql += ` AND DATE(created_at) >= ?`;
-        params.push(filters.date_from);
-    }
-    if (filters.date_to) {
-        sql += ` AND DATE(created_at) <= ?`;
-        params.push(filters.date_to);
-    }
-    if (filters.new_store_opening_id) {
-        sql += ` AND module_name = 'New Store Openings' AND reference_id = ?`;
-        params.push(filters.new_store_opening_id);
-    }
+    const { whereSql, params } = buildActivityWhere(filters, user);
 
     // Delete child rows first so installations without cascading foreign keys
     // behave consistently.
-    const selectSql = sql.replace(/^DELETE FROM activities/, "SELECT id FROM activities");
+    const selectSql = `
+        SELECT a.id
+        FROM activities a
+        LEFT JOIN users u ON a.created_by = u.id
+        ${whereSql}
+    `;
     db.query(selectSql, params, (selectErr, rows) => {
         if (selectErr) return callback(selectErr);
         const ids = rows.map((row) => Number(row.id)).filter(Boolean);

@@ -61,6 +61,8 @@ exports.getAllActivities = (req, res) => {
 
             total_pages: Math.max(Math.ceil(total / limit), 1),
 
+            has_more: Boolean(meta.has_more),
+
             summary: meta.summary || { total, today: 0, high_priority: 0, open: 0 }
 
         });
@@ -68,6 +70,24 @@ exports.getAllActivities = (req, res) => {
     }
 
 );
+};
+
+// ======================================================
+// FILTER OPTIONS
+// GET /api/activities/filters
+// Distinct Module / Activity Type / Status / Priority values
+// that really exist in the activities table, so every
+// dropdown option returns results.
+// ======================================================
+
+exports.getFilterOptions = async (req, res) => {
+    try {
+        const data = await Activity.getFilterOptions(req.user);
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error("ACTIVITY FILTER OPTIONS ERROR:", error);
+        return res.status(500).json({ success: false, message: "Failed to load filter options" });
+    }
 };
 
 // ======================================================

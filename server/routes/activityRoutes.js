@@ -26,6 +26,17 @@ router.get(
 );
 
 // ======================================================
+// FILTER OPTIONS (must stay above "/:id")
+// ======================================================
+
+router.get(
+    "/filters",
+    authMiddleware,
+    permissionMiddleware("Activity Center", "View"),
+    activityController.getFilterOptions
+);
+
+// ======================================================
 // DELETE ALL ACTIVITIES (CURRENT FILTERS)
 // ======================================================
 

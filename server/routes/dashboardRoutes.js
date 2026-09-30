@@ -28,7 +28,8 @@ const {
 
     getActionPointSummary,
     getNSOSummary,
-    getAnalytics
+    getAnalytics,
+    getPulse
 
 } = require(
     "../controllers/dashboardController"
@@ -67,6 +68,13 @@ router.get(
     "/analytics",
     authMiddleware,
     getAnalytics
+);
+
+// Real-time change signal for Dashboard Analytics
+router.get(
+    "/pulse",
+    authMiddleware,
+    getPulse
 );
 
 router.get(
