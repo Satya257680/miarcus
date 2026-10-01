@@ -694,16 +694,11 @@ exports.importStoresFromCSV = (req, res) =>
         module: "stores",
 
         prepare: async (ctx) => {
-            const rows = await bulkSql("SELECT store_code FROM stores WHERE store_code IS NOT NULL");
-            ctx.data.codes = new Set(rows.map((r) => String(r.store_code).trim().toLowerCase()));
+            const rows = await bulkSql("SELECT * FROM stores WHERE store_code IS NOT NULL");
+            ctx.data.byCode = new Map(rows.map((r) => [String(r.store_code).trim().toLowerCase(), r]));
         },
 
         validateRow: (row, ctx) => {
-            const code = ctx.text("Store Code");
-            if (code && ctx.data.codes.has(code.toLowerCase())) {
-                ctx.duplicate("Store Code", code, `Store Code ${code} already exists in the database.`);
-            }
-
             const email = ctx.text("Email");
             if (email && !isEmail(email)) ctx.fail("Email", email, "Invalid email address.");
 
@@ -719,19 +714,35 @@ exports.importStoresFromCSV = (req, res) =>
             value: ctx.text("Store Code")
         }),
 
+        // Existing Store Code -> the store is UPDATED with the values in
+        // the file (empty cells keep the current value). New code -> created.
         processRow: async (row, ctx) => {
-            const result = await bulkCall(Store.createStore, {
+            const code = ctx.text("Store Code");
+            const existing = ctx.data.byCode.get(code.toLowerCase());
+            const pick = (column, field) => ctx.text(column) || (existing ? existing[field] : null) || null;
+            const statusText = ctx.text("Status");
+
+            const store = {
                 store_name: ctx.text("Store Name"),
-                store_code: ctx.text("Store Code"),
-                country: ctx.text("Country") || null,
-                city: ctx.text("City") || null,
-                state: ctx.text("State") || null,
-                address: ctx.text("Address") || null,
-                manager_name: ctx.text("Manager Name") || null,
-                contact_number: ctx.text("Contact Number") || null,
-                email: ctx.text("Email") || null,
-                status: ctx.text("Status").toLowerCase() === "inactive" ? "Inactive" : "Active"
-            });
+                store_code: code,
+                country: pick("Country", "country"),
+                city: pick("City", "city"),
+                state: pick("State", "state"),
+                address: pick("Address", "address"),
+                manager_name: pick("Manager Name", "manager_name"),
+                contact_number: pick("Contact Number", "contact_number"),
+                email: pick("Email", "email"),
+                status: statusText
+                    ? (statusText.toLowerCase() === "inactive" ? "Inactive" : "Active")
+                    : existing?.status || "Active"
+            };
+
+            if (existing) {
+                await bulkCall(Store.updateStore, existing.id, store);
+                return { id: existing.id, updated: true };
+            }
+
+            const result = await bulkCall(Store.createStore, store);
             return { id: result.insertId };
         },
 
@@ -741,7 +752,7 @@ exports.importStoresFromCSV = (req, res) =>
                 activity_type: "Store",
                 reference_id: 0,
                 title: "Stores Imported",
-                description: `${ctx.report.uploaded} stores imported`,
+                description: `${ctx.report.created} stores created, ${ctx.report.updated} updated`,
                 module_name: "Stores",
                 status: "Closed",
                 priority: "Medium",
@@ -750,4 +761,3 @@ exports.importStoresFromCSV = (req, res) =>
             });
         }
     });
-

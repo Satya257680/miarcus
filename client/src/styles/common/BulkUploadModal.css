@@ -378,6 +378,7 @@
 .bum-status.warn { color: var(--bum-warn); }
 .bum-status.extra { color: var(--bum-info); }
 .bum-status.bad { color: var(--bum-bad); }
+.bum-status.muted { color: var(--bum-muted, #7a8794); }
 
 .bum-tag {
     display: inline-block;
@@ -389,6 +390,7 @@
 }
 
 .bum-tag.dup { background: var(--bum-warn-soft); color: var(--bum-warn); }
+.bum-tag.partial { background: var(--bum-info-soft, #e8f1fb); color: var(--bum-info); }
 
 /* ---------------- checklist ---------------- */
 

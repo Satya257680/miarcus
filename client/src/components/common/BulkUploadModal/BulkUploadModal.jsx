@@ -26,6 +26,8 @@ import {
 } from "react-icons/fa";
 
 import axios from "../../../axiosConfig.js";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { exportTableData } from "../../../utils/exportUtils.js";
 import {
     bulkAuthHeaders,
@@ -306,8 +308,18 @@ function normalizeResult(raw, file) {
             created: Number(summary.created ?? uploaded) || 0,
             updated: Number(summary.updated || body.updatedCount || 0),
             failed: Number(failed) || 0,
-            skipped: Number(skipped) || 0
+            skipped: Number(skipped) || 0,
+            partial: Number(summary.partial || 0),
+            recordsSaved: Number(summary.recordsSaved ?? 0)
         },
+        // Full original rows that failed / were skipped — used to build
+        // a re-uploadable Error Report (fix the cells, upload again).
+        failedRows: Array.isArray(report?.failedRows) ? report.failedRows : [],
+        sourceColumns: Array.isArray(report?.sourceColumns) ? report.sourceColumns : [],
+        fatal:
+            body.completed === false && !Number(summary.total || 0) && body.message
+                ? body.message
+                : undefined,
         columns: report?.columns || null,
         details: details.filter((d) => d.type !== "warning"),
         notes: details.filter((d) => d.type === "warning"),
@@ -392,6 +404,8 @@ function BulkUploadModal({
 
     useEffect(() => {
         if (!isOpen) {
+            // Intentional: clear the modal state whenever it is closed.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             resetAll();
             setUploadedSomething(false);
             return;
@@ -600,35 +614,130 @@ function BulkUploadModal({
     const downloadErrorReport = async (format) => {
         setReportMenu(false);
         if (!result) return;
+        const base = (result.fileName || title).replace(/\.[^.]+$/, "");
+        const rowLabel = `${result.sourceLabel || "Excel"} Row`;
         const all = [...result.details, ...result.notes];
         const hasSheet = all.some((d) => d.sheet);
-        const headers = [
+
+        // Problem list (one line per problem) — second sheet / fallback.
+        const detailHeaders = [
             "#",
             ...(hasSheet ? ["Sheet"] : []),
-            `${result.sourceLabel || "Excel"} Row`,
+            rowLabel,
             "Column",
             "Value",
             "Error Reason",
             "Type"
         ];
-        const rows = all.map((d, i) => [
+        const detailRows = all.map((d, i) => [
             i + 1,
             ...(hasSheet ? [d.sheet || ""] : []),
             d.row ?? "",
             d.column || "",
             d.value ?? "",
             d.reason || "",
-            d.type === "duplicate" ? "Skipped (duplicate)" : d.type === "warning" ? "Saved with note" : "Failed"
+            d.type === "duplicate"
+                ? "Skipped (duplicate)"
+                : d.type === "warning"
+                    ? "Saved with note"
+                    : result.failedRows.some((f) => f.row === d.row && (f.sheet || "") === (d.sheet || "") && f.status === "Partly uploaded")
+                        ? "Partly saved"
+                        : "Failed"
         ]);
-        const base = (result.fileName || title).replace(/\.[^.]+$/, "");
-        await exportTableData({
-            headers,
-            rows,
-            filename: `${base}_Error_Report`,
-            format,
-            title: `${title} — Error Report`,
-            sheetName: "Error Report"
+
+        // Re-uploadable report: the original failed rows with ALL their
+        // columns (same names, same order) + Error Reason. Correct the
+        // cells and upload this same file again — the extra report
+        // columns are recognised and ignored by the importer.
+        const columns = result.sourceColumns.length
+            ? result.sourceColumns
+            : [...new Set(result.failedRows.flatMap((f) => Object.keys(f.values || {})))];
+        const reuploadable = result.failedRows.length > 0 && columns.length > 0;
+
+        if (!reuploadable) {
+            await exportTableData({
+                headers: detailHeaders,
+                rows: detailRows,
+                filename: `${base}_Error_Report`,
+                format,
+                title: `${title} — Error Report`,
+                sheetName: "Error Report"
+            });
+            return;
+        }
+
+        const sheetCol = hasSheet || result.failedRows.some((f) => f.sheet);
+        const mainHeaders = [
+            ...columns,
+            "Error Reason",
+            "Upload Status",
+            rowLabel,
+            ...(sheetCol ? ["Sheet"] : [])
+        ];
+        const mainRows = result.failedRows.map((f) => [
+            ...columns.map((c) => {
+                const v = f.values?.[c];
+                return v === null || v === undefined ? "" : v;
+            }),
+            (f.reasons || []).join(" | "),
+            f.status || "Failed",
+            f.row ?? "",
+            ...(sheetCol ? [f.sheet || ""] : [])
+        ]);
+
+        if (format !== "xlsx") {
+            await exportTableData({
+                headers: mainHeaders,
+                rows: mainRows,
+                filename: `${base}_Error_Report`,
+                format,
+                title: `${title} — Error Report (fix and re-upload)`,
+                sheetName: "Failed Rows"
+            });
+            return;
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        const styleHeader = (row, reportFrom) => {
+            row.eachCell((cell, colNumber) => {
+                const isReport = reportFrom && colNumber >= reportFrom;
+                cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isReport ? "FFC0392B" : "FF356D84" } };
+                cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+            });
+        };
+        const autoWidth = (sheet, count) => {
+            for (let i = 1; i <= count; i += 1) {
+                let max = 10;
+                sheet.getColumn(i).eachCell({ includeEmpty: true }, (cell) => {
+                    const len = cell.value === null || cell.value === undefined ? 0 : String(cell.value).length;
+                    if (len > max) max = len;
+                });
+                sheet.getColumn(i).width = Math.min(max + 2, 60);
+            }
+        };
+
+        const main = workbook.addWorksheet("Failed Rows");
+        styleHeader(main.addRow(mainHeaders), columns.length + 1);
+        mainRows.forEach((r) => {
+            const added = main.addRow(r);
+            const reasonCell = added.getCell(columns.length + 1);
+            reasonCell.font = { color: { argb: "FFC0392B" } };
+            reasonCell.alignment = { wrapText: true, vertical: "top" };
         });
+        main.views = [{ state: "frozen", ySplit: 1 }];
+        autoWidth(main, mainHeaders.length);
+
+        const details = workbook.addWorksheet("Error Details");
+        styleHeader(details.addRow(detailHeaders));
+        detailRows.forEach((r) => details.addRow(r));
+        autoWidth(details, detailHeaders.length);
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(
+            new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+            `${base}_Error_Report.xlsx`
+        );
     };
 
     const uploadAnother = () => {
@@ -795,6 +904,16 @@ function BulkUploadModal({
                     </div>
                 </div>
 
+                {cols?.looksLikeErrorReport && (
+                    <div className="bum-note warn">
+                        <FaExclamationTriangle />
+                        <div>
+                            <p><strong>This looks like an old Error Report.</strong> It only lists the problems (row, column, reason) and has no record data, so there is nothing to upload.</p>
+                            <p>Upload your original file again, or download the new Error Report from the result screen — it contains the full failed rows with all their columns, so you can correct them and upload that file directly.</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="bum-table-wrap">
                     <table className="bum-table">
                         <thead>
@@ -808,11 +927,12 @@ function BulkUploadModal({
                             {(cols?.columns || []).map((c, i) => (
                                 <tr key={`${c.source}-${i}`}>
                                     <td>{c.sheet ? <small className="bum-muted">{c.sheet} · </small> : null}{c.source}</td>
-                                    <td>{c.target || <span className="bum-muted">— (new column)</span>}</td>
+                                    <td>{c.target || <span className="bum-muted">{c.status === "ignored" ? "— (ignored)" : "— (new column)"}</span>}</td>
                                     <td>
                                         {c.status === "matched" && <span className="bum-status ok"><FaCheckCircle /> Matched</span>}
                                         {c.status === "corrected" && <span className="bum-status warn" title={`Header "${c.source}" was read as "${c.target}"`}><FaInfoCircle /> Auto-matched</span>}
                                         {c.status === "extra" && <span className="bum-status extra"><FaClone /> Extra · will be saved</span>}
+                                        {c.status === "ignored" && <span className="bum-status muted" title="Report / system column — read-only, not saved"><FaInfoCircle /> System column — not needed</span>}
                                     </td>
                                 </tr>
                             ))}
@@ -886,6 +1006,11 @@ function BulkUploadModal({
         const failedAll = result.fatal || (!s.uploaded && (s.failed || s.skipped || !s.total));
         const hasIssues = result.details.length > 0 || result.notes.length > 0;
         const rowLabel = `${result.sourceLabel || "Excel"} Row`;
+        const partlySaved = new Set(
+            (result.failedRows || [])
+                .filter((f) => f.status === "Partly uploaded")
+                .map((f) => `${f.sheet || ""}#${f.row}`)
+        );
 
         return (
             <>
@@ -910,6 +1035,7 @@ function BulkUploadModal({
                                 <small>Successfully Uploaded</small>
                                 <strong>{s.uploaded.toLocaleString()}</strong>
                                 {s.updated > 0 && <em>{s.updated.toLocaleString()} updated</em>}
+                                {s.partial > 0 && <em>{s.partial.toLocaleString()} partly saved</em>}
                             </div>
                         </div>
                         <div className="bum-stat bad">
@@ -943,6 +1069,15 @@ function BulkUploadModal({
                     </button>
                 </div>
 
+                {result.failedRows?.length > 0 && (
+                    <div className="bum-note tip">
+                        <FaLightbulb />
+                        <div>
+                            <p>The Error Report contains the {result.failedRows.length.toLocaleString()} failed row{result.failedRows.length === 1 ? "" : "s"} with all their columns and an <strong>Error Reason</strong> column. Correct the cells and upload that same file again — only those rows will be processed.</p>
+                        </div>
+                    </div>
+                )}
+
                 {result.details.length > 0 && (
                     <div className="bum-section">
                         <div className="bum-section-title bad"><FaTimesCircle /> Failed Rows Details</div>
@@ -966,6 +1101,7 @@ function BulkUploadModal({
                                             <td className="value">{d.value === "" || d.value === undefined || d.value === null ? <span className="bum-muted">(empty)</span> : String(d.value)}</td>
                                             <td className="reason">
                                                 {d.type === "duplicate" && <span className="bum-tag dup">Duplicate</span>}
+                                                {d.type !== "duplicate" && partlySaved.has(`${d.sheet || ""}#${d.row}`) && <span className="bum-tag partial">Partly saved</span>}
                                                 {d.reason}
                                             </td>
                                         </tr>

@@ -40,10 +40,23 @@ function listBulkModules() {
     return Object.values(MODULES).map((m) => ({ key: m.key, title: m.title }));
 }
 
+// Columns MIARCUS itself adds to its Error Reports. When a corrected
+// error report is uploaded again these are recognised and skipped —
+// they are never treated as data or saved as extra columns.
+const REPORT_COLUMNS = {
+    "__error_reason": ["error reason", "error reasons", "errors", "failure reason", "reason for failure"],
+    "__excel_row": ["excel row", "source row", "file row", "original row", "csv row", "pdf row", "word row", "photo row"],
+    "__upload_status": ["upload status", "upload result"],
+    "__error_column": ["error column", "failed column"]
+};
+
 function aliasesOf(spec) {
     const out = {};
     Object.entries(spec.columns || {}).forEach(([name, c]) => {
         out[name] = c.aliases || [];
+    });
+    Object.entries(REPORT_COLUMNS).forEach(([name, aliases]) => {
+        if (!out[name]) out[name] = aliases;
     });
     return out;
 }
@@ -54,7 +67,9 @@ function describeBulkModule(key) {
     if (!spec) return null;
 
     const groups = {};
-    Object.entries(spec.columns).forEach(([name, c]) => {
+    const visible = Object.entries(spec.columns).filter(([name]) => !name.startsWith("__"));
+
+    visible.forEach(([name, c]) => {
         if (typeof c.required === "string") {
             groups[c.required] = groups[c.required] || [];
             groups[c.required].push(name);
@@ -65,7 +80,7 @@ function describeBulkModule(key) {
         key: spec.key,
         title: spec.title,
         description: spec.description || "",
-        columns: Object.entries(spec.columns).map(([name, c]) => ({
+        columns: visible.map(([name, c]) => ({
             name,
             required: Boolean(c.required),
             requiredGroup: typeof c.required === "string" ? groups[c.required] : null,
@@ -76,7 +91,7 @@ function describeBulkModule(key) {
         guidelines: spec.guidelines || [],
         sampleRowCount: Math.max(
             1,
-            ...Object.values(spec.columns).map((c) => (Array.isArray(c.sample) ? c.sample.length : c.sample !== undefined ? 1 : 0))
+            ...visible.map(([, c]) => (Array.isArray(c.sample) ? c.sample.length : c.sample !== undefined ? 1 : 0))
         )
     };
 }
@@ -105,15 +120,23 @@ defineBulkModule("visit-plans", {
         "From Date": col(["from", "fromdate", "start date", "startdate", "plan from", "date from", "period from"], { required: "date", sample: ["01/10/2026", "01/10/2026", "02/10/2026"], help: "Start of the plan. Single day: From Date = To Date." }),
         "To Date": col(["to", "todate", "end date", "enddate", "plan to", "date to", "period to"], { sample: ["10/10/2026", "10/10/2026", "05/10/2026"] }),
         "Store Code": col(["storecode", "store id", "storeid", "outlet code", "code"], { required: "store", sample: ["556", "509", "558"], help: "Store Code or Store Name (at least one). Not needed for Week Off rows." }),
-        "Store Name": col(["store", "storename", "outlet", "outlet name", "planned store", "shop"], { required: "store", sample: ["MRPL - HISAR", "MRPL - HOSHIARPUR", "MRPL - SOLAN"] }),
+        "Store Name": col(["store", "storename", "outlet", "outlet name", "planned store", "planned stores", "planned store names", "stores", "store names", "shop"], { required: "store", sample: ["MRPL - HISAR", "MRPL - HOSHIARPUR", "MRPL - SOLAN"], help: "One store per row, or several stores in one cell separated by commas." }),
+        "Store Visit Schedule": col(["store visit schedule", "visit schedule", "store schedule", "stores and dates", "stores & dates", "planned stores & dates", "planned stores and dates"], { required: "store", sample: ["", "", ""], help: "Optional. Several stores with their own dates in one cell: \"MRPL - HISAR (556) - 01/10/2026; MRPL - SOLAN (558) - 02/10/2026\" (the Visit Planner export format)." }),
         "City": col(["city", "town", "location"], { sample: ["Hisar", "Hoshiarpur", "Solan"] }),
         "Visit Date": col(["visitdate", "date", "visit on", "store visit date", "planned date", "visit_date"], { required: "date", sample: ["01/10/2026", "02/10/2026", "03/10/2026"], help: "Date of this store's visit — must be within From Date and To Date." }),
         "Reason to Travel": col(["reason", "reasontotravel", "purpose", "reason for travel", "travel reason"], { sample: ["STORE VISIT", "STORE VISIT", "COLLECTION"] }),
         "Remarks": col(["remark", "remarks", "notes", "comment", "comments"], { sample: ["-", "", ""] }),
-        "Week Off": col(["weekoff", "week off (yes/no)", "leave", "week off/leave", "is leave", "on leave"], { sample: ["No", "No", "No"], help: "Yes or No. Week Off rows need no store." })
+        "Week Off": col(["weekoff", "week off (yes/no)", "leave", "week off/leave", "is leave", "on leave"], { sample: ["No", "No", "No"], help: "Yes or No. Week Off rows need no store." }),
+        // Columns of the Visit Planner EXPORT that the system calculates
+        // itself — recognised so an exported file uploads as it is.
+        "__plan_id": col(["plan id", "planid", "visit plan id"]),
+        "__total_days": col(["total days", "no of days", "number of days"]),
+        "__approval_status": col(["approval status", "approval", "approved status"]),
+        "__department": col(["department", "dept", "department name"]),
+        "__designation": col(["designation"])
     },
     // Store is only required for non week-off rows — checked by the importer.
-    skipAutoRequired: ["Store Code"],
+    skipAutoRequired: ["Store Code", "From Date"],
     dbLabels: { employee_id: "Employee ID", store_id: "Store Code", visit_date: "Visit Date", end_date: "To Date", city: "City", reason_to_travel: "Reason to Travel" },
     guidelines: COMMON_GUIDELINES
 });
@@ -426,5 +449,6 @@ module.exports = {
     describeBulkModule,
     aliasesOf,
     col,
+    REPORT_COLUMNS,
     COMMON_GUIDELINES
 };

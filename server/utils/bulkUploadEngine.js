@@ -418,7 +418,7 @@ function requiredGroups(spec) {
     // Returns [[col], [colA, colB], ...] — each inner list needs at least one.
     const groups = {};
     Object.entries(spec.columns || {}).forEach(([name, col]) => {
-        if (!col.required) return;
+        if (!col.required || name.startsWith("__")) return;
         const key = col.required === true ? name : String(col.required);
         groups[key] = groups[key] || [];
         groups[key].push(name);
@@ -434,14 +434,26 @@ function headerValidation(spec, headers) {
 
     const columns = (headers?.columns || []).map((c) => ({
         ...c,
+        target: c.status === "ignored" ? null : c.target,
         required: Boolean(c.target && spec.columns?.[c.target]?.required),
         label:
             c.status === "matched"
                 ? "Matched"
                 : c.status === "corrected"
                     ? `Read as "${c.target}"`
-                    : "Extra column — will be saved"
+                    : c.status === "ignored"
+                        ? "System column — not needed"
+                        : "Extra column — will be saved"
     }));
+
+    // An OLD error report (Row / Column / Value / Error Reason only) has
+    // no record data at all — say so instead of failing every row.
+    const sources = (headers?.columns || []).map((c) => String(c.source || "").toLowerCase().replace(/[^a-z0-9]/g, ""));
+    const looksLikeErrorReport =
+        sources.includes("errorreason") &&
+        (sources.includes("excelrow") || sources.includes("value")) &&
+        (headers?.matched || []).length <= 1 &&
+        missing.length > 0;
 
     return {
         columns,
@@ -449,6 +461,8 @@ function headerValidation(spec, headers) {
         corrected: headers?.corrected || [],
         extra: headers?.extra || [],
         missingRequired: missing,
+        ignored: headers?.ignored || [],
+        looksLikeErrorReport,
         optionalNotFound: (headers?.notFound || []).filter(
             (name) => !missing.some((group) => group.split(" / ").includes(name))
         ),
@@ -510,26 +524,41 @@ class BulkReport {
         this.headers = headers;
         this.warnings = [...(warnings || [])];
         this.total = total || 0;
-        this.created = 0;
-        this.updated = 0;
-        this.failedRows = new Set();
-        this.skippedRows = new Set();
         this.details = [];
         this.extraSaved = 0;
         this.ids = [];
         this.errorCount = 0;
+        this.items = { saved: 0, failed: 0, skipped: 0 };
+        // key -> { ok, updated, err, dup, row, sheet, values }
+        this.rows = new Map();
     }
 
     key(row) {
         return `${row?.__sheet || ""}#${row?.__row ?? ""}`;
     }
 
-    // Records an error for a row. A row may have several errors — it is
-    // still counted once.
-    fail(row, column, value, reason, type = "error") {
+    state(row) {
         const k = this.key(row);
-        if (type === "duplicate") this.skippedRows.add(k);
-        else if (type !== "warning") this.failedRows.add(k);
+        if (!this.rows.has(k)) {
+            this.rows.set(k, {
+                ok: false,
+                updated: false,
+                err: false,
+                dup: false,
+                row: row?.__row ?? null,
+                sheet: row?.__sheet || null,
+                values: row?.__display || row?.__raw || null
+            });
+        }
+        return this.rows.get(k);
+    }
+
+    // Records an error for a row. A row may have several errors (or
+    // several store visits failing) — it is still counted once.
+    fail(row, column, value, reason, type = "error") {
+        const st = this.state(row);
+        if (type === "duplicate") st.dup = true;
+        else if (type !== "warning") st.err = true;
         if (type !== "warning") this.errorCount += 1;
         this.details.push({
             row: row?.__row ?? null,
@@ -552,13 +581,15 @@ class BulkReport {
     }
 
     hasError(row) {
-        const k = this.key(row);
-        return this.failedRows.has(k) || this.skippedRows.has(k);
+        const st = this.rows.get(this.key(row));
+        return Boolean(st && (st.err || st.dup));
     }
 
     ok(row, { updated = false, id = null } = {}) {
-        if (updated) this.updated += 1;
-        else this.created += 1;
+        const st = this.state(row);
+        if (!st.ok) st.updated = Boolean(updated);
+        st.ok = true;
+        this.items.saved += 1;
         if (id) this.ids.push(id);
     }
 
@@ -566,17 +597,33 @@ class BulkReport {
         if (message && !this.warnings.includes(message)) this.warnings.push(message);
     }
 
+    // ---- row based counts ----
+    // uploaded = rows with at least one record saved
+    // failed   = rows with an error and nothing saved
+    // skipped  = rows that were only duplicates
+    // partial  = rows where some records saved and some failed
     get uploaded() {
-        return this.created + this.updated;
+        return [...this.rows.values()].filter((r) => r.ok).length;
+    }
+
+    get updated() {
+        return [...this.rows.values()].filter((r) => r.ok && r.updated).length;
+    }
+
+    get created() {
+        return this.uploaded - this.updated;
     }
 
     get failed() {
-        // A row that was both a duplicate and failed counts as failed.
-        return [...this.failedRows].length;
+        return [...this.rows.values()].filter((r) => !r.ok && r.err).length;
     }
 
     get skipped() {
-        return [...this.skippedRows].filter((k) => !this.failedRows.has(k)).length;
+        return [...this.rows.values()].filter((r) => !r.ok && !r.err && r.dup).length;
+    }
+
+    get partial() {
+        return [...this.rows.values()].filter((r) => r.ok && (r.err || r.dup)).length;
     }
 
     legacyErrors() {
@@ -592,9 +639,36 @@ class BulkReport {
         const parts = [];
         parts.push(`${this.uploaded} of ${this.total} row${this.total === 1 ? "" : "s"} uploaded`);
         if (this.updated) parts.push(`${this.updated} updated`);
+        if (this.partial) parts.push(`${this.partial} partly uploaded`);
         if (this.failed) parts.push(`${this.failed} failed`);
         if (this.skipped) parts.push(`${this.skipped} skipped as duplicate${this.skipped === 1 ? "" : "s"}`);
         return `Bulk upload completed: ${parts.join(", ")}.`;
+    }
+
+    // Every row that was not completely saved, with ALL of its original
+    // columns (exact header names, as shown in the file) and the reasons.
+    // The client turns this into an Error Report that can be corrected and
+    // uploaded again as it is.
+    failedRowData() {
+        const reasons = new Map();
+        this.details.forEach((d) => {
+            if (d.type === "warning" || d.row === null) return;
+            const k = `${d.sheet || ""}#${d.row}`;
+            const text = `${d.column ? `${d.column}: ` : ""}${d.reason}`;
+            reasons.set(k, [...(reasons.get(k) || []), text]);
+        });
+
+        return [...this.rows.entries()]
+            .filter(([, r]) => r.row !== null && (r.err || r.dup))
+            .map(([k, r]) => ({
+                row: r.row,
+                sheet: r.sheet,
+                status: r.ok ? "Partly uploaded" : r.err ? "Failed" : "Skipped (duplicate)",
+                values: r.values || {},
+                reasons: [...new Set(reasons.get(k) || [])]
+            }))
+            .sort((a, b) => String(a.sheet || "").localeCompare(String(b.sheet || "")) || a.row - b.row)
+            .slice(0, 20000);
     }
 
     toJSON(extra = {}) {
@@ -604,8 +678,15 @@ class BulkReport {
             created: this.created,
             updated: this.updated,
             failed: this.failed,
-            skipped: this.skipped
+            skipped: this.skipped,
+            partial: this.partial,
+            recordsSaved: this.items.saved
         };
+
+        const sourceColumns = (this.headers?.columns || [])
+            .filter((c) => c.status !== "ignored")
+            .map((c) => c.source)
+            .filter((name, i, arr) => arr.indexOf(name) === i);
 
         const report = {
             module: this.module,
@@ -614,6 +695,8 @@ class BulkReport {
             sourceLabel: this.sourceLabel,
             summary,
             columns: this.headers,
+            sourceColumns,
+            failedRows: this.failedRowData(),
             errorDetails: this.details,
             warnings: this.warnings,
             finishedAt: new Date().toISOString()
@@ -648,6 +731,9 @@ class BulkReport {
 //   processRow: async (row, ctx) => ({ id, updated }),   // save ONE valid row
 //   finalize: async (ctx) => {},    // optional
 //   duplicateKey: (row) => "key",   // optional — same key twice in the file = duplicate
+//   expandRow: async (row, ctx) => [item, ...], // optional — one row holds several records
+//                                   //  (each item is validated/saved on its own as ctx.item)
+//   validateItem: async (row, ctx) => {},       // optional — per-item checks (ctx.item)
 //   onProgress: ({processed,total,created,failed}) => {}  // optional (background jobs)
 // })
 //
@@ -666,6 +752,8 @@ async function runBulkUpload(options) {
         processRow,
         finalize,
         duplicateKey,
+        expandRow,
+        validateItem,
         onProgress,
         onReadProgress,
         keepFile = false,
@@ -710,6 +798,22 @@ async function runBulkUpload(options) {
         warnings: upload.warnings,
         total: upload.rows.length
     });
+
+    if (upload.headers.looksLikeErrorReport) {
+        if (!keepFile) removeUploadedFile(file);
+        const message =
+            "This file is an old Error Report — it only lists the problems (row, column, reason) and has no record data, so there is nothing to upload. " +
+            "Download the new Error Report (it contains the full failed rows with all their columns), correct those rows and upload that file.";
+        const body = {
+            success: false,
+            completed: false,
+            message,
+            errors: [message],
+            errorDetails: [{ row: null, column: "", value: file.originalname, reason: message, type: "file" }]
+        };
+        if (res && respond) res.status(400).json(body);
+        return body;
+    }
 
     if (!upload.rows.length) {
         report.fail(
@@ -829,6 +933,63 @@ async function runBulkUpload(options) {
             }
         };
 
+        // Saves ONE record (a row, or one item of an expanded row).
+        const saveOne = async (itemCtx) => {
+            const itemBefore = report.errorCount;
+            try {
+                if (validateItem) await validateItem(row, itemCtx);
+
+                // In-file duplicate check.
+                if (duplicateKey && report.errorCount === itemBefore) {
+                    // duplicateKey may return "key" or { key, column, value }
+                    const dk = duplicateKey(row, itemCtx);
+                    const key = dk && typeof dk === "object" ? dk.key : dk;
+                    if (key) {
+                        if (seen.has(key)) {
+                            report.duplicate(
+                                row,
+                                (dk && dk.column) || spec.duplicateColumn || "Row",
+                                dk && dk.value !== undefined ? dk.value : String(key).replace(/\|/g, " · "),
+                                `Same record as row ${seen.get(key)} in this file — skipped as a duplicate.`
+                            );
+                        } else {
+                            seen.set(key, row.__row);
+                        }
+                    }
+                }
+
+                if (report.errorCount !== itemBefore) return;
+
+                const result = (await processRow(row, itemCtx)) || {};
+                if (result.skipped || report.errorCount !== itemBefore) return;
+
+                report.ok(row, result);
+
+                const extra = result.extra !== undefined ? result.extra : row.__extra;
+                const id = result.id;
+                const table = result.table || spec.table;
+                if (id && table && extra && Object.keys(cleanExtras(extra)).length) {
+                    try {
+                        if (await saveExtraData(table, id, extra, { idColumn: spec.idColumn || "id" })) {
+                            report.extraSaved += 1;
+                        }
+                    } catch (error) {
+                        report.warn(`Row ${row.__row}: the record was saved, but its extra columns could not be stored (${error.message}).`);
+                    }
+                }
+            } catch (error) {
+                const t = error?.isRowError
+                    ? { column: error.bulkColumn, value: error.bulkValue, reason: error.message }
+                    : translateDbError(error, columnLabels);
+                if (!error?.isRowError) {
+                    console.error(`[bulk-upload:${moduleKey}] row ${row.__row}:`, error?.code || "", error?.sqlMessage || error?.message);
+                }
+                const value = t.value !== undefined ? t.value : t.column ? cell(row, t.column) : "";
+                if (t.duplicate) report.duplicate(row, t.column, value, t.reason);
+                else report.fail(row, t.column, value, t.reason);
+            }
+        };
+
         try {
             // 1. Generic required-column check (from the module definition).
             requiredGroups(spec).forEach((group) => {
@@ -839,46 +1000,22 @@ async function runBulkUpload(options) {
             // 2. Module validation (collects every problem in the row).
             if (validateRow) await validateRow(row, ctx);
 
-            // 3. In-file duplicate check.
-            if (duplicateKey && report.errorCount === before) {
-                // duplicateKey may return "key" or { key, column, value }
-                const dk = duplicateKey(row, ctx);
-                const key = dk && typeof dk === "object" ? dk.key : dk;
-                if (key) {
-                    if (seen.has(key)) {
-                        report.duplicate(
-                            row,
-                            (dk && dk.column) || spec.duplicateColumn || "Row",
-                            dk && dk.value !== undefined ? dk.value : String(key).replace(/\|/g, " · "),
-                            `Same record as row ${seen.get(key)} in this file — skipped as a duplicate.`
-                        );
-                    } else {
-                        seen.set(key, row.__row);
-                    }
-                }
-            }
-
-            // 4. Save the row only when it has no problems.
+            // 3. Save — only when the row itself has no problems.
             if (report.errorCount === before) {
-                const result = (await processRow(row, ctx)) || {};
+                // A row may hold several records (e.g. 14 stores listed in
+                // one "Planned Stores" cell): each one is saved on its own,
+                // so one bad store never blocks the others.
+                const items = expandRow ? await expandRow(row, ctx) : null;
 
-                if (result.skipped) {
-                    // processRow decided not to save (it already called ctx.fail/duplicate)
-                } else if (report.errorCount === before) {
-                    report.ok(row, result);
-
-                    const extra = result.extra !== undefined ? result.extra : row.__extra;
-                    const id = result.id;
-                    const table = result.table || spec.table;
-                    if (id && table && extra && Object.keys(cleanExtras(extra)).length) {
-                        try {
-                            if (await saveExtraData(table, id, extra, { idColumn: spec.idColumn || "id" })) {
-                                report.extraSaved += 1;
-                            }
-                        } catch (error) {
-                            report.warn(`Row ${row.__row}: the record was saved, but its extra columns could not be stored (${error.message}).`);
-                        }
+                if (Array.isArray(items)) {
+                    if (!items.length && report.errorCount === before) {
+                        report.fail(row, "", "", "Nothing to upload in this row.");
                     }
+                    for (const item of items) {
+                        await saveOne({ ...ctx, item });
+                    }
+                } else if (report.errorCount === before) {
+                    await saveOne(ctx);
                 }
             }
         } catch (error) {

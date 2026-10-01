@@ -1032,12 +1032,8 @@ exports.importVisitPlans = (
     /* ---------- load lookups once ---------- */
     prepare: async (ctx) => {
       const [users, stores] = await Promise.all([
-        bulkSql(
-          `SELECT id, employee_id, name, email, status FROM users`
-        ),
-        bulkSql(
-          `SELECT id, store_name, store_code, city, status FROM stores`
-        ),
+        bulkSql(`SELECT id, employee_id, name, email, status FROM users`),
+        bulkSql(`SELECT id, store_name, store_code, city, status FROM stores`),
       ]);
 
       const userById = new Map();
@@ -1050,24 +1046,18 @@ exports.importVisitPlans = (
           userByCode.set(cleanKey(u.employee_id), u);
         }
         const nameKey = looseKey(u.name);
-        if (nameKey) {
-          usersByName.set(nameKey, [...(usersByName.get(nameKey) || []), u]);
-        }
+        if (nameKey) usersByName.set(nameKey, [...(usersByName.get(nameKey) || []), u]);
       });
 
       const storeByCode = new Map();
-      const storeById = new Map();
       const storesByName = new Map();
 
       stores.forEach((st) => {
-        storeById.set(String(st.id), st);
         if (st.store_code !== null && st.store_code !== undefined && String(st.store_code).trim()) {
           storeByCode.set(cleanKey(st.store_code), st);
         }
         const nameKey = looseKey(st.store_name);
-        if (nameKey) {
-          storesByName.set(nameKey, [...(storesByName.get(nameKey) || []), st]);
-        }
+        if (nameKey) storesByName.set(nameKey, [...(storesByName.get(nameKey) || []), st]);
       });
 
       ctx.data = {
@@ -1076,7 +1066,6 @@ exports.importVisitPlans = (
         userByCode,
         usersByName,
         storeByCode,
-        storeById,
         storesByName,
         plans: new Map(),
         createdPlans: new Map(),
@@ -1084,7 +1073,7 @@ exports.importVisitPlans = (
       };
     },
 
-    /* ---------- validate one row (collects every problem) ---------- */
+    /* ---------- row level checks (employee, dates, reason) ---------- */
     validateRow: async (row, ctx) => {
       const d = ctx.data;
       const resolved = {};
@@ -1100,18 +1089,12 @@ exports.importVisitPlans = (
           d.userByCode.get(cleanKey(empId)) ||
           (/^\d+$/.test(empId) ? d.userById.get(empId) : null);
 
-        if (!employee) {
-          ctx.fail("Employee ID", empId, "Employee does not exist.");
-        }
+        if (!employee) ctx.fail("Employee ID", empId, "Employee does not exist.");
       } else if (empName) {
         const matches = d.usersByName.get(looseKey(empName)) || [];
-        if (matches.length === 1) {
-          employee = matches[0];
-        } else if (matches.length > 1) {
-          ctx.fail("Employee Name", empName, `More than one employee is named "${empName}". Add the Employee ID column.`);
-        } else {
-          ctx.fail("Employee Name", empName, "Employee does not exist.");
-        }
+        if (matches.length === 1) employee = matches[0];
+        else if (matches.length > 1) ctx.fail("Employee Name", empName, `More than one employee is named "${empName}". Add the Employee ID column.`);
+        else ctx.fail("Employee Name", empName, "Employee does not exist.");
       }
 
       if (employee && String(employee.status || "Active").toLowerCase() === "inactive") {
@@ -1130,121 +1113,106 @@ exports.importVisitPlans = (
       const weekOff = ctx.yesNo("Week Off", false);
       resolved.weekOff = weekOff;
 
+      // Stores + their own dates (several stores may sit in one cell)
+      const entries = weekOff ? [] : collectStoreEntries(ctx);
+      resolved.entries = entries;
+
+      if (!weekOff && !entries.length) {
+        ctx.fail(
+          "Store Code / Store Name",
+          "",
+          "Store Code or Store Name is required (not needed only when Week Off is Yes)."
+        );
+      }
+
       // Dates
       const visitDate = ctx.date("Visit Date");
       const fromInput = ctx.date("From Date");
       const toInput = ctx.date("To Date");
 
-      const fromDate = fromInput || visitDate;
-      let toDate = toInput || fromDate;
+      const entryDates = entries.map((e) => e.date).filter(Boolean).sort();
+      const fromDate = fromInput || visitDate || entryDates[0] || null;
+      let toDate = toInput || (entryDates.length ? entryDates[entryDates.length - 1] : null) || fromDate;
+      if (fromDate && toDate && toDate < fromDate && !toInput) toDate = fromDate;
+
+      if (!fromDate) {
+        ctx.fail("From Date / Visit Date", "", "From Date or Visit Date is required.");
+      }
 
       if (fromDate && toDate && toDate < fromDate) {
         ctx.fail("To Date", ctx.cell("To Date"), `To Date (${formatDmy(toDate)}) is before From Date (${formatDmy(fromDate)}).`);
         toDate = null;
       }
 
-      const storeVisitDate = visitDate || fromDate;
-
-      if (
-        !weekOff &&
-        storeVisitDate &&
-        fromDate &&
-        toDate &&
-        (storeVisitDate < fromDate || storeVisitDate > toDate)
-      ) {
-        ctx.fail(
-          "Visit Date",
-          ctx.cell("Visit Date"),
-          `Visit Date ${formatDmy(storeVisitDate)} is outside the plan range ${formatDmy(fromDate)} - ${formatDmy(toDate)}.`
-        );
-      }
-
       resolved.fromDate = fromDate;
       resolved.toDate = toDate;
-      resolved.visitDate = storeVisitDate;
-
-      // Store
-      if (!weekOff) {
-        const code = ctx.text("Store Code");
-        const name = ctx.text("Store Name");
-        let store = null;
-
-        if (!code && !name) {
-          ctx.fail("Store Code / Store Name", "", "Store Code or Store Name is required (not needed only when Week Off is Yes).");
-        } else if (code) {
-          store = d.storeByCode.get(cleanKey(code)) || null;
-
-          if (!store) {
-            ctx.fail("Store Code", code, "Store code does not exist in the database.");
-          }
-        } else {
-          // "MRPL - AMAYRA KHARAR (CP67)" -> try the code in brackets first
-          const bracket = name.match(/\(([^)]+)\)\s*$/);
-          if (bracket) store = d.storeByCode.get(cleanKey(bracket[1]));
-
-          let ambiguous = false;
-
-          if (!store) {
-            const matches =
-              d.storesByName.get(looseKey(name)) ||
-              d.storesByName.get(looseKey(name.replace(/\([^)]*\)\s*$/, ""))) ||
-              [];
-            if (matches.length === 1) store = matches[0];
-            else if (matches.length > 1) {
-              ambiguous = true;
-              ctx.fail("Store Name", name, `More than one store is named "${name}". Add the Store Code column.`);
-            }
-          }
-
-          if (!store && !ambiguous) {
-            ctx.fail("Store Name", name, "Store name does not exist in the database.");
-          }
-        }
-
-        if (store && String(store.status || "Active").toLowerCase() === "inactive") {
-          ctx.fail(code ? "Store Code" : "Store Name", code || name, "Store is inactive.");
-          store = null;
-        }
-
-        resolved.store = store;
-      }
+      resolved.visitDate = visitDate || fromDate;
 
       const reason = ctx.text("Reason to Travel");
       if (reason.length > 2000) {
         ctx.fail("Reason to Travel", `${reason.slice(0, 40)}…`, "Reason to Travel is too long (max 2000 characters).");
       }
       resolved.reason = reason;
-      resolved.city = ctx.text("City") || resolved.store?.city || "";
+      resolved.city = ctx.text("City");
       resolved.remarks = ctx.text("Remarks");
+    },
+
+    /* ---------- one record per store (week off = one record) ---------- */
+    expandRow: (row, ctx) => {
+      const r = ctx.resolved;
+      if (r.weekOff) return null;
+
+      const items = [];
+      r.entries.forEach((entry) => {
+        const found = resolveStoreEntry(ctx.data, entry);
+        if (!found.store) {
+          ctx.fail(entry.column, entry.label, found.reason);
+          return;
+        }
+        if (String(found.store.status || "Active").toLowerCase() === "inactive") {
+          ctx.fail(entry.column, entry.label, `${found.store.store_name} is inactive.`);
+          return;
+        }
+
+        const date = entry.date || r.visitDate;
+        if (date < r.fromDate || date > r.toDate) {
+          ctx.fail(
+            entry.date ? entry.column : "Visit Date",
+            `${found.store.store_name} · ${formatDmy(date)}`,
+            `Visit date ${formatDmy(date)} is outside the plan range ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}.`
+          );
+          return;
+        }
+
+        items.push({ store: found.store, visitDate: date, column: entry.column, label: entry.label });
+      });
+      return items;
     },
 
     duplicateKey: (row, ctx) => {
       const r = ctx.resolved || {};
       if (!r.employee) return null;
-      return r.weekOff
-        ? {
-            key: `${r.employee.id}|week-off|${r.fromDate}|${r.toDate}`,
-            column: "Week Off",
-            value: `${r.employee.name} · ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`,
-          }
-        : {
-            key: `${r.employee.id}|${r.store?.id}|${r.fromDate}|${r.toDate}|${cleanKey(r.reason)}`,
-            column: ctx.text("Store Code") ? "Store Code" : "Store Name",
-            value: `${r.employee.name} · ${r.store?.store_name} · ${formatDmy(r.visitDate)}`,
-          };
+      if (r.weekOff) {
+        return {
+          key: `${r.employee.id}|week-off|${r.fromDate}|${r.toDate}`,
+          column: "Week Off",
+          value: `${r.employee.name} · ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`,
+        };
+      }
+      const item = ctx.item;
+      return {
+        key: `${r.employee.id}|${item.store.id}|${r.fromDate}|${r.toDate}|${cleanKey(r.reason)}`,
+        column: item.column,
+        value: `${r.employee.name} · ${item.store.store_name} · ${formatDmy(item.visitDate)}`,
+      };
     },
 
-    /* ---------- save one valid row ---------- */
+    /* ---------- save one store visit (or one week off) ---------- */
     processRow: async (row, ctx) => {
       const r = ctx.resolved;
       const d = ctx.data;
-      const groupKey = [
-        r.employee.id,
-        r.fromDate,
-        r.toDate,
-        r.weekOff ? 1 : 0,
-        cleanKey(r.reason),
-      ].join("|");
+      const item = ctx.item;
+      const groupKey = [r.employee.id, r.fromDate, r.toDate, r.weekOff ? 1 : 0, cleanKey(r.reason)].join("|");
 
       let plan = d.plans.get(groupKey);
 
@@ -1271,24 +1239,19 @@ exports.importVisitPlans = (
             `SELECT store_id FROM sales_visit_plan_stores WHERE plan_id = ? AND store_kind = 'planned'`,
             [existing[0].id]
           );
-          plan = {
-            id: existing[0].id,
-            existing: true,
-            stores: new Set(storeRows.map((x) => Number(x.store_id))),
-          };
+          plan = { id: existing[0].id, existing: true, stores: new Set(storeRows.map((x) => Number(x.store_id))) };
         } else {
           const id = await bulkCall(SalesTeam.createVisitPlan, {
             employee_id: Number(r.employee.id),
             visit_date: r.fromDate,
             end_date: r.toDate,
             week_off: r.weekOff,
-            city: r.city,
+            city: r.city || item?.store?.city || "",
             reason_to_travel: r.reason,
             planned_store_ids: [],
             approval_status: "Pending",
             created_by: req.user.id,
           });
-
           plan = { id, existing: false, stores: new Set() };
           d.createdPlans.set(id, Number(r.employee.id));
         }
@@ -1296,7 +1259,8 @@ exports.importVisitPlans = (
         d.plans.set(groupKey, plan);
       }
 
-      if (r.remarks) {
+      if (r.remarks && !plan.remarksSaved) {
+        plan.remarksSaved = true;
         await bulkSql(
           `
           UPDATE sales_visit_plans
@@ -1311,29 +1275,26 @@ exports.importVisitPlans = (
         );
       }
 
+      if (Object.keys(cleanExtras(ctx.extra)).length && !plan.extraSavedFor?.has(row.__row)) {
+        plan.extraSavedFor = plan.extraSavedFor || new Set();
+        plan.extraSavedFor.add(row.__row);
+        await saveExtraData("sales_visit_plans", plan.id, ctx.extra, { mode: "append" });
+      }
+
       // Week off rows have no store.
       if (r.weekOff) {
         if (plan.existing) {
-          ctx.duplicate(
-            "Week Off",
-            `${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`,
-            "A week off for this employee and these dates already exists."
-          );
+          ctx.duplicate("Week Off", `${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}`, "A week off for this employee and these dates already exists.");
           return { skipped: true };
         }
-
-        if (Object.keys(cleanExtras(ctx.extra)).length) {
-          await saveExtraData("sales_visit_plans", plan.id, ctx.extra, { mode: "append" });
-        }
-
         return { id: null };
       }
 
-      if (plan.stores.has(Number(r.store.id))) {
+      if (plan.stores.has(Number(item.store.id))) {
         ctx.duplicate(
-          ctx.text("Store Code") ? "Store Code" : "Store Name",
-          ctx.text("Store Code") || ctx.text("Store Name"),
-          `${r.store.store_name} is already in this employee's plan for ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}.`
+          item.column,
+          item.label,
+          `${item.store.store_name} is already in this employee's plan for ${formatDmy(r.fromDate)} - ${formatDmy(r.toDate)}.`
         );
         return { skipped: true };
       }
@@ -1344,21 +1305,12 @@ exports.importVisitPlans = (
           (plan_id, store_id, store_kind, visit_date)
         VALUES (?, ?, 'planned', ?)
         `,
-        [plan.id, r.store.id, r.visitDate]
+        [plan.id, item.store.id, item.visitDate]
       );
 
-      plan.stores.add(Number(r.store.id));
+      plan.stores.add(Number(item.store.id));
 
-      // Extra columns: kept on the store visit AND on the plan so the
-      // Visit Planner table can show them as columns.
-      if (Object.keys(cleanExtras(ctx.extra)).length) {
-        await saveExtraData("sales_visit_plans", plan.id, ctx.extra, { mode: "append" });
-      }
-
-      return {
-        id: result.insertId,
-        table: "sales_visit_plan_stores",
-      };
+      return { id: result.insertId, table: "sales_visit_plan_stores" };
     },
 
     /* ---------- after all rows ---------- */
@@ -1368,12 +1320,135 @@ exports.importVisitPlans = (
       });
 
       if (ctx.data.createdPlans.size) {
-        ctx.report.warn(
-          `${ctx.data.createdPlans.size} visit plan(s) created and submitted for approval (Pending).`
-        );
+        ctx.report.warn(`${ctx.data.createdPlans.size} visit plan(s) created and submitted for approval (Pending).`);
+      }
+      if (ctx.report.items.saved) {
+        ctx.report.warn(`${ctx.report.items.saved} store visit(s) saved.`);
       }
     },
   });
+
+/* ---------------------------------------------------------
+   STORE LISTS INSIDE ONE CELL
+   Accepts every layout people (and the Visit Planner export) use:
+     Store Code:            556            |  556, 509, 558
+     Store Name:            MRPL - HISAR   |  MRPL - HISAR, MRPL-SOLAN
+                            (commas inside a store name are fine:
+                             "MRPL-SARABHA NAGAR ,LUDHIANA")
+     Store Visit Schedule:  MRPL - ABOHAR (605) - 01/10/2026; MRPL - HARIDWAR (608) - 03/10/2026
+--------------------------------------------------------- */
+
+const SCHEDULE_DATE =
+  "(\\d{1,2}[\\/.\\-]\\d{1,2}[\\/.\\-]\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}\\s+[A-Za-z]{3,9},?\\s+\\d{2,4}|\\d{5})";
+
+function parseScheduleEntry(text) {
+  let rest = String(text || "").trim();
+  let date = null;
+
+  const dateMatch = rest.match(new RegExp(`(?:^|\\s|[-–:@,])\\s*${SCHEDULE_DATE}\\s*$`));
+  if (dateMatch) {
+    const parsed = parseDate(dateMatch[1]);
+    if (parsed) {
+      date = parsed;
+      rest = rest.slice(0, dateMatch.index).replace(/[\s\-–:@,]+$/, "").trim();
+    }
+  }
+
+  let code = null;
+  const codeMatch = rest.match(/\(([^()]+)\)\s*$/);
+  if (codeMatch) {
+    code = codeMatch[1].trim();
+  }
+
+  return { text: rest, code, date };
+}
+
+function splitStoreNames(cellText, storesByName) {
+  const parts = String(cellText || "")
+    .split(/\r?\n|;|\||,/)
+    .map((p) => p.trim());
+  const out = [];
+  let i = 0;
+  while (i < parts.length) {
+    if (!parts[i]) {
+      i += 1;
+      continue;
+    }
+    // Longest run of pieces that together is a real store name
+    // ("MRPL-SARABHA NAGAR " + ",LUDHIANA").
+    let taken = 1;
+    for (let j = Math.min(parts.length, i + 4); j > i + 1; j--) {
+      if (storesByName.has(looseKey(parts.slice(i, j).join(",")))) {
+        taken = j - i;
+        break;
+      }
+    }
+    out.push(parts.slice(i, i + taken).join(", ").replace(/\s+,/g, ","));
+    i += taken;
+  }
+  return out.filter(Boolean);
+}
+
+function collectStoreEntries(ctx) {
+  const d = ctx.data;
+  const entries = [];
+
+  const schedule = ctx.text("Store Visit Schedule");
+  if (schedule) {
+    schedule
+      .split(/\r?\n|;/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const parsed = parseScheduleEntry(part);
+        entries.push({ column: "Store Visit Schedule", label: part, text: parsed.text, code: parsed.code, date: parsed.date });
+      });
+    if (entries.length) return entries;
+  }
+
+  const codes = ctx.text("Store Code");
+  if (codes) {
+    codes
+      .split(/\r?\n|;|\||,/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .forEach((code) => entries.push({ column: "Store Code", label: code, text: "", code, date: null }));
+    return entries;
+  }
+
+  const names = ctx.text("Store Name");
+  if (names) {
+    splitStoreNames(names, d.storesByName).forEach((name) => {
+      const parsed = parseScheduleEntry(name);
+      entries.push({ column: "Store Name", label: name, text: parsed.text, code: parsed.code, date: parsed.date });
+    });
+  }
+
+  return entries;
+}
+
+function resolveStoreEntry(d, entry) {
+  if (entry.code) {
+    const byCode = d.storeByCode.get(cleanKey(entry.code));
+    if (byCode) return { store: byCode };
+  }
+
+  if (entry.text) {
+    const plain = entry.code ? entry.text.replace(/\([^()]*\)\s*$/, "").trim() : entry.text;
+    const matches =
+      d.storesByName.get(looseKey(entry.text)) ||
+      d.storesByName.get(looseKey(plain)) ||
+      [];
+    if (matches.length === 1) return { store: matches[0] };
+    if (matches.length > 1) {
+      return { store: null, reason: `More than one store is named "${plain}". Add the store code in brackets, e.g. "${plain} (556)".` };
+    }
+    return { store: null, reason: `Store "${plain}" does not exist in the database.` };
+  }
+
+  return { store: null, reason: `Store code ${entry.code} does not exist in the database.` };
+}
+
 
 /* =========================================================
    EXPORT VISIT PLANS

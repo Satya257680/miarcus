@@ -40,7 +40,7 @@ function exportAsCSV(headers, rows, filename) {
   const csvContent = lines.join("\r\n");
 
   // Prefix with BOM so Excel opens UTF-8 CSVs correctly
-  const blob = new Blob(["﻿" + csvContent], {
+  const blob = new Blob(["\uFEFF" + csvContent], {
     type: "text/csv;charset=utf-8;",
   });
 
@@ -114,6 +114,9 @@ function exportAsPDF(headers, rows, filename, title) {
     head: headers?.length ? [headers] : undefined,
     body: rows,
     startY,
+    // Keep every row on one page so an exported PDF can be uploaded
+    // again (a row split over two pages reads as two rows).
+    rowPageBreak: "avoid",
     styles: {
       fontSize: 8,
       cellPadding: 4,
@@ -211,7 +214,7 @@ export async function exportObjectsData({
  * @returns {{headers: string[], rows: Array<Array<string>>}}
  */
 export function parseCSV(text) {
-  const src = String(text || "").replace(/^﻿/, "");
+  const src = String(text || "").replace(/^\uFEFF/, "");
   const table = [];
   let row = [];
   let field = "";
@@ -284,7 +287,7 @@ export async function exportFromCSV({
   const safeFilename = (filename || "export").replace(/[\\/:*?"<>|]/g, "-");
 
   if (format === "csv") {
-    const blob = new Blob(["﻿" + String(csvText || "")], {
+    const blob = new Blob(["\uFEFF" + String(csvText || "")], {
       type: "text/csv;charset=utf-8;",
     });
     downloadBlob(blob, `${safeFilename}.csv`);

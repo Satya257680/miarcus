@@ -216,11 +216,18 @@ function scoreHeaderRow(cells, aliasLookup) {
 // Index (into `candidates`) of the most header-like row among the first
 // 15 non-blank rows. Falls back to the first row that has at least two
 // text cells, then to 0.
+function isHeaderLikeText(cell) {
+    if (isEmptyCell(cell)) return false;
+    const text = String(cell).trim();
+    return isNaN(Number(text)) && text.length <= 40;
+}
+
 function findHeaderIndex(candidates, aliasLookup) {
     let bestIndex = -1;
     let bestScore = 0;
+    const limit = Math.min(candidates.length, 15);
 
-    for (let i = 0; i < Math.min(candidates.length, 15); i++) {
+    for (let i = 0; i < limit; i++) {
         const score = scoreHeaderRow(candidates[i], aliasLookup);
         if (score > bestScore) {
             bestScore = score;
@@ -228,16 +235,28 @@ function findHeaderIndex(candidates, aliasLookup) {
         }
     }
 
-    if (bestIndex !== -1) return { index: bestIndex, score: bestScore };
+    // Two or more known column names on one row = certainly the header.
+    if (bestScore >= 2) return { index: bestIndex, score: bestScore };
 
-    for (let i = 0; i < Math.min(candidates.length, 15); i++) {
-        const textCells = (candidates[i] || []).filter(
-            (c) => !isEmptyCell(c) && isNaN(Number(c))
-        ).length;
-        if (textCells >= 2) return { index: i, score: 0 };
+    // Otherwise a single match may just be a DATA value that happens to
+    // look like a column name (e.g. "Store Name" written inside an error
+    // report). Prefer the first row that looks like a header row
+    // (several short text cells) when it comes before that match.
+    let firstText = -1;
+    for (let i = 0; i < limit; i++) {
+        const textCells = (candidates[i] || []).filter(isHeaderLikeText).length;
+        if (textCells >= 2) {
+            firstText = i;
+            break;
+        }
     }
 
-    return { index: 0, score: 0 };
+    if (firstText !== -1 && (bestIndex === -1 || firstText <= bestIndex)) {
+        return { index: firstText, score: scoreHeaderRow(candidates[firstText], aliasLookup) };
+    }
+
+    if (bestIndex !== -1) return { index: bestIndex, score: bestScore };
+    return { index: firstText === -1 ? 0 : firstText, score: 0 };
 }
 
 // ==========================================================
@@ -254,7 +273,11 @@ function buildHeaderPlan(headerCells, aliasLookup, sheetName) {
         const label = isEmptyCell(cell) ? "" : String(cell).replace(/^﻿/, "").trim();
         const canonical = label ? canonicalHeaderFor(label, aliasLookup) : null;
 
-        if (canonical && !used.has(canonical)) {
+        if (canonical && canonical.startsWith("__")) {
+            // Columns that MIARCUS itself adds to reports/exports (Error
+            // Reason, Excel Row, Upload Status ...): recognised, not data.
+            plan[idx] = { index: idx, source: label, target: canonical, status: "ignored", sheet: sheetName };
+        } else if (canonical && !used.has(canonical)) {
             used.add(canonical);
             plan[idx] = { index: idx, source: label, target: canonical, status: "matched", sheet: sheetName };
         } else {
@@ -289,6 +312,7 @@ function buildRow(cells, plan, rowNumber, sheetName, display) {
     const row = {};
     const extra = {};
     const raw = {};
+    const display_ = {};
     let recognised = 0;
     let filled = 0;
 
@@ -310,6 +334,11 @@ function buildRow(cells, plan, rowNumber, sheetName, display) {
             display && !isEmptyCell(display[idx]) ? display[idx] : value;
 
         raw[entry.source] = value;
+        display_[entry.source] = typeof shown === "string" ? shown.trim() : shown;
+
+        if (entry.target && entry.target.startsWith("__")) {
+            continue;
+        }
 
         if (entry.target) {
             row[entry.target] = typeof value === "string" ? value.trim() : value;
@@ -328,6 +357,7 @@ function buildRow(cells, plan, rowNumber, sheetName, display) {
     defineHidden(row, "__sheet", sheetName || null);
     defineHidden(row, "__extra", extra);
     defineHidden(row, "__raw", raw);
+    defineHidden(row, "__display", display_);
 
     return row;
 }
@@ -513,6 +543,21 @@ function sheetToTable(sheet, name) {
 
     const range = XLSX.utils.decode_range(ref);
     const rows = [];
+
+    // Vertically merged cells (e.g. one Employee cell merged across the
+    // 5 store rows of that employee) only hold their value in the first
+    // cell — copy it down so every row gets the value it visually shows.
+    (sheet["!merges"] || []).forEach((merge) => {
+        if (merge.e.r <= merge.s.r) return;
+        const top = sheet[XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c })];
+        if (!top || top.v === undefined || top.v === null || top.v === "") return;
+        for (let r = merge.s.r + 1; r <= merge.e.r; r++) {
+            const address = XLSX.utils.encode_cell({ r, c: merge.s.c });
+            if (!sheet[address] || sheet[address].v === undefined || sheet[address].v === "") {
+                sheet[address] = { ...top };
+            }
+        }
+    });
 
     for (let r = range.s.r; r <= range.e.r; r++) {
         const cells = [];
@@ -1018,6 +1063,20 @@ function pdfTableFromLines(lines, aliasLookup) {
     const rows = [{ cells: headerTexts, rowNumber: 1 }];
     let rowNumber = 1;
     let lastRow = null;
+    // Row that was cut by a page break (its tail continues under the
+    // header repeated on the next page) and whether we are still
+    // inside a (multi-line) repeated header.
+    let carryRow = null;
+    let inRepeatedHeader = false;
+
+    const headerWords = headerTexts.map((h) => String(h || "").toLowerCase().replace(/\s+/g, " ").trim());
+    const isHeaderFragment = (list) => {
+        const parts = list.map((t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim()).filter(Boolean);
+        return (
+            parts.length > 0 &&
+            parts.every((t) => headerWords.some((h) => h === t || h.endsWith(` ${t}`) || h.startsWith(`${t} `) || h.includes(` ${t} `)))
+        );
+    };
 
     for (let i = next; i < lines.length; i++) {
         const texts = lines[i].cells.map((c) => c.text);
@@ -1025,12 +1084,33 @@ function pdfTableFromLines(lines, aliasLookup) {
         if (/^page\s*\d+(\s*(of|\/)\s*\d+)?$/i.test(joinedText)) continue;
 
         const headerLike = pdfHeaderCells(lines[i].cells, aliasLookup);
-        if (scoreHeaderRow(headerLike.map((c) => c.text), aliasLookup) >= Math.max(2, Math.ceil(header.length / 2))) {
+        const headerScore = scoreHeaderRow(headerLike.map((c) => c.text), aliasLookup);
+        const sameAsHeader =
+            texts.length >= 2 &&
+            texts.filter((t) => headerWords.includes(String(t || "").toLowerCase().replace(/\s+/g, " ").trim())).length >= Math.max(2, Math.ceil(header.length / 2));
+        const startsWithHeader = isHeaderFragment(texts) && texts.length >= Math.max(2, Math.ceil(header.length / 3));
+        if (headerScore >= Math.max(2, Math.ceil(header.length / 2)) || sameAsHeader || startsWithHeader) {
+            if (lastRow) carryRow = lastRow;
             lastRow = null;
+            inRepeatedHeader = true;
             continue; // header repeated on a new page
         }
 
+        // Second / third line of a wrapped repeated header ("ID", "Name", ...)
+        if (inRepeatedHeader && isHeaderFragment(texts)) continue;
+        inRepeatedHeader = false;
+
         const cells = place(lines[i]);
+
+        // Tail of a row that the PDF split across a page break: first
+        // column empty, right below the repeated header.
+        if (carryRow && !lastRow && !cells[0] && cells.filter(Boolean).length <= Math.max(1, Math.floor(header.length / 2))) {
+            cells.forEach((value, idx) => {
+                if (value) carryRow.cells[idx] = joinFragments(carryRow.cells[idx], value);
+            });
+            continue;
+        }
+        if (cells[0]) carryRow = null;
 
         // Continuation of a wrapped row: first column empty and the line
         // only fills a few columns of the row above.
@@ -1222,8 +1302,8 @@ function sourceLabel(sourceType) {
 
 function headerReport(plan, columnAliases) {
     const list = (plan || []).filter(Boolean);
-    const matchedTargets = new Set(list.filter((p) => p.target).map((p) => p.target));
-    const expected = Object.keys(columnAliases || {});
+    const matchedTargets = new Set(list.filter((p) => p.target && !p.target.startsWith("__")).map((p) => p.target));
+    const expected = Object.keys(columnAliases || {}).filter((name) => !name.startsWith("__"));
 
     return {
         columns: list.map((p) => ({
@@ -1232,7 +1312,8 @@ function headerReport(plan, columnAliases) {
             status: p.status,
             sheet: p.sheet || null
         })),
-        matched: list.filter((p) => p.target).map((p) => p.target),
+        matched: list.filter((p) => p.target && !p.target.startsWith("__")).map((p) => p.target),
+        ignored: list.filter((p) => p.status === "ignored").map((p) => p.source),
         extra: [...new Set(list.filter((p) => !p.target).map((p) => p.source))],
         corrected: list.filter((p) => p.status === "corrected").map((p) => ({ source: p.source, target: p.target })),
         notFound: expected.filter((name) => !matchedTargets.has(name))
