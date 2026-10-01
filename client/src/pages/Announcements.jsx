@@ -18,6 +18,7 @@ import {
     FaTrash,
     FaUser,
     FaUsers,
+    FaVideo,
 } from "react-icons/fa";
 
 import announcementService from "../services/announcementService";
@@ -52,6 +53,12 @@ const isPdf = (name) =>
     String(name || "")
         .toLowerCase()
         .endsWith(".pdf");
+
+const VIDEO_RE =
+    /\.(mp4|webm|mov|avi|mkv)$/i;
+
+const isVideo = (name) =>
+    VIDEO_RE.test(String(name || ""));
 
 // ======================================================
 // MAIN COMPONENT
@@ -457,6 +464,24 @@ function Announcements() {
                                             margin:auto;
                                         "
                                     />
+                                `
+                                : isVideo(
+                                      item.attachment_original_name
+                                  )
+                                ? `
+                                    <video
+                                        controls
+                                        preload="metadata"
+                                        style="
+                                            width:100%;
+                                            max-height:700px;
+                                            display:block;
+                                            margin:auto;
+                                        "
+                                    >
+                                        <source src="${attachment}" />
+                                        Your browser does not support this video format.
+                                    </video>
                                 `
                                 : isPdf(
                                       item.attachment_original_name
@@ -1170,6 +1195,12 @@ function Announcements() {
 
                                                 <FaImage />
 
+                                            ) : isVideo(
+                                                  item.attachment_original_name
+                                              ) ? (
+
+                                                <FaVideo />
+
                                             ) : item.attachment_path ? (
 
                                                 <FaFile />
@@ -1576,6 +1607,27 @@ function AnnouncementCard({
                                 "contain",
                         }}
                     />
+
+                ) : fileUrl &&
+                  isVideo(
+                      item.attachment_original_name
+                  ) ? (
+
+                    <video
+                        className="announcement-video-preview"
+                        controls
+                        preload="metadata"
+                        style={{
+                            width:"100%",
+                            height: horizontal ? "360px" : "520px",
+                            display:"block",
+                            objectFit:"contain",
+                            background:"#111",
+                        }}
+                    >
+                        <source src={fileUrl} />
+                        Your browser does not support this video format.
+                    </video>
 
                 ) : fileUrl &&
                   isPdf(
@@ -2029,6 +2081,38 @@ function AnnouncementView({
 
 
                 {/* ==================================================
+                    VIDEO
+                ================================================== */}
+
+                {fileUrl &&
+                    isVideo(
+                        item.attachment_original_name
+                    ) && (
+
+                        <div className="announcement-full-video-wrap">
+
+                            <video
+                                className="announcement-full-video"
+                                controls
+                                preload="metadata"
+                                style={{
+                                    width:"100%",
+                                    maxHeight:"70vh",
+                                    display:"block",
+                                    background:"#111",
+                                    borderRadius:"12px",
+                                }}
+                            >
+                                <source src={fileUrl} />
+                                Your browser does not support this video format.
+                            </video>
+
+                        </div>
+
+                    )}
+
+
+                {/* ==================================================
                     PDF
                 ================================================== */}
 
@@ -2085,6 +2169,10 @@ function AnnouncementView({
                                     item.attachment_original_name
                                 ) ? (
                                     <FaImage />
+                                ) : isVideo(
+                                      item.attachment_original_name
+                                  ) ? (
+                                    <FaVideo />
                                 ) : (
                                     <FaPaperclip />
                                 )}
@@ -2704,7 +2792,12 @@ function CreateAnnouncementModal({
                                 .gif,
                                 .webp,
                                 .bmp,
-                                .svg
+                                .svg,
+                                .mp4,
+                                .webm,
+                                .mov,
+                                .avi,
+                                .mkv
                             "
 
                             onChange={(e) => {
@@ -2742,6 +2835,10 @@ function CreateAnnouncementModal({
                                         editingItem.attachment_original_name
                                     ) ? (
                                         <FaImage />
+                                    ) : isVideo(
+                                          editingItem.attachment_original_name
+                                      ) ? (
+                                        <FaVideo />
                                     ) : (
                                         <FaPaperclip />
                                     )}

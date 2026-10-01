@@ -18,8 +18,8 @@ const permissionMiddleware = require(
     "../middleware/permissionMiddleware"
 );
 
-const upload = require(
-    "../middleware/upload"
+const announcementUpload = require(
+    "../middleware/announcementUpload"
 );
 
 const syncGalleryAttachment = require(
@@ -167,7 +167,7 @@ router.post(
         "Announcements",
         "Add"
     ),
-    upload.single("attachment"),
+    announcementUpload.single("attachment"),
     syncGalleryAttachment("Announcements", "attachment"),
     createAnnouncement
 );
@@ -193,7 +193,7 @@ router.put(
         "Announcements",
         "Edit"
     ),
-    upload.single("attachment"),
+    announcementUpload.single("attachment"),
     syncGalleryAttachment("Announcements", "attachment"),
     updateAnnouncement
 );

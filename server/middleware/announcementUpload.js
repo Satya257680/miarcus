@@ -61,32 +61,27 @@ const fileFilter = (req, file, cb) => {
             .extname(file.originalname)
             .toLowerCase();
 
+    // Announcements keep the uploaded binary exactly as supplied.
+    // These formats are accepted as attachments; they are NOT parsed into
+    // announcement fields and are NOT converted or rewritten.
     const allowedExtensions = [
-
         // Images
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg",
 
         // PDF
         ".pdf",
 
         // Documents
-        ".doc",
-        ".docx",
+        ".doc", ".docx", ".txt",
 
-        // Excel
-        ".xls",
-        ".xlsx",
+        // Excel / spreadsheet files
+        ".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods",
 
-        // CSV
-        ".csv",
+        // Delimited data files
+        ".csv", ".tsv",
 
-        // Text
-        ".txt"
-
+        // Video
+        ".mp4", ".webm", ".mov", ".avi", ".mkv"
     ];
 
     if (allowedExtensions.includes(extension)) {
@@ -100,7 +95,7 @@ const fileFilter = (req, file, cb) => {
 
         cb(
             new Error(
-                "Only image, PDF, document, Excel, CSV and text files are allowed."
+                "Only image, PDF, document, Excel, spreadsheet, CSV, TSV, text and video files are allowed."
             )
         );
 

@@ -45,10 +45,21 @@ function isValidSignature(filePath, extension) {
     if (ext === ".webp") return header.subarray(0, 4).toString("ascii") === "RIFF" && header.subarray(8, 12).toString("ascii") === "WEBP";
     if (ext === ".pdf") return header.subarray(0, 5).toString("ascii") === "%PDF-";
     if ([".doc", ".xls"].includes(ext)) return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
-    if ([".docx", ".xlsx", ".pptx", ".zip"].includes(ext)) {
+    if ([".docx", ".xlsx", ".xlsm", ".xltx", ".xltm", ".ods", ".pptx", ".zip"].includes(ext)) {
         return hasPrefix(header, [0x50, 0x4b, 0x03, 0x04]) ||
             hasPrefix(header, [0x50, 0x4b, 0x05, 0x06]) ||
             hasPrefix(header, [0x50, 0x4b, 0x07, 0x08]);
+    }
+    if ([".bmp"].includes(ext)) {
+        return hasPrefix(header, [0x42, 0x4d]);
+    }
+    if ([".svg"].includes(ext)) {
+        const sample = fs.readFileSync(filePath).subarray(0, 8192).toString("utf8").replace(/^\uFEFF/, "").trimStart();
+        return /<svg(?:\s|>)/i.test(sample) || /<\?xml[\s\S]*<svg(?:\s|>)/i.test(sample);
+    }
+    if ([".tsv"].includes(ext)) {
+        const sample = fs.readFileSync(filePath).subarray(0, 8192);
+        return !sample.includes(0);
     }
     if (ext === ".ppt") return hasPrefix(header, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
     if ([".mp4", ".mov", ".m4a"].includes(ext)) {
