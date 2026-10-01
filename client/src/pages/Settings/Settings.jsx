@@ -17,7 +17,8 @@ import {
     FaTimes,
     FaUserShield,
     FaWallet,
-    FaTasks
+    FaTasks,
+    FaPlaneDeparture
 } from "react-icons/fa";
 
 import "../../styles/pages/Settings.css";
@@ -138,6 +139,15 @@ function Settings() {
             description: "Choose which Petty Cash events send email and exactly who receives them.",
             icon: FaWallet,
             path: "/petty-cash/email-settings",
+            adminOnly: true
+        },
+        {
+            category: "Operations",
+            permission: "Travel Plan Email Routing",
+            title: "Travel Plan Email Routing",
+            description: "Master ON/OFF, per-event switches and who receives Visit Planner / Travel Plan / Approval emails.",
+            icon: FaPlaneDeparture,
+            path: "/settings/travel-plan-email",
             adminOnly: true
         },
         {

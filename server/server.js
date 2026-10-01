@@ -404,6 +404,16 @@ async function initializeDatabase() {
         }
 
         // --------------------------------------------------
+        // TRAVEL PLAN EMAIL ROUTING
+        // --------------------------------------------------
+        try {
+            await require("./models/travelPlanEmailSettingsModel").ensureTables();
+            console.log("✅ Travel Plan email routing schema verified");
+        } catch (error) {
+            console.error("❌ Travel Plan email routing schema initialization failed:", error.message);
+        }
+
+        // --------------------------------------------------
         // DAILY COLLECTION / STORE MANAGER DEADLINES
         // --------------------------------------------------
         try {
@@ -1759,6 +1769,15 @@ loadRoute(
     "./routes/actionPointEmailSettingsRoutes",
     "/api/action-point-email-settings",
     "Action Point Email Settings Routes"
+);
+
+// ======================================================
+// TRAVEL PLAN EMAIL SETTINGS (Sales Team routing)
+// ======================================================
+loadRoute(
+    "./routes/travelPlanEmailSettingsRoutes",
+    "/api/travel-plan-email-settings",
+    "Travel Plan Email Settings Routes"
 );
 
 // ======================================================

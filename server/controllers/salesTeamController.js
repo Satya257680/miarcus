@@ -17,6 +17,10 @@ const {
 
 const notificationService = require("../services/notificationService");
 const { sendGenericEmail } = require("../services/emailService");
+// Every Travel Plan email is routed by Settings → Travel Plan Email
+// Routing (master ON/OFF, per-event switches, specific contacts and
+// the employee who filled the visit plan).
+const TravelPlanEmail = require("../services/travelPlanEmailService");
 
 /* =========================================================
    HELPERS
@@ -132,8 +136,19 @@ const readSpreadsheetRows = (
 
 const notifyPendingApprovers = (
   employeeId,
-  planId
+  planId,
+  actorId = null
 ) => {
+  /*
+    Email – controlled by Travel Plan Email Routing.
+    (Master OFF = nobody receives it.)
+  */
+  TravelPlanEmail.notify("plan_submitted", {
+    planId,
+    employeeId,
+    actorId,
+  });
+
   SalesTeam.getApprovalRecipients(
     employeeId,
     async (
@@ -188,56 +203,6 @@ const notifyPendingApprovers = (
           error.message
         );
       }
-
-      /*
-        Email notification.
-      */
-      await Promise.all(
-        recipients.map(
-          (recipient) =>
-            sendEmailSafely(
-              recipient.email,
-
-              "MIARCUS - Travel Plan Pending Approval",
-
-              `
-              <div
-                style="
-                  font-family:Arial,sans-serif;
-                  line-height:1.6;
-                  color:#263b45;
-                "
-              >
-
-                <h2>
-                  Travel Plan Pending Approval
-                </h2>
-
-                <p>
-                  A new Sales Team travel plan
-                  has been submitted and is waiting
-                  for your approval.
-                </p>
-
-                <p>
-                  Please sign in to MIARCUS and open
-                  <b>Travel Plan Approvals</b>
-                  to Approve or Reject the plan.
-                </p>
-
-                <p>
-                  <a
-                    href="${appUrl()}/travel-plan-approval"
-                  >
-                    Open Travel Plan Approvals
-                  </a>
-                </p>
-
-              </div>
-              `
-            )
-        )
-      );
     }
   );
 };
@@ -249,7 +214,9 @@ const notifyPendingApprovers = (
 const notifyDecision = (
   employeeId,
   month,
-  status
+  status,
+  actorId = null,
+  reason = ""
 ) => {
   SalesTeam.getEmployeeForApproval(
     employeeId,
@@ -258,15 +225,29 @@ const notifyDecision = (
       err,
       employee
     ) => {
+      const approved =
+        status === "Approved";
+
+      /*
+        Email – controlled by Travel Plan Email Routing.
+      */
+      TravelPlanEmail.notify(
+        approved ? "plan_approved" : "plan_rejected",
+        {
+          employeeId,
+          month,
+          monthLabel: employee?.month_label || month,
+          actorId,
+          reason,
+        }
+      );
+
       if (
         err ||
         !employee
       ) {
         return;
       }
-
-      const approved =
-        status === "Approved";
 
       const title = approved
         ? "Travel Plan Approved"
@@ -280,7 +261,7 @@ const notifyDecision = (
         : `${
             employee.month_label ||
             "Your travel plan"
-          } Sales Team travel plan has been rejected.`;
+          } Sales Team travel plan has been rejected.${reason ? ` Reason: ${reason}` : ""}`;
 
       /*
         In-app notification.
@@ -317,97 +298,6 @@ const notifyDecision = (
           error.message
         );
       }
-
-      /*
-        Email.
-      */
-      await sendEmailSafely(
-        employee.email,
-
-        `MIARCUS - ${title}`,
-
-        `
-        <div
-          style="
-            font-family:Arial,sans-serif;
-            line-height:1.6;
-            color:#263b45;
-          "
-        >
-
-          <h2>
-            ${title}
-          </h2>
-
-          <p>
-            Your Sales Team travel plan for
-            <b>
-              ${
-                employee.month_label ||
-                month
-              }
-            </b>
-            has been
-            <b>
-              ${status.toLowerCase()}
-            </b>.
-          </p>
-
-          <p>
-            Plan days:
-            <b>
-              ${employee.plan_days}
-            </b>
-          </p>
-
-          ${
-            employee.start_date
-              ? `
-                <p>
-                  Period:
-                  <b>
-                    ${employee.start_date}
-                    ${employee.end_date && employee.end_date !== employee.start_date
-                      ? ` to ${employee.end_date}`
-                      : ""}
-                  </b>
-                </p>
-              `
-              : ""
-          }
-
-          ${
-            approved
-              ? `
-                <p>
-                  Your plan is now available
-                  in Travel Plan.
-                </p>
-              `
-              : `
-                <p>
-                  Please open Visit Planner
-                  to review the rejected plan
-                  and make changes if required.
-                </p>
-              `
-          }
-
-          <p>
-            <a
-              href="${appUrl()}${
-                approved
-                  ? "/travel-plan"
-                  : "/visit-planner"
-              }"
-            >
-              Open MIARCUS
-            </a>
-          </p>
-
-        </div>
-        `
-      );
     }
   );
 };
@@ -654,6 +544,17 @@ exports.createVisitPlan = (
     });
   }
 
+  if (
+    !plan.weekOff &&
+    !String(body.city || "").trim()
+  ) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "City is required.",
+    });
+  }
+
   /*
     Normal employees can only create
     their own visit plan.
@@ -728,7 +629,8 @@ exports.createVisitPlan = (
       */
       notifyPendingApprovers(
         Number(body.employee_id),
-        id
+        id,
+        req.user.id
       );
 
       return res.status(201).json({
@@ -867,7 +769,8 @@ exports.updateVisitPlan = (
             ),
             Number(
               req.params.id
-            )
+            ),
+            req.user.id
           );
 
           return res.json({
@@ -927,22 +830,38 @@ exports.deleteVisitPlan = (
         });
       }
 
-      SalesTeam.deleteVisitPlan(
-        req.params.id,
-        (err) => {
-          if (err) {
-            return res.status(500).json({
-              success: false,
-              message:
-                "Delete failed",
+      // Capture the plan before it is deleted so the
+      // "Travel Plan Deleted" email can still list its details.
+      const snapshotPromise = TravelPlanEmail
+        .getPlanSnapshot(req.params.id)
+        .catch(() => null);
+
+      snapshotPromise.then((snapshot) => {
+        SalesTeam.deleteVisitPlan(
+          req.params.id,
+          (err) => {
+            if (err) {
+              return res.status(500).json({
+                success: false,
+                message:
+                  "Delete failed",
+              });
+            }
+
+            if (snapshot) {
+              TravelPlanEmail.notify("plan_deleted", {
+                snapshot,
+                employeeId: snapshot.employee_id,
+                actorId: req.user.id,
+              });
+            }
+
+            return res.json({
+              success: true,
             });
           }
-
-          return res.json({
-            success: true,
-          });
-        }
-      );
+        );
+      });
     }
   );
 };
@@ -1576,6 +1495,12 @@ exports.saveActualStores = (
             });
           }
 
+          TravelPlanEmail.notify("actual_updated", {
+            planId: Number(req.params.id),
+            employeeId: row.employee_id,
+            actorId: req.user.id,
+          });
+
           return res.json({
             success: true,
           });
@@ -1674,6 +1599,14 @@ exports.addRemark = (
                 "Unable to save remark",
             });
           }
+
+          TravelPlanEmail.notify("remark_added", {
+            planId: Number(req.params.id),
+            employeeId: row.employee_id,
+            actorId: req.user.id,
+            remark: String(req.body.remark || "").trim(),
+            attachment: Boolean(attachmentPath),
+          });
 
           return res.json({
             success: true,
@@ -1853,7 +1786,8 @@ exports.approve = (
       notifyDecision(
         employeeId,
         month,
-        "Approved"
+        "Approved",
+        req.user.id
       );
 
       return res.json({
@@ -1948,7 +1882,9 @@ exports.reject = (
       notifyDecision(
         employeeId,
         month,
-        "Rejected"
+        "Rejected",
+        req.user.id,
+        reason
       );
 
       return res.json({

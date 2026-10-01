@@ -46,6 +46,7 @@ import {
     FaPalette,
     FaWifi,
     FaStoreAlt,
+    FaHistory,
 } from "react-icons/fa";
 
 import InstallAppButton from "../InstallAppButton";
@@ -865,10 +866,32 @@ function Sidebar({ collapsed }) {
                         {!collapsed && pettyCashOpen && (
                             <div className="sidebar-submenu">
                                 {canPettyCashDashboard && (
-                                    <NavLink to="/petty-cash" className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
-                                        <FaMoneyBillWave />
-                                        <span>Petty Cash Dashboard</span>
-                                    </NavLink>
+                                    <>
+                                        <NavLink to="/petty-cash" end className={({isActive}) => `submenu-item ${isActive && location.pathname === "/petty-cash" ? "active" : ""}`}>
+                                            <FaMoneyBillWave />
+                                            <span>Petty Cash Dashboard</span>
+                                        </NavLink>
+                                        <NavLink to="/petty-cash/new" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                            <FaPlus />
+                                            <span>New Advance</span>
+                                        </NavLink>
+                                        <NavLink to="/petty-cash/advances" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                            <FaListAlt />
+                                            <span>Manage Advances</span>
+                                        </NavLink>
+                                        <NavLink to="/petty-cash/expenses" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                            <FaReceipt />
+                                            <span>Manage Expenses</span>
+                                        </NavLink>
+                                        <NavLink to="/petty-cash/deposits" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                            <FaMoneyCheckAlt />
+                                            <span>Manage Deposits</span>
+                                        </NavLink>
+                                        <NavLink to="/petty-cash/audit-trail" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
+                                            <FaHistory />
+                                            <span>Audit Trail</span>
+                                        </NavLink>
+                                    </>
                                 )}
                                 {canPettyCashEmail && (
                                     <NavLink to="/petty-cash/email-settings" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}>
@@ -1141,6 +1164,7 @@ function Sidebar({ collapsed }) {
                                 {canSalesTravelPlan && <NavLink to="/travel-plan" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaPlane /><span>Travel Plan</span></NavLink>}
                                 {canSalesApprovals && <NavLink to="/travel-plan-approval" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaCheckCircle /><span>Travel Plan Approvals</span></NavLink>}
                                 {canSalesReview && <NavLink to="/sales-review" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaChartLine /><span>Sales Review</span></NavLink>}
+                                {isAdministrator && <NavLink to="/settings/travel-plan-email" className={({isActive}) => `submenu-item ${isActive ? "active" : ""}`}><FaEnvelope /><span>Travel Plan Emails</span></NavLink>}
                             </div>
                         )}
                     </div>

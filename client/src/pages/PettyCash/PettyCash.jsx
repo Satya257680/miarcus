@@ -1,7 +1,6 @@
 import PremiumLoader from "../../components/premium/PremiumLoader";
-import { collectIds, hasActiveFilters, deleteAllLabel } from "../../utils/deleteScope";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
     FaWallet,
@@ -13,804 +12,446 @@ import {
     FaFilter,
     FaPlus,
     FaSearch,
-    FaUpload,
     FaHistory,
-    FaTimes,
-    FaCheckCircle,
     FaExclamationCircle,
+    FaCheckCircle,
     FaUser,
     FaStore,
-    FaCalendarAlt,
-    FaFileInvoice,
-    FaRupeeSign,
-    FaUndo,
-    FaArrowLeft,
-    FaCalculator,
     FaTrash,
-    FaBroom,
-    FaEnvelope
+    FaEye,
+    FaEdit,
+    FaUndo,
+    FaPaperPlane,
+    FaListAlt
 } from "react-icons/fa";
-import "./PettyCash.css";
 import "../../styles/premium/PagePremium.css";
-import "../../styles/premium/AdminPagesPremium.css";
-import "../../styles/premium/ModulesPremium.css";
+import "./PettyCashPremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import ExportButton from "../../components/common/ExportButton";
 import { exportTableData } from "../../utils/exportUtils.js";
+import {
+    money,
+    dmy,
+    getAccess,
+    apiError,
+    PettyNav,
+    ConfirmModal,
+    StatusPill,
+    usePager,
+    Pager,
+    sortRows,
+    SortTh
+} from "./pettyCashShared";
 
-const money = (value) =>
-    `₹${Number(value || 0).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    })}`;
+const EMPTY_FILTERS = { search: "", store: "", status: "", from: "", to: "" };
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-function statusLabel(status) {
-    return String(status || "OPEN")
-        .replace("_", " ")
-        .toLowerCase()
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function statusClass(status) {
-    return String(status || "OPEN").toLowerCase().replace("_", "-");
-}
-
-function getAccess() {
-    let user = {};
-    let permissions = {};
-    try { user = JSON.parse(localStorage.getItem("user") || "{}"); } catch {}
-    try { permissions = JSON.parse(localStorage.getItem("permissions") || "{}"); } catch {}
-
-    const admin = user?.is_admin === true || user?.is_admin === 1 || user?.is_admin === "1" ||
-        user?.administrator === true || user?.administrator === 1 || user?.administrator === "1";
-    const level = { None: 0, View: 1, Add: 2, Edit: 3, Full: 4 };
-    const current = level[permissions?.["Petty Cash"] || permissions?.Expenses] || 0;
-    const userId = Number(user?.id || user?.user_id || localStorage.getItem("userId") || 0);
-
-    return {
-        userId,
-        admin,
-        canAdd: admin || current >= level.Add,
-        canEdit: admin || current >= level.Edit
-    };
-}
-
-
-function Modal({ title, children, onClose }) {
-    return (
-        <div className="petty-modal-backdrop" onMouseDown={onClose}>
-            <div className="petty-modal" onMouseDown={(e) => e.stopPropagation()}>
-                <div className="petty-modal-header">
-                    <div>
-                        <span className="petty-eyebrow">Petty Cash</span>
-                        <h2>{title}</h2>
-                    </div>
-                    <button className="petty-close" onClick={onClose} aria-label="Close">
-                        <FaTimes />
-                    </button>
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-}
-
-function AdvanceForm({ options, onClose, onCreated }) {
-    const [form, setForm] = useState({
-        advance_no: "",
-        store_id: "",
-        paid_by: "",
-        received_by: "",
-        advance_amount: "",
-        purpose: "",
-        advance_date: today()
-    });
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-    const submit = async (e) => {
-        e.preventDefault();
-        setError("");
-
-        if (Number(form.advance_amount) <= 0) {
-            setError("Enter an advance amount greater than zero.");
-            return;
-        }
-
-        try {
-            setSaving(true);
-            const { data } = await axios.post("/api/petty-cash", form);
-            if (!data?.success) throw new Error(data?.message || "Unable to create advance.");
-            onCreated(data.data.id);
-        } catch (err) {
-            setError(err.response?.data?.message || err.message || "Unable to create advance.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Modal title="Create Petty Cash Advance" onClose={onClose}>
-            <form className="petty-form" onSubmit={submit}>
-                <div className="petty-form-grid">
-                    <label>Advance No *
-                        <input value={form.advance_no} onChange={(e) => update("advance_no", e.target.value)} placeholder="ADV-001" required />
-                    </label>
-                    <label>Store *
-                        <select value={form.store_id} onChange={(e) => update("store_id", e.target.value)} required>
-                            <option value="">Select store</option>
-                            {options.stores.map((s) => <option key={s.id} value={s.id}>{s.store_name}{s.store_code ? ` (${s.store_code})` : ""}</option>)}
-                        </select>
-                    </label>
-                    <label>Paid By (Manager) *
-                        <select value={form.paid_by} onChange={(e) => update("paid_by", e.target.value)} required>
-                            <option value="">Select giver</option>
-                            {options.users.map((u) => <option key={u.id} value={u.id}>{u.name}{u.employee_id ? ` (${u.employee_id})` : ""}</option>)}
-                        </select>
-                    </label>
-                    <label>Received By (Employee) *
-                        <select value={form.received_by} onChange={(e) => update("received_by", e.target.value)} required>
-                            <option value="">Select receiver</option>
-                            {options.users.map((u) => <option key={u.id} value={u.id}>{u.name}{u.employee_id ? ` (${u.employee_id})` : ""}</option>)}
-                        </select>
-                    </label>
-                    <label>Advance Amount *
-                        <div className="petty-input-icon"><FaRupeeSign /><input type="number" min="0.01" step="0.01" value={form.advance_amount} onChange={(e) => update("advance_amount", e.target.value)} required /></div>
-                    </label>
-                    <label>Advance Date *
-                        <input type="date" value={form.advance_date} onChange={(e) => update("advance_date", e.target.value)} required />
-                    </label>
-                    <label className="petty-field-full">Purpose
-                        <textarea value={form.purpose} onChange={(e) => update("purpose", e.target.value)} placeholder="Store maintenance, local purchase, travel advance..." rows="3" />
-                    </label>
-                </div>
-                {error && <div className="petty-error"><FaExclamationCircle /> {error}</div>}
-                <div className="petty-modal-actions">
-                    <button type="button" className="petty-btn secondary" onClick={onClose}>Cancel</button>
-                    <button className="petty-btn primary" disabled={saving}>
-                        {saving ? "Creating..." : <><FaPlus /> Create Advance</>}
-                    </button>
-                </div>
-            </form>
-        </Modal>
-    );
-}
-
-function AddExpenseForm({ id, onClose, onSaved }) {
-    const [form, setForm] = useState({ expense_type: "Stationery", description: "", amount: "", expense_date: today() });
-    const [file, setFile] = useState(null);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const submit = async (e) => {
-        e.preventDefault();
-        setError("");
-        if (Number(form.amount) <= 0) return setError("Enter a valid expense amount.");
-
-        try {
-            setSaving(true);
-            const data = new FormData();
-            Object.entries(form).forEach(([key, value]) => data.append(key, value));
-            if (file) data.append("bill", file);
-            const response = await axios.post(`/api/petty-cash/${id}/expenses`, data);
-            if (!response.data?.success) throw new Error(response.data?.message || "Unable to add expense.");
-            onSaved();
-        } catch (err) {
-            setError(err.response?.data?.message || err.message || "Unable to add expense.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Modal title="Add Expense With Bill" onClose={onClose}>
-            <form className="petty-form" onSubmit={submit}>
-                <div className="petty-form-grid">
-                    <label>Expense Type *
-                        <select value={form.expense_type} onChange={(e) => setForm({ ...form, expense_type: e.target.value })}>
-                            {["Stationery", "Maintenance", "Travel", "Food", "Utilities", "Office Supplies", "Other"].map((x) => <option key={x}>{x}</option>)}
-                        </select>
-                    </label>
-                    <label>Amount *
-                        <div className="petty-input-icon"><FaRupeeSign /><input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required /></div>
-                    </label>
-                    <label className="petty-field-full">Description
-                        <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Office files, pen, paper..." />
-                    </label>
-                    <label>Expense Date *
-                        <input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} required />
-                    </label>
-                    <label>Bill / Receipt
-                        <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                    </label>
-                </div>
-                {error && <div className="petty-error"><FaExclamationCircle /> {error}</div>}
-                <div className="petty-modal-actions">
-                    <button type="button" className="petty-btn secondary" onClick={onClose}>Cancel</button>
-                    <button className="petty-btn primary" disabled={saving}>{saving ? "Saving..." : <><FaReceipt /> Save Expense</>}</button>
-                </div>
-            </form>
-        </Modal>
-    );
-}
-
-function AddDepositForm({ id, options, onClose, onSaved }) {
-    const [form, setForm] = useState({ amount: "", deposited_by: "", received_by: "", deposit_date: today(), reference_no: "" });
-    const [file, setFile] = useState(null);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const submit = async (e) => {
-        e.preventDefault();
-        setError("");
-        if (Number(form.amount) <= 0) return setError("Enter a valid deposit amount.");
-        try {
-            setSaving(true);
-            const data = new FormData();
-            Object.entries(form).forEach(([key, value]) => data.append(key, value));
-            if (file) data.append("receipt", file);
-            const response = await axios.post(`/api/petty-cash/${id}/deposits`, data);
-            if (!response.data?.success) throw new Error(response.data?.message || "Unable to record deposit.");
-            onSaved();
-        } catch (err) {
-            setError(err.response?.data?.message || err.message || "Unable to record deposit.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Modal title="Deposit Unused Cash" onClose={onClose}>
-            <form className="petty-form" onSubmit={submit}>
-                <div className="petty-form-grid">
-                    <label>Deposited Amount *
-                        <div className="petty-input-icon"><FaRupeeSign /><input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required /></div>
-                    </label>
-                    <label>Deposited By *
-                        <select value={form.deposited_by} onChange={(e) => setForm({ ...form, deposited_by: e.target.value })} required>
-                            <option value="">Select employee</option>
-                            {options.users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
-                    </label>
-                    <label>Received By *
-                        <select value={form.received_by} onChange={(e) => setForm({ ...form, received_by: e.target.value })} required>
-                            <option value="">Select manager</option>
-                            {options.users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
-                    </label>
-                    <label>Deposit Date *
-                        <input type="date" value={form.deposit_date} onChange={(e) => setForm({ ...form, deposit_date: e.target.value })} required />
-                    </label>
-                    <label>Reference No.
-                        <input value={form.reference_no} onChange={(e) => setForm({ ...form, reference_no: e.target.value })} placeholder="DEP-001" />
-                    </label>
-                    <label>Deposit Receipt
-                        <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                    </label>
-                </div>
-                {error && <div className="petty-error"><FaExclamationCircle /> {error}</div>}
-                <div className="petty-modal-actions">
-                    <button type="button" className="petty-btn secondary" onClick={onClose}>Cancel</button>
-                    <button className="petty-btn primary" disabled={saving}>{saving ? "Saving..." : <><FaUniversity /> Record Deposit</>}</button>
-                </div>
-            </form>
-        </Modal>
-    );
-}
-
-function PettyCash() {
-    const { id } = useParams();
+// ======================================================
+// PETTY CASH DASHBOARD / MANAGE ADVANCES
+// mode="dashboard" -> KPIs + recent advances + summaries
+// mode="manage"    -> full advance register
+// ======================================================
+function PettyCash({ mode = "dashboard" }) {
     const navigate = useNavigate();
+    const access = getAccess();
+    const manage = mode === "manage";
+
     const [advances, setAdvances] = useState([]);
     const [summary, setSummary] = useState({});
+    const [storeWise, setStoreWise] = useState([]);
+    const [personWise, setPersonWise] = useState([]);
     const [options, setOptions] = useState({ stores: [], users: [] });
-    const [detail, setDetail] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [search, setSearch] = useState("");
-    const [status, setStatus] = useState("");
-    const [store, setStore] = useState("");
-    const [viewMode, setViewMode] = useState("ALL");
-    // Filters that were actually applied to the list currently on screen
-    // (filters here are applied with the "Apply" button, not while typing).
-    const [appliedFilters, setAppliedFilters] = useState({ search: "", store: "", status: "", viewMode: "ALL" });
-    const [modal, setModal] = useState("");
-    const [deleting, setDeleting] = useState(false);
-    const [audit, setAudit] = useState([]);
-    const [showAudit, setShowAudit] = useState(false);
-    const access = getAccess();
+    const [notice, setNotice] = useState("");
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [applied, setApplied] = useState(EMPTY_FILTERS);
+    const [selected, setSelected] = useState([]);
+    const [sort, setSort] = useState({ key: "", dir: "asc" });
+    const [confirm, setConfirm] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [emailing, setEmailing] = useState(false);
 
-    const loadDashboard = async (override = null) => {
-        const filters = override || { search, store, status, viewMode };
+    const load = async (next = filters) => {
         try {
             setLoading(true);
             setError("");
-            const [listResponse, summaryResponse, optionsResponse] = await Promise.all([
-                axios.get("/api/petty-cash", { params: {
-                    search: filters.search || undefined,
-                    status: filters.status || undefined,
-                    store_id: filters.store || undefined,
-                    paid_by: filters.viewMode === "GIVEN_BY_ME" ? access.userId : undefined,
-                    received_by: filters.viewMode === "RECEIVED_BY_ME" ? access.userId : undefined
-                } }),
+            const [list, sum, opts] = await Promise.all([
+                axios.get("/api/petty-cash", {
+                    params: {
+                        search: next.search || undefined,
+                        status: next.status || undefined,
+                        store_id: next.store || undefined,
+                        from: next.from || undefined,
+                        to: next.to || undefined
+                    }
+                }),
                 axios.get("/api/petty-cash/summary"),
                 axios.get("/api/petty-cash/options")
             ]);
-            setAdvances(listResponse.data?.data || []);
-            setAppliedFilters({
-                search: filters.search || "",
-                store: filters.store || "",
-                status: filters.status || "",
-                viewMode: filters.viewMode || "ALL"
-            });
-            setSummary(summaryResponse.data?.data?.summary || {});
-            setOptions(optionsResponse.data?.data || { stores: [], users: [] });
+            setAdvances(list.data?.data || []);
+            setSummary(sum.data?.data?.summary || {});
+            setStoreWise(sum.data?.data?.storeWise || []);
+            setPersonWise(sum.data?.data?.personWise || []);
+            setOptions(opts.data?.data || { stores: [], users: [] });
+            setApplied(next);
+            setSelected([]);
         } catch (err) {
-            console.error("Petty Cash load error:", err);
-            setError(err.response?.data?.message || "Unable to load petty cash.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadDetail = async (advanceId = id) => {
-        if (!advanceId) return;
-        try {
-            setLoading(true);
-            const response = await axios.get(`/api/petty-cash/${advanceId}`);
-            setDetail(response.data?.data || null);
-        } catch (err) {
-            setError(err.response?.data?.message || "Unable to load advance details.");
+            setError(apiError(err, "Unable to load petty cash."));
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (id) {
-            loadDetail(id);
-            axios.get("/api/petty-cash/options").then((response) => setOptions(response.data?.data || { stores: [], users: [] })).catch(() => {});
-        } else {
-            loadDashboard();
-        }
+        load(EMPTY_FILTERS);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
+    }, [mode]);
 
-    const visibleAdvances = useMemo(() => advances, [advances]);
+    const sorted = useMemo(() => sortRows(advances, sort), [advances, sort]);
+    const pager = usePager(sorted, manage ? 15 : 8);
 
-    // Any applied filter -> Delete All removes only the listed records.
-    const isFilteredDelete = hasActiveFilters({
-        search: appliedFilters.search,
-        store: appliedFilters.store,
-        status: appliedFilters.status,
-        viewMode: appliedFilters.viewMode === "ALL" ? "" : appliedFilters.viewMode
-    });
+    const canDeleteRow = (row) => access.canEdit && (access.admin || Number(row.paid_by) === access.userId);
+    const canEditRow = (row) => canDeleteRow(row) && !["SETTLED", "CANCELLED"].includes(row.status);
 
-    const refreshDetail = async () => {
-        await loadDetail(id);
-    };
+    const pageIds = pager.slice.filter(canDeleteRow).map((r) => Number(r.id));
+    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
 
-    const createAdvance = async (advanceId) => {
-        setModal("");
-        navigate(`/petty-cash/${advanceId}`);
-    };
+    const toggleRow = (id) =>
+        setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
 
-    const settle = async () => {
-        if (!detail) return;
-        if (!window.confirm(`Settle ${detail.advance_no}? Expense + deposit must equal ${money(detail.advance_amount)}.`)) return;
-        try {
-            await axios.post(`/api/petty-cash/${detail.id}/settle`);
-            await refreshDetail();
-        } catch (err) {
-            setError(err.response?.data?.message || "Unable to settle this advance.");
-        }
-    };
-
-    const openAudit = async () => {
-        if (!detail) return;
-        try {
-            const response = await axios.get(`/api/petty-cash/audit/${detail.id}`);
-            setAudit(response.data?.data || []);
-            setShowAudit(true);
-        } catch (err) {
-            setError(err.response?.data?.message || "Unable to load audit history.");
-        }
-    };
-
-    const cancelAdvance = async () => {
-        if (!detail) return;
-        if (!window.confirm(`Cancel ${detail.advance_no}?`)) return;
-        try {
-            await axios.patch(`/api/petty-cash/${detail.id}/cancel`);
-            await refreshDetail();
-        } catch (err) {
-            setError(err.response?.data?.message || "Unable to cancel this advance.");
-        }
-    };
-
-    const deleteAdvance = async () => {
-        if (!detail) return;
-        if (!window.confirm(`Delete ${detail.advance_no}? The record will be marked CANCELLED and preserved in the audit trail.`)) return;
-        try {
-            await axios.delete(`/api/petty-cash/${detail.id}`);
-            navigate("/petty-cash");
-        } catch (err) {
-            setError(err.response?.data?.message || "Unable to delete this advance.");
-        }
-    };
-
-    if (id) {
-        if (loading && !detail) {
-            return <div className="petty-page"><div className="petty-loading"><PremiumLoader title="Loading advance" /></div></div>;
-        }
-
-        if (!detail) {
-            return <div className="petty-page"><div className="petty-empty">Advance not found.</div></div>;
-        }
-
-        const balance = Number(detail.balance || 0);
-        const settled = detail.status === "SETTLED";
-        const isGiver = access.admin || Number(detail.paid_by) === access.userId;
-        const isReceiver = access.admin || Number(detail.received_by) === access.userId;
-        const canSettle = !settled && detail.status !== "CANCELLED" && access.canEdit && isGiver;
-        const canDelete = !settled && detail.status !== "CANCELLED" && access.canEdit && isGiver;
-
-        return (
-            <div className="petty-page pp-premium">
-                <div className="petty-detail-header">
-                    <button className="petty-back-btn" onClick={() => navigate("/petty-cash")}><FaArrowLeft /></button>
-                    <div>
-                        <span className="petty-eyebrow">Petty Cash Advance</span>
-                        <h1>{detail.advance_no}</h1>
-                        <p>{detail.store_name || "-"} · {detail.advance_date}</p>
-                    </div>
-                    <div className="petty-header-actions">
-                        <span className={`petty-status ${statusClass(detail.status)}`}>{statusLabel(detail.status)}</span>
-                        {!settled && detail.status !== "CANCELLED" && (
-                            <>
-                                {isReceiver && access.canEdit && <button className="petty-btn secondary" onClick={() => setModal("expense")}><FaPlus /> Add Expense</button>}
-                                {isReceiver && access.canEdit && <button className="petty-btn secondary" onClick={() => setModal("deposit")}><FaUndo /> Deposit Cash</button>}
-                                {canSettle && <button className="petty-btn primary" onClick={settle}><FaClipboardCheck /> Settle</button>}
-                                {canDelete && <button className="petty-btn danger" onClick={deleteAdvance}><FaTrash /> Delete</button>}
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {error && <div className="petty-error global"><FaExclamationCircle /> {error}</div>}
-
-                <div className="petty-flow">
-                    <div className="petty-flow-card advance">
-                        <div className="petty-flow-icon"><FaMoneyBillWave /></div>
-                        <span>1. ADVANCE GIVEN</span>
-                        <strong>{money(detail.advance_amount)}</strong>
-                        <small>{detail.paid_by_name || "-"} → {detail.received_by_name || "-"}</small>
-                        <div className="petty-flow-meta"><b>Paid By</b><span>{detail.paid_by_name || "-"}</span><b>Received By</b><span>{detail.received_by_name || "-"}</span></div>
-                    </div>
-                    <FaArrowRight className="petty-flow-arrow" />
-                    <div className="petty-flow-card expense">
-                        <div className="petty-flow-icon"><FaReceipt /></div>
-                        <span>2. EXPENSES (WITH BILLS)</span>
-                        <strong>{money(detail.total_expense)}</strong>
-                        <small>Actual expense recorded</small>
-                        <div className="petty-flow-meta"><b>Items</b><span>{detail.expenses.length}</span><b>Control</b><span>Bills / receipts</span></div>
-                    </div>
-                    <FaArrowRight className="petty-flow-arrow" />
-                    <div className="petty-flow-card deposit">
-                        <div className="petty-flow-icon"><FaUniversity /></div>
-                        <span>3. DEPOSIT UNUSED CASH</span>
-                        <strong>{money(detail.total_deposit)}</strong>
-                        <small>Cash returned to manager</small>
-                        <div className="petty-flow-meta"><b>Deposits</b><span>{detail.deposits.length}</span><b>Remaining</b><span>{money(balance)}</span></div>
-                    </div>
-                    <FaArrowRight className="petty-flow-arrow" />
-                    <div className="petty-flow-card settlement">
-                        <div className="petty-flow-icon"><FaClipboardCheck /></div>
-                        <span>4. SETTLEMENT</span>
-                        <strong>{settled ? "SETTLED" : "OPEN"}</strong>
-                        <small>{detail.settlement?.settled_at ? new Date(detail.settlement.settled_at).toLocaleString() : "Awaiting final settlement"}</small>
-                    </div>
-                </div>
-
-                <div className="petty-summary-calculation">
-                    <div><span>Advance Given</span><strong>{money(detail.advance_amount)}</strong></div>
-                    <div><span>Total Expense</span><strong className="negative">- {money(detail.total_expense)}</strong></div>
-                    <div><span>Cash To Return</span><strong className={balance === 0 ? "positive" : "warning"}>{money(Math.max(0, balance))}</strong></div>
-                    <div className="petty-calculation-note">
-                        Expense ({money(detail.total_expense)}) + Deposit ({money(detail.total_deposit)}) = {money(Number(detail.total_expense) + Number(detail.total_deposit))}
-                    </div>
-                    <div className={`petty-final-status ${settled ? "settled" : ""}`}>Status: {statusLabel(detail.status)}</div>
-                </div>
-
-                <div className="petty-detail-grid">
-                    <section className="petty-card">
-                        <div className="petty-card-title"><FaFileInvoice /><div><h2>ADVANCE DETAILS</h2><p>Original cash movement</p></div></div>
-                        <div className="petty-definition-list">
-                            <div><span>Advance No.</span><strong>{detail.advance_no}</strong></div>
-                            <div><span>Store</span><strong>{detail.store_name || "-"}</strong></div>
-                            <div><span>Paid By (Giver)</span><strong>{detail.paid_by_name || "-"}</strong></div>
-                            <div><span>Received By (Receiver)</span><strong>{detail.received_by_name || "-"}</strong></div>
-                            <div><span>Advance Amount</span><strong>{money(detail.advance_amount)}</strong></div>
-                            <div><span>Purpose</span><strong>{detail.purpose || "-"}</strong></div>
-                            <div><span>Advance Date</span><strong>{detail.advance_date}</strong></div>
-                            <div><span>Status</span><span className={`petty-status ${statusClass(detail.status)}`}>{statusLabel(detail.status)}</span></div>
-                        </div>
-                    </section>
-
-                    <section className="petty-card wide">
-                        <div className="petty-card-title"><FaReceipt /><div><h2>EXPENSES (PART 1)</h2><p>Actual purchases backed by bills</p></div></div>
-                        <div className="petty-table-wrap">
-                            <table className="petty-table">
-                                <thead><tr><th>#</th><th>Expense Type</th><th>Description</th><th>Amount (₹)</th><th>Bill / Receipt</th><th>Date</th><th>Entered By</th></tr></thead>
-                                <tbody>
-                                    {detail.expenses.length ? detail.expenses.map((e, index) => (
-                                        <tr key={e.id}><td>{index + 1}</td><td>{e.expense_type}</td><td>{e.description || "-"}</td><td className="amount">{money(e.amount)}</td><td>{e.bill_path ? <a href={`${axios.defaults.baseURL || ""}${e.bill_path}`} target="_blank" rel="noreferrer"><FaFileInvoice /> {e.bill_filename || "View"}</a> : "—"}</td><td>{e.expense_date}</td><td>{e.entered_by_name || "-"}</td></tr>
-                                    )) : <tr><td colSpan="7" className="empty-cell">No expenses recorded yet.</td></tr>}
-                                </tbody>
-                                <tfoot><tr><td colSpan="3">TOTAL EXPENSE</td><td className="amount">{money(detail.total_expense)}</td><td colSpan="3"></td></tr></tfoot>
-                            </table>
-                        </div>
-                    </section>
-
-                    <section className="petty-card wide">
-                        <div className="petty-card-title"><FaUniversity /><div><h2>DEPOSIT (PART 2)</h2><p>Unused cash returned</p></div></div>
-                        <div className="petty-table-wrap">
-                            <table className="petty-table">
-                                <thead><tr><th>#</th><th>Deposited Amount (₹)</th><th>Deposited By</th><th>Received By</th><th>Deposit Date</th><th>Reference No.</th></tr></thead>
-                                <tbody>
-                                    {detail.deposits.length ? detail.deposits.map((d, index) => (
-                                        <tr key={d.id}><td>{index + 1}</td><td className="amount">{money(d.amount)}</td><td>{d.deposited_by_name || "-"}</td><td>{d.received_by_name || "-"}</td><td>{d.deposit_date}</td><td>{d.reference_no || "—"}</td></tr>
-                                    )) : <tr><td colSpan="6" className="empty-cell">No cash deposit recorded yet.</td></tr>}
-                                </tbody>
-                                <tfoot><tr><td>TOTAL DEPOSIT</td><td className="amount">{money(detail.total_deposit)}</td><td colSpan="4"></td></tr></tfoot>
-                            </table>
-                        </div>
-                    </section>
-
-                    <section className="petty-card">
-                        <div className="petty-card-title"><FaCalculator /><div><h2>SETTLEMENT OVERVIEW</h2><p>Final reconciliation</p></div></div>
-                        <div className="petty-settlement-box">
-                            <div><span>Advance Amount</span><strong>{money(detail.advance_amount)}</strong></div>
-                            <div><span>Total Expense</span><strong>{money(detail.total_expense)}</strong></div>
-                            <div><span>Total Deposit</span><strong>{money(detail.total_deposit)}</strong></div>
-                            <div><span>Balance</span><strong className={balance === 0 ? "positive" : "warning"}>{money(balance)}</strong></div>
-                            <div><span>Status</span><strong>{statusLabel(detail.status)}</strong></div>
-                        </div>
-                    </section>
-
-                    <section className="petty-card">
-                        <div className="petty-card-title"><FaUser /><div><h2>WHO PAID / WHO RECEIVED</h2><p>Accountability</p></div></div>
-                        <div className="petty-people">
-                            <div><FaUser /><span>Paid By (Giver)</span><strong>{detail.paid_by_name || "-"}</strong></div>
-                            <div><FaUser /><span>Received By (Receiver)</span><strong>{detail.received_by_name || "-"}</strong></div>
-                        </div>
-                    </section>
-
-                    <section className="petty-card">
-                        <div className="petty-card-title"><FaUniversity /><div><h2>WHO DEPOSITED / WHO RECEIVED</h2><p>Return accountability</p></div></div>
-                        {detail.deposits.length ? detail.deposits.map((d) => (
-                            <div className="petty-people" key={d.id}>
-                                <div><FaUser /><span>Deposited By</span><strong>{d.deposited_by_name || "-"}</strong></div>
-                                <div><FaUser /><span>Received By</span><strong>{d.received_by_name || "-"}</strong></div>
-                            </div>
-                        )) : <div className="petty-empty-inline">No deposit recorded.</div>}
-                    </section>
-                </div>
-
-                <div className="petty-detail-footer">
-                    <div><FaHistory /> Every advance, expense, deposit and settlement action is audit logged.</div>
-                    <div className="petty-footer-actions">
-                        <button className="petty-btn secondary" onClick={openAudit}><FaHistory /> Audit Trail</button>
-                        {canDelete && <button className="petty-btn danger" onClick={deleteAdvance}><FaTrash /> Delete Advance</button>}
-                    </div>
-                </div>
-
-                {showAudit && (
-                    <Modal title="Audit Trail" onClose={() => setShowAudit(false)}>
-                        <div className="petty-audit-list">
-                            {audit.length ? audit.map((item) => (
-                                <div className="petty-audit-row" key={item.id}>
-                                    <div>
-                                        <strong>{String(item.action || "").replaceAll("_", " ")}</strong>
-                                        <span>{item.changed_at || item.created_at ? new Date(item.changed_at || item.created_at).toLocaleString() : "—"}</span>
-                                    </div>
-                                    <span>Changed by user #{item.changed_by || "—"}</span>
-                                </div>
-                            )) : <div className="petty-empty-inline">No audit entries found.</div>}
-                        </div>
-                    </Modal>
-                )}
-
-                {modal === "expense" && <AddExpenseForm id={detail.id} onClose={() => setModal("")} onSaved={async () => { setModal(""); await refreshDetail(); }} />}
-                {modal === "deposit" && <AddDepositForm id={detail.id} options={options} onClose={() => setModal("")} onSaved={async () => { setModal(""); await refreshDetail(); }} />}
-            </div>
+    const togglePage = () =>
+        setSelected((current) =>
+            allPageSelected ? current.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...current, ...pageIds]))
         );
-    }
 
-    const exportPettyCash = async (format = "csv") => {
-        const rows = visibleAdvances;
-        if (!rows.length) return;
-        const headers = ["Advance No", "Date", "Store", "Giver", "Receiver", "Advance", "Expense", "Deposit", "Balance", "Status"];
+    const deleteOne = (row) =>
+        setConfirm({
+            title: `Delete ${row.advance_no}?`,
+            message: (
+                <>
+                    <p>This permanently deletes advance <b>{row.advance_no}</b> ({money(row.advance_amount)}) together with its expenses, deposits and settlement record.</p>
+                    <p className="pc-confirm-warn">This cannot be undone.</p>
+                </>
+            ),
+            confirmText: "Delete Advance",
+            run: async () => {
+                const response = await axios.delete(`/api/petty-cash/${row.id}`);
+                if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete record.");
+                setNotice(`${row.advance_no} deleted.`);
+            }
+        });
+
+    const deleteSelected = () => {
+        if (!selected.length) {
+            setError("Select at least one advance to delete.");
+            return;
+        }
+        setConfirm({
+            title: `Delete ${selected.length} selected advance(s)?`,
+            message: (
+                <>
+                    <p>The selected advances and all their expenses, deposits and settlement records will be permanently deleted.</p>
+                    <p className="pc-confirm-warn">This cannot be undone.</p>
+                </>
+            ),
+            confirmText: `Delete ${selected.length} Selected`,
+            run: async () => {
+                const response = await axios.post("/api/petty-cash/bulk-delete", {
+                    scope: "filtered",
+                    ids: selected,
+                    search: applied.search,
+                    store_id: applied.store,
+                    status: applied.status,
+                    from: applied.from,
+                    to: applied.to
+                });
+                if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete records.");
+                setNotice(response.data?.message || "Selected advances deleted.");
+            }
+        });
+    };
+
+    const runConfirm = async () => {
+        if (!confirm) return;
+        try {
+            setBusy(true);
+            setError("");
+            await confirm.run();
+            setConfirm(null);
+            await load(applied);
+        } catch (err) {
+            setConfirm(null);
+            setError(apiError(err, "Action failed."));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const exportRows = async (format = "csv") => {
+        if (!sorted.length) return;
         await exportTableData({
-            headers,
-            rows: rows.map((a) => [
+            headers: ["Advance No", "Date", "Store", "Paid By", "Employee", "Purpose", "Advance", "Expense", "Deposit", "Balance", "Status"],
+            rows: sorted.map((a) => [
                 a.advance_no,
-                a.advance_date,
+                dmy(a.advance_date),
                 a.store_name,
                 a.paid_by_name,
                 a.received_by_name,
+                a.purpose,
                 Number(a.advance_amount || 0).toFixed(2),
                 Number(a.total_expense || 0).toFixed(2),
                 Number(a.total_deposit || 0).toFixed(2),
                 Number(a.balance || 0).toFixed(2),
-                a.status,
+                a.status
             ]),
             filename: `petty-cash-${new Date().toISOString().slice(0, 10)}`,
             format,
-            title: "Petty Cash",
+            title: "Petty Cash Advances"
         });
     };
 
+    const emailReport = async () => {
+        try {
+            setEmailing(true);
+            setError("");
+            const { data } = await axios.post("/api/petty-cash/email-report", {
+                search: applied.search,
+                store_id: applied.store,
+                status: applied.status,
+                from: applied.from,
+                to: applied.to
+            });
+            setNotice(data?.message || "Report emailed.");
+        } catch (err) {
+            setError(apiError(err, "Unable to email the report."));
+        } finally {
+            setEmailing(false);
+        }
+    };
+
+    const kpis = [
+        { key: "advance", label: "1. Advance Given", value: money(summary.total_advanced), hint: "Cash issued to employees", icon: FaMoneyBillWave, tone: "violet", to: "/petty-cash/advances" },
+        { key: "expense", label: "2. Expenses (With Bills)", value: money(summary.total_expense), hint: "Verified purchase spend", icon: FaReceipt, tone: "blue", to: "/petty-cash/expenses" },
+        { key: "deposit", label: "3. Unused Cash Return", value: money(summary.total_deposit), hint: "Cash returned to manager", icon: FaUniversity, tone: "amber", to: "/petty-cash/deposits" },
+        { key: "open", label: "4. Open Advances", value: String(summary.open_advances ?? 0), hint: `Awaiting final settlement · ${money(summary.outstanding_balance)} outstanding`, icon: FaClipboardCheck, tone: "green" }
+    ];
+
     return (
-        <div className="petty-page pp-premium">
+        <div className="pc-page pp-premium">
             <PremiumHero
-                icon={FaWallet}
-                eyebrow="Cash Control · Petty Cash"
-                title="Petty Cash Advance & Settlement"
+                icon={manage ? FaListAlt : FaWallet}
+                eyebrow={manage ? "Petty Cash · Manage Advances" : "Cash Control · Petty Cash"}
+                title={manage ? "Manage Advances" : "Petty Cash Advance & Settlement"}
                 badge="Live position"
                 badgeTone="mint"
                 subtitle="Manager gives advance → expense with bills → return unused cash → settlement."
-                meta={[
-                    { label: "Advances", value: String(summary.total_advances || 0) },
-                    { label: "Outstanding", value: money(summary.outstanding_balance) }
-                ]}
-                actions={
-                    <>
-                        {access.canAdd && <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={() => setModal("advance")}><FaPlus /> New Advance</button>}
-                    </>
-                }
+                actions={access.canAdd && (
+                    <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={() => navigate("/petty-cash/new")}>
+                        <FaPlus /> New Advance
+                    </button>
+                )}
             />
 
-            {error && <div className="petty-error global"><FaExclamationCircle /> {error}</div>}
+            <PettyNav />
 
-            <div className="petty-flow petty-dashboard-flow">
-                <div className="petty-flow-card advance"><div className="petty-flow-icon"><FaMoneyBillWave /></div><span>1. ADVANCE GIVEN</span><strong>{money(summary.total_advanced)}</strong><small>Cash issued to employees</small></div>
-                <FaArrowRight className="petty-flow-arrow" />
-                <div className="petty-flow-card expense"><div className="petty-flow-icon"><FaReceipt /></div><span>2. EXPENSES WITH BILLS</span><strong>{money(summary.total_expense)}</strong><small>Verified purchase spend</small></div>
-                <FaArrowRight className="petty-flow-arrow" />
-                <div className="petty-flow-card deposit"><div className="petty-flow-icon"><FaUniversity /></div><span>3. UNUSED CASH RETURN</span><strong>{money(summary.total_deposit)}</strong><small>Cash returned to manager</small></div>
-                <FaArrowRight className="petty-flow-arrow" />
-                <div className="petty-flow-card settlement"><div className="petty-flow-icon"><FaClipboardCheck /></div><span>4. SETTLEMENT</span><strong>{summary.settled_amount ? money(summary.settled_amount) : "₹0.00"}</strong><small>{summary.total_advances || 0} advance(s) recorded</small></div>
-            </div>
+            {error && <div className="pc-alert pc-alert--error"><FaExclamationCircle /> {error}<button type="button" onClick={() => setError("")}>×</button></div>}
+            {notice && <div className="pc-alert pc-alert--success"><FaCheckCircle /> {notice}<button type="button" onClick={() => setNotice("")}>×</button></div>}
 
-            <div className="petty-dashboard-grid">
-                <div className="petty-card petty-summary-main">
-                    <div className="petty-card-title"><FaCalculator /><div><h2>SUMMARY CALCULATION</h2><p>Live petty cash position</p></div></div>
-                    <div className="petty-summary-lines">
-                        <div><span>Total Advances</span><strong>{summary.total_advances || 0}</strong></div>
-                        <div><span>Advance Given</span><strong>{money(summary.total_advanced)}</strong></div>
-                        <div><span>Settled</span><strong className="positive">{money(summary.settled_amount)}</strong></div>
-                        <div><span>Outstanding</span><strong className="warning">{money(summary.outstanding_balance)}</strong></div>
-                    </div>
+            {!manage && (
+                <div className="pc-kpis">
+                    {kpis.map(({ key, label, value, hint, icon: Icon, tone, to }) => (
+                        <button type="button" key={key} className={`pc-kpi pc-kpi--${tone}`} onClick={() => to && navigate(to)} disabled={!to}>
+                            <span className="pc-kpi-icon"><Icon /></span>
+                            <span className="pc-kpi-copy">
+                                <small>{label}</small>
+                                <strong>{loading ? "…" : value}</strong>
+                                <em>{hint}</em>
+                            </span>
+                            {to && <span className="pc-kpi-go"><FaArrowRight /></span>}
+                        </button>
+                    ))}
                 </div>
+            )}
 
-                <div className="petty-card">
-                    <div className="petty-card-title"><FaFilter /><div><h2>FILTERS</h2><p>Find an advance quickly</p></div></div>
-                    <div className="petty-filter-grid">
-                        <div className="petty-search"><FaSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Advance, employee or purpose" onKeyDown={(e) => e.key === "Enter" && loadDashboard()} /></div>
-                        <select value={store} onChange={(e) => setStore(e.target.value)}><option value="">All Stores</option>{options.stores.map((s) => <option key={s.id} value={s.id}>{s.store_name}</option>)}</select>
-                        <select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All Status</option><option value="OPEN">Open</option><option value="PARTIALLY_SETTLED">Partially Settled</option><option value="SETTLED">Settled</option><option value="CANCELLED">Cancelled</option></select>
-                        <select value={viewMode} onChange={(e) => setViewMode(e.target.value)}><option value="ALL">All Store Records</option><option value="GIVEN_BY_ME">Given By Me</option><option value="RECEIVED_BY_ME">Received By Me</option></select>
-                        <button className="petty-btn secondary" onClick={loadDashboard}><FaFilter /> Apply</button>
-                        <button className="petty-btn secondary" onClick={() => { setSearch(""); setStore(""); setStatus(""); setViewMode("ALL"); loadDashboard({ search: "", store: "", status: "", viewMode: "ALL" }); }}><FaBroom /> Clear Filters</button>
-                    </div>
+            {/* FILTERS */}
+            <form className="pc-card pc-filters" onSubmit={(e) => { e.preventDefault(); load(filters); }}>
+                <label className="pc-filter pc-filter--search">
+                    <span>Search</span>
+                    <div className="pc-input-icon"><FaSearch /><input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Advance No, Employee, Purpose..." /></div>
+                </label>
+                <label className="pc-filter">
+                    <span>Store</span>
+                    <select value={filters.store} onChange={(e) => setFilters({ ...filters, store: e.target.value })}>
+                        <option value="">All Stores</option>
+                        {options.stores.map((s) => <option key={s.id} value={s.id}>{s.store_name}</option>)}
+                    </select>
+                </label>
+                <label className="pc-filter">
+                    <span>Status</span>
+                    <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                        <option value="">All Status</option>
+                        <option value="OPEN">Open</option>
+                        <option value="PARTIALLY_SETTLED">In Progress</option>
+                        <option value="SETTLED">Settled</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </label>
+                <label className="pc-filter">
+                    <span>From Date</span>
+                    <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
+                </label>
+                <label className="pc-filter">
+                    <span>To Date</span>
+                    <input type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
+                </label>
+                <div className="pc-filter-actions">
+                    <button type="submit" className="pc-btn pc-btn--primary"><FaFilter /> Apply</button>
+                    <button type="button" className="pc-btn pc-btn--ghost" onClick={() => { setFilters(EMPTY_FILTERS); load(EMPTY_FILTERS); }}><FaUndo /> Clear</button>
                 </div>
-            </div>
+            </form>
 
-            <div className="petty-action-toolbar">
-                <ExportButton onExport={exportPettyCash} />
-                {access.canEdit && <button className="petty-btn danger" disabled={deleting || !visibleAdvances.length} onClick={async () => {
-                    const filteredIds = collectIds(visibleAdvances);
-                    const scope = isFilteredDelete
-                        ? `the ${filteredIds.length} petty cash record(s) matching the applied filters (records outside the filters are NOT touched)`
-                        : (access.admin ? "ALL petty cash records in the system" : "ALL petty cash records given by you");
-                    if (!window.confirm(`PERMANENT DELETE\n\nThis will permanently delete ${scope}, including their expenses, deposits and settlement records.\n\nThis cannot be undone. Continue?`)) return;
-                    try {
-                        setDeleting(true);
-                        const response = await axios.post(
-                            "/api/petty-cash/bulk-delete",
-                            isFilteredDelete
-                                ? {
-                                    scope: "filtered",
-                                    ids: filteredIds,
-                                    search: appliedFilters.search || "",
-                                    store_id: appliedFilters.store || "",
-                                    status: appliedFilters.status || "",
-                                    paid_by: appliedFilters.viewMode === "GIVEN_BY_ME" ? access.userId : "",
-                                    received_by: appliedFilters.viewMode === "RECEIVED_BY_ME" ? access.userId : ""
-                                }
-                                : { deleteAll: true }
-                        );
-                        if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete records.");
-                        setError("");
-                        setSearch("");
-                        setStore("");
-                        setStatus("");
-                        setViewMode("ALL");
-                        await loadDashboard({ search: "", store: "", status: "", viewMode: "ALL" });
-                    } catch (err) { setError(err.response?.data?.message || err.message || "Unable to delete records."); } finally { setDeleting(false); }
-                }}><FaTrash /> {deleting ? "Deleting..." : deleteAllLabel(isFilteredDelete, visibleAdvances.length)}</button>}
-                <Link className="petty-btn secondary" to="/petty-cash/email-settings"><FaEnvelope /> Email Settings</Link>
-            </div>
+            {/* TABLE */}
+            <section className="pc-card">
+                <header className="pc-card-head">
+                    <span className="pc-card-icon"><FaReceipt /></span>
+                    <div>
+                        <h2>{manage ? "Advance List" : "Recent Advances"}</h2>
+                        <p>{manage ? "All petty cash advances, expenses, deposits and settlement status" : "Advance, expense, deposit and outstanding balance"}</p>
+                    </div>
+                    <div className="pc-card-tools">
+                        <ExportButton onExport={exportRows} disabled={!sorted.length} />
+                        <button type="button" className="pc-btn pc-btn--soft-blue" onClick={emailReport} disabled={emailing || !sorted.length}><FaPaperPlane /> {emailing ? "Sending..." : "Email Report"}</button>
+                        <button type="button" className="pc-btn pc-btn--ghost" onClick={() => navigate("/petty-cash/audit-trail")}><FaHistory /> Audit Trail</button>
+                        {access.canEdit && (
+                            <button type="button" className="pc-btn pc-btn--danger-solid" onClick={deleteSelected} disabled={!selected.length}>
+                                <FaTrash /> Delete Selected{selected.length ? ` (${selected.length})` : ""}
+                            </button>
+                        )}
+                    </div>
+                </header>
 
-            <div className="petty-card">
-                <div className="petty-card-title"><FaReceipt /><div><h2>RECENT ADVANCES</h2><p>Advance, expense, deposit and outstanding balance</p></div></div>
-                <div className="petty-table-wrap">
-                    <table className="petty-table advances-table">
-                        <thead><tr><th>Advance No.</th><th>Date</th><th>Store</th><th>Received By</th><th>Advance (₹)</th><th>Expense (₹)</th><th>Deposit (₹)</th><th>Balance (₹)</th><th>Status</th><th className="petty-action-column">Action</th></tr></thead>
+                <div className="pc-table-wrap">
+                    <table className="pc-table">
+                        <thead>
+                            <tr>
+                                <th className="pc-col-check">
+                                    <input type="checkbox" checked={allPageSelected} onChange={togglePage} disabled={!pageIds.length} aria-label="Select all on this page" />
+                                </th>
+                                <th>#</th>
+                                <SortTh label="Advance No." k="advance_no" sort={sort} setSort={setSort} />
+                                <SortTh label="Date" k="advance_date" sort={sort} setSort={setSort} />
+                                <SortTh label="Store" k="store_name" sort={sort} setSort={setSort} />
+                                <SortTh label="Employee" k="received_by_name" sort={sort} setSort={setSort} />
+                                <SortTh label="Purpose" k="purpose" sort={sort} setSort={setSort} />
+                                <SortTh label="Advance (₹)" k="advance_amount" sort={sort} setSort={setSort} className="pc-num" />
+                                <SortTh label="Expense (₹)" k="total_expense" sort={sort} setSort={setSort} className="pc-num" />
+                                <SortTh label="Deposit (₹)" k="total_deposit" sort={sort} setSort={setSort} className="pc-num" />
+                                <SortTh label="Balance (₹)" k="balance" sort={sort} setSort={setSort} className="pc-num" />
+                                <SortTh label="Status" k="status" sort={sort} setSort={setSort} />
+                                <th className="pc-col-actions">Action</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {loading ? <tr><td colSpan="10" className="empty-cell"><PremiumLoader compact title="Loading petty cash" /></td></tr> :
-                                visibleAdvances.length ? visibleAdvances.map((a) => (
-                                    <tr key={a.id}>
-                                        <td><strong>{a.advance_no}</strong></td><td>{a.advance_date}</td><td>{a.store_name || "-"}</td><td>{a.received_by_name || "-"}</td>
-                                        <td className="amount">{money(a.advance_amount)}</td><td className="amount">{money(a.total_expense)}</td><td className="amount">{money(a.total_deposit)}</td>
-                                        <td className={`amount ${Number(a.balance) === 0 ? "positive" : "warning"}`}>{money(a.balance)}</td>
-                                        <td><span className={`petty-status ${statusClass(a.status)}`}>{statusLabel(a.status)}</span></td>
-                                        <td className="petty-row-actions petty-action-column">
-                                            <Link className="petty-view-link" to={`/petty-cash/${a.id}`}>View <FaArrowRight /></Link>
-                                            {(access.admin || Number(a.paid_by) === access.userId) && access.canEdit && (
-                                                <button className="petty-icon-delete" title={`Permanently delete ${a.advance_no}`} onClick={async () => {
-                                                    if (!window.confirm(`Permanently delete ${a.advance_no}? This will also delete its expenses, deposits and settlement record. This cannot be undone.`)) return;
-                                                    try {
-                                                        const response = await axios.delete(`/api/petty-cash/${a.id}`);
-                                                        if (!response.data?.success) throw new Error(response.data?.message || "Unable to delete record.");
-                                                        setError("");
-                                                        await loadDashboard();
-                                                    } catch (err) { setError(err.response?.data?.message || err.message || "Unable to delete record."); }
-                                                }}><FaTrash /></button>
+                            {loading ? (
+                                <tr><td colSpan="13" className="pc-empty"><PremiumLoader compact title="Loading petty cash" /></td></tr>
+                            ) : pager.slice.length ? pager.slice.map((a, index) => (
+                                <tr key={a.id} className={selected.includes(Number(a.id)) ? "is-selected" : ""}>
+                                    <td className="pc-col-check">
+                                        <input type="checkbox" checked={selected.includes(Number(a.id))} disabled={!canDeleteRow(a)} onChange={() => toggleRow(Number(a.id))} aria-label={`Select ${a.advance_no}`} />
+                                    </td>
+                                    <td className="pc-muted">{pager.from + index}</td>
+                                    <td><strong className="pc-strong">{a.advance_no}</strong></td>
+                                    <td>{dmy(a.advance_date)}</td>
+                                    <td>{a.store_name || "—"}</td>
+                                    <td>{a.received_by_name || "—"}</td>
+                                    <td className="pc-purpose" title={a.purpose || ""}>{a.purpose || "—"}</td>
+                                    <td className="pc-num pc-strong">{money(a.advance_amount)}</td>
+                                    <td className="pc-num">{money(a.total_expense)}</td>
+                                    <td className="pc-num">{money(a.total_deposit)}</td>
+                                    <td className={`pc-num pc-strong ${Math.abs(Number(a.balance)) < 0.005 ? "pc-pos" : "pc-warn"}`}>{money(a.balance)}</td>
+                                    <td><StatusPill status={a.status} /></td>
+                                    <td className="pc-col-actions">
+                                        <div className="pc-row-actions">
+                                            <button type="button" className="pc-act pc-act--view" onClick={() => navigate(`/petty-cash/${a.id}`)}><FaEye /> View</button>
+                                            {canEditRow(a) && (
+                                                <button type="button" className="pc-act pc-act--edit" onClick={() => navigate(`/petty-cash/${a.id}/edit`)}><FaEdit /> Edit</button>
                                             )}
-                                        </td>
-                                    </tr>
-                                )) : <tr><td colSpan="10" className="empty-cell">No petty cash advances found.</td></tr>}
+                                            {canDeleteRow(a) && (
+                                                <button type="button" className="pc-act pc-act--delete" onClick={() => deleteOne(a)}><FaTrash /> Delete</button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr><td colSpan="13" className="pc-empty">No petty cash advances found.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
-            </div>
+                <Pager pager={pager} />
+            </section>
 
-            <div className="petty-dashboard-bottom">
-                <div className="petty-card">
-                    <div className="petty-card-title"><FaStore /><div><h2>STORE WISE SUMMARY</h2><p>Cash movement by store</p></div></div>
-                    <div className="petty-table-wrap">
-                        <table className="petty-table compact-table">
-                            <thead><tr><th>Store</th><th>Advances</th><th>Expenses</th><th>Deposits</th><th>Closing</th></tr></thead>
-                            <tbody>{(summary.storeWise || []).map((s) => <tr key={s.store_name}><td>{s.store_name}</td><td>{money(s.advances_given)}</td><td>{money(s.total_expenses)}</td><td>{money(s.total_deposits)}</td><td>{money(Number(s.advances_given)-Number(s.total_expenses)-Number(s.total_deposits))}</td></tr>)}</tbody>
-                        </table>
-                    </div>
+            {!manage && (
+                <div className="pc-two-col">
+                    <section className="pc-card">
+                        <header className="pc-card-head">
+                            <span className="pc-card-icon pc-card-icon--teal"><FaStore /></span>
+                            <div><h2>Store Wise Summary</h2><p>Cash movement by store</p></div>
+                        </header>
+                        <div className="pc-table-wrap">
+                            <table className="pc-table pc-table--compact">
+                                <thead><tr><th>Store</th><th className="pc-num">Advances</th><th className="pc-num">Expenses</th><th className="pc-num">Deposits</th><th className="pc-num">Closing</th></tr></thead>
+                                <tbody>
+                                    {storeWise.length ? storeWise.map((s) => (
+                                        <tr key={s.store_name}>
+                                            <td className="pc-strong">{s.store_name}</td>
+                                            <td className="pc-num">{money(s.advances_given)}</td>
+                                            <td className="pc-num">{money(s.total_expenses)}</td>
+                                            <td className="pc-num">{money(s.total_deposits)}</td>
+                                            <td className="pc-num pc-strong">{money(Number(s.advances_given) - Number(s.total_expenses) - Number(s.total_deposits))}</td>
+                                        </tr>
+                                    )) : <tr><td colSpan="5" className="pc-empty">No store activity yet.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section className="pc-card">
+                        <header className="pc-card-head">
+                            <span className="pc-card-icon pc-card-icon--amber"><FaUser /></span>
+                            <div><h2>Person Wise Outstanding</h2><p>Employee accountability</p></div>
+                        </header>
+                        <div className="pc-table-wrap">
+                            <table className="pc-table pc-table--compact">
+                                <thead><tr><th>Employee</th><th className="pc-num">Total Advance</th><th className="pc-num">Settled</th><th className="pc-num">Outstanding</th></tr></thead>
+                                <tbody>
+                                    {personWise.length ? personWise.map((p) => {
+                                        const outstanding = Number(p.total_advance) - Number(p.settled);
+                                        return (
+                                            <tr key={p.employee}>
+                                                <td className="pc-strong">{p.employee}</td>
+                                                <td className="pc-num">{money(p.total_advance)}</td>
+                                                <td className="pc-num">{money(p.settled)}</td>
+                                                <td className={`pc-num pc-strong ${outstanding > 0 ? "pc-warn" : "pc-pos"}`}>{money(outstanding)}</td>
+                                            </tr>
+                                        );
+                                    }) : <tr><td colSpan="4" className="pc-empty">No employee activity yet.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
-                <div className="petty-card">
-                    <div className="petty-card-title"><FaUser /><div><h2>PERSON WISE OUTSTANDING</h2><p>Employee accountability</p></div></div>
-                    <div className="petty-table-wrap">
-                        <table className="petty-table compact-table">
-                            <thead><tr><th>Employee</th><th>Total Advance</th><th>Settled</th><th>Outstanding</th></tr></thead>
-                            <tbody>{(summary.personWise || []).map((p) => <tr key={p.employee}><td>{p.employee}</td><td>{money(p.total_advance)}</td><td>{money(p.settled)}</td><td className={Number(p.total_advance)-Number(p.settled) > 0 ? "warning" : "positive"}>{money(Number(p.total_advance)-Number(p.settled))}</td></tr>)}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            )}
 
-            <div className="petty-control-strip">
-                <span><FaFilter /> Filters: Store, Date, Status, Paid By, Received By</span>
-                <span><FaUpload /> Upload Bills / Receipts</span>
-                <span><FaCalculator /> Export-ready summaries</span>
-                <span><FaHistory /> Audit Trail (Who Did What & When)</span>
-                <span><FaCheckCircle /> Secure Role Based Access</span>
-            </div>
-
-            {modal === "advance" && access.canAdd && <AdvanceForm options={options} onClose={() => setModal("")} onCreated={createAdvance} />}
+            {confirm && (
+                <ConfirmModal
+                    title={confirm.title}
+                    message={confirm.message}
+                    confirmText={confirm.confirmText}
+                    busy={busy}
+                    onConfirm={runConfirm}
+                    onCancel={() => setConfirm(null)}
+                />
+            )}
         </div>
     );
 }

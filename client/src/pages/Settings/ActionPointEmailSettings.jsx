@@ -18,7 +18,9 @@ import {
     FaUserEdit,
     FaUserCheck,
     FaLayerGroup,
-    FaExclamationTriangle
+    FaExclamationTriangle,
+    FaPaperPlane,
+    FaPowerOff
 } from "react-icons/fa";
 import "../../styles/pages/ChecklistEmailSettings.css";
 import "../../styles/premium/PagePremium.css";
@@ -39,6 +41,7 @@ import PremiumHero from "../../components/premium/PremiumHero";
 const API_URL = "/api/action-point-email-settings";
 
 const defaults = {
+    master_enabled: 1,
     action_point_created_enabled: 1,
     action_point_status_enabled: 1,
     action_point_completed_enabled: 1,
@@ -100,6 +103,8 @@ export default function ActionPointEmailSettings() {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [testing, setTesting] = useState(false);
+    const [dirty, setDirty] = useState(false);
 
     useEffect(() => {
         axios.get(API_URL)
@@ -108,7 +113,25 @@ export default function ActionPointEmailSettings() {
             .finally(() => setLoading(false));
     }, []);
 
-    const touch = () => { setMessage(""); setError(""); };
+    const touch = () => { setMessage(""); setError(""); setDirty(true); };
+
+    const sendTest = async () => {
+        if (dirty) {
+            setError("Save your changes first, then send the test email.");
+            return;
+        }
+        setTesting(true);
+        setMessage("");
+        setError("");
+        try {
+            const { data } = await axios.post(`${API_URL}/test`);
+            setMessage(data?.message || "Test email sent.");
+        } catch (err) {
+            setError(err.response?.data?.message || "Unable to send the test email.");
+        } finally {
+            setTesting(false);
+        }
+    };
 
     const setValue = (key, value) => {
         touch();
@@ -169,7 +192,10 @@ export default function ActionPointEmailSettings() {
             };
             const { data } = await axios.put(API_URL, payload);
             setSettings({ ...defaults, ...(data?.data || payload), recipients: data?.data?.recipients || payload.recipients });
-            setMessage("Action Point email routing saved successfully.");
+            setDirty(false);
+            setMessage(Number(payload.master_enabled) === 1
+                ? "Action Point email routing saved. Emails are ON."
+                : "Action Point email routing saved. Emails are OFF – nobody will receive Action Point emails.");
         } catch (err) {
             setError(err.response?.data?.message || "Unable to save Action Point email settings.");
         } finally {
@@ -183,7 +209,8 @@ export default function ActionPointEmailSettings() {
                 icon={FaEnvelope}
                 eyebrow="Checklist & Controls · Action Point email routing"
                 title="Email Routing"
-                badge="Action Points"
+                badge={Number(settings.master_enabled) === 1 ? "Emails on" : "Emails off"}
+                badgeTone={Number(settings.master_enabled) === 1 ? "mint" : "gold"}
                 subtitle="Choose exactly who is emailed for Action Points – separate from the Checklist email."
                 meta={[
                     { label: "Contacts", value: String(settings.recipients.length) },
@@ -192,6 +219,7 @@ export default function ActionPointEmailSettings() {
                 actions={<>
                     <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings")}><FaArrowLeft /> Settings</button>
                     <button type="button" className="pp-hero-btn" onClick={() => navigate("/settings/checklist-email")}><FaClipboardCheck /> Checklist Routing</button>
+                    <button type="button" className="pp-hero-btn" onClick={sendTest} disabled={testing || loading}><FaPaperPlane /> {testing ? "Sending..." : "Send Test Email"}</button>
                     <button type="button" className="pp-hero-btn pp-hero-btn--solid" onClick={save} disabled={saving || loading}><FaSave /> {saving ? "Saving..." : "Save Settings"}</button>
                 </>}
             />
@@ -203,6 +231,25 @@ export default function ActionPointEmailSettings() {
                 <div className="checklist-email-card loading"><PremiumLoader compact title="Loading Action Point email routing" /></div>
             ) : (
                 <>
+                    {/* ================= MASTER SWITCH ================= */}
+                    <div className={`checklist-email-card ap-master-card ${Number(settings.master_enabled) === 1 ? "is-on" : "is-off"}`}>
+                        <div className="checklist-email-card-head">
+                            <FaPowerOff />
+                            <div>
+                                <h2>Action Point Emails – {Number(settings.master_enabled) === 1 ? "ON" : "OFF"}</h2>
+                                <p>
+                                    <b>OFF</b> – nobody receives any Action Point email (store manager, submitter, assignee and contacts are all skipped).{" "}
+                                    <b>ON</b> – the events switched on below are sent to the selected people.
+                                </p>
+                            </div>
+                            <label className="checklist-switch ap-master-switch">
+                                <input type="checkbox" checked={Number(settings.master_enabled) === 1} onChange={e => setValue("master_enabled", e.target.checked)} />
+                                <span />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="ap-master-scope" style={{ display: "grid", gap: 18, opacity: Number(settings.master_enabled) === 1 ? 1 : 0.55 }}>
                     {/* ================= STORE-LEVEL RECIPIENTS ================= */}
                     <div className="checklist-email-card">
                         <div className="checklist-email-card-head">
@@ -382,6 +429,8 @@ export default function ActionPointEmailSettings() {
                                 </div>
                             ))}
                         </div>
+                    </div>
+
                     </div>
 
                     {/* ================= FLOW ================= */}

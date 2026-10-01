@@ -23,6 +23,8 @@ const db = require("../config/db");
 // ======================================================
 
 const DEFAULT_SETTINGS = {
+    // Master switch: OFF = nobody receives any Action Point email.
+    master_enabled: 1,
     action_point_created_enabled: 1,
     action_point_status_enabled: 1,
     action_point_completed_enabled: 1,
@@ -78,7 +80,7 @@ const ensureTables = async () => {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    for (const column of ["assignee_recipients_enabled", "one_email_per_store"]) {
+    for (const column of ["assignee_recipients_enabled", "one_email_per_store", "master_enabled"]) {
         if (!(await columnExists("action_point_email_settings", column))) {
             await db.query(`ALTER TABLE action_point_email_settings ADD COLUMN ${column} TINYINT(1) NOT NULL DEFAULT 1`);
         }
@@ -175,8 +177,11 @@ const getRecipientsList = async () => db.query(`
 const getSettings = async () => {
     let row = {};
     try {
+        // SELECT * so a column that is missing on an older database
+        // (e.g. before a restart ran the migration) can never make the
+        // whole settings row fall back to defaults.
         const rows = await db.query(`
-            SELECT ${SETTING_KEYS.join(", ")}
+            SELECT *
             FROM action_point_email_settings
             WHERE id = 1
             LIMIT 1
@@ -184,7 +189,18 @@ const getSettings = async () => {
         row = rows?.[0] || {};
     } catch (error) {
         console.error("Action Point email settings load failed:", error.message);
+        // Table missing (server not restarted after deploy) – create it now.
+        try {
+            await ensureTables();
+        } catch (ensureError) {
+            console.error("Action Point email settings auto-create failed:", ensureError.message);
+        }
     }
+    const picked = {};
+    for (const key of SETTING_KEYS) {
+        if (row[key] !== undefined && row[key] !== null) picked[key] = Number(row[key]) === 1 ? 1 : 0;
+    }
+    row = picked;
 
     let recipients = [];
     try {
@@ -201,6 +217,8 @@ const flag = (value, fallback = 1) =>
     value === undefined || value === null ? fallback : (value === true || Number(value) === 1 || value === "1" ? 1 : 0);
 
 const saveSettings = async (payload = {}) => {
+    // Make sure every column (incl. master_enabled) exists before saving.
+    await ensureTables();
     const values = SETTING_KEYS.map((key) => flag(payload[key], DEFAULT_SETTINGS[key]));
 
     await db.query(`

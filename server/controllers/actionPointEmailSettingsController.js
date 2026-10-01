@@ -24,3 +24,17 @@ exports.updateSettings = async (req, res) => {
         return res.status(500).json({ success: false, message: "Unable to save Action Point email settings.", error: error.message });
     }
 };
+
+exports.sendTest = async (req, res) => {
+    try {
+        const { sendActionPointTest } = require("../services/checklistEmailService");
+        const result = await sendActionPointTest();
+        return res.json({ success: true, message: `Test email sent to ${result.sent} contact(s).` });
+    } catch (error) {
+        console.error("ACTION POINT TEST EMAIL ERROR:", error);
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Unable to send the Action Point test email."
+        });
+    }
+};

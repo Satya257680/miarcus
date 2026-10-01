@@ -59,3 +59,38 @@
 .checklist-switch.small input:checked+span:before{transform:translateX(14px)}
 .checklist-email-save{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 16px rgba(109,40,217,.25);border-radius:10px}
 .checklist-email-title-wrap>div>span{color:#6d28d9}
+
+/* ======================================================
+   ACTION POINT ROUTING – MASTER SWITCH
+====================================================== */
+.ap-master-card .checklist-email-card-head {
+    align-items: center;
+}
+
+.ap-master-card .checklist-email-card-head > div {
+    flex: 1;
+}
+
+.ap-master-card.is-on {
+    border: 1px solid #a7f3d0 !important;
+    background: linear-gradient(135deg, #ecfdf5, #ffffff) !important;
+}
+
+.ap-master-card.is-off {
+    border: 1px solid #fecaca !important;
+    background: linear-gradient(135deg, #fef2f2, #ffffff) !important;
+}
+
+.ap-master-card.is-on .checklist-email-card-head > svg { color: #047857; }
+.ap-master-card.is-off .checklist-email-card-head > svg { color: #dc2626; }
+
+.ap-master-switch {
+    margin-left: auto;
+    transform: scale(1.25);
+    transform-origin: right center;
+}
+
+:root[data-miarcus-theme="dark"] .ap-master-card.is-on,
+:root[data-miarcus-theme="dark"] .ap-master-card.is-off {
+    background: var(--pp-card, #17132b) !important;
+}

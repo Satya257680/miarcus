@@ -111,6 +111,7 @@ const PettyCash = {
         }
 
         await PettyCash.ensureEmailRecipientsTable();
+        await PettyCash.ensureAdvanceColumns();
 
         // Seed the global row from an existing administrator's settings once.
         // This preserves today's notification choices when the central mode is introduced.
@@ -214,6 +215,174 @@ const PettyCash = {
         PettyCash._recipientsTableReady = true;
     },
 
+    // Supporting document of the advance itself (mandatory from this
+    // release). Added lazily so existing databases upgrade on their own.
+    async ensureAdvanceColumns() {
+        if (PettyCash._advanceColumnsReady) return;
+        for (const [column, definition] of [
+            ["attachment_filename", "VARCHAR(500) NULL"],
+            ["attachment_path", "VARCHAR(1000) NULL"],
+            ["created_by", "INT NULL"],
+            ["updated_by", "INT NULL"]
+        ]) {
+            try {
+                await db.query(`ALTER TABLE petty_cash_advances ADD COLUMN ${column} ${definition}`);
+            } catch (error) {
+                if (error?.code !== "ER_DUP_FIELDNAME") {
+                    console.error(`Petty Cash advance migration (${column}) skipped:`, error.message || error);
+                }
+            }
+        }
+        PettyCash._advanceColumnsReady = true;
+    },
+
+    async getNextAdvanceNo() {
+        const rows = await db.query(`
+            SELECT advance_no FROM petty_cash_advances
+            WHERE advance_no REGEXP '^ADV-[0-9]+$'
+            ORDER BY CAST(SUBSTRING(advance_no, 5) AS UNSIGNED) DESC
+            LIMIT 1
+        `);
+        const last = Number(String(rows?.[0]?.advance_no || "ADV-0").slice(4)) || 0;
+        let next = last + 1;
+        // Guard against a manually typed number already using the slot.
+        for (let i = 0; i < 50; i += 1) {
+            const candidate = `ADV-${String(next).padStart(3, "0")}`;
+            const used = await db.query(`SELECT 1 FROM petty_cash_advances WHERE advance_no=? LIMIT 1`, [candidate]);
+            if (!used.length) return candidate;
+            next += 1;
+        }
+        return `ADV-${Date.now()}`;
+    },
+
+    async updateAdvance(id, data) {
+        await PettyCash.ensureAdvanceColumns();
+        const sets = ["advance_amount=?", "purpose=?", "advance_date=?", "updated_at=NOW()"];
+        const params = [data.advance_amount, data.purpose, data.advance_date];
+        if (data.updated_by) { sets.push("updated_by=?"); params.push(data.updated_by); }
+        if (data.attachment_path) {
+            sets.push("attachment_filename=?", "attachment_path=?");
+            params.push(data.attachment_filename || null, data.attachment_path);
+        }
+        params.push(id);
+        const result = await db.query(`UPDATE petty_cash_advances SET ${sets.join(", ")} WHERE id=?`, params);
+        await PettyCash.refreshStatus(id);
+        return result;
+    },
+
+    // Shared WHERE builder for the advance-level filters used by the
+    // Manage Expenses / Manage Deposits registers.
+    scopeFilters(filters = {}, userId, admin = false) {
+        const where = [];
+        const params = [];
+        if (!admin) {
+            where.push(`EXISTS (SELECT 1 FROM user_stores scope_us WHERE scope_us.user_id=? AND scope_us.store_id=a.store_id)`);
+            params.push(userId);
+        }
+        if (filters.store_id) { where.push("a.store_id=?"); params.push(filters.store_id); }
+        if (filters.status) { where.push("a.status=?"); params.push(filters.status); }
+        if (filters.advance_id) { where.push("a.id=?"); params.push(filters.advance_id); }
+        return { where, params };
+    },
+
+    async listExpenses(filters = {}, userId, admin = false) {
+        const { where, params } = PettyCash.scopeFilters(filters, userId, admin);
+        if (filters.search) {
+            const term = `%${filters.search}%`;
+            where.push(`(a.advance_no LIKE ? OR e.expense_type LIKE ? OR COALESCE(e.description,'') LIKE ? OR COALESCE(s.store_name,'') LIKE ? OR COALESCE(u.name,'') LIKE ?)`);
+            params.push(term, term, term, term, term);
+        }
+        if (filters.expense_type) { where.push("e.expense_type=?"); params.push(filters.expense_type); }
+        if (filters.from) { where.push("e.expense_date>=?"); params.push(filters.from); }
+        if (filters.to) { where.push("e.expense_date<=?"); params.push(filters.to); }
+        const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+        return db.query(`
+            SELECT e.id,e.advance_id,e.expense_type,e.description,e.amount,e.bill_filename,e.bill_path,
+                   DATE_FORMAT(e.expense_date,'%Y-%m-%d') AS expense_date,e.created_at,
+                   a.advance_no,a.status AS advance_status,s.store_name,u.name AS entered_by_name,
+                   receiver.name AS received_by_name
+            FROM petty_cash_expenses e
+            INNER JOIN petty_cash_advances a ON a.id=e.advance_id
+            LEFT JOIN stores s ON s.id=a.store_id
+            LEFT JOIN users u ON u.id=e.entered_by
+            LEFT JOIN users receiver ON receiver.id=a.received_by
+            ${whereSql}
+            ORDER BY e.expense_date DESC, e.id DESC
+            LIMIT 1000
+        `, params);
+    },
+
+    async listDeposits(filters = {}, userId, admin = false) {
+        const { where, params } = PettyCash.scopeFilters(filters, userId, admin);
+        if (filters.search) {
+            const term = `%${filters.search}%`;
+            where.push(`(a.advance_no LIKE ? OR COALESCE(d.reference_no,'') LIKE ? OR COALESCE(s.store_name,'') LIKE ? OR COALESCE(depositor.name,'') LIKE ? OR COALESCE(receiver.name,'') LIKE ?)`);
+            params.push(term, term, term, term, term);
+        }
+        if (filters.from) { where.push("d.deposit_date>=?"); params.push(filters.from); }
+        if (filters.to) { where.push("d.deposit_date<=?"); params.push(filters.to); }
+        const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+        return db.query(`
+            SELECT d.id,d.advance_id,d.amount,d.reference_no,d.receipt_filename,d.receipt_path,
+                   DATE_FORMAT(d.deposit_date,'%Y-%m-%d') AS deposit_date,d.created_at,
+                   a.advance_no,a.status AS advance_status,s.store_name,
+                   depositor.name AS deposited_by_name,receiver.name AS received_by_name
+            FROM petty_cash_deposits d
+            INNER JOIN petty_cash_advances a ON a.id=d.advance_id
+            LEFT JOIN stores s ON s.id=a.store_id
+            LEFT JOIN users depositor ON depositor.id=d.deposited_by
+            LEFT JOIN users receiver ON receiver.id=d.received_by
+            ${whereSql}
+            ORDER BY d.deposit_date DESC, d.id DESC
+            LIMIT 1000
+        `, params);
+    },
+
+    // Audit history of one advance, with the user's name instead of "#id".
+    async getAuditTrail(referenceId) {
+        return db.query(`
+            SELECT al.*, u.name AS changed_by_name, u.email AS changed_by_email
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id=al.changed_by
+            WHERE al.module_name=? AND al.reference_id=?
+            ORDER BY al.id DESC
+        `, [MODULE, referenceId]);
+    },
+
+    // Module-wide audit trail for the "Audit Trail" page.
+    async getAuditLog(filters = {}, userId, admin = false) {
+        const where = ["al.module_name=?"];
+        const params = [MODULE];
+        if (!admin) {
+            where.push(`(al.changed_by=? OR EXISTS (
+                SELECT 1 FROM petty_cash_advances sa
+                INNER JOIN user_stores us ON us.store_id=sa.store_id AND us.user_id=?
+                WHERE sa.id=al.reference_id))`);
+            params.push(userId, userId);
+        }
+        if (filters.action) { where.push("al.action=?"); params.push(filters.action); }
+        if (filters.search) {
+            const term = `%${filters.search}%`;
+            where.push(`(COALESCE(a.advance_no,'') LIKE ? OR COALESCE(u.name,'') LIKE ? OR al.action LIKE ? OR COALESCE(al.new_data,'') LIKE ? OR COALESCE(al.old_data,'') LIKE ?)`);
+            params.push(term, term, term, term, term);
+        }
+        return db.query(`
+            SELECT al.*, u.name AS changed_by_name, a.advance_no, s.store_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id=al.changed_by
+            LEFT JOIN petty_cash_advances a ON a.id=al.reference_id
+            LEFT JOIN stores s ON s.id=a.store_id
+            WHERE ${where.join(" AND ")}
+            ORDER BY al.id DESC
+            LIMIT 1000
+        `, params);
+    },
+
+    async getUserContact(userId) {
+        const rows = await db.query(`SELECT id,name,email FROM users WHERE id=? LIMIT 1`, [userId]);
+        return rows?.[0] || null;
+    },
+
     async isAdmin(userId) {
         let rows;
         try {
@@ -265,11 +434,12 @@ const PettyCash = {
     },
 
     async createAdvance(data) {
+        await PettyCash.ensureAdvanceColumns();
         const result = await db.query(`
             INSERT INTO petty_cash_advances
-            (advance_no, store_id, paid_by, received_by, advance_amount, purpose, advance_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [data.advance_no, data.store_id, data.paid_by, data.received_by, data.advance_amount, data.purpose || null, data.advance_date]);
+            (advance_no, store_id, paid_by, received_by, advance_amount, purpose, advance_date, attachment_filename, attachment_path, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [data.advance_no, data.store_id, data.paid_by, data.received_by, data.advance_amount, data.purpose || null, data.advance_date, data.attachment_filename || null, data.attachment_path || null, data.created_by || null]);
         return { id: result.insertId, advance_no: data.advance_no };
     },
 
@@ -332,7 +502,7 @@ const PettyCash = {
         if (filters.to) { where.push("a.advance_date<=?"); params.push(filters.to); }
         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
         return db.query(`
-            SELECT a.id,a.advance_no,a.store_id,s.store_name,s.store_code,a.advance_amount,a.advance_date,a.purpose,a.status,
+            SELECT a.id,a.advance_no,a.store_id,a.paid_by,a.received_by,s.store_name,s.store_code,a.advance_amount,DATE_FORMAT(a.advance_date,'%Y-%m-%d') AS advance_date,a.purpose,a.status,a.created_at,
                 COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0) AS total_expense,
                 COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS total_deposit,
                 a.advance_amount-COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)-COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) AS balance,
@@ -347,7 +517,7 @@ const PettyCash = {
 
     async getById(id) {
         const advances = await db.query(`
-            SELECT a.*,s.store_name,s.store_code,payer.name AS paid_by_name,payer.email AS paid_by_email,
+            SELECT a.*,DATE_FORMAT(a.advance_date,'%Y-%m-%d') AS advance_date,s.store_name,s.store_code,payer.name AS paid_by_name,payer.email AS paid_by_email,
                 receiver.name AS received_by_name,receiver.email AS received_by_email
             FROM petty_cash_advances a
             LEFT JOIN stores s ON s.id=a.store_id
@@ -357,8 +527,8 @@ const PettyCash = {
         `, [id]);
         if (!advances.length) return null;
         const advance = advances[0];
-        const expenses = await db.query(`SELECT e.*,u.name AS entered_by_name,u.email AS entered_by_email FROM petty_cash_expenses e LEFT JOIN users u ON u.id=e.entered_by WHERE e.advance_id=? ORDER BY e.id`, [id]);
-        const deposits = await db.query(`SELECT d.*,depositor.name AS deposited_by_name,depositor.email AS deposited_by_email,receiver.name AS received_by_name,receiver.email AS received_by_email FROM petty_cash_deposits d LEFT JOIN users depositor ON depositor.id=d.deposited_by LEFT JOIN users receiver ON receiver.id=d.received_by WHERE d.advance_id=? ORDER BY d.id`, [id]);
+        const expenses = await db.query(`SELECT e.*,DATE_FORMAT(e.expense_date,'%Y-%m-%d') AS expense_date,u.name AS entered_by_name,u.email AS entered_by_email FROM petty_cash_expenses e LEFT JOIN users u ON u.id=e.entered_by WHERE e.advance_id=? ORDER BY e.id`, [id]);
+        const deposits = await db.query(`SELECT d.*,DATE_FORMAT(d.deposit_date,'%Y-%m-%d') AS deposit_date,depositor.name AS deposited_by_name,depositor.email AS deposited_by_email,receiver.name AS received_by_name,receiver.email AS received_by_email FROM petty_cash_deposits d LEFT JOIN users depositor ON depositor.id=d.deposited_by LEFT JOIN users receiver ON receiver.id=d.received_by WHERE d.advance_id=? ORDER BY d.id`, [id]);
         const settlements = await db.query(`SELECT st.*,u.name AS settled_by_name,u.email AS settled_by_email FROM petty_cash_settlements st LEFT JOIN users u ON u.id=st.settled_by WHERE st.advance_id=? LIMIT 1`, [id]);
         const totalExpense = expenses.reduce((sum,x)=>sum+Number(x.amount||0),0);
         const totalDeposit = deposits.reduce((sum,x)=>sum+Number(x.amount||0),0);
@@ -436,27 +606,6 @@ const PettyCash = {
 
     async getDeleteCandidates(userId, admin=false) {
         if (admin) {
-            return db.query(`
-                SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id
-                FROM petty_cash_advances a
-                ORDER BY a.id
-            `);
-        }
-
-        return db.query(`
-            SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id
-            FROM petty_cash_advances a
-            WHERE a.paid_by=?
-              AND EXISTS (
-                  SELECT 1 FROM user_stores us
-                  WHERE us.user_id=? AND us.store_id=a.store_id
-              )
-            ORDER BY a.id
-        `, [userId, userId]);
-    },
-
-    async getDeleteCandidates(userId, admin=false) {
-        if (admin) {
             return db.query(`SELECT a.id,a.advance_no,a.paid_by,a.received_by,a.store_id FROM petty_cash_advances a ORDER BY a.id`);
         }
         return db.query(`
@@ -478,6 +627,7 @@ const PettyCash = {
             COALESCE(SUM((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id)),0) total_expense,
             COALESCE(SUM((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id)),0) total_deposit,
             COALESCE(SUM(CASE WHEN status='SETTLED' THEN advance_amount ELSE 0 END),0) settled_amount,
+            COALESCE(SUM(CASE WHEN status IN ('OPEN','PARTIALLY_SETTLED') THEN 1 ELSE 0 END),0) open_advances,
             COALESCE(SUM(CASE WHEN status IN ('OPEN','PARTIALLY_SETTLED') THEN advance_amount-COALESCE((SELECT SUM(e.amount) FROM petty_cash_expenses e WHERE e.advance_id=a.id),0)-COALESCE((SELECT SUM(d.amount) FROM petty_cash_deposits d WHERE d.advance_id=a.id),0) ELSE 0 END),0) outstanding_balance
             FROM petty_cash_advances a WHERE status<>'CANCELLED' ${scope} ${storeClause}`, baseParams);
         const storeRows = await db.query(`SELECT s.store_name,COALESCE(SUM(a.advance_amount),0) advances_given,

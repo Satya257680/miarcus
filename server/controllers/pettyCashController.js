@@ -9,6 +9,9 @@ function isAdmin(req) {
 }
 function number(value, fallback=0) { const n=Number(value); return Number.isFinite(n)?n:fallback; }
 function clean(value) { return value===undefined || value===null ? "" : String(value).trim(); }
+function esc(value) { return String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function inr(value) { return `₹${number(value).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+function fileInfo(file) { return file ? { filename: file.originalname || null, path: `/uploads/${file.filename}` } : { filename: null, path: null }; }
 function audit(data) { Audit.create(data, (e)=>{ if(e) console.error("Petty Cash audit error:",e); }); }
 
 async function ensureStore(req, storeId) {
@@ -83,30 +86,111 @@ exports.create = async (req,res)=>{
     const userId=actorId(req);
     try {
         const {advance_no,store_id,paid_by,received_by,advance_amount,purpose,advance_date}=req.body;
-        if(!clean(advance_no)||!store_id||!paid_by||!received_by) return res.status(400).json({success:false,message:"Advance number, store, paid by and received by are required."});
+        const file=req.file;
+        const missing=[];
+        if(!clean(advance_no)) missing.push("Advance No.");
+        if(!store_id) missing.push("Store");
+        if(!paid_by) missing.push("Paid By (Manager)");
+        if(!received_by) missing.push("Received By (Employee)");
+        if(!clean(advance_date)) missing.push("Advance Date");
+        if(!clean(purpose)) missing.push("Purpose");
+        if(!file) missing.push("Supporting Document");
+        if(missing.length) return res.status(400).json({success:false,message:`All fields are mandatory. Please fill: ${missing.join(", ")}.`});
         if(number(advance_amount)<=0) return res.status(400).json({success:false,message:"Advance amount must be greater than zero."});
+        if(clean(purpose).length<3) return res.status(400).json({success:false,message:"Please enter a valid purpose for the advance."});
+        if(clean(purpose).length>300) return res.status(400).json({success:false,message:"Purpose cannot be longer than 300 characters."});
+        if(Number(paid_by)===Number(received_by)) return res.status(400).json({success:false,message:"Paid By and Received By must be different people."});
         if(!(await ensureStore(req,store_id))) return res.status(403).json({success:false,message:"You cannot create petty cash for this store."});
         if(!isAdmin(req) && Number(paid_by)!==userId) return res.status(403).json({success:false,message:"Only the giver can create an advance in their own name."});
         if(!isAdmin(req) && !(await PettyCash.userBelongsToStore(Number(received_by), Number(store_id)))) return res.status(400).json({success:false,message:"The receiver must be assigned to the selected store."});
-        const result=await PettyCash.createAdvance({advance_no:clean(advance_no),store_id:Number(store_id),paid_by:Number(paid_by),received_by:Number(received_by),advance_amount:number(advance_amount),purpose:clean(purpose),advance_date:clean(advance_date)||new Date().toISOString().slice(0,10)});
-        audit({module_name:"Petty Cash",reference_id:result.id,action:"CREATE_ADVANCE",new_data:req.body,changed_by:userId});
-        const amount=number(advance_amount).toLocaleString("en-IN",{minimumFractionDigits:2});
-        const detail=`<p>A new petty cash advance has been created.</p><table cellpadding="7"><tr><td><b>Advance</b></td><td>${clean(advance_no)}</td></tr><tr><td><b>Store</b></td><td>${Number(store_id)}</td></tr><tr><td><b>Amount</b></td><td>₹${amount}</td></tr><tr><td><b>Purpose</b></td><td>${clean(purpose)||"-"}</td></tr></table>`;
+        const attachment=fileInfo(file);
+        const result=await PettyCash.createAdvance({advance_no:clean(advance_no),store_id:Number(store_id),paid_by:Number(paid_by),received_by:Number(received_by),advance_amount:number(advance_amount),purpose:clean(purpose),advance_date:clean(advance_date),attachment_filename:attachment.filename,attachment_path:attachment.path,created_by:userId});
+        audit({module_name:"Petty Cash",reference_id:result.id,action:"CREATE_ADVANCE",new_data:{...req.body,attachment:attachment.filename},changed_by:userId});
+        const created=await PettyCash.getById(result.id);
+        const detail=`<p>A new petty cash advance has been created.</p><table cellpadding="7"><tr><td><b>Advance</b></td><td>${esc(clean(advance_no))}</td></tr><tr><td><b>Store</b></td><td>${esc(created?.store_name||store_id)}</td></tr><tr><td><b>Paid By</b></td><td>${esc(created?.paid_by_name||"-")}</td></tr><tr><td><b>Received By</b></td><td>${esc(created?.received_by_name||"-")}</td></tr><tr><td><b>Amount</b></td><td>${inr(advance_amount)}</td></tr><tr><td><b>Purpose</b></td><td>${esc(clean(purpose))}</td></tr><tr><td><b>Date</b></td><td>${esc(clean(advance_date))}</td></tr></table>`;
         await sendPettyCashEventEmail(userId,"advance_created","Petty Cash Advance Created",emailTemplate("Petty Cash Advance Created",detail),{giverId:Number(paid_by),receiverId:Number(received_by)});
         res.status(201).json({success:true,message:"Petty cash advance created successfully.",data:result});
     } catch(error){ console.error("Petty Cash create error:",error); res.status(error?.code==="ER_DUP_ENTRY"?409:500).json({success:false,message:error?.code==="ER_DUP_ENTRY"?"Advance number already exists.":"Unable to create petty cash advance."}); }
+};
+
+exports.update = async (req,res)=>{
+    const userId=actorId(req);
+    try {
+        const before=await PettyCash.getById(req.params.id);
+        if(!before) return res.status(404).json({success:false,message:"Petty cash advance not found."});
+        if(!(await ensureAdvanceAccess(req,before))) return res.status(403).json({success:false,message:"You cannot access this store's petty cash records."});
+        if(!isAdmin(req) && Number(before.paid_by)!==userId) return res.status(403).json({success:false,message:"Only the giver can edit this advance."});
+        if(before.status==="SETTLED"||before.status==="CANCELLED") return res.status(400).json({success:false,message:"A settled or cancelled advance can no longer be edited."});
+        const {advance_amount,purpose,advance_date}=req.body;
+        const missing=[];
+        if(!clean(advance_date)) missing.push("Advance Date");
+        if(!clean(purpose)) missing.push("Purpose");
+        if(!req.file && !before.attachment_path) missing.push("Supporting Document");
+        if(missing.length) return res.status(400).json({success:false,message:`All fields are mandatory. Please fill: ${missing.join(", ")}.`});
+        if(number(advance_amount)<=0) return res.status(400).json({success:false,message:"Advance amount must be greater than zero."});
+        if(clean(purpose).length>300) return res.status(400).json({success:false,message:"Purpose cannot be longer than 300 characters."});
+        const used=number(before.total_expense)+number(before.total_deposit);
+        if(number(advance_amount)+0.005<used) return res.status(400).json({success:false,message:`Advance amount cannot be less than expenses + deposits already recorded (${inr(used)}).`});
+        const attachment=fileInfo(req.file);
+        await PettyCash.updateAdvance(req.params.id,{advance_amount:number(advance_amount),purpose:clean(purpose),advance_date:clean(advance_date),updated_by:userId,attachment_filename:attachment.filename,attachment_path:attachment.path});
+        audit({module_name:"Petty Cash",reference_id:req.params.id,action:"UPDATE_ADVANCE",old_data:{advance_amount:before.advance_amount,purpose:before.purpose,advance_date:before.advance_date,attachment:before.attachment_filename},new_data:{advance_amount,purpose,advance_date,attachment:attachment.filename||before.attachment_filename},changed_by:userId});
+        res.json({success:true,message:"Petty cash advance updated successfully.",data:await PettyCash.getById(req.params.id)});
+    } catch(error){ console.error("Petty Cash update error:",error); res.status(500).json({success:false,message:"Unable to update petty cash advance."}); }
+};
+
+exports.nextNumber = async (req,res)=>{
+    try { res.json({success:true,data:{advance_no:await PettyCash.getNextAdvanceNo()}}); }
+    catch(error){ console.error("Petty Cash next number error:",error); res.status(500).json({success:false,message:"Unable to generate the next advance number."}); }
+};
+
+exports.listExpenses = async (req,res)=>{
+    try { res.json({success:true,data:await PettyCash.listExpenses(req.query||{},actorId(req),isAdmin(req))}); }
+    catch(error){ console.error("Petty Cash expenses register error:",error); res.status(500).json({success:false,message:"Unable to load petty cash expenses."}); }
+};
+
+exports.listDeposits = async (req,res)=>{
+    try { res.json({success:true,data:await PettyCash.listDeposits(req.query||{},actorId(req),isAdmin(req))}); }
+    catch(error){ console.error("Petty Cash deposits register error:",error); res.status(500).json({success:false,message:"Unable to load petty cash deposits."}); }
+};
+
+exports.auditLog = async (req,res)=>{
+    try { res.json({success:true,data:await PettyCash.getAuditLog(req.query||{},actorId(req),isAdmin(req))}); }
+    catch(error){ console.error("Petty Cash audit log error:",error); res.status(500).json({success:false,message:"Unable to load the petty cash audit trail."}); }
+};
+
+// Emails the advance list currently on screen to the signed-in user.
+exports.emailReport = async (req,res)=>{
+    try {
+        const me=await PettyCash.getUserContact(actorId(req));
+        if(!me?.email) return res.status(400).json({success:false,message:"Your user profile has no email address."});
+        const filters=req.body||{};
+        const rows=await PettyCash.getAll({search:filters.search||"",store_id:filters.store_id||"",status:filters.status||"",from:filters.from||"",to:filters.to||""},actorId(req),isAdmin(req));
+        const totals=rows.reduce((t,r)=>({a:t.a+number(r.advance_amount),e:t.e+number(r.total_expense),d:t.d+number(r.total_deposit),b:t.b+number(r.balance)}),{a:0,e:0,d:0,b:0});
+        const cell='style="padding:7px 9px;border-bottom:1px solid #eee;font-size:12px"';
+        const head='style="padding:8px 9px;background:#241b4b;color:#fff;font-size:11px;text-align:left"';
+        const table=`<table style="width:100%;border-collapse:collapse"><tr><th ${head}>Advance No.</th><th ${head}>Date</th><th ${head}>Store</th><th ${head}>Employee</th><th ${head}>Purpose</th><th ${head}>Advance</th><th ${head}>Expense</th><th ${head}>Deposit</th><th ${head}>Balance</th><th ${head}>Status</th></tr>${rows.map(r=>`<tr><td ${cell}>${esc(r.advance_no)}</td><td ${cell}>${esc(r.advance_date)}</td><td ${cell}>${esc(r.store_name||"-")}</td><td ${cell}>${esc(r.received_by_name||"-")}</td><td ${cell}>${esc(r.purpose||"-")}</td><td ${cell}>${inr(r.advance_amount)}</td><td ${cell}>${inr(r.total_expense)}</td><td ${cell}>${inr(r.total_deposit)}</td><td ${cell}>${inr(r.balance)}</td><td ${cell}>${esc(String(r.status||"").replace("_"," "))}</td></tr>`).join("")}<tr><td ${cell} colspan="5"><b>TOTAL (${rows.length})</b></td><td ${cell}><b>${inr(totals.a)}</b></td><td ${cell}><b>${inr(totals.e)}</b></td><td ${cell}><b>${inr(totals.d)}</b></td><td ${cell}><b>${inr(totals.b)}</b></td><td ${cell}></td></tr></table>`;
+        await sendGenericEmail({to:me.email,subject:`MIARCUS Petty Cash Report – ${new Date().toISOString().slice(0,10)}`,html:emailTemplate("Petty Cash Advance Report",`<p>Hello ${esc(me.name||"")}, here is the petty cash advance list you requested.</p>${table}`,"#4c1d95")});
+        res.json({success:true,message:`Report emailed to ${me.email}.`});
+    } catch(error){ console.error("Petty Cash email report error:",error); res.status(500).json({success:false,message:"Unable to email the petty cash report."}); }
 };
 
 exports.addExpense = async (req,res)=>{
     const userId=actorId(req);
     try {
         const {expense_type,description,amount,expense_date}=req.body;
-        if(!clean(expense_type)||number(amount)<=0) return res.status(400).json({success:false,message:"Expense type and a valid amount are required."});
+        const missingExpense=[];
+        if(!clean(expense_type)) missingExpense.push("Expense Type");
+        if(!clean(description)) missingExpense.push("Description");
+        if(!clean(expense_date)) missingExpense.push("Expense Date");
+        if(!req.file) missingExpense.push("Bill / Receipt");
+        if(missingExpense.length) return res.status(400).json({success:false,message:`All fields are mandatory. Please fill: ${missingExpense.join(", ")}.`});
+        if(number(amount)<=0) return res.status(400).json({success:false,message:"Enter a valid expense amount."});
         const advance=await PettyCash.getById(req.params.id);
         if(!advance) return res.status(404).json({success:false,message:"Petty cash advance not found."});
         if(!(await ensureAdvanceAccess(req,advance))) return res.status(403).json({success:false,message:"You cannot access this store's petty cash records."});
         if(!isAdmin(req) && Number(advance.received_by)!==userId) return res.status(403).json({success:false,message:"Only the receiver can add expenses."});
         if(advance.status==="SETTLED"||advance.status==="CANCELLED") return res.status(400).json({success:false,message:"This advance can no longer be changed."});
+        if(number(amount)>number(advance.balance)+0.005) return res.status(400).json({success:false,message:`Expense cannot exceed the remaining balance (${inr(advance.balance)}).`});
         const file=req.file;
         const result=await PettyCash.addExpense(req.params.id,{expense_type:clean(expense_type),description:clean(description),amount:number(amount),expense_date:clean(expense_date)||new Date().toISOString().slice(0,10),entered_by:userId,bill_filename:file?.originalname||null,bill_path:file?`/uploads/${file.filename}`:null});
         audit({module_name:"Petty Cash",reference_id:req.params.id,action:"ADD_EXPENSE",new_data:{...req.body,file:file?.originalname||null},changed_by:userId});
@@ -120,7 +204,14 @@ exports.addDeposit = async (req,res)=>{
     const userId=actorId(req);
     try {
         const {amount,deposited_by,received_by,deposit_date,reference_no}=req.body;
-        if(number(amount)<=0||!deposited_by||!received_by) return res.status(400).json({success:false,message:"Deposit amount, deposited by and received by are required."});
+        const missingDeposit=[];
+        if(!deposited_by) missingDeposit.push("Deposited By");
+        if(!received_by) missingDeposit.push("Received By");
+        if(!clean(deposit_date)) missingDeposit.push("Deposit Date");
+        if(!clean(reference_no)) missingDeposit.push("Reference No.");
+        if(!req.file) missingDeposit.push("Deposit Receipt");
+        if(missingDeposit.length) return res.status(400).json({success:false,message:`All fields are mandatory. Please fill: ${missingDeposit.join(", ")}.`});
+        if(number(amount)<=0) return res.status(400).json({success:false,message:"Enter a valid deposit amount."});
         const advance=await PettyCash.getById(req.params.id);
         if(!advance) return res.status(404).json({success:false,message:"Petty cash advance not found."});
         if(!(await ensureAdvanceAccess(req,advance))) return res.status(403).json({success:false,message:"You cannot access this store's petty cash records."});
@@ -128,6 +219,7 @@ exports.addDeposit = async (req,res)=>{
         if(!isAdmin(req) && Number(deposited_by)!==userId) return res.status(403).json({success:false,message:"Deposited By must be the receiver."});
         if(Number(received_by)!==Number(advance.paid_by) && !isAdmin(req)) return res.status(403).json({success:false,message:"Cash must be returned to the original giver."});
         if(advance.status==="SETTLED"||advance.status==="CANCELLED") return res.status(400).json({success:false,message:"This advance can no longer be changed."});
+        if(number(amount)>number(advance.balance)+0.005) return res.status(400).json({success:false,message:`Deposit cannot exceed the remaining balance (${inr(advance.balance)}).`});
         const file=req.file;
         const result=await PettyCash.addDeposit(req.params.id,{amount:number(amount),deposited_by:Number(deposited_by),received_by:Number(received_by),deposit_date:clean(deposit_date)||new Date().toISOString().slice(0,10),reference_no:clean(reference_no),receipt_filename:file?.originalname||null,receipt_path:file?`/uploads/${file.filename}`:null});
         audit({module_name:"Petty Cash",reference_id:req.params.id,action:"ADD_DEPOSIT",new_data:{...req.body,file:file?.originalname||null},changed_by:userId});
@@ -342,10 +434,7 @@ exports.audit=async (req,res)=>{
         const advance=await PettyCash.getById(req.params.id);
         if(!advance) return res.status(404).json({success:false,message:"Petty cash advance not found."});
         if(!(await ensureAdvanceAccess(req,advance))) return res.status(403).json({success:false,message:"You cannot access this store's petty cash audit history."});
-        Audit.getByReference("Petty Cash",req.params.id,(err,data)=>{
-            if(err){ console.error("Petty Cash audit error:",err); return res.status(500).json({success:false,message:"Unable to load audit history."}); }
-            res.json({success:true,data});
-        });
+        res.json({success:true,data:await PettyCash.getAuditTrail(req.params.id)});
     } catch(error) {
         console.error("Petty Cash audit access error:",error);
         res.status(500).json({success:false,message:"Unable to load audit history."});

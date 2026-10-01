@@ -45,10 +45,11 @@ import {
 } from "./salesTeamUtils";
 
 import "../../styles/pages/SalesTeam.css";
+import "../../styles/premium/VisitPlannerWizard.css";
 import "../../styles/premium/PagePremium.css";
 import PremiumHero from "../../components/premium/PremiumHero";
 import InsightStrip from "../../components/premium/InsightStrip";
-import { FaMapMarkedAlt, FaHourglassHalf, FaUmbrellaBeach, FaEdit as FaEditIcon, FaListUl } from "react-icons/fa";
+import { FaMapMarkedAlt, FaHourglassHalf, FaUmbrellaBeach, FaEdit as FaEditIcon, FaListUl, FaExclamationCircle, FaUserTie, FaCalendarAlt, FaStore, FaRoute } from "react-icons/fa";
 import { initials, avatarTone, formatCount } from "../../utils/premiumFormat";
 import { exportFromCSV } from "../../utils/exportUtils.js";
 
@@ -189,8 +190,14 @@ function VisitPlanner() {
 
   const [form, setForm] = useState(makeInitialForm());
 
+  useEffect(() => {
+    if (showModal) setModalError("");
+  }, [showModal]);
+
   // Add / Edit wizard: "details" -> "dates" (store-wise dates) -> "review"
   const [step, setStep] = useState("details");
+  // Inline validation message inside the wizard (instead of browser alerts)
+  const [modalError, setModalError] = useState("");
   const [excludedStores, setExcludedStores] = useState([]);
 
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -758,7 +765,9 @@ function VisitPlanner() {
     if (!form.employee_id) return "Please select the employee.";
     if (!form.visit_date || !form.end_date) return "Please select the From and To dates.";
     if (form.end_date < form.visit_date) return "To date cannot be before the From date.";
+    if (!form.week_off && !String(form.city || "").trim()) return "City is required.";
     if (!String(form.reason_to_travel || "").trim()) return "Reason to travel is required.";
+    if (String(form.reason_to_travel || "").trim().length < 5) return "Please enter a proper reason to travel (at least 5 characters).";
     if (!form.week_off && !form.planned_store_ids.length) return "Please select at least one planned store.";
     return "";
   };
@@ -780,9 +789,10 @@ function VisitPlanner() {
   const goToDates = () => {
     const problem = validateDetails();
     if (problem) {
-      alert(problem);
+      setModalError(problem);
       return;
     }
+    setModalError("");
     setExcludedStores([]);
     setStep(form.week_off ? "review" : "dates");
   };
@@ -790,9 +800,10 @@ function VisitPlanner() {
   const goToReview = () => {
     const problem = validateDates();
     if (problem) {
-      alert(problem);
+      setModalError(problem);
       return;
     }
+    setModalError("");
     setStep("review");
   };
 
@@ -811,10 +822,11 @@ function VisitPlanner() {
 
     const problem = validateDetails() || validateDates();
     if (problem) {
-      alert(problem);
+      setModalError(problem);
       return;
     }
 
+    setModalError("");
     setSaving(true);
 
     try {
@@ -860,7 +872,7 @@ function VisitPlanner() {
         error
       );
 
-      alert(
+      setModalError(
         error.response?.data?.message ||
           "Unable to save planned visit."
       );
@@ -1482,7 +1494,7 @@ function VisitPlanner() {
 
       {showModal && (
         <div
-          className="sales-modal-backdrop"
+          className="sales-modal-backdrop vpw-backdrop"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1491,15 +1503,19 @@ function VisitPlanner() {
           }}
         >
           <form
-            className="sales-form-modal visit-form-modal vp-wizard"
+            className="sales-form-modal visit-form-modal vp-wizard vpw"
             onSubmit={save}
           >
             {/* =================================================
                 HEADER
             ================================================= */}
 
-            <div className="sales-modal-header">
+            <div className="sales-modal-header vpw-head">
+              <span className="vpw-head-icon">
+                {step === "details" ? <FaRoute /> : step === "dates" ? <FaCalendarAlt /> : <FaCheckCircle />}
+              </span>
               <div>
+                <span className="vpw-eyebrow">Sales Team · Visit Planner</span>
                 <h2>
                   {step === "details"
                     ? editing ? "Edit Planned Visit" : "Add Planned Visit"
@@ -1510,8 +1526,8 @@ function VisitPlanner() {
                 <p>
                   {step === "details"
                     ? editing
-                      ? "Changes will be sent for approval again."
-                      : "New plans are always submitted as Pending."
+                      ? "Changes will be sent for approval again. All fields marked * are mandatory."
+                      : "New plans are always submitted as Pending. All fields marked * are mandatory."
                     : step === "dates"
                       ? `Give every store its own visit date between ${dmy(form.visit_date)} and ${dmy(form.end_date)}.`
                       : "Check the plan, then submit it for approval."}
@@ -1523,6 +1539,7 @@ function VisitPlanner() {
                 className="sales-modal-close"
                 onClick={closeModal}
                 disabled={saving}
+                aria-label="Close"
               >
                 <FaTimes />
               </button>
@@ -1553,9 +1570,9 @@ function VisitPlanner() {
             {step === "details" && (
               <div className="sales-form-grid">
                 {/* EMPLOYEE */}
-                <label className="sales-field sales-field-full">
+                <label className="sales-field sales-field-full vpw-section">
                   <span>
-                    Employee <b>*</b>
+                    <FaUserTie className="vpw-label-icon" /> Employee <b>*</b>
                   </span>
 
                   <select
@@ -1594,9 +1611,9 @@ function VisitPlanner() {
                 </label>
 
                 {/* DATE RANGE */}
-                <div className="sales-field sales-field-full">
+                <div className="sales-field sales-field-full vpw-section">
                   <span>
-                    Date Range <b>*</b>
+                    <FaCalendarAlt className="vpw-label-icon" /> Date Range <b>*</b>
                   </span>
 
                   <div className="vp-range">
@@ -1658,7 +1675,7 @@ function VisitPlanner() {
                 {/* CITY */}
                 <label className="sales-field sales-field-full">
                   <span>
-                    City <small className="sales-field-help">(Optional)</small>
+                    <FaMapMarkedAlt className="vpw-label-icon" /> City {form.week_off ? <small className="sales-field-help">(Optional for week off / leave)</small> : <b>*</b>}
                   </span>
                   <input
                     value={form.city}
@@ -1697,7 +1714,7 @@ function VisitPlanner() {
                     <div className="sales-store-picker-header">
                       <div>
                         <span>
-                          Planned stores <b>*</b>
+                          <FaStore className="vpw-label-icon" /> Planned stores <b>*</b>
                         </span>
                         <small className="sales-field-help">
                           Select stores now — you assign a date for each store in the next step.
@@ -1992,6 +2009,13 @@ function VisitPlanner() {
             {/* =================================================
                 ACTIONS
             ================================================= */}
+
+            {modalError && (
+              <div className="vpw-error" role="alert">
+                <FaExclamationCircle /> {modalError}
+                <button type="button" onClick={() => setModalError("")} aria-label="Dismiss">×</button>
+              </div>
+            )}
 
             <div className="sales-modal-actions">
               {step === "details" ? (

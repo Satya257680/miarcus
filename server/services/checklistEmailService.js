@@ -158,6 +158,41 @@ const getAnswerCount = async (submissionId) => {
 };
 
 const getActionPointContext = async (actionPointId) => {
+    try {
+        return await getActionPointContextFull(actionPointId);
+    } catch (error) {
+        // Older databases can miss optional answer / comment columns.
+        // Never let that stop the Action Point email – fall back to the
+        // core columns only.
+        console.warn("Action Point email: full context query failed, using basic context:", error.message);
+        const rows = await db.query(`
+            SELECT
+                ap.id, ap.submission_id, ap.store_id, ap.priority, ap.status, ap.remarks,
+                s.store_name, s.city, s.state,
+                q.question,
+                DATE_FORMAT(cs.submission_date, '%d %b %Y, %h:%i %p') AS submission_date,
+                cs.submitted_by,
+                csa.answer,
+                csa.remarks AS answer_remarks,
+                su.name AS submitted_by_name,
+                su.email AS submitted_by_email,
+                au.name AS assigned_to_name,
+                au.email AS assigned_to_email
+            FROM action_points ap
+            LEFT JOIN stores s ON s.id = ap.store_id
+            LEFT JOIN questions q ON q.id = ap.question_id
+            LEFT JOIN checklist_submissions cs ON cs.id = ap.submission_id
+            LEFT JOIN checklist_submission_answers csa ON csa.id = ap.submission_answer_id
+            LEFT JOIN users su ON su.id = cs.submitted_by
+            LEFT JOIN users au ON au.id = ap.assigned_to
+            WHERE ap.id = ?
+            LIMIT 1
+        `, [Number(actionPointId)]);
+        return rows?.[0] || null;
+    }
+};
+
+const getActionPointContextFull = async (actionPointId) => {
     const rows = await db.query(`
         SELECT
             ap.id,
@@ -213,7 +248,13 @@ const getRecipients = async ({ event, storeId, settings, submitter, assignee }) 
     };
 
     // 1. Contact list of the routing this event belongs to
-    for (const contact of await routingFor(event).getContactsForEvent(event)) {
+    let contacts = [];
+    try {
+        contacts = await routingFor(event).getContactsForEvent(event);
+    } catch (error) {
+        console.error(`${AP_EVENTS.has(event) ? "Action Point" : "Checklist"} email contacts could not be loaded:`, error.message);
+    }
+    for (const contact of contacts || []) {
         add(contact.email, contact.role_label || "Contact", contact.contact_name);
     }
 
@@ -241,7 +282,13 @@ const getRecipients = async ({ event, storeId, settings, submitter, assignee }) 
 const eventEnabled = async (event) => {
     const settings = await routingFor(event).getSettings();
     const key = EVENTS[event];
-    return { settings, enabled: Boolean(key && Number(settings[key]) === 1) };
+    // Action Point routing has a master switch: OFF = nobody is emailed.
+    const masterOn = !AP_EVENTS.has(event) || settings.master_enabled === undefined || Number(settings.master_enabled) === 1;
+    const enabled = Boolean(masterOn && key && Number(settings[key]) === 1);
+    if (!enabled && AP_EVENTS.has(event)) {
+        console.log(`Action Point email (${event}) skipped – ${masterOn ? "event switched off" : "master switch OFF"} in Action Point Email Routing.`);
+    }
+    return { settings, enabled };
 };
 
 // ------------------------------------------------------
@@ -443,7 +490,43 @@ const sendActionPointEvent = async (actionPointId, event, extra = {}) => {
         text: `${subject}\nAction Point: #${actionPoint.id}\nStore: ${actionPoint.store_name || "-"}\nStatus: ${status}\nQuestion: ${actionPoint.question || "-"}\nAnswer: ${actionPoint.answer || "-"}`
     });
 
+    console.log(`✉️  Action Point email (${event}) #${actionPoint.id} sent to ${recipients.length} recipient(s).`);
     return { sent: true, recipients };
+};
+
+// ------------------------------------------------------
+// TEST EMAIL – Action Point routing
+// ------------------------------------------------------
+const sendActionPointTest = async () => {
+    const settings = await ActionPointEmailSettings.getSettings();
+    const to = Array.from(new Set((settings.recipients || [])
+        .filter((row) => Number(row.enabled) === 1)
+        .map((row) => validEmail(row.email))
+        .filter(Boolean)));
+    if (!to.length) {
+        const err = new Error("No enabled contacts with a valid email address. Add contacts and click Save Settings first.");
+        err.statusCode = 400;
+        throw err;
+    }
+    await sendGenericEmail({
+        to,
+        subject: "MIARCUS Action Points – test email",
+        html: buildEmail({
+            subject: "Action Point email routing test",
+            eyebrow: "ACTION POINT EMAIL ROUTING",
+            intro: "This is a test message from Settings → Action Point Email Routing. If you received it, your address is set up correctly.",
+            rows: [
+                tableRow("Master switch", Number(settings.master_enabled) === 1 ? "ON" : "OFF"),
+                tableRow("Generated email", Number(settings.action_point_created_enabled) === 1 ? "ON" : "OFF"),
+                tableRow("Status email", Number(settings.action_point_status_enabled) === 1 ? "ON" : "OFF"),
+                tableRow("Completed email", Number(settings.action_point_completed_enabled) === 1 ? "ON" : "OFF")
+            ],
+            actionLabel: "Open Action Points",
+            actionLink: toAppUrl("/action-points")
+        }),
+        text: "Test message from Mi Arcus Action Point email routing."
+    });
+    return { sent: to.length };
 };
 
 // ------------------------------------------------------
@@ -586,6 +669,7 @@ const sendActionPointsForSubmission = async (submissionId) => {
         ].join("\n")
     });
 
+    console.log(`✉️  Action Points generated email (submission #${submissionId}) sent to ${recipients.length} recipient(s).`);
     return { sent: true, mode: "one_per_store", recipients, action_points: count };
 };
 
@@ -594,5 +678,6 @@ module.exports = {
     getRecipients,
     sendChecklistSubmitted,
     sendActionPointEvent,
-    sendActionPointsForSubmission
+    sendActionPointsForSubmission,
+    sendActionPointTest
 };

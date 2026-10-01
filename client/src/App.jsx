@@ -79,6 +79,7 @@ import NSOTrackingDetails from "./pages/NSOTrackingDetails";
 import NSOTrackingEdit from "./pages/NSOTrackingEdit";
 import ChecklistEmailSettings from "./pages/Settings/ChecklistEmailSettings";
 import ActionPointEmailSettings from "./pages/Settings/ActionPointEmailSettings";
+import TravelPlanEmailSettings from "./pages/Settings/TravelPlanEmailSettings";
 
 // ======================================================
 // ACTIVITY CENTER
@@ -102,6 +103,9 @@ import ExpenseEntry from "./pages/Expenses/ExpensesEntry";
 import TrackExpenses from "./pages/Expenses/TrackExpenses";
 import ApproveExpenses from "./pages/Expenses/ApproveExpenses";
 import PettyCash from "./pages/PettyCash/PettyCash";
+import PettyCashDetail from "./pages/PettyCash/PettyCashDetail";
+import PettyCashAdvanceForm from "./pages/PettyCash/PettyCashAdvanceForm";
+import { PettyCashExpenses, PettyCashDeposits, PettyCashAuditTrail } from "./pages/PettyCash/PettyCashRegisters";
 
 // ======================================================
 // BILLING
@@ -483,6 +487,15 @@ function App() {
                         }
                     />
 
+                    <Route
+                        path="/settings/travel-plan-email"
+                        element={
+                            <ModulePermissionRoute adminOnly>
+                                <TravelPlanEmailSettings />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
                     {/* USERS */}
                     <Route
                         path="/settings/users"
@@ -824,10 +837,64 @@ function App() {
                     />
 
                     <Route
+                        path="/petty-cash/new"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCashAdvanceForm />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/advances"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCash mode="manage" />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/expenses"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCashExpenses />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/deposits"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCashDeposits />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/audit-trail"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCashAuditTrail />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/petty-cash/:id/edit"
+                        element={
+                            <ModulePermissionRoute page="pettycash.dashboard">
+                                <PettyCashAdvanceForm />
+                            </ModulePermissionRoute>
+                        }
+                    />
+
+                    <Route
                         path="/petty-cash/:id"
                         element={
                             <ModulePermissionRoute page="pettycash.dashboard">
-                                <PettyCash />
+                                <PettyCashDetail />
                             </ModulePermissionRoute>
                         }
                     />
